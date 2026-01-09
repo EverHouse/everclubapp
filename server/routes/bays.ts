@@ -183,7 +183,7 @@ async function isStaffOrAdminCheck(email: string): Promise<boolean> {
 
 router.get('/api/booking-requests', async (req, res) => {
   try {
-    const { user_email, status, include_all } = req.query;
+    const { user_email, status, include_all, limit: limitParam, offset: offsetParam } = req.query;
     const sessionUser = getSessionUser(req);
     
     if (!sessionUser) {
@@ -193,7 +193,9 @@ router.get('/api/booking-requests', async (req, res) => {
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
     const requestedEmail = (user_email as string)?.toLowerCase();
     
-    if (include_all === 'true') {
+    const isStaffRequest = include_all === 'true';
+    
+    if (isStaffRequest) {
       const hasStaffAccess = await isStaffOrAdminCheck(sessionEmail);
       if (!hasStaffAccess) {
         return res.status(403).json({ error: 'Staff access required to view all requests' });
@@ -212,7 +214,6 @@ router.get('/api/booking-requests', async (req, res) => {
     const conditions: any[] = [];
     
     if (user_email && !include_all) {
-      // Include bookings where user is primary booker OR is a linked member
       const userEmailLower = (user_email as string).toLowerCase();
       conditions.push(
         or(
@@ -226,8 +227,13 @@ router.get('/api/booking-requests', async (req, res) => {
       conditions.push(eq(bookingRequests.status, status as string));
     }
     
-    // Get the count of linked members for each booking (for time splitting)
-    const result = await db.select({
+    // Support optional pagination (frontend must explicitly request it with limit param)
+    // Don't force pagination as staff UI currently expects full dataset
+    const limit = limitParam ? Math.min(parseInt(limitParam as string), 500) : undefined;
+    const offset = offsetParam ? parseInt(offsetParam as string) : undefined;
+    
+    // Build base query
+    let query = db.select({
       id: bookingRequests.id,
       user_email: bookingRequests.userEmail,
       user_name: bookingRequests.userName,
@@ -261,93 +267,107 @@ router.get('/api/booking-requests', async (req, res) => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(bookingRequests.createdAt));
     
-    // Add linked_player_count for each booking to enable time splitting on frontend
-    // Also determine if current user is a linked member (not primary booker)
+    // Apply pagination for staff requests
+    if (limit !== undefined) {
+      query = query.limit(limit) as typeof query;
+    }
+    if (offset !== undefined && offset > 0) {
+      query = query.offset(offset) as typeof query;
+    }
+    
+    const result = await query;
+    
+    // Early return if no results
+    if (result.length === 0) {
+      return res.json([]);
+    }
+    
+    // Batch fetch all member/guest counts in single queries instead of N+1
+    const bookingIds = result.map(b => b.id);
     const requestingUserEmail = (user_email as string)?.toLowerCase();
     
-    const enrichedResult = await Promise.all(result.map(async (booking) => {
-      // Count slots in booking_members (represents total player count from Trackman)
-      // Wrapped in try-catch to prevent transient DB issues from failing the entire request
-      let memberSlotsCount = 0;
-      let filledMemberCount = 0;
-      let actualGuestCount = 0;
-      
-      try {
-        const memberSlotsResult = await db.select({ count: sql<number>`count(*)::int` })
-          .from(bookingMembers)
-          .where(eq(bookingMembers.bookingId, booking.id));
-        memberSlotsCount = memberSlotsResult[0]?.count || 0;
+    // Batch query: Count all member slots per booking using inArray
+    const memberSlotsCounts = await db.select({
+      bookingId: bookingMembers.bookingId,
+      totalSlots: sql<number>`count(*)::int`,
+      filledSlots: sql<number>`count(${bookingMembers.userEmail})::int`
+    })
+    .from(bookingMembers)
+    .where(sql`${bookingMembers.bookingId} IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`)
+    .groupBy(bookingMembers.bookingId);
+    
+    // Batch query: Count all guests per booking
+    const guestCounts = await db.select({
+      bookingId: bookingGuests.bookingId,
+      count: sql<number>`count(*)::int`
+    })
+    .from(bookingGuests)
+    .where(sql`${bookingGuests.bookingId} IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`)
+    .groupBy(bookingGuests.bookingId);
+    
+    // Batch query: Get invite statuses for linked members (only for non-staff member requests)
+    let inviteStatusMap = new Map<string, string>();
+    if (requestingUserEmail && !isStaffRequest) {
+      const sessionIds = result.filter(b => b.session_id).map(b => b.session_id as string);
+      if (sessionIds.length > 0) {
+        const inviteStatuses = await db.select({
+          sessionId: bookingParticipants.sessionId,
+          inviteStatus: bookingParticipants.inviteStatus
+        })
+        .from(bookingParticipants)
+        .innerJoin(users, eq(bookingParticipants.userId, users.id))
+        .where(and(
+          sql`${bookingParticipants.sessionId} IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`,
+          sql`LOWER(${users.email}) = ${requestingUserEmail}`
+        ));
         
-        // Count filled member slots (members with email assigned)
-        const filledMemberResult = await db.select({ count: sql<number>`count(*)::int` })
-          .from(bookingMembers)
-          .where(and(
-            eq(bookingMembers.bookingId, booking.id),
-            sql`${bookingMembers.userEmail} IS NOT NULL`
-          ));
-        filledMemberCount = filledMemberResult[0]?.count || 0;
-        
-        // Count guests in booking_guests table
-        const guestResult = await db.select({ count: sql<number>`count(*)::int` })
-          .from(bookingGuests)
-          .where(eq(bookingGuests.bookingId, booking.id));
-        actualGuestCount = guestResult[0]?.count || 0;
-      } catch (countError) {
-        // Log but don't fail - use legacy counts as fallback
-        console.warn(`[Booking ${booking.id}] Failed to fetch member/guest counts, using legacy values`);
+        for (const row of inviteStatuses) {
+          if (row.sessionId) {
+            inviteStatusMap.set(row.sessionId, row.inviteStatus || '');
+          }
+        }
       }
+    }
+    
+    // Build lookup maps for O(1) access
+    const memberCountsMap = new Map(memberSlotsCounts.map(m => [m.bookingId, { total: m.totalSlots, filled: m.filledSlots }]));
+    const guestCountsMap = new Map(guestCounts.map(g => [g.bookingId, g.count]));
+    
+    // Enrich results using pre-fetched data
+    const enrichedResult = result.map((booking) => {
+      const memberCounts = memberCountsMap.get(booking.id) || { total: 0, filled: 0 };
+      const actualGuestCount = guestCountsMap.get(booking.id) || 0;
+      
       const legacyGuestCount = booking.guest_count || 0;
       const trackmanPlayerCount = booking.trackman_player_count;
       
-      // Total player count: use Trackman's original value if available, else compute from slots
-      // Priority: trackman_player_count > member_slots + guests > legacy guest_count + 1
       let totalPlayerCount: number;
       if (trackmanPlayerCount && trackmanPlayerCount > 0) {
-        // Trackman import with stored player count - most authoritative
         totalPlayerCount = trackmanPlayerCount;
-      } else if (memberSlotsCount > 0) {
-        // Trackman import without stored player count - compute from slots + guests
-        totalPlayerCount = memberSlotsCount + actualGuestCount;
+      } else if (memberCounts.total > 0) {
+        totalPlayerCount = memberCounts.total + actualGuestCount;
       } else {
-        // Legacy booking without booking_members - use legacy formula
         totalPlayerCount = Math.max(legacyGuestCount + 1, 1);
       }
       
-      // Check if the requesting user is a linked member (not the primary booker)
       const isPrimaryBooker = booking.user_email?.toLowerCase() === requestingUserEmail;
       const isLinkedMember = !isPrimaryBooker && !!requestingUserEmail;
-      
-      // For linked members, include the primary booker's name
       const primaryBookerName = isLinkedMember ? (booking.user_name || booking.user_email) : null;
       
-      // For linked members, get invite_status from booking_participants via session
-      // Note: booking_participants.userId contains user UUIDs, so we must join with users table to match by email
-      let inviteStatus: string | null = null;
-      if (isLinkedMember && booking.session_id) {
-        const participantResult = await db.select({ inviteStatus: bookingParticipants.inviteStatus })
-          .from(bookingParticipants)
-          .innerJoin(users, eq(bookingParticipants.userId, users.id))
-          .where(and(
-            eq(bookingParticipants.sessionId, booking.session_id),
-            sql`LOWER(${users.email}) = ${requestingUserEmail}`
-          ))
-          .limit(1);
-        
-        if (participantResult[0]) {
-          inviteStatus = participantResult[0].inviteStatus;
-        }
-      }
+      const inviteStatus = (isLinkedMember && booking.session_id) 
+        ? (inviteStatusMap.get(booking.session_id) || null)
+        : null;
       
       return {
         ...booking,
-        linked_member_count: filledMemberCount,
+        linked_member_count: memberCounts.filled,
         guest_count: actualGuestCount,
         total_player_count: totalPlayerCount,
         is_linked_member: isLinkedMember || false,
         primary_booker_name: primaryBookerName,
         invite_status: inviteStatus
       };
-    }));
+    });
     
     res.json(enrichedResult);
   } catch (error: any) {
