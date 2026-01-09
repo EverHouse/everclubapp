@@ -653,9 +653,13 @@ const Dashboard: React.FC = () => {
   const handleAcceptInvite = async (bookingId: number) => {
     setProcessingInviteId(bookingId);
     try {
+      // When admin is viewing as a member, pass the member's email so the backend knows who to act for
+      const body = isAdminViewingAs && user?.email ? { onBehalfOf: user.email } : {};
+      
       const result = await apiRequest(`/api/bookings/${bookingId}/invite/accept`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
       
       if (result.ok) {
@@ -681,9 +685,13 @@ const Dashboard: React.FC = () => {
         setProcessingInviteId(bookingId);
         
         try {
+          // When admin is viewing as a member, pass the member's email so the backend knows who to act for
+          const body = isAdminViewingAs && user?.email ? { onBehalfOf: user.email } : {};
+          
           const result = await apiRequest(`/api/bookings/${bookingId}/invite/decline`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
           });
           
           if (result.ok) {

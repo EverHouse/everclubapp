@@ -701,7 +701,20 @@ router.post('/api/bookings/:id/invite/accept', async (req: Request, res: Respons
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
 
-    const userEmail = sessionUser.email?.toLowerCase() || '';
+    // Support "View As" mode: admin can accept on behalf of a member
+    const { onBehalfOf } = req.body || {};
+    let userEmail = sessionUser.email?.toLowerCase() || '';
+    
+    if (onBehalfOf && typeof onBehalfOf === 'string') {
+      // Only admins can act on behalf of others
+      if (sessionUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can accept invites on behalf of others' });
+      }
+      userEmail = onBehalfOf.toLowerCase();
+      logger.info('[Invite Accept] Admin acting on behalf of member', {
+        extra: { adminEmail: sessionUser.email, targetEmail: userEmail, bookingId }
+      });
+    }
     
     // Get booking with session
     const booking = await getBookingWithSession(bookingId);
@@ -774,7 +787,20 @@ router.post('/api/bookings/:id/invite/decline', async (req: Request, res: Respon
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
 
-    const userEmail = sessionUser.email?.toLowerCase() || '';
+    // Support "View As" mode: admin can decline on behalf of a member
+    const { onBehalfOf } = req.body || {};
+    let userEmail = sessionUser.email?.toLowerCase() || '';
+    
+    if (onBehalfOf && typeof onBehalfOf === 'string') {
+      // Only admins can act on behalf of others
+      if (sessionUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can decline invites on behalf of others' });
+      }
+      userEmail = onBehalfOf.toLowerCase();
+      logger.info('[Invite Decline] Admin acting on behalf of member', {
+        extra: { adminEmail: sessionUser.email, targetEmail: userEmail, bookingId }
+      });
+    }
     
     // Get booking with session
     const booking = await getBookingWithSession(bookingId);
