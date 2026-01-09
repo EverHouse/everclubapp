@@ -1346,7 +1346,8 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       updated_at: bookingRequests.updatedAt,
       calendar_event_id: bookingRequests.calendarEventId,
       resource_name: resources.name,
-      trackman_booking_id: bookingRequests.trackmanBookingId
+      trackman_booking_id: bookingRequests.trackmanBookingId,
+      declared_player_count: bookingRequests.declaredPlayerCount
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))

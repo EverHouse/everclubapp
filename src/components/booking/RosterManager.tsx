@@ -32,6 +32,8 @@ export interface RosterBooking {
   resourceName: string | null;
   status: string;
   sessionId: number | null;
+  notes: string | null;
+  staffNotes: string | null;
 }
 
 interface ParticipantsResponse {

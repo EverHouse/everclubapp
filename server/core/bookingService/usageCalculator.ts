@@ -26,17 +26,44 @@ export interface OverageFeeResult {
 const OVERAGE_RATE_PER_30_MIN = 25;
 const OVERAGE_RATE_PER_HOUR = 50;
 
+export interface AllocationOptions {
+  declaredSlots?: number;
+  assignRemainderToOwner?: boolean;
+}
+
 export function computeUsageAllocation(
   sessionDuration: number,
-  participants: Participant[]
+  participants: Participant[],
+  options?: AllocationOptions
 ): UsageAllocation[] {
   if (!participants || participants.length === 0) {
     return [];
   }
   
-  const minutesPerParticipant = Math.floor(sessionDuration / participants.length);
-  const remainder = sessionDuration % participants.length;
+  // Use declaredSlots if provided, otherwise use participant count
+  const divisor = options?.declaredSlots && options.declaredSlots > 0 
+    ? options.declaredSlots 
+    : participants.length;
   
+  const minutesPerParticipant = Math.floor(sessionDuration / divisor);
+  const remainder = sessionDuration % divisor;
+  
+  // If assigning remainder to owner, find owner and give them the extra minutes
+  // Otherwise distribute remainder 1 minute at a time to first N participants
+  const assignToOwner = options?.assignRemainderToOwner ?? false;
+  
+  if (assignToOwner) {
+    // Remainder goes entirely to the owner
+    return participants.map((participant) => ({
+      userId: participant.userId,
+      guestId: participant.guestId,
+      participantType: participant.participantType,
+      displayName: participant.displayName,
+      minutesAllocated: minutesPerParticipant + (participant.participantType === 'owner' ? remainder : 0)
+    }));
+  }
+  
+  // Default: distribute remainder to first N participants
   return participants.map((participant, index) => ({
     userId: participant.userId,
     guestId: participant.guestId,

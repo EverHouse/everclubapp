@@ -70,6 +70,8 @@ async function getBookingWithSession(bookingId: number) {
       br.status,
       br.session_id,
       br.resource_id,
+      br.notes,
+      br.staff_notes,
       r.name as resource_name,
       u.tier as owner_tier
     FROM booking_requests br
@@ -168,6 +170,8 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
         resourceName: booking.resource_name,
         status: booking.status,
         sessionId: booking.session_id,
+        notes: booking.notes || null,
+        staffNotes: booking.staff_notes || null,
       },
       declaredPlayerCount: declaredCount,
       currentParticipantCount: currentCount, // Includes owner (1) + added participants
@@ -343,6 +347,77 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
 
     const [newParticipant] = await linkParticipants(sessionId, [participantInput]);
 
+    // For members, also add to booking_members so the booking shows on their schedule
+    if (type === 'member' && memberInfo) {
+      // Get the next available slot number
+      const slotResult = await pool.query(
+        `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_members WHERE booking_id = $1`,
+        [bookingId]
+      );
+      const nextSlot = slotResult.rows[0]?.next_slot || 2;
+      
+      // Insert into booking_members (this makes the booking appear on member's schedule)
+      // Check if member already exists for this booking to avoid duplicate key errors
+      const existingMember = await pool.query(
+        `SELECT id FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
+        [bookingId, memberInfo.email]
+      );
+      
+      if (existingMember.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, linked_at, linked_by, created_at)
+           VALUES ($1, $2, $3, false, NOW(), $4, NOW())`,
+          [bookingId, memberInfo.email.toLowerCase(), nextSlot, userEmail]
+        );
+      }
+      
+      logger.info('[roster] Member linked to booking_members', {
+        extra: { bookingId, memberEmail: memberInfo.email, slotNumber: nextSlot }
+      });
+      
+      // Send notification to invited member
+      try {
+        const { createNotification } = await import('../core/notificationService');
+        const formattedDate = booking.request_date || 'upcoming date';
+        const formattedTime = booking.start_time ? booking.start_time.substring(0, 5) : '';
+        const timeDisplay = formattedTime ? ` at ${formattedTime}` : '';
+        
+        // Calculate expiry date safely
+        let expiresAt: Date | undefined;
+        if (booking.request_date && booking.start_time) {
+          const dateTimeStr = `${booking.request_date}T${booking.start_time}`;
+          const bookingDate = new Date(dateTimeStr);
+          if (!isNaN(bookingDate.getTime())) {
+            expiresAt = new Date(bookingDate.getTime() + 24 * 60 * 60 * 1000);
+          }
+        }
+        
+        await createNotification({
+          userEmail: memberInfo.email.toLowerCase(),
+          type: 'booking_invite',
+          title: 'You\'ve been added to a booking',
+          message: `${booking.owner_name || 'A member'} has added you to their simulator booking on ${formattedDate}${timeDisplay}`,
+          metadata: {
+            bookingId,
+            ownerEmail: booking.owner_email,
+            ownerName: booking.owner_name,
+            date: booking.request_date,
+            startTime: booking.start_time
+          },
+          ...(expiresAt && { expiresAt })
+        });
+        
+        logger.info('[roster] Invite notification sent', {
+          extra: { bookingId, invitedMember: memberInfo.email }
+        });
+      } catch (notifError) {
+        logger.warn('[roster] Failed to send invite notification (non-blocking)', {
+          error: notifError as Error,
+          extra: { bookingId, memberEmail: memberInfo.email }
+        });
+      }
+    }
+
     logger.info('[roster] Participant added', {
       extra: {
         bookingId,
@@ -415,6 +490,28 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
       .delete(bookingParticipants)
       .where(eq(bookingParticipants.id, participantId));
 
+    // If it was a member, also remove from booking_members
+    if (participant.participantType === 'member' && participant.userId) {
+      // Get member email from userId (could be UUID or email for legacy data)
+      const memberResult = await pool.query(
+        `SELECT email FROM users WHERE id = $1 OR LOWER(email) = LOWER($1) LIMIT 1`,
+        [participant.userId]
+      );
+      
+      if (memberResult.rows.length > 0) {
+        const memberEmail = memberResult.rows[0].email.toLowerCase();
+        // Use LOWER() on both sides to ensure case-insensitive matching
+        await pool.query(
+          `DELETE FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
+          [bookingId, memberEmail]
+        );
+        
+        logger.info('[roster] Member removed from booking_members', {
+          extra: { bookingId, memberEmail }
+        });
+      }
+    }
+
     logger.info('[roster] Participant removed', {
       extra: {
         bookingId,
@@ -478,6 +575,7 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
 
     const ownerTier = booking.owner_tier || await getMemberTierByEmail(booking.owner_email);
     const durationMinutes = booking.duration_minutes || 60;
+    const declaredPlayerCount = booking.declared_player_count || 1;
 
     let dailyAllowance = 60;
     let guestPassesPerMonth = 0;
@@ -492,23 +590,52 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       remainingMinutesToday = await getRemainingMinutes(booking.owner_email, ownerTier, booking.request_date);
     }
 
-    const usageParticipants: UsageParticipant[] = allParticipants.length > 0 
-      ? allParticipants.map(p => ({
-          userId: p.userId,
-          guestId: p.guestId,
-          participantType: p.participantType as 'owner' | 'member' | 'guest',
-          displayName: p.displayName
-        }))
-      : [{
-          participantType: 'owner' as const,
-          displayName: booking.owner_name || booking.owner_email
-        }];
+    // Build participant list - ensure owner is always included
+    const ownerInParticipants = allParticipants.some(p => p.participantType === 'owner');
+    const participantsForAllocation: UsageParticipant[] = [];
+    
+    // Always add owner first
+    if (!ownerInParticipants) {
+      participantsForAllocation.push({
+        participantType: 'owner' as const,
+        displayName: booking.owner_name || booking.owner_email
+      });
+    }
+    
+    // Add existing participants
+    for (const p of allParticipants) {
+      participantsForAllocation.push({
+        userId: p.userId,
+        guestId: p.guestId,
+        participantType: p.participantType as 'owner' | 'member' | 'guest',
+        displayName: p.displayName
+      });
+    }
 
-    const allocations = computeUsageAllocation(durationMinutes, usageParticipants);
+    // Use computeUsageAllocation with declared_player_count as the divisor
+    // This ensures time is split by declared players, not just current participants
+    const allocations = computeUsageAllocation(durationMinutes, participantsForAllocation, {
+      declaredSlots: declaredPlayerCount,
+      assignRemainderToOwner: true
+    });
 
     const guestCount = allParticipants.filter(p => p.participantType === 'guest').length;
     const memberCount = allParticipants.filter(p => p.participantType === 'member').length;
-    const ownerMinutes = allocations.find(a => a.participantType === 'owner')?.minutesAllocated || durationMinutes;
+    
+    // Calculate minutes per player for display purposes
+    const minutesPerPlayer = Math.floor(durationMinutes / declaredPlayerCount);
+    
+    // Get owner's allocated minutes from the computed allocations
+    const ownerAllocation = allocations.find(a => a.participantType === 'owner');
+    const baseOwnerMinutes = ownerAllocation?.minutesAllocated || minutesPerPlayer;
+    
+    // Owner is also responsible for any unfilled slots
+    const filledSlots = participantsForAllocation.length;
+    const unfilledSlots = Math.max(0, declaredPlayerCount - filledSlots);
+    const unfilledMinutes = unfilledSlots * minutesPerPlayer;
+    const ownerMinutes = baseOwnerMinutes + unfilledMinutes;
+    
+    // Guest minutes from computed allocations
     const guestMinutes = allocations
       .filter(a => a.participantType === 'guest')
       .reduce((sum, a) => sum + a.minutesAllocated, 0);
@@ -547,7 +674,8 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       },
       timeAllocation: {
         totalMinutes: durationMinutes,
-        minutesPerParticipant: allParticipants.length > 0 ? Math.floor(durationMinutes / allParticipants.length) : durationMinutes,
+        declaredPlayerCount,
+        minutesPerParticipant: minutesPerPlayer,
         allocations: allocations.map(a => ({
           displayName: a.displayName,
           type: a.participantType,
