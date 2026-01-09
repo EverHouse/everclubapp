@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useToast } from '../../Toast';
 
 interface ParticipantFee {
   participantId: number;
@@ -39,6 +40,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   bookingId,
   onCheckinComplete
 }) => {
+  const { showToast } = useToast();
   const [context, setContext] = useState<CheckinContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,10 +84,14 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         body: JSON.stringify({ participantId, action: 'confirm' })
       });
       if (res.ok) {
+        showToast('Payment confirmed', 'success');
         await fetchContext();
+      } else {
+        showToast('Failed to confirm payment', 'error');
       }
     } catch (err) {
       console.error('Failed to confirm payment:', err);
+      showToast('Failed to confirm payment', 'error');
     } finally {
       setActionInProgress(null);
     }
@@ -108,12 +114,16 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         })
       });
       if (res.ok) {
+        showToast(participantId === 'all' ? 'All fees waived' : 'Fee waived', 'success');
         setWaiverReason('');
         setShowWaiverInput(null);
         await fetchContext();
+      } else {
+        showToast('Failed to waive fee', 'error');
       }
     } catch (err) {
       console.error('Failed to waive payment:', err);
+      showToast('Failed to waive fee', 'error');
     } finally {
       setActionInProgress(null);
     }
@@ -129,10 +139,14 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         body: JSON.stringify({ action: 'confirm_all' })
       });
       if (res.ok) {
+        showToast('All payments confirmed', 'success');
         await fetchContext();
+      } else {
+        showToast('Failed to confirm payments', 'error');
       }
     } catch (err) {
       console.error('Failed to confirm all payments:', err);
+      showToast('Failed to confirm payments', 'error');
     } finally {
       setActionInProgress(null);
     }
