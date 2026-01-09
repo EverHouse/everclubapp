@@ -698,8 +698,8 @@ const TrackmanTab: React.FC = () => {
           
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {needsPlayersBookings.map((booking: any) => {
-              const expectedCount = booking.playerCount || booking.player_count || 1;
-              const assignedCount = booking.assignedCount || booking.assigned_count || 0;
+              const expectedCount = booking.slotInfo?.totalSlots || booking.slotInfo?.expectedPlayerCount || booking.trackmanPlayerCount || booking.playerCount || booking.player_count || 1;
+              const assignedCount = booking.slotInfo?.filledSlots || booking.assignedCount || booking.assigned_count || 0;
               const isComplete = assignedCount >= expectedCount;
               
               return (
