@@ -266,10 +266,12 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         const res = await fetch(`/api/members/${encodeURIComponent(member.email)}/details`, { credentials: 'include' });
         if (res.ok) {
           const details = await res.json();
+          // HubSpot is the source of truth for tier and tags, so prioritize member values
+          // The details from database may be stale, only use as fallback
           const fullMember: MemberProfile = {
             ...member,
-            tier: details.tier || member.tier,
-            tags: details.tags || member.tags,
+            tier: member.tier || details.tier,
+            tags: member.tags?.length ? member.tags : details.tags,
             lifetimeVisits: details.lifetimeVisits || 0,
             lastBookingDate: details.lastBookingDate || undefined,
             mindbodyClientId: details.mindbodyClientId || ''
