@@ -86,6 +86,28 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           if (message.type === 'announcement_update') {
             window.dispatchEvent(new CustomEvent('announcement-update', { detail: message }));
           }
+          
+          // Handle availability updates (booking slots)
+          if (message.type === 'availability_update') {
+            window.dispatchEvent(new CustomEvent('availability-update', { detail: message }));
+            bookingEvents.emit(); // Trigger data refresh
+          }
+
+          // Handle waitlist updates (wellness classes)
+          if (message.type === 'waitlist_update') {
+            window.dispatchEvent(new CustomEvent('waitlist-update', { detail: message }));
+            bookingEvents.emit();
+          }
+
+          // Handle cafe menu updates
+          if (message.type === 'cafe_menu_update') {
+            window.dispatchEvent(new CustomEvent('cafe-menu-update', { detail: message }));
+          }
+
+          // Handle closure/notice updates
+          if (message.type === 'closure_update') {
+            window.dispatchEvent(new CustomEvent('closure-update', { detail: message }));
+          }
         } catch (e) {
           console.error('[WebSocket] Error parsing message:', e);
         }

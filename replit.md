@@ -45,6 +45,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Enhanced Member Directory**: Comprehensive member profile drawer with tabbed sections for history, communication logs, and staff notes.
 - **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware.
 - **Notifications & Notices**: In-app real-time notifications and a database-tracked sequential notice dismissal system. Notice types sync via Google Calendar bracket prefixes; custom types are auto-detected.
+- **Real-Time Sync**: Instant updates across all clients via WebSocket broadcasts for simulator availability, wellness waitlists, member directory changes, cafe menu updates, facility closures/notices, and announcements. No page refresh needed.
 - **PWA Features**: Service Worker caching, offline support, safe area, overscroll prevention, and pull-to-refresh.
 - **iOS-Style Interactions**: Haptic feedback, button bounce animations, segmented control, edge swipe back navigation, and swipeable list items.
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling.

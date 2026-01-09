@@ -9,6 +9,7 @@ import { normalizeTierName, extractTierTags } from '../../shared/constants/tiers
 import * as fs from 'fs';
 import * as path from 'path';
 import pRetry, { AbortError } from 'p-retry';
+import { broadcastDirectoryUpdate } from '../core/websocket';
 
 const router = Router();
 
@@ -626,6 +627,10 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
     }
     
     console.log(`[Tier Sync] Complete - Matched: ${results.matched}, Updates: ${results.updates.length}, Errors: ${results.errors.length}`);
+    
+    if (!dryRun && results.updated > 0) {
+      broadcastDirectoryUpdate('synced');
+    }
     
     res.json({
       success: true,

@@ -581,6 +581,127 @@ export function broadcastAnnouncementUpdate(action: 'created' | 'updated' | 'del
   return sent;
 }
 
+export function broadcastAvailabilityUpdate(data: {
+  resourceId?: number;
+  resourceType?: string;
+  date?: string;
+  action: 'booked' | 'cancelled' | 'updated';
+}) {
+  const payload = JSON.stringify({
+    type: 'availability_update',
+    ...data
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast availability ${data.action} to ${sent} connections`);
+  }
+  return sent;
+}
+
+export function broadcastWaitlistUpdate(data: {
+  classId?: number;
+  eventId?: number;
+  action: 'spot_opened' | 'enrolled' | 'removed';
+  spotsAvailable?: number;
+}) {
+  const payload = JSON.stringify({
+    type: 'waitlist_update',
+    ...data
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast waitlist ${data.action} to ${sent} connections`);
+  }
+  return sent;
+}
+
+export function broadcastDirectoryUpdate(action: 'synced' | 'updated' | 'created') {
+  const payload = JSON.stringify({
+    type: 'directory_update',
+    action
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast directory ${action} to ${sent} staff connections`);
+  }
+  return sent;
+}
+
+export function broadcastCafeMenuUpdate(action: 'created' | 'updated' | 'deleted') {
+  const payload = JSON.stringify({
+    type: 'cafe_menu_update',
+    action
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast cafe menu ${action} to ${sent} connections`);
+  }
+  return sent;
+}
+
+export function broadcastClosureUpdate(action: 'created' | 'updated' | 'deleted' | 'synced', closureId?: number) {
+  const payload = JSON.stringify({
+    type: 'closure_update',
+    action,
+    closureId
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast closure ${action} to ${sent} connections`);
+  }
+  return sent;
+}
+
 export function getConnectedUsers(): string[] {
   return Array.from(clients.keys());
 }

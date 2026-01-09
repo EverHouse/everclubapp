@@ -9,7 +9,7 @@ import { eq, and, gte, sql, isNull, asc, desc } from 'drizzle-orm';
 import { sendPushNotification } from './push';
 import { formatDateDisplayWithDay, getTodayPacific } from '../utils/dateUtils';
 import { getAllActiveBayIds, getConferenceRoomId } from '../core/affectedAreas';
-import { sendNotificationToUser, broadcastToStaff } from '../core/websocket';
+import { sendNotificationToUser, broadcastToStaff, broadcastWaitlistUpdate } from '../core/websocket';
 import { getSessionUser } from '../types/session';
 
 async function createWellnessAvailabilityBlocks(wellnessClassId: number, classDate: string, startTime: string, endTime: string, createdBy?: string): Promise<void> {
@@ -620,6 +620,9 @@ router.post('/api/wellness-enrollments', async (req, res) => {
       memberEmail: user_email
     });
     
+    // Broadcast waitlist update for real-time availability refresh
+    broadcastWaitlistUpdate({ classId: class_id, action: 'enrolled' });
+    
     res.status(201).json({ ...result, isWaitlisted, message: isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
   } catch (error: any) {
     if (!isProduction) console.error('Wellness enrollment error:', error);
@@ -768,6 +771,19 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
       classId: parseInt(class_id),
       memberEmail: user_email
     });
+    
+    // Broadcast waitlist update for real-time availability refresh (spot opened)
+    const spotsQuery = await pool.query(
+      `SELECT 
+        CASE 
+          WHEN capacity IS NOT NULL THEN GREATEST(0, capacity - COALESCE((SELECT COUNT(*) FROM wellness_enrollments WHERE class_id = $1 AND status = 'confirmed' AND is_waitlisted = false), 0))
+          ELSE NULL
+        END as spots_available
+       FROM wellness_classes WHERE id = $1`,
+      [class_id]
+    );
+    const spotsAvailable = spotsQuery.rows[0]?.spots_available;
+    broadcastWaitlistUpdate({ classId: parseInt(class_id), action: 'spot_opened', spotsAvailable: spotsAvailable ?? undefined });
     
     res.json({ success: true });
   } catch (error: any) {

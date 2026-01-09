@@ -11,7 +11,7 @@ import { DEFAULT_TIER } from '../../shared/constants/tiers';
 import { withRetry } from '../core/retry';
 import { checkDailyBookingLimit } from '../core/tierService';
 import { bookingEvents } from '../core/bookingEvents';
-import { sendNotificationToUser } from '../core/websocket';
+import { sendNotificationToUser, broadcastAvailabilityUpdate } from '../core/websocket';
 import { checkAllConflicts, parseTimeToMinutes } from '../core/bookingValidation';
 import { getSessionUser } from '../types/session';
 
@@ -324,6 +324,13 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
       return updated;
     });
     
+    // Broadcast availability update for real-time availability refresh
+    broadcastAvailabilityUpdate({
+      resourceId: result.resourceId || undefined,
+      date: result.requestDate,
+      action: 'booked'
+    });
+    
     res.json(result);
   } catch (error: any) {
     if (error.statusCode) {
@@ -541,6 +548,13 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
       .set({ status: 'cancelled' })
       .where(eq(bookingRequests.id, parseInt(id)));
     
+    // Broadcast availability update for real-time availability refresh
+    broadcastAvailabilityUpdate({
+      resourceId: booking?.resourceId || undefined,
+      date: undefined,
+      action: 'cancelled'
+    });
+    
     // Only delete calendar event for conference rooms - golf/simulators no longer sync to calendar
     if (booking?.calendarEventId) {
       try {
@@ -623,6 +637,13 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
     await db.update(bookingRequests)
       .set({ status: 'cancelled' })
       .where(eq(bookingRequests.id, bookingId));
+    
+    // Broadcast availability update for real-time availability refresh
+    broadcastAvailabilityUpdate({
+      resourceId: existing.resourceId || undefined,
+      date: existing.requestDate,
+      action: 'cancelled'
+    });
     
     const friendlyDate = existing.requestDate;
     const friendlyTime = existing.startTime?.substring(0, 5) || '';

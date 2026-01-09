@@ -175,6 +175,36 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
               timestamp: new Date().toISOString()
             });
           }
+          
+          // Handle directory updates (staff only - member directory syncs)
+          if (message.type === 'directory_update') {
+            console.log('[StaffWebSocket] Received directory_update:', message.action);
+            window.dispatchEvent(new CustomEvent('directory-update', { detail: message }));
+          }
+
+          // Handle availability updates (booking slots)
+          if (message.type === 'availability_update') {
+            console.log('[StaffWebSocket] Received availability_update');
+            handleBookingEvent({
+              eventType: 'availability_update',
+              bookingId: 0,
+              memberEmail: '',
+              bookingDate: message.date || '',
+              startTime: '',
+              status: message.action,
+              timestamp: new Date().toISOString()
+            });
+          }
+
+          // Handle cafe menu updates
+          if (message.type === 'cafe_menu_update') {
+            window.dispatchEvent(new CustomEvent('cafe-menu-update', { detail: message }));
+          }
+
+          // Handle closure/notice updates
+          if (message.type === 'closure_update') {
+            window.dispatchEvent(new CustomEvent('closure-update', { detail: message }));
+          }
         } catch (e) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }

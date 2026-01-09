@@ -9,6 +9,7 @@ import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG, syncInternal
 import { getGoogleCalendarClient } from '../core/integrations';
 import { createPacificDate, parseLocalDate, addDaysToPacificDate, getPacificISOString, getTodayPacific } from '../utils/dateUtils';
 import { clearClosureCache } from '../core/bookingValidation';
+import { broadcastClosureUpdate } from '../core/websocket';
 
 const router = Router();
 
@@ -675,6 +676,8 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
     
     clearClosureCache();
     
+    broadcastClosureUpdate('created', result.id);
+    
     res.json({ 
       ...result, 
       googleCalendarId: null,
@@ -739,6 +742,8 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
       .where(eq(facilityClosures.id, closureId));
     
     clearClosureCache();
+    
+    broadcastClosureUpdate('deleted', closureId);
     
     res.json({ success: true });
   } catch (error: any) {
@@ -1002,6 +1007,8 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
     } else if (wasPublished && hasAffectedResources && !startsToday) {
       console.log(`[Closures] Draft published for future date (${finalStartDate}), morning job will notify on start day`);
     }
+    
+    broadcastClosureUpdate('updated', closureId);
     
     res.json(updated);
   } catch (error: any) {

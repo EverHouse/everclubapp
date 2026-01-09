@@ -531,6 +531,30 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch {}
   }, []);
 
+  // Listen for real-time cafe menu updates via WebSocket
+  useEffect(() => {
+    const handleCafeMenuUpdate = () => {
+      refreshCafeMenu();
+    };
+    
+    window.addEventListener('cafe-menu-update', handleCafeMenuUpdate);
+    return () => {
+      window.removeEventListener('cafe-menu-update', handleCafeMenuUpdate);
+    };
+  }, [refreshCafeMenu]);
+
+  // Listen for real-time directory updates via WebSocket (staff-only, for member sync)
+  useEffect(() => {
+    const handleDirectoryUpdate = () => {
+      refreshMembers();
+    };
+    
+    window.addEventListener('directory-update', handleDirectoryUpdate);
+    return () => {
+      window.removeEventListener('directory-update', handleDirectoryUpdate);
+    };
+  }, [refreshMembers]);
+
   // Fetch events with background sync
   useEffect(() => {
     const normalizeCategory = (cat: string | null | undefined): string => {

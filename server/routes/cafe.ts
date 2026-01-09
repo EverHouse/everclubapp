@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool, isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
+import { broadcastCafeMenuUpdate } from '../core/websocket';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.post('/api/cafe-menu', isStaffOrAdmin, async (req, res) => {
       [category, name, price || 0, description || '', icon || '', image_url || '', is_active !== false, sort_order || 0]
     );
     
+    broadcastCafeMenuUpdate('created');
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
     if (!isProduction) console.error('Cafe item creation error:', error);
@@ -77,6 +79,7 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Cafe item not found' });
     }
     
+    broadcastCafeMenuUpdate('updated');
     res.json(result.rows[0]);
   } catch (error: any) {
     if (!isProduction) console.error('Cafe item update error:', error);
@@ -88,6 +91,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM cafe_items WHERE id = $1', [id]);
+    broadcastCafeMenuUpdate('deleted');
     res.json({ success: true });
   } catch (error: any) {
     if (!isProduction) console.error('Cafe item delete error:', error);

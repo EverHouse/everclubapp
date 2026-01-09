@@ -15,7 +15,7 @@ import { parseAffectedAreas } from '../core/affectedAreas';
 import { logAndRespond } from '../core/logger';
 import { checkClosureConflict, checkAvailabilityBlockConflict, parseTimeToMinutes } from '../core/bookingValidation';
 import { bookingEvents } from '../core/bookingEvents';
-import { sendNotificationToUser } from '../core/websocket';
+import { sendNotificationToUser, broadcastAvailabilityUpdate } from '../core/websocket';
 import { getSessionUser } from '../types/session';
 import { refundGuestPass } from './guestPasses';
 
@@ -528,6 +528,14 @@ router.post('/api/booking-requests', async (req, res) => {
       actionBy: 'member'
     }, { notifyMember: false, notifyStaff: true }).catch(err => console.error('Booking event publish failed:', err));
     
+    // Broadcast availability update for real-time availability refresh
+    broadcastAvailabilityUpdate({
+      resourceId: row.resourceId || undefined,
+      resourceType: 'simulator',
+      date: row.requestDate,
+      action: 'booked'
+    });
+    
     res.status(201).json({
       id: row.id,
       user_email: row.userEmail,
@@ -822,6 +830,14 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         actionBy: 'staff'
       }, { notifyMember: true, notifyStaff: true, cleanupNotifications: true }).catch(err => console.error('Booking event publish failed:', err));
       
+      // Broadcast availability update for real-time availability refresh
+      broadcastAvailabilityUpdate({
+        resourceId: updated.resourceId || undefined,
+        resourceType: 'simulator',
+        date: updated.requestDate,
+        action: 'booked'
+      });
+      
       // Send WebSocket notification to member (DB notification already inserted in transaction)
       sendNotificationToUser(updated.userEmail, {
         type: 'notification',
@@ -1103,6 +1119,14 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         actionBy: cancelledBy
       }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => console.error('Booking event publish failed:', err));
       
+      // Broadcast availability update for real-time availability refresh
+      broadcastAvailabilityUpdate({
+        resourceId: bookingData.resourceId || undefined,
+        resourceType: 'simulator',
+        date: bookingData.requestDate,
+        action: 'cancelled'
+      });
+      
       // Send WebSocket notification to member (DB notification already inserted in transaction)
       if (pushInfo?.email && (pushInfo.type === 'member' || pushInfo.type === 'both')) {
         sendNotificationToUser(pushInfo.email, {
@@ -1240,6 +1264,14 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           console.error('Failed to delete calendar event (non-blocking):', calError);
         }
       }
+      
+      // Broadcast availability update for real-time availability refresh
+      broadcastAvailabilityUpdate({
+        resourceId: existing.resourceId || undefined,
+        resourceType: 'simulator',
+        date: existing.requestDate,
+        action: 'cancelled'
+      });
     }
     
     res.json({ success: true, message: 'Booking cancelled successfully' });
