@@ -11,11 +11,7 @@ import { broadcastAnnouncementUpdate } from '../core/websocket';
 
 const router = Router();
 
-const PRIORITY_ORDER = sql`CASE 
-  WHEN ${announcements.priority} = 'urgent' THEN 1 
-  WHEN ${announcements.priority} = 'high' THEN 2 
-  ELSE 3 
-END`;
+const BANNER_FIRST = sql`CASE WHEN show_as_banner = true THEN 0 ELSE 1 END`;
 
 router.get('/api/announcements', async (req, res) => {
   try {
@@ -40,7 +36,7 @@ router.get('/api/announcements', async (req, res) => {
       ) as typeof query;
     }
     
-    const results = await query.orderBy(asc(PRIORITY_ORDER), desc(announcements.createdAt));
+    const results = await query.orderBy(asc(BANNER_FIRST), desc(announcements.createdAt));
     
     const formatted = results.map(a => ({
       id: a.id.toString(),
@@ -83,7 +79,7 @@ router.get('/api/announcements/banner', async (req, res) => {
           )
         )
       )
-      .orderBy(asc(PRIORITY_ORDER), desc(announcements.createdAt))
+      .orderBy(desc(announcements.createdAt))
       .limit(1);
     
     if (results.length === 0) {
@@ -110,14 +106,13 @@ router.get('/api/announcements/banner', async (req, res) => {
 
 router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
   try {
-    const { title, description, type, priority, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
+    const { title, description, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
     
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
     
     const userEmail = getSessionUser(req)?.email || 'system';
-    const finalPriority = priority || 'normal';
     
     if (showAsBanner) {
       await db.execute(sql`UPDATE announcements SET show_as_banner = false WHERE show_as_banner = true`);
@@ -128,7 +123,7 @@ router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
       VALUES (
         ${title},
         ${description || ''},
-        ${finalPriority},
+        'normal',
         ${startDate ? createPacificDate(startDate, '00:00:00') : null},
         ${endDate ? createPacificDate(endDate, '23:59:59') : null},
         ${linkType || null},
@@ -182,13 +177,11 @@ router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
 router.put('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, type, priority, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
+    const { title, description, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
     
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
-    
-    const finalPriority = priority || 'normal';
     
     if (showAsBanner) {
       await db.execute(sql`UPDATE announcements SET show_as_banner = false WHERE show_as_banner = true AND id != ${parseInt(id)}`);
@@ -198,7 +191,6 @@ router.put('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
       UPDATE announcements
       SET title = ${title},
           message = ${description || ''},
-          priority = ${finalPriority},
           starts_at = ${startDate ? createPacificDate(startDate, '00:00:00') : null},
           ends_at = ${endDate ? createPacificDate(endDate, '23:59:59') : null},
           link_type = ${linkType || null},
