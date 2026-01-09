@@ -267,26 +267,35 @@ router.get('/api/booking-requests', async (req, res) => {
     
     const enrichedResult = await Promise.all(result.map(async (booking) => {
       // Count slots in booking_members (represents total player count from Trackman)
-      const memberSlotsResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingMembers)
-        .where(eq(bookingMembers.bookingId, booking.id));
+      // Wrapped in try-catch to prevent transient DB issues from failing the entire request
+      let memberSlotsCount = 0;
+      let filledMemberCount = 0;
+      let actualGuestCount = 0;
       
-      // Count filled member slots (members with email assigned)
-      const filledMemberResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingMembers)
-        .where(and(
-          eq(bookingMembers.bookingId, booking.id),
-          sql`${bookingMembers.userEmail} IS NOT NULL`
-        ));
-      
-      // Count guests in booking_guests table
-      const guestResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingGuests)
-        .where(eq(bookingGuests.bookingId, booking.id));
-      
-      const memberSlotsCount = memberSlotsResult[0]?.count || 0;
-      const filledMemberCount = filledMemberResult[0]?.count || 0;
-      const actualGuestCount = guestResult[0]?.count || 0;
+      try {
+        const memberSlotsResult = await db.select({ count: sql<number>`count(*)::int` })
+          .from(bookingMembers)
+          .where(eq(bookingMembers.bookingId, booking.id));
+        memberSlotsCount = memberSlotsResult[0]?.count || 0;
+        
+        // Count filled member slots (members with email assigned)
+        const filledMemberResult = await db.select({ count: sql<number>`count(*)::int` })
+          .from(bookingMembers)
+          .where(and(
+            eq(bookingMembers.bookingId, booking.id),
+            sql`${bookingMembers.userEmail} IS NOT NULL`
+          ));
+        filledMemberCount = filledMemberResult[0]?.count || 0;
+        
+        // Count guests in booking_guests table
+        const guestResult = await db.select({ count: sql<number>`count(*)::int` })
+          .from(bookingGuests)
+          .where(eq(bookingGuests.bookingId, booking.id));
+        actualGuestCount = guestResult[0]?.count || 0;
+      } catch (countError) {
+        // Log but don't fail - use legacy counts as fallback
+        console.warn(`[Booking ${booking.id}] Failed to fetch member/guest counts, using legacy values`);
+      }
       const legacyGuestCount = booking.guest_count || 0;
       const trackmanPlayerCount = booking.trackman_player_count;
       

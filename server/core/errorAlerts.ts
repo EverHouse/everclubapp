@@ -4,9 +4,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const ALERT_EMAIL = process.env.ALERT_EMAIL || 'nick@evenhouse.club';
-const ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between same-type alerts (increased from 5)
-const MAX_ALERTS_PER_HOUR = 4; // Reduced from 10
-const MAX_ALERTS_PER_DAY = 20; // New daily limit to prevent overnight floods
+const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour between same-type alerts
+const MAX_ALERTS_PER_HOUR = 2; // Very strict hourly limit
+const MAX_ALERTS_PER_DAY = 6; // Very strict daily limit to prevent floods
 const RATE_LIMIT_FILE = '/tmp/alert_rate_limits.json';
 
 interface AlertRecord {
