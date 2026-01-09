@@ -13,6 +13,7 @@ import { downloadICalFile } from '../../utils/icalUtils';
 import { DashboardSkeleton } from '../../components/skeletons';
 import { getBaseTier, isFoundingMember } from '../../utils/permissions';
 import { getTierColor } from '../../utils/tierUtils';
+import { getStatusBadge as getStatusBadgeColor, formatStatusLabel } from '../../utils/statusColors';
 import TierBadge from '../../components/TierBadge';
 import TagBadge from '../../components/TagBadge';
 import HubSpotFormModal from '../../components/HubSpotFormModal';
@@ -1128,22 +1129,10 @@ const Dashboard: React.FC = () => {
                     );
                   }
                   
-                  if (status === 'pending' || status === 'pending_approval') {
+                  if (status) {
                     badges.push(
-                      <span key="status" className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
-                        Pending
-                      </span>
-                    );
-                  } else if (status === 'approved' || status === 'confirmed') {
-                    badges.push(
-                      <span key="status" className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
-                        Confirmed
-                      </span>
-                    );
-                  } else if (status === 'attended') {
-                    badges.push(
-                      <span key="status" className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                        Attended
+                      <span key="status" className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadgeColor(status)}`}>
+                        {formatStatusLabel(status)}
                       </span>
                     );
                   }

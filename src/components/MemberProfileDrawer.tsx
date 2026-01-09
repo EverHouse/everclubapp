@@ -5,6 +5,7 @@ import TierBadge from './TierBadge';
 import TagBadge from './TagBadge';
 import { formatPhoneNumber } from '../utils/formatting';
 import { getMemberStatusColor, getMemberStatusLabel } from '../utils/statusColors';
+import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
 
 interface MemberProfileDrawerProps {
@@ -171,35 +172,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     }
   }, [isOpen, member, fetchMemberData]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const scrollY = window.scrollY;
-    document.documentElement.classList.add('overflow-hidden');
-    document.body.classList.add('overflow-hidden');
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    document.body.style.overscrollBehavior = 'none';
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.documentElement.classList.remove('overflow-hidden');
-      document.body.classList.remove('overflow-hidden');
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.overscrollBehavior = '';
-      window.scrollTo(0, scrollY);
-    };
-  }, [isOpen, onClose]);
+  useScrollLock(isOpen, onClose);
 
   const handleRemoveLinkedEmail = async (email: string) => {
     if (!member || !isAdmin) return;

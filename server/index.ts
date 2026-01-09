@@ -408,13 +408,14 @@ async function startServer() {
     }, 30000);
   }
 
-  // 2. Background sync interval (every 5 minutes) - NO initial sync at startup
-  // All calendar/tours/wellness syncs run ONLY via this background interval
+  // 2. Background sync using recursive setTimeout - prevents overlapping syncs
+  // All calendar/tours/wellness syncs run ONLY via this background scheduler
   // This ensures health checks pass before any expensive sync operations
   const SYNC_INTERVAL_MS = 5 * 60 * 1000;
   
-  // Start background sync interval immediately (first sync runs after 5 minutes)
-  setInterval(async () => {
+  // Recursive setTimeout pattern: only schedules next run after current one finishes
+  // This prevents race conditions if a sync takes longer than the interval
+  const runBackgroundSync = async () => {
     try {
       const eventsResult = await syncGoogleCalendarEvents().catch(() => ({ synced: 0, created: 0, updated: 0, deleted: 0, error: 'Events sync failed' }));
       const wellnessResult = await syncWellnessCalendarEvents().catch(() => ({ synced: 0, created: 0, updated: 0, deleted: 0, error: 'Wellness sync failed' }));
@@ -425,13 +426,18 @@ async function startServer() {
       const wellnessMsg = wellnessResult.error ? wellnessResult.error : `${wellnessResult.synced} synced`;
       const toursMsg = toursResult.error ? toursResult.error : `${toursResult.synced} synced`;
       const closuresMsg = closuresResult.error ? closuresResult.error : `${closuresResult.synced} synced`;
-      // For conference room: show warning if calendar not found, error if sync failed, otherwise synced count
       const confRoomMsg = confRoomResult.error ? confRoomResult.error : (confRoomResult.warning ? 'not configured' : `${confRoomResult.synced} synced`);
       console.log(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Tours: ${toursMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}`);
     } catch (err) {
       console.error('[Auto-sync] Calendar sync failed:', err);
+    } finally {
+      // Schedule next sync only after current one completes (prevents overlapping syncs)
+      setTimeout(runBackgroundSync, SYNC_INTERVAL_MS);
     }
-  }, SYNC_INTERVAL_MS);
+  };
+  
+  // First sync runs after initial delay, then chains via setTimeout
+  setTimeout(runBackgroundSync, SYNC_INTERVAL_MS);
   console.log('[Startup] Background calendar sync enabled (every 5 minutes, first sync in 5 minutes)');
   
   // Daily reminder scheduler - runs at 6pm local time
