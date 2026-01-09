@@ -22,6 +22,66 @@ import { getSessionUser } from '../types/session';
 
 const router = Router();
 
+function redactEmail(email: string): string {
+  if (!email || !email.includes('@')) return '***';
+  const [localPart, domain] = email.split('@');
+  const prefix = localPart.slice(0, 2);
+  return `${prefix}***@${domain}`;
+}
+
+router.get('/api/members/search', isAuthenticated, async (req, res) => {
+  try {
+    const { query, limit = '10', excludeId } = req.query;
+    
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.json([]);
+    }
+    
+    const searchTerm = `%${query.trim().toLowerCase()}%`;
+    const maxResults = Math.min(parseInt(limit as string) || 10, 50);
+    
+    let whereConditions = and(
+      sql`${users.membershipStatus} = 'active'`,
+      sql`(
+        LOWER(COALESCE(${users.firstName}, '') || ' ' || COALESCE(${users.lastName}, '')) LIKE ${searchTerm}
+        OR LOWER(COALESCE(${users.firstName}, '')) LIKE ${searchTerm}
+        OR LOWER(COALESCE(${users.lastName}, '')) LIKE ${searchTerm}
+        OR LOWER(COALESCE(${users.email}, '')) LIKE ${searchTerm}
+      )`
+    );
+    
+    if (excludeId && typeof excludeId === 'string') {
+      whereConditions = and(
+        whereConditions,
+        sql`${users.id} != ${excludeId}`
+      );
+    }
+    
+    const results = await db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      tier: users.tier,
+    })
+      .from(users)
+      .where(whereConditions)
+      .limit(maxResults);
+    
+    const formattedResults = results.map(user => ({
+      id: user.id,
+      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown',
+      emailRedacted: redactEmail(user.email || ''),
+      tier: user.tier || undefined,
+    }));
+    
+    res.json(formattedResults);
+  } catch (error: any) {
+    if (!isProduction) console.error('Member search error:', error);
+    res.status(500).json({ error: 'Failed to search members' });
+  }
+});
+
 router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
   try {
     const { email } = req.params;

@@ -23,6 +23,7 @@ import ClosureAlert from '../../components/ClosureAlert';
 import ErrorState from '../../components/ErrorState';
 import ModalShell from '../../components/ModalShell';
 import MetricsGrid from '../../components/MetricsGrid';
+import { RosterManager } from '../../components/booking';
 
 const GUEST_CHECKIN_FIELDS = [
   { name: 'guest_firstname', label: 'Guest First Name', type: 'text' as const, required: true, placeholder: 'John' },
@@ -101,6 +102,7 @@ interface DBBookingRequest {
   calendar_event_id?: string | null;
   is_linked_member?: boolean;
   primary_booker_name?: string | null;
+  declared_player_count?: number;
 }
 
 const formatDate = (dateStr: string): string => {
@@ -917,17 +919,38 @@ const Dashboard: React.FC = () => {
                   if (badges.length === 0) return null;
                   return <div className="flex gap-1.5 flex-wrap">{badges}</div>;
                 };
+                const isSimulatorBooking = item.resourceType === 'simulator';
+                const isApprovedOrConfirmed = ['approved', 'confirmed'].includes((item as any).status);
+                const isOwnerOfBooking = !((item as any).isLinkedMember);
+                const showRosterManager = (item.type === 'booking' || item.type === 'booking_request') && 
+                  isSimulatorBooking && 
+                  isApprovedOrConfirmed && 
+                  isOwnerOfBooking;
+                const rawBookingData = item.raw as DBBookingRequest;
+
                 return (
-                  <GlassRow 
-                    key={item.id} 
-                    title={item.title} 
-                    subtitle={`${item.date} • ${item.details}`} 
-                    icon={getIconForType(item.resourceType)} 
-                    color={isDark ? "text-[#E7E7DC]" : "text-primary"}
-                    actions={actions}
-                    delay={`${0.15 + (idx * 0.05)}s`}
-                    badge={getStatusBadge()}
-                  />
+                  <React.Fragment key={item.id}>
+                    <GlassRow 
+                      title={item.title} 
+                      subtitle={`${item.date} • ${item.details}`} 
+                      icon={getIconForType(item.resourceType)} 
+                      color={isDark ? "text-[#E7E7DC]" : "text-primary"}
+                      actions={actions}
+                      delay={`${0.15 + (idx * 0.05)}s`}
+                      badge={getStatusBadge()}
+                    />
+                    {showRosterManager && (
+                      <div className="mt-2 mb-4">
+                        <RosterManager
+                          bookingId={item.dbId}
+                          declaredPlayerCount={rawBookingData.declared_player_count || 1}
+                          isOwner={true}
+                          isStaff={isStaffOrAdminProfile}
+                          onUpdate={() => fetchUserData(false)}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
                 );
               }) : (
                 <div className="flex flex-col items-center justify-center text-center py-8 px-6 animate-pop-in">
