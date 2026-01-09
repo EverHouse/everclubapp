@@ -2029,7 +2029,23 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             {selectedRequest && formatDateShortAdmin(selectedRequest.request_date)} • {selectedRequest && formatTime12Hour(selectedRequest.start_time)} - {selectedRequest && formatTime12Hour(selectedRequest.end_time)}
                         </p>
+                        {(selectedRequest as any)?.declared_player_count && (
+                            <div className="flex items-center gap-1 mt-2 text-sm text-accent">
+                                <span className="material-symbols-outlined text-base">group</span>
+                                <span>{(selectedRequest as any).declared_player_count} {(selectedRequest as any).declared_player_count === 1 ? 'player' : 'players'}</span>
+                            </div>
+                        )}
                     </div>
+                    
+                    {(selectedRequest as any)?.member_notes && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-sm">chat</span>
+                                Member Notes
+                            </p>
+                            <p className="text-sm text-primary dark:text-white">{(selectedRequest as any).member_notes}</p>
+                        </div>
+                    )}
                     
                     {error && (
                         <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg">
@@ -2315,8 +2331,17 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         </div>
                     </div>
 
-                    {((selectedCalendarBooking as any)?.booking_source || (selectedCalendarBooking as any)?.guest_count) && (
+                    {((selectedCalendarBooking as any)?.declared_player_count || (selectedCalendarBooking as any)?.booking_source || (selectedCalendarBooking as any)?.guest_count) && (
                         <div className="grid grid-cols-2 gap-3">
+                            {(selectedCalendarBooking as any)?.declared_player_count && (
+                                <div className="p-3 bg-accent/10 dark:bg-accent/20 rounded-lg border border-accent/30">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Players</p>
+                                    <p className="font-medium text-primary dark:text-white text-sm flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-accent text-base">group</span>
+                                        {(selectedCalendarBooking as any).declared_player_count} {(selectedCalendarBooking as any).declared_player_count === 1 ? 'player' : 'players'}
+                                    </p>
+                                </div>
+                            )}
                             {(selectedCalendarBooking as any)?.booking_source && (
                                 <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Booking Source</p>
@@ -2329,6 +2354,16 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     <p className="font-medium text-primary dark:text-white text-sm">{(selectedCalendarBooking as any).guest_count}</p>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {(selectedCalendarBooking as any)?.member_notes && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-sm">chat</span>
+                                Member Notes
+                            </p>
+                            <p className="font-medium text-primary dark:text-white text-sm">{(selectedCalendarBooking as any).member_notes}</p>
                         </div>
                     )}
 

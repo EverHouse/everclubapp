@@ -1003,13 +1003,7 @@ const BookGolf: React.FC = () => {
                   const baseDurations = activeTab === 'simulator' 
                     ? [60, 90, 120, 150, 180] 
                     : [30, 60, 90, 120];
-                  const availableDurations = baseDurations.filter(mins => {
-                    const maxMinutes = activeTab === 'simulator' 
-                      ? tierPermissions.dailySimulatorMinutes 
-                      : tierPermissions.dailyConfRoomMinutes;
-                    if (maxMinutes >= 999 || tierPermissions.unlimitedAccess) return true;
-                    return mins <= remainingMinutes;
-                  });
+                  const availableDurations = baseDurations;
                   
                   if (availableDurations.length === 0) {
                     return (
@@ -1024,7 +1018,7 @@ const BookGolf: React.FC = () => {
                   
                   return availableDurations.map(mins => {
                     const perPersonMins = Math.floor(mins / playerCount);
-                    const isLowTime = playerCount >= 3 && mins <= 60;
+                    const isLowTime = activeTab === 'simulator' && playerCount >= 3 && mins <= 60;
                     const recommendedMins = playerCount * 30;
                     
                     const myUsageMinutes = perPersonMins;
