@@ -49,7 +49,13 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **PWA Features**: Service Worker caching, offline support, safe area, overscroll prevention, and pull-to-refresh.
 - **iOS-Style Interactions**: Haptic feedback, button bounce animations, segmented control, edge swipe back navigation, and swipeable list items.
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling.
-- **Trackman Historical Import**: Admin tool for importing CSV data with auto-matching to app bookings (±5 min tolerance), cancellation handling, and update-on-reimport. Import UI shows four sections: Unmatched → Potential Matches → Needs Players → Matched. Stores original player count in `trackman_player_count` for accurate fair usage calculations.
+- **Trackman Historical Import**: Admin tool for importing CSV data with auto-matching to app bookings (±5 min tolerance), cancellation handling, and update-on-reimport. Import UI shows five sections: Unmatched → Requires Review → Potential Matches → Needs Players → Matched. Stores original player count in `trackman_player_count` for accurate fair usage calculations.
+- **Trackman Import Enhancements (Phase 6)**:
+  - Auto-match via `trackman_email` field (firstname.lastname@evenhouse.club format) before name matching
+  - M:/G: notes parsing to extract multiple players from Trackman booking notes
+  - "Requires Review" queue with fuzzy member matching suggestions for partial names (e.g., "Bobby S.")
+  - Creates `booking_sessions` and `usage_ledger` entries for ALL players with proper session linking
+  - Past imports default to payment_status='paid' (historical bookings assumed settled)
 - **Multi-Member Booking System (Phase 1)**: 
   - Central `booking_sessions` table links bookings to Trackman imports and participants
   - Unified `booking_participants` table (owner/member/guest types) with display name snapshots
