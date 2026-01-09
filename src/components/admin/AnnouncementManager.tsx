@@ -44,7 +44,6 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
             desc: newItem.desc || '',
             type: newItem.type || 'update',
             date: newItem.date || 'Just now',
-            priority: newItem.priority || 'normal',
             startDate: newItem.startDate,
             endDate: newItem.endDate,
             linkType: newItem.linkType,
@@ -71,15 +70,6 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     </h3>
                     <input className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="Title" value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} />
                     <textarea className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" placeholder="Description" rows={3} value={newItem.desc || ''} onChange={e => setNewItem({...newItem, desc: e.target.value})} />
-                    
-                    <div>
-                        <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1.5 block">Priority Level</label>
-                        <div className="grid grid-cols-3 gap-2">
-                            <button type="button" onClick={() => setNewItem({...newItem, priority: 'normal', notifyMembers: newItem.notifyMembers})} className={`py-2 px-3 rounded-xl text-xs font-bold transition-colors ${(!newItem.priority || newItem.priority === 'normal') ? 'bg-gray-200 dark:bg-white/20 text-gray-700 dark:text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70'}`}>Normal</button>
-                            <button type="button" onClick={() => setNewItem({...newItem, priority: 'high', notifyMembers: newItem.notifyMembers})} className={`py-2 px-3 rounded-xl text-xs font-bold transition-colors ${newItem.priority === 'high' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70'}`}>High</button>
-                            <button type="button" onClick={() => setNewItem({...newItem, priority: 'urgent', notifyMembers: true})} className={`py-2 px-3 rounded-xl text-xs font-bold transition-colors ${newItem.priority === 'urgent' ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/70'}`}>Urgent</button>
-                        </div>
-                    </div>
                     
                     <div className="flex items-center justify-between py-2">
                         <div className="flex-1">
@@ -161,18 +151,11 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     const idA = parseInt(a.id) || 0;
                     const idB = parseInt(b.id) || 0;
                     return idB - idA;
-                }).map((item, index) => {
-                    const priorityDotClass = item.priority === 'urgent'
-                        ? 'bg-red-500'
-                        : item.priority === 'high'
-                            ? 'bg-amber-400'
-                            : 'bg-accent';
-                    
-                    return (
+                }).map((item, index) => (
                     <div key={item.id} onClick={() => openEdit(item)} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-all animate-pop-in" style={{animationDelay: `${0.15 + index * 0.05}s`}}>
                         <div>
                             <div className="flex items-center gap-2 mb-1.5">
-                                <span className={`w-2 h-2 rounded-full ${priorityDotClass}`}></span>
+                                <span className="w-2 h-2 rounded-full bg-accent"></span>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-600">{item.date}</span>
                                 {item.showAsBanner && (
                                     <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-lavender/20 text-lavender rounded">Banner</span>
@@ -191,8 +174,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                             <span aria-hidden="true" className="material-symbols-outlined">delete</span>
                         </button>
                     </div>
-                    );
-                })}
+                ))}
             </div>
         </div>
     );
