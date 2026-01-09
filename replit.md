@@ -56,6 +56,13 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
   - `guests` table for persistent guest tracking across bookings
   - `trackman_email` auto-generated for Trackman matching (firstname.lastname@evenhouse.club)
   - Social tier has 0 simulator guest passes (cannot bring guests)
+- **Staff Check-In Tools (Phase 5)**:
+  - Payment guard blocks check-in when unpaid balance exists (returns 402 status)
+  - Check-in billing modal displays per-participant fee breakdown and individual payment status
+  - Staff can mark individual payments, waive fees with required reason, or confirm all at once
+  - `booking_payment_audit` table logs all staff payment actions (confirm, waive, tier override) with timestamps
+  - Staff direct-add allows adding members/guests with tier override support and audit logging
+  - Member notes field (280 chars) displayed on approval cards and booking details for staff visibility
 - **Unified Conflict Validation**: All booking routes check closures, availability blocks, AND existing bookings via `checkAllConflicts` function
 - **Fair Usage Tracking**: Time is split equally among all players for accurate usage calculations. Guest history is tracked and displayed in member profiles.
 - **Modal Pattern**: Standardized, accessible, viewport-centered modal implementation.
