@@ -448,10 +448,7 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
     const isOwner = booking.owner_email?.toLowerCase() === userEmail;
     const isStaff = await isStaffOrAdminCheck(userEmail);
 
-    if (!isOwner && !isStaff) {
-      return res.status(403).json({ error: 'Only the booking owner or staff can remove participants' });
-    }
-
+    // Get the participant first so we can check if user is removing themselves
     const [participant] = await db
       .select()
       .from(bookingParticipants)
@@ -463,6 +460,24 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
 
     if (!participant) {
       return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    // Check if user is removing themselves (allow self-removal)
+    let isSelf = false;
+    if (participant.userId) {
+      // Check if participant.userId matches current user
+      const userResult = await pool.query(
+        `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [userEmail]
+      );
+      if (userResult.rows.length > 0 && userResult.rows[0].id === participant.userId) {
+        isSelf = true;
+      }
+    }
+
+    // Allow removal if: owner, staff, or user removing themselves
+    if (!isOwner && !isStaff && !isSelf) {
+      return res.status(403).json({ error: 'Only the booking owner, staff, or the participant themselves can remove this participant' });
     }
 
     if (participant.participantType === 'owner') {

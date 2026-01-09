@@ -278,6 +278,10 @@ const Dashboard: React.FC = () => {
     ...dbBookings.map(b => {
       // Check if current user is NOT the primary booker (i.e., is a linked member)
       const isLinkedMember = user?.email ? b.user_email?.toLowerCase() !== user.email.toLowerCase() : false;
+      // For linked members, show the primary booker's email (before @) as the booker name
+      const primaryBookerName = isLinkedMember && b.user_email 
+        ? b.user_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        : null;
       return {
         id: `booking-${b.id}`,
         dbId: b.id,
@@ -292,6 +296,7 @@ const Dashboard: React.FC = () => {
         sortKey: `${b.booking_date}T${b.start_time}`,
         status: b.status,
         isLinkedMember,
+        primaryBookerName,
         raw: b
       };
     }),
@@ -576,6 +581,60 @@ const Dashboard: React.FC = () => {
           setDbBookings(previousBookings);
           setDbBookingRequests(previousBookingRequests);
           showToast('Failed to cancel booking', 'error');
+        }
+      }
+    });
+  };
+
+  const handleLeaveBooking = (bookingId: number, primaryBookerName?: string | null) => {
+    if (!user?.email) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: "Leave Booking",
+      message: `Are you sure you want to leave this booking${primaryBookerName ? ` with ${primaryBookerName}` : ''}? You will be removed from the player list.`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        
+        try {
+          // First, get the participant ID for the current user
+          const participantsRes = await fetch(`/api/bookings/${bookingId}/participants`, { credentials: 'include' });
+          if (!participantsRes.ok) {
+            showToast('Failed to get booking details', 'error');
+            return;
+          }
+          
+          const participantsData = await participantsRes.json();
+          const participants = participantsData.participants || [];
+          
+          // Find the current user's participant record
+          const myParticipant = participants.find((p: any) => 
+            p.email?.toLowerCase() === user.email.toLowerCase()
+          );
+          
+          if (!myParticipant) {
+            showToast('Could not find your participant record', 'error');
+            return;
+          }
+          
+          // Call the delete endpoint to remove ourselves
+          const body = isAdminViewingAs && user?.email ? { onBehalfOf: user.email } : {};
+          const res = await fetch(`/api/bookings/${bookingId}/participants/${myParticipant.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body)
+          });
+          
+          if (res.ok) {
+            showToast('You have left the booking', 'success');
+            await fetchUserData(false);
+          } else {
+            const data = await res.json().catch(() => ({}));
+            showToast(data.error || 'Failed to leave booking', 'error');
+          }
+        } catch (err) {
+          showToast('Failed to leave booking', 'error');
         }
       }
     });
@@ -1022,6 +1081,7 @@ const Dashboard: React.FC = () => {
                   const endTime24 = 'end_time' in rawBooking ? rawBooking.end_time : '';
                   const isLinkedMember = (item as any).isLinkedMember || false;
                   
+                  const primaryBookerName = (item as any).primaryBookerName;
                   actions = [
                     ...(isConfirmed ? [{
                       icon: 'calendar_add_on',
@@ -1038,7 +1098,13 @@ const Dashboard: React.FC = () => {
                     ...(!isLinkedMember ? [
                       { icon: 'event_repeat', label: 'Reschedule', onClick: () => navigate(`/book?reschedule=${item.dbId}&date=${item.rawDate}`) },
                       { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(item.dbId, item.type) }
-                    ] : [])
+                    ] : []),
+                    // Allow linked members (guests) to leave the booking
+                    ...(isLinkedMember && isConfirmed ? [{
+                      icon: 'logout',
+                      label: 'Leave',
+                      onClick: () => handleLeaveBooking(item.dbId, primaryBookerName)
+                    }] : [])
                   ];
                 } else if (item.type === 'rsvp') {
                   actions = [{ icon: 'close', label: 'Cancel RSVP', onClick: () => handleCancelRSVP((item.raw as DBRSVP).event_id) }];
