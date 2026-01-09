@@ -910,4 +910,101 @@ router.get('/api/admin/trackman/potential-matches', isAdmin, async (req, res) =>
   }
 });
 
+// Data reset endpoint - wipes all Trackman-imported booking data for clean re-import
+router.delete('/api/admin/trackman/reset-data', isAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const user = (req as any).session?.user?.email || 'admin';
+    
+    await client.query('BEGIN');
+    
+    // Get counts before deletion for logging
+    const bookingCount = await client.query(
+      `SELECT COUNT(*) FROM booking_requests WHERE trackman_booking_id IS NOT NULL`
+    );
+    const sessionCount = await client.query(
+      `SELECT COUNT(*) FROM booking_sessions WHERE source = 'trackman_import' OR trackman_booking_id IS NOT NULL`
+    );
+    const unmatchedCount = await client.query(
+      `SELECT COUNT(*) FROM trackman_unmatched_bookings`
+    );
+    
+    // Delete in correct order to respect foreign key constraints
+    
+    // 1. Delete usage_ledger entries for Trackman sessions
+    await client.query(`
+      DELETE FROM usage_ledger 
+      WHERE session_id IN (
+        SELECT id FROM booking_sessions 
+        WHERE source = 'trackman_import' OR trackman_booking_id IS NOT NULL
+      )
+    `);
+    
+    // 2. Delete booking_payment_audit entries for Trackman bookings
+    await client.query(`
+      DELETE FROM booking_payment_audit 
+      WHERE booking_id IN (
+        SELECT id FROM booking_requests 
+        WHERE trackman_booking_id IS NOT NULL
+      )
+    `);
+    
+    // 3. Delete booking_participants for Trackman sessions
+    await client.query(`
+      DELETE FROM booking_participants 
+      WHERE session_id IN (
+        SELECT id FROM booking_sessions 
+        WHERE source = 'trackman_import' OR trackman_booking_id IS NOT NULL
+      )
+    `);
+    
+    // 4. Delete booking_members for Trackman bookings (legacy table)
+    await client.query(`
+      DELETE FROM booking_members 
+      WHERE booking_id IN (
+        SELECT id FROM booking_requests 
+        WHERE trackman_booking_id IS NOT NULL
+      )
+    `);
+    
+    // 5. Delete booking_sessions for Trackman imports
+    await client.query(`
+      DELETE FROM booking_sessions 
+      WHERE source = 'trackman_import' OR trackman_booking_id IS NOT NULL
+    `);
+    
+    // 6. Delete booking_requests with trackman_booking_id
+    await client.query(`
+      DELETE FROM booking_requests 
+      WHERE trackman_booking_id IS NOT NULL
+    `);
+    
+    // 7. Clear trackman_unmatched_bookings
+    await client.query(`DELETE FROM trackman_unmatched_bookings`);
+    
+    // 8. Clear trackman_import_runs history
+    await client.query(`DELETE FROM trackman_import_runs`);
+    
+    await client.query('COMMIT');
+    
+    console.log(`[Trackman Reset] Data wiped by ${user}: ${bookingCount.rows[0].count} bookings, ${sessionCount.rows[0].count} sessions, ${unmatchedCount.rows[0].count} unmatched`);
+    
+    res.json({
+      success: true,
+      message: 'Trackman data reset complete',
+      deleted: {
+        bookings: parseInt(bookingCount.rows[0].count),
+        sessions: parseInt(sessionCount.rows[0].count),
+        unmatched: parseInt(unmatchedCount.rows[0].count)
+      }
+    });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('Trackman reset error:', error);
+    res.status(500).json({ error: 'Failed to reset Trackman data: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
