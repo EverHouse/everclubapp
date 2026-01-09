@@ -21,7 +21,7 @@ export function getPacificHour(): number {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: CLUB_TIMEZONE,
     hour: 'numeric',
-    hour12: false
+    hourCycle: 'h23' // Use 0-23 range (not hour12: false which can return 24)
   });
   return parseInt(formatter.format(new Date()), 10);
 }
@@ -37,7 +37,7 @@ export function getPacificDateParts(): { year: number; month: number; day: numbe
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false
+    hourCycle: 'h23' // Use 0-23 range (not hour12: false which can return 24)
   });
   const parts = formatter.formatToParts(new Date());
   const get = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);

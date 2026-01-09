@@ -1000,8 +1000,10 @@ const BookGolf: React.FC = () => {
               </div>
               <div className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
                 {(() => {
+                  const baseSimDurations = [60, 90, 120, 150, 180];
+                  if (playerCount >= 4) baseSimDurations.push(240);
                   const baseDurations = activeTab === 'simulator' 
-                    ? [60, 90, 120, 150, 180] 
+                    ? baseSimDurations 
                     : [30, 60, 90, 120];
                   const availableDurations = baseDurations;
                   
