@@ -560,6 +560,27 @@ export function broadcastBookingEvent(event: BookingEvent) {
   return sent;
 }
 
+export function broadcastAnnouncementUpdate(action: 'created' | 'updated' | 'deleted', announcement?: any) {
+  const payload = JSON.stringify({
+    type: 'announcement_update',
+    action,
+    announcement
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  console.log(`[WebSocket] Broadcast announcement ${action} to ${sent} connections`);
+  return sent;
+}
+
 export function getConnectedUsers(): string[] {
   return Array.from(clients.keys());
 }
