@@ -275,21 +275,26 @@ const Dashboard: React.FC = () => {
   }, [fetchUserData]);
 
   const allItems = [
-    ...dbBookings.map(b => ({
-      id: `booking-${b.id}`,
-      dbId: b.id,
-      type: 'booking' as const,
-      title: b.resource_name || 'Booking',
-      resourceType: b.resource_type || 'simulator',
-      date: formatDate(b.booking_date),
-      rawDate: b.booking_date.split('T')[0],
-      time: formatTime12Hour(b.start_time),
-      endTime: formatTime12Hour(b.end_time),
-      details: `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`,
-      sortKey: `${b.booking_date}T${b.start_time}`,
-      status: b.status,
-      raw: b
-    })),
+    ...dbBookings.map(b => {
+      // Check if current user is NOT the primary booker (i.e., is a linked member)
+      const isLinkedMember = user?.email ? b.user_email?.toLowerCase() !== user.email.toLowerCase() : false;
+      return {
+        id: `booking-${b.id}`,
+        dbId: b.id,
+        type: 'booking' as const,
+        title: b.resource_name || 'Booking',
+        resourceType: b.resource_type || 'simulator',
+        date: formatDate(b.booking_date),
+        rawDate: b.booking_date.split('T')[0],
+        time: formatTime12Hour(b.start_time),
+        endTime: formatTime12Hour(b.end_time),
+        details: `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`,
+        sortKey: `${b.booking_date}T${b.start_time}`,
+        status: b.status,
+        isLinkedMember,
+        raw: b
+      };
+    }),
     ...dbBookingRequests
       .filter(r => ['pending', 'pending_approval', 'approved', 'confirmed', 'attended'].includes(r.status))
       .filter(r => !dbBookings.some(b => b.id === r.id))
