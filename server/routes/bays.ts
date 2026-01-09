@@ -524,7 +524,7 @@ router.post('/api/booking-requests', async (req, res) => {
       resourceId: row.resourceId || undefined,
       bookingDate: row.requestDate,
       startTime: row.startTime,
-      status: row.status,
+      status: row.status || 'pending',
       actionBy: 'member'
     }, { notifyMember: false, notifyStaff: true }).catch(err => console.error('Booking event publish failed:', err));
     
@@ -1434,8 +1434,8 @@ router.get('/api/conference-room-bookings', async (req, res) => {
     }
     
     // If no member name/email provided, use the session user's info
-    const searchName = member_name as string || sessionUser.name || null;
-    const searchEmail = member_email as string || sessionUser.email || null;
+    const searchName = member_name as string || sessionUser.name || undefined;
+    const searchEmail = member_email as string || sessionUser.email || undefined;
     
     const bookings = await getConferenceRoomBookingsFromCalendar(searchName, searchEmail);
     
