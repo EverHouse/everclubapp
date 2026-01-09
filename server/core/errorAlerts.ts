@@ -1,18 +1,60 @@
 import { getResendClient } from '../utils/resend';
 import { logger } from './logger';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const ALERT_EMAIL = process.env.ALERT_EMAIL || 'nick@evenhouse.club';
-const ALERT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between same-type alerts
-const MAX_ALERTS_PER_HOUR = 10;
+const ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between same-type alerts (increased from 5)
+const MAX_ALERTS_PER_HOUR = 4; // Reduced from 10
+const MAX_ALERTS_PER_DAY = 20; // New daily limit to prevent overnight floods
+const RATE_LIMIT_FILE = '/tmp/alert_rate_limits.json';
 
 interface AlertRecord {
   lastSent: number;
   count: number;
 }
 
-const alertHistory = new Map<string, AlertRecord>();
-let alertsThisHour = 0;
-let hourStart = Date.now();
+interface RateLimitState {
+  alertHistory: Record<string, AlertRecord>;
+  alertsThisHour: number;
+  alertsToday: number;
+  hourStart: number;
+  dayStart: number;
+}
+
+function loadRateLimitState(): RateLimitState {
+  try {
+    if (fs.existsSync(RATE_LIMIT_FILE)) {
+      const data = JSON.parse(fs.readFileSync(RATE_LIMIT_FILE, 'utf-8'));
+      return {
+        alertHistory: data.alertHistory || {},
+        alertsThisHour: data.alertsThisHour || 0,
+        alertsToday: data.alertsToday || 0,
+        hourStart: data.hourStart || Date.now(),
+        dayStart: data.dayStart || Date.now(),
+      };
+    }
+  } catch (error) {
+    logger.warn('[ErrorAlert] Failed to load rate limit state, using defaults');
+  }
+  return {
+    alertHistory: {},
+    alertsThisHour: 0,
+    alertsToday: 0,
+    hourStart: Date.now(),
+    dayStart: Date.now(),
+  };
+}
+
+function saveRateLimitState(state: RateLimitState): void {
+  try {
+    fs.writeFileSync(RATE_LIMIT_FILE, JSON.stringify(state, null, 2));
+  } catch (error) {
+    logger.warn('[ErrorAlert] Failed to save rate limit state');
+  }
+}
+
+let state = loadRateLimitState();
 
 function getAlertKey(type: string, context?: string): string {
   return `${type}:${context || 'general'}`;
@@ -21,16 +63,33 @@ function getAlertKey(type: string, context?: string): string {
 function canSendAlert(key: string): boolean {
   const now = Date.now();
   
-  if (now - hourStart > 60 * 60 * 1000) {
-    hourStart = now;
-    alertsThisHour = 0;
+  // Reset hourly counter
+  if (now - state.hourStart > 60 * 60 * 1000) {
+    state.hourStart = now;
+    state.alertsThisHour = 0;
   }
   
-  if (alertsThisHour >= MAX_ALERTS_PER_HOUR) {
+  // Reset daily counter
+  if (now - state.dayStart > 24 * 60 * 60 * 1000) {
+    state.dayStart = now;
+    state.alertsToday = 0;
+  }
+  
+  // Check daily limit first
+  if (state.alertsToday >= MAX_ALERTS_PER_DAY) {
+    logger.info('[ErrorAlert] Daily limit reached, skipping alert', {
+      extra: { event: 'error_alert.daily_limit', alertsToday: state.alertsToday }
+    });
     return false;
   }
   
-  const record = alertHistory.get(key);
+  // Check hourly limit
+  if (state.alertsThisHour >= MAX_ALERTS_PER_HOUR) {
+    return false;
+  }
+  
+  // Check per-key cooldown
+  const record = state.alertHistory[key];
   if (record && (now - record.lastSent) < ALERT_COOLDOWN_MS) {
     return false;
   }
@@ -40,14 +99,18 @@ function canSendAlert(key: string): boolean {
 
 function recordAlertSent(key: string): void {
   const now = Date.now();
-  const existing = alertHistory.get(key);
+  const existing = state.alertHistory[key];
   
-  alertHistory.set(key, {
+  state.alertHistory[key] = {
     lastSent: now,
     count: (existing?.count || 0) + 1
-  });
+  };
   
-  alertsThisHour++;
+  state.alertsThisHour++;
+  state.alertsToday++;
+  
+  // Persist to file so limits survive restarts
+  saveRateLimitState(state);
 }
 
 export type AlertType = 
@@ -126,7 +189,7 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
             </div>
             
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; font-size: 12px; color: #888;">
-              <p style="margin: 0;">This is an automated alert from the Ever House app.</p>
+              <p style="margin: 0;">This is an automated alert from the Ever House app. Max ${MAX_ALERTS_PER_DAY}/day, ${MAX_ALERTS_PER_HOUR}/hour.</p>
             </div>
           </div>
         </body>
@@ -137,7 +200,7 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
     recordAlertSent(key);
     
     logger.info('[ErrorAlert] Alert sent successfully', {
-      extra: { event: 'error_alert.sent', type, title }
+      extra: { event: 'error_alert.sent', type, title, alertsToday: state.alertsToday }
     });
     
     return true;
