@@ -1,0 +1,236 @@
+import { db } from '../../db';
+import { pool } from '../db';
+import { 
+  bookingSessions, 
+  availabilityBlocks, 
+  facilityClosures 
+} from '../../../shared/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { logger } from '../logger';
+import { 
+  checkClosureConflict, 
+  checkAvailabilityBlockConflict,
+  parseTimeToMinutes,
+  hasTimeOverlap
+} from '../bookingValidation';
+import { parseAffectedAreas } from '../affectedAreas';
+
+export interface AvailabilityResult {
+  available: boolean;
+  conflictType?: 'closure' | 'availability_block' | 'session';
+  conflictTitle?: string;
+  conflictDetails?: {
+    id: number;
+    startTime: string;
+    endTime: string;
+  };
+}
+
+export async function checkUnifiedAvailability(
+  resourceId: number,
+  date: string,
+  startTime: string,
+  endTime: string,
+  excludeSessionId?: number
+): Promise<AvailabilityResult> {
+  try {
+    const closureConflict = await checkClosureConflict(resourceId, date, startTime, endTime);
+    if (closureConflict.hasConflict) {
+      return {
+        available: false,
+        conflictType: 'closure',
+        conflictTitle: closureConflict.closureTitle || 'Facility Closure'
+      };
+    }
+    
+    const blockConflict = await checkAvailabilityBlockConflict(resourceId, date, startTime, endTime);
+    if (blockConflict.hasConflict) {
+      return {
+        available: false,
+        conflictType: 'availability_block',
+        conflictTitle: blockConflict.blockType || 'Event Block'
+      };
+    }
+    
+    const sessionConflict = await checkSessionConflict(resourceId, date, startTime, endTime, excludeSessionId);
+    if (sessionConflict.hasConflict) {
+      return {
+        available: false,
+        conflictType: 'session',
+        conflictTitle: 'Existing Booking Session',
+        conflictDetails: sessionConflict.conflictDetails
+      };
+    }
+    
+    return { available: true };
+  } catch (error) {
+    logger.error('[checkUnifiedAvailability] Error:', { error: error as Error });
+    throw error;
+  }
+}
+
+interface SessionConflictResult {
+  hasConflict: boolean;
+  conflictDetails?: {
+    id: number;
+    startTime: string;
+    endTime: string;
+  };
+}
+
+async function checkSessionConflict(
+  resourceId: number,
+  date: string,
+  startTime: string,
+  endTime: string,
+  excludeSessionId?: number
+): Promise<SessionConflictResult> {
+  try {
+    const result = await pool.query(
+      `SELECT id, start_time, end_time
+       FROM booking_sessions
+       WHERE resource_id = $1
+         AND session_date = $2
+         AND start_time < $3
+         AND end_time > $4
+         ${excludeSessionId ? 'AND id != $5' : ''}
+       LIMIT 1`,
+      excludeSessionId 
+        ? [resourceId, date, endTime, startTime, excludeSessionId]
+        : [resourceId, date, endTime, startTime]
+    );
+    
+    if (result.rows.length > 0) {
+      const conflict = result.rows[0];
+      return {
+        hasConflict: true,
+        conflictDetails: {
+          id: conflict.id,
+          startTime: conflict.start_time,
+          endTime: conflict.end_time
+        }
+      };
+    }
+    
+    return { hasConflict: false };
+  } catch (error) {
+    logger.error('[checkSessionConflict] Error:', { error: error as Error });
+    throw error;
+  }
+}
+
+export async function getAvailableSlots(
+  resourceId: number,
+  date: string,
+  slotDurationMinutes: number = 60,
+  operatingStart: string = '06:00',
+  operatingEnd: string = '22:00'
+): Promise<{ startTime: string; endTime: string }[]> {
+  try {
+    const sessions = await pool.query(
+      `SELECT start_time, end_time FROM booking_sessions
+       WHERE resource_id = $1 AND session_date = $2
+       ORDER BY start_time`,
+      [resourceId, date]
+    );
+    
+    const blocks = await pool.query(
+      `SELECT start_time, end_time FROM availability_blocks
+       WHERE resource_id = $1 AND block_date = $2
+       ORDER BY start_time`,
+      [resourceId, date]
+    );
+    
+    const bookedSlots: { start: number; end: number }[] = [];
+    
+    for (const session of sessions.rows) {
+      bookedSlots.push({
+        start: parseTimeToMinutes(session.start_time),
+        end: parseTimeToMinutes(session.end_time)
+      });
+    }
+    
+    for (const block of blocks.rows) {
+      bookedSlots.push({
+        start: parseTimeToMinutes(block.start_time),
+        end: parseTimeToMinutes(block.end_time)
+      });
+    }
+    
+    bookedSlots.sort((a, b) => a.start - b.start);
+    
+    const operatingStartMinutes = parseTimeToMinutes(operatingStart);
+    const operatingEndMinutes = parseTimeToMinutes(operatingEnd);
+    
+    const availableSlots: { startTime: string; endTime: string }[] = [];
+    let currentTime = operatingStartMinutes;
+    
+    for (const slot of bookedSlots) {
+      if (currentTime + slotDurationMinutes <= slot.start) {
+        for (let t = currentTime; t + slotDurationMinutes <= slot.start; t += slotDurationMinutes) {
+          availableSlots.push({
+            startTime: minutesToTime(t),
+            endTime: minutesToTime(t + slotDurationMinutes)
+          });
+        }
+      }
+      currentTime = Math.max(currentTime, slot.end);
+    }
+    
+    for (let t = currentTime; t + slotDurationMinutes <= operatingEndMinutes; t += slotDurationMinutes) {
+      availableSlots.push({
+        startTime: minutesToTime(t),
+        endTime: minutesToTime(t + slotDurationMinutes)
+      });
+    }
+    
+    return availableSlots;
+  } catch (error) {
+    logger.error('[getAvailableSlots] Error:', { error: error as Error });
+    return [];
+  }
+}
+
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+}
+
+export async function isResourceAvailableForDate(
+  resourceId: number,
+  date: string
+): Promise<boolean> {
+  try {
+    const closures = await pool.query(
+      `SELECT id FROM facility_closures
+       WHERE is_active = true
+         AND start_date <= $1
+         AND end_date >= $1
+         AND start_time IS NULL
+         AND end_time IS NULL`,
+      [date]
+    );
+    
+    for (const closure of closures.rows) {
+      const fullClosure = await pool.query(
+        `SELECT affected_areas FROM facility_closures WHERE id = $1`,
+        [closure.id]
+      );
+      
+      if (fullClosure.rows[0]) {
+        const affectedIds = await parseAffectedAreas(fullClosure.rows[0].affected_areas);
+        if (affectedIds.includes(resourceId)) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('[isResourceAvailableForDate] Error:', { error: error as Error });
+    return true;
+  }
+}
+
+export { parseTimeToMinutes, hasTimeOverlap };

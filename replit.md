@@ -49,7 +49,14 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **iOS-Style Interactions**: Haptic feedback, button bounce animations, segmented control, edge swipe back navigation, and swipeable list items.
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling.
 - **Trackman Historical Import**: Admin tool for importing CSV data with auto-matching to app bookings (±5 min tolerance), cancellation handling, and update-on-reimport. Import UI shows four sections: Unmatched → Potential Matches → Needs Players → Matched. Stores original player count in `trackman_player_count` for accurate fair usage calculations.
-- **Multi-Member Bookings**: Supports linking multiple members and guests to a single booking via `booking_members` and `booking_guests` tables. ManagePlayersModal allows staff to assign players with predictive search, tier display, and owner lock. Members see linked bookings on their dashboard with "Player" badge and "Booked by" attribution.
+- **Multi-Member Booking System (Phase 1)**: 
+  - Central `booking_sessions` table links bookings to Trackman imports and participants
+  - Unified `booking_participants` table (owner/member/guest types) with display name snapshots
+  - `usage_ledger` table tracks per-member time and fees with tier snapshots and payment_method (GUEST_PASS/CREDIT_CARD/UNPAID/WAIVED)
+  - `guests` table for persistent guest tracking across bookings
+  - `trackman_email` auto-generated for Trackman matching (firstname.lastname@evenhouse.club)
+  - Social tier has 0 simulator guest passes (cannot bring guests)
+- **Unified Conflict Validation**: All booking routes check closures, availability blocks, AND existing bookings via `checkAllConflicts` function
 - **Fair Usage Tracking**: Time is split equally among all players for accurate usage calculations. Guest history is tracked and displayed in member profiles.
 - **Modal Pattern**: Standardized, accessible, viewport-centered modal implementation.
 - **Calendar Import "Needs Review" Feature**: Calendar sync auto-imports events, flagging those without bracket prefixes as `needsReview` for staff configuration.
