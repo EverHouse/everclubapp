@@ -473,6 +473,7 @@ const Dashboard: React.FC = () => {
     [0];
 
   // Filter out pending invites from upcomingItems (show them in separate section)
+  // A pending invite is: is_linked_member=true AND invite_status='pending'
   const pendingInvites = dbBookingRequests.filter(r => 
     r.is_linked_member === true && 
     r.invite_status === 'pending' &&
@@ -482,11 +483,14 @@ const Dashboard: React.FC = () => {
   const pendingInviteIds = new Set(pendingInvites.map(p => p.id));
   
   // Filter upcomingItems to exclude pending invites
+  // Check both 'booking' and 'booking_request' types since approved bookings have type='booking'
   const upcomingItemsFiltered = upcomingItems.filter(item => {
-    if (item.type === 'booking_request') {
+    if (item.type === 'booking_request' || item.type === 'booking') {
       const raw = item.raw as DBBookingRequest;
-      // Exclude if it's a pending invite
-      return !pendingInviteIds.has(raw.id);
+      // Exclude if it's a pending invite (not yet accepted by linked member)
+      if (raw && pendingInviteIds.has(raw.id)) {
+        return false;
+      }
     }
     return true;
   });
