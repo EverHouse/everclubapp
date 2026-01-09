@@ -1040,6 +1040,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             originalBookedDate: originalBookedDate,
             guestCount: actualGuestCount,
             trackmanPlayerCount: row.playerCount,
+            declaredPlayerCount: row.playerCount,
           }).returning({ id: bookingRequests.id });
 
           // Create booking_members entries based on player count

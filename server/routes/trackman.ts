@@ -221,20 +221,18 @@ router.get('/api/admin/trackman/matched', isAdmin, async (req, res) => {
     const search = (req.query.search as string || '').trim().toLowerCase();
     
     // Only return fully resolved bookings:
-    // - Solo bookings (no booking_members entries OR only 1 member slot)
-    // - OR bookings where ALL player slots are filled (no empty slots)
+    // - Solo bookings: trackman_player_count = 1
+    // - OR all player slots are filled (participant count >= trackman_player_count)
     let whereClause = `
       (br.trackman_booking_id IS NOT NULL OR br.notes LIKE '%[Trackman Import ID:%')
       AND br.status NOT IN ('cancelled', 'declined')
       AND (
-        -- Solo bookings: no booking_members entries
-        NOT EXISTS (SELECT 1 FROM booking_members bm WHERE bm.booking_id = br.id)
-        -- OR only one member slot (solo)
-        OR (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id) = 1
-        -- OR all slots are filled (no empty slots)
-        OR NOT EXISTS (
-          SELECT 1 FROM booking_members bm 
-          WHERE bm.booking_id = br.id AND bm.user_email IS NULL
+        -- Solo bookings: trackman_player_count = 1
+        COALESCE(br.trackman_player_count, 1) = 1
+        -- OR all slots are filled (participant count >= trackman_player_count)
+        OR (
+          br.session_id IS NOT NULL
+          AND (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) >= COALESCE(br.trackman_player_count, 1)
         )
       )
     `;
@@ -267,12 +265,14 @@ router.get('/api/admin/trackman/matched', isAdmin, async (req, res) => {
         br.status,
         br.notes,
         br.trackman_booking_id,
+        br.trackman_player_count,
         br.created_at,
+        br.session_id,
         u.first_name as member_first_name,
         u.last_name as member_last_name,
         u.email as member_email,
-        (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id) as total_slots,
-        (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id AND bm.user_email IS NOT NULL) as filled_slots
+        COALESCE(br.trackman_player_count, 1) as total_slots,
+        COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_slots
        FROM booking_requests br
        LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
        WHERE ${whereClause}
@@ -281,32 +281,37 @@ router.get('/api/admin/trackman/matched', isAdmin, async (req, res) => {
       [...queryParams, limit, offset]
     );
     
-    const data = result.rows.map(row => ({
-      id: row.id,
-      userEmail: row.user_email,
-      userName: row.user_name,
-      resourceId: row.resource_id,
-      requestDate: row.request_date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      durationMinutes: row.duration_minutes,
-      status: row.status,
-      notes: row.notes,
-      trackmanBookingId: row.trackman_booking_id,
-      createdAt: row.created_at,
-      member: row.member_email ? {
-        email: row.member_email,
-        firstName: row.member_first_name,
-        lastName: row.member_last_name,
-        fullName: [row.member_first_name, row.member_last_name].filter(Boolean).join(' ')
-      } : null,
-      slotInfo: {
-        totalSlots: parseInt(row.total_slots) || 0,
-        filledSlots: parseInt(row.filled_slots) || 0,
-        isSolo: parseInt(row.total_slots) <= 1,
-        isFullyResolved: parseInt(row.total_slots) <= 1 || parseInt(row.filled_slots) === parseInt(row.total_slots)
-      }
-    }));
+    const data = result.rows.map(row => {
+      const totalSlots = parseInt(row.total_slots) || 1;
+      const filledSlots = parseInt(row.filled_slots) || 0;
+      return {
+        id: row.id,
+        userEmail: row.user_email,
+        userName: row.user_name,
+        resourceId: row.resource_id,
+        requestDate: row.request_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        durationMinutes: row.duration_minutes,
+        status: row.status,
+        notes: row.notes,
+        trackmanBookingId: row.trackman_booking_id,
+        trackmanPlayerCount: row.trackman_player_count,
+        createdAt: row.created_at,
+        member: row.member_email ? {
+          email: row.member_email,
+          firstName: row.member_first_name,
+          lastName: row.member_last_name,
+          fullName: [row.member_first_name, row.member_last_name].filter(Boolean).join(' ')
+        } : null,
+        slotInfo: {
+          totalSlots,
+          filledSlots,
+          isSolo: totalSlots === 1,
+          isFullyResolved: totalSlots === 1 || filledSlots >= totalSlots
+        }
+      };
+    });
     
     res.json({ data, totalCount });
   } catch (error: any) {
@@ -699,14 +704,16 @@ router.get('/api/admin/trackman/needs-players', isAdmin, async (req, res) => {
     const offset = parseInt(req.query.offset as string) || 0;
     const search = (req.query.search as string || '').trim().toLowerCase();
     
-    // Find Trackman bookings that have empty slots in booking_members
-    // Include past attended bookings (no date filter)
+    // Find Trackman bookings with multi-player counts that have unfilled slots
+    // Multi-player = trackman_player_count > 1
+    // Unfilled = participant count < trackman_player_count
     let whereClause = `
       (br.trackman_booking_id IS NOT NULL OR br.notes LIKE '%[Trackman Import ID:%')
       AND br.status NOT IN ('cancelled', 'declined')
-      AND EXISTS (
-        SELECT 1 FROM booking_members bm 
-        WHERE bm.booking_id = br.id AND bm.user_email IS NULL
+      AND COALESCE(br.trackman_player_count, 1) > 1
+      AND (
+        br.session_id IS NULL
+        OR (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) < COALESCE(br.trackman_player_count, 1)
       )
     `;
     const queryParams: any[] = [];
@@ -743,13 +750,13 @@ router.get('/api/admin/trackman/needs-players', isAdmin, async (req, res) => {
         br.trackman_booking_id,
         br.guest_count,
         br.trackman_player_count,
+        br.session_id,
         br.created_at,
         u.first_name as member_first_name,
         u.last_name as member_last_name,
         u.email as member_email,
-        (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id) as total_slots,
-        (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id AND bm.user_email IS NOT NULL) as filled_slots,
-        (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id AND bm.user_email IS NULL) as empty_slots,
+        COALESCE(br.trackman_player_count, 1) as total_slots,
+        COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_slots,
         (SELECT COUNT(*) FROM booking_guests bg WHERE bg.booking_id = br.id) as guest_count_actual
        FROM booking_requests br
        LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
@@ -759,51 +766,44 @@ router.get('/api/admin/trackman/needs-players', isAdmin, async (req, res) => {
       [...queryParams, limit, offset]
     );
     
-    const data = result.rows.map(row => ({
-      id: row.id,
-      userEmail: row.user_email,
-      userName: row.user_name,
-      resourceId: row.resource_id,
-      requestDate: row.request_date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      durationMinutes: row.duration_minutes,
-      status: row.status,
-      notes: row.notes,
-      trackmanBookingId: row.trackman_booking_id,
-      guestCount: row.guest_count,
-      createdAt: row.created_at,
-      member: row.member_email ? {
-        email: row.member_email,
-        firstName: row.member_first_name,
-        lastName: row.member_last_name,
-        fullName: [row.member_first_name, row.member_last_name].filter(Boolean).join(' ')
-      } : null,
-      slotInfo: (() => {
-        const totalSlots = parseInt(row.total_slots) || 0;
-        const actualGuests = parseInt(row.guest_count_actual) || 0;
-        const legacyGuests = parseInt(row.guest_count) || 0;
-        const filledSlots = parseInt(row.filled_slots) || 0;
-        const trackmanCount = row.trackman_player_count ? parseInt(row.trackman_player_count) : null;
-        // Priority: trackman_player_count > slots + guests > legacy
-        let expectedPlayers: number;
-        if (trackmanCount && trackmanCount > 0) {
-          expectedPlayers = trackmanCount;
-        } else if (totalSlots > 0) {
-          expectedPlayers = totalSlots + actualGuests;
-        } else {
-          expectedPlayers = Math.max(legacyGuests + 1, 1);
-        }
-        const effectiveGuests = actualGuests > 0 ? actualGuests : legacyGuests;
-        return {
+    const data = result.rows.map(row => {
+      const totalSlots = parseInt(row.total_slots) || 1;
+      const filledSlots = parseInt(row.filled_slots) || 0;
+      const emptySlots = Math.max(0, totalSlots - filledSlots);
+      const actualGuests = parseInt(row.guest_count_actual) || 0;
+      const legacyGuests = parseInt(row.guest_count) || 0;
+      const effectiveGuests = actualGuests > 0 ? actualGuests : legacyGuests;
+      
+      return {
+        id: row.id,
+        userEmail: row.user_email,
+        userName: row.user_name,
+        resourceId: row.resource_id,
+        requestDate: row.request_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        durationMinutes: row.duration_minutes,
+        status: row.status,
+        notes: row.notes,
+        trackmanBookingId: row.trackman_booking_id,
+        trackmanPlayerCount: row.trackman_player_count,
+        guestCount: row.guest_count,
+        createdAt: row.created_at,
+        member: row.member_email ? {
+          email: row.member_email,
+          firstName: row.member_first_name,
+          lastName: row.member_last_name,
+          fullName: [row.member_first_name, row.member_last_name].filter(Boolean).join(' ')
+        } : null,
+        slotInfo: {
           totalSlots,
           filledSlots,
-          emptySlots: parseInt(row.empty_slots) || 0,
+          emptySlots,
           guestCount: effectiveGuests,
-          expectedPlayerCount: expectedPlayers
-        };
-      })()
-    }));
+          expectedPlayerCount: totalSlots
+        }
+      };
+    });
     
     res.json({ data, totalCount });
   } catch (error: any) {
