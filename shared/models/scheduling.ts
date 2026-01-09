@@ -272,6 +272,35 @@ export const bookingParticipants = pgTable("booking_participants", {
   index("booking_participants_guest_idx").on(table.guestId),
 ]);
 
+// Booking payment audit table - tracks staff actions on payments for audit
+export const paymentAuditActionEnum = pgEnum("payment_audit_action", [
+  "payment_confirmed", 
+  "payment_waived", 
+  "tier_override", 
+  "staff_direct_add",
+  "checkin_guard_triggered"
+]);
+
+export const bookingPaymentAudit = pgTable("booking_payment_audit", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").notNull(),
+  sessionId: integer("session_id"),
+  participantId: integer("participant_id"),
+  action: paymentAuditActionEnum("action").notNull(),
+  staffEmail: varchar("staff_email").notNull(),
+  staffName: varchar("staff_name"),
+  reason: text("reason"),
+  amountAffected: numeric("amount_affected", { precision: 10, scale: 2 }),
+  previousStatus: varchar("previous_status"),
+  newStatus: varchar("new_status"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("booking_payment_audit_booking_idx").on(table.bookingId),
+  index("booking_payment_audit_session_idx").on(table.sessionId),
+  index("booking_payment_audit_staff_idx").on(table.staffEmail),
+]);
+
 export type BookingSession = typeof bookingSessions.$inferSelect;
 export type InsertBookingSession = typeof bookingSessions.$inferInsert;
 export type Guest = typeof guests.$inferSelect;
@@ -280,3 +309,5 @@ export type UsageLedger = typeof usageLedger.$inferSelect;
 export type InsertUsageLedger = typeof usageLedger.$inferInsert;
 export type BookingParticipant = typeof bookingParticipants.$inferSelect;
 export type InsertBookingParticipant = typeof bookingParticipants.$inferInsert;
+export type BookingPaymentAudit = typeof bookingPaymentAudit.$inferSelect;
+export type InsertBookingPaymentAudit = typeof bookingPaymentAudit.$inferInsert;

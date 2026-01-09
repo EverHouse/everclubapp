@@ -42,6 +42,7 @@ import trackmanRouter from './routes/trackman';
 import noticesRouter from './routes/notices';
 import testAuthRouter from './routes/testAuth';
 import rosterRouter from './routes/roster';
+import staffCheckinRouter from './routes/staffCheckin';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { ensureDatabaseConstraints, seedDefaultNoticeTypes } from './db-init';
 import { initWebSocketServer } from './core/websocket';
@@ -223,6 +224,7 @@ app.use(bugReportsRouter);
 app.use(trackmanRouter);
 app.use(noticesRouter);
 app.use(rosterRouter);
+app.use(staffCheckinRouter);
 registerObjectStorageRoutes(app);
 
 // SPA catch-all using middleware (avoids Express 5 path-to-regexp issues)
