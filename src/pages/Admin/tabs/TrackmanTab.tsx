@@ -7,6 +7,15 @@ import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import ModalShell from '../../../components/ModalShell';
 import PullToRefresh from '../../../components/PullToRefresh';
 import ManagePlayersModal from '../../../components/admin/ManagePlayersModal';
+import RosterManager from '../../../components/booking/RosterManager';
+
+const formatTime12Hour = (time: string | null | undefined): string => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
 
 const ITEMS_PER_PAGE = 20;
 
@@ -84,6 +93,7 @@ const TrackmanTab: React.FC = () => {
   const [matchedSearchQuery, setMatchedSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isLinkingMatch, setIsLinkingMatch] = useState<number | null>(null);
+  const [viewDetailBooking, setViewDetailBooking] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unmatchedSectionRef = useRef<HTMLDivElement>(null);
   const matchedSectionRef = useRef<HTMLDivElement>(null);
@@ -833,13 +843,28 @@ const TrackmanTab: React.FC = () => {
                         <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
                           {formatDateDisplayWithDay(booking.requestDate || booking.request_date)} • {(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)} • Bay {booking.resourceId || booking.resource_id}
                         </p>
+                        {booking.slotInfo && (
+                          <p className="text-xs text-accent dark:text-accent mt-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">group</span>
+                            {booking.slotInfo.filledSlots}/{booking.slotInfo.totalSlots} assigned
+                          </p>
+                        )}
                       </div>
-                      <button
-                        onClick={() => { setEditSearchQuery(''); setEditMatchedModal({ booking, newMemberEmail: '' }); }}
-                        className="px-3 py-1.5 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-lg text-xs font-bold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors shrink-0"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => setViewDetailBooking(booking)}
+                          className="px-3 py-1.5 bg-accent/20 text-accent rounded-lg text-xs font-bold hover:bg-accent/30 transition-colors flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-sm">visibility</span>
+                          View
+                        </button>
+                        <button
+                          onClick={() => { setEditSearchQuery(''); setEditMatchedModal({ booking, newMemberEmail: '' }); }}
+                          className="px-3 py-1.5 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-lg text-xs font-bold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1018,6 +1043,105 @@ const TrackmanTab: React.FC = () => {
           }}
         />
       )}
+
+      <ModalShell isOpen={!!viewDetailBooking} onClose={() => setViewDetailBooking(null)} title="Booking Details">
+        {viewDetailBooking && (
+          <div className="p-6 space-y-4">
+            <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-lg">person</span>
+                <div>
+                  <p className="font-bold text-primary dark:text-white">
+                    {viewDetailBooking.member?.fullName || viewDetailBooking.userName || viewDetailBooking.user_name || 'Unknown'}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{viewDetailBooking.userEmail || viewDetailBooking.user_email}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Date</p>
+                <p className="font-medium text-primary dark:text-white text-sm">{formatDateDisplayWithDay(viewDetailBooking.requestDate || viewDetailBooking.request_date)}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Time</p>
+                <p className="font-medium text-primary dark:text-white text-sm">
+                  {formatTime12Hour(viewDetailBooking.startTime || viewDetailBooking.start_time)} - {formatTime12Hour(viewDetailBooking.endTime || viewDetailBooking.end_time)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Duration</p>
+                <p className="font-medium text-primary dark:text-white text-sm">{viewDetailBooking.durationMinutes || viewDetailBooking.duration_minutes} min</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Bay/Resource</p>
+                <p className="font-medium text-primary dark:text-white text-sm">Bay {viewDetailBooking.resourceId || viewDetailBooking.resource_id}</p>
+              </div>
+            </div>
+
+            {(viewDetailBooking.slotInfo || viewDetailBooking.trackmanPlayerCount) && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-accent/10 dark:bg-accent/20 rounded-lg border border-accent/30">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Players</p>
+                  <p className="font-medium text-primary dark:text-white text-sm flex items-center gap-1">
+                    <span className="material-symbols-outlined text-accent text-base">group</span>
+                    {viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1} {(viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1) === 1 ? 'player' : 'players'}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-500/30">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Assigned</p>
+                  <p className="font-medium text-primary dark:text-white text-sm flex items-center gap-1">
+                    <span className="material-symbols-outlined text-green-600 text-base">check_circle</span>
+                    {viewDetailBooking.slotInfo?.filledSlots || 0}/{viewDetailBooking.slotInfo?.totalSlots || 1} slots filled
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {viewDetailBooking.trackmanBookingId && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">link</span>
+                  Trackman ID
+                </p>
+                <p className="font-medium text-primary dark:text-white text-sm">{viewDetailBooking.trackmanBookingId}</p>
+              </div>
+            )}
+
+            {viewDetailBooking.notes && (
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes</p>
+                <p className="font-medium text-primary dark:text-white text-sm whitespace-pre-wrap">{viewDetailBooking.notes}</p>
+              </div>
+            )}
+
+            <div className="border-t border-primary/10 dark:border-white/10 pt-4">
+              <RosterManager
+                bookingId={typeof viewDetailBooking.id === 'string' ? parseInt(viewDetailBooking.id, 10) : viewDetailBooking.id}
+                declaredPlayerCount={viewDetailBooking.slotInfo?.totalSlots || viewDetailBooking.trackmanPlayerCount || 1}
+                isOwner={false}
+                isStaff={true}
+                onUpdate={() => {
+                  fetchData();
+                }}
+              />
+            </div>
+
+            <div className="flex justify-end pt-3">
+              <button
+                onClick={() => setViewDetailBooking(null)}
+                className="px-5 py-2.5 rounded-full bg-primary/10 dark:bg-white/10 text-primary dark:text-white text-sm font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </ModalShell>
     </div>
     </PullToRefresh>
   );
