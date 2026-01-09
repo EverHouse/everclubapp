@@ -20,6 +20,8 @@ export interface TierValidationResult {
   allowed: boolean;
   reason?: string;
   remainingMinutes?: number;
+  overageMinutes?: number;
+  includedMinutes?: number;
   tier?: string;
 }
 
@@ -63,6 +65,8 @@ export async function validateTierWindowAndBalance(
     return {
       allowed: true,
       remainingMinutes: result.remainingMinutes,
+      overageMinutes: result.overageMinutes,
+      includedMinutes: result.includedMinutes,
       tier
     };
   } catch (error) {

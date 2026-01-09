@@ -132,7 +132,7 @@ export async function checkDailyBookingLimit(
   date: string, 
   requestedMinutes: number,
   providedTier?: string
-): Promise<{ allowed: boolean; reason?: string; remainingMinutes?: number }> {
+): Promise<{ allowed: boolean; reason?: string; remainingMinutes?: number; overageMinutes?: number; includedMinutes?: number }> {
   // Use provided tier first (from view-as-member), fall back to database lookup
   const tier = providedTier || await getMemberTierByEmail(email);
   
@@ -168,33 +168,28 @@ export async function checkDailyBookingLimit(
   const dailyLimit = limits.daily_sim_minutes ?? 0;
   
   if (limits.unlimited_access || dailyLimit >= 999) {
-    return { allowed: true, remainingMinutes: 999 };
+    return { allowed: true, remainingMinutes: 999, overageMinutes: 0, includedMinutes: requestedMinutes };
   }
   
+  // Social tier (0 minutes) cannot book simulators at all
   if (dailyLimit === 0) {
     return { allowed: false, reason: 'Your membership tier does not include daily simulator time' };
   }
   
   const alreadyBooked = await getDailyBookedMinutes(email, date);
-  const remainingMinutes = dailyLimit - alreadyBooked;
+  const remainingMinutes = Math.max(0, dailyLimit - alreadyBooked);
   
-  if (remainingMinutes <= 0) {
-    return { 
-      allowed: false, 
-      reason: `You have reached your daily limit of ${dailyLimit} minutes for ${date}.`,
-      remainingMinutes: 0
-    };
-  }
+  // Allow bookings that exceed daily limit - calculate overage for billing
+  // Members can book longer sessions and pay overage fees ($25/30 min)
+  const includedMinutes = Math.min(requestedMinutes, remainingMinutes);
+  const overageMinutes = Math.max(0, requestedMinutes - remainingMinutes);
   
-  if (requestedMinutes > remainingMinutes) {
-    return { 
-      allowed: false, 
-      reason: `Daily limit exceeded. You have ${remainingMinutes} minutes remaining for ${date}. Your tier (${tier}) allows ${dailyLimit} minutes per day.`,
-      remainingMinutes
-    };
-  }
-  
-  return { allowed: true, remainingMinutes: remainingMinutes - requestedMinutes };
+  return { 
+    allowed: true, 
+    remainingMinutes: Math.max(0, remainingMinutes - requestedMinutes),
+    overageMinutes,
+    includedMinutes
+  };
 }
 
 export { DEFAULT_TIER_LIMITS };
