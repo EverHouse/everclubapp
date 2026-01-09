@@ -79,6 +79,9 @@ const TrackmanTab: React.FC = () => {
   const [needsPlayersSearchQuery, setNeedsPlayersSearchQuery] = useState('');
   const [potentialMatches, setPotentialMatches] = useState<any[]>([]);
   const [potentialMatchesTotalCount, setPotentialMatchesTotalCount] = useState<number>(0);
+  const [requiresReviewBookings, setRequiresReviewBookings] = useState<any[]>([]);
+  const [requiresReviewTotalCount, setRequiresReviewTotalCount] = useState<number>(0);
+  const [fuzzyMatchModal, setFuzzyMatchModal] = useState<{ booking: any; matches: any[]; isLoading: boolean; selectedEmail: string } | null>(null);
   const [importRuns, setImportRuns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
@@ -161,19 +164,80 @@ const TrackmanTab: React.FC = () => {
     }
   };
 
+  const fetchRequiresReview = async () => {
+    try {
+      const cacheBuster = `_t=${Date.now()}`;
+      const res = await fetch(`/api/admin/trackman/requires-review?${cacheBuster}`, { credentials: 'include' });
+      if (res.ok) {
+        const result = await res.json();
+        setRequiresReviewBookings(result.data || []);
+        setRequiresReviewTotalCount(result.totalCount || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch requires-review bookings:', err);
+    }
+  };
+
+  const handleOpenFuzzyMatchModal = async (booking: any) => {
+    setFuzzyMatchModal({ booking, matches: [], isLoading: true, selectedEmail: '' });
+    try {
+      const res = await fetch(`/api/admin/trackman/fuzzy-matches/${booking.id}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setFuzzyMatchModal(prev => prev ? { ...prev, matches: data.matches || [], isLoading: false } : null);
+      } else {
+        setFuzzyMatchModal(prev => prev ? { ...prev, isLoading: false } : null);
+        showToast('Failed to fetch fuzzy matches', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to fetch fuzzy matches:', err);
+      setFuzzyMatchModal(prev => prev ? { ...prev, isLoading: false } : null);
+      showToast('Failed to fetch fuzzy matches', 'error');
+    }
+  };
+
+  const handleResolveFuzzyMatch = async () => {
+    if (!fuzzyMatchModal || !fuzzyMatchModal.selectedEmail) return;
+    try {
+      const res = await fetch(`/api/admin/trackman/unmatched/${fuzzyMatchModal.booking.id}/resolve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ memberEmail: fuzzyMatchModal.selectedEmail })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFuzzyMatchModal(null);
+        if (data.autoResolved > 0) {
+          showToast(`Resolved ${data.resolved} booking(s) (${data.autoResolved} auto-resolved with same name)`, 'success', 5000);
+        } else {
+          showToast('Booking resolved successfully', 'success');
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+        fetchData();
+      } else {
+        showToast('Failed to resolve booking', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to resolve booking:', err);
+      showToast('Failed to resolve booking', 'error');
+    }
+  };
+
   const fetchData = async () => {
     try {
       const cacheBuster = `_t=${Date.now()}`;
       const unmatchedOffset = (unmatchedPage - 1) * ITEMS_PER_PAGE;
       const matchedOffset = (matchedPage - 1) * ITEMS_PER_PAGE;
       const needsPlayersOffset = (needsPlayersPage - 1) * ITEMS_PER_PAGE;
-      const [unmatchedRes, matchedRes, runsRes, membersRes, needsPlayersRes, potentialMatchesRes] = await Promise.all([
+      const [unmatchedRes, matchedRes, runsRes, membersRes, needsPlayersRes, potentialMatchesRes, requiresReviewRes] = await Promise.all([
         fetch(`/api/admin/trackman/unmatched?resolved=false&limit=${ITEMS_PER_PAGE}&offset=${unmatchedOffset}&${cacheBuster}`, { credentials: 'include' }),
         fetch(`/api/admin/trackman/matched?limit=${ITEMS_PER_PAGE}&offset=${matchedOffset}&${cacheBuster}`, { credentials: 'include' }),
         fetch(`/api/admin/trackman/import-runs?${cacheBuster}`, { credentials: 'include' }),
         fetch('/api/hubspot/contacts?status=all', { credentials: 'include' }),
         fetch(`/api/admin/trackman/needs-players?limit=${ITEMS_PER_PAGE}&offset=${needsPlayersOffset}&${cacheBuster}`, { credentials: 'include' }),
-        fetch(`/api/admin/trackman/potential-matches?${cacheBuster}`, { credentials: 'include' })
+        fetch(`/api/admin/trackman/potential-matches?${cacheBuster}`, { credentials: 'include' }),
+        fetch(`/api/admin/trackman/requires-review?${cacheBuster}`, { credentials: 'include' })
       ]);
       
       if (unmatchedRes.ok) {
@@ -204,6 +268,11 @@ const TrackmanTab: React.FC = () => {
         const result = await potentialMatchesRes.json();
         setPotentialMatches(result.data || []);
         setPotentialMatchesTotalCount(result.totalCount || 0);
+      }
+      if (requiresReviewRes.ok) {
+        const result = await requiresReviewRes.json();
+        setRequiresReviewBookings(result.data || []);
+        setRequiresReviewTotalCount(result.totalCount || 0);
       }
     } catch (err) {
       console.error('Failed to fetch Trackman data:', err);
@@ -598,6 +667,44 @@ const TrackmanTab: React.FC = () => {
           </div>
         )}
       </div>
+
+      {requiresReviewBookings.length > 0 && (
+        <div className="glass-card p-6 rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10">
+          <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
+            <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
+            Requires Review ({requiresReviewTotalCount})
+          </h2>
+          <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
+            These bookings have partial names without emails and need manual matching to a member.
+          </p>
+          
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {requiresReviewBookings.map((booking: any) => (
+              <div key={booking.id} className="p-4 bg-white/80 dark:bg-white/5 rounded-xl flex justify-between items-start gap-3 border border-amber-200/50 dark:border-amber-500/20">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-primary dark:text-white truncate">
+                    {booking.userName || booking.user_name || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
+                    {formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)} • {(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)} • Bay {booking.bayNumber || booking.bay_number}
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs">info</span>
+                    Partial name - needs member matching
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleOpenFuzzyMatchModal(booking)}
+                  className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors shrink-0 flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-sm">search</span>
+                  Find Matches
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {potentialMatches.length > 0 && (
         <div className="glass-card p-6 rounded-2xl border border-primary/10 dark:border-white/25">
@@ -1141,6 +1248,91 @@ const TrackmanTab: React.FC = () => {
             </div>
           </div>
         )}
+      </ModalShell>
+
+      <ModalShell isOpen={!!fuzzyMatchModal} onClose={() => setFuzzyMatchModal(null)} title="Find Member Match">
+        <div className="p-6">
+          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
+              <p className="font-bold text-primary dark:text-white">
+                {fuzzyMatchModal?.booking?.userName || fuzzyMatchModal?.booking?.user_name || 'Unknown'}
+              </p>
+            </div>
+            <p className="text-xs text-primary/80 dark:text-white/80">
+              {formatDateDisplayWithDay(fuzzyMatchModal?.booking?.bookingDate || fuzzyMatchModal?.booking?.booking_date)} • Bay {fuzzyMatchModal?.booking?.bayNumber || fuzzyMatchModal?.booking?.bay_number}
+            </p>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+              Suggested Member Matches:
+            </label>
+          </div>
+          
+          {fuzzyMatchModal?.isLoading ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <WalkingGolferSpinner size="md" variant="dark" />
+              <p className="text-sm text-primary/70 dark:text-white/70">Finding matches...</p>
+            </div>
+          ) : fuzzyMatchModal?.matches && fuzzyMatchModal.matches.length > 0 ? (
+            <div className="max-h-64 overflow-y-auto space-y-2 -mx-2 px-2">
+              {fuzzyMatchModal.matches.map((match: any, idx: number) => (
+                <button
+                  key={match.email || idx}
+                  onClick={() => setFuzzyMatchModal(prev => prev ? { ...prev, selectedEmail: match.email } : null)}
+                  className={`w-full p-4 text-left rounded-xl transition-all ${
+                    fuzzyMatchModal?.selectedEmail === match.email
+                      ? 'bg-amber-100 dark:bg-amber-500/20 border-2 border-amber-500 shadow-md'
+                      : 'bg-white/70 dark:bg-white/5 border border-primary/10 dark:border-white/25 hover:bg-white dark:hover:bg-white/10 hover:border-primary/20 dark:hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-primary dark:text-white text-base">
+                        {match.firstName || ''} {match.lastName || ''}
+                      </p>
+                      <p className="text-sm text-primary/80 dark:text-white/80 mt-0.5">{match.email}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                        match.score >= 80 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+                          : match.score >= 60
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                            : 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'
+                      }`}>
+                        {match.score}% match
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center border-2 border-dashed border-primary/10 dark:border-white/25 rounded-xl">
+              <span aria-hidden="true" className="material-symbols-outlined text-4xl text-primary/20 dark:text-white/20 mb-2">search_off</span>
+              <p className="text-primary/70 dark:text-white/70">No matching members found</p>
+              <p className="text-xs text-primary/50 dark:text-white/50 mt-1">Try resolving manually from Unmatched Bookings</p>
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-primary/10 dark:border-white/25">
+            <button
+              onClick={() => setFuzzyMatchModal(null)}
+              className="px-5 py-2.5 rounded-full text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleResolveFuzzyMatch}
+              disabled={!fuzzyMatchModal?.selectedEmail}
+              className="px-6 py-2.5 rounded-full bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Resolve with Selected Member
+            </button>
+          </div>
+        </div>
       </ModalShell>
     </div>
     </PullToRefresh>

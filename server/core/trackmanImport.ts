@@ -439,17 +439,16 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
       if (guest.name) {
         const existingGuest = await db.select()
           .from(guestsTable)
-          .where(sql`LOWER(display_name) = LOWER(${guest.name})`)
+          .where(sql`LOWER(name) = LOWER(${guest.name})`)
           .limit(1);
         
         if (existingGuest.length > 0) {
           guestId = existingGuest[0].id;
         } else {
           const [newGuest] = await db.insert(guestsTable).values({
-            displayName: guest.name,
+            name: guest.name,
             email: guest.email,
-            addedByEmail: input.ownerEmail,
-            isRecurring: false
+            createdByMemberId: input.ownerEmail
           }).returning();
           guestId = newGuest?.id;
         }
@@ -587,6 +586,26 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   const emailMapping = await loadEmailMapping();
   process.stderr.write(`[Trackman Import] Email mapping loaded with ${emailMapping.size} entries, membersByEmail has ${membersByEmail.size} entries\n`);
 
+  // Task 6C: Build trackman_email -> member email mapping from database
+  const trackmanEmailMapping = new Map<string, string>();
+  try {
+    const usersWithTrackmanEmail = await db.select({
+      email: users.email,
+      trackmanEmail: users.trackmanEmail
+    })
+    .from(users)
+    .where(sql`trackman_email IS NOT NULL AND trackman_email != ''`);
+    
+    for (const user of usersWithTrackmanEmail) {
+      if (user.email && user.trackmanEmail) {
+        trackmanEmailMapping.set(user.trackmanEmail.toLowerCase().trim(), user.email.toLowerCase());
+      }
+    }
+    process.stderr.write(`[Trackman Import] Loaded ${trackmanEmailMapping.size} trackman_email mappings from users table\n`);
+  } catch (err: any) {
+    process.stderr.write(`[Trackman Import] Error loading trackman_email mappings: ${err.message}\n`);
+  }
+
   let matchedRows = 0;
   let unmatchedRows = 0;
   let skippedRows = 0;
@@ -706,6 +725,52 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         if (existingMember) {
           matchedEmail = existingMember;
           matchReason = 'Matched by email';
+        }
+      }
+
+      // Task 6C: Match by trackman_email field
+      if (!matchedEmail && row.userEmail.includes('@')) {
+        const trackmanEmailMatch = trackmanEmailMapping.get(row.userEmail.toLowerCase().trim());
+        if (trackmanEmailMatch) {
+          const existingMember = membersByEmail.get(trackmanEmailMatch.toLowerCase());
+          if (existingMember) {
+            matchedEmail = existingMember;
+            matchReason = 'Matched by trackman_email';
+            process.stderr.write(`[Trackman Import] Trackman email match: ${row.userEmail} -> ${existingMember}\n`);
+          }
+        }
+      }
+
+      // Task 6B/6C: Parse notes for M:/G: format and match members from notes
+      const parsedPlayers = parseNotesForPlayers(row.notes);
+      const memberEmailsFromNotes: string[] = [];
+      const requiresReview: { name: string; reason: string }[] = [];
+      
+      for (const player of parsedPlayers) {
+        if (player.type === 'member' && player.email) {
+          // Try to match member email from notes to actual member
+          const noteEmail = player.email.toLowerCase().trim();
+          
+          // First check if it's a trackman_email format (firstname.lastname@evenhouse.club)
+          const trackmanMatch = trackmanEmailMapping.get(noteEmail);
+          if (trackmanMatch) {
+            memberEmailsFromNotes.push(trackmanMatch);
+          } else if (membersByEmail.has(noteEmail)) {
+            // Direct email match
+            memberEmailsFromNotes.push(noteEmail);
+          } else {
+            // Email in notes doesn't match any member - flag for review
+            requiresReview.push({ 
+              name: player.name || noteEmail, 
+              reason: `Email ${noteEmail} not found in member database` 
+            });
+          }
+        } else if (player.type === 'member' && !player.email && player.name) {
+          // Task 6E: Member with name but no email - flag for fuzzy matching
+          requiresReview.push({ 
+            name: player.name, 
+            reason: 'Partial name without email - requires manual matching' 
+          });
         }
       }
 
@@ -1202,6 +1267,24 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           throw insertErr;
         }
       } else {
+        // Determine match attempt reason with fuzzy match indicator (Task 6E)
+        let matchAttemptReason = isPlaceholderEmail(row.userEmail) 
+          ? 'Placeholder email, name not found in members' 
+          : 'Email not found in members database';
+        
+        // Check if this needs fuzzy matching (partial name without clear match)
+        const normalizedName = row.userName?.toLowerCase().trim() || '';
+        if (normalizedName && normalizedName.includes(' ')) {
+          // Has first and last name - good candidate for fuzzy matching
+          matchAttemptReason = `REQUIRES_REVIEW: ${matchAttemptReason} - name "${row.userName}" may match existing member`;
+        }
+        
+        // Add info about additional players that need review
+        if (requiresReview.length > 0) {
+          const reviewItems = requiresReview.map(r => `${r.name}: ${r.reason}`).join('; ');
+          matchAttemptReason += ` | Additional players need review: ${reviewItems}`;
+        }
+        
         await db.insert(trackmanUnmatchedBookings).values({
           trackmanBookingId: row.bookingId,
           userName: row.userName,
@@ -1214,9 +1297,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           bayNumber: row.bayNumber,
           playerCount: row.playerCount,
           notes: row.notes,
-          matchAttemptReason: isPlaceholderEmail(row.userEmail) 
-            ? 'Placeholder email, name not found in members' 
-            : 'Email not found in members database'
+          matchAttemptReason: matchAttemptReason
         });
 
         unmatchedRows++;
@@ -1268,8 +1349,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   for (const booking of matchedToCancel) {
     if (booking.trackmanBookingId && !importBookingIds.has(booking.trackmanBookingId)) {
       // Only cancel if the booking is in the future (including time check for same-day bookings)
-      const bookingDateStr = booking.requestDate instanceof Date 
-        ? booking.requestDate.toISOString().split('T')[0]
+      const bookingDateStr = typeof booking.requestDate === 'object' && booking.requestDate !== null
+        ? (booking.requestDate as Date).toISOString().split('T')[0]
         : String(booking.requestDate);
       
       // Use isFutureBooking for accurate future check (includes time for same-day bookings)

@@ -304,6 +304,14 @@ router.get('/api/admin/trackman/matched', isAdmin, async (req, res) => {
           lastName: row.member_last_name,
           fullName: [row.member_first_name, row.member_last_name].filter(Boolean).join(' ')
         } : null,
+        // Flattened slot info (Task 6A)
+        totalSlots,
+        filledSlots,
+        assignedCount: filledSlots,
+        playerCount: totalSlots,
+        isSolo: totalSlots === 1,
+        isFullyResolved: totalSlots === 1 || filledSlots >= totalSlots,
+        // Keep slotInfo for backward compatibility
         slotInfo: {
           totalSlots,
           filledSlots,
@@ -795,6 +803,15 @@ router.get('/api/admin/trackman/needs-players', isAdmin, async (req, res) => {
           lastName: row.member_last_name,
           fullName: [row.member_first_name, row.member_last_name].filter(Boolean).join(' ')
         } : null,
+        // Flattened slot info (Task 6A)
+        totalSlots,
+        filledSlots,
+        emptySlots,
+        guestCount: effectiveGuests,
+        assignedCount: filledSlots + effectiveGuests,
+        playerCount: totalSlots,
+        expectedPlayerCount: totalSlots,
+        // Keep slotInfo for backward compatibility
         slotInfo: {
           totalSlots,
           filledSlots,
@@ -1013,6 +1030,169 @@ router.delete('/api/admin/trackman/reset-data', isAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to reset Trackman data: ' + error.message });
   } finally {
     client.release();
+  }
+});
+
+// Task 6E: Fuzzy match API endpoint for partial names
+router.get('/api/admin/trackman/fuzzy-matches/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get the unmatched booking
+    const unmatchedResult = await pool.query(
+      `SELECT id, user_name, original_email, notes, match_attempt_reason
+       FROM trackman_unmatched_bookings
+       WHERE id = $1`,
+      [id]
+    );
+    
+    if (unmatchedResult.rowCount === 0) {
+      return res.status(404).json({ error: 'Unmatched booking not found' });
+    }
+    
+    const unmatched = unmatchedResult.rows[0];
+    const userName = (unmatched.user_name || '').toLowerCase().trim();
+    
+    if (!userName) {
+      return res.json({ suggestions: [], message: 'No name to match against' });
+    }
+    
+    // Split name into parts for fuzzy matching
+    const nameParts = userName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    
+    // Find potential matches using ILIKE for case-insensitive partial matching
+    let suggestions: any[] = [];
+    
+    if (firstName && lastName) {
+      // Try first name + last name combo
+      const result = await pool.query(
+        `SELECT id, email, first_name, last_name, membership_status, trackman_email
+         FROM users
+         WHERE (
+           (LOWER(first_name) LIKE $1 AND LOWER(last_name) LIKE $2)
+           OR (LOWER(first_name) LIKE $2 AND LOWER(last_name) LIKE $1)
+           OR LOWER(first_name || ' ' || last_name) LIKE $3
+           OR LOWER(last_name || ' ' || first_name) LIKE $3
+         )
+         AND membership_status IS NOT NULL
+         ORDER BY 
+           CASE WHEN membership_status = 'active' THEN 0 ELSE 1 END,
+           first_name, last_name
+         LIMIT 10`,
+        [`%${firstName}%`, `%${lastName}%`, `%${userName}%`]
+      );
+      suggestions = result.rows;
+    } else if (firstName) {
+      // Try just first name or last name
+      const result = await pool.query(
+        `SELECT id, email, first_name, last_name, membership_status, trackman_email
+         FROM users
+         WHERE (LOWER(first_name) LIKE $1 OR LOWER(last_name) LIKE $1)
+         AND membership_status IS NOT NULL
+         ORDER BY 
+           CASE WHEN membership_status = 'active' THEN 0 ELSE 1 END,
+           first_name, last_name
+         LIMIT 10`,
+        [`%${firstName}%`]
+      );
+      suggestions = result.rows;
+    }
+    
+    // Format response
+    const formattedSuggestions = suggestions.map(s => ({
+      id: s.id,
+      email: s.email,
+      firstName: s.first_name,
+      lastName: s.last_name,
+      fullName: [s.first_name, s.last_name].filter(Boolean).join(' '),
+      membershipStatus: s.membership_status,
+      trackmanEmail: s.trackman_email,
+      matchScore: calculateMatchScore(userName, s.first_name, s.last_name)
+    })).sort((a, b) => b.matchScore - a.matchScore);
+    
+    res.json({ 
+      unmatchedName: unmatched.user_name,
+      unmatchedEmail: unmatched.original_email,
+      matches: formattedSuggestions,
+      requiresReview: (unmatched.match_attempt_reason || '').includes('REQUIRES_REVIEW')
+    });
+  } catch (error: any) {
+    console.error('Fuzzy match error:', error);
+    res.status(500).json({ error: 'Failed to find fuzzy matches' });
+  }
+});
+
+// Calculate match score for ranking fuzzy matches
+function calculateMatchScore(searchName: string, firstName: string | null, lastName: string | null): number {
+  const search = searchName.toLowerCase().trim();
+  const first = (firstName || '').toLowerCase().trim();
+  const last = (lastName || '').toLowerCase().trim();
+  const full = `${first} ${last}`.trim();
+  
+  // Exact match
+  if (search === full) return 100;
+  
+  // Partial matches
+  let score = 0;
+  const searchParts = search.split(/\s+/);
+  
+  for (const part of searchParts) {
+    if (first === part) score += 40;
+    else if (first.startsWith(part)) score += 30;
+    else if (first.includes(part)) score += 20;
+    
+    if (last === part) score += 40;
+    else if (last.startsWith(part)) score += 30;
+    else if (last.includes(part)) score += 20;
+  }
+  
+  return Math.min(score, 99); // Cap at 99 to distinguish from exact match
+}
+
+// Task 6E: Get unmatched bookings that require review (fuzzy match candidates)
+router.get('/api/admin/trackman/requires-review', isAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const result = await pool.query(
+      `SELECT 
+        id,
+        trackman_booking_id as "trackmanBookingId",
+        user_name as "userName",
+        original_email as "originalEmail",
+        TO_CHAR(booking_date, 'YYYY-MM-DD') as "bookingDate",
+        start_time as "startTime",
+        end_time as "endTime",
+        bay_number as "bayNumber",
+        player_count as "playerCount",
+        notes,
+        match_attempt_reason as "matchAttemptReason",
+        created_at as "createdAt"
+       FROM trackman_unmatched_bookings
+       WHERE resolved_at IS NULL
+         AND match_attempt_reason LIKE '%REQUIRES_REVIEW%'
+       ORDER BY booking_date DESC, start_time DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total 
+       FROM trackman_unmatched_bookings 
+       WHERE resolved_at IS NULL 
+         AND match_attempt_reason LIKE '%REQUIRES_REVIEW%'`
+    );
+    
+    res.json({ 
+      data: result.rows,
+      totalCount: parseInt(countResult.rows[0].total)
+    });
+  } catch (error: any) {
+    console.error('Fetch requires-review error:', error);
+    res.status(500).json({ error: 'Failed to fetch bookings requiring review' });
   }
 });
 
