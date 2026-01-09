@@ -206,7 +206,8 @@ router.get('/api/bookings', async (req, res) => {
         notes: bookingRequests.notes,
         created_at: bookingRequests.createdAt,
         resource_name: resources.name,
-        resource_type: resources.type
+        resource_type: resources.type,
+        declared_player_count: bookingRequests.declaredPlayerCount
       })
         .from(bookingRequests)
         .innerJoin(resources, eq(bookingRequests.resourceId, resources.id))

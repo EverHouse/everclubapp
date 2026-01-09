@@ -44,6 +44,7 @@ interface DBBooking {
   end_time: string;
   status: string;
   notes: string;
+  declared_player_count?: number;
 }
 
 interface DBEvent {

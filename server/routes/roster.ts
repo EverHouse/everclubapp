@@ -138,7 +138,10 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
     }
 
     const declaredCount = booking.declared_player_count || 1;
-    const currentCount = participants.length;
+    // Check if owner is already in participants (bookings with sessions have owner as participant)
+    const ownerInParticipants = participants.some(p => p.participantType === 'owner');
+    // If owner is in participants, just use participants.length; otherwise add 1 for the owner
+    const currentCount = ownerInParticipants ? participants.length : (1 + participants.length);
     const remainingSlots = Math.max(0, declaredCount - currentCount);
 
     const ownerTier = booking.owner_tier || await getMemberTierByEmail(booking.owner_email);
@@ -167,9 +170,9 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
         sessionId: booking.session_id,
       },
       declaredPlayerCount: declaredCount,
-      currentParticipantCount: currentCount,
+      currentParticipantCount: currentCount, // Includes owner (1) + added participants
       remainingSlots,
-      participants,
+      participants, // Does NOT include owner - only explicitly added members/guests
       ownerTier,
       guestPassesRemaining,
       guestPassesUsed: guestCount,
@@ -249,11 +252,16 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
     const existingParticipants = await getSessionParticipants(sessionId);
     const declaredCount = booking.declared_player_count || 1;
     
-    if (existingParticipants.length >= declaredCount) {
+    // Check if owner is already in participants (sessions may or may not have owner as participant)
+    const ownerInParticipants = existingParticipants.some(p => p.participantType === 'owner');
+    // Effective count: if owner isn't in participants, add 1 for them
+    const effectiveCount = ownerInParticipants ? existingParticipants.length : (1 + existingParticipants.length);
+    
+    if (effectiveCount >= declaredCount) {
       return res.status(400).json({ 
         error: 'Cannot add more participants. Maximum slot limit reached.',
         declaredPlayerCount: declaredCount,
-        currentCount: existingParticipants.length
+        currentCount: effectiveCount
       });
     }
 
