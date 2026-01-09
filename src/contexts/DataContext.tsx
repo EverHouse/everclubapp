@@ -461,6 +461,21 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Function to refresh announcements
+  const refreshAnnouncements = useCallback(async () => {
+    try {
+      const res = await fetch('/api/announcements?active_only=true');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAnnouncements(data);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch announcements:', err);
+    }
+  }, []);
+
   // Fetch announcements from API (active only - already filtered and priority-sorted by API)
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -480,6 +495,18 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     };
     fetchAnnouncements();
   }, []);
+
+  // Listen for real-time announcement updates via WebSocket
+  useEffect(() => {
+    const handleAnnouncementUpdate = () => {
+      refreshAnnouncements();
+    };
+    
+    window.addEventListener('announcement-update', handleAnnouncementUpdate);
+    return () => {
+      window.removeEventListener('announcement-update', handleAnnouncementUpdate);
+    };
+  }, [refreshAnnouncements]);
 
   const refreshCafeMenu = useCallback(async () => {
     const formatCafeData = (data: any[]) => data.map((item: any) => ({

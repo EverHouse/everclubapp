@@ -81,6 +81,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           if (message.type === 'booking_event' || message.type === 'rsvp_event' || message.type === 'wellness_event') {
             bookingEvents.emit();
           }
+          
+          // Handle announcement updates (for instant refresh without page reload)
+          if (message.type === 'announcement_update') {
+            window.dispatchEvent(new CustomEvent('announcement-update', { detail: message }));
+          }
         } catch (e) {
           console.error('[WebSocket] Error parsing message:', e);
         }
