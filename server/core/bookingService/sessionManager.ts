@@ -35,6 +35,8 @@ export interface ParticipantInput {
   displayName: string;
   slotDuration?: number;
   trackmanPlayerRowId?: string;
+  invitedAt?: Date;
+  inviteExpiresAt?: Date;
 }
 
 export interface RecordUsageInput {
@@ -102,7 +104,8 @@ export async function linkParticipants(
       slotDuration: p.slotDuration,
       trackmanPlayerRowId: p.trackmanPlayerRowId,
       inviteStatus: p.participantType === 'owner' ? 'accepted' : 'pending',
-      invitedAt: new Date()
+      invitedAt: p.invitedAt || new Date(),
+      inviteExpiresAt: p.inviteExpiresAt
     }));
     
     const inserted = await db

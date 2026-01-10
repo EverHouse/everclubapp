@@ -20,6 +20,7 @@ import {
   linkBookingRequestToSession,
   type ParticipantInput 
 } from '../core/bookingService/sessionManager';
+import { createPacificDate } from '../utils/dateUtils';
 import { 
   enforceSocialTierRules, 
   getMemberTier,
@@ -326,10 +327,15 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
     if (type === 'member' && memberInfo) {
       const displayName = [memberInfo.firstName, memberInfo.lastName].filter(Boolean).join(' ') || memberInfo.email;
       
+      const bookingStartTime = createPacificDate(booking.request_date, booking.start_time);
+      const inviteExpiresAt = new Date(bookingStartTime.getTime() - 30 * 60 * 1000);
+      
       participantInput = {
         userId: memberInfo.id,
         participantType: 'member',
         displayName,
+        invitedAt: new Date(),
+        inviteExpiresAt,
       };
     } else {
       // Ensure guest pass record exists and decrement guest pass

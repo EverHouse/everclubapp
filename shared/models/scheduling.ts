@@ -266,6 +266,8 @@ export const bookingParticipants = pgTable("booking_participants", {
   inviteStatus: varchar("invite_status").default("pending"),
   invitedAt: timestamp("invited_at"),
   respondedAt: timestamp("responded_at"),
+  inviteExpiresAt: timestamp("invite_expires_at"),
+  expiredReason: varchar("expired_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("booking_participants_session_idx").on(table.sessionId),
