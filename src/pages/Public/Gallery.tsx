@@ -484,7 +484,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
           <img
             src={images[currentIndex]}
             alt="Gallery full view"
-            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+            className="max-w-full max-h-[85vh] object-contain animate-in zoom-in-95 duration-200"
           />
         </div>
       </div>
