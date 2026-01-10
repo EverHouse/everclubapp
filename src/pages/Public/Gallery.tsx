@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../contexts/PageReadyContext';
-import ModalShell from '../../components/ModalShell';
 
 interface GalleryImage {
   id: number;
@@ -430,65 +429,59 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
     if (isRightSwipe) onPrev();
   };
 
-  return (
-    <ModalShell 
-      isOpen={true} 
-      onClose={onClose} 
-      showCloseButton={false}
-      size="full"
-      className="!bg-transparent !border-0 !shadow-none !rounded-none !max-w-none"
+  return createPortal(
+    <div 
+      className="fixed inset-0 bg-black flex items-center justify-center"
+      style={{ zIndex: 99999 }}
+      onClick={onClose}
     >
-      <div 
-        className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center relative"
-        onClick={onClose}
-      >
-        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
-          <div className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
-            <span className="text-white/80 text-sm font-medium">
-              {currentIndex + 1} / {images.length}
-            </span>
-          </div>
-          <button
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-          >
-            <span className="material-symbols-outlined text-white text-2xl">close</span>
-          </button>
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
+        <div className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
+          <span className="text-white/80 text-sm font-medium">
+            {currentIndex + 1} / {images.length}
+          </span>
         </div>
-
-        {currentIndex > 0 && (
-          <button
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          >
-            <span className="material-symbols-outlined text-white text-3xl">chevron_left</span>
-          </button>
-        )}
-
-        {currentIndex < images.length - 1 && (
-          <button
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            onClick={(e) => { e.stopPropagation(); onNext(); }}
-          >
-            <span className="material-symbols-outlined text-white text-3xl">chevron_right</span>
-          </button>
-        )}
-
-        <div 
-          className="max-w-[90vw] max-h-[85vh] rounded-2xl overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+        <button
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
         >
-          <img
-            src={images[currentIndex]}
-            alt="Gallery full view"
-            className="w-full h-full object-contain animate-in zoom-in-95 duration-200"
-          />
-        </div>
+          <span className="material-symbols-outlined text-white text-2xl">close</span>
+        </button>
       </div>
-    </ModalShell>
+
+      {currentIndex > 0 && (
+        <button
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+        >
+          <span className="material-symbols-outlined text-white text-3xl">chevron_left</span>
+        </button>
+      )}
+
+      {currentIndex < images.length - 1 && (
+        <button
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
+        >
+          <span className="material-symbols-outlined text-white text-3xl">chevron_right</span>
+        </button>
+      )}
+
+      <div 
+        className="max-w-[90vw] max-h-[80vh] rounded-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <img
+          src={images[currentIndex]}
+          alt="Gallery full view"
+          className="max-w-full max-h-[80vh] object-contain rounded-2xl"
+        />
+      </div>
+    </div>,
+    document.body
   );
 };
 
