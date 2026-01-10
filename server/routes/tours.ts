@@ -4,7 +4,7 @@ import { db } from '../db';
 import { tours } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
-import { getGoogleCalendarClient } from '../core/integrations';
+import { getGoogleCalendarClient, getHubSpotClient } from '../core/integrations';
 import { CALENDAR_CONFIG, getCalendarIdByName, discoverCalendarIds } from '../core/calendar/index';
 import { notifyAllStaff } from '../core/staffNotifications';
 import { getTodayPacific } from '../utils/dateUtils';
@@ -102,7 +102,15 @@ router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
 
 router.post('/api/tours/sync', isStaffOrAdmin, async (req, res) => {
   try {
-    const result = await syncToursFromCalendar();
+    const { source } = req.query;
+    let result;
+    
+    if (source === 'calendar') {
+      result = await syncToursFromCalendar();
+    } else {
+      result = await syncToursFromHubSpot();
+    }
+    
     res.json(result);
   } catch (error: any) {
     if (!isProduction) console.error('Tours sync error:', error);
@@ -418,6 +426,230 @@ export async function sendTodayTourReminders(): Promise<number> {
   } catch (error) {
     console.error('Error sending tour reminders:', error);
     return 0;
+  }
+}
+
+export async function syncToursFromHubSpot(): Promise<{ synced: number; created: number; updated: number; cancelled: number; error?: string }> {
+  try {
+    const hubspot = await getHubSpotClient();
+    
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    const allMeetings: any[] = [];
+    let after: string | undefined = undefined;
+    
+    do {
+      const response = await hubspot.crm.objects.meetings.basicApi.getPage(
+        100,
+        after,
+        [
+          'hs_meeting_title',
+          'hs_meeting_start_time',
+          'hs_meeting_end_time',
+          'hs_meeting_outcome',
+          'hs_meeting_body',
+          'hs_internal_meeting_notes',
+          'hs_meeting_external_url',
+          'hs_timestamp',
+          'hs_meeting_location'
+        ],
+        undefined,
+        ['contacts']
+      );
+      
+      if (response.results) {
+        const filteredMeetings = response.results.filter((meeting: any) => {
+          const startTime = meeting.properties.hs_meeting_start_time;
+          if (!startTime) return false;
+          const meetingDate = new Date(startTime);
+          if (meetingDate < oneYearAgo) return false;
+          const title = (meeting.properties.hs_meeting_title || '').toLowerCase();
+          const location = (meeting.properties.hs_meeting_location || '').toLowerCase();
+          const externalUrl = (meeting.properties.hs_meeting_external_url || '').toLowerCase();
+          return title.includes('tour') || 
+                 location.includes('tourbooking') || 
+                 externalUrl.includes('tourbooking');
+        });
+        allMeetings.push(...filteredMeetings);
+      }
+      after = response.paging?.next?.after;
+    } while (after);
+    
+    let created = 0;
+    let updated = 0;
+    let cancelled = 0;
+    
+    const hubspotMeetingIds = new Set(allMeetings.map(m => m.id));
+    
+    for (const meeting of allMeetings) {
+      const hubspotMeetingId = meeting.id;
+      const props = meeting.properties;
+      
+      const title = props.hs_meeting_title || 'Tour';
+      const startTimeRaw = props.hs_meeting_start_time;
+      const endTimeRaw = props.hs_meeting_end_time;
+      const outcome = (props.hs_meeting_outcome || '').toLowerCase();
+      const notes = props.hs_meeting_body || props.hs_internal_meeting_notes || '';
+      
+      if (!startTimeRaw) continue;
+      
+      const startDt = new Date(startTimeRaw);
+      const tourDate = startDt.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      const startTime = startDt.toLocaleTimeString('en-GB', { timeZone: 'America/Los_Angeles', hour12: false });
+      
+      let endTime: string | null = null;
+      if (endTimeRaw) {
+        const endDt = new Date(endTimeRaw);
+        endTime = endDt.toLocaleTimeString('en-GB', { timeZone: 'America/Los_Angeles', hour12: false });
+      }
+      
+      let guestName: string | null = null;
+      let guestEmail: string | null = null;
+      let guestPhone: string | null = null;
+      
+      const associations = meeting.associations;
+      if (associations?.contacts?.results?.length > 0) {
+        const contactId = associations.contacts.results[0].id;
+        try {
+          const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
+            'firstname', 'lastname', 'email', 'phone'
+          ]);
+          const firstName = contact.properties.firstname || '';
+          const lastName = contact.properties.lastname || '';
+          guestName = `${firstName} ${lastName}`.trim() || null;
+          guestEmail = contact.properties.email || null;
+          guestPhone = contact.properties.phone || null;
+        } catch (e) {
+          if (!isProduction) console.warn(`[HubSpot Sync] Failed to fetch contact ${contactId}:`, e);
+        }
+      }
+      
+      const cancelledOutcomes = ['canceled', 'cancelled', 'no show', 'no_show', 'noshow', 'rescheduled'];
+      const isCancelled = cancelledOutcomes.includes(outcome);
+      
+      const existing = await db.select().from(tours).where(eq(tours.hubspotMeetingId, hubspotMeetingId));
+      
+      if (existing.length > 0) {
+        if (isCancelled && existing[0].status !== 'cancelled') {
+          await db.update(tours)
+            .set({
+              status: 'cancelled',
+              updatedAt: new Date(),
+            })
+            .where(eq(tours.hubspotMeetingId, hubspotMeetingId));
+          cancelled++;
+        } else if (!isCancelled) {
+          await db.update(tours)
+            .set({
+              title,
+              guestName: guestName || existing[0].guestName,
+              guestEmail: guestEmail || existing[0].guestEmail,
+              guestPhone: guestPhone || existing[0].guestPhone,
+              tourDate,
+              startTime,
+              endTime,
+              notes: notes || null,
+              updatedAt: new Date(),
+            })
+            .where(eq(tours.hubspotMeetingId, hubspotMeetingId));
+          updated++;
+        }
+      } else {
+        let matchedExistingTour = null;
+        if (guestEmail) {
+          const eventTimeMinutes = parseTimeToMinutes(startTime);
+          const existingTours = await db.select().from(tours).where(
+            and(
+              ilike(tours.guestEmail, guestEmail),
+              eq(tours.tourDate, tourDate),
+              or(eq(tours.status, 'pending'), eq(tours.status, 'scheduled'), eq(tours.status, 'checked_in')),
+              sql`${tours.hubspotMeetingId} IS NULL`
+            )
+          );
+          
+          matchedExistingTour = existingTours.find(t => {
+            if (t.startTime === '00:00:00') return true;
+            const existingTimeMinutes = parseTimeToMinutes(t.startTime);
+            return Math.abs(eventTimeMinutes - existingTimeMinutes) <= 15;
+          });
+        }
+        
+        if (matchedExistingTour) {
+          await db.update(tours)
+            .set({
+              hubspotMeetingId,
+              title,
+              guestName: matchedExistingTour.guestName || guestName,
+              guestEmail: matchedExistingTour.guestEmail || guestEmail,
+              guestPhone: matchedExistingTour.guestPhone || guestPhone,
+              tourDate,
+              startTime,
+              endTime,
+              notes: notes || null,
+              status: isCancelled ? 'cancelled' : (matchedExistingTour.status === 'checked_in' ? 'checked_in' : 'scheduled'),
+              updatedAt: new Date(),
+            })
+            .where(eq(tours.id, matchedExistingTour.id));
+          updated++;
+        } else {
+          console.log(`[HubSpot Tour Sync] No existing match found for meeting ${hubspotMeetingId} (${guestEmail || 'no email'}, ${tourDate} ${startTime}), creating new tour`);
+          await db.insert(tours).values({
+            hubspotMeetingId,
+            title,
+            guestName,
+            guestEmail,
+            guestPhone,
+            tourDate,
+            startTime,
+            endTime,
+            notes: notes || null,
+            status: isCancelled ? 'cancelled' : 'scheduled',
+          });
+          created++;
+          
+          if (!isCancelled) {
+            const tourDateObj = new Date(tourDate);
+            const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+            await notifyAllStaff(
+              'New Tour Scheduled',
+              `${guestName || 'Guest'} scheduled a tour for ${formattedDate}`,
+              'tour_scheduled',
+              undefined,
+              'tour'
+            );
+          }
+        }
+      }
+    }
+    
+    console.log(`[HubSpot Tour Sync] Completed: ${allMeetings.length} meetings processed, ${created} created, ${updated} updated, ${cancelled} cancelled`);
+    
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+    const scheduledToursWithHubSpotId = await db.select().from(tours)
+      .where(and(
+        sql`${tours.hubspotMeetingId} IS NOT NULL`,
+        eq(tours.status, 'scheduled'),
+        sql`${tours.tourDate} >= ${today}`
+      ));
+    
+    for (const tour of scheduledToursWithHubSpotId) {
+      if (tour.hubspotMeetingId && !hubspotMeetingIds.has(tour.hubspotMeetingId)) {
+        await db.update(tours)
+          .set({
+            status: 'cancelled',
+            updatedAt: new Date(),
+          })
+          .where(eq(tours.id, tour.id));
+        cancelled++;
+        console.log(`[HubSpot Tour Sync] Cancelled tour #${tour.id} (${tour.guestName || tour.title}) - meeting deleted in HubSpot`);
+      }
+    }
+    
+    return { synced: allMeetings.length, created, updated, cancelled };
+  } catch (error: any) {
+    console.error('Error syncing tours from HubSpot:', error);
+    return { synced: 0, created: 0, updated: 0, cancelled: 0, error: error.message || 'Failed to sync tours from HubSpot' };
   }
 }
 
