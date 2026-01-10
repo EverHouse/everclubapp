@@ -398,9 +398,9 @@ html, body {
   transform: translateY(0);
 }
 
-/* When FAB is present (on pages with has-fab class on body), add extra offset */
+/* When FAB is present (on pages with has-fab class on body), add extra offset for FAB height (56px) + gap */
 body.has-fab .back-to-top {
-  bottom: calc(var(--nav-clearance) + 72px);
+  bottom: calc(var(--nav-clearance) + 72px + 56px);
 }
 
 /* When bottom nav is hidden (user at bottom of scroll), reduce bottom offset */
@@ -410,7 +410,7 @@ body.has-fab .back-to-top {
 
 /* Override for FAB pages when nav is hidden */
 body.has-fab .back-to-top:not(.with-nav) {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px + 56px);
 }
 
 .back-to-top button {
