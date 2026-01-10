@@ -5,8 +5,17 @@ let hubspotConnectionSettings: any;
 let googleCalendarConnectionSettings: any;
 
 async function getHubSpotAccessToken() {
-  if (hubspotConnectionSettings && hubspotConnectionSettings.settings.expires_at && new Date(hubspotConnectionSettings.settings.expires_at).getTime() > Date.now()) {
-    return hubspotConnectionSettings.settings.access_token;
+  const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
+  
+  if (hubspotConnectionSettings) {
+    const expiresAt = hubspotConnectionSettings.settings?.expires_at || 
+                      hubspotConnectionSettings.settings?.oauth?.credentials?.expires_at;
+    const cachedToken = hubspotConnectionSettings.settings?.access_token || 
+                        hubspotConnectionSettings.settings?.oauth?.credentials?.access_token;
+    
+    if (expiresAt && cachedToken && new Date(expiresAt).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      return cachedToken;
+    }
   }
   
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
@@ -44,8 +53,17 @@ export async function getHubSpotClient() {
 }
 
 async function getGoogleCalendarAccessToken() {
-  if (googleCalendarConnectionSettings && googleCalendarConnectionSettings.settings.expires_at && new Date(googleCalendarConnectionSettings.settings.expires_at).getTime() > Date.now()) {
-    return googleCalendarConnectionSettings.settings.access_token;
+  const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
+  
+  if (googleCalendarConnectionSettings) {
+    const expiresAt = googleCalendarConnectionSettings.settings?.expires_at || 
+                      googleCalendarConnectionSettings.settings?.oauth?.credentials?.expires_at;
+    const cachedToken = googleCalendarConnectionSettings.settings?.access_token || 
+                        googleCalendarConnectionSettings.settings?.oauth?.credentials?.access_token;
+    
+    if (expiresAt && cachedToken && new Date(expiresAt).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      return cachedToken;
+    }
   }
   
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
