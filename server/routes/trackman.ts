@@ -6,6 +6,12 @@ import fs from 'fs';
 import { isStaffOrAdmin } from '../core/middleware';
 import { pool } from '../core/db';
 import { sendPushNotification } from './push';
+import { 
+  findAttendanceDiscrepancies, 
+  markAsReconciled, 
+  adjustLedgerForReconciliation, 
+  getReconciliationSummary 
+} from '../core/bookingService/trackmanReconciliation';
 
 const router = Router();
 
@@ -1193,6 +1199,103 @@ router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, async (req, re
   } catch (error: any) {
     console.error('Fetch requires-review error:', error);
     res.status(500).json({ error: 'Failed to fetch bookings requiring review' });
+  }
+});
+
+// ============================================================================
+// Task 7D: Trackman Reconciliation Endpoints
+// ============================================================================
+
+router.get('/api/admin/trackman/reconciliation', isStaffOrAdmin, async (req, res) => {
+  try {
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const status = req.query.status as 'pending' | 'reviewed' | 'adjusted' | 'all' | undefined;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const result = await findAttendanceDiscrepancies({
+      startDate,
+      endDate,
+      status: status || 'all',
+      limit,
+      offset
+    });
+    
+    res.json({
+      discrepancies: result.discrepancies,
+      stats: result.stats,
+      totalCount: result.totalCount
+    });
+  } catch (error: any) {
+    console.error('Fetch reconciliation discrepancies error:', error);
+    res.status(500).json({ error: 'Failed to fetch attendance discrepancies' });
+  }
+});
+
+router.get('/api/admin/trackman/reconciliation/summary', isStaffOrAdmin, async (req, res) => {
+  try {
+    const summary = await getReconciliationSummary();
+    res.json(summary);
+  } catch (error: any) {
+    console.error('Fetch reconciliation summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch reconciliation summary' });
+  }
+});
+
+router.put('/api/admin/trackman/reconciliation/:id', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes, adjustLedger } = req.body;
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    
+    if (!status || !['reviewed', 'adjusted'].includes(status)) {
+      return res.status(400).json({ 
+        error: 'status is required and must be "reviewed" or "adjusted"' 
+      });
+    }
+    
+    let result;
+    
+    if (status === 'adjusted' && adjustLedger) {
+      const adjustResult = await adjustLedgerForReconciliation(
+        parseInt(id),
+        staffEmail,
+        notes
+      );
+      
+      if (!adjustResult.success) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      
+      result = { 
+        success: true, 
+        status: 'adjusted',
+        adjustmentAmount: adjustResult.adjustmentAmount 
+      };
+    } else {
+      const reconcileResult = await markAsReconciled(
+        parseInt(id),
+        staffEmail,
+        status,
+        notes
+      );
+      
+      if (!reconcileResult.success) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      
+      result = { 
+        success: true, 
+        status,
+        booking: reconcileResult.booking 
+      };
+    }
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('Update reconciliation error:', error);
+    res.status(500).json({ error: 'Failed to update reconciliation status' });
   }
 });
 

@@ -69,6 +69,10 @@ export const bookingRequests = pgTable("booking_requests", {
   originalEndTime: time("original_end_time"),
   originalResourceId: integer("original_resource_id"),
   memberNotes: varchar("member_notes", { length: 280 }),
+  reconciliationStatus: varchar("reconciliation_status"),
+  reconciliationNotes: text("reconciliation_notes"),
+  reconciledBy: varchar("reconciled_by"),
+  reconciledAt: timestamp("reconciled_at"),
 }, (table) => [
   uniqueIndex("booking_requests_trackman_id_idx").on(table.trackmanBookingId),
   index("booking_requests_session_idx").on(table.sessionId),
@@ -281,7 +285,8 @@ export const paymentAuditActionEnum = pgEnum("payment_audit_action", [
   "payment_waived", 
   "tier_override", 
   "staff_direct_add",
-  "checkin_guard_triggered"
+  "checkin_guard_triggered",
+  "reconciliation_adjusted"
 ]);
 
 export const bookingPaymentAudit = pgTable("booking_payment_audit", {
