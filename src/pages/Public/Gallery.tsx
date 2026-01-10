@@ -475,7 +475,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
         )}
 
         <div 
-          className="max-w-[90vw] max-h-[85vh] flex items-center justify-center"
+          className="max-w-[90vw] max-h-[85vh] flex items-center justify-center rounded-2xl overflow-hidden bg-black shadow-2xl"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
