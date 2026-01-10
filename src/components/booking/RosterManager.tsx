@@ -17,7 +17,19 @@ export interface RosterParticipant {
   slotDuration: number | null;
   paymentStatus: string | null;
   inviteStatus: string | null;
+  inviteExpiresAt: string | null;
   createdAt: string;
+}
+
+interface BookingConflictDetails {
+  memberName: string;
+  conflictingBooking: {
+    id: number;
+    date: string;
+    startTime: string;
+    endTime: string;
+    resourceName?: string;
+  };
 }
 
 export interface RosterBooking {
@@ -136,7 +148,26 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [apiRemainingSlots, setApiRemainingSlots] = useState<number>(Math.max(0, declaredPlayerCount - 1));
   const [apiCurrentParticipantCount, setApiCurrentParticipantCount] = useState<number>(1); // Owner counts as 1
 
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictDetails, setConflictDetails] = useState<BookingConflictDetails | null>(null);
+
   const canManage = isOwner || isStaff;
+
+  const getExpiryCountdown = useCallback((expiresAt: string): string | null => {
+    const now = new Date();
+    const expiry = new Date(expiresAt);
+    const diffMs = expiry.getTime() - now.getTime();
+    
+    if (diffMs <= 0) return 'Expired';
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) {
+      return `Expires in ${diffMins} min`;
+    }
+    
+    const diffHours = Math.floor(diffMins / 60);
+    return `Expires in ${diffHours} hr${diffHours > 1 ? 's' : ''}`;
+  }, []);
   const remainingSlots = apiRemainingSlots;
 
   const fetchParticipants = useCallback(async () => {
@@ -232,19 +263,17 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     haptic.light();
     
     try {
-      const { ok, error } = await apiRequest(
-        `/api/bookings/${bookingId}/participants`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'member',
-            userId: member.id
-          })
-        }
-      );
+      const res = await fetch(`/api/bookings/${bookingId}/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          type: 'member',
+          userId: member.id
+        })
+      });
       
-      if (ok) {
+      if (res.ok) {
         haptic.success();
         showToast(`${member.name} added to booking`, 'success');
         setShowAddMemberModal(false);
@@ -254,7 +283,24 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         onUpdate?.();
       } else {
         haptic.error();
-        showToast(error || 'Failed to add member', 'error');
+        const errorData = await res.json().catch(() => ({}));
+        
+        if (res.status === 409 && errorData.errorType === 'booking_conflict') {
+          setConflictDetails({
+            memberName: member.name,
+            conflictingBooking: errorData.conflictingBooking || {
+              id: 0,
+              date: errorData.conflictDate || 'Unknown',
+              startTime: errorData.conflictStartTime || 'Unknown',
+              endTime: errorData.conflictEndTime || 'Unknown',
+              resourceName: errorData.conflictResource
+            }
+          });
+          setShowConflictModal(true);
+          showToast(`${member.name} has a conflicting booking at this time`, 'warning');
+        } else {
+          showToast(errorData.error || errorData.message || 'Failed to add member', 'error');
+        }
       }
     } catch (err) {
       haptic.error();
@@ -415,6 +461,16 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 <p className={`font-semibold truncate ${isDark ? 'text-white' : 'text-[#293515]'}`}>
                   {participant.displayName}
                 </p>
+                {participant.inviteStatus === 'pending' && participant.inviteExpiresAt && (
+                  <span className={`inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 text-[10px] font-bold rounded ${
+                    isDark 
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                      : 'bg-amber-100 text-amber-700 border border-amber-200'
+                  }`}>
+                    <span className="material-symbols-outlined text-xs">schedule</span>
+                    {getExpiryCountdown(participant.inviteExpiresAt)}
+                  </span>
+                )}
               </div>
               {getTypeBadge(participant.participantType)}
               {canManage && (
@@ -709,6 +765,80 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 Add Guest
               </>
             )}
+          </button>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        isOpen={showConflictModal}
+        onClose={() => {
+          setShowConflictModal(false);
+          setConflictDetails(null);
+        }}
+        title="Booking Conflict"
+        size="sm"
+      >
+        <div className="p-4 space-y-4">
+          <div className={`flex items-center gap-3 p-4 rounded-2xl ${
+            isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200'
+          }`}>
+            <span className={`material-symbols-outlined text-3xl ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+              warning
+            </span>
+            <div className="flex-1">
+              <p className={`font-semibold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
+                {conflictDetails?.memberName || 'This member'} already has a booking
+              </p>
+              <p className={`text-sm ${isDark ? 'text-white/60' : 'text-[#293515]/60'}`}>
+                They cannot be added to this session due to a time conflict.
+              </p>
+            </div>
+          </div>
+
+          {conflictDetails?.conflictingBooking && (
+            <div className={`p-4 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}>
+              <h4 className={`text-sm font-bold mb-2 ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
+                Conflicting Booking Details
+              </h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
+                    calendar_today
+                  </span>
+                  <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
+                    {conflictDetails.conflictingBooking.date}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
+                    schedule
+                  </span>
+                  <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
+                    {conflictDetails.conflictingBooking.startTime} - {conflictDetails.conflictingBooking.endTime}
+                  </span>
+                </div>
+                {conflictDetails.conflictingBooking.resourceName && (
+                  <div className="flex items-center gap-2">
+                    <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
+                      sports_golf
+                    </span>
+                    <span className={`text-sm ${isDark ? 'text-white/80' : 'text-[#293515]/80'}`}>
+                      {conflictDetails.conflictingBooking.resourceName}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              setShowConflictModal(false);
+              setConflictDetails(null);
+            }}
+            className="w-full py-3 px-4 rounded-xl bg-[#293515] text-white font-bold text-sm transition-all hover:bg-[#3a4a20] active:scale-[0.98]"
+          >
+            Understood
           </button>
         </div>
       </ModalShell>
