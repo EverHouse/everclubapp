@@ -1008,6 +1008,35 @@ html.dark .border-accessible {
   animation: popIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
+/* Modal Animations */
+@keyframes backdropFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-backdrop-fade-in {
+  animation: backdropFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes modalSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-modal-slide-up {
+  animation: modalSlideUp 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
 /* Page Enter Animation - Quick fade for smooth navigation */
 @keyframes pageEnter {
   0% {
@@ -1463,7 +1492,9 @@ html.dark .border-accessible {
   .animate-content-enter-delay-1,
   .animate-content-enter-delay-2,
   .animate-content-enter-delay-3,
-  .animate-bounce-tap {
+  .animate-bounce-tap,
+  .animate-backdrop-fade-in,
+  .animate-modal-slide-up {
     animation: none !important;
     opacity: 1 !important;
   }
