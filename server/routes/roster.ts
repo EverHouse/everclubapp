@@ -35,6 +35,11 @@ import {
 } from '../core/bookingService/usageCalculator';
 import { getTierLimits, getMemberTierByEmail } from '../core/tierService';
 import { useGuestPass, refundGuestPass, ensureGuestPassRecord } from './guestPasses';
+import { 
+  findConflictingBookings, 
+  checkMemberAvailability,
+  type ConflictingBooking 
+} from '../core/bookingService/conflictDetection';
 
 const router = Router();
 
@@ -57,6 +62,60 @@ async function isStaffOrAdminCheck(email: string): Promise<boolean> {
     return false;
   }
 }
+
+router.get('/api/bookings/conflicts', async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { memberEmail, date, startTime, endTime, excludeBookingId } = req.query;
+
+    if (!memberEmail || typeof memberEmail !== 'string') {
+      return res.status(400).json({ error: 'memberEmail query parameter is required' });
+    }
+    if (!date || typeof date !== 'string') {
+      return res.status(400).json({ error: 'date query parameter is required (YYYY-MM-DD format)' });
+    }
+    if (!startTime || typeof startTime !== 'string') {
+      return res.status(400).json({ error: 'startTime query parameter is required (HH:MM format)' });
+    }
+    if (!endTime || typeof endTime !== 'string') {
+      return res.status(400).json({ error: 'endTime query parameter is required (HH:MM format)' });
+    }
+
+    const userEmail = sessionUser.email?.toLowerCase() || '';
+    const isTargetSelf = memberEmail.toLowerCase() === userEmail;
+    const isStaff = await isStaffOrAdminCheck(userEmail);
+
+    if (!isTargetSelf && !isStaff) {
+      return res.status(403).json({ error: 'You can only check conflicts for yourself unless you are staff' });
+    }
+
+    const excludeId = excludeBookingId ? parseInt(excludeBookingId as string) : undefined;
+    
+    const result = await checkMemberAvailability(
+      memberEmail,
+      date,
+      startTime,
+      endTime,
+      excludeId
+    );
+
+    res.json({
+      memberEmail,
+      date,
+      startTime,
+      endTime,
+      available: result.available,
+      conflictCount: result.conflicts.length,
+      conflicts: result.conflicts
+    });
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to check booking conflicts', error);
+  }
+});
 
 async function getBookingWithSession(bookingId: number) {
   const result = await pool.query(
@@ -298,6 +357,41 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       );
       if (existingMember) {
         return res.status(400).json({ error: 'This member is already a participant' });
+      }
+
+      // Check for time conflicts with other bookings
+      const conflictResult = await findConflictingBookings(
+        memberInfo.email,
+        booking.request_date,
+        booking.start_time,
+        booking.end_time,
+        bookingId
+      );
+      
+      if (conflictResult.hasConflict) {
+        const conflict = conflictResult.conflicts[0];
+        logger.warn('[roster] Conflict detected when adding member', {
+          extra: {
+            bookingId,
+            memberEmail: memberInfo.email,
+            conflictingBookingId: conflict.bookingId,
+            conflictType: conflict.conflictType,
+            date: booking.request_date
+          }
+        });
+        
+        return res.status(409).json({
+          error: `This member has a scheduling conflict with another booking on ${booking.request_date}`,
+          errorType: 'booking_conflict',
+          conflict: {
+            bookingId: conflict.bookingId,
+            resourceName: conflict.resourceName,
+            startTime: conflict.startTime,
+            endTime: conflict.endTime,
+            ownerName: conflict.ownerName,
+            conflictType: conflict.conflictType
+          }
+        });
       }
     }
 
@@ -857,6 +951,41 @@ router.post('/api/bookings/:id/invite/accept', async (req: Request, res: Respons
     
     if (participant.inviteStatus === 'accepted') {
       return res.json({ success: true, message: 'Invite already accepted' });
+    }
+
+    // Check for time conflicts with other bookings before accepting
+    const conflictResult = await findConflictingBookings(
+      userEmail,
+      booking.request_date,
+      booking.start_time,
+      booking.end_time,
+      bookingId
+    );
+    
+    if (conflictResult.hasConflict) {
+      const conflict = conflictResult.conflicts[0];
+      logger.warn('[Invite Accept] Conflict detected when accepting invite', {
+        extra: {
+          bookingId,
+          userEmail,
+          conflictingBookingId: conflict.bookingId,
+          conflictType: conflict.conflictType,
+          date: booking.request_date
+        }
+      });
+      
+      return res.status(409).json({
+        error: `Cannot accept invite: you have a scheduling conflict with another booking on ${booking.request_date}`,
+        errorType: 'booking_conflict',
+        conflict: {
+          bookingId: conflict.bookingId,
+          resourceName: conflict.resourceName,
+          startTime: conflict.startTime,
+          endTime: conflict.endTime,
+          ownerName: conflict.ownerName,
+          conflictType: conflict.conflictType
+        }
+      });
     }
 
     // Update invite status to accepted
