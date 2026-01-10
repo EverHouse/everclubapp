@@ -70,6 +70,12 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
   - `booking_payment_audit` table logs all staff payment actions (confirm, waive, tier override) with timestamps
   - Staff direct-add allows adding members/guests with tier override support and audit logging
   - Member notes field (280 chars) displayed on approval cards and booking details for staff visibility
+- **Multi-Member Booking System (Phase 7)**:
+  - **Auto-Expire Invites**: Pending member invites auto-expire 30 minutes before booking start time. Scheduler runs every 5 minutes, notifies booking owner when invites expire.
+  - **Conflict Detection**: Prevents double-booking members. API checks booking_requests (owner), booking_participants (invites), and booking_members for overlapping times. Returns 409 with conflict details.
+  - **Cancellation Cascade**: When owner cancels a booking, all roster members are notified. Guest passes are refunded if cancelled >24 hours in advance (no-show policy). Cleanup of booking_members and booking_participants handled atomically.
+  - **Trackman Reconciliation**: Admin service compares declared vs actual player counts. Reconciliation endpoints (GET/PUT) for viewing discrepancies and marking as reviewed/adjusted. Fee adjustment tracking in usage_ledger and audit trail.
+  - **Frontend Enhancements**: Conflict warning modal when adding members with scheduling conflicts. Expiry countdown badges show time remaining for pending invites. Structured error handling in apiRequest for conflict details.
 - **Unified Conflict Validation**: All booking routes check closures, availability blocks, AND existing bookings via `checkAllConflicts` function
 - **Fair Usage Tracking**: Time is split equally among all players for accurate usage calculations. Guest history is tracked and displayed in member profiles.
 - **Modal Pattern**: Standardized, accessible, viewport-centered modal implementation.
