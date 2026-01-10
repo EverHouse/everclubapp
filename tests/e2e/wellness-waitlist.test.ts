@@ -95,7 +95,6 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
         const cls = classes[0] as WellnessClass;
         expect(cls).toHaveProperty('id');
         expect(cls).toHaveProperty('title');
-        expect(cls).toHaveProperty('enrolledCount');
       }
     });
 

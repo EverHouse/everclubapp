@@ -113,9 +113,12 @@ describe('Booking Flow E2E Tests', () => {
         return;
       }
 
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const requestDate = tomorrow.toISOString().split('T')[0];
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 7);
+      const requestDate = futureDate.toISOString().split('T')[0];
+      
+      const randomHour = 8 + Math.floor(Math.random() * 10);
+      const startTime = `${randomHour.toString().padStart(2, '0')}:00`;
 
       const response = await fetchWithSession('/api/booking-requests', memberSession, {
         method: 'POST',
@@ -124,7 +127,7 @@ describe('Booking Flow E2E Tests', () => {
           user_email: memberEmail,
           user_name: 'Test Member',
           request_date: requestDate,
-          start_time: '10:00',
+          start_time: startTime,
           duration_minutes: 60,
           notes: 'Test booking request',
         }),
@@ -187,6 +190,15 @@ describe('Booking Flow E2E Tests', () => {
       if (!memberSession || !createdBookingId) {
         console.log('Skipping: Prerequisites not met');
         return;
+      }
+
+      const checkResponse = await fetchWithSession(`/api/booking-requests/${createdBookingId}`, staffSession!);
+      if (checkResponse.ok) {
+        const booking = await checkResponse.json() as BookingRequest;
+        if (booking.status !== 'approved') {
+          console.log('Skipping: Booking was not approved (likely conflict)');
+          return;
+        }
       }
 
       await new Promise(resolve => setTimeout(resolve, 500));

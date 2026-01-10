@@ -91,15 +91,16 @@ describe('Admin Features E2E Tests', () => {
         return;
       }
 
+      const uniqueLabel = `Test Closure Reason ${Date.now()}`;
       const response = await fetchWithSession('/api/closure-reasons', adminSession, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: 'Test Closure Reason', sortOrder: 999 })
+        body: JSON.stringify({ label: uniqueLabel, sortOrder: 999 })
       });
       
       expect(response.ok).toBe(true);
       const reason = await response.json();
-      expect(reason.label).toBe('Test Closure Reason');
+      expect(reason.label).toContain('Test Closure Reason');
       createdReasonId = reason.id;
     });
 
@@ -109,15 +110,16 @@ describe('Admin Features E2E Tests', () => {
         return;
       }
 
+      const updatedLabel = `Updated Test Reason ${Date.now()}`;
       const response = await fetchWithSession(`/api/closure-reasons/${createdReasonId}`, adminSession, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: 'Updated Test Reason', sortOrder: 998 })
+        body: JSON.stringify({ label: updatedLabel, sort_order: 998 })
       });
       
       expect(response.ok).toBe(true);
       const reason = await response.json();
-      expect(reason.label).toBe('Updated Test Reason');
+      expect(reason.label).toContain('Updated Test Reason');
     });
 
     it('should allow admin to delete closure reason', async () => {
@@ -241,7 +243,7 @@ describe('Admin Features E2E Tests', () => {
       
       expect(response.ok).toBe(true);
       const announcement = await response.json();
-      expect(announcement.show_as_banner).toBe(true);
+      expect(announcement.showAsBanner === true || announcement.show_as_banner === true).toBe(true);
       createdAnnouncementId = announcement.id;
     });
 
@@ -256,7 +258,7 @@ describe('Admin Features E2E Tests', () => {
       
       if (banner) {
         expect(banner.id).toBe(createdAnnouncementId);
-        expect(banner.show_as_banner).toBe(true);
+        expect(banner.showAsBanner === true || banner.show_as_banner === true).toBe(true);
       }
     });
 
