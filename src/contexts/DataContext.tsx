@@ -558,12 +558,49 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   }, [refreshMembers]);
 
   // Listen for member stats updates (visit counts, guest passes) - refresh current user if it's their data
+  // Use a ref to avoid dependency on refreshUser which changes every render
+  const refreshUserRef = useRef<() => Promise<void>>();
+  useEffect(() => {
+    refreshUserRef.current = async () => {
+      if (!actualUser?.email) return;
+      try {
+        const res = await fetch('/api/auth/verify-member', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: actualUser.email })
+        });
+        if (res.ok) {
+          const { member } = await res.json();
+          const memberProfile: MemberProfile = {
+            id: member.id,
+            name: [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email || 'Member',
+            tier: member.tier || 'Core',
+            tags: member.tags || [],
+            status: 'Active',
+            email: member.email,
+            phone: member.phone || '',
+            jobTitle: member.jobTitle || '',
+            role: member.role || 'member',
+            mindbodyClientId: member.mindbodyClientId || '',
+            lifetimeVisits: member.lifetimeVisits || 0,
+            lastBookingDate: member.lastBookingDate || undefined
+          };
+          localStorage.setItem('eh_member', JSON.stringify(memberProfile));
+          setActualUser(memberProfile);
+        }
+      } catch (err) {
+        console.error('Failed to refresh user data:', err);
+      }
+    };
+  }, [actualUser?.email]);
+
   useEffect(() => {
     const handleMemberStatsUpdate = (event: CustomEvent) => {
       const memberEmail = event.detail?.memberEmail;
-      if (memberEmail && actualUser?.email?.toLowerCase() === memberEmail.toLowerCase()) {
-        // Refresh user data when their stats are updated
-        refreshUser();
+      const currentEmail = actualUser?.email;
+      if (!currentEmail) return; // Guard: don't refresh if logged out
+      if (memberEmail && currentEmail.toLowerCase() === memberEmail.toLowerCase()) {
+        refreshUserRef.current?.();
       }
     };
     
@@ -571,7 +608,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     return () => {
       window.removeEventListener('member-stats-updated', handleMemberStatsUpdate as EventListener);
     };
-  }, [actualUser?.email, refreshUser]);
+  }, [actualUser?.email]);
 
   // Fetch events with background sync
   useEffect(() => {
