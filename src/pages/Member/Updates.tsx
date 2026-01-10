@@ -7,7 +7,9 @@ import SwipeablePage from '../../components/SwipeablePage';
 import PullToRefresh from '../../components/PullToRefresh';
 import { MotionList, MotionListItem } from '../../components/motion';
 import { SwipeableListItem } from '../../components/SwipeableListItem';
-import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
+import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate, comparePacificDates } from '../../utils/dateUtils';
+
+const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 
 interface UserNotification {
   id: number;
@@ -240,8 +242,9 @@ const MemberUpdates: React.FC = () => {
             if (isStaffOrAdmin && !isViewingAsMember) return true;
             // Members never see draft notices (needsReview = true)
             if (c.needsReview) return false;
-            // Members only see notices ON the day of the closure (startDate <= today)
-            if (c.startDate > todayStr) return false;
+            // Members see notices up to 7 days before they start
+            const previewCutoffDate = addDaysToPacificDate(todayStr, NOTICE_PREVIEW_DAYS);
+            if (c.startDate > previewCutoffDate) return false;
             // Only show notices that affect booking availability
             const hasAffectedResources = c.affectedAreas && c.affectedAreas !== 'none';
             return hasAffectedResources || c.notifyMembers === true;
@@ -704,7 +707,13 @@ const MemberUpdates: React.FC = () => {
     </div>
   );
 
-  const renderNoticesTab = () => (
+  const renderNoticesTab = () => {
+    const todayStr = getTodayPacific();
+    // Separate active (happening now) from upcoming
+    const activeNotices = closures.filter(c => c.startDate <= todayStr);
+    const upcomingNotices = closures.filter(c => c.startDate > todayStr);
+    
+    return (
     <div className="relative z-10 pb-32">
       {closuresLoading ? (
         <div className="space-y-4">
@@ -727,92 +736,133 @@ const MemberUpdates: React.FC = () => {
           <p className="text-sm mt-1 opacity-70">The club is open as usual.</p>
         </div>
       ) : (
-        <MotionList className="space-y-4">
-          {closures.map((closure) => {
-            const displayType = getNoticeDisplayType(closure);
-            const isClosure = displayType === 'closure';
-            const areasList = getAffectedAreasList(closure.affectedAreas);
-            const hasAffectedAreas = areasList.length > 0;
-            return (
-              <MotionListItem 
-                key={`closure-${closure.id}`}
-                className={`rounded-2xl transition-all overflow-hidden ${
-                  isClosure
-                    ? isDark ? 'bg-red-500/10 shadow-layered-dark' : 'bg-red-50 shadow-layered'
-                    : isDark ? 'bg-amber-500/10 shadow-layered-dark' : 'bg-amber-50 shadow-layered'
-                }`}
-              >
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      isClosure
-                        ? isDark ? 'bg-red-500/20' : 'bg-red-100'
-                        : isDark ? 'bg-amber-500/20' : 'bg-amber-100'
-                    }`}>
-                      <span className={`material-symbols-outlined text-xl ${
-                        isClosure
-                          ? isDark ? 'text-red-400' : 'text-red-600'
-                          : isDark ? 'text-amber-400' : 'text-amber-600'
-                      }`}>{isClosure ? 'block' : 'notifications'}</span>
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                          isClosure
-                            ? isDark ? 'text-red-400' : 'text-red-600'
-                            : isDark ? 'text-amber-400' : 'text-amber-600'
-                        }`}>
-                          {isClosure ? 'Closure' : 'Notice'}
-                        </span>
-                      </div>
-                      <h3 className={`text-lg font-bold leading-snug ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {getMemberNoticeTitle(closure)}
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="ml-12 space-y-2">
-                    <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-500'}`}>
-                      {formatClosureDateRange(closure.startDate, closure.endDate, closure.startTime, closure.endTime)}
-                    </p>
-                    {hasAffectedAreas ? (
-                      <div>
-                        <p className={`text-[10px] font-bold uppercase mb-1 ${isDark ? 'text-white/50' : 'text-gray-400'}`}>
-                          Closed areas
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {areasList.map((area, idx) => (
-                            <span 
-                              key={idx} 
-                              className={`text-xs px-2 py-1 rounded-lg ${
-                                isClosure
-                                  ? isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-100 text-red-700'
-                                  : isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700'
-                              }`}
-                            >
-                              {area}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-400'}`}>
-                        No booking restrictions
-                      </p>
-                    )}
-                    {closure.reason && closure.reason.trim() && closure.noticeType && closure.noticeType.trim() && closure.noticeType.toLowerCase() !== 'closure' && (
-                      <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                        {closure.reason}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </MotionListItem>
-            );
-          })}
-        </MotionList>
+        <div className="space-y-6">
+          {/* Active Now Section */}
+          {activeNotices.length > 0 && (
+            <div>
+              <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                Active Now
+              </h3>
+              <MotionList className="space-y-4">
+                {activeNotices.map((closure) => (
+                  <NoticeCard key={`active-${closure.id}`} closure={closure} isDark={isDark} isUpcoming={false} />
+                ))}
+              </MotionList>
+            </div>
+          )}
+          
+          {/* Upcoming Section */}
+          {upcomingNotices.length > 0 && (
+            <div>
+              <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                <span className="material-symbols-outlined text-sm">schedule</span>
+                Coming Up
+              </h3>
+              <MotionList className="space-y-4">
+                {upcomingNotices.map((closure) => (
+                  <NoticeCard key={`upcoming-${closure.id}`} closure={closure} isDark={isDark} isUpcoming={true} />
+                ))}
+              </MotionList>
+            </div>
+          )}
+        </div>
       )}
     </div>
-  );
+  )};
+  
+  // NoticeCard component for rendering individual notices
+  const NoticeCard = ({ closure, isDark, isUpcoming }: { closure: Closure; isDark: boolean; isUpcoming: boolean }) => {
+    const displayType = getNoticeDisplayType(closure);
+    const isClosure = displayType === 'closure';
+    const areasList = getAffectedAreasList(closure.affectedAreas);
+    const hasAffectedAreas = areasList.length > 0;
+    
+    return (
+      <MotionListItem 
+        className={`rounded-2xl transition-all overflow-hidden ${
+          isUpcoming
+            ? isDark ? 'bg-blue-500/10 shadow-layered-dark' : 'bg-blue-50 shadow-layered'
+            : isClosure
+              ? isDark ? 'bg-red-500/10 shadow-layered-dark' : 'bg-red-50 shadow-layered'
+              : isDark ? 'bg-amber-500/10 shadow-layered-dark' : 'bg-amber-50 shadow-layered'
+        }`}
+      >
+        <div className="p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              isUpcoming
+                ? isDark ? 'bg-blue-500/20' : 'bg-blue-100'
+                : isClosure
+                  ? isDark ? 'bg-red-500/20' : 'bg-red-100'
+                  : isDark ? 'bg-amber-500/20' : 'bg-amber-100'
+            }`}>
+              <span className={`material-symbols-outlined text-xl ${
+                isUpcoming
+                  ? isDark ? 'text-blue-400' : 'text-blue-600'
+                  : isClosure
+                    ? isDark ? 'text-red-400' : 'text-red-600'
+                    : isDark ? 'text-amber-400' : 'text-amber-600'
+              }`}>{isUpcoming ? 'event_upcoming' : isClosure ? 'block' : 'notifications'}</span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                  isUpcoming
+                    ? isDark ? 'text-blue-400' : 'text-blue-600'
+                    : isClosure
+                      ? isDark ? 'text-red-400' : 'text-red-600'
+                      : isDark ? 'text-amber-400' : 'text-amber-600'
+                }`}>
+                  {isUpcoming ? 'Upcoming' : isClosure ? 'Closure' : 'Notice'}
+                </span>
+              </div>
+              <h3 className={`text-lg font-bold leading-snug ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {getMemberNoticeTitle(closure)}
+              </h3>
+            </div>
+          </div>
+          <div className="ml-12 space-y-2">
+            <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-500'}`}>
+              {formatClosureDateRange(closure.startDate, closure.endDate, closure.startTime, closure.endTime)}
+            </p>
+            {hasAffectedAreas ? (
+              <div>
+                <p className={`text-[10px] font-bold uppercase mb-1 ${isDark ? 'text-white/50' : 'text-gray-400'}`}>
+                  {isUpcoming ? 'Areas affected' : 'Closed areas'}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {areasList.map((area, idx) => (
+                    <span 
+                      key={idx} 
+                      className={`text-xs px-2 py-1 rounded-lg ${
+                        isUpcoming
+                          ? isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'
+                          : isClosure
+                            ? isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-100 text-red-700'
+                            : isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-400'}`}>
+                No booking restrictions
+              </p>
+            )}
+            {closure.reason && closure.reason.trim() && closure.noticeType && closure.noticeType.trim() && closure.noticeType.toLowerCase() !== 'closure' && (
+              <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                {closure.reason}
+              </p>
+            )}
+          </div>
+        </div>
+      </MotionListItem>
+    );
+  };
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
