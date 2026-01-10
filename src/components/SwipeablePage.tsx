@@ -12,7 +12,7 @@ const SwipeablePage: React.FC<SwipeablePageProps> = ({ children, className = "" 
 
   return (
     <div 
-      className={`w-full min-h-[100dvh] ${isDark ? 'bg-[#0f120a]' : 'bg-[#F2F2EC]'} relative animate-page-enter ${className}`}
+      className={`w-full min-h-[100dvh] bg-transparent relative animate-page-enter ${className}`}
       style={{
         marginTop: 'calc(-1 * var(--header-offset))',
         paddingTop: 'var(--header-offset)',

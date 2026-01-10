@@ -803,7 +803,7 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div 
-        className={`px-6 pb-32 min-h-screen ${isDark ? 'bg-[#0f120a]' : 'bg-[#F2F2EC]'}`}
+        className="px-6 pb-32 min-h-screen bg-transparent"
         style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'calc(var(--header-offset) + 1rem)' }}
       >
         <ErrorState
@@ -817,7 +817,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div 
-      className={`min-h-screen ${isDark ? 'bg-[#0f120a]' : 'bg-[#F2F2EC]'}`}
+      className="min-h-screen bg-transparent"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
     >
     <PullToRefresh onRefresh={handleRefresh} className="min-h-full">

@@ -258,7 +258,7 @@ const Profile: React.FC = () => {
 
   return (
     <div 
-      className={`px-6 pb-32 min-h-screen ${isDark ? 'bg-[#0f120a]' : 'bg-[#F2F2EC]'}`}
+      className="px-6 pb-32 min-h-screen bg-transparent"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'calc(var(--header-offset) + 1.5rem)' }}
     >
       <div className="space-y-6">

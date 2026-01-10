@@ -138,7 +138,7 @@ export const DashboardSkeleton: React.FC<SkeletonCardProps> = ({ isDark = false 
   const bg = isDark ? bgDark : bgLight;
   return (
     <div 
-      className={`px-6 pb-32 min-h-screen ${isDark ? 'bg-[#0f120a]' : 'bg-[#F2F2EC]'}`}
+      className="px-6 pb-32 min-h-screen bg-transparent"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'calc(var(--header-offset) + 1rem)' }}
     >
       <div className="mb-6">
