@@ -439,10 +439,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
       className="!bg-transparent !border-0 !shadow-none !rounded-none !max-w-none"
     >
       <div 
-        className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center"
+        className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center relative"
         onClick={onClose}
       >
-        <div className="absolute top-4 left-0 right-0 z-10 flex items-center justify-between px-4 pt-[env(safe-area-inset-top)]">
+        <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
           <div className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
             <span className="text-white/80 text-sm font-medium">
               {currentIndex + 1} / {images.length}
