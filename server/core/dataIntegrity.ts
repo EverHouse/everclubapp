@@ -186,7 +186,7 @@ async function checkOrphanWellnessEnrollments(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
   const orphans = await db.execute(sql`
-    SELECT we.id, we.class_id, we.user_email, we.user_name
+    SELECT we.id, we.class_id, we.user_email
     FROM wellness_enrollments we
     LEFT JOIN wellness_classes wc ON we.class_id = wc.id
     WHERE wc.id IS NULL
@@ -201,7 +201,6 @@ async function checkOrphanWellnessEnrollments(): Promise<IntegrityCheckResult> {
       description: `Enrollment for ${row.user_email} references non-existent class (class_id: ${row.class_id})`,
       suggestion: 'Delete orphan enrollment record',
       context: {
-        memberName: row.user_name || undefined,
         memberEmail: row.user_email || undefined
       }
     });
@@ -220,7 +219,7 @@ async function checkOrphanEventRsvps(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
   const orphans = await db.execute(sql`
-    SELECT er.id, er.event_id, er.user_email, er.user_name
+    SELECT er.id, er.event_id, er.user_email, er.attendee_name
     FROM event_rsvps er
     LEFT JOIN events e ON er.event_id = e.id
     WHERE e.id IS NULL
@@ -235,7 +234,7 @@ async function checkOrphanEventRsvps(): Promise<IntegrityCheckResult> {
       description: `RSVP for ${row.user_email} references non-existent event (event_id: ${row.event_id})`,
       suggestion: 'Delete orphan RSVP record',
       context: {
-        memberName: row.user_name || undefined,
+        memberName: row.attendee_name || undefined,
         memberEmail: row.user_email || undefined
       }
     });
