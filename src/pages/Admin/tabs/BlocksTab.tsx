@@ -568,6 +568,17 @@ const BlocksTab: React.FC = () => {
         });
     }, [closures, closuresShowPast, closuresFilterDate, closuresFilterResource]);
 
+    const getMissingFields = (closure: BlocksClosure): string[] => {
+        const missing: string[] = [];
+        if (!closure.noticeType || closure.noticeType.trim() === '') {
+            missing.push('Notice type');
+        }
+        if (!closure.affectedAreas || closure.affectedAreas === 'none' || closure.affectedAreas === '') {
+            missing.push('Affected areas');
+        }
+        return missing;
+    };
+
     const needsReviewClosures = useMemo(() => {
         const today = getTodayPacific();
         return closures.filter(closure => {
@@ -930,44 +941,53 @@ const BlocksTab: React.FC = () => {
             {needsReviewClosures.length > 0 && (
                 <div className="space-y-3 animate-pop-in" style={{animationDelay: '0.08s'}}>
                     <div className="flex items-center gap-2">
-                        <span aria-hidden="true" className="material-symbols-outlined text-cyan-500">edit_note</span>
-                        <h3 className="font-semibold text-primary dark:text-white">Drafts</h3>
+                        <span aria-hidden="true" className="material-symbols-outlined text-cyan-500">rate_review</span>
+                        <h3 className="font-semibold text-primary dark:text-white">Needs Review</h3>
                         <span className="text-xs bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2 py-0.5 rounded-full">{needsReviewClosures.length}</span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-white/60">
                         These calendar events were imported and need to be configured before members can see them.
                     </p>
                     <div className="space-y-2">
-                        {needsReviewClosures.map((closure, index) => (
-                            <div 
-                                key={closure.id}
-                                className="rounded-2xl overflow-hidden bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 animate-pop-in"
-                                style={{animationDelay: `${0.1 + index * 0.03}s`}}
-                            >
-                                <div className="p-4 flex items-center justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <span className="w-2 h-2 rounded-full bg-cyan-500 flex-shrink-0"></span>
-                                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-200 dark:bg-cyan-500/30 text-cyan-700 dark:text-cyan-300">
-                                                Draft
-                                            </span>
+                        {needsReviewClosures.map((closure, index) => {
+                            const missingFields = getMissingFields(closure);
+                            return (
+                                <div 
+                                    key={closure.id}
+                                    className="rounded-2xl overflow-hidden bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 animate-pop-in"
+                                    style={{animationDelay: `${0.1 + index * 0.03}s`}}
+                                >
+                                    <div className="p-4 flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <span className="w-2 h-2 rounded-full bg-cyan-500 flex-shrink-0"></span>
+                                                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-200 dark:bg-cyan-500/30 text-cyan-700 dark:text-cyan-300">
+                                                    Draft
+                                                </span>
+                                            </div>
+                                            <h4 className="font-bold text-primary dark:text-white truncate">{closure.title}</h4>
+                                            <div className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400 mt-1">
+                                                <span aria-hidden="true" className="material-symbols-outlined text-[12px]">calendar_today</span>
+                                                <span>{formatDate(closure.startDate)}{closure.startDate !== closure.endDate ? ` - ${formatDate(closure.endDate)}` : ''}</span>
+                                            </div>
+                                            {missingFields.length > 0 && (
+                                                <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
+                                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">warning</span>
+                                                    <span>Missing: {missingFields.join(', ')}</span>
+                                                </div>
+                                            )}
                                         </div>
-                                        <h4 className="font-bold text-primary dark:text-white truncate">{closure.title}</h4>
-                                        <div className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400 mt-1">
-                                            <span aria-hidden="true" className="material-symbols-outlined text-[12px]">calendar_today</span>
-                                            <span>{formatDate(closure.startDate)}{closure.startDate !== closure.endDate ? ` - ${formatDate(closure.endDate)}` : ''}</span>
-                                        </div>
+                                        <button
+                                            onClick={(e) => handleEditClosure(closure, e)}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 active:scale-95 transition-all flex-shrink-0"
+                                        >
+                                            <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
+                                            Edit
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={(e) => handleEditClosure(closure, e)}
-                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500 text-white text-sm font-medium hover:bg-cyan-600 active:scale-95 transition-all flex-shrink-0"
-                                    >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-base">publish</span>
-                                        Review & Publish
-                                    </button>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}

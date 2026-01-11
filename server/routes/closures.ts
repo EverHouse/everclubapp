@@ -530,6 +530,38 @@ router.get('/api/closures', async (req, res) => {
   }
 });
 
+router.get('/api/closures/needs-review', isStaffOrAdmin, async (req, res) => {
+  try {
+    const results = await db
+      .select()
+      .from(facilityClosures)
+      .where(and(
+        eq(facilityClosures.isActive, true),
+        eq(facilityClosures.needsReview, true)
+      ))
+      .orderBy(facilityClosures.startDate, facilityClosures.startTime);
+    
+    const withMissingFields = results.map(closure => {
+      const missingFields: string[] = [];
+      if (!closure.noticeType || closure.noticeType.trim() === '') {
+        missingFields.push('Notice type');
+      }
+      if (!closure.affectedAreas || closure.affectedAreas === 'none') {
+        missingFields.push('Affected areas');
+      }
+      return {
+        ...closure,
+        missingFields
+      };
+    });
+    
+    res.json(withMissingFields);
+  } catch (error: any) {
+    if (!isProduction) console.error('Needs review closures fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch closures needing review' });
+  }
+});
+
 router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
   try {
     const { 

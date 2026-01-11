@@ -412,11 +412,12 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       try {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.events.name);
         if (calendarId) {
+          const calendarTitle = category ? `[${category}] ${trimmedTitle}` : trimmedTitle;
           const eventDescription = [description, location ? `Location: ${location}` : ''].filter(Boolean).join('\n');
           await updateCalendarEvent(
             existing[0].googleCalendarId,
             calendarId,
-            trimmedTitle,
+            calendarTitle,
             eventDescription,
             trimmedEventDate,
             trimmedStartTime,

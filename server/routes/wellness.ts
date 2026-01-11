@@ -366,8 +366,8 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.wellness.name);
         if (calendarId) {
           const updated = result.rows[0];
-          const calendarTitle = `${updated.title} with ${updated.instructor}`;
-          const calendarDescription = [`Category: ${updated.category}`, updated.description, `Duration: ${updated.duration}`, `Spots: ${updated.spots}`].filter(Boolean).join('\n');
+          const calendarTitle = `${updated.category} - ${updated.title} with ${updated.instructor}`;
+          const calendarDescription = [updated.description, `Duration: ${updated.duration}`, `Spots: ${updated.spots}`].filter(Boolean).join('\n');
           
           const convertTo24Hour = (timeStr: string): string => {
             const match12h = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
