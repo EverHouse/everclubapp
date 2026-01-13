@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import ModalShell from '../../../components/ModalShell';
 import Toggle from '../../../components/Toggle';
 import FloatingActionButton from '../../../components/FloatingActionButton';
+import ProductsSubTab from './ProductsSubTab';
+
+type SubTab = 'tiers' | 'products' | 'fees' | 'discounts';
 
 interface MembershipTier {
     id: number;
@@ -44,6 +47,7 @@ const BOOLEAN_FIELDS = [
 ] as const;
 
 const TiersTab: React.FC = () => {
+    const [activeSubTab, setActiveSubTab] = useState<SubTab>('tiers');
     const [tiers, setTiers] = useState<MembershipTier[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -53,6 +57,13 @@ const TiersTab: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [newFeatureKey, setNewFeatureKey] = useState('');
+
+    const SUB_TABS: { key: SubTab; label: string; icon: string }[] = [
+        { key: 'tiers', label: 'Tiers', icon: 'layers' },
+        { key: 'products', label: 'Products', icon: 'inventory_2' },
+        { key: 'fees', label: 'Fees & Passes', icon: 'receipt_long' },
+        { key: 'discounts', label: 'Discounts', icon: 'percent' },
+    ];
 
     const getDefaultTier = (): MembershipTier => ({
         id: 0,
@@ -245,11 +256,29 @@ const TiersTab: React.FC = () => {
 
     return (
         <div className="animate-pop-in">
-            <div className="flex justify-between items-center mb-6 animate-pop-in" style={{animationDelay: '0.05s'}}>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {tiers.length} membership tier{tiers.length !== 1 ? 's' : ''}
-                </p>
+            {/* Sub-tabs navigation */}
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-black/30 rounded-xl mb-6 overflow-x-auto">
+                {SUB_TABS.map(tab => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveSubTab(tab.key)}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                            activeSubTab === tab.key
+                                ? 'bg-white dark:bg-white/10 text-primary dark:text-white shadow-sm'
+                                : 'text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-white'
+                        }`}
+                    >
+                        <span aria-hidden="true" className="material-symbols-outlined text-lg">{tab.icon}</span>
+                        {tab.label}
+                    </button>
+                ))}
             </div>
+
+            {/* Products/Fees/Discounts sub-tabs */}
+            {activeSubTab === 'products' && <ProductsSubTab activeSubTab="membership" />}
+            {activeSubTab === 'fees' && <ProductsSubTab activeSubTab="fees" />}
+            {activeSubTab === 'discounts' && <ProductsSubTab activeSubTab="discounts" />}
+
 
             <ModalShell isOpen={isEditing && !!selectedTier} onClose={() => { setIsEditing(false); setIsCreating(false); }} title={isCreating ? 'New Tier' : `Edit Tier: ${selectedTier?.name || ''}`} size="full">
                 <div className="p-6 pt-4 space-y-6">
@@ -542,70 +571,79 @@ const TiersTab: React.FC = () => {
                 </div>
             </ModalShell>
 
-            {tiers.length === 0 ? (
-                <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-white/5">
-                    <span aria-hidden="true" className="material-symbols-outlined text-5xl mb-4 text-gray-500 dark:text-white/20">loyalty</span>
-                    <h3 className="text-lg font-bold mb-2 text-gray-600 dark:text-white/70">No tiers found</h3>
-                    <p className="text-sm text-gray-500 dark:text-white/70 max-w-xs mx-auto">
-                        Membership tiers will appear here once configured.
-                    </p>
-                </div>
-            ) : (
-                <div className="space-y-3 animate-pop-in" style={{animationDelay: '0.1s'}}>
-                    {tiers.map((tier, index) => (
-                        <div 
-                            key={tier.id} 
-                            onClick={() => openEdit(tier)}
-                            className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all animate-pop-in"
-                            style={{animationDelay: `${0.15 + index * 0.03}s`}}
-                        >
-                            <div className="flex items-start justify-between mb-3">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-bold text-lg text-primary dark:text-white">{tier.name}</h4>
-                                        {tier.is_popular && (
-                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-accent text-primary px-2 py-0.5 rounded">Popular</span>
-                                        )}
-                                        {!tier.is_active && (
-                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded">Inactive</span>
+            {activeSubTab === 'tiers' && (
+                <>
+                    <div className="flex justify-between items-center mb-6">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {tiers.length} membership tier{tiers.length !== 1 ? 's' : ''}
+                        </p>
+                    </div>
+                    {tiers.length === 0 ? (
+                        <div className="text-center py-12 px-6 rounded-2xl border-2 border-dashed border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-white/5">
+                            <span aria-hidden="true" className="material-symbols-outlined text-5xl mb-4 text-gray-500 dark:text-white/20">loyalty</span>
+                            <h3 className="text-lg font-bold mb-2 text-gray-600 dark:text-white/70">No tiers found</h3>
+                            <p className="text-sm text-gray-500 dark:text-white/70 max-w-xs mx-auto">
+                                Membership tiers will appear here once configured.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3 animate-pop-in" style={{animationDelay: '0.1s'}}>
+                            {tiers.map((tier, index) => (
+                                <div 
+                                    key={tier.id} 
+                                    onClick={() => openEdit(tier)}
+                                    className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all animate-pop-in"
+                                    style={{animationDelay: `${0.15 + index * 0.03}s`}}
+                                >
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h4 className="font-bold text-lg text-primary dark:text-white">{tier.name}</h4>
+                                                {tier.is_popular && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-accent text-primary px-2 py-0.5 rounded">Popular</span>
+                                                )}
+                                                {!tier.is_active && (
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded">Inactive</span>
+                                                )}
+                                            </div>
+                                            <p className="text-xl font-bold text-primary dark:text-white">{tier.price_string}</p>
+                                        </div>
+                                        <button className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
+                                            <span aria-hidden="true" className="material-symbols-outlined">edit</span>
+                                        </button>
+                                    </div>
+                                    
+                                    {tier.description && (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{tier.description}</p>
+                                    )}
+                                    
+                                    <div className="flex flex-wrap gap-2 text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
+                                            {tier.daily_sim_minutes > 0 ? `${tier.daily_sim_minutes}min sim` : 'No sim'}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
+                                            {tier.guest_passes_per_month > 0 ? `${tier.guest_passes_per_month} passes` : 'No passes'}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">calendar_today</span>
+                                            {tier.booking_window_days}d window
+                                        </span>
+                                        {tier.unlimited_access && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary dark:text-white font-bold">
+                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">all_inclusive</span>
+                                                Unlimited
+                                            </span>
                                         )}
                                     </div>
-                                    <p className="text-xl font-bold text-primary dark:text-white">{tier.price_string}</p>
                                 </div>
-                                <button className="text-gray-600 hover:text-primary dark:hover:text-white transition-colors">
-                                    <span aria-hidden="true" className="material-symbols-outlined">edit</span>
-                                </button>
-                            </div>
-                            
-                            {tier.description && (
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{tier.description}</p>
-                            )}
-                            
-                            <div className="flex flex-wrap gap-2 text-xs">
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
-                                    {tier.daily_sim_minutes > 0 ? `${tier.daily_sim_minutes}min sim` : 'No sim'}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
-                                    {tier.guest_passes_per_month > 0 ? `${tier.guest_passes_per_month} passes` : 'No passes'}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">calendar_today</span>
-                                    {tier.booking_window_days}d window
-                                </span>
-                                {tier.unlimited_access && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 dark:bg-primary/20 text-primary dark:text-white font-bold">
-                                        <span aria-hidden="true" className="material-symbols-outlined text-sm">all_inclusive</span>
-                                        Unlimited
-                                    </span>
-                                )}
-                            </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    )}
+                    <FloatingActionButton onClick={openCreate} color="brand" label="Add new tier" />
+                </>
             )}
-            <FloatingActionButton onClick={openCreate} color="brand" label="Add new tier" />
         </div>
     );
 };

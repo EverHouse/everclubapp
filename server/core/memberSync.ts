@@ -5,6 +5,7 @@ import { normalizeTierName, extractTierTags } from '../../shared/constants/tiers
 import { sql, eq } from 'drizzle-orm';
 import { isProduction } from './db';
 import { broadcastMemberDataUpdated, broadcastDataIntegrityUpdate } from './websocket';
+import { syncDealStageFromMindbodyStatus } from './hubspotDeals';
 
 interface HubSpotContact {
   id: string;
@@ -161,6 +162,13 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           });
         
         synced++;
+        
+        // Sync deal stage based on Mindbody status (non-blocking)
+        if (status && ['declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member'].includes(status)) {
+          syncDealStageFromMindbodyStatus(email, status, 'system', 'Mindbody Sync').catch(err => {
+            if (!isProduction) console.error(`[MemberSync] Failed to sync deal stage for ${email}:`, err);
+          });
+        }
       } catch (err) {
         errors++;
         if (!isProduction) console.error(`[MemberSync] Error syncing ${email}:`, err);

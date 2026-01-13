@@ -64,6 +64,20 @@
       "when": 1768094026793,
       "tag": "0008_ambitious_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1768094400000,
+      "tag": "0009_add_soft_delete_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1768339500000,
+      "tag": "0010_hubspot_billing_tables",
+      "breakpoints": true
     }
   ]
 }

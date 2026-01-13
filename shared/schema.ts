@@ -5,3 +5,4 @@ export * from "./models/membership";
 export * from "./models/notifications";
 export * from "./models/scheduling";
 export * from "./models/system";
+export * from "./models/hubspot-billing";
