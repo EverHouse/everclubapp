@@ -934,7 +934,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             const existingAppBooking = await db.select({ 
               id: bookingRequests.id,
               trackmanBookingId: bookingRequests.trackmanBookingId,
-              status: bookingRequests.status
+              status: bookingRequests.status,
+              sessionId: bookingRequests.sessionId
             })
               .from(bookingRequests)
               .where(sql`
@@ -1007,6 +1008,34 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 linkedRows++;
                 continue;
               } else if (existing.trackmanBookingId === row.bookingId) {
+                // Already matched - but check if session exists, backfill if missing
+                if (!existing.sessionId) {
+                  const backfillParsedPlayers = parseNotesForPlayers(row.notes);
+                  await createTrackmanSessionAndParticipants({
+                    bookingId: existing.id,
+                    trackmanBookingId: row.bookingId,
+                    resourceId: parsedBayId!,
+                    sessionDate: bookingDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    durationMinutes: row.durationMins,
+                    ownerEmail: matchedEmail,
+                    ownerName: row.userName,
+                    parsedPlayers: backfillParsedPlayers,
+                    membersByEmail: membersByEmail,
+                    isPast: !isUpcoming
+                  });
+                  
+                  // Also update player counts if missing
+                  await db.update(bookingRequests)
+                    .set({ 
+                      trackmanPlayerCount: row.playerCount,
+                      declaredPlayerCount: row.playerCount
+                    })
+                    .where(eq(bookingRequests.id, existing.id));
+                  
+                  process.stderr.write(`[Trackman Import] Backfilled session for matched booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
+                }
                 matchedRows++;
                 continue;
               } else {
