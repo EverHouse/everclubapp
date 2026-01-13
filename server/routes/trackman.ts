@@ -724,6 +724,85 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
   }
 });
 
+// Add a guest to a booking (deducts guest pass from owner)
+router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { guestName, slotId } = req.body;
+    const sessionUser = (req as any).session?.user;
+    const staffEmail = sessionUser?.email || 'staff';
+    
+    if (!guestName || !guestName.trim()) {
+      return res.status(400).json({ error: 'Guest name is required' });
+    }
+    
+    // Get booking info for owner email
+    const bookingResult = await pool.query(
+      `SELECT br.user_email, br.request_date, br.start_time, br.session_id
+       FROM booking_requests br 
+       WHERE br.id = $1`,
+      [bookingId]
+    );
+    
+    if (bookingResult.rowCount === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    const booking = bookingResult.rows[0];
+    const ownerEmail = booking.user_email?.toLowerCase();
+    
+    // Check if booking is in the future (for notifications)
+    const isUpcoming = (() => {
+      const now = new Date();
+      const bookingDate = new Date(booking.request_date + 'T' + booking.start_time);
+      return bookingDate > now;
+    })();
+    
+    // Try to deduct a guest pass from the booking owner
+    const { useGuestPass } = await import('./guestPasses');
+    const guestPassResult = await useGuestPass(ownerEmail, guestName.trim(), isUpcoming);
+    
+    if (!guestPassResult.success) {
+      return res.status(400).json({ 
+        error: guestPassResult.error || 'Failed to use guest pass',
+        noGuestPasses: true
+      });
+    }
+    
+    // Add guest to booking_guests table
+    const nextSlotResult = await pool.query(
+      `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_guests WHERE booking_id = $1`,
+      [bookingId]
+    );
+    const nextSlot = nextSlotResult.rows[0].next_slot;
+    
+    await pool.query(
+      `INSERT INTO booking_guests (booking_id, guest_name, slot_number)
+       VALUES ($1, $2, $3)`,
+      [bookingId, guestName.trim(), nextSlot]
+    );
+    
+    // If there's a slot ID provided, clear that slot since we're using a guest instead
+    if (slotId) {
+      await pool.query(
+        `DELETE FROM booking_members WHERE id = $1 AND booking_id = $2 AND is_primary = false AND user_email IS NULL`,
+        [slotId, bookingId]
+      );
+    }
+    
+    process.stderr.write(`[Staff Add Guest] Added guest "${guestName}" to booking ${bookingId}, deducted pass from ${ownerEmail}. Remaining: ${guestPassResult.remaining}\n`);
+    
+    res.json({ 
+      success: true, 
+      message: `Guest "${guestName}" added. ${guestPassResult.remaining} guest passes remaining.`,
+      guestPassesRemaining: guestPassResult.remaining
+    });
+  } catch (error: any) {
+    console.error('Add guest error:', error);
+    res.status(500).json({ error: 'Failed to add guest' });
+  }
+});
+
 // GET /api/admin/trackman/needs-players - Returns bookings with unfilled player slots
 router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res) => {
   try {

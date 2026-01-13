@@ -25,6 +25,7 @@ interface MemberSearchResult {
   firstName: string | null;
   lastName: string | null;
   tier: string | null;
+  status: string | null;
 }
 
 interface ValidationInfo {
@@ -55,6 +56,9 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [activeSearchSlot, setActiveSearchSlot] = useState<number | null>(null);
+  const [guestAddSlot, setGuestAddSlot] = useState<number | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [isAddingGuest, setIsAddingGuest] = useState(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -87,14 +91,15 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
   useEffect(() => {
     const fetchAllMembers = async () => {
       try {
-        const res = await fetch('/api/hubspot/contacts', { credentials: 'include' });
+        const res = await fetch('/api/hubspot/contacts?status=all', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          const membersList: MemberSearchResult[] = data.map((m: { email: string; firstName?: string; lastName?: string; tier?: string }) => ({
+          const membersList: MemberSearchResult[] = data.map((m: { email: string; firstName?: string; lastName?: string; tier?: string; status?: string }) => ({
             email: m.email,
             firstName: m.firstName || null,
             lastName: m.lastName || null,
-            tier: m.tier || null
+            tier: m.tier || null,
+            status: m.status || null
           }));
           setAllMembers(membersList);
         }
@@ -196,6 +201,38 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
       setError('Failed to unlink member');
     } finally {
       setUnlinkingSlotId(null);
+    }
+  };
+
+  const handleAddGuest = async (slotId: number) => {
+    if (!guestName.trim()) {
+      setError('Please enter a guest name');
+      return;
+    }
+    setIsAddingGuest(true);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/guests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ guestName: guestName.trim(), slotId })
+      });
+      
+      if (res.ok) {
+        await fetchBookingMembers();
+        setGuestAddSlot(null);
+        setGuestName('');
+        setActiveSearchSlot(null);
+        setSearchQuery('');
+        onMemberLinked?.();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to add guest');
+      }
+    } catch (err) {
+      setError('Failed to add guest');
+    } finally {
+      setIsAddingGuest(false);
     }
   };
 
@@ -351,16 +388,57 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
                                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email}</p>
                               )}
                             </div>
-                            {member.tier && (
-                              <TierBadge tier={member.tier} size="sm" />
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {member.status && member.status !== 'active' && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 uppercase">
+                                  {member.status === 'former' ? 'Former' : member.status}
+                                </span>
+                              )}
+                              {member.tier && (
+                                <TierBadge tier={member.tier} size="sm" />
+                              )}
+                            </div>
                           </button>
                         ))}
                       </div>
                     )}
                     
                     {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No members found</p>
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">No members found for "{searchQuery}"</p>
+                        {guestAddSlot !== slot.id ? (
+                          <button
+                            onClick={() => { setGuestAddSlot(slot.id); setGuestName(searchQuery); }}
+                            className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:underline"
+                          >
+                            <span className="material-symbols-outlined text-sm">person_add</span>
+                            Add as guest (uses guest pass)
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={guestName}
+                              onChange={(e) => setGuestName(e.target.value)}
+                              placeholder="Guest name"
+                              className="flex-1 py-1 px-2 text-sm rounded border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 text-primary dark:text-white"
+                            />
+                            <button
+                              onClick={() => handleAddGuest(slot.id)}
+                              disabled={isAddingGuest || !guestName.trim()}
+                              className="px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50"
+                            >
+                              {isAddingGuest ? 'Adding...' : 'Add'}
+                            </button>
+                            <button
+                              onClick={() => { setGuestAddSlot(null); setGuestName(''); }}
+                              className="p-1 text-gray-400 hover:text-gray-600"
+                            >
+                              <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (
