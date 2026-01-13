@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { TabType } from './types';
 
 interface NavItem {
@@ -65,9 +66,9 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
     );
   };
 
-  return (
-    <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515] border-r border-white/10 z-40">
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
+  const sidebarContent = (
+    <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515] border-r border-white/10" style={{ zIndex: 'var(--z-sidebar, 40)' }}>
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10 flex-shrink-0">
         <img 
           src="/assets/logos/mascot-white.webp" 
           alt="Ever House" 
@@ -111,13 +112,15 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-white/10">
+      <div className="px-3 py-4 border-t border-white/10 flex-shrink-0">
         <p className="text-white/40 text-[10px] text-center">
           v2.0 Navigation
         </p>
       </div>
     </aside>
   );
+
+  return createPortal(sidebarContent, document.body);
 };
 
 export default StaffSidebar;
