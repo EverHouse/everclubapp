@@ -67,8 +67,8 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   };
 
   const sidebarContent = (
-    <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515] border-r border-white/10" style={{ zIndex: 'var(--z-sidebar, 40)' }}>
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10 flex-shrink-0">
+    <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515]" style={{ zIndex: 'var(--z-sidebar, 40)' }}>
+      <div className="flex items-center gap-3 px-4 py-5 flex-shrink-0">
         <img 
           src="/assets/logos/mascot-white.webp" 
           alt="Ever House" 
