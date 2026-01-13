@@ -311,7 +311,8 @@ router.get('/api/booking-requests', async (req, res) => {
       bookingId: bookingMembers.bookingId,
       userEmail: bookingMembers.userEmail,
       isPrimary: bookingMembers.isPrimary,
-      userName: users.name
+      firstName: users.firstName,
+      lastName: users.lastName
     })
     .from(bookingMembers)
     .leftJoin(users, sql`LOWER(${bookingMembers.userEmail}) = LOWER(${users.email})`)
@@ -360,8 +361,9 @@ router.get('/api/booking-requests', async (req, res) => {
         memberDetailsMap.set(m.bookingId, []);
       }
       if (m.userEmail) {
+        const fullName = [m.firstName, m.lastName].filter(Boolean).join(' ');
         memberDetailsMap.get(m.bookingId)!.push({
-          name: m.userName || m.userEmail,
+          name: fullName || m.userEmail,
           type: 'member',
           isPrimary: m.isPrimary || false
         });
