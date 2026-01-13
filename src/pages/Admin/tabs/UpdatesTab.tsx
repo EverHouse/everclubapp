@@ -279,7 +279,7 @@ const UpdatesTab: React.FC = () => {
                     <p className="text-sm mt-1 opacity-70">Bookings, check-ins, and cancellations will appear here.</p>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {recentActivity.map((activity, index) => (
                         <div
                             key={activity.id}
@@ -355,7 +355,7 @@ const UpdatesTab: React.FC = () => {
                     <p className="text-sm mt-1 opacity-70">New tours, booking requests, and system alerts will appear here.</p>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {notifications.map((notif, index) => (
                         <div
                             key={notif.id}
