@@ -550,7 +550,7 @@ const ToursTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-lg">today</span>
             Today's Tours ({todayTours.length})
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="space-y-3">
             {todayTours.map((tour) => (
               <TourCard key={tour.id} tour={tour} isToday />
             ))}
@@ -571,7 +571,7 @@ const ToursTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-lg">upcoming</span>
             Upcoming Tours ({tours.length})
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="space-y-3">
             {tours.map((tour) => (
               <TourCard key={tour.id} tour={tour} />
             ))}
@@ -595,7 +595,7 @@ const ToursTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined text-lg">history</span>
             Past Tours ({pastTours.length})
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="space-y-3">
             {pastTours.map((tour) => (
               <TourCard key={tour.id} tour={tour} isPast />
             ))}
