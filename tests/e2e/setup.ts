@@ -68,7 +68,8 @@ export async function login(
 export async function fetchWithSession(
   url: string, 
   session: TestSession, 
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs: number = 5000
 ): Promise<Response> {
   return fetch(`${BASE_URL}${url}`, {
     ...options,
@@ -76,6 +77,6 @@ export async function fetchWithSession(
       ...options.headers,
       'Cookie': session.cookie,
     },
-    signal: AbortSignal.timeout(5000)
+    signal: AbortSignal.timeout(timeoutMs)
   });
 }

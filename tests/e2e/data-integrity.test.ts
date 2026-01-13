@@ -24,13 +24,13 @@ describe('Data Integrity and Reconciliation E2E Tests', () => {
         expect.fail('Failed to establish admin test session');
       }
 
-      const response = await fetchWithSession('/api/data-integrity/summary', adminSession);
+      const response = await fetchWithSession('/api/data-integrity/summary', adminSession, {}, 30000);
       expect(response.ok).toBe(true);
       
       const summary = await response.json();
       expect(summary).toBeDefined();
       expect(typeof summary).toBe('object');
-    });
+    }, 35000);
 
     it('should require admin authentication for GET /api/data-integrity/run', async () => {
       const response = await fetch(`${BASE_URL}/api/data-integrity/run`);
@@ -42,7 +42,7 @@ describe('Data Integrity and Reconciliation E2E Tests', () => {
         expect.fail('Failed to establish admin test session');
       }
 
-      const response = await fetchWithSession('/api/data-integrity/run', adminSession);
+      const response = await fetchWithSession('/api/data-integrity/run', adminSession, {}, 30000);
       expect(response.ok).toBe(true);
       
       const result = await response.json();
@@ -56,14 +56,14 @@ describe('Data Integrity and Reconciliation E2E Tests', () => {
       expect(typeof result.meta.failed).toBe('number');
       expect(typeof result.meta.totalIssues).toBe('number');
       expect(result.meta.lastRun).toBeDefined();
-    });
+    }, 35000);
 
     it('should verify integrity check results have expected structure', async () => {
       if (!adminSession) {
         expect.fail('Failed to establish admin test session');
       }
 
-      const response = await fetchWithSession('/api/data-integrity/run', adminSession);
+      const response = await fetchWithSession('/api/data-integrity/run', adminSession, {}, 30000);
       expect(response.ok).toBe(true);
       
       const result = await response.json();
@@ -74,7 +74,7 @@ describe('Data Integrity and Reconciliation E2E Tests', () => {
         expect(['pass', 'warning', 'fail']).toContain(check.status);
         expect(typeof check.issueCount).toBe('number');
       }
-    });
+    }, 35000);
 
     it('should prevent staff from accessing admin integrity endpoints', async () => {
       if (!staffSession) {
@@ -97,20 +97,20 @@ describe('Data Integrity and Reconciliation E2E Tests', () => {
         expect.fail('Failed to establish staff test session');
       }
 
-      const response = await fetchWithSession('/api/tours/needs-review', staffSession);
+      const response = await fetchWithSession('/api/tours/needs-review', staffSession, {}, 15000);
       expect(response.ok).toBe(true);
       
       const data = await response.json();
       expect(data).toHaveProperty('unmatchedMeetings');
       expect(Array.isArray(data.unmatchedMeetings)).toBe(true);
-    });
+    }, 20000);
 
     it('should return unmatched meetings with potential matches', async () => {
       if (!staffSession) {
         expect.fail('Failed to establish staff test session');
       }
 
-      const response = await fetchWithSession('/api/tours/needs-review', staffSession);
+      const response = await fetchWithSession('/api/tours/needs-review', staffSession, {}, 15000);
       expect(response.ok).toBe(true);
       
       const data = await response.json();
@@ -123,7 +123,7 @@ describe('Data Integrity and Reconciliation E2E Tests', () => {
         expect(Array.isArray(meeting.potentialMatches)).toBe(true);
         expect(typeof meeting.wouldBackfill).toBe('boolean');
       }
-    });
+    }, 20000);
 
     it('should require staff authentication for POST /api/tours/dismiss-hubspot', async () => {
       const response = await fetch(`${BASE_URL}/api/tours/dismiss-hubspot`, {

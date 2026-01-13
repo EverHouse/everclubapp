@@ -59,20 +59,24 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
           description: 'Test class for E2E testing',
           instructor: 'Test Instructor',
           category: 'Yoga',
-          class_date: classDate,
-          start_time: '09:00',
-          end_time: '10:00',
+          date: classDate,
+          time: '09:00',
+          duration: '60 min',
+          spots: '2 spots',
           capacity: 2,
           waitlist_enabled: true
         })
       });
       
-      if (response.ok) {
-        const cls = await response.json();
-        expect(cls.capacity).toBe(2);
-        expect(cls.waitlist_enabled).toBe(true);
-        testClassId = cls.id;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        expect.fail(`Failed to create wellness class: ${response.status} - ${JSON.stringify(errorData)}`);
       }
+      
+      const cls = await response.json();
+      expect(cls.capacity).toBe(2);
+      expect(cls.waitlist_enabled).toBe(true);
+      testClassId = cls.id;
     });
 
     it('should allow first member to enroll normally', async () => {
@@ -83,16 +87,23 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
         expect.fail('No wellness class was created in previous test');
       }
 
-      const response = await fetchWithSession(`/api/wellness-classes/${testClassId}/enroll`, member1Session, {
+      const response = await fetchWithSession('/api/wellness-enrollments', member1Session, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          class_id: testClassId,
+          user_email: member1Email
+        })
       });
       
-      if (response.ok) {
-        const result = await response.json();
-        expect(result.status).toBe('enrolled');
-        expect(result.is_waitlisted).toBe(false);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        expect.fail(`Enrollment failed: ${response.status} - ${JSON.stringify(errorData)}`);
       }
+      
+      const result = await response.json();
+      expect(result.status).toBe('confirmed');
+      expect(result.isWaitlisted).toBe(false);
     });
 
     it('should show updated enrollment count', async () => {
@@ -105,7 +116,8 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
       const testClass = classes.find((c: WellnessClass) => c.id === testClassId);
       
       if (testClass) {
-        expect(testClass.enrolledCount).toBeGreaterThanOrEqual(1);
+        const enrolledCount = testClass.enrolled_count ?? testClass.enrolledCount ?? 0;
+        expect(enrolledCount).toBeGreaterThanOrEqual(1);
       }
     });
   });
