@@ -1,76 +1,23 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
-let serverAvailable = false;
-
-interface TestSession {
-  cookie: string;
-  email: string;
-}
-
-async function checkServerAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/health`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(2000) 
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function testLogin(email: string, role: 'member' | 'staff' | 'admin'): Promise<TestSession | null> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/auth/test-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role }),
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const setCookie = response.headers.get('set-cookie');
-    return { cookie: setCookie || '', email };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchWithSession(url: string, session: TestSession, options: RequestInit = {}): Promise<Response> {
-  return fetch(`${BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Cookie': session.cookie,
-    },
-    signal: AbortSignal.timeout(5000)
-  });
-}
+import { assertServerAvailable, login, fetchWithSession, TestSession } from './setup';
 
 describe('Notification Flow E2E Tests', () => {
-  let memberSession: TestSession | null = null;
-  let staffSession: TestSession | null = null;
+  let memberSession: TestSession;
+  let staffSession: TestSession;
   
   beforeAll(async () => {
-    serverAvailable = await checkServerAvailable();
-    if (serverAvailable) {
-      memberSession = await testLogin('notif-test-member@example.com', 'member');
-      staffSession = await testLogin('notif-test-staff@example.com', 'staff');
-    }
+    await assertServerAvailable();
+    memberSession = await login('notif-test-member@example.com', 'member');
+    staffSession = await login('notif-test-staff@example.com', 'staff');
   });
 
   describe('Member Notification Endpoint Access', () => {
     it('should return 200 for authenticated member accessing own notifications', async () => {
-      if (!serverAvailable || !memberSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
       }
       
-      const email = encodeURIComponent(memberSession.email);
+      const email = encodeURIComponent(memberSession.email!);
       const response = await fetchWithSession(`/api/notifications?user_email=${email}`, memberSession);
       
       expect(response.status).toBe(200);
@@ -79,21 +26,19 @@ describe('Notification Flow E2E Tests', () => {
     });
     
     it('should return 200 for unread notifications query', async () => {
-      if (!serverAvailable || !memberSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
       }
       
-      const email = encodeURIComponent(memberSession.email);
+      const email = encodeURIComponent(memberSession.email!);
       const response = await fetchWithSession(`/api/notifications?user_email=${email}&unread_only=true`, memberSession);
       
       expect(response.status).toBe(200);
     });
     
     it('should return 400 when user_email query param is missing', async () => {
-      if (!serverAvailable || !memberSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
       }
       
       const response = await fetchWithSession('/api/notifications', memberSession);
@@ -104,9 +49,8 @@ describe('Notification Flow E2E Tests', () => {
     });
     
     it('should return 403 when accessing other users notifications', async () => {
-      if (!serverAvailable || !memberSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
       }
       
       const otherEmail = encodeURIComponent('other-user@example.com');
@@ -118,9 +62,8 @@ describe('Notification Flow E2E Tests', () => {
   
   describe('Staff Notification Access', () => {
     it('should allow staff to access booking requests', async () => {
-      if (!serverAvailable || !staffSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!staffSession) {
+        expect.fail('Failed to establish staff test session');
       }
       
       const response = await fetchWithSession('/api/bays?status=pending', staffSession);
@@ -128,12 +71,14 @@ describe('Notification Flow E2E Tests', () => {
     });
     
     it('should allow staff to access member notifications', async () => {
-      if (!serverAvailable || !staffSession || !memberSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!staffSession) {
+        expect.fail('Failed to establish staff test session');
+      }
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
       }
       
-      const email = encodeURIComponent(memberSession.email);
+      const email = encodeURIComponent(memberSession.email!);
       const response = await fetchWithSession(`/api/notifications?user_email=${email}`, staffSession);
       
       expect(response.status).toBe(200);
@@ -197,12 +142,11 @@ describe('Notification Flow E2E Tests', () => {
   
   describe('Notification Count Endpoint', () => {
     it('should return count for authenticated member', async () => {
-      if (!serverAvailable || !memberSession) {
-        console.log('Skipping: Server or session not available');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
       }
       
-      const email = encodeURIComponent(memberSession.email);
+      const email = encodeURIComponent(memberSession.email!);
       const response = await fetchWithSession(`/api/notifications/count?user_email=${email}`, memberSession);
       
       expect(response.status).toBe(200);

@@ -1,80 +1,22 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
-let serverAvailable = false;
-
-interface TestSession {
-  cookie: string;
-}
-
-async function checkServerAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/health`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(2000) 
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function login(email: string, role: 'member' | 'staff' | 'admin', tier?: string): Promise<TestSession | null> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/auth/test-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role, tier }),
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (!response.ok) {
-      console.log(`Login failed for ${email}: ${response.status}`);
-      return null;
-    }
-    
-    const setCookie = response.headers.get('set-cookie');
-    return { cookie: setCookie || '' };
-  } catch (error) {
-    console.log(`Login error for ${email}:`, error);
-    return null;
-  }
-}
-
-async function fetchWithSession(url: string, session: TestSession, options: RequestInit = {}): Promise<Response> {
-  return fetch(`${BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Cookie': session.cookie,
-    },
-    signal: AbortSignal.timeout(5000)
-  });
-}
+import { BASE_URL, assertServerAvailable, login, fetchWithSession, TestSession } from './setup';
 
 describe('Admin Features E2E Tests', () => {
   const adminEmail = 'test-admin@example.com';
   const staffEmail = 'test-staff@example.com';
-  let adminSession: TestSession | null = null;
-  let staffSession: TestSession | null = null;
+  let adminSession: TestSession;
+  let staffSession: TestSession;
 
   beforeAll(async () => {
-    serverAvailable = await checkServerAvailable();
-    if (serverAvailable) {
-      adminSession = await login(adminEmail, 'admin');
-      staffSession = await login(staffEmail, 'staff');
-    }
+    await assertServerAvailable();
+    adminSession = await login(adminEmail, 'admin');
+    staffSession = await login(staffEmail, 'staff');
   });
 
   describe('Closure Reasons Management', () => {
     let createdReasonId: number | null = null;
 
     it('should fetch closure reasons list', async () => {
-      if (!serverAvailable) {
-        console.log('Skipping: Server not available');
-        return;
-      }
-
       const response = await fetch(`${BASE_URL}/api/closure-reasons`);
       expect(response.ok).toBe(true);
       
@@ -87,8 +29,7 @@ describe('Admin Features E2E Tests', () => {
 
     it('should allow admin to create closure reason', async () => {
       if (!adminSession) {
-        console.log('Skipping: No admin session');
-        return;
+        expect.fail('Failed to establish admin test session');
       }
 
       const uniqueLabel = `Test Closure Reason ${Date.now()}`;
@@ -105,9 +46,11 @@ describe('Admin Features E2E Tests', () => {
     });
 
     it('should allow admin to update closure reason', async () => {
-      if (!adminSession || !createdReasonId) {
-        console.log('Skipping: No admin session or reason ID');
-        return;
+      if (!adminSession) {
+        expect.fail('Failed to establish admin test session');
+      }
+      if (!createdReasonId) {
+        expect.fail('No closure reason was created in previous test');
       }
 
       const updatedLabel = `Updated Test Reason ${Date.now()}`;
@@ -123,9 +66,11 @@ describe('Admin Features E2E Tests', () => {
     });
 
     it('should allow admin to delete closure reason', async () => {
-      if (!adminSession || !createdReasonId) {
-        console.log('Skipping: No admin session or reason ID');
-        return;
+      if (!adminSession) {
+        expect.fail('Failed to establish admin test session');
+      }
+      if (!createdReasonId) {
+        expect.fail('No closure reason was created in previous test');
       }
 
       const response = await fetchWithSession(`/api/closure-reasons/${createdReasonId}`, adminSession, {
@@ -140,11 +85,6 @@ describe('Admin Features E2E Tests', () => {
     let createdTypeId: number | null = null;
 
     it('should fetch notice types list', async () => {
-      if (!serverAvailable) {
-        console.log('Skipping: Server not available');
-        return;
-      }
-
       const response = await fetch(`${BASE_URL}/api/notice-types`);
       expect(response.ok).toBe(true);
       
@@ -155,8 +95,7 @@ describe('Admin Features E2E Tests', () => {
 
     it('should allow staff to create notice type', async () => {
       if (!staffSession) {
-        console.log('Skipping: No staff session');
-        return;
+        expect.fail('Failed to establish staff test session');
       }
 
       const response = await fetchWithSession('/api/notice-types', staffSession, {
@@ -174,8 +113,7 @@ describe('Admin Features E2E Tests', () => {
 
     it('should prevent editing preset notice types', async () => {
       if (!staffSession) {
-        console.log('Skipping: No staff session');
-        return;
+        expect.fail('Failed to establish staff test session');
       }
 
       const listResponse = await fetch(`${BASE_URL}/api/notice-types`);
@@ -183,7 +121,7 @@ describe('Admin Features E2E Tests', () => {
       const presetType = types.find((t: any) => t.is_preset || t.isPreset);
       
       if (!presetType) {
-        console.log('Skipping: No preset type found');
+        console.log('Skipping: No preset type found in database');
         return;
       }
 
@@ -197,9 +135,11 @@ describe('Admin Features E2E Tests', () => {
     });
 
     it('should allow deleting custom notice type', async () => {
-      if (!staffSession || !createdTypeId) {
-        console.log('Skipping: No staff session or type ID');
-        return;
+      if (!staffSession) {
+        expect.fail('Failed to establish staff test session');
+      }
+      if (!createdTypeId) {
+        expect.fail('No notice type was created in previous test');
       }
 
       const response = await fetchWithSession(`/api/notice-types/${createdTypeId}`, staffSession, {
@@ -214,19 +154,13 @@ describe('Admin Features E2E Tests', () => {
     let createdAnnouncementId: number | null = null;
 
     it('should fetch banner announcement endpoint', async () => {
-      if (!serverAvailable) {
-        console.log('Skipping: Server not available');
-        return;
-      }
-
       const response = await fetch(`${BASE_URL}/api/announcements/banner`);
       expect(response.ok).toBe(true);
     });
 
     it('should allow admin to create announcement with banner flag', async () => {
       if (!adminSession) {
-        console.log('Skipping: No admin session');
-        return;
+        expect.fail('Failed to establish admin test session');
       }
 
       const response = await fetchWithSession('/api/announcements', adminSession, {
@@ -249,8 +183,7 @@ describe('Admin Features E2E Tests', () => {
 
     it('should return banner in banner endpoint', async () => {
       if (!createdAnnouncementId) {
-        console.log('Skipping: No announcement created');
-        return;
+        expect.fail('No announcement was created in previous test');
       }
 
       const response = await fetch(`${BASE_URL}/api/announcements/banner`);

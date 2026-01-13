@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
-let serverAvailable = false;
-
-interface TestSession {
-  cookie: string;
-}
+import { BASE_URL, assertServerAvailable, login, fetchWithSession, TestSession } from './setup';
 
 interface BookingRequest {
   id: number;
@@ -22,54 +16,7 @@ interface Notification {
   isRead: boolean;
 }
 
-async function checkServerAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/health`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(2000) 
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function login(email: string, role: 'member' | 'staff' | 'admin', tier?: string): Promise<TestSession | null> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/auth/test-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role, tier }),
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (!response.ok) {
-      console.log(`Login failed for ${email}: ${response.status}`);
-      return null;
-    }
-    
-    const setCookie = response.headers.get('set-cookie');
-    return { cookie: setCookie || '' };
-  } catch (error) {
-    console.log(`Login error for ${email}:`, error);
-    return null;
-  }
-}
-
-async function fetchWithSession(url: string, session: TestSession, options: RequestInit = {}): Promise<Response> {
-  return fetch(`${BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Cookie': session.cookie,
-    },
-    signal: AbortSignal.timeout(5000)
-  });
-}
-
-async function cleanupTestData(session: TestSession | null): Promise<void> {
-  if (!session || !serverAvailable) return;
-  
+async function cleanupTestData(session: TestSession): Promise<void> {
   try {
     await fetch(`${BASE_URL}/api/auth/test-cleanup`, {
       method: 'POST',
@@ -83,34 +30,32 @@ async function cleanupTestData(session: TestSession | null): Promise<void> {
       signal: AbortSignal.timeout(5000)
     });
   } catch {
-    // Cleanup is best-effort
   }
 }
 
 describe('Booking Flow E2E Tests', () => {
   const memberEmail = 'test-member@example.com';
   const staffEmail = 'test-staff@example.com';
-  let memberSession: TestSession | null = null;
-  let staffSession: TestSession | null = null;
+  let memberSession: TestSession;
+  let staffSession: TestSession;
   let createdBookingId: number | null = null;
   
   afterAll(async () => {
-    await cleanupTestData(staffSession);
+    if (staffSession) {
+      await cleanupTestData(staffSession);
+    }
   });
 
   beforeAll(async () => {
-    serverAvailable = await checkServerAvailable();
-    if (serverAvailable) {
-      memberSession = await login(memberEmail, 'member', 'Premium');
-      staffSession = await login(staffEmail, 'staff');
-    }
+    await assertServerAvailable();
+    memberSession = await login(memberEmail, 'member', 'Premium');
+    staffSession = await login(staffEmail, 'staff');
   });
 
   describe('Test 1: Member creates booking request, staff sees it', () => {
     it('should allow member to create a booking request', async () => {
       if (!memberSession) {
-        console.log('Skipping: No test login endpoint available');
-        return;
+        expect.fail('Failed to establish member test session');
       }
 
       const futureDate = new Date();
@@ -144,9 +89,11 @@ describe('Booking Flow E2E Tests', () => {
     });
 
     it('should show pending request in staff command console', async () => {
-      if (!staffSession || !createdBookingId) {
-        console.log('Skipping: Prerequisites not met');
-        return;
+      if (!staffSession) {
+        expect.fail('Failed to establish staff test session');
+      }
+      if (!createdBookingId) {
+        expect.fail('No booking was created in previous test');
       }
 
       const response = await fetchWithSession('/api/booking-requests?include_all=true', staffSession);
@@ -162,9 +109,11 @@ describe('Booking Flow E2E Tests', () => {
 
   describe('Test 2: Staff approves request, member gets notification', () => {
     it('should allow staff to approve the booking request', async () => {
-      if (!staffSession || !createdBookingId) {
-        console.log('Skipping: Prerequisites not met');
-        return;
+      if (!staffSession) {
+        expect.fail('Failed to establish staff test session');
+      }
+      if (!createdBookingId) {
+        expect.fail('No booking was created in previous test');
       }
 
       const response = await fetchWithSession(`/api/booking-requests/${createdBookingId}`, staffSession, {
@@ -187,16 +136,18 @@ describe('Booking Flow E2E Tests', () => {
     });
 
     it('should create notification for member after approval', async () => {
-      if (!memberSession || !createdBookingId) {
-        console.log('Skipping: Prerequisites not met');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
+      }
+      if (!createdBookingId) {
+        expect.fail('No booking was created in previous test');
       }
 
-      const checkResponse = await fetchWithSession(`/api/booking-requests/${createdBookingId}`, staffSession!);
+      const checkResponse = await fetchWithSession(`/api/booking-requests/${createdBookingId}`, staffSession);
       if (checkResponse.ok) {
         const booking = await checkResponse.json() as BookingRequest;
         if (booking.status !== 'approved') {
-          console.log('Skipping: Booking was not approved (likely conflict)');
+          console.log('Skipping notification check: Booking was not approved (likely conflict)');
           return;
         }
       }
@@ -217,9 +168,11 @@ describe('Booking Flow E2E Tests', () => {
 
   describe('Test 3: Member cancels booking, optimistic UI update', () => {
     it('should allow member to cancel their approved booking', async () => {
-      if (!memberSession || !createdBookingId) {
-        console.log('Skipping: Prerequisites not met');
-        return;
+      if (!memberSession) {
+        expect.fail('Failed to establish member test session');
+      }
+      if (!createdBookingId) {
+        expect.fail('No booking was created in previous test');
       }
 
       const response = await fetchWithSession(`/api/booking-requests/${createdBookingId}/member-cancel`, memberSession, {
@@ -234,9 +187,11 @@ describe('Booking Flow E2E Tests', () => {
     });
 
     it('should remove cancelled booking from pending requests list for staff', async () => {
-      if (!staffSession || !createdBookingId) {
-        console.log('Skipping: Prerequisites not met');
-        return;
+      if (!staffSession) {
+        expect.fail('Failed to establish staff test session');
+      }
+      if (!createdBookingId) {
+        expect.fail('No booking was created in previous test');
       }
 
       await new Promise(resolve => setTimeout(resolve, 500));

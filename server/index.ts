@@ -151,24 +151,34 @@ app.use(getSession());
 
 app.get('/api/health', async (req, res) => {
   try {
-    const dbResult = await pool.query('SELECT NOW() as time, COUNT(*) as resource_count FROM resources');
-    const resourceTypes = await pool.query('SELECT type, COUNT(*) as count FROM resources GROUP BY type');
-    res.json({
+    const dbResult = await pool.query('SELECT NOW() as time');
+    const isAuthenticated = req.session?.user?.isStaff === true;
+    
+    const baseResponse = {
       status: 'ok',
-      environment: isProduction ? 'production' : 'development',
       database: 'connected',
-      timestamp: dbResult.rows[0].time,
-      resourceCount: parseInt(dbResult.rows[0].resource_count),
-      resourcesByType: resourceTypes.rows,
-      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
-    });
+      timestamp: dbResult.rows[0].time
+    };
+    
+    if (isAuthenticated) {
+      const resourceCount = await pool.query('SELECT COUNT(*) as count FROM resources');
+      const resourceTypes = await pool.query('SELECT type, COUNT(*) as count FROM resources GROUP BY type');
+      res.json({
+        ...baseResponse,
+        environment: isProduction ? 'production' : 'development',
+        resourceCount: parseInt(resourceCount.rows[0].count),
+        resourcesByType: resourceTypes.rows,
+        databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+      });
+    } else {
+      res.json(baseResponse);
+    }
   } catch (error: any) {
+    const isAuthenticated = req.session?.user?.isStaff === true;
     res.status(500).json({
       status: 'error',
-      environment: isProduction ? 'production' : 'development',
       database: 'disconnected',
-      error: error.message,
-      databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing'
+      ...(isAuthenticated && { error: error.message })
     });
   }
 });

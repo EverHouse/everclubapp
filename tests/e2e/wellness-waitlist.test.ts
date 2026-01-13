@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
-let serverAvailable = false;
-
-interface TestSession {
-  cookie: string;
-}
+import { BASE_URL, assertServerAvailable, login, fetchWithSession, TestSession } from './setup';
 
 interface WellnessClass {
   id: number;
@@ -17,74 +11,24 @@ interface WellnessClass {
   waitlistCount?: number;
 }
 
-async function checkServerAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/health`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(2000) 
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function login(email: string, role: 'member' | 'staff' | 'admin', tier?: string): Promise<TestSession | null> {
-  try {
-    const response = await fetch(`${BASE_URL}/api/auth/test-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role, tier }),
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const setCookie = response.headers.get('set-cookie');
-    return { cookie: setCookie || '' };
-  } catch {
-    return null;
-  }
-}
-
-async function fetchWithSession(url: string, session: TestSession, options: RequestInit = {}): Promise<Response> {
-  return fetch(`${BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Cookie': session.cookie,
-    },
-    signal: AbortSignal.timeout(5000)
-  });
-}
-
 describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
   const adminEmail = 'test-admin@example.com';
   const member1Email = 'test-member1@example.com';
   const member2Email = 'test-member2@example.com';
-  let adminSession: TestSession | null = null;
-  let member1Session: TestSession | null = null;
-  let member2Session: TestSession | null = null;
+  let adminSession: TestSession;
+  let member1Session: TestSession;
+  let member2Session: TestSession;
   let testClassId: number | null = null;
 
   beforeAll(async () => {
-    serverAvailable = await checkServerAvailable();
-    if (serverAvailable) {
-      adminSession = await login(adminEmail, 'admin');
-      member1Session = await login(member1Email, 'member', 'Premium');
-      member2Session = await login(member2Email, 'member', 'Premium');
-    }
+    await assertServerAvailable();
+    adminSession = await login(adminEmail, 'admin');
+    member1Session = await login(member1Email, 'member', 'Premium');
+    member2Session = await login(member2Email, 'member', 'Premium');
   });
 
   describe('Wellness Classes API', () => {
     it('should fetch wellness classes with capacity info', async () => {
-      if (!serverAvailable) {
-        console.log('Skipping: Server not available');
-        return;
-      }
-
       const response = await fetch(`${BASE_URL}/api/wellness-classes`);
       expect(response.ok).toBe(true);
       
@@ -100,8 +44,7 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
 
     it('should create wellness class with capacity and waitlist', async () => {
       if (!adminSession) {
-        console.log('Skipping: No admin session');
-        return;
+        expect.fail('Failed to establish admin test session');
       }
 
       const tomorrow = new Date();
@@ -133,9 +76,11 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
     });
 
     it('should allow first member to enroll normally', async () => {
-      if (!member1Session || !testClassId) {
-        console.log('Skipping: No member session or class');
-        return;
+      if (!member1Session) {
+        expect.fail('Failed to establish member1 test session');
+      }
+      if (!testClassId) {
+        expect.fail('No wellness class was created in previous test');
       }
 
       const response = await fetchWithSession(`/api/wellness-classes/${testClassId}/enroll`, member1Session, {
@@ -152,8 +97,7 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
 
     it('should show updated enrollment count', async () => {
       if (!testClassId) {
-        console.log('Skipping: No test class');
-        return;
+        expect.fail('No wellness class was created in previous test');
       }
 
       const response = await fetch(`${BASE_URL}/api/wellness-classes`);
@@ -176,22 +120,15 @@ describe('Wellness Class Capacity & Waitlist E2E Tests', () => {
 });
 
 describe('RSVP Deletion E2E Tests', () => {
-  let staffSession: TestSession | null = null;
+  let staffSession: TestSession;
   const staffEmail = 'test-staff@example.com';
 
   beforeAll(async () => {
-    serverAvailable = await checkServerAvailable();
-    if (serverAvailable) {
-      staffSession = await login(staffEmail, 'staff');
-    }
+    await assertServerAvailable();
+    staffSession = await login(staffEmail, 'staff');
   });
 
   it('should have events API endpoint', async () => {
-    if (!serverAvailable) {
-      console.log('Skipping: Server not available');
-      return;
-    }
-
     const response = await fetch(`${BASE_URL}/api/events`);
     expect(response.ok).toBe(true);
     
@@ -201,15 +138,14 @@ describe('RSVP Deletion E2E Tests', () => {
 
   it('should allow staff to view RSVPs for an event', async () => {
     if (!staffSession) {
-      console.log('Skipping: No staff session');
-      return;
+      expect.fail('Failed to establish staff test session');
     }
 
     const eventsResponse = await fetch(`${BASE_URL}/api/events`);
     const events = await eventsResponse.json();
     
     if (events.length === 0) {
-      console.log('Skipping: No events available');
+      console.log('Skipping: No events available in database');
       return;
     }
 
