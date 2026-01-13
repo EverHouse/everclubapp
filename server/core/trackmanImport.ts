@@ -1367,15 +1367,15 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               const memberExists = membersByEmail.get(memberEmail) || trackmanEmailMapping.get(memberEmail);
               
               // For solo bookings: if M: email is unresolved but M: name matches owner name,
-              // auto-link the email to the owner's manually_linked_emails for future imports
+              // auto-link the email to the owner's manually_linked_emails for future imports.
+              // This handles staff entering non-standard emails that don't match member records.
+              // Control flow: if auto-link succeeds, we skip slot allocation entirely.
+              // For solo bookings, memberSlot=2 > playerCount=1 also prevents duplicate insertion.
               if (!memberExists && row.playerCount === 1 && memberName) {
-                // Check if the M: name matches the owner's name
                 if (areNamesSimilar(memberName, row.userName)) {
-                  // Auto-link this email to the owner
                   const linked = await autoLinkEmailToOwner(memberEmail, matchedEmail, 
                     `Solo booking name match: "${memberName}" ~ "${row.userName}"`);
                   if (linked) {
-                    // Skip creating a member entry since this is the owner
                     continue;
                   }
                 }
