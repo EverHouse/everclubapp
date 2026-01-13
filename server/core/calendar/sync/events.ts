@@ -40,8 +40,13 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
       const googleEtag = event.etag || null;
       const googleUpdatedAt = event.updated ? new Date(event.updated) : null;
       fetchedEventIds.add(googleEventId);
-      const title = event.summary;
+      const rawTitle = event.summary;
       const description = event.description || null;
+      
+      // Extract category from bracket prefix and strip it from title
+      const bracketMatch = rawTitle.match(/^\[([^\]]+)\]\s*/);
+      const extractedCategory = bracketMatch ? bracketMatch[1] : null;
+      const title = bracketMatch ? rawTitle.replace(/^\[([^\]]+)\]\s*/, '') : rawTitle;
       
       const extProps = event.extendedProperties?.private || {};
       const appMetadata = {
@@ -76,7 +81,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
       
       const location = event.location || appMetadata.location || null;
       
-      const hasBracketPrefix = /^\[.+\]/.test(title);
+      const hasBracketPrefix = /^\[.+\]/.test(rawTitle);
       const hasSufficientMetadata = !!(location || appMetadata.imageUrl || appMetadata.externalUrl || description);
       const needsReview = !hasBracketPrefix || !hasSufficientMetadata;
       
@@ -100,6 +105,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
             await pool.query(
               `UPDATE events SET title = $1, description = $2, event_date = $3, start_time = $4, 
                end_time = $5, location = $6, source = 'google_calendar',
+               category = COALESCE($15, category),
                image_url = COALESCE($7, image_url),
                external_url = COALESCE($8, external_url),
                max_attendees = COALESCE($9, max_attendees),
@@ -111,7 +117,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
               [title, description, eventDate, startTime, endTime, location,
                appMetadata.imageUrl, appMetadata.externalUrl, appMetadata.maxAttendees,
                appMetadata.visibility, appMetadata.requiresRsvp,
-               googleEtag, googleUpdatedAt, googleEventId]
+               googleEtag, googleUpdatedAt, googleEventId, extractedCategory]
             );
             updated++;
           } else {
@@ -127,11 +133,14 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
               if (dbRow.requires_rsvp !== null) extendedProps['ehApp_requiresRsvp'] = String(dbRow.requires_rsvp);
               if (dbRow.location) extendedProps['ehApp_location'] = dbRow.location;
               
+              // Format title with category bracket prefix for Google Calendar
+              const calendarTitle = dbRow.category ? `[${dbRow.category}] ${dbRow.title}` : dbRow.title;
+              
               const patchResult = await calendar.events.patch({
                 calendarId,
                 eventId: googleEventId,
                 requestBody: {
-                  summary: dbRow.title,
+                  summary: calendarTitle,
                   description: dbRow.description,
                   location: dbRow.location,
                   start: {
@@ -180,6 +189,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
           await pool.query(
             `UPDATE events SET title = $1, description = $2, event_date = $3, start_time = $4, 
              end_time = $5, location = $6, source = 'google_calendar',
+             category = COALESCE($18, category),
              image_url = COALESCE($7, image_url),
              external_url = COALESCE($8, external_url),
              max_attendees = COALESCE($9, max_attendees),
@@ -192,7 +202,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
             [title, description, eventDate, startTime, endTime, location,
              appMetadata.imageUrl, appMetadata.externalUrl, appMetadata.maxAttendees,
              appMetadata.visibility, appMetadata.requiresRsvp,
-             googleEtag, googleUpdatedAt, googleEventId, reviewDismissed, shouldSetNeedsReview, isConflict]
+             googleEtag, googleUpdatedAt, googleEventId, reviewDismissed, shouldSetNeedsReview, isConflict, extractedCategory]
           );
           updated++;
         }
@@ -202,7 +212,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
            source, visibility, requires_rsvp, google_calendar_id, image_url, external_url, max_attendees,
            google_event_etag, google_event_updated_at, last_synced_at, needs_review)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), $17)`,
-          [title, description, eventDate, startTime, endTime, location, 'Social', 'google_calendar', 
+          [title, description, eventDate, startTime, endTime, location, extractedCategory || 'Social', 'google_calendar', 
            appMetadata.visibility || 'public', appMetadata.requiresRsvp || false, googleEventId,
            appMetadata.imageUrl, appMetadata.externalUrl, appMetadata.maxAttendees,
            googleEtag, googleUpdatedAt, needsReview]
