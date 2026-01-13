@@ -81,30 +81,6 @@ interface Resource {
   type: string;
 }
 
-interface AvailabilityBlock {
-  id: number;
-  resource_id: number;
-  resource_name: string;
-  block_date: string;
-  start_time: string;
-  end_time: string;
-  block_type: string;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-  closure_title: string | null;
-}
-
-interface BlockFormData {
-  resource_id: number | null;
-  block_date: string;
-  start_time: string;
-  end_time: string;
-  block_type: string;
-  notes: string;
-}
-
-
 const CATEGORY_TABS = [
     { id: 'all', label: 'All', icon: 'calendar_month' },
     { id: 'Social', label: 'Social', icon: 'celebration' },
@@ -2226,192 +2202,6 @@ const WellnessAdminContent: React.FC = () => {
     );
 };
 
-const BLOCK_TYPES = [
-    { id: 'maintenance', label: 'Maintenance' },
-    { id: 'private_event', label: 'Private Event' },
-    { id: 'staff_hold', label: 'Staff Hold' },
-    { id: 'wellness', label: 'Wellness Class' },
-    { id: 'other', label: 'Other' },
-];
-
-const AvailabilityBlocksContent: React.FC = () => {
-    const { showToast } = useToast();
-    const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
-    const [resources, setResources] = useState<Resource[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    
-    const [filterResource, setFilterResource] = useState<string>('');
-    const [filterStartDate, setFilterStartDate] = useState<string>('');
-    const [filterEndDate, setFilterEndDate] = useState<string>('');
-    
-    const [isEditing, setIsEditing] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
-    const [formData, setFormData] = useState<BlockFormData>({
-        resource_id: null,
-        block_date: '',
-        start_time: '09:00',
-        end_time: '10:00',
-        block_type: 'maintenance',
-        notes: ''
-    });
-    const [isSaving, setIsSaving] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
-    
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [blockToDelete, setBlockToDelete] = useState<AvailabilityBlock | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    
-    const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
-
-    useEffect(() => {
-        fetchResources();
-        fetchBlocks();
-    }, []);
-
-    useEffect(() => {
-        const handleOpenCreate = () => openCreate();
-        window.addEventListener('openBlockCreate', handleOpenCreate);
-        return () => window.removeEventListener('openBlockCreate', handleOpenCreate);
-    }, []);
-
-    const fetchResources = async () => {
-        try {
-            const res = await fetch('/api/resources', { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setResources(data);
-            }
-        } catch (err) {
-            console.error('Failed to fetch resources:', err);
-        }
-    };
-
-    const fetchBlocks = async () => {
-        try {
-            setIsLoading(true);
-            setError(null);
-            
-            const params = new URLSearchParams();
-            if (filterStartDate) params.append('start_date', filterStartDate);
-            if (filterEndDate) params.append('end_date', filterEndDate);
-            if (filterResource) params.append('resource_id', filterResource);
-            
-            const url = `/api/availability-blocks${params.toString() ? '?' + params.toString() : ''}`;
-            const res = await fetch(url, { credentials: 'include' });
-            
-            if (res.ok) {
-                const data = await res.json();
-                setBlocks(data);
-            } else {
-                setError('Failed to fetch availability blocks');
-            }
-        } catch (err) {
-            console.error('Failed to fetch blocks:', err);
-            setError('Failed to fetch availability blocks');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleFilter = () => {
-        fetchBlocks();
-    };
-
-    const handleReset = () => {
-        setFilterResource('');
-        setFilterStartDate('');
-        setFilterEndDate('');
-        setTimeout(() => fetchBlocks(), 0);
-    };
-
-    const openCreate = () => {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setFormData({
-            resource_id: resources[0]?.id || null,
-            block_date: tomorrow.toISOString().split('T')[0],
-            start_time: '09:00',
-            end_time: '10:00',
-            block_type: 'maintenance',
-            notes: ''
-        });
-        setEditId(null);
-        setFormError(null);
-        setIsEditing(true);
-    };
-
-    const openEdit = (block: AvailabilityBlock) => {
-        setFormData({
-            resource_id: block.resource_id,
-            block_date: block.block_date,
-            start_time: block.start_time.substring(0, 5),
-            end_time: block.end_time.substring(0, 5),
-            block_type: block.block_type,
-            notes: block.notes || ''
-        });
-        setEditId(block.id);
-        setFormError(null);
-        setIsEditing(true);
-    };
-
-    const handleSave = async () => {
-        if (!formData.resource_id || !formData.block_date || !formData.start_time || !formData.end_time || !formData.block_type) {
-            setFormError('Please fill in all required fields');
-            return;
-        }
-
-        try {
-            setIsSaving(true);
-            setFormError(null);
-            
-            const payload = {
-                resource_id: formData.resource_id,
-                block_date: formData.block_date,
-                start_time: formData.start_time + ':00',
-                end_time: formData.end_time + ':00',
-                block_type: formData.block_type,
-                notes: formData.notes || null
-            };
-
-            const url = editId ? `/api/availability-blocks/${editId}` : '/api/availability-blocks';
-            const method = editId ? 'PUT' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                const savedItem = await res.json();
-                
-                // Optimistically update local state
-                if (editId) {
-                    setBlocks(prev => prev.map(b => b.id === editId ? savedItem : b));
-                } else {
-                    setBlocks(prev => [savedItem, ...prev]);
-                }
-                
-                showToast(editId ? 'Block updated' : 'Block created', 'success');
-                setIsEditing(false);
-            } else {
-                const data = await res.json();
-                setFormError(data.error || 'Failed to save block');
-            }
-        } catch (err) {
-            setFormError('Failed to save block');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDelete = (block: AvailabilityBlock) => {
-        setBlockToDelete(block);
-        setShowDeleteConfirm(true);
-    };
-
     const confirmDelete = async () => {
         if (!blockToDelete) return;
         
@@ -2789,8 +2579,8 @@ const EventsTab: React.FC = () => {
     const { showToast } = useToast();
     const [searchParams] = useSearchParams();
     const subtabParam = searchParams.get('subtab');
-    const [activeSubTab, setActiveSubTab] = useState<'events' | 'wellness' | 'blocks'>(
-        subtabParam === 'wellness' ? 'wellness' : subtabParam === 'blocks' ? 'blocks' : 'events'
+    const [activeSubTab, setActiveSubTab] = useState<'events' | 'wellness'>(
+        subtabParam === 'wellness' ? 'wellness' : 'events'
     );
     const [syncMessage, setSyncMessage] = useState<string | null>(null);
     
@@ -2798,8 +2588,6 @@ const EventsTab: React.FC = () => {
     useEffect(() => {
         if (subtabParam === 'wellness') {
             setActiveSubTab('wellness');
-        } else if (subtabParam === 'blocks') {
-            setActiveSubTab('blocks');
         } else if (subtabParam === 'events' || subtabParam === null) {
             setActiveSubTab('events');
         }
@@ -2887,34 +2675,20 @@ const EventsTab: React.FC = () => {
                         <span aria-hidden="true" className="material-symbols-outlined text-[18px]">spa</span>
                         Wellness
                     </button>
-                    <button
-                        onClick={() => setActiveSubTab('blocks')}
-                        className={`flex-1 py-2.5 px-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${
-                            activeSubTab === 'blocks'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
-                        }`}
-                    >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_busy</span>
-                        Blocks
-                    </button>
                 </div>
 
                 {activeSubTab === 'events' && <EventsAdminContent />}
                 {activeSubTab === 'wellness' && <WellnessAdminContent />}
-                {activeSubTab === 'blocks' && <AvailabilityBlocksContent />}
                 <FloatingActionButton 
                     onClick={() => {
                         if (activeSubTab === 'events') {
                             window.dispatchEvent(new CustomEvent('openEventCreate'));
-                        } else if (activeSubTab === 'wellness') {
-                            window.dispatchEvent(new CustomEvent('openWellnessCreate'));
                         } else {
-                            window.dispatchEvent(new CustomEvent('openBlockCreate'));
+                            window.dispatchEvent(new CustomEvent('openWellnessCreate'));
                         }
                     }} 
-                    color={activeSubTab === 'events' ? 'green' : activeSubTab === 'wellness' ? 'purple' : 'amber'} 
-                    label={activeSubTab === 'events' ? 'Add event' : activeSubTab === 'wellness' ? 'Add wellness session' : 'Add block'} 
+                    color={activeSubTab === 'events' ? 'green' : 'purple'} 
+                    label={activeSubTab === 'events' ? 'Add event' : 'Add wellness session'} 
                 />
             </div>
         </PullToRefresh>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useData } from '../../../contexts/DataContext';
 import { useToast } from '../../../components/Toast';
 import { getTodayPacific, formatDateDisplayWithDay } from '../../../utils/dateUtils';
 import PullToRefresh from '../../../components/PullToRefresh';
 import ModalShell from '../../../components/ModalShell';
 import FloatingActionButton from '../../../components/FloatingActionButton';
+import AvailabilityBlocksContent from '../components/AvailabilityBlocksContent';
 
 interface BlocksClosure {
     id: number;
@@ -54,6 +56,12 @@ interface ClosureReason {
 const BlocksTab: React.FC = () => {
     const { actualUser } = useData();
     const { showToast } = useToast();
+    const [searchParams] = useSearchParams();
+    const subtabParam = searchParams.get('subtab');
+    const [activeSubTab, setActiveSubTab] = useState<'notices' | 'blocks'>(
+        subtabParam === 'blocks' ? 'blocks' : 'notices'
+    );
+    
     const [resources, setResources] = useState<{ id: number; name: string; type: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
@@ -319,6 +327,14 @@ const BlocksTab: React.FC = () => {
             showToast('Failed to delete notice type', 'error');
         }
     };
+
+    useEffect(() => {
+        if (subtabParam === 'blocks') {
+            setActiveSubTab('blocks');
+        } else if (subtabParam === 'notices' || subtabParam === null) {
+            setActiveSubTab('notices');
+        }
+    }, [subtabParam]);
 
     useEffect(() => {
         fetchClosures();
@@ -630,6 +646,35 @@ const BlocksTab: React.FC = () => {
     return (
         <PullToRefresh onRefresh={handlePullRefresh}>
         <div className="space-y-6 animate-pop-in">
+            <div className="flex gap-2 mb-4 animate-pop-in" style={{animationDelay: '0.05s'}}>
+                <button
+                    onClick={() => setActiveSubTab('notices')}
+                    className={`flex-1 py-2.5 px-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${
+                        activeSubTab === 'notices'
+                            ? 'bg-amber-500 text-white shadow-md'
+                            : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
+                    }`}
+                >
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">notifications</span>
+                    Notices
+                </button>
+                <button
+                    onClick={() => setActiveSubTab('blocks')}
+                    className={`flex-1 py-2.5 px-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${
+                        activeSubTab === 'blocks'
+                            ? 'bg-orange-500 text-white shadow-md'
+                            : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
+                    }`}
+                >
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_busy</span>
+                    Blocks
+                </button>
+            </div>
+
+            {activeSubTab === 'blocks' && <AvailabilityBlocksContent />}
+
+            {activeSubTab === 'notices' && (
+            <>
             <p className="text-sm text-primary/80 dark:text-white/80">
                 Synced from Google Calendar: <span className="font-medium">Internal Calendar</span>
             </p>
@@ -1430,6 +1475,8 @@ const BlocksTab: React.FC = () => {
                 label="New Notice"
                 onClick={openNewClosure}
             />
+            </>
+            )}
         </div>
         </PullToRefresh>
     );
