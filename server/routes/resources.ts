@@ -1093,7 +1093,8 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
       booking_source, 
       notes,
       staff_notes,
-      reschedule_from_id
+      reschedule_from_id,
+      trackman_booking_id
     } = req.body;
 
     const staffEmail = getSessionUser(req)?.email;
@@ -1257,7 +1258,8 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
         guestCount: guest_count,
         reviewedBy: staffEmail,
         reviewedAt: new Date(),
-        calendarEventId: calendarEventId
+        calendarEventId: calendarEventId,
+        trackmanBookingId: trackman_booking_id || null
       })
       .returning();
 

@@ -32,6 +32,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
   const [trackmanModal, setTrackmanModal] = useState<BookingRequest | null>(null);
+  const [trackmanBookingIdInput, setTrackmanBookingIdInput] = useState('');
   const [billingModal, setBillingModal] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
   
   const optimisticUpdateRef = useRef<OptimisticUpdateRef | null>(null);
@@ -87,7 +88,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: 'approved', resource_id: request.resource_id })
+        body: JSON.stringify({ status: 'approved', resource_id: request.resource_id, trackman_booking_id: trackmanBookingIdInput || undefined })
       });
       if (res.ok) {
         updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
@@ -95,6 +96,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         window.dispatchEvent(new CustomEvent('booking-action-completed'));
         refresh();
         setTrackmanModal(null);
+        setTrackmanBookingIdInput('');
       } else {
         const data = await res.json();
         showToast(data.error || 'Failed to approve', 'error');
@@ -513,7 +515,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
       
       {trackmanModal && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setTrackmanModal(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setTrackmanModal(null); setTrackmanBookingIdInput(''); }} />
           <div className="relative bg-white dark:bg-surface-dark rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="text-center">
               <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center mx-auto mb-3">
@@ -535,9 +537,25 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               )}
             </div>
             
+            <div>
+              <label className="block text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">
+                Trackman Booking ID <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={trackmanBookingIdInput}
+                onChange={(e) => setTrackmanBookingIdInput(e.target.value)}
+                placeholder="e.g., TM-12345"
+                className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-primary dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Enter the ID from Trackman to link this booking for easier import matching
+              </p>
+            </div>
+            
             <div className="flex gap-3">
               <button
-                onClick={() => setTrackmanModal(null)}
+                onClick={() => { setTrackmanModal(null); setTrackmanBookingIdInput(''); }}
                 className="flex-1 py-2 px-4 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
               >
                 Cancel

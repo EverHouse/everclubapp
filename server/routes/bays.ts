@@ -652,7 +652,29 @@ router.post('/api/booking-requests', async (req, res) => {
 router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, staff_notes, suggested_time, reviewed_by, resource_id } = req.body;
+    const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id } = req.body;
+    
+    // If only updating trackman_booking_id (no status change)
+    if (trackman_booking_id !== undefined && !status) {
+      const bookingId = parseInt(id);
+      const [updated] = await db.update(bookingRequests)
+        .set({ 
+          trackmanBookingId: trackman_booking_id || null,
+          updatedAt: new Date()
+        })
+        .where(eq(bookingRequests.id, bookingId))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      
+      return res.json({ 
+        success: true, 
+        trackman_booking_id: updated.trackmanBookingId,
+        message: trackman_booking_id ? 'Trackman ID saved' : 'Trackman ID removed'
+      });
+    }
     
     if (!['pending', 'approved', 'declined', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -786,6 +808,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             reviewedAt: new Date(),
             resourceId: assignedBayId,
             calendarEventId: calendarEventId,
+            ...(trackman_booking_id !== undefined ? { trackmanBookingId: trackman_booking_id || null } : {}),
             updatedAt: new Date()
           })
           .where(eq(bookingRequests.id, bookingId))

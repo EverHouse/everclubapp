@@ -141,6 +141,7 @@ const ManualBookingModal: React.FC<{
     const [bookingSource, setBookingSource] = useState<string>('Trackman');
     const [notes, setNotes] = useState('');
     const [staffNotes, setStaffNotes] = useState('');
+    const [trackmanBookingId, setTrackmanBookingId] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [existingBookingWarning, setExistingBookingWarning] = useState<string | null>(null);
@@ -344,6 +345,7 @@ const ManualBookingModal: React.FC<{
                     booking_source: bookingSource,
                     notes: notes || undefined,
                     staff_notes: staffNotes || undefined,
+                    trackman_booking_id: trackmanBookingId || undefined,
                     reschedule_from_id: rescheduleFromId
                 })
             });
@@ -617,6 +619,22 @@ const ManualBookingModal: React.FC<{
                                 className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-primary dark:text-white resize-none"
                             />
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">
+                                Trackman Booking ID <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={trackmanBookingId}
+                                onChange={(e) => setTrackmanBookingId(e.target.value)}
+                                placeholder="e.g., TM-12345"
+                                className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-primary dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Enter the ID from Trackman to link this booking for easier import matching
+                            </p>
+                        </div>
                     </div>
 
                 <div className="flex gap-3 mt-6">
@@ -700,6 +718,15 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [resolveUnmatchedModal, setResolveUnmatchedModal] = useState<{ booking: UnmatchedBooking; memberEmail: string } | null>(null);
     const [resolveMembers, setResolveMembers] = useState<MemberSearchResult[]>([]);
     const [resolveSearchQuery, setResolveSearchQuery] = useState('');
+    const [editingTrackmanId, setEditingTrackmanId] = useState(false);
+    const [trackmanIdDraft, setTrackmanIdDraft] = useState('');
+    const [savingTrackmanId, setSavingTrackmanId] = useState(false);
+
+    useEffect(() => {
+        setEditingTrackmanId(false);
+        setTrackmanIdDraft('');
+        setSavingTrackmanId(false);
+    }, [selectedCalendarBooking]);
 
     const handleSyncHistory = useCallback(async () => {
         if (isSyncingHistory) return;
@@ -2402,6 +2429,106 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                             <p className="font-medium text-primary dark:text-white text-sm">{(selectedCalendarBooking as any).created_by_staff_id}</p>
                         </div>
                     )}
+
+                    <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-sm">sports_golf</span>
+                                Trackman Booking ID
+                            </p>
+                            {!editingTrackmanId && (selectedCalendarBooking as any)?.trackman_booking_id && (
+                                <button
+                                    onClick={() => {
+                                        setTrackmanIdDraft((selectedCalendarBooking as any)?.trackman_booking_id || '');
+                                        setEditingTrackmanId(true);
+                                    }}
+                                    className="p-1 rounded hover:bg-amber-200 dark:hover:bg-amber-500/20 transition-colors"
+                                    title="Edit Trackman ID"
+                                >
+                                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-sm">edit</span>
+                                </button>
+                            )}
+                        </div>
+                        {editingTrackmanId ? (
+                            <div className="flex items-center gap-2 mt-1">
+                                <input
+                                    type="text"
+                                    value={trackmanIdDraft}
+                                    onChange={(e) => setTrackmanIdDraft(e.target.value)}
+                                    placeholder="e.g., TM-12345"
+                                    className="flex-1 px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-500/50 bg-white dark:bg-black/20 text-primary dark:text-white text-sm placeholder-gray-400 dark:placeholder-gray-500"
+                                    disabled={savingTrackmanId}
+                                    autoFocus
+                                />
+                                <button
+                                    onClick={async () => {
+                                        if (!selectedCalendarBooking) return;
+                                        setSavingTrackmanId(true);
+                                        const bookingId = typeof selectedCalendarBooking.id === 'string' 
+                                            ? parseInt(String(selectedCalendarBooking.id).replace('cal_', ''), 10) 
+                                            : selectedCalendarBooking.id;
+                                        try {
+                                            const res = await fetch(`/api/booking-requests/${bookingId}`, {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                credentials: 'include',
+                                                body: JSON.stringify({ trackman_booking_id: trackmanIdDraft || null })
+                                            });
+                                            if (res.ok) {
+                                                setSelectedCalendarBooking({
+                                                    ...selectedCalendarBooking,
+                                                    trackman_booking_id: trackmanIdDraft || null
+                                                } as BookingRequest);
+                                                setEditingTrackmanId(false);
+                                                handleRefresh();
+                                                showToast('Trackman ID updated', 'success');
+                                            } else {
+                                                const errData = await res.json();
+                                                showToast(errData.error || 'Failed to update Trackman ID', 'error');
+                                            }
+                                        } catch (err) {
+                                            showToast('Failed to update Trackman ID', 'error');
+                                        } finally {
+                                            setSavingTrackmanId(false);
+                                        }
+                                    }}
+                                    disabled={savingTrackmanId}
+                                    className="p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50"
+                                    title="Save"
+                                >
+                                    {savingTrackmanId ? (
+                                        <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                                    ) : (
+                                        <span className="material-symbols-outlined text-sm">check</span>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditingTrackmanId(false);
+                                        setTrackmanIdDraft('');
+                                    }}
+                                    disabled={savingTrackmanId}
+                                    className="p-2 rounded-lg border border-gray-300 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                                    title="Cancel"
+                                >
+                                    <span className="material-symbols-outlined text-sm text-gray-600 dark:text-gray-400">close</span>
+                                </button>
+                            </div>
+                        ) : (selectedCalendarBooking as any)?.trackman_booking_id ? (
+                            <p className="font-medium text-primary dark:text-white text-sm">{(selectedCalendarBooking as any).trackman_booking_id}</p>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    setTrackmanIdDraft('');
+                                    setEditingTrackmanId(true);
+                                }}
+                                className="text-sm text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium flex items-center gap-1"
+                            >
+                                <span className="material-symbols-outlined text-sm">add</span>
+                                Add Trackman ID
+                            </button>
+                        )}
+                    </div>
 
                     {selectedCalendarBooking && (
                         <BookingMembersEditor 
