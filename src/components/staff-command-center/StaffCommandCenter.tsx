@@ -292,8 +292,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             />
           </div>
 
-          {/* Row 2: Upcoming Bookings, Upcoming Events */}
-          <div className="grid grid-cols-2 gap-6">
+          {/* Row 2: Upcoming Bookings, Upcoming Events, Recent Activity */}
+          <div className="grid grid-cols-3 gap-6">
             <BookingQueuesSection
               pendingRequests={data.pendingRequests}
               todaysBookings={data.todaysBookings}
@@ -317,6 +317,33 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               onTabChange={onTabChange}
               variant="desktop-events"
             />
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 flex flex-col">
+              <h3 className="font-bold text-primary dark:text-white mb-4">Recent Activity</h3>
+              {data.recentActivity.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-4">
+                  <span className="material-symbols-outlined text-3xl text-primary/30 dark:text-white/30 mb-2">history</span>
+                  <p className="text-sm text-primary/50 dark:text-white/50">No recent activity</p>
+                </div>
+              ) : (
+                <div className="flex-1 space-y-2 overflow-y-auto max-h-[200px]">
+                  {data.recentActivity.slice(0, 6).map(activity => (
+                    <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg bg-white/50 dark:bg-white/5">
+                      <span className={`material-symbols-outlined text-lg ${
+                        activity.type === 'check_in' ? 'text-green-600 dark:text-green-400' :
+                        activity.type === 'booking_created' ? 'text-blue-600 dark:text-blue-400' :
+                        activity.type === 'booking_approved' ? 'text-emerald-600 dark:text-emerald-400' :
+                        activity.type === 'cancellation' ? 'text-red-600 dark:text-red-400' :
+                        'text-primary/60 dark:text-white/60'
+                      }`}>{activity.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-primary dark:text-white truncate">{activity.primary_text}</p>
+                        <p className="text-xs text-primary/60 dark:text-white/60 truncate">{activity.secondary_text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

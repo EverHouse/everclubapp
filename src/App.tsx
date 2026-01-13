@@ -557,17 +557,27 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Left section - flex-1 for symmetric spacing with right */}
       <div className="flex-1 flex justify-start">
         {isMemberRoute ? (
-          <button 
-            onClick={() => navigate('/')}
-            className={`flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg py-1`}
-            aria-label="Go to home"
-          >
-            <img 
-              src="/assets/logos/mascot-white.webp" 
-              alt="Ever House" 
-              className="h-10 w-auto object-contain"
-            />
-          </button>
+          isProfilePage ? (
+            <button 
+              onClick={() => navigate(-1)}
+              className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
+              aria-label="Go back"
+            >
+              <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+            </button>
+          ) : (
+            <button 
+              onClick={() => navigate('/')}
+              className={`flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg py-1`}
+              aria-label="Go to home"
+            >
+              <img 
+                src="/assets/logos/mascot-white.webp" 
+                alt="Ever House" 
+                className="h-10 w-auto object-contain"
+              />
+            </button>
+          )
         ) : (
           <button 
             onClick={handleTopLeftClick}
