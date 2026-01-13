@@ -127,6 +127,113 @@ export async function getDailyBookedMinutes(email: string, date: string): Promis
   }
 }
 
+export async function getDailyParticipantMinutes(email: string, date: string, excludeBookingId?: number): Promise<number> {
+  try {
+    // Check booking_members table - use actual roster count, not floored division
+    // For proper player count: use trackman_player_count if set, otherwise count actual roster
+    const membersResult = await pool.query(
+      `SELECT COALESCE(SUM(
+         br.duration_minutes::float / GREATEST(
+           COALESCE(
+             NULLIF(br.trackman_player_count, 0),
+             -- Fall back to actual roster size (booking_members count)
+             (SELECT COUNT(*) FROM booking_members bm2 WHERE bm2.booking_id = br.id AND bm2.user_email IS NOT NULL),
+             -- Final fallback: guest_count + 1 (owner)
+             GREATEST(COALESCE(br.guest_count, 0) + 1, 1)
+           ),
+           1
+         )
+       ), 0) as total_minutes
+       FROM booking_members bm
+       JOIN booking_requests br ON bm.booking_id = br.id
+       WHERE LOWER(bm.user_email) = LOWER($1)
+         AND br.request_date = $2
+         AND br.status IN ('pending', 'approved')
+         AND LOWER(br.user_email) != LOWER($1)
+         ${excludeBookingId ? 'AND br.id != $3' : ''}`,
+      excludeBookingId ? [email, date, excludeBookingId] : [email, date]
+    );
+    
+    // Also check booking_participants table for legacy records
+    const participantsResult = await pool.query(
+      `SELECT COALESCE(SUM(
+         br.duration_minutes::float / GREATEST(
+           COALESCE(
+             NULLIF(br.trackman_player_count, 0),
+             -- Fall back to participant count from session
+             (SELECT COUNT(*) FROM booking_participants bp2 WHERE bp2.session_id = br.session_id),
+             -- Final fallback: guest_count + 1
+             GREATEST(COALESCE(br.guest_count, 0) + 1, 1)
+           ),
+           1
+         )
+       ), 0) as total_minutes
+       FROM booking_participants bp
+       JOIN booking_sessions bs ON bp.session_id = bs.id
+       JOIN booking_requests br ON br.session_id = bs.id
+       JOIN users u ON bp.user_id = u.id
+       WHERE LOWER(u.email) = LOWER($1)
+         AND br.request_date = $2
+         AND br.status IN ('pending', 'approved')
+         AND LOWER(br.user_email) != LOWER($1)
+         ${excludeBookingId ? 'AND br.id != $3' : ''}`,
+      excludeBookingId ? [email, date, excludeBookingId] : [email, date]
+    );
+    
+    const membersMinutes = parseFloat(membersResult.rows[0].total_minutes) || 0;
+    const participantsMinutes = parseFloat(participantsResult.rows[0].total_minutes) || 0;
+    
+    // Return the max to avoid double-counting if same record exists in both
+    return Math.max(membersMinutes, participantsMinutes);
+  } catch (error) {
+    console.error('[getDailyParticipantMinutes] Error:', error);
+    return 0;
+  }
+}
+
+export async function getTotalDailyUsageMinutes(
+  email: string, 
+  date: string, 
+  excludeBookingId?: number
+): Promise<{ ownerMinutes: number; participantMinutes: number; totalMinutes: number }> {
+  try {
+    // Calculate owner minutes without FLOOR - use actual division for accurate overage
+    // Use proper player count: trackman_player_count if set, otherwise roster size or guest_count + 1
+    const ownerResult = await pool.query(
+      `SELECT COALESCE(SUM(
+         duration_minutes::float / GREATEST(
+           COALESCE(
+             NULLIF(trackman_player_count, 0),
+             -- Fall back to actual roster size (booking_members count)
+             (SELECT COUNT(*) FROM booking_members bm WHERE bm.booking_id = br.id AND bm.user_email IS NOT NULL),
+             -- Final fallback: guest_count + 1 (owner)
+             GREATEST(COALESCE(guest_count, 0) + 1, 1)
+           ),
+           1
+         )
+       ), 0) as total_minutes
+       FROM booking_requests br
+       WHERE LOWER(user_email) = LOWER($1)
+         AND request_date = $2
+         AND status IN ('pending', 'approved')
+         ${excludeBookingId ? 'AND id != $3' : ''}`,
+      excludeBookingId ? [email, date, excludeBookingId] : [email, date]
+    );
+    
+    const participantMinutes = await getDailyParticipantMinutes(email, date, excludeBookingId);
+    const ownerMinutes = parseFloat(ownerResult.rows[0].total_minutes) || 0;
+    
+    return {
+      ownerMinutes,
+      participantMinutes,
+      totalMinutes: ownerMinutes + participantMinutes
+    };
+  } catch (error) {
+    console.error('[getTotalDailyUsageMinutes] Error:', error);
+    return { ownerMinutes: 0, participantMinutes: 0, totalMinutes: 0 };
+  }
+}
+
 export async function checkDailyBookingLimit(
   email: string, 
   date: string, 

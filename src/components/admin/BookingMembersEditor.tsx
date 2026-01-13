@@ -64,6 +64,11 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
   const [guestAddSlot, setGuestAddSlot] = useState<number | null>(null);
   const [guestName, setGuestName] = useState('');
   const [isAddingGuest, setIsAddingGuest] = useState(false);
+  const [memberMatchWarning, setMemberMatchWarning] = useState<{
+    slotId: number;
+    guestName: string;
+    memberMatch: { email: string; name: string; tier: string; status: string; note: string };
+  } | null>(null);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -209,8 +214,9 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
     }
   };
 
-  const handleAddGuest = async (slotId: number) => {
-    if (!guestName.trim()) {
+  const handleAddGuest = async (slotId: number, forceAddAsGuest: boolean = false) => {
+    const nameToAdd = memberMatchWarning ? memberMatchWarning.guestName : guestName;
+    if (!nameToAdd.trim()) {
       setError('Please enter a guest name');
       return;
     }
@@ -220,7 +226,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ guestName: guestName.trim(), slotId })
+        body: JSON.stringify({ guestName: nameToAdd.trim(), slotId, forceAddAsGuest })
       });
       
       if (res.ok) {
@@ -229,7 +235,17 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
         setGuestName('');
         setActiveSearchSlot(null);
         setSearchQuery('');
+        setMemberMatchWarning(null);
         onMemberLinked?.();
+      } else if (res.status === 409) {
+        const data = await res.json();
+        if (data.memberMatch) {
+          setMemberMatchWarning({
+            slotId,
+            guestName: nameToAdd.trim(),
+            memberMatch: data.memberMatch
+          });
+        }
       } else {
         const data = await res.json();
         setError(data.error || 'Failed to add guest');
@@ -238,6 +254,36 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
       setError('Failed to add guest');
     } finally {
       setIsAddingGuest(false);
+    }
+  };
+
+  const handleLinkMatchedMember = async () => {
+    if (!memberMatchWarning) return;
+    setLinkingSlotId(memberMatchWarning.slotId);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/members/${memberMatchWarning.slotId}/link`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ memberEmail: memberMatchWarning.memberMatch.email })
+      });
+      
+      if (res.ok) {
+        await fetchBookingMembers();
+        setGuestAddSlot(null);
+        setGuestName('');
+        setActiveSearchSlot(null);
+        setSearchQuery('');
+        setMemberMatchWarning(null);
+        onMemberLinked?.();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to link member');
+      }
+    } catch (err) {
+      setError('Failed to link member');
+    } finally {
+      setLinkingSlotId(null);
     }
   };
 
@@ -532,6 +578,66 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
           )}
         </div>
       </div>
+
+      {/* Member Match Warning Modal */}
+      {memberMatchWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="material-symbols-outlined text-amber-500 text-xl">warning</span>
+              <h3 className="text-base font-semibold text-primary dark:text-white">Member Detected</h3>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+              "{memberMatchWarning.guestName}" matches an existing member:
+            </p>
+            
+            <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg mb-3">
+              <p className="text-sm font-medium text-primary dark:text-white">{memberMatchWarning.memberMatch.name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{memberMatchWarning.memberMatch.email}</p>
+              <div className="flex items-center gap-2 mt-1">
+                {memberMatchWarning.memberMatch.tier && (
+                  <TierBadge tier={memberMatchWarning.memberMatch.tier} size="sm" />
+                )}
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  ({memberMatchWarning.memberMatch.status})
+                </span>
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                {memberMatchWarning.memberMatch.note}
+              </p>
+            </div>
+            
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              Adding them as a member ensures proper tier-based billing. Adding as a guest uses a $25 guest pass fee instead.
+            </p>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={handleLinkMatchedMember}
+                disabled={linkingSlotId === memberMatchWarning.slotId}
+                className="flex-1 py-2 px-3 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
+              >
+                {linkingSlotId === memberMatchWarning.slotId ? 'Adding...' : 'Add as Member'}
+              </button>
+              <button
+                onClick={() => handleAddGuest(memberMatchWarning.slotId, true)}
+                disabled={isAddingGuest}
+                className="flex-1 py-2 px-3 text-sm font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50"
+              >
+                {isAddingGuest ? 'Adding...' : 'Add as Guest Anyway'}
+              </button>
+            </div>
+            
+            <button
+              onClick={() => { setMemberMatchWarning(null); setGuestName(''); setGuestAddSlot(null); }}
+              className="w-full mt-2 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

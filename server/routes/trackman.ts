@@ -13,7 +13,7 @@ import {
   getReconciliationSummary 
 } from '../core/bookingService/trackmanReconciliation';
 import { getGuestPassesRemaining } from './guestPasses';
-import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } from '../core/tierService';
+import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes, getTotalDailyUsageMinutes } from '../core/tierService';
 
 const router = Router();
 
@@ -513,7 +513,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     // Get booking details including duration for fee calculation
     const bookingResult = await pool.query(
       `SELECT br.guest_count, br.trackman_player_count, br.resource_id, br.user_email as owner_email,
-              br.duration_minutes, br.request_date,
+              br.duration_minutes, br.request_date, br.session_id,
               r.capacity as resource_capacity
        FROM booking_requests br
        LEFT JOIN resources r ON br.resource_id = r.id
@@ -532,12 +532,16 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const durationMinutes = bookingResult.rows[0]?.duration_minutes || 60;
     const requestDate = bookingResult.rows[0]?.request_date;
     
-    // Get owner's tier and guest passes remaining
+    // Get owner's tier, tier limits, and guest passes remaining
     let ownerTier: string | null = null;
+    let ownerTierLimits: Awaited<ReturnType<typeof getTierLimits>> | null = null;
     let ownerGuestPassesRemaining = 0;
     
     if (ownerEmail && !ownerEmail.includes('unmatched')) {
       ownerTier = await getMemberTierByEmail(ownerEmail);
+      if (ownerTier) {
+        ownerTierLimits = await getTierLimits(ownerTier);
+      }
       ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
     }
     
@@ -555,8 +559,19 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       [id]
     );
     
+    // Check booking_participants table for legacy records (used for session-based bookings)
+    const bookingData = bookingResult.rows[0];
+    let participantsCount = 0;
+    if (bookingData.session_id) {
+      const participantsResult = await pool.query(
+        `SELECT COUNT(*) as count FROM booking_participants WHERE session_id = $1`,
+        [bookingData.session_id]
+      );
+      participantsCount = parseInt(participantsResult.rows[0]?.count) || 0;
+    }
+    
     // Expected player count: use Trackman's original value if available, else compute from slots
-    // Priority: trackman_player_count > member_slots + guests > legacy guest_count + 1
+    // Priority: trackman_player_count > member_slots + guests > booking_participants > legacy guest_count + 1
     const totalMemberSlots = membersResult.rows.length;
     const actualGuestCount = guestsResult.rows.length;
     
@@ -567,8 +582,11 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     } else if (totalMemberSlots > 0) {
       // Trackman import without stored player count - compute from slots + guests
       expectedPlayerCount = totalMemberSlots + actualGuestCount;
+    } else if (participantsCount > 0) {
+      // Legacy session-based booking - use participant count + guests
+      expectedPlayerCount = participantsCount + actualGuestCount;
     } else {
-      // Legacy booking without booking_members - use legacy formula
+      // Legacy booking without booking_members or booking_participants - use legacy formula
       expectedPlayerCount = Math.max(legacyGuestCount + 1, 1);
     }
     
@@ -592,10 +610,22 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const perPersonMins = Math.floor(durationMinutes / expectedPlayerCount);
     
     // Calculate fee for each member using SAME logic as booking flow
+    // Use getTotalDailyUsageMinutes to get usage from both owned bookings AND participant bookings
+    const bookingId = parseInt(id);
+    
     const membersWithFees = await Promise.all(membersResult.rows.map(async (row) => {
       let tier: string | null = null;
       let fee = 0;
       let feeNote = '';
+      let feeBreakdown: {
+        perPersonMins: number;
+        dailyAllowance: number;
+        usedToday: number;
+        overageMinutes: number;
+        fee: number;
+        isUnlimited: boolean;
+        isSocialTier: boolean;
+      } | null = null;
       
       if (row.user_email) {
         tier = row.user_tier || await getMemberTierByEmail(row.user_email);
@@ -604,31 +634,49 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           const tierLimits = await getTierLimits(tier);
           const isSocialTier = tier.toLowerCase() === 'social';
           const dailyAllowance = tierLimits.daily_sim_minutes || 0;
+          const isUnlimited = dailyAllowance >= 999 || tierLimits.unlimited_access;
+          
+          // Get THEIR total usage today including participant time, excluding THIS booking
+          const usageData = await getTotalDailyUsageMinutes(row.user_email, requestDate, bookingId);
+          const usedToday = usageData.totalMinutes;
+          
+          let overageMinutes = 0;
           
           // Unlimited tiers (999+ minutes) pay nothing
-          if (dailyAllowance >= 999 || tierLimits.unlimited_access) {
+          if (isUnlimited) {
             fee = 0;
             feeNote = 'Included in membership';
+            overageMinutes = 0;
           } else if (isSocialTier) {
             // Social tier pays for ALL their minutes (no included time)
+            overageMinutes = perPersonMins;
             const overageBlocks = Math.ceil(perPersonMins / 30);
             fee = overageBlocks * 25;
             feeNote = fee > 0 ? `Social tier - $${fee} (${perPersonMins} min)` : 'Included';
           } else if (dailyAllowance > 0) {
-            // Other tiers: check what they've used today + this booking
-            const usedToday = await getDailyBookedMinutes(row.user_email, requestDate);
-            // Note: usedToday includes THIS booking if already saved, so we need to be careful
-            // For already-saved bookings, just use perPersonMins for overage calc
-            const overageMinutes = Math.max(0, (usedToday + perPersonMins) - dailyAllowance);
+            // Other tiers: check what they've used today + this booking's portion
+            overageMinutes = Math.max(0, (usedToday + perPersonMins) - dailyAllowance);
             const overageBlocks = Math.ceil(overageMinutes / 30);
             fee = overageBlocks * 25;
             feeNote = fee > 0 ? `${tier} - $${fee} (overage)` : 'Included in membership';
           } else {
             // No daily allowance = pay as you go
+            overageMinutes = perPersonMins;
             const overageBlocks = Math.ceil(perPersonMins / 30);
             fee = overageBlocks * 25;
             feeNote = `Pay-as-you-go - $${fee}`;
           }
+          
+          // Build feeBreakdown for frontend
+          feeBreakdown = {
+            perPersonMins,
+            dailyAllowance,
+            usedToday,
+            overageMinutes,
+            fee,
+            isUnlimited,
+            isSocialTier
+          };
         }
       }
       
@@ -645,20 +693,25 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           : row.user_email || 'Empty Slot',
         tier,
         fee,
-        feeNote
+        feeNote,
+        feeBreakdown
       };
     }));
     
-    // Calculate fee for each guest, tracking guest passes used
+    // Calculate fee for each guest, tracking guest passes used for THIS booking
     let guestPassesAvailable = ownerGuestPassesRemaining;
+    let guestPassesUsedThisBooking = 0;
     const guestsWithFees = guestsResult.rows.map(row => {
       let fee: number;
       let feeNote: string;
+      let usedGuestPass = false;
       
       if (guestPassesAvailable > 0) {
         fee = 0;
         feeNote = 'Guest Pass Used';
         guestPassesAvailable--;
+        guestPassesUsedThisBooking++;
+        usedGuestPass = true;
       } else {
         fee = 25;
         feeNote = 'No passes - $25 due';
@@ -671,9 +724,22 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         guestEmail: row.guest_email,
         slotNumber: row.slot_number,
         fee,
-        feeNote
+        feeNote,
+        usedGuestPass
       };
     });
+    
+    // Calculate remaining passes after this booking's deduction
+    const guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+    
+    // Build tier metadata for the response
+    const dailyAllowance = ownerTierLimits?.daily_sim_minutes || 0;
+    const isUnlimitedTier = dailyAllowance >= 999 || (ownerTierLimits?.unlimited_access ?? false);
+    const allowanceText = isUnlimitedTier 
+      ? 'Unlimited simulator access' 
+      : dailyAllowance > 0 
+        ? `${dailyAllowance} minutes/day included`
+        : 'Pay-as-you-go';
     
     res.json({
       ownerGuestPassesRemaining,
@@ -692,6 +758,23 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         guestCount: effectiveGuestCount,
         playerCountMismatch,
         emptySlots: membersResult.rows.filter(row => !row.user_email).length
+      },
+      tierLimits: ownerTierLimits ? {
+        can_book_simulators: ownerTierLimits.can_book_simulators,
+        daily_sim_minutes: ownerTierLimits.daily_sim_minutes,
+        guest_passes_per_month: ownerTierLimits.guest_passes_per_month,
+        unlimited_access: ownerTierLimits.unlimited_access
+      } : null,
+      tierContext: {
+        ownerTier,
+        allowanceText,
+        isUnlimitedTier
+      },
+      guestPassContext: {
+        passesBeforeBooking: ownerGuestPassesRemaining,
+        passesUsedThisBooking: guestPassesUsedThisBooking,
+        passesRemainingAfterBooking: guestPassesRemainingAfterBooking,
+        guestsWithoutPasses: guestsWithFees.filter(g => !g.usedGuestPass).length
       }
     });
   } catch (error: any) {
@@ -825,12 +908,45 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
 router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { guestName, slotId } = req.body;
+    const { guestName, slotId, forceAddAsGuest } = req.body;
     const sessionUser = (req as any).session?.user;
     const staffEmail = sessionUser?.email || 'staff';
     
     if (!guestName || !guestName.trim()) {
       return res.status(400).json({ error: 'Guest name is required' });
+    }
+    
+    // LOOPHOLE FIX: Check if this "guest" is actually a known member
+    // This prevents adding members as guests to avoid their tier-based fees
+    if (!forceAddAsGuest) {
+      const memberCheck = await pool.query(
+        `SELECT email, first_name, last_name, tier, status 
+         FROM users 
+         WHERE LOWER(first_name || ' ' || last_name) = LOWER($1)
+            OR LOWER(first_name) = LOWER($1)
+            OR (LOWER(first_name || ' ' || LEFT(last_name, 1)) = LOWER($1))
+         LIMIT 1`,
+        [guestName.trim()]
+      );
+      
+      if (memberCheck.rows.length > 0) {
+        const matchedMember = memberCheck.rows[0];
+        const tierFeeNote = matchedMember.tier?.toLowerCase() === 'social' 
+          ? 'Social tier members pay $25/30min for their time' 
+          : 'Member fees are based on their tier';
+        
+        return res.status(409).json({
+          error: 'This person appears to be a member',
+          memberMatch: {
+            email: matchedMember.email,
+            name: `${matchedMember.first_name} ${matchedMember.last_name}`,
+            tier: matchedMember.tier,
+            status: matchedMember.status,
+            note: tierFeeNote
+          },
+          suggestion: 'Add them as a member to apply proper tier-based billing. If this is truly a different person, use "forceAddAsGuest: true".'
+        });
+      }
     }
     
     // Get booking info for owner email
