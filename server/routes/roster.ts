@@ -745,8 +745,8 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
     const durationMinutes = booking.duration_minutes || 60;
     const declaredPlayerCount = booking.declared_player_count || 1;
     
-    // Get resource capacity for time allocation calculation
-    let resourceCapacity = declaredPlayerCount;
+    // Get resource capacity as an upper bound for time allocation
+    let resourceCapacity: number | null = null;
     if (booking.resource_id) {
       const capacityResult = await pool.query(
         'SELECT capacity FROM resources WHERE id = $1',
@@ -756,8 +756,11 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
         resourceCapacity = capacityResult.rows[0].capacity;
       }
     }
-    // Total slots = resource capacity (used for dividing time evenly)
-    const totalSlots = resourceCapacity;
+    // Total slots = declared player count (capped by resource capacity if available)
+    // This ensures 1-player bookings show 1 slot, not 4 open slots
+    const totalSlots = resourceCapacity 
+      ? Math.max(1, Math.min(declaredPlayerCount, resourceCapacity))
+      : Math.max(1, declaredPlayerCount);
 
     let dailyAllowance = 60;
     let guestPassesPerMonth = 0;

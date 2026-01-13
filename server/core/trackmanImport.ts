@@ -392,10 +392,18 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
     const ownerUserId = await getUserIdByEmail(input.ownerEmail);
     const ownerTier = await getMemberTierByEmail(input.ownerEmail) || 'social';
     
+    // Normalize owner email for duplicate detection (resolve any aliases)
+    const ownerEmailNormalized = (input.membersByEmail.get(input.ownerEmail.toLowerCase()) || input.ownerEmail).toLowerCase();
+    
     // Calculate per-participant duration (split equally among all participants)
-    const totalParticipants = 1 + 
-      input.parsedPlayers.filter(p => p.type === 'member' && p.email && p.email.toLowerCase() !== input.ownerEmail.toLowerCase()).length +
-      input.parsedPlayers.filter(p => p.type === 'guest').length;
+    // Count unique members by resolving emails first to avoid counting owner twice
+    const uniqueMemberCount = input.parsedPlayers.filter(p => {
+      if (p.type !== 'member' || !p.email) return false;
+      const resolvedEmail = (input.membersByEmail.get(p.email.toLowerCase()) || p.email).toLowerCase();
+      return resolvedEmail !== ownerEmailNormalized;
+    }).length;
+    const guestCount = input.parsedPlayers.filter(p => p.type === 'guest').length;
+    const totalParticipants = 1 + uniqueMemberCount + guestCount;
     const perParticipantMinutes = totalParticipants > 0 
       ? Math.floor(input.durationMinutes / totalParticipants) 
       : input.durationMinutes;
@@ -414,8 +422,16 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
     // Add members from parsed notes
     const memberPlayers = input.parsedPlayers.filter(p => p.type === 'member' && p.email);
     for (const member of memberPlayers) {
-      if (member.email && member.email.toLowerCase() !== input.ownerEmail.toLowerCase()) {
+      if (member.email) {
+        // Resolve member email to real email BEFORE comparing to owner
         const realEmail = input.membersByEmail.get(member.email.toLowerCase()) || member.email;
+        const normalizedMemberEmail = realEmail.toLowerCase();
+        
+        // Skip if this member is the same person as the owner (prevents duplicates)
+        if (normalizedMemberEmail === ownerEmailNormalized) {
+          continue;
+        }
+        
         const memberUserId = await getUserIdByEmail(realEmail);
         const memberTier = await getMemberTierByEmail(realEmail) || 'social';
         
