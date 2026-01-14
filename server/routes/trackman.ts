@@ -1002,6 +1002,7 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
     let passesRemaining = await getGuestPassesRemaining(ownerEmail);
     let usedGuestPass = false;
     let guestFee = 0;
+    let finalPassesRemaining = passesRemaining;
     
     if (passesRemaining > 0) {
       // Try to use a guest pass (free)
@@ -1009,56 +1010,91 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
       if (guestPassResult.success) {
         usedGuestPass = true;
         guestFee = 0;
-        // useGuestPass returns the remaining count after deduction
-        if (typeof guestPassResult.remaining === 'number') {
-          passesRemaining = guestPassResult.remaining + 1; // Add 1 because we'll subtract in passesRemainingAfter
-        }
+        // useGuestPass returns the remaining count AFTER deduction - use directly
+        finalPassesRemaining = typeof guestPassResult.remaining === 'number' 
+          ? guestPassResult.remaining 
+          : passesRemaining - 1;
       } else {
         // Pass deduction failed (e.g., concurrency issue) - charge $25 fee instead
         process.stderr.write(`[Staff Add Guest] Pass deduction failed for ${ownerEmail} despite ${passesRemaining} remaining. Charging $25 fee. Error: ${guestPassResult.error}\n`);
         usedGuestPass = false;
         guestFee = 25;
         // Re-fetch to get the accurate count after failure
-        passesRemaining = await getGuestPassesRemaining(ownerEmail);
+        finalPassesRemaining = await getGuestPassesRemaining(ownerEmail);
       }
     } else {
       // No guest passes - guest will be charged $25
       usedGuestPass = false;
       guestFee = 25;
+      finalPassesRemaining = 0;
     }
     
-    // Add guest to booking_guests table
-    const nextSlotResult = await pool.query(
-      `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_guests WHERE booking_id = $1`,
-      [bookingId]
-    );
-    const nextSlot = nextSlotResult.rows[0].next_slot;
-    
-    await pool.query(
-      `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number)
-       VALUES ($1, $2, $3, $4)`,
-      [bookingId, guestName.trim(), guestEmail, nextSlot]
-    );
-    
-    // If there's a slot ID provided, clear that slot since we're using a guest instead
-    if (slotId) {
-      await pool.query(
-        `DELETE FROM booking_members WHERE id = $1 AND booking_id = $2 AND is_primary = false AND user_email IS NULL`,
-        [slotId, bookingId]
+    // Wrap all DB operations in a transaction for atomicity
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Add guest to booking_guests table
+      const nextSlotResult = await client.query(
+        `SELECT COALESCE(MAX(slot_number), 0) + 1 as next_slot FROM booking_guests WHERE booking_id = $1`,
+        [bookingId]
       );
+      const nextSlot = nextSlotResult.rows[0].next_slot;
+      
+      await client.query(
+        `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number)
+         VALUES ($1, $2, $3, $4)`,
+        [bookingId, guestName.trim(), guestEmail, nextSlot]
+      );
+      
+      // Create purchase history record for transparency
+      const saleId = `guest_${bookingId}_${Date.now()}`;
+      const bookingDate = new Date(booking.request_date + 'T' + booking.start_time);
+      
+      if (usedGuestPass) {
+        // Create $0.00 "Guest Pass Redemption" entry
+        await client.query(
+          `INSERT INTO legacy_purchases (mindbody_client_id, member_email, mindbody_sale_id, line_number, item_name, item_category, item_price_cents, quantity, subtotal_cents, discount_amount_cents, tax_cents, item_total_cents, payment_method, sale_date, linked_booking_session_id, is_comp, is_synced, import_batch_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+          [ownerEmail, ownerEmail, saleId, 1, `Guest Pass Redemption: ${guestName.trim()}`, 'guest_pass_redemption', 0, 1, 0, 0, 0, 0, 'guest_pass', bookingDate, booking.session_id, true, false, `staff_checkin_${bookingId}`]
+        );
+        process.stderr.write(`[Staff Add Guest] Created $0.00 guest pass redemption record for ${ownerEmail}\n`);
+      } else if (guestFee > 0) {
+        // Create $25 guest fee entry
+        await client.query(
+          `INSERT INTO legacy_purchases (mindbody_client_id, member_email, mindbody_sale_id, line_number, item_name, item_category, item_price_cents, quantity, subtotal_cents, discount_amount_cents, tax_cents, item_total_cents, payment_method, sale_date, linked_booking_session_id, is_comp, is_synced, import_batch_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+          [ownerEmail, ownerEmail, saleId, 1, `Guest Simulator Fee: ${guestName.trim()}`, 'guest_sim_fee', guestFee * 100, 1, guestFee * 100, 0, 0, guestFee * 100, 'pending', bookingDate, booking.session_id, false, false, `staff_checkin_${bookingId}`]
+        );
+        process.stderr.write(`[Staff Add Guest] Created $${guestFee} guest fee record for ${ownerEmail}\n`);
+      }
+      
+      // If there's a slot ID provided, clear that slot since we're using a guest instead
+      if (slotId) {
+        await client.query(
+          `DELETE FROM booking_members WHERE id = $1 AND booking_id = $2 AND is_primary = false AND user_email IS NULL`,
+          [slotId, bookingId]
+        );
+      }
+      
+      await client.query('COMMIT');
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
     }
     
-    const passesRemainingAfter = usedGuestPass ? (passesRemaining - 1) : passesRemaining;
     const feeMessage = usedGuestPass 
-      ? `Guest pass used. ${passesRemainingAfter} pass${passesRemainingAfter !== 1 ? 'es' : ''} remaining.`
+      ? `Guest pass used. ${finalPassesRemaining} pass${finalPassesRemaining !== 1 ? 'es' : ''} remaining.`
       : guestFee > 0 ? `$${guestFee} guest fee applies.` : 'Guest added.';
     
-    process.stderr.write(`[Staff Add Guest] Added guest "${guestName}" to booking ${bookingId}. Pass used: ${usedGuestPass}, Fee: $${guestFee}, Remaining passes: ${passesRemainingAfter}\n`);
+    process.stderr.write(`[Staff Add Guest] Added guest "${guestName}" to booking ${bookingId}. Pass used: ${usedGuestPass}, Fee: $${guestFee}, Remaining passes: ${finalPassesRemaining}\n`);
     
     res.json({ 
       success: true, 
       message: `Guest "${guestName}" added. ${feeMessage}`,
-      guestPassesRemaining: passesRemainingAfter,
+      guestPassesRemaining: finalPassesRemaining,
       usedGuestPass,
       guestFee
     });
