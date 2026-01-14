@@ -113,18 +113,6 @@ const DataIntegrity = lazy(() => import('./pages/Admin/DataIntegrity'));
 
 import { prefetchRoute, prefetchAdjacentRoutes, prefetchOnIdle } from './lib/prefetch';
 
-// Clear any stuck overflow state on app load
-const useClearStuckOverflow = () => {
-  useEffect(() => {
-    // Force clear any stuck overflow from previous sessions
-    document.body.style.overflow = '';
-    document.documentElement.classList.remove('overflow-hidden');
-    document.body.classList.remove('overflow-hidden');
-    document.body.style.position = '';
-    document.body.style.top = '';
-  }, []);
-};
-
 const useDebugLayout = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -443,7 +431,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [hasScrolledPastHero, setHasScrolledPastHero] = useState(false);
   
   useDebugLayout();
-  useClearStuckOverflow();
 
   // Edge swipe back navigation for member and staff pages on touch devices
   const isRootPage = location.pathname === '/dashboard' || location.pathname === '/admin';

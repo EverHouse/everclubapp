@@ -31,17 +31,33 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
   const [isExiting, setIsExiting] = React.useState(false);
   const [shouldRender, setShouldRender] = React.useState(true);
   const [tagline] = React.useState(() => taglines[Math.floor(Math.random() * taglines.length)]);
+  const exitTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const onFadeCompleteRef = React.useRef(onFadeComplete);
+  
+  React.useEffect(() => {
+    onFadeCompleteRef.current = onFadeComplete;
+  }, [onFadeComplete]);
 
   React.useEffect(() => {
-    if (!isVisible && !isExiting) {
+    if (!isVisible) {
       setIsExiting(true);
-      const timer = setTimeout(() => {
+      
+      if (exitTimeoutRef.current) {
+        clearTimeout(exitTimeoutRef.current);
+      }
+      
+      exitTimeoutRef.current = setTimeout(() => {
         setShouldRender(false);
-        onFadeComplete?.();
+        onFadeCompleteRef.current?.();
       }, 750);
-      return () => clearTimeout(timer);
+      
+      return () => {
+        if (exitTimeoutRef.current) {
+          clearTimeout(exitTimeoutRef.current);
+        }
+      };
     }
-  }, [isVisible, isExiting, onFadeComplete]);
+  }, [isVisible]);
 
   if (!shouldRender) return null;
 
