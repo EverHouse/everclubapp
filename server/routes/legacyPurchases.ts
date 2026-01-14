@@ -37,16 +37,29 @@ router.get("/api/legacy-purchases/member/:email", isStaffOrAdmin, async (req: Re
 });
 
 // Get purchases for current member (member view)
+// Supports ?user_email param for "View As" feature when staff views as another member
 router.get("/api/legacy-purchases/my-purchases", async (req: Request, res: Response) => {
   try {
-    const userEmail = (req as any).user?.email;
-    if (!userEmail) {
+    const sessionEmail = (req as any).user?.email;
+    if (!sessionEmail) {
       return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    // Support "View As" feature: staff can pass user_email param to view as another member
+    const requestedEmail = req.query.user_email as string | undefined;
+    let targetEmail = sessionEmail;
+    
+    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
+      // Only staff/admin can view other members' purchases
+      const userRole = (req as any).user?.role;
+      if (userRole === 'admin' || userRole === 'staff') {
+        targetEmail = decodeURIComponent(requestedEmail);
+      }
     }
     
     const purchases = await db.select()
       .from(legacyPurchases)
-      .where(eq(legacyPurchases.memberEmail, userEmail.toLowerCase()))
+      .where(eq(legacyPurchases.memberEmail, targetEmail.toLowerCase()))
       .orderBy(desc(legacyPurchases.saleDate));
     
     // Convert cents to dollars for display and filter sensitive fields
