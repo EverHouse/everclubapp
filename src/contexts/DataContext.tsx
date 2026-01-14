@@ -340,9 +340,10 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const fetchFormerMembers = useCallback(async (forceRefresh = false) => {
     if (!actualUser || (actualUser.role !== 'admin' && actualUser.role !== 'staff')) return;
     
+    const now = Date.now();
+    
     // Skip fetch if cache is valid AND we're not forcing a refresh
     if (!forceRefresh) {
-      const now = Date.now();
       const cacheAge = now - formerMembersLastFetch.current;
       const cacheValid = formerMembersFetched.current && cacheAge < FORMER_MEMBERS_CACHE_MS;
       
@@ -356,27 +357,25 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         const contacts = Array.isArray(data) ? data : (data.contacts || []);
-        if (contacts.length >= 0) {
-          const formatted: MemberProfile[] = contacts.map((contact: any) => ({
-            id: contact.id,
-            name: [contact.firstName, contact.lastName].filter(Boolean).join(' ') || contact.email || 'Unknown',
-            tier: contact.tier || 'Unknown',
-            rawTier: contact.rawTier,
-            tags: contact.tags || [],
-            status: contact.status || 'Inactive',
-            email: contact.email || '',
-            phone: contact.phone || '',
-            role: 'member',
-            lifetimeVisits: contact.lifetimeVisits || 0,
-            lastBookingDate: contact.lastBookingDate || null,
-            joinDate: contact.joinDate || null,
-            mindbodyClientId: contact.mindbodyClientId || null,
-            manuallyLinkedEmails: contact.manuallyLinkedEmails || []
-          }));
-          setFormerMembers(formatted);
-          formerMembersFetched.current = true;
-          formerMembersLastFetch.current = now;
-        }
+        const formatted: MemberProfile[] = contacts.map((contact: any) => ({
+          id: contact.id,
+          name: [contact.firstName, contact.lastName].filter(Boolean).join(' ') || contact.email || 'Unknown',
+          tier: contact.tier || 'Unknown',
+          rawTier: contact.rawTier,
+          tags: contact.tags || [],
+          status: contact.status || 'Inactive',
+          email: contact.email || '',
+          phone: contact.phone || '',
+          role: 'member',
+          lifetimeVisits: contact.lifetimeVisits || 0,
+          lastBookingDate: contact.lastBookingDate || null,
+          joinDate: contact.joinDate || null,
+          mindbodyClientId: contact.mindbodyClientId || null,
+          manuallyLinkedEmails: contact.manuallyLinkedEmails || []
+        }));
+        setFormerMembers(formatted);
+        formerMembersFetched.current = true;
+        formerMembersLastFetch.current = now;
       } else {
         console.error('Failed to fetch former members: API returned', res.status);
       }

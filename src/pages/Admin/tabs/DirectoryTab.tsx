@@ -58,6 +58,7 @@ const DirectoryTab: React.FC = () => {
     const [sortField, setSortField] = useState<SortField>('name');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
     const [formerLoading, setFormerLoading] = useState(false);
+    const [formerError, setFormerError] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
@@ -113,13 +114,29 @@ const DirectoryTab: React.FC = () => {
         setStatusFilter('All');
         if (tab === 'former') {
             setFormerLoading(true);
+            setFormerError(false);
             try {
                 await fetchFormerMembers();
             } catch (err) {
                 console.error('Error loading former members:', err);
+                setFormerError(true);
             } finally {
                 setFormerLoading(false);
             }
+        }
+    }, [fetchFormerMembers]);
+
+    // Retry loading former members
+    const handleRetryFormer = useCallback(async () => {
+        setFormerLoading(true);
+        setFormerError(false);
+        try {
+            await fetchFormerMembers(true);
+        } catch (err) {
+            console.error('Error loading former members:', err);
+            setFormerError(true);
+        } finally {
+            setFormerLoading(false);
         }
     }, [fetchFormerMembers]);
 
@@ -438,8 +455,28 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
+                {/* Error state - failed to load former members */}
+                {!formerLoading && formerError && memberTab === 'former' && (
+                    <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl border-2 border-dashed border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/5">
+                        <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 text-red-400 dark:text-red-400/70">cloud_off</span>
+                        <h3 className="text-lg font-bold mb-2 text-red-600 dark:text-red-400">
+                            Failed to load former members
+                        </h3>
+                        <p className="text-sm text-red-500 dark:text-red-400/80 max-w-sm mx-auto text-center mb-4">
+                            There was a problem connecting to the server. Please try again.
+                        </p>
+                        <button
+                            onClick={handleRetryFormer}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
+                        >
+                            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
+                            Retry
+                        </button>
+                    </div>
+                )}
+
                 {/* Empty state - no former members in system */}
-                {!formerLoading && memberTab === 'former' && formerMembers.length === 0 && (
+                {!formerLoading && !formerError && memberTab === 'former' && formerMembers.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl border-2 border-dashed border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-white/5">
                         <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 text-gray-400 dark:text-white/30">group_off</span>
                         <h3 className="text-lg font-bold mb-2 text-gray-600 dark:text-white/70">
