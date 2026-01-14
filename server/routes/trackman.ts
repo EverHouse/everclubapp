@@ -764,6 +764,14 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         ? `${dailyAllowance} minutes/day included`
         : 'Pay-as-you-go';
     
+    // Calculate financial summary for display
+    const ownerMember = membersWithFees.find(m => m.isPrimary);
+    const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);
+    const guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0);
+    const ownerOverageFee = ownerMember?.fee || 0;
+    const totalOwnerOwes = ownerOverageFee + guestFeesWithoutPass;
+    const totalPlayersOwe = nonOwnerMembers.reduce((sum, m) => sum + m.fee, 0);
+    
     res.json({
       ownerGuestPassesRemaining,
       bookingInfo: {
@@ -798,6 +806,19 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         passesUsedThisBooking: guestPassesUsedThisBooking,
         passesRemainingAfterBooking: guestPassesRemainingAfterBooking,
         guestsWithoutPasses: guestsWithFees.filter(g => !g.usedGuestPass).length
+      },
+      financialSummary: {
+        ownerOverageFee,
+        guestFeesWithoutPass,
+        totalOwnerOwes,
+        totalPlayersOwe,
+        grandTotal: totalOwnerOwes + totalPlayersOwe,
+        playerBreakdown: nonOwnerMembers.map(m => ({
+          name: m.memberName,
+          tier: m.tier,
+          fee: m.fee,
+          feeNote: m.feeNote
+        }))
       }
     });
   } catch (error: any) {

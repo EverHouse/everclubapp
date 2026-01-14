@@ -42,6 +42,20 @@ interface ValidationInfo {
   emptySlots: number;
 }
 
+interface FinancialSummary {
+  ownerOverageFee: number;
+  guestFeesWithoutPass: number;
+  totalOwnerOwes: number;
+  totalPlayersOwe: number;
+  grandTotal: number;
+  playerBreakdown: Array<{
+    name: string;
+    tier: string | null;
+    fee: number;
+    feeNote: string;
+  }>;
+}
+
 interface BookingMembersEditorProps {
   bookingId: number | string;
   onMemberLinked?: () => void;
@@ -67,6 +81,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
   const [isAddingGuest, setIsAddingGuest] = useState(false);
   const [guestPassesRemaining, setGuestPassesRemaining] = useState<number>(0);
   const [guestPassesTotal, setGuestPassesTotal] = useState<number>(0);
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
   const [memberMatchWarning, setMemberMatchWarning] = useState<{
     slotId: number;
     guestName: string;
@@ -89,6 +104,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
         setValidation(data.validation || null);
         setGuestPassesRemaining(data.ownerGuestPassesRemaining || 0);
         setGuestPassesTotal(data.tierLimits?.guest_passes_per_month || data.ownerGuestPassesRemaining || 0);
+        setFinancialSummary(data.financialSummary || null);
       } else {
         setError('Failed to load booking members');
       }
@@ -655,6 +671,62 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
           )}
         </div>
       </div>
+
+      {/* Financial Summary - Always show when data is present */}
+      {financialSummary && (
+        <div className="mt-3 p-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900 rounded-lg border border-gray-200 dark:border-white/10">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-primary dark:text-white text-sm">payments</span>
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">Financial Summary</p>
+          </div>
+          
+          <div className="space-y-2">
+            {/* Owner Owes */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700 dark:text-gray-300">Owner Owes</span>
+                {financialSummary.totalOwnerOwes > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                    {financialSummary.ownerOverageFee > 0 && financialSummary.guestFeesWithoutPass > 0 
+                      ? `(overage + ${financialSummary.guestFeesWithoutPass > 25 ? 'guest fees' : 'guest fee'})`
+                      : financialSummary.ownerOverageFee > 0 
+                        ? '(tier overage)'
+                        : financialSummary.guestFeesWithoutPass > 0 
+                          ? '(guest fees)'
+                          : ''}
+                  </span>
+                )}
+              </div>
+              <span className={`text-sm font-semibold ${financialSummary.totalOwnerOwes > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                {financialSummary.totalOwnerOwes > 0 ? `$${financialSummary.totalOwnerOwes.toFixed(2)}` : '$0.00'}
+              </span>
+            </div>
+            
+            {/* Players Owe */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700 dark:text-gray-300">Players Owe</span>
+                {financialSummary.totalPlayersOwe > 0 && (
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                    ({financialSummary.playerBreakdown.filter(p => p.fee > 0).length} player{financialSummary.playerBreakdown.filter(p => p.fee > 0).length > 1 ? 's' : ''})
+                  </span>
+                )}
+              </div>
+              <span className={`text-sm font-semibold ${financialSummary.totalPlayersOwe > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                {financialSummary.totalPlayersOwe > 0 ? `$${financialSummary.totalPlayersOwe.toFixed(2)}` : '$0.00'}
+              </span>
+            </div>
+            
+            {/* Grand Total */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-white/10">
+              <span className="text-sm font-medium text-gray-800 dark:text-white">Total Due</span>
+              <span className={`text-base font-bold ${financialSummary.grandTotal > 0 ? 'text-primary dark:text-white' : 'text-green-600 dark:text-green-400'}`}>
+                {financialSummary.grandTotal > 0 ? `$${financialSummary.grandTotal.toFixed(2)}` : 'No fees due'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Member Match Warning Modal */}
       {memberMatchWarning && (
