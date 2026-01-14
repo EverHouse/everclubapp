@@ -36,6 +36,8 @@ const HEADER_HEIGHT = 72;
 const DESKTOP_SETTLE_DELAY = 300;
 
 const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disabled = false, className = '' }) => {
+  // TEMPORARY: Bypass PullToRefresh to debug scrolling issue
+  return <div className={className}>{children}</div>;
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFillingScreen, setIsFillingScreen] = useState(false);
