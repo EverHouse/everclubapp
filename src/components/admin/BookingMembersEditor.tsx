@@ -203,6 +203,17 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
         setActiveSearchSlot(null);
         setSearchQuery('');
         onMemberLinked?.();
+      } else if (res.status === 400) {
+        // Slot might already be linked - refresh to get current state
+        const data = await res.json();
+        await fetchBookingMembers();
+        setShowDropdown(false);
+        setActiveSearchSlot(null);
+        setSearchQuery('');
+        // Show error if slot is linked to a different member
+        if (data.error && data.error.includes('different member')) {
+          setError(data.error);
+        }
       } else {
         const data = await res.json();
         setError(data.error || 'Failed to link member');

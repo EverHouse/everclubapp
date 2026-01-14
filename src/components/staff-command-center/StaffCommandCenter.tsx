@@ -187,14 +187,12 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
         
         if (errorData.requiresRoster) {
-          // Immediately open booking details modal for roster completion
-          // First dispatch event immediately in case user is already on simulator tab
+          // Store pending booking ID in sessionStorage so SimulatorTab can pick it up on mount
+          sessionStorage.setItem('pendingRosterBookingId', id.toString());
+          // Dispatch event immediately in case user is already on simulator tab
           window.dispatchEvent(new CustomEvent('open-booking-details', { detail: { bookingId: id } }));
-          // Also switch tab and dispatch again after mount
+          // Switch to simulator tab - the tab will check sessionStorage on mount
           onTabChange('simulator');
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('open-booking-details', { detail: { bookingId: id } }));
-          }, 200);
           showToast('Roster Incomplete: Please assign all player slots to proceed.', 'error');
         } else {
           setBillingModal({ isOpen: true, bookingId: id });

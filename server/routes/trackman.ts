@@ -850,7 +850,11 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
     
     const slot = slotResult.rows[0];
     if (slot.user_email) {
-      return res.status(400).json({ error: 'Slot is already linked to a member' });
+      // Check if already linked to the SAME member (idempotent)
+      if (slot.user_email.toLowerCase() === memberEmail.toLowerCase()) {
+        return res.json({ success: true, message: 'Member already linked to this slot' });
+      }
+      return res.status(400).json({ error: 'Slot is already linked to a different member' });
     }
     
     // Update the slot with the member email

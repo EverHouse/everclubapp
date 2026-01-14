@@ -845,23 +845,35 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     }, []);
 
     useEffect(() => {
+        const openBookingById = async (bookingId: number | string) => {
+            try {
+                const res = await fetch(`/api/booking-requests?id=${bookingId}`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        setSelectedCalendarBooking(data[0]);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to open booking details:', err);
+            }
+        };
+        
         const handleOpenBookingDetails = async (e: Event) => {
             const detail = (e as CustomEvent).detail;
             if (detail?.bookingId) {
-                try {
-                    const res = await fetch(`/api/booking-requests?id=${detail.bookingId}`, { credentials: 'include' });
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && data.length > 0) {
-                            setSelectedCalendarBooking(data[0]);
-                        }
-                    }
-                } catch (err) {
-                    console.error('Failed to open booking details:', err);
-                }
+                await openBookingById(detail.bookingId);
             }
         };
         window.addEventListener('open-booking-details', handleOpenBookingDetails);
+        
+        // Check for pending roster booking from StaffCommandCenter check-in
+        const pendingBookingId = sessionStorage.getItem('pendingRosterBookingId');
+        if (pendingBookingId) {
+            sessionStorage.removeItem('pendingRosterBookingId');
+            openBookingById(pendingBookingId);
+        }
+        
         return () => window.removeEventListener('open-booking-details', handleOpenBookingDetails);
     }, []);
 
