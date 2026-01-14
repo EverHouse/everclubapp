@@ -352,6 +352,9 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     const newBlockBookings = block_bookings === true || block_bookings === 'true';
     const newWaitlistEnabled = waitlist_enabled === true || waitlist_enabled === 'true';
     
+    const sessionUser = getSessionUser(req);
+    const reviewedBy = sessionUser?.email || 'staff';
+    
     const result = await pool.query(
       `UPDATE wellness_classes SET 
         title = COALESCE($1, title),
@@ -372,9 +375,13 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
         locally_edited = true,
         app_last_modified_at = NOW(),
         updated_at = NOW(),
-        conflict_detected = false
+        conflict_detected = false,
+        needs_review = false,
+        review_dismissed = true,
+        reviewed_by = $17,
+        reviewed_at = NOW()
        WHERE id = $16 RETURNING *`,
-      [title, time, instructor, duration, category, spots, status, description, date, is_active, image_url, external_url, newBlockBookings, capacity || null, newWaitlistEnabled, id]
+      [title, time, instructor, duration, category, spots, status, description, date, is_active, image_url, external_url, newBlockBookings, capacity || null, newWaitlistEnabled, id, reviewedBy]
     );
     
     if (result.rows.length === 0) {
