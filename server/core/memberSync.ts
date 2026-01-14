@@ -164,7 +164,9 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
         synced++;
         
         // Sync deal stage based on Mindbody status (non-blocking)
-        if (status && ['declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member'].includes(status)) {
+        // Include active members so deals get created for all members
+        const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen'];
+        if (status && dealSyncStatuses.includes(status)) {
           syncDealStageFromMindbodyStatus(email, status, 'system', 'Mindbody Sync').catch(err => {
             if (!isProduction) console.error(`[MemberSync] Failed to sync deal stage for ${email}:`, err);
           });
