@@ -187,11 +187,10 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
         
         if (errorData.requiresRoster) {
-          showToast(`${errorData.emptySlots} player slot${errorData.emptySlots > 1 ? 's' : ''} need to be filled before check-in`, 'error');
+          // Immediately open booking details modal for roster completion
           onTabChange('simulator');
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('open-booking-details', { detail: { bookingId: id } }));
-          }, 100);
+          window.dispatchEvent(new CustomEvent('open-booking-details', { detail: { bookingId: id } }));
+          showToast('Roster Incomplete: Please assign all player slots to proceed.', 'error');
         } else {
           setBillingModal({ isOpen: true, bookingId: id });
         }

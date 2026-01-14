@@ -63,7 +63,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
   const [activeSearchSlot, setActiveSearchSlot] = useState<number | null>(null);
   const [guestAddSlot, setGuestAddSlot] = useState<number | null>(null);
   const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
   const [isAddingGuest, setIsAddingGuest] = useState(false);
+  const [guestPassesRemaining, setGuestPassesRemaining] = useState<number>(0);
+  const [guestPassesTotal, setGuestPassesTotal] = useState<number>(0);
   const [memberMatchWarning, setMemberMatchWarning] = useState<{
     slotId: number;
     guestName: string;
@@ -84,6 +87,8 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
         setMembers(data.members || []);
         setGuests(data.guests || []);
         setValidation(data.validation || null);
+        setGuestPassesRemaining(data.ownerGuestPassesRemaining || 0);
+        setGuestPassesTotal(data.tierLimits?.guest_passes_per_month || data.ownerGuestPassesRemaining || 0);
       } else {
         setError('Failed to load booking members');
       }
@@ -227,16 +232,21 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ guestName: nameToAdd.trim(), slotId, forceAddAsGuest })
+        body: JSON.stringify({ guestName: nameToAdd.trim(), guestEmail: guestEmail.trim() || null, slotId, forceAddAsGuest })
       });
       
       if (res.ok) {
+        const data = await res.json();
         await fetchBookingMembers();
         setGuestAddSlot(null);
         setGuestName('');
+        setGuestEmail('');
         setActiveSearchSlot(null);
         setSearchQuery('');
         setMemberMatchWarning(null);
+        if (typeof data.guestPassesRemaining === 'number') {
+          setGuestPassesRemaining(data.guestPassesRemaining);
+        }
         onMemberLinked?.();
       } else if (res.status === 409) {
         const data = await res.json();
@@ -517,14 +527,80 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
                       </div>
                     )}
                   </div>
+                ) : guestAddSlot === slot.id ? (
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        placeholder="Guest name *"
+                        autoFocus
+                        className="flex-1 py-1.5 px-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="email"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                        placeholder="Guest email (optional)"
+                        className="flex-1 py-1.5 px-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleAddGuest(slot.id)}
+                        disabled={isAddingGuest || !guestName.trim()}
+                        className="flex-1 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        {isAddingGuest ? (
+                          <>
+                            <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-sm">person_add</span>
+                            {guestPassesRemaining > 0 ? 'Add Guest (Free)' : 'Add Guest ($25)'}
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => { setGuestAddSlot(null); setGuestName(''); setGuestEmail(''); }}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+                      >
+                        <span className="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    </div>
+                    {guestPassesRemaining === 0 && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400">No guest passes remaining - $25 fee applies</p>
+                    )}
+                  </div>
                 ) : (
-                  <button
-                    onClick={() => setActiveSearchSlot(slot.id)}
-                    className="flex-1 flex items-center gap-2 py-1.5 px-2 text-left text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-sm">add</span>
-                    <span className="text-sm">Add member to slot</span>
-                  </button>
+                  <div className="flex-1 flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveSearchSlot(slot.id)}
+                      className="flex-1 flex items-center gap-2 py-1.5 px-2 text-left text-gray-400 dark:text-gray-500 hover:text-primary dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-sm">search</span>
+                      <span className="text-sm">Find member</span>
+                    </button>
+                    <button
+                      onClick={() => { setGuestAddSlot(slot.id); setGuestName(''); setGuestEmail(''); }}
+                      className={`flex items-center gap-1 py-1.5 px-2 text-xs font-medium rounded-lg transition-colors ${
+                        guestPassesRemaining > 0 
+                          ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/30'
+                          : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">person_add</span>
+                      <span>Add Guest</span>
+                      <span className="px-1 py-0.5 text-[10px] font-bold bg-white/50 dark:bg-black/30 rounded">
+                        {guestPassesRemaining}/{guestPassesTotal}
+                      </span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

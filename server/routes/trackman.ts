@@ -995,14 +995,36 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
     })();
     
     // Try to deduct a guest pass from the booking owner
-    const { useGuestPass } = await import('./guestPasses');
-    const guestPassResult = await useGuestPass(ownerEmail, guestName.trim(), isUpcoming);
+    const { useGuestPass, getGuestPassesRemaining } = await import('./guestPasses');
+    const guestEmail = req.body.guestEmail?.trim() || null;
     
-    if (!guestPassResult.success) {
-      return res.status(400).json({ 
-        error: guestPassResult.error || 'Failed to use guest pass',
-        noGuestPasses: true
-      });
+    // Check how many passes the owner has remaining
+    let passesRemaining = await getGuestPassesRemaining(ownerEmail);
+    let usedGuestPass = false;
+    let guestFee = 0;
+    
+    if (passesRemaining > 0) {
+      // Try to use a guest pass (free)
+      const guestPassResult = await useGuestPass(ownerEmail, guestName.trim(), isUpcoming);
+      if (guestPassResult.success) {
+        usedGuestPass = true;
+        guestFee = 0;
+        // useGuestPass returns the remaining count after deduction
+        if (typeof guestPassResult.remaining === 'number') {
+          passesRemaining = guestPassResult.remaining + 1; // Add 1 because we'll subtract in passesRemainingAfter
+        }
+      } else {
+        // Pass deduction failed (e.g., concurrency issue) - charge $25 fee instead
+        process.stderr.write(`[Staff Add Guest] Pass deduction failed for ${ownerEmail} despite ${passesRemaining} remaining. Charging $25 fee. Error: ${guestPassResult.error}\n`);
+        usedGuestPass = false;
+        guestFee = 25;
+        // Re-fetch to get the accurate count after failure
+        passesRemaining = await getGuestPassesRemaining(ownerEmail);
+      }
+    } else {
+      // No guest passes - guest will be charged $25
+      usedGuestPass = false;
+      guestFee = 25;
     }
     
     // Add guest to booking_guests table
@@ -1013,9 +1035,9 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
     const nextSlot = nextSlotResult.rows[0].next_slot;
     
     await pool.query(
-      `INSERT INTO booking_guests (booking_id, guest_name, slot_number)
-       VALUES ($1, $2, $3)`,
-      [bookingId, guestName.trim(), nextSlot]
+      `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number)
+       VALUES ($1, $2, $3, $4)`,
+      [bookingId, guestName.trim(), guestEmail, nextSlot]
     );
     
     // If there's a slot ID provided, clear that slot since we're using a guest instead
@@ -1026,12 +1048,19 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
       );
     }
     
-    process.stderr.write(`[Staff Add Guest] Added guest "${guestName}" to booking ${bookingId}, deducted pass from ${ownerEmail}. Remaining: ${guestPassResult.remaining}\n`);
+    const passesRemainingAfter = usedGuestPass ? (passesRemaining - 1) : passesRemaining;
+    const feeMessage = usedGuestPass 
+      ? `Guest pass used. ${passesRemainingAfter} pass${passesRemainingAfter !== 1 ? 'es' : ''} remaining.`
+      : guestFee > 0 ? `$${guestFee} guest fee applies.` : 'Guest added.';
+    
+    process.stderr.write(`[Staff Add Guest] Added guest "${guestName}" to booking ${bookingId}. Pass used: ${usedGuestPass}, Fee: $${guestFee}, Remaining passes: ${passesRemainingAfter}\n`);
     
     res.json({ 
       success: true, 
-      message: `Guest "${guestName}" added. ${guestPassResult.remaining} guest passes remaining.`,
-      guestPassesRemaining: guestPassResult.remaining
+      message: `Guest "${guestName}" added. ${feeMessage}`,
+      guestPassesRemaining: passesRemainingAfter,
+      usedGuestPass,
+      guestFee
     });
   } catch (error: any) {
     console.error('Add guest error:', error);
