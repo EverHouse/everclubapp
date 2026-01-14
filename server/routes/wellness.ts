@@ -550,7 +550,7 @@ router.get('/api/wellness-enrollments', async (req, res) => {
             );
             isStaff = result.rows.length > 0;
           } catch (e) {
-            console.warn('[wellness] Staff check query failed:', e);
+            if (!isProduction) console.warn('[wellness] Staff check query failed:', e);
           }
         }
         if (!isStaff) {

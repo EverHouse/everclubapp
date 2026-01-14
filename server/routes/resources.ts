@@ -353,7 +353,7 @@ router.get('/api/bookings', async (req, res) => {
             );
             isStaff = result.rows.length > 0;
           } catch (e) {
-            console.warn('[resources] Staff check query failed:', e);
+            logger.warn('[resources] Staff check query failed:', e);
           }
         }
         if (!isStaff) {
@@ -609,7 +609,7 @@ router.post('/api/bookings', async (req, res) => {
             );
             isStaff = result.rows.length > 0;
           } catch (e) {
-            console.warn('[resources] Staff check query failed:', e);
+            logger.warn('[resources] Staff check query failed:', e);
           }
         }
         if (!isStaff) {

@@ -683,7 +683,7 @@ router.get('/api/rsvps', async (req, res) => {
             );
             isStaff = result.rows.length > 0;
           } catch (e) {
-            console.warn('[events] Staff check query failed:', e);
+            if (!isProduction) console.warn('[events] Staff check query failed:', e);
           }
         }
         if (!isStaff) {
