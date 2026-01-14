@@ -28,3 +28,12 @@ uploads/
 
 # Development assets (not needed in production)
 attached_assets/
+
+# Replit system files
+.cache/
+.config/
+.upm/
+.pythonlibs/
+
+# Test output
+coverage/
