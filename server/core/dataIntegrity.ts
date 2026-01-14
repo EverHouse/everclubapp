@@ -292,14 +292,15 @@ async function checkBookingResourceRelationships(): Promise<IntegrityCheckResult
 async function checkParticipantUserRelationships(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
+  // Note: booking_participants.user_id stores email addresses, not user UUIDs
   const invalidUsers = await db.execute(sql`
     SELECT bp.id, bp.user_id, bp.display_name, bp.session_id,
            bs.session_date, bs.start_time, r.name as resource_name
     FROM booking_participants bp
-    LEFT JOIN users u ON bp.user_id = u.id
+    LEFT JOIN users u ON LOWER(bp.user_id) = LOWER(u.email)
     LEFT JOIN booking_sessions bs ON bp.session_id = bs.id
     LEFT JOIN resources r ON bs.resource_id = r.id
-    WHERE bp.user_id IS NOT NULL AND u.id IS NULL
+    WHERE bp.user_id IS NOT NULL AND bp.user_id != '' AND u.email IS NULL
   `);
   
   for (const row of invalidUsers.rows as any[]) {
@@ -680,11 +681,13 @@ async function checkMembersWithoutEmail(): Promise<IntegrityCheckResult> {
 async function checkDealsWithoutLineItems(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
+  // Exclude legacy deals - these predate line item tracking and are expected to have no products
   const dealsWithoutLineItems = await db.execute(sql`
     SELECT hd.id, hd.member_email, hd.hubspot_deal_id, hd.deal_name, hd.pipeline_stage
     FROM hubspot_deals hd
     LEFT JOIN hubspot_line_items hli ON hd.hubspot_deal_id = hli.hubspot_deal_id
     WHERE hli.id IS NULL
+      AND hd.deal_name NOT LIKE '%(Legacy)%'
   `);
   
   for (const row of dealsWithoutLineItems.rows as any[]) {
