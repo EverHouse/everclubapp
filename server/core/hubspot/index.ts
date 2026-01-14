@@ -6,22 +6,43 @@ export {
   INACTIVE_STATUSES,
   CHURNED_STATUSES,
   ACTIVE_STATUSES,
-  type ContactMembershipStatus,
+  type ContactMembershipStatus
+} from './constants';
+
+export {
   isRateLimitError,
-  retryableHubSpotRequest,
+  retryableHubSpotRequest
+} from './request';
+
+export {
   validateMembershipPipeline,
   isValidStage,
-  getPipelineValidationCache,
+  getPipelineValidationCache
+} from './pipeline';
+
+export {
   updateDealStage,
   updateContactMembershipStatus,
-  syncDealStageFromMindbodyStatus,
+  syncDealStageFromMindbodyStatus
+} from './stages';
+
+export {
   getApplicableDiscounts,
-  calculateTotalDiscount,
+  calculateTotalDiscount
+} from './discounts';
+
+export {
   getProductMapping,
-  getAllProductMappings,
+  getAllProductMappings
+} from './products';
+
+export {
   addLineItemToDeal,
   removeLineItemFromDeal,
-  getMemberDealWithLineItems,
+  getMemberDealWithLineItems
+} from './lineItems';
+
+export {
   getContactDeals,
   findOrCreateHubSpotContact,
   createMembershipDeal,
@@ -31,8 +52,11 @@ export {
   handleTierChange,
   type AddMemberInput,
   type AddMemberResult,
-  type TierChangeResult,
+  type TierChangeResult
+} from './members';
+
+export {
   getAllDiscountRules,
   updateDiscountRule,
   getBillingAuditLog
-} from './hubspot';
+} from './admin';
