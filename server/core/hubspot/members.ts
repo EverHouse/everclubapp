@@ -261,7 +261,10 @@ export async function createDealForLegacyMember(
       };
     }
     
-    const dealName = `${firstName} ${lastName} - ${tier} Membership (Legacy)`;
+    const fullName = (firstName || lastName) 
+      ? `${firstName} ${lastName}`.trim() 
+      : normalizedEmail.split('@')[0];
+    const dealName = `${fullName} - ${tier} Membership (Legacy)`;
     const dealId = await createMembershipDeal(
       contactId,
       normalizedEmail,
