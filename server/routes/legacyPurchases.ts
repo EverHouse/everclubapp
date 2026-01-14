@@ -1,9 +1,12 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { legacyPurchases, users, legacyImportJobs } from "@shared/schema";
+import { legacyPurchases, users, legacyImportJobs, hubspotDeals, hubspotProductMappings, hubspotLineItems } from "@shared/schema";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 import { isStaffOrAdmin, isAdmin } from "../core/middleware";
 import { importMembersFromCSV, importSalesFromCSV, importAttendanceFromCSV } from "../core/mindbody/import";
+import { createDealForLegacyMember } from "../core/hubspotDeals";
+import { getHubSpotClient } from "../core/integrations";
+import { retryableHubSpotRequest } from "../core/hubspot/request";
 import path from "path";
 
 const router = Router();
@@ -232,60 +235,327 @@ router.post("/api/legacy-purchases/admin/link-guest-fees", isAdmin, async (req: 
   }
 });
 
-// Admin: Sync purchase data to HubSpot for all members
-router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Request, res: Response) => {
-  try {
-    const { getHubSpotClient } = await import("../core/hubspot/client");
-    const hubspot = await getHubSpotClient();
+// Helper: Extract tier name from legacy item_name (for membership purchases)
+function extractTierFromItemName(itemName: string | null): string | null {
+  if (!itemName) return null;
+  
+  const name = itemName.toLowerCase();
+  
+  if (name.includes('premium')) return 'Premium';
+  if (name.includes('vip')) return 'VIP';
+  if (name.includes('corporate')) return 'Corporate';
+  if (name.includes('social')) return 'Social';
+  if (name.includes('core')) return 'Core';
+  
+  return null;
+}
+
+// Helper: Map item_category and item_name to correct HubSpot product ID
+async function getCategoryProductId(itemCategory: string | null, itemName: string | null): Promise<string | null> {
+  if (itemCategory === 'membership') {
+    const tierName = extractTierFromItemName(itemName);
     
-    // Get all members with purchases and their HubSpot IDs
-    const memberStats = await db.select({
-      email: users.email,
-      hubspotId: users.hubspotId,
-      totalPurchases: sql<number>`COUNT(${legacyPurchases.id})`,
-      totalSpentCents: sql<number>`COALESCE(SUM(${legacyPurchases.itemTotalCents}), 0)`,
-      lastPurchaseDate: sql<string>`MAX(${legacyPurchases.saleDate})`,
-    })
-      .from(users)
-      .leftJoin(legacyPurchases, eq(legacyPurchases.userId, users.id))
-      .where(sql`${users.hubspotId} IS NOT NULL`)
-      .groupBy(users.email, users.hubspotId);
-    
-    let updated = 0;
-    let errors = 0;
-    const errorDetails: string[] = [];
-    
-    for (const member of memberStats) {
-      if (!member.hubspotId) continue;
+    if (tierName) {
+      const products = await db.select()
+        .from(hubspotProductMappings)
+        .where(and(
+          eq(hubspotProductMappings.productType, 'membership'),
+          eq(hubspotProductMappings.tierName, tierName),
+          eq(hubspotProductMappings.isActive, true)
+        ))
+        .limit(1);
       
-      try {
-        const properties: Record<string, string> = {
-          eh_total_purchases: String(member.totalPurchases || 0),
-          eh_total_spend: ((member.totalSpentCents || 0) / 100).toFixed(2),
-        };
-        
-        if (member.lastPurchaseDate) {
-          // Format date as YYYY-MM-DD for HubSpot
-          const date = new Date(member.lastPurchaseDate);
-          properties.eh_last_purchase_date = date.toISOString().split('T')[0];
-        }
-        
-        await hubspot.crm.contacts.basicApi.update(member.hubspotId, { properties });
-        updated++;
-      } catch (err: any) {
-        errors++;
-        if (errorDetails.length < 5) {
-          errorDetails.push(`${member.email}: ${err.message}`);
-        }
+      if (products[0]?.hubspotProductId) {
+        return products[0].hubspotProductId;
       }
     }
     
+    const coreProduct = await db.select()
+      .from(hubspotProductMappings)
+      .where(and(
+        eq(hubspotProductMappings.productType, 'membership'),
+        eq(hubspotProductMappings.tierName, 'Core'),
+        eq(hubspotProductMappings.isActive, true)
+      ))
+      .limit(1);
+    
+    return coreProduct[0]?.hubspotProductId || null;
+  }
+  
+  const categoryToProductName: Record<string, string> = {
+    'guest_pass': 'Guest Pass Fee',
+    'guest_sim_fee': 'Guest Pass Fee',
+    'sim_walk_in': 'Golf Sim Pass (60min)',
+    'sim_add_on': 'Simulator Overage (30 min)',
+    'day_pass': 'Workspace Day Pass',
+  };
+  
+  const productName = categoryToProductName[itemCategory || ''];
+  if (productName) {
+    const products = await db.select()
+      .from(hubspotProductMappings)
+      .where(and(
+        eq(hubspotProductMappings.productName, productName),
+        eq(hubspotProductMappings.isActive, true)
+      ))
+      .limit(1);
+    
+    return products[0]?.hubspotProductId || null;
+  }
+  
+  return null;
+}
+
+// Helper: Create a line item directly with custom amount (for legacy purchases with specific prices)
+async function createLegacyLineItem(
+  hubspot: any,
+  dealId: string,
+  purchase: any,
+  productId: string | null
+): Promise<{ success: boolean; lineItemId?: string; error?: string }> {
+  try {
+    const amount = (purchase.itemTotalCents / 100).toFixed(2);
+    const saleDateStr = purchase.saleDate ? new Date(purchase.saleDate).toISOString().split('T')[0] : '';
+    const discountPercent = purchase.discountPercent ? parseFloat(purchase.discountPercent) : 0;
+    
+    const properties: Record<string, string> = {
+      quantity: String(purchase.quantity || 1),
+      price: amount,
+      name: `${purchase.itemName} (Legacy - ${saleDateStr})`,
+    };
+    
+    if (productId) {
+      properties.hs_product_id = productId;
+    }
+    
+    if (discountPercent > 0) {
+      properties.hs_discount_percentage = String(discountPercent);
+    }
+    
+    const lineItemResponse = await retryableHubSpotRequest(() =>
+      hubspot.crm.lineItems.basicApi.create({ properties })
+    );
+    
+    const lineItemId = lineItemResponse.id;
+    
+    await retryableHubSpotRequest(() =>
+      hubspot.crm.associations.v4.basicApi.create(
+        'line_items',
+        lineItemId,
+        'deals',
+        dealId,
+        [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 20 }]
+      )
+    );
+    
+    await db.insert(hubspotLineItems).values({
+      hubspotDealId: dealId,
+      hubspotLineItemId: lineItemId,
+      hubspotProductId: productId || 'legacy_unmatched',
+      productName: properties.name,
+      quantity: purchase.quantity || 1,
+      unitPrice: amount,
+      discountPercent: Math.round(discountPercent),
+      discountReason: discountPercent > 0 ? 'Legacy import discount' : null,
+      totalAmount: amount,
+      status: 'synced',
+      createdBy: 'system',
+      createdByName: 'Legacy Sync'
+    });
+    
+    return { success: true, lineItemId };
+  } catch (error: any) {
+    console.error('[LegacyPurchases] Error creating line item:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Admin: Sync purchase data to HubSpot for all members (Option 1: One deal per member with line items)
+router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Request, res: Response) => {
+  try {
+    const hubspot = await getHubSpotClient();
+    const BATCH_SIZE = 50;
+    
+    const results = {
+      dealsCreated: 0,
+      dealsReused: 0,
+      lineItemsCreated: 0,
+      purchasesSynced: 0,
+      contactsUpdated: 0,
+      errors: 0,
+      errorDetails: [] as string[],
+    };
+    
+    // Step 1: Get all unique members with unsynced purchases
+    const membersWithUnsyncedPurchases = await db.select({
+      memberEmail: legacyPurchases.memberEmail,
+    })
+      .from(legacyPurchases)
+      .where(and(
+        eq(legacyPurchases.isSynced, false),
+        sql`${legacyPurchases.memberEmail} IS NOT NULL`
+      ))
+      .groupBy(legacyPurchases.memberEmail);
+    
+    const uniqueEmails = membersWithUnsyncedPurchases
+      .map(m => m.memberEmail)
+      .filter((email): email is string => !!email);
+    
+    console.log(`[LegacyPurchases] Found ${uniqueEmails.length} members with unsynced purchases`);
+    
+    // Step 2: Process members in batches
+    for (let i = 0; i < uniqueEmails.length; i += BATCH_SIZE) {
+      const batchEmails = uniqueEmails.slice(i, i + BATCH_SIZE);
+      console.log(`[LegacyPurchases] Processing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(uniqueEmails.length/BATCH_SIZE)}`);
+      
+      for (const memberEmail of batchEmails) {
+        try {
+          // Step 2a: Find or create a deal for this member
+          let dealId: string | null = null;
+          
+          // Check if member already has a deal in our local database
+          const existingDeal = await db.select()
+            .from(hubspotDeals)
+            .where(eq(hubspotDeals.memberEmail, memberEmail.toLowerCase()))
+            .limit(1);
+          
+          if (existingDeal.length > 0 && existingDeal[0].hubspotDealId) {
+            dealId = existingDeal[0].hubspotDealId;
+            results.dealsReused++;
+          } else {
+            // Create a new deal for this legacy member
+            const dealResult = await createDealForLegacyMember(
+              memberEmail,
+              'active',
+              'system',
+              'Legacy Sync'
+            );
+            
+            if (dealResult.success && dealResult.dealId) {
+              dealId = dealResult.dealId;
+              results.dealsCreated++;
+            } else {
+              results.errors++;
+              if (results.errorDetails.length < 10) {
+                results.errorDetails.push(`${memberEmail}: Failed to create deal - ${dealResult.error}`);
+              }
+              continue;
+            }
+          }
+          
+          if (!dealId) {
+            results.errors++;
+            if (results.errorDetails.length < 10) {
+              results.errorDetails.push(`${memberEmail}: No deal ID available`);
+            }
+            continue;
+          }
+          
+          // Step 2b: Get all unsynced purchases for this member
+          const unsyncedPurchases = await db.select()
+            .from(legacyPurchases)
+            .where(and(
+              eq(legacyPurchases.memberEmail, memberEmail.toLowerCase()),
+              eq(legacyPurchases.isSynced, false)
+            ))
+            .orderBy(legacyPurchases.saleDate);
+          
+          // Step 2c: Create line items for each unsynced purchase
+          for (const purchase of unsyncedPurchases) {
+            try {
+              const productId = await getCategoryProductId(purchase.itemCategory, purchase.itemName);
+              
+              const lineItemResult = await createLegacyLineItem(
+                hubspot,
+                dealId,
+                purchase,
+                productId
+              );
+              
+              if (lineItemResult.success && lineItemResult.lineItemId) {
+                // Mark purchase as synced and store line item ID
+                await db.update(legacyPurchases)
+                  .set({
+                    isSynced: true,
+                    hubspotDealId: lineItemResult.lineItemId,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(legacyPurchases.id, purchase.id));
+                
+                results.lineItemsCreated++;
+                results.purchasesSynced++;
+              } else {
+                results.errors++;
+                if (results.errorDetails.length < 10) {
+                  results.errorDetails.push(`Purchase ${purchase.id}: ${lineItemResult.error}`);
+                }
+              }
+            } catch (purchaseErr: any) {
+              results.errors++;
+              if (results.errorDetails.length < 10) {
+                results.errorDetails.push(`Purchase ${purchase.id}: ${purchaseErr.message}`);
+              }
+            }
+          }
+          
+        } catch (memberErr: any) {
+          results.errors++;
+          if (results.errorDetails.length < 10) {
+            results.errorDetails.push(`${memberEmail}: ${memberErr.message}`);
+          }
+        }
+      }
+      
+      // Small delay between batches to avoid rate limits
+      if (i + BATCH_SIZE < uniqueEmails.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    // Step 3: Also update contact properties (existing logic as fallback/supplement)
+    try {
+      const memberStats = await db.select({
+        email: users.email,
+        hubspotId: users.hubspotId,
+        totalPurchases: sql<number>`COUNT(${legacyPurchases.id})`,
+        totalSpentCents: sql<number>`COALESCE(SUM(${legacyPurchases.itemTotalCents}), 0)`,
+        lastPurchaseDate: sql<string>`MAX(${legacyPurchases.saleDate})`,
+      })
+        .from(users)
+        .leftJoin(legacyPurchases, eq(legacyPurchases.userId, users.id))
+        .where(sql`${users.hubspotId} IS NOT NULL`)
+        .groupBy(users.email, users.hubspotId);
+      
+      for (const member of memberStats) {
+        if (!member.hubspotId) continue;
+        
+        try {
+          const properties: Record<string, string> = {
+            eh_total_purchases: String(member.totalPurchases || 0),
+            eh_total_spend: ((member.totalSpentCents || 0) / 100).toFixed(2),
+          };
+          
+          if (member.lastPurchaseDate) {
+            const date = new Date(member.lastPurchaseDate);
+            properties.eh_last_purchase_date = date.toISOString().split('T')[0];
+          }
+          
+          await hubspot.crm.contacts.basicApi.update(member.hubspotId, { properties });
+          results.contactsUpdated++;
+        } catch (err: any) {
+          // Silently skip contact update errors, deals are the main goal
+        }
+      }
+    } catch (contactErr: any) {
+      console.warn('[LegacyPurchases] Contact property sync failed:', contactErr.message);
+    }
+    
+    console.log(`[LegacyPurchases] Sync complete:`, results);
+    
     res.json({
       success: true,
-      totalMembers: memberStats.length,
-      updated,
-      errors,
-      errorDetails: errorDetails.length > 0 ? errorDetails : undefined,
+      ...results,
+      errorDetails: results.errorDetails.length > 0 ? results.errorDetails : undefined,
     });
   } catch (error) {
     console.error("[LegacyPurchases] HubSpot sync error:", error);
@@ -300,7 +570,6 @@ router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Req
 router.post("/api/legacy-purchases/admin/sync-hubspot/:email", isAdmin, async (req: Request, res: Response) => {
   try {
     const { email } = req.params;
-    const { getHubSpotClient } = await import("../core/hubspot/client");
     const hubspot = await getHubSpotClient();
     
     // Get the member
