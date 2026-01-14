@@ -569,7 +569,7 @@ const DirectoryTab: React.FC = () => {
             {createPortal(
                 <button
                     onClick={() => setAddMemberModalOpen(true)}
-                    className="fixed right-5 bottom-24 lg:bottom-8 z-[9998] w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-green-600 hover:bg-green-700 text-white transition-all duration-300 hover:scale-110 active:scale-95"
+                    className="fixed right-5 bottom-32 lg:bottom-8 z-[9998] w-14 h-14 rounded-full shadow-lg flex items-center justify-center bg-green-600 hover:bg-green-700 text-white transition-all duration-300 hover:scale-110 active:scale-95"
                     title="Add New Member"
                     aria-label="Add New Member"
                 >

@@ -12,5 +12,5 @@ export const NAV_ITEMS: NavItemData[] = [
   { id: 'simulator', icon: 'event_note', label: 'Bookings' },
   { id: 'blocks', icon: 'domain', label: 'Facility' },
   { id: 'events', icon: 'calendar_month', label: 'Calendar' },
-  { id: 'updates', icon: 'campaign', label: 'Updates' },
+  { id: 'directory', icon: 'groups', label: 'Directory' },
 ];
