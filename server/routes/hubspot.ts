@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import * as crypto from 'crypto';
 import { pool, isProduction } from '../core/db';
 import { getHubSpotClient } from '../core/integrations';
@@ -17,10 +17,9 @@ import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts
  * Validate HubSpot webhook signature (v3 method)
  * See: https://developers.hubspot.com/docs/api/webhooks/validating-requests
  */
-function validateHubSpotWebhookSignature(req: any): boolean {
+function validateHubSpotWebhookSignature(req: Request): boolean {
   const webhookSecret = process.env.HUBSPOT_WEBHOOK_SECRET;
   
-  // If no secret configured, allow in development but block in production
   if (!webhookSecret) {
     if (isProduction) {
       console.warn('[HubSpot Webhook] No HUBSPOT_WEBHOOK_SECRET configured - rejecting in production');
@@ -30,15 +29,14 @@ function validateHubSpotWebhookSignature(req: any): boolean {
     return true;
   }
   
-  const signature = req.headers['x-hubspot-signature-v3'];
-  const timestamp = req.headers['x-hubspot-request-timestamp'];
+  const signature = req.headers['x-hubspot-signature-v3'] as string | undefined;
+  const timestamp = req.headers['x-hubspot-request-timestamp'] as string | undefined;
   
   if (!signature || !timestamp) {
     console.warn('[HubSpot Webhook] Missing signature headers');
     return false;
   }
   
-  // Check timestamp is within 5 minutes (300000ms)
   const currentTime = Date.now();
   const requestTime = parseInt(timestamp, 10);
   if (Math.abs(currentTime - requestTime) > 300000) {
@@ -46,20 +44,24 @@ function validateHubSpotWebhookSignature(req: any): boolean {
     return false;
   }
   
-  // Build the source string: method + URL + body + timestamp
   const requestUrl = `https://${req.headers.host}${req.originalUrl}`;
-  const sourceString = `POST${requestUrl}${JSON.stringify(req.body)}${timestamp}`;
+  const rawBody = req.rawBody || '';
+  const sourceString = `POST${requestUrl}${rawBody}${timestamp}`;
   
-  // Calculate HMAC-SHA256
   const expectedSignature = crypto
     .createHmac('sha256', webhookSecret)
     .update(sourceString)
     .digest('base64');
   
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  const signatureBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expectedSignature);
+  
+  if (signatureBuf.length !== expectedBuf.length) {
+    console.warn('[HubSpot Webhook] Signature length mismatch');
+    return false;
+  }
+  
+  const isValid = crypto.timingSafeEqual(signatureBuf, expectedBuf);
   
   if (!isValid) {
     console.warn('[HubSpot Webhook] Invalid signature');
@@ -74,6 +76,9 @@ const router = Router();
 let allContactsCache: { data: any[] | null; timestamp: number; lastModifiedCheck: number } = { data: null, timestamp: 0, lastModifiedCheck: 0 };
 const ALL_CONTACTS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for full refresh
 const INCREMENTAL_SYNC_INTERVAL = 5 * 60 * 1000; // Check for updates every 5 minutes
+
+// Track if a background refresh is in progress
+let backgroundRefreshInProgress = false;
 
 /**
  * Check if an error is a HubSpot rate limit error (429)
@@ -385,42 +390,77 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
 }
 
 router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === 'true';
-    const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
-    
-    // Fetch from shared cache (or refresh if needed)
-    const allContacts = await fetchAllHubSpotContacts(forceRefresh);
-    
-    // Filter based on status
-    const filteredContacts = allContacts.filter((contact: any) => {
-      if (statusFilter === 'active') {
-        return contact.isActiveMember;
-      } else if (statusFilter === 'former') {
-        return contact.isFormerMember;
-      }
-      return true; // 'all' - no filtering
+  const forceRefresh = req.query.refresh === 'true';
+  const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
+  const now = Date.now();
+  
+  const filterContacts = (contacts: any[]) => {
+    return contacts.filter((contact: any) => {
+      if (statusFilter === 'active') return contact.isActiveMember;
+      if (statusFilter === 'former') return contact.isFormerMember;
+      return true;
     });
+  };
+  
+  const buildResponse = (contacts: any[], stale: boolean, refreshing: boolean) => {
+    return { contacts, stale, refreshing, count: contacts.length };
+  };
+  
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
+  const hasFreshCache = allContactsCache.data && (now - allContactsCache.timestamp) < ALL_CONTACTS_CACHE_TTL;
+  
+  if (hasFreshCache && !forceRefresh) {
+    const needsIncrementalSync = (now - allContactsCache.lastModifiedCheck) > INCREMENTAL_SYNC_INTERVAL;
     
-    // Disable browser caching to ensure fresh data
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.json(filteredContacts);
-  } catch (error: any) {
-    if (!isProduction) console.error('HubSpot error:', error);
-    // Fall back to cached data if available
-    if (allContactsCache.data) {
-      const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
-      const filteredContacts = allContactsCache.data.filter((contact: any) => {
-        if (statusFilter === 'active') return contact.isActiveMember;
-        if (statusFilter === 'former') return contact.isFormerMember;
-        return true;
-      });
-      return res.json(filteredContacts);
+    if (needsIncrementalSync && !backgroundRefreshInProgress) {
+      backgroundRefreshInProgress = true;
+      fetchAllHubSpotContacts(false)
+        .catch(err => {
+          if (!isProduction) console.warn('[HubSpot] Background incremental sync failed:', err);
+        })
+        .finally(() => {
+          backgroundRefreshInProgress = false;
+        });
     }
-    res.status(500).json({ error: 'Failed to fetch contacts' });
+    
+    const filteredContacts = filterContacts(allContactsCache.data!);
+    return res.json(buildResponse(filteredContacts, false, backgroundRefreshInProgress));
   }
+  
+  if (allContactsCache.data) {
+    const filteredContacts = filterContacts(allContactsCache.data);
+    const isStale = (now - allContactsCache.timestamp) >= ALL_CONTACTS_CACHE_TTL;
+    
+    if (!backgroundRefreshInProgress) {
+      backgroundRefreshInProgress = true;
+      fetchAllHubSpotContacts(forceRefresh)
+        .catch(err => {
+          if (!isProduction) console.warn('[HubSpot] Background full sync failed:', err);
+        })
+        .finally(() => {
+          backgroundRefreshInProgress = false;
+        });
+    }
+    
+    return res.json(buildResponse(filteredContacts, isStale, true));
+  }
+  
+  if (!backgroundRefreshInProgress) {
+    backgroundRefreshInProgress = true;
+    fetchAllHubSpotContacts(true)
+      .then(contacts => {
+        backgroundRefreshInProgress = false;
+      })
+      .catch(err => {
+        if (!isProduction) console.warn('[HubSpot] Initial sync failed:', err);
+        backgroundRefreshInProgress = false;
+      });
+  }
+  
+  return res.json(buildResponse([], true, true));
 });
 
 router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
@@ -858,9 +898,9 @@ router.put('/contacts/:id/tier', isStaffOrAdmin, async (req, res) => {
 /**
  * HubSpot webhook receiver endpoint
  * Handles contact and deal property change events
+ * Raw body is captured by express.json verify function in server/index.ts
  */
 router.post('/webhooks', async (req, res) => {
-  // Validate signature before processing
   if (!validateHubSpotWebhookSignature(req)) {
     console.warn('[HubSpot Webhook] Signature validation failed');
     return res.status(401).json({ error: 'Invalid signature' });

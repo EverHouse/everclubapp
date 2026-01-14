@@ -142,11 +142,29 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
+// Extend Express Request to include rawBody for webhook signature validation
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: string;
+    }
+  }
+}
+
 app.use(requestIdMiddleware);
 app.use(logRequest);
 app.use(cors(corsOptions));
 app.use(compression());
-app.use(express.json({ limit: '1mb' }));
+// Capture raw body for HubSpot webhook signature validation
+app.use(express.json({ 
+  limit: '1mb',
+  verify: (req: any, res, buf) => {
+    // Only store raw body for webhook endpoints that need signature validation
+    if (req.originalUrl?.includes('/webhooks') || req.url?.includes('/webhooks')) {
+      req.rawBody = buf.toString('utf8');
+    }
+  }
+}));
 app.use(express.urlencoded({ limit: '1mb' }));
 app.use(getSession());
 
