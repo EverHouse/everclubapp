@@ -692,7 +692,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {/* Header rendered via portal to escape transform context */}
         {headerContent && createPortal(headerContent, document.body)}
         
-        <div className={`relative w-full min-h-screen ${isDarkTheme ? 'text-white' : 'text-primary'}`}>
+        <div className={`relative w-full ${isDarkTheme ? 'text-white' : 'text-primary'}`}>
 
             <main 
                 id="main-content"
