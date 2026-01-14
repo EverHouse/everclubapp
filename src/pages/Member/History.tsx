@@ -58,6 +58,16 @@ interface WellnessEnrollmentRecord {
   category: string;
 }
 
+interface LegacyPurchase {
+  id: number;
+  itemName: string;
+  itemCategory: string;
+  saleDate: string;
+  salePriceCents: number;
+  staffName: string;
+  quantity: number;
+}
+
 const normalizeTime = (time: string | null | undefined): string => {
   if (!time) return '00:00';
   const parts = time.split(':');
@@ -73,10 +83,11 @@ const History: React.FC = () => {
   const { setPageReady } = usePageReady();
   const isDark = effectiveTheme === 'dark';
   
-  const [activeTab, setActiveTab] = useState<'bookings' | 'experiences'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'experiences' | 'purchases'>('bookings');
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [rsvps, setRSVPs] = useState<RSVPRecord[]>([]);
   const [wellnessEnrollments, setWellnessEnrollments] = useState<WellnessEnrollmentRecord[]>([]);
+  const [purchases, setPurchases] = useState<LegacyPurchase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchBookings = useCallback(async () => {
@@ -174,11 +185,25 @@ const History: React.FC = () => {
     }
   }, [user?.email]);
 
+  const fetchPurchases = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const { ok, data } = await apiRequest<LegacyPurchase[]>(
+        `/api/legacy-purchases/member/${encodeURIComponent(user.email)}`
+      );
+      if (ok && data) {
+        setPurchases(data);
+      }
+    } catch (err) {
+      console.error('[History] Failed to fetch purchases:', err);
+    }
+  }, [user?.email]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all([fetchBookings(), fetchRSVPs(), fetchWellnessEnrollments()]);
+    await Promise.all([fetchBookings(), fetchRSVPs(), fetchWellnessEnrollments(), fetchPurchases()]);
     setIsLoading(false);
-  }, [fetchBookings, fetchRSVPs, fetchWellnessEnrollments]);
+  }, [fetchBookings, fetchRSVPs, fetchWellnessEnrollments, fetchPurchases]);
 
   useEffect(() => {
     loadData();
@@ -229,6 +254,7 @@ const History: React.FC = () => {
           <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right">
             <TabButton label="Bookings" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} isDark={isDark} />
             <TabButton label="Experiences" active={activeTab === 'experiences'} onClick={() => setActiveTab('experiences')} isDark={isDark} />
+            <TabButton label="Purchases" icon="receipt_long" active={activeTab === 'purchases'} onClick={() => setActiveTab('purchases')} isDark={isDark} />
           </div>
         </section>
 
@@ -329,7 +355,7 @@ const History: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'experiences' ? (
             <div className="space-y-4">
               <div className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
                 {experiencesCount} past experience{experiencesCount !== 1 ? 's' : ''}
@@ -380,6 +406,85 @@ const History: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+                {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
+              </div>
+              {purchases.length === 0 ? (
+                <div className={`text-center py-12 rounded-2xl border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+                  <span className={`material-symbols-outlined text-5xl mb-4 ${isDark ? 'text-white/30' : 'text-primary/30'}`}>receipt_long</span>
+                  <p className={`${isDark ? 'text-white/80' : 'text-primary/80'}`}>No purchases yet</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {(() => {
+                    const groupedByMonth: { [key: string]: LegacyPurchase[] } = {};
+                    purchases.forEach(p => {
+                      const date = new Date(p.saleDate);
+                      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                      if (!groupedByMonth[monthKey]) {
+                        groupedByMonth[monthKey] = [];
+                      }
+                      groupedByMonth[monthKey].push(p);
+                    });
+                    
+                    const sortedMonths = Object.keys(groupedByMonth).sort((a, b) => b.localeCompare(a));
+                    
+                    return sortedMonths.map((monthKey, monthIndex) => {
+                      const monthPurchases = groupedByMonth[monthKey];
+                      const [year, month] = monthKey.split('-');
+                      const monthLabel = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                      
+                      return (
+                        <div key={monthKey} className="animate-pop-in" style={{animationDelay: `${0.05 * monthIndex}s`}}>
+                          <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white/60' : 'text-primary/60'}`}>
+                            {monthLabel}
+                          </h3>
+                          <div className="space-y-3">
+                            {monthPurchases.map((purchase, index) => (
+                              <div 
+                                key={purchase.id} 
+                                className={`rounded-xl p-4 border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}
+                                style={{animationDelay: `${0.05 * (monthIndex + index)}s`}}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
+                                        isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700'
+                                      }`}>
+                                        {purchase.itemCategory || 'Purchase'}
+                                      </span>
+                                      {purchase.quantity > 1 && (
+                                        <span className={`text-xs font-medium ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                                          x{purchase.quantity}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>
+                                      {purchase.itemName}
+                                    </p>
+                                    <p className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                                      {getRelativeDateLabel(purchase.saleDate?.split('T')[0] || purchase.saleDate)}
+                                    </p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className={`text-lg font-bold ${isDark ? 'text-accent' : 'text-brand-green'}`}>
+                                      ${(purchase.salePriceCents / 100).toFixed(2)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
