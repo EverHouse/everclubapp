@@ -113,8 +113,13 @@ const DirectoryTab: React.FC = () => {
         setStatusFilter('All');
         if (tab === 'former') {
             setFormerLoading(true);
-            await fetchFormerMembers();
-            setFormerLoading(false);
+            try {
+                await fetchFormerMembers();
+            } catch (err) {
+                console.error('Error loading former members:', err);
+            } finally {
+                setFormerLoading(false);
+            }
         }
     }, [fetchFormerMembers]);
 
@@ -254,7 +259,12 @@ const DirectoryTab: React.FC = () => {
             <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => handleTabChange('active')}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleTabChange('active');
+                        }}
                         className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                             memberTab === 'active'
                                 ? 'bg-primary dark:bg-lavender text-white'
@@ -264,7 +274,12 @@ const DirectoryTab: React.FC = () => {
                         Active
                     </button>
                     <button
-                        onClick={() => handleTabChange('former')}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleTabChange('former');
+                        }}
                         className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                             memberTab === 'former'
                                 ? 'bg-primary dark:bg-lavender text-white'
