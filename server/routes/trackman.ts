@@ -840,11 +840,40 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       [memberEmail.toLowerCase(), linkedBy, slotId]
     );
     
-    // Get booking details for notification
+    // Get booking details for notification and sync with booking_participants
     const bookingResult = await pool.query(
-      `SELECT request_date, start_time, status FROM booking_requests WHERE id = $1`,
+      `SELECT request_date, start_time, status, session_id FROM booking_requests WHERE id = $1`,
       [bookingId]
     );
+    
+    // Sync with booking_participants for RosterManager display
+    if (bookingResult.rows[0]?.session_id) {
+      const sessionId = bookingResult.rows[0].session_id;
+      
+      // Get member display name
+      const memberInfo = await pool.query(
+        `SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
+        [memberEmail]
+      );
+      const displayName = memberInfo.rows[0] 
+        ? `${memberInfo.rows[0].first_name} ${memberInfo.rows[0].last_name}`.trim()
+        : memberEmail;
+      
+      // Check if member already exists in booking_participants
+      const existingParticipant = await pool.query(
+        `SELECT id FROM booking_participants WHERE session_id = $1 AND user_id = $2`,
+        [sessionId, memberEmail.toLowerCase()]
+      );
+      
+      if (existingParticipant.rowCount === 0) {
+        // Add to booking_participants
+        await pool.query(
+          `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, invite_status)
+           VALUES ($1, $2, 'member', $3, 'unpaid', 'confirmed')`,
+          [sessionId, memberEmail.toLowerCase(), displayName]
+        );
+      }
+    }
     
     // Send notification for future bookings
     if (bookingResult.rows[0]) {
@@ -909,6 +938,8 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
       return res.status(400).json({ error: 'Cannot unlink the primary member' });
     }
     
+    const unlinkedEmail = slot.user_email;
+    
     // Clear the slot
     await pool.query(
       `UPDATE booking_members 
@@ -916,6 +947,22 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
        WHERE id = $1`,
       [slotId]
     );
+    
+    // Sync with booking_participants - remove the member if they were added via link
+    if (unlinkedEmail) {
+      const bookingResult = await pool.query(
+        `SELECT session_id FROM booking_requests WHERE id = $1`,
+        [bookingId]
+      );
+      
+      if (bookingResult.rows[0]?.session_id) {
+        await pool.query(
+          `DELETE FROM booking_participants 
+           WHERE session_id = $1 AND user_id = $2 AND participant_type = 'member'`,
+          [bookingResult.rows[0].session_id, unlinkedEmail.toLowerCase()]
+        );
+      }
+    }
     
     res.json({ 
       success: true, 
@@ -943,7 +990,7 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
     // This prevents adding members as guests to avoid their tier-based fees
     if (!forceAddAsGuest) {
       const memberCheck = await pool.query(
-        `SELECT email, first_name, last_name, tier, status 
+        `SELECT email, first_name, last_name, tier, membership_status 
          FROM users 
          WHERE LOWER(first_name || ' ' || last_name) = LOWER($1)
             OR LOWER(first_name) = LOWER($1)
@@ -964,7 +1011,7 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
             email: matchedMember.email,
             name: `${matchedMember.first_name} ${matchedMember.last_name}`,
             tier: matchedMember.tier,
-            status: matchedMember.status,
+            status: matchedMember.membership_status,
             note: tierFeeNote
           },
           suggestion: 'Add them as a member to apply proper tier-based billing. If this is truly a different person, use "forceAddAsGuest: true".'

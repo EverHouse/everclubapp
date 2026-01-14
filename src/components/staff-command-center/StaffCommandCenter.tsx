@@ -188,8 +188,13 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         
         if (errorData.requiresRoster) {
           // Immediately open booking details modal for roster completion
-          onTabChange('simulator');
+          // First dispatch event immediately in case user is already on simulator tab
           window.dispatchEvent(new CustomEvent('open-booking-details', { detail: { bookingId: id } }));
+          // Also switch tab and dispatch again after mount
+          onTabChange('simulator');
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-booking-details', { detail: { bookingId: id } }));
+          }, 200);
           showToast('Roster Incomplete: Please assign all player slots to proceed.', 'error');
         } else {
           setBillingModal({ isOpen: true, bookingId: id });
