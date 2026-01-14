@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 interface WalkingGolferLoaderProps {
   isVisible?: boolean;
@@ -61,7 +62,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
 
   if (!shouldRender) return null;
 
-  return (
+  const loaderContent = (
     <div 
       className={`loader-overlay ${isExiting ? 'loader-exit' : ''}`}
     >
@@ -162,6 +163,9 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
       `}</style>
     </div>
   );
+
+  // Portal to body to escape #root's stacking context (isolation: isolate)
+  return createPortal(loaderContent, document.body);
 };
 
 export default WalkingGolferLoader;
