@@ -361,9 +361,10 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             </div>
           </div>
 
-          {/* Row 3: Overdue Payments */}
+          {/* Row 3: Overdue Payments + Quick Actions */}
           <div className="grid grid-cols-3 gap-6">
             <OverduePaymentsSection variant="desktop" />
+            <QuickActionsGrid onTabChange={onTabChange} isAdmin={isAdmin} variant="desktop" onNewMember={() => setAddMemberModalOpen(true)} />
           </div>
         </div>
 
