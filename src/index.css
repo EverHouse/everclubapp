@@ -114,6 +114,7 @@ html {
 body {
   min-height: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #root {
@@ -130,13 +131,20 @@ html.overflow-hidden body {
 
 html, body {
   width: 100%;
-  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   background-color: #293515;
   color: var(--brand-primary);
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Only apply overscroll-behavior-y: none on touch devices to prevent pull-to-refresh interference
+   while allowing native wheel scroll on desktop */
+@media (pointer: coarse) {
+  html, body {
+    overscroll-behavior-y: none;
+  }
 }
 
 html.dark, html.dark body {
