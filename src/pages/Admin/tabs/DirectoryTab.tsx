@@ -271,7 +271,7 @@ const DirectoryTab: React.FC = () => {
     );
 
     return (
-        <div className="animate-pop-in">
+        <div className="animate-pop-in bg-white dark:bg-surface-dark rounded-xl p-4 border border-gray-200 dark:border-white/20">
             {/* Active/Former Toggle + Sync Button */}
             <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -323,7 +323,7 @@ const DirectoryTab: React.FC = () => {
                 </button>
             </div>
 
-            <div className="mb-6 space-y-3 animate-pop-in sticky top-0 z-10 bg-white dark:bg-surface-dark pt-2 pb-3 -mt-2" style={{animationDelay: '0.05s'}}>
+            <div className="mb-6 space-y-3 animate-pop-in sticky top-0 z-10 bg-white dark:bg-surface-dark pt-2 pb-3" style={{animationDelay: '0.05s'}}>
                 {/* Search */}
                 <div className="relative">
                     <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 text-[20px]">search</span>
@@ -559,7 +559,7 @@ const DirectoryTab: React.FC = () => {
 
             {/* Desktop table view */}
             {!formerLoading && filteredList.length > 0 && (
-            <div className="hidden md:block bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-gray-200 dark:border-white/20 overflow-hidden animate-pop-in" style={{animationDelay: '0.1s'}}>
+            <div className="hidden md:block overflow-hidden animate-pop-in" style={{animationDelay: '0.1s'}}>
                 <table className="w-full text-left table-fixed">
                     <colgroup>
                         <col className="w-[15%]" />
