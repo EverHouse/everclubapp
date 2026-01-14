@@ -551,40 +551,58 @@ router.post('/api/booking-requests', async (req, res) => {
     
     const row = result[0];
     
+    // Fetch resource name if resource_id is provided
+    let resourceName = 'Bay';
+    if (row.resourceId) {
+      try {
+        const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, row.resourceId));
+        if (resource?.name) {
+          resourceName = resource.name;
+        }
+      } catch (e) {
+        // Keep default 'Bay' if lookup fails
+      }
+    }
+    
     // Send notifications in background - don't block the response
-    const formattedDate = new Date(row.requestDate).toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      timeZone: 'America/Los_Angeles'
-    });
-    const formattedTime = row.startTime?.substring(0, 5) || start_time.substring(0, 5);
+    const formattedDate = formatDateDisplayWithDay(row.requestDate);
+    const formattedTime12h = formatTime12Hour(row.startTime?.substring(0, 5) || start_time.substring(0, 5));
+    
+    // Format duration for display
+    const durationMins = row.durationMinutes || duration_minutes;
+    let durationDisplay = '';
+    if (durationMins) {
+      if (durationMins < 60) {
+        durationDisplay = `${durationMins} min`;
+      } else {
+        const hours = durationMins / 60;
+        durationDisplay = hours === Math.floor(hours) ? `${hours} hr${hours > 1 ? 's' : ''}` : `${hours.toFixed(1)} hrs`;
+      }
+    }
+    
+    // Include player count if declared
+    const playerCount = declared_player_count && declared_player_count > 1 ? ` (${declared_player_count} players)` : '';
     
     let staffMessage: string;
     let staffTitle: string;
     
     if (originalBooking) {
-      const origFormattedDate = new Date(originalBooking.requestDate).toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric',
-        timeZone: 'America/Los_Angeles'
-      });
-      const origFormattedTime = originalBooking.startTime?.substring(0, 5) || '';
+      const origFormattedDate = formatDateDisplayWithDay(originalBooking.requestDate);
+      const origFormattedTime = formatTime12Hour(originalBooking.startTime?.substring(0, 5) || '');
       staffTitle = 'Reschedule Request';
-      staffMessage = `Reschedule request from ${row.userName || row.userEmail} - moving ${origFormattedDate} at ${origFormattedTime} to ${formattedDate} at ${formattedTime}`;
+      staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} moving from ${origFormattedDate} at ${origFormattedTime} to ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
       
       db.insert(notifications).values({
         userEmail: row.userEmail,
         title: 'Reschedule Request Submitted',
-        message: `Reschedule request submitted for ${formattedDate} at ${formattedTime}`,
+        message: `${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`,
         type: 'booking',
         relatedId: row.id,
         relatedType: 'booking_request'
       }).catch(err => console.error('Member notification failed:', err));
     } else {
       staffTitle = 'New Golf Booking Request';
-      staffMessage = `${row.userName || row.userEmail} requested ${formattedDate} at ${formattedTime}`;
+      staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
     }
     
     // In-app notification to all staff - don't fail booking if this fails
@@ -609,8 +627,11 @@ router.post('/api/booking-requests', async (req, res) => {
       memberEmail: row.userEmail,
       memberName: row.userName || undefined,
       resourceId: row.resourceId || undefined,
+      resourceName: resourceName,
       bookingDate: row.requestDate,
       startTime: row.startTime,
+      durationMinutes: durationMins,
+      playerCount: declared_player_count || undefined,
       status: row.status || 'pending',
       actionBy: 'member'
     }, { notifyMember: false, notifyStaff: true }).catch(err => console.error('Booking event publish failed:', err));

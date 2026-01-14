@@ -23,6 +23,8 @@ export interface BookingEventData {
   bookingDate: string;
   startTime: string;
   endTime?: string;
+  durationMinutes?: number;
+  playerCount?: number;
   status: string;
   previousStatus?: string;
   actionBy?: 'member' | 'staff';
@@ -185,6 +187,8 @@ export async function publish(
         bookingDate: data.bookingDate,
         startTime: data.startTime,
         endTime: data.endTime,
+        durationMinutes: data.durationMinutes,
+        playerCount: data.playerCount,
         status: data.status,
         actionBy: data.actionBy,
         timestamp: new Date().toISOString()

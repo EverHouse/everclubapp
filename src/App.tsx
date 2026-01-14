@@ -27,6 +27,7 @@ import { useNotificationSounds } from './hooks/useNotificationSounds';
 import { useEdgeSwipe } from './hooks/useEdgeSwipe';
 import { useUserStore } from './stores/userStore';
 import { useWebSocket } from './hooks/useWebSocket';
+import { StaffBookingToast } from './components/StaffBookingToast';
 
 const INITIAL_LOAD_SAFETY_TIMEOUT_MS = 2000;
 
@@ -725,6 +726,7 @@ const App: React.FC = () => {
           <PageReadyProvider>
           <InitialLoadingScreen>
             <OfflineBanner />
+            <StaffBookingToast />
             <HashRouter>
               <NavigationLoader />
               <SmoothScrollProvider>

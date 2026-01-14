@@ -39,6 +39,8 @@ export interface BookingEvent {
   bookingDate: string;
   startTime: string;
   endTime?: string;
+  durationMinutes?: number;
+  playerCount?: number;
   status: string;
   actionBy?: 'member' | 'staff';
   timestamp: string;
