@@ -34,9 +34,9 @@ export const MINDBODY_TO_CONTACT_STATUS_MAP: Record<string, ContactMembershipSta
   'expired': 'inactive',
   'froze': 'inactive',
   'frozen': 'inactive',
-  'terminated': 'former_member',
-  'cancelled': 'former_member',
-  'non-member': 'former_member',
+  'terminated': 'inactive',
+  'cancelled': 'inactive',
+  'non-member': 'inactive',
 };
 
 export const INACTIVE_STATUSES = ['pending', 'declined', 'suspended', 'expired', 'froze', 'frozen'];

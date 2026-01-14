@@ -117,7 +117,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           const email = contact.properties.email?.toLowerCase();
           if (!email) return null;
           
-          const status = (contact.properties.membership_status || 'active').toLowerCase();
+          const status = (contact.properties.membership_status || 'non-member').toLowerCase();
           const normalizedTier = normalizeTierName(contact.properties.membership_tier);
           const tierId = normalizedTier ? (tierCache.get(normalizedTier.toLowerCase()) || null) : null;
           const tags = extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason);
@@ -193,7 +193,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen'];
     const contactsNeedingDealSync = allContacts.filter(c => {
       const email = c.properties.email?.toLowerCase();
-      const status = (c.properties.membership_status || 'active').toLowerCase();
+      const status = (c.properties.membership_status || 'non-member').toLowerCase();
       return email && dealSyncStatuses.includes(status);
     });
     
@@ -213,7 +213,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           batch.map(contact => 
             limit(async () => {
               const email = contact.properties.email!.toLowerCase();
-              const status = (contact.properties.membership_status || 'active').toLowerCase();
+              const status = (contact.properties.membership_status || 'non-member').toLowerCase();
               try {
                 await syncDealStageFromMindbodyStatus(email, status, 'system', 'Mindbody Sync');
               } catch (err) {
