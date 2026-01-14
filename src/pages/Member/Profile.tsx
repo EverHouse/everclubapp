@@ -184,7 +184,7 @@ const Profile: React.FC = () => {
   // Fetch communication preferences (only for members, not staff)
   useEffect(() => {
     if (user?.email && !isStaffOrAdminProfile) {
-      fetch('/api/members/me/preferences', { credentials: 'include' })
+      fetch(`/api/members/me/preferences?user_email=${encodeURIComponent(user.email)}`, { credentials: 'include' })
         .then(res => res.ok ? res.json() : { emailOptIn: null, smsOptIn: null })
         .then(data => {
           setEmailOptIn(data.emailOptIn);
@@ -205,7 +205,7 @@ const Profile: React.FC = () => {
     setPrefsLoading(true);
     try {
       const body = type === 'email' ? { emailOptIn: newValue } : { smsOptIn: newValue };
-      const res = await fetch('/api/members/me/preferences', {
+      const res = await fetch(`/api/members/me/preferences?user_email=${encodeURIComponent(user.email)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

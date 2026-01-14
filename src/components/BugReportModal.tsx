@@ -75,7 +75,8 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
 
         const uploadRes = await fetch('/api/object-storage/upload', {
           method: 'POST',
-          body: formData
+          body: formData,
+          credentials: 'include'
         });
 
         if (uploadRes.ok) {
@@ -91,7 +92,8 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
           description: description.trim(),
           screenshotUrl,
           pageUrl: window.location.pathname
-        })
+        }),
+        credentials: 'include'
       });
 
       if (!response.ok) {

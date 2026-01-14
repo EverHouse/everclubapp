@@ -762,6 +762,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
 });
 
 // Update member communication preferences (email/sms opt-in) - for the logged-in user
+// Supports ?user_email param for "View As" feature when staff edits another member's preferences
 router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
@@ -775,13 +776,24 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
       return res.status(400).json({ error: 'No preferences provided' });
     }
     
+    // Support "View As" feature: staff can pass user_email param to edit another member's preferences
+    const requestedEmail = req.query.user_email as string | undefined;
+    let targetEmail = sessionUser.email;
+    
+    if (requestedEmail && requestedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+      // Only staff/admin can edit other members' preferences
+      if (sessionUser.role === 'admin' || sessionUser.role === 'staff') {
+        targetEmail = decodeURIComponent(requestedEmail);
+      }
+    }
+    
     const updateData: Record<string, any> = { updatedAt: new Date() };
     if (emailOptIn !== undefined) updateData.emailOptIn = emailOptIn;
     if (smsOptIn !== undefined) updateData.smsOptIn = smsOptIn;
     
     const result = await db.update(users)
       .set(updateData)
-      .where(eq(users.email, sessionUser.email.toLowerCase()))
+      .where(eq(users.email, targetEmail.toLowerCase()))
       .returning({ 
         emailOptIn: users.emailOptIn, 
         smsOptIn: users.smsOptIn,
@@ -918,6 +930,7 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
 });
 
 // Get member communication preferences
+// Supports ?user_email param for "View As" feature when staff views as another member
 router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
@@ -925,12 +938,23 @@ router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    // Support "View As" feature: staff can pass user_email param to view as another member
+    const requestedEmail = req.query.user_email as string | undefined;
+    let targetEmail = sessionUser.email;
+    
+    if (requestedEmail && requestedEmail.toLowerCase() !== sessionUser.email.toLowerCase()) {
+      // Only staff/admin can view other members' preferences
+      if (sessionUser.role === 'admin' || sessionUser.role === 'staff') {
+        targetEmail = decodeURIComponent(requestedEmail);
+      }
+    }
+    
     const result = await db.select({ 
       emailOptIn: users.emailOptIn, 
       smsOptIn: users.smsOptIn 
     })
       .from(users)
-      .where(eq(users.email, sessionUser.email.toLowerCase()));
+      .where(eq(users.email, targetEmail.toLowerCase()));
     
     if (result.length === 0) {
       return res.json({ emailOptIn: null, smsOptIn: null });
