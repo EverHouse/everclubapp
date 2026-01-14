@@ -1248,6 +1248,13 @@ export async function handleTierChange(
       performedByName
     });
     
+    // Update local hubspot_deals record with sync timestamp
+    await db.update(hubspotDeals)
+      .set({
+        updatedAt: new Date()
+      })
+      .where(eq(hubspotDeals.id, deal.id));
+    
     if (!isProduction) {
       console.log(`[HubSpotDeals] Tier change completed for ${normalizedEmail}: ${oldTier} -> ${newTier}`);
     }
