@@ -692,11 +692,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {/* Header rendered via portal to escape transform context */}
         {headerContent && createPortal(headerContent, document.body)}
         
-        <div className={`relative w-full min-h-screen flex flex-col ${isDarkTheme ? 'text-white' : 'text-primary'}`}>
+        <div className={`relative w-full min-h-screen ${isDarkTheme ? 'text-white' : 'text-primary'}`}>
 
             <main 
                 id="main-content"
-                className={`flex-1 relative ${showHeader && !isFullBleedHeroPage ? 'pt-[max(88px,calc(env(safe-area-inset-top)+72px))]' : ''}`}
+                className={`relative ${showHeader && !isFullBleedHeroPage ? 'pt-[max(88px,calc(env(safe-area-inset-top)+72px))]' : ''}`}
             >
                 {children}
                 {isMemberRoute && !isAdminRoute && !isProfilePage && <BottomSentinel />}
