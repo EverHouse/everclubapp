@@ -29,7 +29,7 @@ async function getHubSpotAccessToken() {
     throw new Error('X_REPLIT_TOKEN not found for repl/depl');
   }
 
-  hubspotConnectionSettings = await fetch(
+  const response = await fetch(
     'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=hubspot',
     {
       headers: {
@@ -37,10 +37,31 @@ async function getHubSpotAccessToken() {
         'X_REPLIT_TOKEN': xReplitToken
       }
     }
-  ).then(res => res.json()).then((data: any) => data.items?.[0]);
+  );
+  
+  const data = await response.json();
+  
+  // Debug logging to understand what's coming back
+  if (!data.items || data.items.length === 0) {
+    console.error('[HubSpot] Connector API response:', JSON.stringify({ 
+      status: response.status,
+      hasItems: !!data.items,
+      itemCount: data.items?.length || 0,
+      hostname,
+      error: data.error || data.message || null
+    }));
+    throw new Error('HubSpot not connected - please add HubSpot from the Integrations panel (All Connectors tab)');
+  }
+  
+  hubspotConnectionSettings = data.items[0];
 
   if (!hubspotConnectionSettings || !hubspotConnectionSettings.settings) {
-    throw new Error('HubSpot not connected - no connection settings found');
+    console.error('[HubSpot] Connection found but missing settings:', JSON.stringify({
+      hasConnection: !!hubspotConnectionSettings,
+      hasSettings: !!hubspotConnectionSettings?.settings,
+      connectionId: hubspotConnectionSettings?.id
+    }));
+    throw new Error('HubSpot connection found but not authenticated - please reconnect in Integrations panel');
   }
   
   const accessToken = hubspotConnectionSettings.settings?.access_token || hubspotConnectionSettings.settings?.oauth?.credentials?.access_token;
