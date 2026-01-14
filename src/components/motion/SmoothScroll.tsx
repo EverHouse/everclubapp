@@ -41,11 +41,13 @@ export const SmoothScrollProvider: React.FC<SmoothScrollProviderProps> = ({ chil
   }, []);
 
   const stop = useCallback(() => {
-    document.body.style.overflow = 'hidden';
+    document.documentElement.classList.add('overflow-hidden');
+    document.body.classList.add('overflow-hidden');
   }, []);
 
   const start = useCallback(() => {
-    document.body.style.overflow = '';
+    document.documentElement.classList.remove('overflow-hidden');
+    document.body.classList.remove('overflow-hidden');
   }, []);
 
   const value = useMemo(() => ({ lenis: null, scrollTo, stop, start }), [scrollTo, stop, start]);

@@ -6,7 +6,11 @@ export function useScrollLock(isLocked: boolean, onEscape?: () => void) {
   useEffect(() => {
     if (!isLocked) return;
 
-    scrollYRef.current = window.scrollY;
+    // Only save scroll position if not already locked (prevents nested modals from resetting to 0)
+    const isAlreadyLocked = document.body.style.position === 'fixed';
+    if (!isAlreadyLocked) {
+      scrollYRef.current = window.scrollY;
+    }
     
     document.documentElement.classList.add('overflow-hidden');
     document.body.classList.add('overflow-hidden');

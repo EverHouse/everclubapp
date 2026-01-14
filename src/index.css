@@ -105,17 +105,25 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
-  height: auto !important;
-  min-height: 100% !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
+html {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
-/* Modal scroll lock - override the above when modal is open */
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100%;
+  isolation: isolate;
+}
+
+/* Modal scroll lock - override when modal is open */
 html.overflow-hidden,
-html.overflow-hidden body,
-html.overflow-hidden #root {
+html.overflow-hidden body {
   overflow: hidden !important;
   overscroll-behavior: none;
 }

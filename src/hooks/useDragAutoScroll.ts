@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 
 const SCROLL_ZONE_SIZE = 80;
 const SCROLL_SPEED = 8;
@@ -6,6 +6,15 @@ const SCROLL_SPEED = 8;
 export function useDragAutoScroll() {
   const rafRef = useRef<number | null>(null);
   const scrollDirectionRef = useRef<'up' | 'down' | null>(null);
+
+  // Cleanup animation frame on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
   const scrollStep = useCallback(() => {
     const direction = scrollDirectionRef.current;
