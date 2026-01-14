@@ -98,77 +98,91 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     let synced = 0;
     let errors = 0;
     
-    for (const contact of allContacts) {
-      const email = contact.properties.email?.toLowerCase();
-      if (!email) continue;
+    // Parse opt-in values from HubSpot (they come as strings like "true"/"false" or "Yes"/"No")
+    const parseOptIn = (val?: string): boolean | null => {
+      if (!val) return null;
+      const lower = val.toLowerCase();
+      return lower === 'true' || lower === 'yes' || lower === '1';
+    };
+    
+    // Process contacts in parallel batches for better performance
+    const SYNC_BATCH_SIZE = 25;
+    const syncLimit = pLimit(10); // 10 concurrent DB operations
+    
+    for (let i = 0; i < allContacts.length; i += SYNC_BATCH_SIZE) {
+      const batch = allContacts.slice(i, i + SYNC_BATCH_SIZE);
       
-      try {
-        const status = (contact.properties.membership_status || 'active').toLowerCase();
-        const normalizedTier = normalizeTierName(contact.properties.membership_tier);
-        const tierId = normalizedTier ? (tierCache.get(normalizedTier.toLowerCase()) || null) : null;
-        const tags = extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason);
-        
-        let joinDate: string | null = null;
-        if (contact.properties.membership_start_date) {
-          const dateStr = contact.properties.membership_start_date;
-          if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-            joinDate = dateStr.split('T')[0];
+      const results = await Promise.allSettled(
+        batch.map(contact => syncLimit(async () => {
+          const email = contact.properties.email?.toLowerCase();
+          if (!email) return null;
+          
+          const status = (contact.properties.membership_status || 'active').toLowerCase();
+          const normalizedTier = normalizeTierName(contact.properties.membership_tier);
+          const tierId = normalizedTier ? (tierCache.get(normalizedTier.toLowerCase()) || null) : null;
+          const tags = extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason);
+          
+          let joinDate: string | null = null;
+          if (contact.properties.membership_start_date) {
+            const dateStr = contact.properties.membership_start_date;
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+              joinDate = dateStr.split('T')[0];
+            }
           }
-        }
-        
-        // Parse opt-in values from HubSpot (they come as strings like "true"/"false" or "Yes"/"No")
-        const parseOptIn = (val?: string): boolean | null => {
-          if (!val) return null;
-          const lower = val.toLowerCase();
-          return lower === 'true' || lower === 'yes' || lower === '1';
-        };
-        
-        const emailOptIn = parseOptIn(contact.properties.eh_email_updates_opt_in);
-        const smsOptIn = parseOptIn(contact.properties.eh_sms_updates_opt_in);
-        
-        await db.insert(users)
-          .values({
-            id: sql`gen_random_uuid()`,
-            email,
-            firstName: contact.properties.firstname || null,
-            lastName: contact.properties.lastname || null,
-            phone: contact.properties.phone || null,
-            tier: normalizedTier,
-            tierId,
-            tags: tags.length > 0 ? tags : [],
-            hubspotId: contact.id,
-            membershipStatus: status,
-            mindbodyClientId: contact.properties.mindbody_client_id || null,
-            joinDate,
-            emailOptIn,
-            smsOptIn,
-            lastSyncedAt: new Date(),
-            role: 'member'
-          })
-          .onConflictDoUpdate({
-            target: users.email,
-            set: {
-              firstName: sql`COALESCE(${contact.properties.firstname || null}, ${users.firstName})`,
-              lastName: sql`COALESCE(${contact.properties.lastname || null}, ${users.lastName})`,
-              phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
+          
+          const emailOptIn = parseOptIn(contact.properties.eh_email_updates_opt_in);
+          const smsOptIn = parseOptIn(contact.properties.eh_sms_updates_opt_in);
+          
+          await db.insert(users)
+            .values({
+              id: sql`gen_random_uuid()`,
+              email,
+              firstName: contact.properties.firstname || null,
+              lastName: contact.properties.lastname || null,
+              phone: contact.properties.phone || null,
               tier: normalizedTier,
               tierId,
-              tags: tags.length > 0 ? tags : sql`${users.tags}`,
+              tags: tags.length > 0 ? tags : [],
               hubspotId: contact.id,
               membershipStatus: status,
-              mindbodyClientId: sql`COALESCE(${contact.properties.mindbody_client_id || null}, ${users.mindbodyClientId})`,
-              joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
-              emailOptIn: emailOptIn !== null ? emailOptIn : sql`${users.emailOptIn}`,
-              smsOptIn: smsOptIn !== null ? smsOptIn : sql`${users.smsOptIn}`,
+              mindbodyClientId: contact.properties.mindbody_client_id || null,
+              joinDate,
+              emailOptIn,
+              smsOptIn,
               lastSyncedAt: new Date(),
-              updatedAt: new Date()
-            }
-          });
-        
-        synced++;
-      } catch (err) {
-        errors++;
-        if (!isProduction) console.error(`[MemberSync] Error syncing ${email}:`, err);
+              role: 'member'
+            })
+            .onConflictDoUpdate({
+              target: users.email,
+              set: {
+                firstName: sql`COALESCE(${contact.properties.firstname || null}, ${users.firstName})`,
+                lastName: sql`COALESCE(${contact.properties.lastname || null}, ${users.lastName})`,
+                phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
+                tier: normalizedTier,
+                tierId,
+                tags: tags.length > 0 ? tags : sql`${users.tags}`,
+                hubspotId: contact.id,
+                membershipStatus: status,
+                mindbodyClientId: sql`COALESCE(${contact.properties.mindbody_client_id || null}, ${users.mindbodyClientId})`,
+                joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
+                emailOptIn: emailOptIn !== null ? emailOptIn : sql`${users.emailOptIn}`,
+                smsOptIn: smsOptIn !== null ? smsOptIn : sql`${users.smsOptIn}`,
+                lastSyncedAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+          
+          return email;
+        }))
+      );
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          synced++;
+        } else if (result.status === 'rejected') {
+          errors++;
+          if (!isProduction) console.error(`[MemberSync] Error syncing contact:`, result.reason);
+        }
       }
     }
     

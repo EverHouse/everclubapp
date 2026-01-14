@@ -81,6 +81,7 @@ export const billingAuditLog = pgTable("billing_audit_log", {
 }, (table) => [
   index("billing_audit_log_member_email_idx").on(table.memberEmail),
   index("billing_audit_log_deal_id_idx").on(table.hubspotDealId),
+  index("billing_audit_log_created_at_idx").on(table.createdAt),
 ]);
 
 export const hubspotFormConfigs = pgTable("hubspot_form_configs", {
