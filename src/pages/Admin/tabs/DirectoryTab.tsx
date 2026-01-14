@@ -539,9 +539,15 @@ const DirectoryTab: React.FC = () => {
                                 <td className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</td>
                                 {memberTab === 'former' && (
                                     <td className="p-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
-                                            {formatStatusLabel(m.status)}
-                                        </span>
+                                        {m.status ? (
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
+                                                {formatStatusLabel(m.status)}
+                                            </span>
+                                        ) : (
+                                            <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                                                Unknown
+                                            </span>
+                                        )}
                                     </td>
                                 )}
                             </tr>
