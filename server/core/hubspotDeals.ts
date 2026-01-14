@@ -398,7 +398,10 @@ export async function addLineItemToDeal(
           quantity: String(quantity),
           price: String(discountedPrice),
           name: productInfo.productName,
-          ...(discountPercent > 0 && { discount: String(discountPercent) })
+          ...(discountPercent > 0 && { 
+            hs_discount_percentage: String(discountPercent),
+            ...(discountReason && { discount_reason: discountReason })
+          })
         }
       })
     );
