@@ -13,14 +13,14 @@ export const HUBSPOT_STAGE_IDS = {
 
 export const MINDBODY_TO_STAGE_MAP: Record<string, string> = {
   'active': HUBSPOT_STAGE_IDS.CLOSED_WON_ACTIVE,
-  'pending': HUBSPOT_STAGE_IDS.BILLING_SETUP,
+  'pending': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'declined': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'suspended': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
-  'expired': HUBSPOT_STAGE_IDS.CLOSED_LOST,
-  'terminated': HUBSPOT_STAGE_IDS.CLOSED_LOST,
-  'cancelled': HUBSPOT_STAGE_IDS.CLOSED_LOST,
+  'expired': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'froze': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'frozen': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
+  'terminated': HUBSPOT_STAGE_IDS.CLOSED_LOST,
+  'cancelled': HUBSPOT_STAGE_IDS.CLOSED_LOST,
   'non-member': HUBSPOT_STAGE_IDS.CLOSED_LOST,
 };
 
@@ -28,17 +28,17 @@ export type ContactMembershipStatus = 'active' | 'inactive' | 'former_member';
 
 export const MINDBODY_TO_CONTACT_STATUS_MAP: Record<string, ContactMembershipStatus> = {
   'active': 'active',
-  'pending': 'active',
+  'pending': 'inactive',
   'declined': 'inactive',
   'suspended': 'inactive',
+  'expired': 'inactive',
   'froze': 'inactive',
   'frozen': 'inactive',
-  'expired': 'former_member',
   'terminated': 'former_member',
   'cancelled': 'former_member',
   'non-member': 'former_member',
 };
 
-export const INACTIVE_STATUSES = ['declined', 'suspended', 'froze', 'frozen'];
-export const CHURNED_STATUSES = ['expired', 'terminated', 'cancelled', 'non-member'];
-export const ACTIVE_STATUSES = ['active', 'pending'];
+export const INACTIVE_STATUSES = ['pending', 'declined', 'suspended', 'expired', 'froze', 'frozen'];
+export const CHURNED_STATUSES = ['terminated', 'cancelled', 'non-member'];
+export const ACTIVE_STATUSES = ['active'];

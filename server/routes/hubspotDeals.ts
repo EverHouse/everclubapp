@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../core/middleware';
-import { isProduction } from '../core/db';
+import { isProduction, pool } from '../core/db';
 import {
   getMemberDealWithLineItems,
   getAllProductMappings,
@@ -10,12 +10,15 @@ import {
   removeLineItemFromDeal,
   getBillingAuditLog,
   calculateTotalDiscount,
-  syncDealStageFromMindbodyStatus
+  syncDealStageFromMindbodyStatus,
+  updateDealStage
 } from '../core/hubspotDeals';
 import { syncAllMembersFromHubSpot } from '../core/memberSync';
 import { db } from '../db';
-import { hubspotProductMappings, discountRules } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { hubspotProductMappings, discountRules, hubspotDeals } from '../../shared/schema';
+import { eq, and, ne } from 'drizzle-orm';
+import { MINDBODY_TO_STAGE_MAP, HUBSPOT_STAGE_IDS } from '../core/hubspot/constants';
+import pLimit from 'p-limit';
 
 const router = Router();
 
@@ -214,6 +217,155 @@ router.post('/api/hubspot/sync-all-members', isStaffOrAdmin, async (req, res) =>
   } catch (error: any) {
     console.error('Error during manual member sync:', error);
     res.status(500).json({ error: 'Failed to sync members' });
+  }
+});
+
+router.post('/api/hubspot/remediate-deal-stages', isStaffOrAdmin, async (req, res) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'system';
+    const staffName = (req as any).user?.name || 'Remediation Script';
+    const dryRun = req.body.dryRun === true;
+    
+    console.log(`[HubSpotDeals] Deal stage remediation started (dryRun: ${dryRun})`);
+    
+    const membersResult = await pool.query(`
+      SELECT u.email, u.membership_status, hd.hubspot_deal_id, hd.pipeline_stage
+      FROM users u
+      JOIN hubspot_deals hd ON LOWER(u.email) = LOWER(hd.member_email)
+      WHERE u.role = 'member'
+    `);
+    
+    const members = membersResult.rows;
+    console.log(`[HubSpotDeals] Found ${members.length} members with deals to check`);
+    
+    const remediationPlan: {
+      email: string;
+      currentStage: string;
+      targetStage: string;
+      membershipStatus: string;
+    }[] = [];
+    
+    for (const member of members) {
+      const normalizedStatus = (member.membership_status || 'non-member').toLowerCase().replace(/[^a-z-]/g, '');
+      const targetStage = MINDBODY_TO_STAGE_MAP[normalizedStatus] || HUBSPOT_STAGE_IDS.CLOSED_LOST;
+      
+      if (member.pipeline_stage !== targetStage) {
+        remediationPlan.push({
+          email: member.email,
+          currentStage: member.pipeline_stage,
+          targetStage,
+          membershipStatus: normalizedStatus
+        });
+      }
+    }
+    
+    console.log(`[HubSpotDeals] ${remediationPlan.length} deals need stage updates`);
+    
+    const summary = {
+      toActive: remediationPlan.filter(r => r.targetStage === HUBSPOT_STAGE_IDS.CLOSED_WON_ACTIVE).length,
+      toPaymentDeclined: remediationPlan.filter(r => r.targetStage === HUBSPOT_STAGE_IDS.PAYMENT_DECLINED).length,
+      toClosedLost: remediationPlan.filter(r => r.targetStage === HUBSPOT_STAGE_IDS.CLOSED_LOST).length
+    };
+    
+    console.log(`[HubSpotDeals] Remediation summary - Active: ${summary.toActive}, Payment Declined: ${summary.toPaymentDeclined}, Closed Lost: ${summary.toClosedLost}`);
+    
+    if (dryRun) {
+      return res.json({
+        success: true,
+        dryRun: true,
+        totalDeals: members.length,
+        dealsNeedingUpdate: remediationPlan.length,
+        summary,
+        sampleChanges: remediationPlan.slice(0, 20)
+      });
+    }
+    
+    let updated = 0;
+    let errors = 0;
+    const BATCH_SIZE = 5;
+    const BATCH_DELAY_MS = 2000;
+    const limit = pLimit(BATCH_SIZE);
+    
+    for (let i = 0; i < remediationPlan.length; i += BATCH_SIZE) {
+      const batch = remediationPlan.slice(i, i + BATCH_SIZE);
+      
+      const results = await Promise.allSettled(
+        batch.map(item => limit(async () => {
+          const result = await syncDealStageFromMindbodyStatus(
+            item.email,
+            item.membershipStatus,
+            staffEmail,
+            staffName
+          );
+          return { email: item.email, ...result };
+        }))
+      );
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.success) {
+          updated++;
+        } else {
+          errors++;
+          console.error(`[HubSpotDeals] Remediation error:`, result.status === 'rejected' ? result.reason : result.value);
+        }
+      }
+      
+      if (i + BATCH_SIZE < remediationPlan.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+      
+      if ((i + BATCH_SIZE) % 50 === 0) {
+        console.log(`[HubSpotDeals] Remediation progress: ${Math.min(i + BATCH_SIZE, remediationPlan.length)}/${remediationPlan.length}`);
+      }
+    }
+    
+    console.log(`[HubSpotDeals] Remediation complete - Updated: ${updated}, Errors: ${errors}`);
+    
+    res.json({
+      success: true,
+      dryRun: false,
+      totalDeals: members.length,
+      dealsNeedingUpdate: remediationPlan.length,
+      updated,
+      errors,
+      summary
+    });
+  } catch (error: any) {
+    console.error('[HubSpotDeals] Remediation error:', error);
+    res.status(500).json({ error: 'Failed to remediate deal stages' });
+  }
+});
+
+router.get('/api/hubspot/deal-stage-summary', isStaffOrAdmin, async (req, res) => {
+  try {
+    const stagesResult = await pool.query(`
+      SELECT 
+        hd.pipeline_stage,
+        COUNT(*) as count,
+        u.membership_status
+      FROM hubspot_deals hd
+      JOIN users u ON LOWER(u.email) = LOWER(hd.member_email)
+      GROUP BY hd.pipeline_stage, u.membership_status
+      ORDER BY hd.pipeline_stage, count DESC
+    `);
+    
+    const activeMembers = await pool.query(`
+      SELECT COUNT(*) as count FROM users WHERE role = 'member' AND membership_status = 'active'
+    `);
+    
+    const activeDeals = await pool.query(`
+      SELECT COUNT(*) as count FROM hubspot_deals WHERE pipeline_stage = 'closedwon'
+    `);
+    
+    res.json({
+      stageBreakdown: stagesResult.rows,
+      activeMemberCount: parseInt(activeMembers.rows[0].count),
+      activeStageDealsCount: parseInt(activeDeals.rows[0].count),
+      discrepancy: parseInt(activeDeals.rows[0].count) - parseInt(activeMembers.rows[0].count)
+    });
+  } catch (error: any) {
+    console.error('[HubSpotDeals] Error fetching stage summary:', error);
+    res.status(500).json({ error: 'Failed to fetch stage summary' });
   }
 });
 
