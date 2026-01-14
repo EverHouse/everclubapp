@@ -140,8 +140,11 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   }, [isRefreshing, isFillingScreen, onRefresh]);
 
   // Desktop scroll wheel support with settlement tracking
-  // Scoped to container element to avoid blocking global wheel scrolling
+  // Only register on touch devices to avoid blocking native wheel scroll on desktop
   useEffect(() => {
+    // Skip wheel listener on desktop - let browser handle wheel scroll natively
+    if (!isTouchCapable) return;
+    
     const container = containerRef.current;
     if (!container) return;
     
@@ -228,7 +231,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         clearTimeout(settleTimeoutRef.current);
       }
     };
-  }, [disabled, isModalOpen, isRefreshing, isFillingScreen, isSpringBack, triggerRefresh, animateSpringBack]);
+  }, [isTouchCapable, disabled, isModalOpen, isRefreshing, isFillingScreen, isSpringBack, triggerRefresh, animateSpringBack]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (disabled || isModalOpen || isRefreshing || isSpringBack) return;
