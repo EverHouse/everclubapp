@@ -135,16 +135,25 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [isEditingTier, setIsEditingTier] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string>('');
   const [isSavingTier, setIsSavingTier] = useState(false);
+  const [displayedTier, setDisplayedTier] = useState<string>('');
 
   const VALID_TIERS = [...TIER_NAMES, 'Founding', 'Unlimited'] as string[];
 
+  useEffect(() => {
+    setDisplayedTier(member?.rawTier || member?.tier || '');
+  }, [member?.rawTier, member?.tier]);
+
   const handleSaveTier = async () => {
-    if (!member?.id || !selectedTier || selectedTier === member.tier) {
+    if (!member?.id || !selectedTier || selectedTier === (member.rawTier || member.tier)) {
       setIsEditingTier(false);
       return;
     }
     
+    const previousTier = displayedTier;
+    setDisplayedTier(selectedTier);
+    setIsEditingTier(false);
     setIsSavingTier(true);
+    
     try {
       const res = await fetch(`/api/hubspot/contacts/${member.id}/tier`, {
         method: 'PUT',
@@ -153,14 +162,14 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         body: JSON.stringify({ tier: selectedTier })
       });
       
-      if (res.ok) {
-        setIsEditingTier(false);
-      } else {
+      if (!res.ok) {
+        setDisplayedTier(previousTier);
         const error = await res.json();
         console.error('Failed to update tier:', error);
         alert('Failed to update tier: ' + (error.error || 'Unknown error'));
       }
     } catch (err) {
+      setDisplayedTier(previousTier);
       console.error('Error updating tier:', err);
       alert('Failed to update tier. Please try again.');
     } finally {
@@ -1056,11 +1065,11 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   </div>
                 ) : (
                   <>
-                    <TierBadge tier={member.rawTier || member.tier} size="md" showNoTier={true} />
+                    <TierBadge tier={displayedTier || member.rawTier || member.tier} size="md" showNoTier={true} />
                     {isAdmin && (
                       <button
                         onClick={() => {
-                          setSelectedTier(member.tier || '');
+                          setSelectedTier(displayedTier || member.tier || '');
                           setIsEditingTier(true);
                         }}
                         className={`p-0.5 rounded transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}

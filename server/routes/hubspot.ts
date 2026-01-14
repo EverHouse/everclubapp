@@ -865,15 +865,47 @@ router.put('/contacts/:id/tier', isStaffOrAdmin, async (req, res) => {
     const contactName = [contact.properties.firstname, contact.properties.lastname].filter(Boolean).join(' ');
     const contactEmail = contact.properties.email || '';
     
+    // Map tier name to tier_id and membership_tier format
+    const tierMapping: Record<string, { tier_id: number | null; membership_tier: string; tier: string }> = {
+      'Social': { tier_id: 1, membership_tier: 'Social Membership', tier: 'Social' },
+      'Core': { tier_id: 2, membership_tier: 'Core Membership', tier: 'Core' },
+      'Premium': { tier_id: 3, membership_tier: 'Premium Membership', tier: 'Premium' },
+      'Corporate': { tier_id: 4, membership_tier: 'Corporate Membership', tier: 'Corporate' },
+      'VIP': { tier_id: 5, membership_tier: 'VIP Membership', tier: 'VIP' },
+      'Founding': { tier_id: 2, membership_tier: 'Core Membership Founding Members', tier: 'Founding' },
+      'Unlimited': { tier_id: 3, membership_tier: 'Premium Membership', tier: 'Unlimited' },
+    };
+    
+    const tierData = tierMapping[tier];
+    if (!tierData) {
+      return res.status(400).json({ error: `Invalid tier: ${tier}` });
+    }
+    
+    // Update local database FIRST to prevent background sync overwriting
+    const updateResult = await db.update(users)
+      .set({
+        tier: tierData.tier,
+        tier_id: tierData.tier_id,
+        membership_tier: tierData.membership_tier,
+      })
+      .where(eq(users.hubspot_id, id))
+      .returning({ id: users.id, email: users.email });
+    
+    if (updateResult.length === 0) {
+      console.warn(`[Tier Update] No local user found with hubspot_id ${id}`);
+    } else {
+      console.log(`[Tier Update] Updated local database for user ${updateResult[0].email}`);
+    }
+    
     // Update the tier in HubSpot
     await retryableHubSpotRequest(() =>
       hubspot.crm.contacts.basicApi.update(id, {
-        properties: { membership_tier: tier }
+        properties: { membership_tier: tierData.membership_tier }
       })
     );
     
     // Log the change for audit purposes
-    console.log(`[Tier Update] Contact ${id} (${contactName}, ${contactEmail}): ${oldTier} -> ${tier} by staff ${staffUser?.name || 'Unknown'}`);
+    console.log(`[Tier Update] Contact ${id} (${contactName}, ${contactEmail}): ${oldTier} -> ${tierData.membership_tier} by staff ${staffUser?.name || 'Unknown'}`);
     
     // Invalidate cache to reflect the change
     allContactsCache.timestamp = 0;
