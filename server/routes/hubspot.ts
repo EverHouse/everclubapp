@@ -84,7 +84,7 @@ function transformHubSpotContact(contact: any): any {
   const membershipStatus = (contact.properties.membership_status || '').toLowerCase();
   
   const activeStatuses = ['active'];
-  const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined'];
+  const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined', 'suspended', 'frozen', 'froze', 'pending', 'non-member'];
   
   const isActiveMember = activeStatuses.includes(membershipStatus);
   const isFormerMember = formerStatuses.includes(membershipStatus);
