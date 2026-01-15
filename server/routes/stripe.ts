@@ -572,4 +572,55 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
   }
 });
 
+router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { query, includeInactive } = req.query;
+    
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.json({ members: [] });
+    }
+    
+    const searchTerm = query.trim().toLowerCase();
+    
+    let sql = `
+      SELECT 
+        id, email, first_name, last_name, 
+        membership_tier, membership_status, 
+        stripe_customer_id, hubspot_id
+      FROM users 
+      WHERE (
+        LOWER(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) LIKE $1
+        OR LOWER(COALESCE(first_name, '')) LIKE $1
+        OR LOWER(COALESCE(last_name, '')) LIKE $1
+        OR LOWER(COALESCE(email, '')) LIKE $1
+      )
+    `;
+    
+    if (includeInactive !== 'true') {
+      sql += ` AND (membership_status = 'active' OR membership_status IS NULL)`;
+    }
+    
+    sql += ` AND archived_at IS NULL ORDER BY first_name, last_name LIMIT 10`;
+    
+    const result = await pool.query(sql, [`%${searchTerm}%`]);
+    
+    const members = result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email?.split('@')[0] || 'Unknown',
+      membershipTier: row.membership_tier,
+      membershipStatus: row.membership_status,
+      stripeCustomerId: row.stripe_customer_id,
+      hubspotId: row.hubspot_id,
+    }));
+    
+    res.json({ members });
+  } catch (error: any) {
+    console.error('[Billing] Error searching members:', error);
+    res.status(500).json({ error: 'Failed to search members' });
+  }
+});
+
 export default router;

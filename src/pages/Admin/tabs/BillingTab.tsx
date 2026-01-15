@@ -399,32 +399,17 @@ const SubscriptionsView: React.FC = () => {
       setSelectedMember(null);
       setSubscriptions([]);
 
-      const res = await fetch('/api/hubspot/contacts', { credentials: 'include' });
+      const res = await fetch(`/api/billing/members/search?query=${encodeURIComponent(searchEmail.trim())}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to search members');
       const data = await res.json();
       
-      const searchTerm = searchEmail.toLowerCase().trim();
-      const contacts = data.contacts || [];
-      const filtered = contacts.filter((m: any) => {
-        const email = (m.email || '').toLowerCase();
-        const name = `${m.firstname || ''} ${m.lastname || ''}`.toLowerCase();
-        return email.includes(searchTerm) || name.includes(searchTerm);
-      });
-      
-      const results = filtered.slice(0, 5).map((m: any) => {
-        const firstName = m.firstname || '';
-        const lastName = m.lastname || '';
-        const calculatedName = m.hs_calculated_full_name || '';
-        const displayName = `${firstName} ${lastName}`.trim() || calculatedName || m.email?.split('@')[0] || 'Unknown';
-        
-        return {
-          id: m.hs_object_id || m.id,
-          email: m.email,
-          name: displayName,
-          stripeCustomerId: m.stripe_customer_id || null,
-          membershipTier: m.membership_tier || null,
-        };
-      });
+      const results = (data.members || []).map((m: any) => ({
+        id: m.hubspotId || m.id,
+        email: m.email,
+        name: m.name,
+        stripeCustomerId: m.stripeCustomerId || null,
+        membershipTier: m.membershipTier || null,
+      }));
       
       setSearchResults(results);
     } catch (err: any) {
@@ -806,32 +791,17 @@ const InvoicesView: React.FC = () => {
       setSelectedMember(null);
       setInvoices([]);
 
-      const res = await fetch('/api/hubspot/contacts', { credentials: 'include' });
+      const res = await fetch(`/api/billing/members/search?query=${encodeURIComponent(searchEmail.trim())}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to search members');
       const data = await res.json();
       
-      const searchTerm = searchEmail.toLowerCase().trim();
-      const contacts = data.contacts || [];
-      const filtered = contacts.filter((m: any) => {
-        const email = (m.email || '').toLowerCase();
-        const name = `${m.firstname || ''} ${m.lastname || ''}`.toLowerCase();
-        return email.includes(searchTerm) || name.includes(searchTerm);
-      });
-      
-      const results = filtered.slice(0, 5).map((m: any) => {
-        const firstName = m.firstname || '';
-        const lastName = m.lastname || '';
-        const calculatedName = m.hs_calculated_full_name || '';
-        const displayName = `${firstName} ${lastName}`.trim() || calculatedName || m.email?.split('@')[0] || 'Unknown';
-        
-        return {
-          id: m.hs_object_id || m.id,
-          email: m.email,
-          name: displayName,
-          stripeCustomerId: m.stripe_customer_id || null,
-          membershipTier: m.membership_tier || null,
-        };
-      });
+      const results = (data.members || []).map((m: any) => ({
+        id: m.hubspotId || m.id,
+        email: m.email,
+        name: m.name,
+        stripeCustomerId: m.stripeCustomerId || null,
+        membershipTier: m.membershipTier || null,
+      }));
       
       setSearchResults(results);
     } catch (err: any) {
