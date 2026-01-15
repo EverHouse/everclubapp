@@ -70,6 +70,26 @@ interface UnifiedPurchase {
   quantity?: number;
 }
 
+interface Invoice {
+  id: string;
+  status: string;
+  amountDue: number;
+  amountPaid: number;
+  currency: string;
+  customerEmail: string | null;
+  description: string | null;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
+  created: string;
+  dueDate: string | null;
+  paidAt: string | null;
+  lines: Array<{
+    description: string | null;
+    amount: number;
+    quantity: number | null;
+  }>;
+}
+
 const normalizeTime = (time: string | null | undefined): string => {
   if (!time) return '00:00';
   const parts = time.split(':');
@@ -85,11 +105,12 @@ const History: React.FC = () => {
   const { setPageReady } = usePageReady();
   const isDark = effectiveTheme === 'dark';
   
-  const [activeTab, setActiveTab] = useState<'bookings' | 'experiences' | 'purchases'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'experiences' | 'purchases' | 'invoices'>('bookings');
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [rsvps, setRSVPs] = useState<RSVPRecord[]>([]);
   const [wellnessEnrollments, setWellnessEnrollments] = useState<WellnessEnrollmentRecord[]>([]);
   const [purchases, setPurchases] = useState<UnifiedPurchase[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchBookings = useCallback(async () => {
@@ -201,11 +222,25 @@ const History: React.FC = () => {
     }
   }, [user?.email]);
 
+  const fetchInvoices = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const { ok, data } = await apiRequest<{ invoices: Invoice[]; count: number }>(
+        `/api/my-invoices?user_email=${encodeURIComponent(user.email)}`
+      );
+      if (ok && data?.invoices) {
+        setInvoices(data.invoices);
+      }
+    } catch (err) {
+      console.error('[History] Failed to fetch invoices:', err);
+    }
+  }, [user?.email]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all([fetchBookings(), fetchRSVPs(), fetchWellnessEnrollments(), fetchPurchases()]);
+    await Promise.all([fetchBookings(), fetchRSVPs(), fetchWellnessEnrollments(), fetchPurchases(), fetchInvoices()]);
     setIsLoading(false);
-  }, [fetchBookings, fetchRSVPs, fetchWellnessEnrollments, fetchPurchases]);
+  }, [fetchBookings, fetchRSVPs, fetchWellnessEnrollments, fetchPurchases, fetchInvoices]);
 
   useEffect(() => {
     loadData();
@@ -257,6 +292,7 @@ const History: React.FC = () => {
             <TabButton label="Bookings" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} isDark={isDark} />
             <TabButton label="Experiences" active={activeTab === 'experiences'} onClick={() => setActiveTab('experiences')} isDark={isDark} />
             <TabButton label="Purchases" icon="receipt_long" active={activeTab === 'purchases'} onClick={() => setActiveTab('purchases')} isDark={isDark} />
+            <TabButton label="Invoices" icon="description" active={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')} isDark={isDark} />
           </div>
         </section>
 
@@ -533,7 +569,89 @@ const History: React.FC = () => {
                 </div>
               )}
             </div>
-          )}
+          ) : activeTab === 'invoices' ? (
+            <div className="space-y-4">
+              <div className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
+                {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
+              </div>
+              {invoices.length === 0 ? (
+                <div className={`text-center py-12 rounded-2xl border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+                  <span className={`material-symbols-outlined text-5xl mb-4 ${isDark ? 'text-white/30' : 'text-primary/30'}`}>description</span>
+                  <p className={`${isDark ? 'text-white/80' : 'text-primary/80'}`}>No invoices yet</p>
+                  <p className={`text-sm mt-1 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>Subscription invoices will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {invoices.map((invoice, index) => {
+                    const getStatusBadge = (status: string) => {
+                      const statusMap: Record<string, { label: string; style: string }> = {
+                        paid: { label: 'Paid', style: isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700' },
+                        open: { label: 'Due', style: isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700' },
+                        draft: { label: 'Draft', style: isDark ? 'bg-gray-500/20 text-gray-300' : 'bg-gray-100 text-gray-700' },
+                        void: { label: 'Void', style: isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-100 text-red-700' },
+                        uncollectible: { label: 'Uncollectible', style: isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-100 text-red-700' },
+                      };
+                      return statusMap[status] || { label: status, style: isDark ? 'bg-gray-500/20 text-gray-300' : 'bg-gray-100 text-gray-700' };
+                    };
+                    
+                    const formatAmount = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+                    const formatDate = (dateStr: string) => {
+                      const date = new Date(dateStr);
+                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    };
+                    
+                    const status = getStatusBadge(invoice.status);
+                    const primaryLine = invoice.lines?.[0];
+                    const description = primaryLine?.description || invoice.description || 'Invoice';
+                    
+                    return (
+                      <div 
+                        key={invoice.id}
+                        className={`rounded-xl p-4 border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}
+                        style={{animationDelay: `${0.05 * index}s`}}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${status.style}`}>
+                                {status.label}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>
+                                Stripe
+                              </span>
+                            </div>
+                            <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>
+                              {description}
+                            </p>
+                            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                              {formatDate(invoice.created)}
+                              {invoice.paidAt && ` - Paid ${formatDate(invoice.paidAt)}`}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className={`text-lg font-bold ${invoice.status === 'paid' ? (isDark ? 'text-accent' : 'text-brand-green') : (isDark ? 'text-white' : 'text-primary')}`}>
+                              {formatAmount(invoice.amountDue)}
+                            </p>
+                            {invoice.hostedInvoiceUrl && (
+                              <a 
+                                href={invoice.hostedInvoiceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
+                              >
+                                View
+                                <span className="material-symbols-outlined text-xs">open_in_new</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <BottomSentinel />

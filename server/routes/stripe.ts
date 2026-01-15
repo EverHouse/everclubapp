@@ -572,6 +572,56 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
   }
 });
 
+// Member-accessible endpoint to view their own invoices
+router.get('/api/my-invoices', async (req: Request, res: Response) => {
+  try {
+    const sessionEmail = (req as any).user?.email;
+    if (!sessionEmail) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    // Support "View As" feature: staff can pass user_email param to view as another member
+    const requestedEmail = req.query.user_email as string | undefined;
+    let targetEmail = sessionEmail;
+    
+    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
+      const userRole = (req as any).user?.role;
+      if (userRole === 'admin' || userRole === 'staff') {
+        targetEmail = decodeURIComponent(requestedEmail);
+      }
+    }
+    
+    // Look up user's stripe customer ID
+    const userResult = await pool.query(
+      'SELECT stripe_customer_id FROM users WHERE LOWER(email) = $1',
+      [targetEmail.toLowerCase()]
+    );
+    
+    const stripeCustomerId = userResult.rows[0]?.stripe_customer_id;
+    
+    if (!stripeCustomerId) {
+      // No Stripe customer - return empty array
+      return res.json({ invoices: [], count: 0 });
+    }
+    
+    const result = await listCustomerInvoices(stripeCustomerId);
+    
+    if (!result.success) {
+      return res.status(500).json({ error: result.error || 'Failed to list invoices' });
+    }
+    
+    console.log(`[Stripe] my-invoices for ${targetEmail}: found ${result.invoices?.length || 0} invoices`);
+    
+    res.json({
+      invoices: result.invoices,
+      count: result.invoices?.length || 0
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error listing member invoices:', error);
+    res.status(500).json({ error: 'Failed to list invoices' });
+  }
+});
+
 router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { query, includeInactive } = req.query;
