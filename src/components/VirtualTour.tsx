@@ -7,7 +7,7 @@ interface VirtualTourProps {
 }
 
 const VirtualTour: React.FC<VirtualTourProps> = ({ 
-  url = "https://captur3d.io/view/even-house/even-house?hl=0&help=0&title=0", 
+  url = "https://my.matterport.com/show/?m=1hJ9Ea7Yz2c&brand=0&help=0&hl=0&ts=0&play=1", 
   title = "Even House Virtual Tour",
   className = ""
 }) => {
