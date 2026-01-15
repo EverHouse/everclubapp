@@ -79,6 +79,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [sessionChecked, setSessionChecked] = useState(false);
   const sessionCheckDone = useRef(false);
   const loginInProgressRef = useRef(false);
+  const actualUserRef = useRef<MemberProfile | null>(null);
   const formerMembersFetched = useRef(false);
   const formerMembersLastFetch = useRef<number>(0);
   const FORMER_MEMBERS_CACHE_MS = 10 * 60 * 1000; // 10 minutes
@@ -103,6 +104,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       setIsLoading(false);
     }
   }, [storeUser, actualUser]);
+
+  // Keep ref in sync with actualUser state for use in callbacks
+  useEffect(() => {
+    actualUserRef.current = actualUser;
+  }, [actualUser]);
 
   useEffect(() => {
     if (sessionCheckDone.current) return;
@@ -337,8 +343,10 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   }, [actualUser]);
 
   // Function to fetch former/inactive members on demand with 10-minute cache
+  // Uses actualUserRef to avoid stale closure issues when session loads after mount
   const fetchFormerMembers = useCallback(async (forceRefresh = false) => {
-    if (!actualUser || (actualUser.role !== 'admin' && actualUser.role !== 'staff')) return;
+    const currentUser = actualUserRef.current;
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'staff')) return;
     
     const now = Date.now();
     
@@ -382,7 +390,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to fetch former members:', err);
     }
-  }, [actualUser]);
+  }, []);
 
   const refreshMembers = useCallback(async (): Promise<{ success: boolean; count: number }> => {
     if (!actualUser || (actualUser.role !== 'admin' && actualUser.role !== 'staff')) {
