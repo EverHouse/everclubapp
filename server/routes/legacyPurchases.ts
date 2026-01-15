@@ -121,17 +121,22 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
     .orderBy(desc(legacyPurchases.saleDate));
   
   // Map legacy purchases to unified format
-  const unifiedLegacy: UnifiedPurchase[] = legacyResult.map(p => ({
-    id: `legacy-${p.id}`,
-    type: 'legacy' as const,
-    itemName: p.itemName,
-    itemCategory: p.itemCategory,
-    amountCents: p.itemTotalCents,
-    date: p.saleDate?.toISOString() || '',
-    status: p.isComp ? 'comp' : 'paid',
-    source: 'Mindbody',
-    quantity: p.quantity || 1,
-  }));
+  const unifiedLegacy: UnifiedPurchase[] = legacyResult.map(p => {
+    // Determine source - guest passes created in-app should show "Even House"
+    const source = p.paymentMethod === 'guest_pass' ? 'Even House' : 'Mindbody';
+    
+    return {
+      id: `legacy-${p.id}`,
+      type: 'legacy' as const,
+      itemName: p.itemName,
+      itemCategory: p.itemCategory,
+      amountCents: p.itemTotalCents,
+      date: p.saleDate?.toISOString() || '',
+      status: p.isComp ? 'comp' : 'paid',
+      source,
+      quantity: p.quantity || 1,
+    };
+  });
   
   // Get Stripe invoices if customer exists
   let unifiedStripe: UnifiedPurchase[] = [];

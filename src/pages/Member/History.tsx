@@ -494,6 +494,7 @@ const History: React.FC = () => {
                     const sourceColors: Record<string, { dark: string; light: string }> = {
                       Mindbody: { dark: 'bg-teal-500/20 text-teal-300', light: 'bg-teal-100 text-teal-700' },
                       Stripe: { dark: 'bg-indigo-500/20 text-indigo-300', light: 'bg-indigo-100 text-indigo-700' },
+                      'Even House': { dark: 'bg-emerald-500/20 text-emerald-300', light: 'bg-emerald-100 text-emerald-700' },
                     };
                     
                     const getSourceStyle = (source: string) => {
