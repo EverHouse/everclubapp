@@ -18,7 +18,7 @@ const PRIVATE_HIRE_FIELDS = [
 const PrivateHire: React.FC = () => {
   const { setPageReady } = usePageReady();
   const [showInquiryForm, setShowInquiryForm] = useState(false);
-  const { offset: parallaxOffset, opacity: parallaxOpacity, gradientShift, ref: heroRef } = useParallax({ speed: 0.2, maxOffset: 80 });
+  const { offset: parallaxOffset, opacity: parallaxOpacity, gradientShift, ref: heroRef } = useParallax({ speed: 0.25, maxOffset: 120 });
 
   useEffect(() => {
     setPageReady(true);
@@ -30,36 +30,70 @@ const PrivateHire: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden">
+    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-[#F2F2EC]">
+       {/* Fixed brand green status bar fill for iOS PWA */}
+       <div 
+         className="fixed top-0 left-0 right-0 bg-[#293515]"
+         style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
+         aria-hidden="true"
+       />
+       
+       {/* Hero Section - full viewport like Landing page */}
        <div 
          ref={heroRef as React.RefObject<HTMLDivElement>}
-         className="relative w-full h-[420px] bg-primary flex flex-col justify-end overflow-hidden group rounded-b-[2rem]"
+         className="relative flex flex-col justify-end p-6 pb-[max(4rem,env(safe-area-inset-bottom))] overflow-visible"
+         style={{ 
+           height: '100vh', 
+           minHeight: '700px'
+         }}
        >
+         {/* Background container that extends into safe area */}
          <div 
-           className="absolute inset-0 h-[120%] bg-cover bg-center will-change-transform" 
+           className="absolute inset-0 overflow-hidden rounded-b-[2.5rem]"
            style={{
-             backgroundImage: 'url("/images/venue-wide-optimized.webp")',
-             transform: `translateY(${parallaxOffset}px) scale(1.05)`,
-             opacity: parallaxOpacity
+             top: 'calc(-1 * env(safe-area-inset-top, 0px))',
+             height: 'calc(100% + env(safe-area-inset-top, 0px))'
            }}
-         ></div>
-         <div 
-           className="absolute inset-0 transition-opacity duration-300"
-           style={{
-             background: `linear-gradient(to top, rgba(41,53,21,${0.9 + gradientShift * 0.005}) 0%, rgba(41,53,21,${0.3 + gradientShift * 0.02}) ${35 + gradientShift}%, transparent 100%)`
-           }}
-         ></div>
-         <div className="relative z-10 p-6 pb-12">
-            <p className="text-white/60 text-[10px] font-bold uppercase tracking-[0.3em] mb-3">Est. 2025</p>
-            <span className="inline-block px-3 py-1 mb-3 text-[10px] font-bold tracking-widest text-white uppercase bg-white/20 backdrop-blur-sm rounded-full border border-white/10">Events</span>
-            <h2 className="text-white text-5xl font-bold leading-tight tracking-tight">Host at <br/>Ever House</h2>
+         >
+           <img 
+             src="/images/venue-wide-optimized.webp" 
+             alt="Ever House Event Space" 
+             className="absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform"
+             loading="eager"
+             style={{ 
+               transform: `translateY(${parallaxOffset}px) scale(1.05)`,
+               opacity: parallaxOpacity
+             }}
+           />
+           <div 
+             className="absolute inset-0 transition-opacity duration-300"
+             style={{
+               background: `linear-gradient(to top, rgba(0,0,0,${0.7 + gradientShift * 0.003}) 0%, rgba(0,0,0,${0.45 + gradientShift * 0.005}) 20%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.08) 50%, transparent 60%)`
+             }}
+           />
+         </div>
+         
+         {/* Hero content - centered like Landing page */}
+         <div className="relative z-10 animate-pop-in flex flex-col items-center text-center">
+           <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight leading-[1.05] mb-4 text-white text-shadow-sm font-serif">
+             Curated spaces for <br/> unforgettable moments.
+           </h1>
+           <p className="text-sm sm:text-base text-white/80 mb-8 sm:mb-10 max-w-md tracking-wide leading-relaxed">
+             From intimate dinners to grand receptions, discover the perfect setting for your next event at our Tustin location. Our team handles every detail so you can focus on your guests.
+           </p>
+           <div className="flex flex-col gap-3 w-full max-w-xs">
+             <button 
+               onClick={openForm}
+               className="w-full py-4 rounded-2xl bg-white/30 backdrop-blur-xl text-white font-bold text-xs uppercase tracking-[0.15em] shadow-lg hover:scale-[1.02] hover:bg-white/40 transition-all text-center border border-white/40"
+             >
+               Submit Inquiry
+             </button>
+           </div>
          </div>
        </div>
 
-       <div className="px-6 py-10 animate-pop-in">
-          <h2 className="text-2xl font-bold leading-snug text-primary mb-4">Curated spaces for unforgettable moments.</h2>
-          <p className="text-base font-medium leading-relaxed text-primary/70">From intimate dinners to grand receptions, discover the perfect setting for your next event at our Tustin location. Our team handles every detail so you can focus on your guests.</p>
-       </div>
+       {/* Content wrapper with cream background */}
+       <div className="bg-[#F2F2EC]">
 
        <section className="py-20 px-6 bg-[#F2F2EC]">
          <div className="max-w-7xl mx-auto">
@@ -106,23 +140,6 @@ const PrivateHire: React.FC = () => {
             index={2}
           />
        </div>
-
-       <div className="mt-4 bg-white rounded-[2.5rem] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] overflow-hidden mx-4 mb-6 animate-pop-in" style={{animationDelay: '0.35s'}}>
-          <div className="px-6 py-8 flex flex-col items-center text-center">
-             <div className="p-3 bg-[#F2F2EC] rounded-xl mb-4">
-                <span className="material-symbols-outlined text-primary text-3xl">calendar_today</span>
-             </div>
-             <h3 className="text-2xl font-bold text-primary mb-3">Start your Inquiry</h3>
-             <p className="text-primary/70 mb-8 max-w-xs mx-auto text-sm leading-relaxed">
-               Tell us a bit about your event and our team will get back to you with availability and pricing.
-             </p>
-             <button 
-                onClick={openForm}
-                className="w-full bg-primary hover:bg-primary/90 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-             >
-                Submit Inquiry
-             </button>
-          </div>
        </div>
        
        <Footer />
