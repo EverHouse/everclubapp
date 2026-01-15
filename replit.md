@@ -77,7 +77,10 @@ The application is built with a React 19 frontend utilizing Vite, styled with Ta
     - **Payment Tracking**: All payment intents tracked in `stripe_payment_intents` table with status and HubSpot sync.
     - **HubSpot Sync**: Successful payments create line items on member deals for accounting visibility.
     - **Webhook Processing**: Real-time payment status updates via managed webhooks (auto-configured).
-    - **Key Files**: `server/core/stripe/`, `server/routes/stripe.ts`, `src/components/stripe/StripePaymentForm.tsx`
+    - **HubSpot-to-Stripe Product Sync**: Admin Billing tab imports membership products from HubSpot, creates Stripe Products with recurring Prices (monthly/yearly). Tracked in `stripe_products` table.
+    - **Subscription Management**: Create, view, and cancel member subscriptions via admin Billing tab. Subscriptions auto-charge members on recurring schedule.
+    - **Invoice Management**: Create one-off invoices, preview subscription invoices, finalize and send invoices to members. Staff can void draft/open invoices.
+    - **Key Files**: `server/core/stripe/`, `server/routes/stripe.ts`, `src/pages/Admin/tabs/BillingTab.tsx`
 - **Resend**: Used for email-based OTP verification and email alerts from automated integrity checks.
 - **HubSpot CRM**: Integrated for contact and member management using Replit Connectors.
     - **Two-Way Sync**: Communication preferences (`eh_email_updates_opt_in`, `eh_sms_updates_opt_in`) sync bidirectionally.
