@@ -54,7 +54,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Admin Settings Dashboard**: Staff can configure app options via `app_settings` table.
 - **Data Tools Panel**: Self-service recovery tools for re-syncing members, relinking guest fees, correcting attendance, and re-importing data with audit logging.
 - **Automatic Monitoring Alerts**: `dataAlerts.ts` sends staff notifications for import failures, low match rates, sync issues, and data integrity problems.
-- **Reusable MemberSearchInput Component**: Located at `src/components/shared/MemberSearchInput.tsx` for consistent member selection.
+- **Reusable MemberSearchInput Component**: Located at `src/components/shared/MemberSearchInput.tsx` for consistent member selection across all staff tools (BillingTab, StaffDirectAddModal, ManagePlayersModal, BookingMembersEditor, PaymentsTab). Supports `privacyMode` prop to redact emails for member-facing contexts.
 - **Staff Payments Dashboard**: Full POS functionality at `/admin?tab=payments` with Quick Charge, Cash/Check Recording, Refunds, Failed Payments, Daily Summary, Pending Authorizations, Member Lookup, and Guest Pass adjustments, all logged in `billing_audit_log`.
 - **Unified Payment History**: Members can view combined payment history from Mindbody, Stripe, and POS sources, with `Pay Now` and `View` links for invoices.
 - **Database Integrity**: Added `user_id` FK to `booking_requests` and FK constraints for `resource_id` across booking tables with appropriate ON DELETE behaviors. Optimized admin member loading with pagination.
