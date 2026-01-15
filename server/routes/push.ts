@@ -5,6 +5,7 @@ import { db } from '../db';
 import { pushSubscriptions, users, notifications, events, eventRsvps, bookingRequests, wellnessClasses, wellnessEnrollments, facilityClosures } from '../../shared/schema';
 import { eq, inArray, and, sql, or, isNull } from 'drizzle-orm';
 import { formatTime12Hour, getTodayPacific } from '../utils/dateUtils';
+import { sendNotificationToUser } from '../core/websocket';
 
 const router = Router();
 
@@ -262,6 +263,12 @@ export async function sendDailyReminders() {
         const message = `Reminder: ${evt.title} is tomorrow${evt.startTime ? ` at ${formatTime12Hour(evt.startTime)}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
         sendPushNotification(evt.userEmail, { title: 'Event Tomorrow', body: message, url: '/#/member-events' })
           .catch(() => { results.pushFailed++; });
+        // Send WebSocket notification for real-time updates
+        sendNotificationToUser(evt.userEmail, {
+          type: 'event_reminder',
+          title: 'Event Tomorrow',
+          message: message
+        });
       }
     }
     
@@ -299,6 +306,12 @@ export async function sendDailyReminders() {
         const message = `Reminder: Your simulator booking is tomorrow at ${formatTime12Hour(booking.startTime)}${booking.resourceId ? ` on Bay ${booking.resourceId}` : ''}.`;
         sendPushNotification(booking.userEmail, { title: 'Booking Tomorrow', body: message, url: '/#/sims' })
           .catch(() => { results.pushFailed++; });
+        // Send WebSocket notification for real-time updates
+        sendNotificationToUser(booking.userEmail, {
+          type: 'booking_reminder',
+          title: 'Booking Tomorrow',
+          message: message
+        });
       }
     }
     
@@ -338,6 +351,12 @@ export async function sendDailyReminders() {
         const message = `Reminder: ${cls.title} with ${cls.instructor} is tomorrow at ${cls.time}.`;
         sendPushNotification(cls.userEmail, { title: 'Class Tomorrow', body: message, url: '/#/member-wellness' })
           .catch(() => { results.pushFailed++; });
+        // Send WebSocket notification for real-time updates
+        sendNotificationToUser(cls.userEmail, {
+          type: 'wellness_reminder',
+          title: 'Class Tomorrow',
+          message: message
+        });
       }
     }
     

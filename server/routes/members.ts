@@ -21,7 +21,8 @@ import { isStaffOrAdmin, isAuthenticated } from '../core/middleware';
 import { getSessionUser } from '../types/session';
 import { updateHubSpotContactPreferences } from '../core/memberSync';
 import { createMemberWithDeal, getAllDiscountRules, handleTierChange } from '../core/hubspotDeals';
-import { TIER_NAMES } from '../../shared/constants/tiers';
+import { TIER_NAMES, TIER_HIERARCHY } from '../../shared/constants/tiers';
+import { notifyMember } from '../core/notificationService';
 
 const router = Router();
 
@@ -30,6 +31,10 @@ function redactEmail(email: string): string {
   const [localPart, domain] = email.split('@');
   const prefix = localPart.slice(0, 2);
   return `${prefix}***@${domain}`;
+}
+
+function getTierRank(tier: string): number {
+  return TIER_HIERARCHY[tier as keyof typeof TIER_HIERARCHY] || 1;
 }
 
 router.get('/api/members/search', isAuthenticated, async (req, res) => {
@@ -739,6 +744,17 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
     if (!hubspotResult.success && hubspotResult.error) {
       console.warn(`[Members] HubSpot tier change failed for ${normalizedEmail}: ${hubspotResult.error}`);
     }
+    
+    // Notify the member about their tier change
+    const isUpgrade = getTierRank(tier) > getTierRank(oldTier);
+    const changeType = isUpgrade ? 'upgraded' : 'changed';
+    await notifyMember({
+      userEmail: normalizedEmail,
+      title: isUpgrade ? 'Membership Upgraded' : 'Membership Updated',
+      message: `Your membership has been ${changeType} from ${oldTier} to ${tier}`,
+      type: 'system',
+      url: '/#/profile'
+    });
     
     res.json({
       success: true,
