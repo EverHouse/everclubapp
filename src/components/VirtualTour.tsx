@@ -14,8 +14,8 @@ const VirtualTour: React.FC<VirtualTourProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   return (
-    <div className={`w-full max-w-7xl mx-auto ${className}`}>
-      <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl bg-black/5 aspect-video border border-white/10">
+    <div className={`w-full max-w-7xl mx-auto px-4 md:px-0 ${className}`}>
+      <div className="relative w-full overflow-hidden rounded-[2rem] shadow-2xl bg-black/5 aspect-video border border-white/10">
         
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#F2F2EC] z-10">
@@ -35,7 +35,7 @@ const VirtualTour: React.FC<VirtualTourProps> = ({
           onLoad={() => setIsLoading(false)}
         />
         
-        <div className="absolute inset-0 pointer-events-none rounded-2xl border border-white/10" />
+        <div className="absolute inset-0 pointer-events-none rounded-[2rem] border border-white/10" />
       </div>
     </div>
   );
