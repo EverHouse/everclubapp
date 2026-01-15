@@ -1,4 +1,4 @@
-export type TabType = 'home' | 'cafe' | 'events' | 'announcements' | 'directory' | 'simulator' | 'team' | 'faqs' | 'inquiries' | 'gallery' | 'tiers' | 'blocks' | 'changelog' | 'training' | 'updates' | 'tours' | 'bugs' | 'trackman' | 'data-integrity' | 'settings';
+export type TabType = 'home' | 'cafe' | 'events' | 'announcements' | 'directory' | 'simulator' | 'team' | 'faqs' | 'inquiries' | 'gallery' | 'tiers' | 'blocks' | 'changelog' | 'training' | 'updates' | 'tours' | 'bugs' | 'trackman' | 'data-integrity' | 'settings' | 'billing';
 
 export interface NavItemData {
   id: TabType;
@@ -13,4 +13,5 @@ export const NAV_ITEMS: NavItemData[] = [
   { id: 'blocks', icon: 'domain', label: 'Facility' },
   { id: 'events', icon: 'calendar_month', label: 'Calendar' },
   { id: 'directory', icon: 'groups', label: 'Directory' },
+  { id: 'billing', icon: 'payments', label: 'Billing', adminOnly: true },
 ];

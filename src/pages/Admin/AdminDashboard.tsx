@@ -33,6 +33,7 @@ const EventsTab = lazy(() => import('./tabs/EventsTab'));
 const SimulatorTab = lazy(() => import('./tabs/SimulatorTab'));
 const DataIntegrityTab = lazy(() => import('./tabs/DataIntegrityTab'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
+const BillingTab = lazy(() => import('./tabs/BillingTab'));
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
@@ -64,7 +65,7 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType | null;
-    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings'];
+    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings', 'billing'];
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (!tabParam) {
@@ -119,6 +120,7 @@ const AdminDashboard: React.FC = () => {
       case 'trackman': return 'Trackman Import';
       case 'data-integrity': return 'Data Integrity';
       case 'settings': return 'Settings';
+      case 'billing': return 'Billing';
       default: return 'Dashboard';
     }
   };
@@ -203,6 +205,7 @@ const AdminDashboard: React.FC = () => {
             {activeTab === 'trackman' && <TrackmanTab />}
             {activeTab === 'data-integrity' && actualUser?.role === 'admin' && <DataIntegrityTab />}
             {activeTab === 'settings' && actualUser?.role === 'admin' && <SettingsTab />}
+            {activeTab === 'billing' && actualUser?.role === 'admin' && <BillingTab />}
           </Suspense>
         </PageErrorBoundary>
         <BottomSentinel />
