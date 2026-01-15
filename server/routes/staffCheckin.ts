@@ -22,6 +22,7 @@ interface ParticipantFee {
   guestFee: number;
   totalFee: number;
   tierAtBooking: string | null;
+  waiverNeedsReview?: boolean;
 }
 
 interface CheckinContext {
@@ -88,6 +89,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           bp.participant_type,
           bp.user_id,
           bp.payment_status,
+          bp.waiver_reviewed_at,
+          bp.used_guest_pass,
           COALESCE(ul.overage_fee, 0)::numeric as overage_fee,
           COALESCE(ul.guest_fee, 0)::numeric as guest_fee,
           ul.tier_at_booking
@@ -118,6 +121,12 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         
         const totalFee = calculatedFee > 0 ? calculatedFee : (ledgerOverageFee + ledgerGuestFee);
         
+        const waiverNeedsReview = 
+          p.participant_type === 'guest' && 
+          p.payment_status === 'waived' && 
+          !p.used_guest_pass &&
+          !p.waiver_reviewed_at;
+        
         participants.push({
           participantId: p.participant_id,
           displayName: p.display_name,
@@ -127,7 +136,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           overageFee: ledgerOverageFee,
           guestFee: ledgerGuestFee > 0 ? ledgerGuestFee : (p.participant_type === 'guest' && calculatedFee > 0 ? calculatedFee : 0),
           totalFee,
-          tierAtBooking: p.tier_at_booking
+          tierAtBooking: p.tier_at_booking,
+          waiverNeedsReview
         });
 
         if (p.payment_status !== 'paid' && p.payment_status !== 'waived') {
@@ -393,7 +403,7 @@ interface OverduePayment {
   endTime: string;
   resourceName: string;
   totalOutstanding: number;
-  unresolvedGuestWaivers: number;
+  unreviewedWaivers: number;
 }
 
 router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request, res: Response) => {
@@ -421,15 +431,10 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
           SUM(CASE 
             WHEN bp.participant_type = 'guest' 
               AND bp.payment_status = 'waived' 
-              AND NOT EXISTS (
-                SELECT 1 FROM legacy_purchases lp 
-                WHERE lp.linked_booking_session_id = bp.session_id
-                  AND lp.item_category = 'guest_pass'
-                  AND LOWER(lp.member_email) = LOWER(br.user_email)
-                  AND lp.item_name LIKE '%' || bp.display_name || '%'
-              )
+              AND bp.waiver_reviewed_at IS NULL
+              AND COALESCE(bp.used_guest_pass, FALSE) = FALSE
             THEN 1 ELSE 0 
-          END) as unresolved_guest_waivers
+          END) as unreviewed_waivers
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
         LEFT JOIN booking_participants bp ON bp.session_id = br.session_id
@@ -448,13 +453,8 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         OR SUM(CASE 
             WHEN bp.participant_type = 'guest' 
               AND bp.payment_status = 'waived' 
-              AND NOT EXISTS (
-                SELECT 1 FROM legacy_purchases lp 
-                WHERE lp.linked_booking_session_id = bp.session_id
-                  AND lp.item_category = 'guest_pass'
-                  AND LOWER(lp.member_email) = LOWER(br.user_email)
-                  AND lp.item_name LIKE '%' || bp.display_name || '%'
-              )
+              AND bp.waiver_reviewed_at IS NULL
+              AND COALESCE(bp.used_guest_pass, FALSE) = FALSE
             THEN 1 ELSE 0 
           END) > 0
       )
@@ -476,13 +476,127 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         endTime: row.end_time,
         resourceName: row.resource_name || 'Unknown',
         totalOutstanding: parseFloat(row.total_outstanding) || 0,
-        unresolvedGuestWaivers: parseInt(row.unresolved_guest_waivers) || 0
+        unreviewedWaivers: parseInt(row.unreviewed_waivers) || 0
       };
     });
 
     res.json(overduePayments);
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to get overdue payments', error);
+  }
+});
+
+router.post('/api/booking-participants/:id/mark-waiver-reviewed', isStaffOrAdmin, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const participantId = parseInt(req.params.id);
+    if (isNaN(participantId)) {
+      client.release();
+      return res.status(400).json({ error: 'Invalid participant ID' });
+    }
+
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser?.email) {
+      client.release();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    await client.query('BEGIN');
+
+    const participantCheck = await client.query(`
+      SELECT bp.id, bp.session_id, bp.display_name, br.id as booking_id
+      FROM booking_participants bp
+      JOIN booking_requests br ON br.session_id = bp.session_id
+      WHERE bp.id = $1 AND bp.payment_status = 'waived'
+    `, [participantId]);
+
+    if (participantCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({ error: 'Waived participant not found or no associated booking' });
+    }
+
+    const { session_id: sessionId, booking_id: bookingId, display_name } = participantCheck.rows[0];
+
+    await client.query(`
+      UPDATE booking_participants 
+      SET waiver_reviewed_at = NOW()
+      WHERE id = $1
+    `, [participantId]);
+
+    await client.query(`
+      INSERT INTO booking_payment_audit 
+        (booking_id, session_id, participant_id, action, staff_email, staff_name, reason, amount_affected)
+      VALUES ($1, $2, $3, 'payment_waived', $4, $5, 'Staff marked manual waiver as reviewed', 0)
+    `, [bookingId, sessionId, participantId, sessionUser.email, sessionUser.name || null]);
+
+    await client.query('COMMIT');
+    client.release();
+
+    res.json({ success: true, participant: { id: participantId, display_name, waiver_reviewed_at: new Date() } });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    client.release();
+    logAndRespond(req, res, 500, 'Failed to mark waiver as reviewed', error);
+  }
+});
+
+router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const bookingId = parseInt(req.params.bookingId);
+    if (isNaN(bookingId)) {
+      client.release();
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser?.email) {
+      client.release();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    await client.query('BEGIN');
+
+    const bookingResult = await client.query(`
+      SELECT br.session_id, br.user_email as owner_email
+      FROM booking_requests br
+      WHERE br.id = $1
+    `, [bookingId]);
+
+    if (bookingResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const { session_id } = bookingResult.rows[0];
+
+    const result = await client.query(`
+      UPDATE booking_participants 
+      SET waiver_reviewed_at = NOW()
+      WHERE session_id = $1 
+        AND payment_status = 'waived' 
+        AND waiver_reviewed_at IS NULL
+      RETURNING id
+    `, [session_id]);
+
+    for (const row of result.rows) {
+      await client.query(`
+        INSERT INTO booking_payment_audit 
+          (booking_id, session_id, participant_id, action, staff_email, staff_name, reason, amount_affected)
+        VALUES ($1, $2, $3, 'payment_waived', $4, $5, 'Staff marked manual waiver as reviewed', 0)
+      `, [bookingId, session_id, row.id, sessionUser.email, sessionUser.name || null]);
+    }
+
+    await client.query('COMMIT');
+    client.release();
+
+    res.json({ success: true, updatedCount: result.rows.length });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    client.release();
+    logAndRespond(req, res, 500, 'Failed to mark waivers as reviewed', error);
   }
 });
 

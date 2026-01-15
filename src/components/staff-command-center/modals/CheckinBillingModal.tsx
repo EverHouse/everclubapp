@@ -15,6 +15,7 @@ interface ParticipantFee {
   dailyAllowance?: number;
   minutesUsed?: number;
   guestPassUsed?: boolean;
+  waiverNeedsReview?: boolean;
 }
 
 interface CheckinContext {
@@ -235,6 +236,31 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   };
 
+  const handleMarkWaiversReviewed = async () => {
+    setActionInProgress('mark-reviewed');
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/mark-all-waivers-reviewed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`${data.updatedCount} waiver(s) marked as reviewed`, 'success');
+        await fetchContext();
+        onCheckinComplete();
+        onClose();
+      } else {
+        showToast('Failed to mark waivers as reviewed', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to mark waivers as reviewed:', err);
+      showToast('Failed to mark waivers as reviewed', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const handleStripePaymentSuccess = async () => {
     showToast('Payment successful - completing check-in...', 'success');
     setShowStripePayment(false);
@@ -278,6 +304,8 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     p.paymentStatus === 'pending' && p.totalFee > 0
   ) || [];
   const hasPendingPayments = unpaidParticipants.length > 0;
+  
+  const hasUnreviewedWaivers = context?.participants.some(p => p.waiverNeedsReview) || false;
   
 
   const modalContent = (
@@ -447,20 +475,27 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             </div>
                           )
                         ) : (
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className={`material-symbols-outlined text-sm ${
-                              p.paymentStatus === 'paid' ? 'text-green-500' : 
-                              p.paymentStatus === 'waived' ? 'text-gray-500' : 'text-yellow-500'
-                            }`}>
-                              {p.paymentStatus === 'paid' ? 'check_circle' : 
-                               p.paymentStatus === 'waived' ? 'remove_circle' : 'pending'}
-                            </span>
-                            <span className={`capitalize ${
-                              p.paymentStatus === 'paid' ? 'text-green-600 dark:text-green-400' : 
-                              p.paymentStatus === 'waived' ? 'text-gray-500' : ''
-                            }`}>
-                              {p.paymentStatus}
-                            </span>
+                          <div className="flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span className={`material-symbols-outlined text-sm ${
+                                p.paymentStatus === 'paid' ? 'text-green-500' : 
+                                p.paymentStatus === 'waived' ? 'text-gray-500' : 'text-yellow-500'
+                              }`}>
+                                {p.paymentStatus === 'paid' ? 'check_circle' : 
+                                 p.paymentStatus === 'waived' ? 'remove_circle' : 'pending'}
+                              </span>
+                              <span className={`capitalize ${
+                                p.paymentStatus === 'paid' ? 'text-green-600 dark:text-green-400' : 
+                                p.paymentStatus === 'waived' ? 'text-gray-500' : ''
+                              }`}>
+                                {p.paymentStatus}
+                              </span>
+                            </div>
+                            {p.waiverNeedsReview && (
+                              <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded">
+                                Needs Review
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -554,6 +589,15 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                     </div>
                   )}
                 </>
+              ) : hasUnreviewedWaivers ? (
+                <button
+                  onClick={handleMarkWaiversReviewed}
+                  disabled={actionInProgress !== null}
+                  className="w-full py-3 bg-amber-600 text-white font-semibold rounded-xl hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined">check_circle</span>
+                  {actionInProgress === 'mark-reviewed' ? 'Processing...' : 'Mark Waivers as Reviewed'}
+                </button>
               ) : (
                 <button
                   onClick={handleCheckinNoPayment}

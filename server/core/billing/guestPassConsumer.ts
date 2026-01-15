@@ -92,7 +92,8 @@ export async function consumeGuestPassForParticipant(
     await client.query(
       `UPDATE booking_participants 
        SET payment_status = 'waived', 
-           cached_fee_cents = 0
+           cached_fee_cents = 0,
+           used_guest_pass = TRUE
        WHERE id = $1`,
       [participantId]
     );
@@ -225,7 +226,8 @@ export async function refundGuestPassForParticipant(
     await client.query(
       `UPDATE booking_participants 
        SET payment_status = 'pending', 
-           cached_fee_cents = 2500
+           cached_fee_cents = 2500,
+           used_guest_pass = FALSE
        WHERE id = $1`,
       [participantId]
     );
