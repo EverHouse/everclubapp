@@ -54,6 +54,7 @@ The application is built with a React 19 frontend utilizing Vite, styled with Ta
 - **Staff Check-In Tools**: Payment guard, check-in billing modal with fee breakdown, individual payment marking, fee waiving, and staff direct-add with tier override. All actions are audited in `booking_payment_audit`.
 - **Conflict Detection**: Prevents double-booking members; API checks for overlapping times in `booking_requests`, `booking_participants`, and `booking_members`, returning 409 status with details.
 - **Cancellation Cascade**: Owner cancellation notifies roster members, refunds guest passes (if applicable), and atomically cleans up related booking entries.
+- **Guest Pass Consumption**: Server-side atomic guest pass processing in `guestPassConsumer.ts`. When staff marks a guest as "using a guest pass", the system: (1) decrements the owner's pass count in `guest_passes`, (2) updates booking participant status to waived with $0 fee, (3) creates a $0 purchase record in `legacy_purchases` for purchase history, (4) sends a notification to the member. All operations run in a single database transaction for data integrity. Staff can use the explicit `use_guest_pass` action or include "guest pass" in the waive reason.
 - **Trackman Reconciliation**: Admin service to compare declared vs. actual player counts, with endpoints for reviewing discrepancies and adjusting fees.
 - **Fair Usage Tracking**: Time is split equally among all players.
 - **Modal Pattern**: Standardized, accessible, viewport-centered modal implementation.
