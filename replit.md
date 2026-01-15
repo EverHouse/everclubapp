@@ -44,7 +44,7 @@ The application is built with a React 19 frontend utilizing Vite, styled with Ta
 - **Database Consolidation**: Uses `resources`, `booking_requests`, and `staff_users` tables.
 - **Enhanced Member Directory**: Comprehensive member profile drawer with history, communication logs, and staff notes.
 - **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware.
-- **Notifications & Notices**: In-app real-time notifications and a database-tracked sequential notice dismissal system.
+- **Notifications & Notices**: In-app real-time notifications and a database-tracked sequential notice dismissal system. Centralized `notificationService.ts` handles all notifications with 3-channel delivery (database + push + real-time) and proper user targeting (staff vs member). Member notifications include tier changes, check-in confirmations, RSVP/wellness cancellations, guest pass refunds, and bug report resolutions. Staff notifications include new form submissions, tour status changes, data alerts, and bug reports.
 - **Real-Time Sync**: Instant updates across clients via WebSocket for various data points (e.g., simulator availability, waitlists, announcements).
 - **PWA Features**: Service Worker caching, offline support, and iOS-style interactions (haptic feedback, pull-to-refresh).
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling.
