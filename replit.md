@@ -68,6 +68,8 @@ The application is built with a React 19 frontend utilizing Vite, styled with Ta
 - **Data Tools Panel**: Self-service recovery tools for re-syncing members, relinking guest fees, correcting attendance, and re-importing data with audit logging.
 - **Automatic Monitoring Alerts**: `dataAlerts.ts` sends staff notifications for import failures, low match rates, sync issues, and data integrity problems.
 - **Former Members Caching**: 10-minute cache in DataContext reduces repeated API calls when viewing former/inactive members, with force-refresh option.
+- **Reusable MemberSearchInput Component**: Located at `src/components/shared/MemberSearchInput.tsx`. Use this component whenever you need member selection with predictive dropdown. It uses DataContext members, supports keyboard navigation, shows name/email/tier, and returns a `SelectedMember` object with id, email, name, tier, and stripeCustomerId. Props: `onSelect`, `onClear`, `placeholder`, `label`, `selectedMember`, `disabled`, `showTier`, `autoFocus`. **ALWAYS use this component for member search instead of building custom search logic.**
+- **Staff Payments Dashboard**: Full POS functionality at `/admin?tab=payments` with Quick Charge, Cash/Check Recording, Refunds, Failed Payments, Daily Summary, Pending Authorizations, Member Lookup with balance/history, and Guest Pass adjustments. All payment actions logged in `billing_audit_log`.
 
 ## External Dependencies
 - **Stripe Payments**: Integrated via Replit Connectors for in-app payment collection.

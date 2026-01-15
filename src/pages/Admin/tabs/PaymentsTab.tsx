@@ -5,6 +5,7 @@ import EmptyState from '../../../components/EmptyState';
 import ModalShell from '../../../components/ModalShell';
 import { StripePaymentForm } from '../../../components/stripe/StripePaymentForm';
 import { CheckinBillingModal } from '../../../components/staff-command-center/modals/CheckinBillingModal';
+import { MemberSearchInput, SelectedMember } from '../../../components/shared/MemberSearchInput';
 import { getTodayPacific, formatTime12Hour } from '../../../utils/dateUtils';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
@@ -222,15 +223,15 @@ const DesktopPaymentsView: React.FC = () => {
       </div>
       
       <div className="col-span-4 space-y-6">
+        <MemberLookupSection variant="card" />
+        <RecentTransactionsSection variant="card" />
+      </div>
+      
+      <div className="col-span-4 space-y-6">
         <PendingAuthorizationsSection variant="card" />
         <OverduePaymentsPanel variant="card" />
         <FailedPaymentsSection variant="card" />
         <RefundsSection variant="card" />
-      </div>
-      
-      <div className="col-span-4 space-y-6">
-        <MemberLookupSection variant="card" />
-        <RecentTransactionsSection variant="card" />
       </div>
     </div>
   );
@@ -373,42 +374,15 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
 };
 
 const QuickChargeSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MemberSearchResult[]>([]);
-  const [selectedMember, setSelectedMember] = useState<MemberSearchResult | null>(null);
+  const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'form' | 'payment'>('form');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  const searchMembers = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const res = await fetch(`/api/members/search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data.slice(0, 5));
-      }
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => searchMembers(searchQuery), 300);
-    return () => clearTimeout(timeout);
-  }, [searchQuery, searchMembers]);
 
   const handleCreatePayment = async () => {
     if (!selectedMember || !amount || parseFloat(amount) <= 0) return;
@@ -487,69 +461,16 @@ const QuickChargeSection: React.FC<SectionProps> = ({ onClose, variant = 'modal'
         </div>
       ) : paymentStep === 'form' ? (
         <>
-          {!selectedMember ? (
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">Search Member</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Name or email..."
-                  className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                {isSearching && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
-                  </div>
-                )}
-              </div>
-              {searchResults.length > 0 && (
-                <div className="mt-2 rounded-xl bg-white dark:bg-surface-dark border border-primary/10 dark:border-white/10 divide-y divide-primary/5 dark:divide-white/5 overflow-hidden">
-                  {searchResults.map(member => (
-                    <button
-                      key={member.id}
-                      onClick={() => {
-                        setSelectedMember(member);
-                        setSearchQuery('');
-                        setSearchResults([]);
-                      }}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-left"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                        <span className="text-primary dark:text-lavender font-semibold">
-                          {member.name?.charAt(0)?.toUpperCase() || '?'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
-                        <p className="text-xs text-primary/60 dark:text-white/60 truncate">{member.email}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10">
-                <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                  <span className="text-primary dark:text-lavender font-semibold">
-                    {selectedMember.name?.charAt(0)?.toUpperCase() || '?'}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-primary dark:text-white truncate">{selectedMember.name}</p>
-                  <p className="text-xs text-primary/60 dark:text-white/60 truncate">{selectedMember.email}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedMember(null)}
-                  className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full transition-colors"
-                >
-                  <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
-                </button>
-              </div>
+          <MemberSearchInput
+            label="Search Member"
+            placeholder="Name or email..."
+            selectedMember={selectedMember}
+            onSelect={(member) => setSelectedMember(member)}
+            onClear={() => setSelectedMember(null)}
+          />
 
+          {selectedMember && (
+            <>
               <div>
                 <label className="block text-sm font-medium text-primary dark:text-white mb-2">Amount</label>
                 <div className="relative">
@@ -654,42 +575,15 @@ const QuickChargeSection: React.FC<SectionProps> = ({ onClose, variant = 'modal'
 };
 
 const CashCheckPaymentSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MemberSearchResult[]>([]);
-  const [selectedMember, setSelectedMember] = useState<MemberSearchResult | null>(null);
+  const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'check' | 'other'>('cash');
   const [category, setCategory] = useState<'guest_fee' | 'overage' | 'merchandise' | 'membership' | 'other'>('other');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  const searchMembers = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const res = await fetch(`/api/members/search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data.slice(0, 5));
-      }
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => searchMembers(searchQuery), 300);
-    return () => clearTimeout(timeout);
-  }, [searchQuery, searchMembers]);
 
   const handleRecordPayment = async () => {
     if (!selectedMember || !amount || parseFloat(amount) <= 0) return;
@@ -763,69 +657,16 @@ const CashCheckPaymentSection: React.FC<SectionProps> = ({ onClose, variant = 'm
         </div>
       ) : (
         <>
-          {!selectedMember ? (
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">Search Member</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Name or email..."
-                  className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                {isSearching && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
-                  </div>
-                )}
-              </div>
-              {searchResults.length > 0 && (
-                <div className="mt-2 rounded-xl bg-white dark:bg-surface-dark border border-primary/10 dark:border-white/10 divide-y divide-primary/5 dark:divide-white/5 overflow-hidden">
-                  {searchResults.map(member => (
-                    <button
-                      key={member.id}
-                      onClick={() => {
-                        setSelectedMember(member);
-                        setSearchQuery('');
-                        setSearchResults([]);
-                      }}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-left"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                        <span className="text-primary dark:text-lavender font-semibold">
-                          {member.name?.charAt(0)?.toUpperCase() || '?'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
-                        <p className="text-xs text-primary/60 dark:text-white/60 truncate">{member.email}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10">
-                <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                  <span className="text-primary dark:text-lavender font-semibold">
-                    {selectedMember.name?.charAt(0)?.toUpperCase() || '?'}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-primary dark:text-white truncate">{selectedMember.name}</p>
-                  <p className="text-xs text-primary/60 dark:text-white/60 truncate">{selectedMember.email}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedMember(null)}
-                  className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full transition-colors"
-                >
-                  <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
-                </button>
-              </div>
+          <MemberSearchInput
+            label="Search Member"
+            placeholder="Name or email..."
+            selectedMember={selectedMember}
+            onSelect={(member) => setSelectedMember(member)}
+            onClear={() => setSelectedMember(null)}
+          />
 
+          {selectedMember && (
+            <>
               <div>
                 <label className="block text-sm font-medium text-primary dark:text-white mb-2">Amount</label>
                 <div className="relative">
@@ -1070,41 +911,14 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
 };
 
 const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MemberSearchResult[]>([]);
-  const [selectedMember, setSelectedMember] = useState<MemberSearchResult | null>(null);
+  const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
   const [memberBalance, setMemberBalance] = useState<MemberBalance | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [showAdjustForm, setShowAdjustForm] = useState(false);
   const [adjustmentAmount, setAdjustmentAmount] = useState(0);
   const [adjustmentReason, setAdjustmentReason] = useState('');
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [adjustError, setAdjustError] = useState<string | null>(null);
-
-  const searchMembers = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const res = await fetch(`/api/members/search?q=${encodeURIComponent(query)}`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data.slice(0, 5));
-      }
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => searchMembers(searchQuery), 300);
-    return () => clearTimeout(timeout);
-  }, [searchQuery, searchMembers]);
 
   const loadMemberBalance = useCallback(async (email: string, tier: string | null) => {
     setIsLoadingBalance(true);
@@ -1138,7 +952,7 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
 
   useEffect(() => {
     if (selectedMember) {
-      loadMemberBalance(selectedMember.email, selectedMember.membershipTier);
+      loadMemberBalance(selectedMember.email, selectedMember.tier);
     }
   }, [selectedMember, loadMemberBalance]);
 
@@ -1170,7 +984,7 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
       setShowAdjustForm(false);
       setAdjustmentAmount(0);
       setAdjustmentReason('');
-      loadMemberBalance(selectedMember.email, selectedMember.membershipTier);
+      loadMemberBalance(selectedMember.email, selectedMember.tier);
     } catch (err: any) {
       setAdjustError(err.message || 'Failed to adjust guest passes');
     } finally {
@@ -1187,55 +1001,17 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
 
   const content = (
     <div className="space-y-4">
-      {!selectedMember ? (
-        <div>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 dark:text-white/40">search</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or email..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {isSearching && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
-              </div>
-            )}
-          </div>
-          {searchResults.length > 0 && (
-            <div className="mt-2 rounded-xl bg-white dark:bg-surface-dark border border-primary/10 dark:border-white/10 divide-y divide-primary/5 dark:divide-white/5 overflow-hidden">
-              {searchResults.map(member => (
-                <button
-                  key={member.id}
-                  onClick={() => {
-                    setSelectedMember(member);
-                    setSearchQuery('');
-                    setSearchResults([]);
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-                    <span className="text-primary dark:text-lavender font-semibold">
-                      {member.name?.charAt(0)?.toUpperCase() || '?'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
-                    <p className="text-xs text-primary/60 dark:text-white/60 truncate">{member.email}</p>
-                  </div>
-                  {member.membershipTier && (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-lavender/20 text-primary dark:text-lavender rounded-full">
-                      {member.membershipTier}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
+      <MemberSearchInput
+        placeholder="Search by name or email..."
+        selectedMember={selectedMember}
+        onSelect={(member) => setSelectedMember(member)}
+        onClear={() => {
+          setSelectedMember(null);
+          setMemberBalance(null);
+        }}
+      />
+
+      {selectedMember && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10">
             <div className="w-12 h-12 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
@@ -1246,21 +1022,12 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-primary dark:text-white truncate">{selectedMember.name}</p>
               <p className="text-sm text-primary/60 dark:text-white/60 truncate">{selectedMember.email}</p>
-              {selectedMember.membershipTier && (
+              {selectedMember.tier && (
                 <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-lavender/20 text-primary dark:text-lavender rounded-full">
-                  {selectedMember.membershipTier}
+                  {selectedMember.tier}
                 </span>
               )}
             </div>
-            <button
-              onClick={() => {
-                setSelectedMember(null);
-                setMemberBalance(null);
-              }}
-              className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full transition-colors"
-            >
-              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
-            </button>
           </div>
 
           {isLoadingBalance ? (
