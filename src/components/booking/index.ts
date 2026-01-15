@@ -7,3 +7,5 @@ export type {
 
 export { default as AddMemberModal } from './AddMemberModal';
 export { default as GuestEntryModal } from './GuestEntryModal';
+export { default as MemberPaymentModal } from './MemberPaymentModal';
+export type { MemberPaymentModalProps } from './MemberPaymentModal';

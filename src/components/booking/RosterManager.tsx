@@ -6,6 +6,7 @@ import { haptic } from '../../utils/haptics';
 import ModalShell from '../ModalShell';
 import Avatar from '../Avatar';
 import Input from '../Input';
+import MemberPaymentModal from './MemberPaymentModal';
 
 export interface RosterParticipant {
   id: number;
@@ -151,6 +152,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictDetails, setConflictDetails] = useState<BookingConflictDetails | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const canManage = isOwner || isStaff;
 
@@ -447,6 +449,25 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     [participants]
   );
 
+  const pendingGuestFees = useMemo(() => {
+    const pendingGuests = participants.filter(
+      p => p.participantType === 'guest' && 
+           (p.paymentStatus === 'pending' || p.paymentStatus === null)
+    );
+    return {
+      count: pendingGuests.length,
+      participants: pendingGuests
+    };
+  }, [participants]);
+
+  const handlePaymentSuccess = useCallback(() => {
+    setShowPaymentModal(false);
+    showToast('Payment successful! Guest fees have been paid.', 'success');
+    haptic.success();
+    fetchParticipants();
+    onUpdate?.();
+  }, [showToast, fetchParticipants, onUpdate]);
+
   if (loading) {
     return (
       <div className={`glass-card rounded-3xl p-6 ${isDark ? 'border-white/10' : 'border-black/5'}`}>
@@ -663,6 +684,34 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                   )}
                 </>
               )}
+
+              {isOwner && pendingGuestFees.count > 0 && (
+                <div className={`mt-4 pt-4 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
+                        Guest Fees Due
+                      </p>
+                      <p className={`text-xs ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
+                        {pendingGuestFees.count} guest{pendingGuestFees.count > 1 ? 's' : ''} • $25 each
+                      </p>
+                    </div>
+                    <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
+                      ${(pendingGuestFees.count * 25).toFixed(2)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      haptic.light();
+                      setShowPaymentModal(true);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-green-600 text-white font-bold text-sm transition-all hover:bg-green-700 active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-lg">credit_card</span>
+                    Pay Now
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -877,6 +926,17 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           </button>
         </div>
       </ModalShell>
+
+      {showPaymentModal && booking?.sessionId && (
+        <MemberPaymentModal
+          bookingId={bookingId}
+          sessionId={booking.sessionId}
+          ownerEmail={booking.ownerEmail}
+          ownerName={booking.ownerName}
+          onSuccess={handlePaymentSuccess}
+          onClose={() => setShowPaymentModal(false)}
+        />
+      )}
     </>
   );
 };

@@ -622,6 +622,236 @@ router.get('/api/my-invoices', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/api/member/bookings/:id/pay-fees', async (req: Request, res: Response) => {
+  try {
+    const sessionEmail = (req as any).user?.email;
+    if (!sessionEmail) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const bookingId = parseInt(req.params.id);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const bookingResult = await pool.query(
+      `SELECT br.id, br.session_id, br.user_email, br.user_name, u.id as user_id
+       FROM booking_requests br
+       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+       WHERE br.id = $1`,
+      [bookingId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    if (booking.user_email?.toLowerCase() !== sessionEmail.toLowerCase()) {
+      return res.status(403).json({ error: 'Only the booking owner can pay fees' });
+    }
+
+    if (!booking.session_id) {
+      return res.status(400).json({ error: 'Booking has no session' });
+    }
+
+    const pendingParticipants = await pool.query(
+      `SELECT id, participant_type, display_name, cached_fee_cents
+       FROM booking_participants
+       WHERE session_id = $1 
+         AND participant_type = 'guest'
+         AND (payment_status = 'pending' OR payment_status IS NULL)`,
+      [booking.session_id]
+    );
+
+    if (pendingParticipants.rows.length === 0) {
+      return res.status(400).json({ error: 'No unpaid guest fees found' });
+    }
+
+    const participantIds = pendingParticipants.rows.map(r => r.id);
+    const feeResult = await calculateAndCacheParticipantFees(booking.session_id, participantIds);
+
+    if (!feeResult.success) {
+      return res.status(500).json({ error: feeResult.error || 'Failed to calculate fees' });
+    }
+
+    if (feeResult.fees.length === 0) {
+      return res.status(400).json({ error: 'No fees to charge' });
+    }
+
+    const serverTotal = feeResult.totalCents;
+
+    if (serverTotal < 50) {
+      return res.status(400).json({ error: 'Total amount must be at least $0.50' });
+    }
+
+    const serverFees = feeResult.fees.map(f => ({ id: f.participantId, amountCents: f.amountCents }));
+
+    const client = await pool.connect();
+    let snapshotId: number | null = null;
+    try {
+      await client.query('BEGIN');
+
+      const snapshotResult = await client.query(
+        `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
+         VALUES ($1, $2, $3, $4, 'pending') RETURNING id`,
+        [bookingId, booking.session_id, JSON.stringify(serverFees), serverTotal]
+      );
+      snapshotId = snapshotResult.rows[0].id;
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const guestNames = pendingParticipants.rows.map(r => r.display_name).join(', ');
+    const description = `Guest fees for: ${guestNames}`;
+
+    const metadata: Record<string, string> = {
+      feeSnapshotId: snapshotId!.toString(),
+      participantFees: JSON.stringify(serverFees),
+      memberPayment: 'true'
+    };
+
+    let result;
+    try {
+      result = await createPaymentIntent({
+        userId: booking.user_id || booking.user_email,
+        email: booking.user_email,
+        memberName: booking.user_name || booking.user_email.split('@')[0],
+        amountCents: serverTotal,
+        purpose: 'guest_fee',
+        bookingId,
+        sessionId: booking.session_id,
+        description,
+        metadata
+      });
+    } catch (stripeErr) {
+      if (snapshotId) {
+        await pool.query(`DELETE FROM booking_fee_snapshots WHERE id = $1`, [snapshotId]);
+      }
+      throw stripeErr;
+    }
+
+    await pool.query(
+      `UPDATE booking_fee_snapshots SET stripe_payment_intent_id = $1 WHERE id = $2`,
+      [result.paymentIntentId, snapshotId]
+    );
+
+    console.log(`[Stripe] Member payment intent created for booking ${bookingId}: $${(serverTotal / 100).toFixed(2)}`);
+
+    const participantFeesList = feeResult.fees.map(f => {
+      const participant = pendingParticipants.rows.find(p => p.id === f.participantId);
+      return {
+        id: f.participantId,
+        displayName: participant?.display_name || 'Guest',
+        amount: f.amountCents / 100
+      };
+    });
+
+    res.json({
+      clientSecret: result.clientSecret,
+      paymentIntentId: result.paymentIntentId,
+      totalAmount: serverTotal / 100,
+      participantFees: participantFeesList
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error creating member payment intent:', error);
+    res.status(500).json({ error: 'Failed to create payment' });
+  }
+});
+
+router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res: Response) => {
+  try {
+    const sessionEmail = (req as any).user?.email;
+    if (!sessionEmail) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const bookingId = parseInt(req.params.id);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    const { paymentIntentId } = req.body;
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Missing paymentIntentId' });
+    }
+
+    const bookingResult = await pool.query(
+      `SELECT br.id, br.session_id, br.user_email
+       FROM booking_requests br
+       WHERE br.id = $1`,
+      [bookingId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    if (booking.user_email?.toLowerCase() !== sessionEmail.toLowerCase()) {
+      return res.status(403).json({ error: 'Only the booking owner can confirm payment' });
+    }
+
+    const snapshotResult = await pool.query(
+      `SELECT id, participant_fees, status
+       FROM booking_fee_snapshots
+       WHERE booking_id = $1 AND stripe_payment_intent_id = $2`,
+      [bookingId, paymentIntentId]
+    );
+
+    if (snapshotResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment record not found' });
+    }
+
+    const snapshot = snapshotResult.rows[0];
+
+    if (snapshot.status === 'completed') {
+      return res.json({ success: true, message: 'Payment already confirmed' });
+    }
+
+    const confirmResult = await confirmPaymentSuccess(
+      paymentIntentId,
+      sessionEmail,
+      booking.user_name || 'Member'
+    );
+
+    if (!confirmResult.success) {
+      return res.status(400).json({ error: confirmResult.error || 'Payment verification failed' });
+    }
+
+    const participantFees = JSON.parse(snapshot.participant_fees || '[]');
+    const participantIds = participantFees.map((pf: any) => pf.id);
+
+    if (participantIds.length > 0) {
+      await pool.query(
+        `UPDATE booking_participants 
+         SET payment_status = 'paid', updated_at = NOW()
+         WHERE id = ANY($1::int[])`,
+        [participantIds]
+      );
+    }
+
+    await pool.query(
+      `UPDATE booking_fee_snapshots SET status = 'completed' WHERE id = $1`,
+      [snapshot.id]
+    );
+
+    console.log(`[Stripe] Member payment confirmed for booking ${bookingId}, ${participantIds.length} participants marked as paid`);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Stripe] Error confirming member payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+});
+
 router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { query, includeInactive } = req.query;
