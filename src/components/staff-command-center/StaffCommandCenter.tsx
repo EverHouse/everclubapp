@@ -299,18 +299,18 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               variant="desktop-wellness"
             />
             <div className="flex flex-col gap-4">
+              <NoticeBoardWidget
+                closures={data.closures}
+                upcomingClosure={data.upcomingClosure}
+                announcements={data.announcements}
+                onTabChange={onTabChange}
+              />
               <AlertsCard 
                 notifications={data.notifications} 
                 onAlertClick={() => {
                   onTabChange('updates');
                   setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
                 }}
-              />
-              <NoticeBoardWidget
-                closures={data.closures}
-                upcomingClosure={data.upcomingClosure}
-                announcements={data.announcements}
-                onTabChange={onTabChange}
               />
             </div>
           </div>
