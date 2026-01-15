@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Footer } from '../../components/Footer';
 import HubSpotFormModal from '../../components/HubSpotFormModal';
+import VirtualTour from '../../components/VirtualTour';
 import { triggerHaptic } from '../../utils/haptics';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useParallax } from '../../hooks/useParallax';
@@ -59,6 +60,20 @@ const PrivateHire: React.FC = () => {
           <h2 className="text-2xl font-bold leading-snug text-primary mb-4">Curated spaces for unforgettable moments.</h2>
           <p className="text-base font-medium leading-relaxed text-primary/70">From intimate dinners to grand receptions, discover the perfect setting for your next event at our Tustin location. Our team handles every detail so you can focus on your guests.</p>
        </div>
+
+       <section className="py-20 px-6 bg-[#F2F2EC]">
+         <div className="max-w-7xl mx-auto">
+           <div className="text-center mb-12">
+             <h2 className="text-3xl md:text-4xl font-light text-primary mb-4 font-serif">
+               Explore the Space
+             </h2>
+             <p className="text-primary/60 max-w-2xl mx-auto">
+               Take a virtual walk through our lounges, simulator bays, and terrace before you visit.
+             </p>
+           </div>
+           <VirtualTour />
+         </div>
+       </section>
 
        <div className="px-4 pb-8 space-y-6">
           <div className="flex items-center justify-between px-2 pb-2 animate-pop-in" style={{animationDelay: '0.1s'}}>
