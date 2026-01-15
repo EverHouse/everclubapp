@@ -50,10 +50,13 @@ import dataToolsRouter from './routes/dataTools';
 import legacyPurchasesRouter from './routes/legacyPurchases';
 import mindbodyRouter from './routes/mindbody';
 import settingsRouter from './routes/settings';
+import stripeRouter from './routes/stripe';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { ensureDatabaseConstraints, seedDefaultNoticeTypes } from './db-init';
 import { initWebSocketServer } from './core/websocket';
 import { startIntegrityScheduler } from './schedulers/integrityScheduler';
+import { processStripeWebhook, getStripeSync } from './core/stripe';
+import { runMigrations } from 'stripe-replit-sync';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -159,6 +162,35 @@ app.use(requestIdMiddleware);
 app.use(logRequest);
 app.use(cors(corsOptions));
 app.use(compression());
+
+// STRIPE WEBHOOK - Must be registered BEFORE express.json() to receive raw Buffer
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const signature = req.headers['stripe-signature'];
+
+    if (!signature) {
+      return res.status(400).json({ error: 'Missing stripe-signature' });
+    }
+
+    try {
+      const sig = Array.isArray(signature) ? signature[0] : signature;
+
+      if (!Buffer.isBuffer(req.body)) {
+        console.error('[Stripe Webhook] req.body is not a Buffer - express.json() may have run first');
+        return res.status(500).json({ error: 'Webhook processing error' });
+      }
+
+      await processStripeWebhook(req.body as Buffer, sig);
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error('[Stripe Webhook] Error:', error.message);
+      res.status(400).json({ error: 'Webhook processing error' });
+    }
+  }
+);
+
 // Capture raw body for HubSpot webhook signature validation
 app.use(express.json({ 
   limit: '1mb',
@@ -267,6 +299,7 @@ app.use(dataToolsRouter);
 app.use(legacyPurchasesRouter);
 app.use(mindbodyRouter);
 app.use(settingsRouter);
+app.use(stripeRouter);
 registerObjectStorageRoutes(app);
 
 // SPA catch-all using middleware (avoids Express 5 path-to-regexp issues)
@@ -429,6 +462,33 @@ async function startServer() {
       await seedDefaultNoticeTypes();
     } catch (err) {
       console.error('[Startup] Seeding notice types failed (non-fatal):', err);
+    }
+
+    // Initialize Stripe schema and sync
+    try {
+      const databaseUrl = process.env.DATABASE_URL;
+      if (databaseUrl) {
+        console.log('[Stripe] Initializing Stripe schema...');
+        await runMigrations({ databaseUrl, schema: 'stripe' });
+        console.log('[Stripe] Schema ready');
+
+        const stripeSync = await getStripeSync();
+        
+        const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
+        if (replitDomains) {
+          const webhookUrl = `https://${replitDomains}/api/stripe/webhook`;
+          console.log('[Stripe] Setting up managed webhook...');
+          await stripeSync.findOrCreateManagedWebhook(webhookUrl);
+          console.log('[Stripe] Webhook configured');
+        }
+
+        // Sync backfill in background
+        stripeSync.syncBackfill()
+          .then(() => console.log('[Stripe] Data sync complete'))
+          .catch((err: any) => console.error('[Stripe] Data sync error:', err.message));
+      }
+    } catch (err: any) {
+      console.error('[Stripe] Initialization failed (non-fatal):', err.message);
     }
   }, 5000);
 
