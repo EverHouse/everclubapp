@@ -1485,6 +1485,15 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     }
     
     // PAYMENT GUARD: Check for unpaid balance before marking as attended
+    // First, warn staff if billing session hasn't been synced yet
+    if (newStatus === 'attended' && !existing.session_id && !skipPaymentCheck) {
+      return res.status(400).json({
+        error: 'Billing session not generated yet',
+        requiresSync: true,
+        message: 'Billing session not generated yet - Check Trackman Sync. The session may need to be synced from Trackman before check-in to ensure proper billing.'
+      });
+    }
+    
     if (newStatus === 'attended' && existing.session_id && !skipPaymentCheck) {
       const balanceResult = await pool.query(`
         SELECT 

@@ -595,13 +595,17 @@ export async function createSessionWithUsageTracking(
     
     // Deduct guest passes from host's allocation if any were used
     if (billingResult.guestPassesUsed > 0) {
-      await pool.query(
-        `UPDATE guest_passes 
-         SET passes_used = passes_used + $1, 
-             updated_at = NOW()
-         WHERE member_email = $2`,
-        [billingResult.guestPassesUsed, request.ownerEmail]
+      const deductResult = await deductGuestPasses(
+        request.ownerEmail, 
+        billingResult.guestPassesUsed,
+        ownerTier || undefined
       );
+
+      if (!deductResult.success) {
+        logger.warn('Failed to deduct guest passes during session creation', { 
+          extra: { email: request.ownerEmail, passesToDeduct: billingResult.guestPassesUsed }
+        });
+      }
     }
     
     logger.info('[createSessionWithUsageTracking] Session created with usage tracking', {
