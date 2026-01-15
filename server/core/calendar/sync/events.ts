@@ -136,6 +136,8 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
               // Format title with category bracket prefix for Google Calendar
               const calendarTitle = dbRow.category ? `[${dbRow.category}] ${dbRow.title}` : dbRow.title;
               
+              const formattedDate = new Date(dbRow.event_date).toISOString().split('T')[0];
+              
               const patchResult = await calendar.events.patch({
                 calendarId,
                 eventId: googleEventId,
@@ -144,11 +146,11 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
                   description: dbRow.description,
                   location: dbRow.location,
                   start: {
-                    dateTime: `${dbRow.event_date}T${dbRow.start_time}`,
+                    dateTime: `${formattedDate}T${dbRow.start_time}`,
                     timeZone: 'America/Los_Angeles',
                   },
                   end: dbRow.end_time ? {
-                    dateTime: `${dbRow.event_date}T${dbRow.end_time}`,
+                    dateTime: `${formattedDate}T${dbRow.end_time}`,
                     timeZone: 'America/Los_Angeles',
                   } : undefined,
                   extendedProperties: {
