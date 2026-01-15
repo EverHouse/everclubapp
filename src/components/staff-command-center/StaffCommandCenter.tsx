@@ -13,7 +13,6 @@ import { TodayScheduleSection } from './sections/TodayScheduleSection';
 import { ResourcesSection, NoticeBoardWidget } from './sections/ResourcesSection';
 import { AlertsCard } from './sections/AlertsCard';
 import { QuickActionsGrid } from './sections/QuickActionsGrid';
-import { OverduePaymentsSection } from './sections/OverduePaymentsSection';
 import { CheckinBillingModal } from './modals/CheckinBillingModal';
 import { CompleteRosterModal } from './modals/CompleteRosterModal';
 import { AddMemberModal } from './modals/AddMemberModal';
@@ -298,24 +297,15 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               onTabChange={onTabChange}
               variant="desktop-wellness"
             />
-            <div className="flex flex-col gap-4">
-              <NoticeBoardWidget
-                closures={data.closures}
-                upcomingClosure={data.upcomingClosure}
-                announcements={data.announcements}
-                onTabChange={onTabChange}
-              />
-              <AlertsCard 
-                notifications={data.notifications} 
-                onAlertClick={() => {
-                  onTabChange('updates');
-                  setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
-                }}
-              />
-            </div>
+            <NoticeBoardWidget
+              closures={data.closures}
+              upcomingClosure={data.upcomingClosure}
+              announcements={data.announcements}
+              onTabChange={onTabChange}
+            />
           </div>
 
-          {/* Row 2: Upcoming Bookings, Upcoming Events, Overdue Payments */}
+          {/* Row 2: Upcoming Bookings, Upcoming Events, Alerts */}
           <div className="grid grid-cols-3 gap-6">
             <BookingQueuesSection
               pendingRequests={data.pendingRequests}
@@ -340,7 +330,13 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               onTabChange={onTabChange}
               variant="desktop-events"
             />
-            <OverduePaymentsSection variant="desktop" />
+            <AlertsCard 
+              notifications={data.notifications} 
+              onAlertClick={() => {
+                onTabChange('updates');
+                setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
+              }}
+            />
           </div>
         </div>
 
@@ -399,8 +395,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             onCheckIn={handleCheckIn}
             variant="mobile"
           />
-          {/* Overdue Payments */}
-          <OverduePaymentsSection variant="mobile" />
           {/* Upcoming Events & Wellness */}
           <TodayScheduleSection
             upcomingTours={data.upcomingTours}
