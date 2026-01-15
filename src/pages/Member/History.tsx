@@ -69,6 +69,8 @@ interface UnifiedPurchase {
   status: string;
   source: string;
   quantity?: number;
+  hostedInvoiceUrl?: string | null;
+  stripeInvoiceId?: string;
 }
 
 interface Invoice {
@@ -106,14 +108,13 @@ const History: React.FC = () => {
   const { setPageReady } = usePageReady();
   const isDark = effectiveTheme === 'dark';
   
-  const [activeTab, setActiveTab] = useState<'bookings' | 'experiences' | 'purchases' | 'invoices'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'experiences' | 'payments'>('bookings');
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
   const [rsvps, setRSVPs] = useState<RSVPRecord[]>([]);
   const [wellnessEnrollments, setWellnessEnrollments] = useState<WellnessEnrollmentRecord[]>([]);
   const [purchases, setPurchases] = useState<UnifiedPurchase[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+  const [payingInvoice, setPayingInvoice] = useState<UnifiedPurchase | null>(null);
 
   const fetchBookings = useCallback(async () => {
     if (!user?.email) return;
@@ -224,25 +225,11 @@ const History: React.FC = () => {
     }
   }, [user?.email]);
 
-  const fetchInvoices = useCallback(async () => {
-    if (!user?.email) return;
-    try {
-      const { ok, data } = await apiRequest<{ invoices: Invoice[]; count: number }>(
-        `/api/my-invoices?user_email=${encodeURIComponent(user.email)}`
-      );
-      if (ok && data?.invoices) {
-        setInvoices(data.invoices);
-      }
-    } catch (err) {
-      console.error('[History] Failed to fetch invoices:', err);
-    }
-  }, [user?.email]);
-
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all([fetchBookings(), fetchRSVPs(), fetchWellnessEnrollments(), fetchPurchases(), fetchInvoices()]);
+    await Promise.all([fetchBookings(), fetchRSVPs(), fetchWellnessEnrollments(), fetchPurchases()]);
     setIsLoading(false);
-  }, [fetchBookings, fetchRSVPs, fetchWellnessEnrollments, fetchPurchases, fetchInvoices]);
+  }, [fetchBookings, fetchRSVPs, fetchWellnessEnrollments, fetchPurchases]);
 
   useEffect(() => {
     loadData();
@@ -293,8 +280,7 @@ const History: React.FC = () => {
           <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right">
             <TabButton label="Bookings" active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} isDark={isDark} />
             <TabButton label="Experiences" active={activeTab === 'experiences'} onClick={() => setActiveTab('experiences')} isDark={isDark} />
-            <TabButton label="Purchases" icon="receipt_long" active={activeTab === 'purchases'} onClick={() => setActiveTab('purchases')} isDark={isDark} />
-            <TabButton label="Invoices" icon="description" active={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')} isDark={isDark} />
+            <TabButton label="Payments" icon="payments" active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} isDark={isDark} />
           </div>
         </section>
 
@@ -449,15 +435,16 @@ const History: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : activeTab === 'purchases' ? (
+          ) : activeTab === 'payments' ? (
             <div className="space-y-4">
               <div className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-                {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
+                {purchases.length} payment{purchases.length !== 1 ? 's' : ''}
               </div>
               {purchases.length === 0 ? (
                 <div className={`text-center py-12 rounded-2xl border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-                  <span className={`material-symbols-outlined text-5xl mb-4 ${isDark ? 'text-white/30' : 'text-primary/30'}`}>receipt_long</span>
-                  <p className={`${isDark ? 'text-white/80' : 'text-primary/80'}`}>No purchases yet</p>
+                  <span className={`material-symbols-outlined text-5xl mb-4 ${isDark ? 'text-white/30' : 'text-primary/30'}`}>payments</span>
+                  <p className={`${isDark ? 'text-white/80' : 'text-primary/80'}`}>No payments yet</p>
+                  <p className={`text-sm mt-1 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>Your payment history will appear here</p>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -586,9 +573,29 @@ const History: React.FC = () => {
                                     </p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
-                                    <p className={`text-lg font-bold ${isDark ? 'text-accent' : 'text-brand-green'}`}>
+                                    <p className={`text-lg font-bold ${purchase.status === 'open' ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-accent' : 'text-brand-green')}`}>
                                       {formatCurrency(purchase.amountCents)}
                                     </p>
+                                    {purchase.itemCategory === 'invoice' && purchase.status === 'open' && (
+                                      <button
+                                        onClick={() => setPayingInvoice(purchase)}
+                                        className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 mt-2 ml-auto"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">credit_card</span>
+                                        Pay Now
+                                      </button>
+                                    )}
+                                    {purchase.hostedInvoiceUrl && purchase.status !== 'open' && (
+                                      <a 
+                                        href={purchase.hostedInvoiceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
+                                      >
+                                        View
+                                        <span className="material-symbols-outlined text-xs">open_in_new</span>
+                                      </a>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -601,97 +608,6 @@ const History: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : activeTab === 'invoices' ? (
-            <div className="space-y-4">
-              <div className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
-                {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
-              </div>
-              {invoices.length === 0 ? (
-                <div className={`text-center py-12 rounded-2xl border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-                  <span className={`material-symbols-outlined text-5xl mb-4 ${isDark ? 'text-white/30' : 'text-primary/30'}`}>description</span>
-                  <p className={`${isDark ? 'text-white/80' : 'text-primary/80'}`}>No invoices yet</p>
-                  <p className={`text-sm mt-1 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>Subscription invoices will appear here</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {invoices.map((invoice, index) => {
-                    const getStatusBadge = (status: string) => {
-                      const statusMap: Record<string, { label: string; style: string }> = {
-                        paid: { label: 'Paid', style: isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700' },
-                        open: { label: 'Due', style: isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-700' },
-                        draft: { label: 'Draft', style: isDark ? 'bg-white/10 text-white/80' : 'bg-primary/10 text-primary' },
-                        void: { label: 'Void', style: isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700' },
-                        uncollectible: { label: 'Uncollectible', style: isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700' },
-                      };
-                      return statusMap[status] || { label: status, style: isDark ? 'bg-white/10 text-white/80' : 'bg-primary/10 text-primary' };
-                    };
-                    
-                    const formatAmount = (cents: number) => `$${(cents / 100).toFixed(2)}`;
-                    const formatDate = (dateStr: string) => {
-                      const date = new Date(dateStr);
-                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    };
-                    
-                    const status = getStatusBadge(invoice.status);
-                    const primaryLine = invoice.lines?.[0];
-                    const description = primaryLine?.description || invoice.description || 'Invoice';
-                    
-                    return (
-                      <div 
-                        key={invoice.id}
-                        className={`rounded-xl p-4 border glass-card animate-pop-in ${isDark ? 'border-white/25' : 'border-black/10'}`}
-                        style={{animationDelay: `${0.05 * index}s`}}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${status.style}`}>
-                                {status.label}
-                              </span>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-accent/20 text-accent' : 'bg-accent/20 text-primary'}`}>
-                                Stripe
-                              </span>
-                            </div>
-                            <p className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>
-                              {description}
-                            </p>
-                            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                              {formatDate(invoice.created)}
-                              {invoice.paidAt && ` - Paid ${formatDate(invoice.paidAt)}`}
-                            </p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className={`text-lg font-bold ${invoice.status === 'paid' ? (isDark ? 'text-accent' : 'text-brand-green') : (isDark ? 'text-white' : 'text-primary')}`}>
-                              {formatAmount(invoice.amountDue)}
-                            </p>
-                            {(invoice.status === 'open') && (
-                              <button
-                                onClick={() => setPayingInvoice(invoice)}
-                                className="bg-primary text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 mt-2"
-                              >
-                                <span className="material-symbols-outlined text-sm">credit_card</span>
-                                Pay Now
-                              </button>
-                            )}
-                            {invoice.hostedInvoiceUrl && invoice.status !== 'open' && (
-                              <a 
-                                href={invoice.hostedInvoiceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`text-xs flex items-center gap-0.5 justify-end mt-1 ${isDark ? 'text-accent hover:text-accent/80' : 'text-brand-green hover:text-brand-green/80'}`}
-                              >
-                                View
-                                <span className="material-symbols-outlined text-xs">open_in_new</span>
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           ) : null}
         </div>
 
@@ -699,14 +615,28 @@ const History: React.FC = () => {
       </SwipeablePage>
       <MemberBottomNav currentPath="/history" isDarkTheme={isDark} />
 
-      {payingInvoice && user && (
+      {payingInvoice && payingInvoice.stripeInvoiceId && user && (
         <InvoicePaymentModal
-          invoice={payingInvoice}
+          invoice={{
+            id: payingInvoice.stripeInvoiceId,
+            status: payingInvoice.status,
+            amountDue: payingInvoice.amountCents,
+            amountPaid: 0,
+            currency: 'usd',
+            customerEmail: user.email,
+            description: payingInvoice.itemName,
+            hostedInvoiceUrl: payingInvoice.hostedInvoiceUrl || null,
+            invoicePdf: null,
+            created: payingInvoice.date,
+            dueDate: null,
+            paidAt: null,
+            lines: [{ description: payingInvoice.itemName, amount: payingInvoice.amountCents, quantity: 1 }],
+          }}
           userEmail={user.email || ''}
           userName={user.name || user.email?.split('@')[0] || 'Member'}
           onSuccess={async () => {
             setPayingInvoice(null);
-            await fetchInvoices();
+            await fetchPurchases();
           }}
           onClose={() => setPayingInvoice(null)}
         />

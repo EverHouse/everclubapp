@@ -170,6 +170,8 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
         date: safeToISOString(inv.paidAt) || safeToISOString(inv.created),
         status: inv.status,
         source: 'Stripe',
+        hostedInvoiceUrl: inv.hostedInvoiceUrl,
+        stripeInvoiceId: inv.id,
       }));
     }
   }
