@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { pool } from '../core/db';
+import { db } from '../db';
+import { billingAuditLog } from '../../shared/schema';
+import { getTodayPacific } from '../utils/dateUtils';
 import {
   getStripePublishableKey,
   createPaymentIntent,
@@ -1641,6 +1644,156 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
   }
 });
 
+router.post('/api/payments/record-offline', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const {
+      memberEmail,
+      memberId,
+      memberName,
+      amountCents,
+      paymentMethod,
+      category,
+      description,
+      notes
+    } = req.body;
+    
+    const staffUser = (req as any).staffUser;
+    const performedBy = staffUser?.email || 'staff';
+    const performedByName = staffUser?.name || 'Staff Member';
+
+    if (!memberEmail || !amountCents || !paymentMethod || !category) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: memberEmail, amountCents, paymentMethod, category' 
+      });
+    }
+
+    const validPaymentMethods = ['cash', 'check', 'other'];
+    if (!validPaymentMethods.includes(paymentMethod)) {
+      return res.status(400).json({ 
+        error: `Invalid paymentMethod. Must be one of: ${validPaymentMethods.join(', ')}` 
+      });
+    }
+
+    const validCategories = ['guest_fee', 'overage', 'merchandise', 'membership', 'other'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({ 
+        error: `Invalid category. Must be one of: ${validCategories.join(', ')}` 
+      });
+    }
+
+    if (amountCents < 1) {
+      return res.status(400).json({ error: 'Amount must be at least $0.01' });
+    }
+
+    const formattedAmount = `$${(amountCents / 100).toFixed(2)}`;
+    const paymentMethodDisplay = paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1);
+
+    await db.insert(billingAuditLog).values({
+      memberEmail,
+      hubspotDealId: null,
+      actionType: 'offline_payment',
+      actionDetails: {
+        paymentMethod,
+        category,
+        amountCents,
+        description: description || null,
+        notes: notes || null,
+        memberId: memberId || null,
+        memberName: memberName || null
+      },
+      newValue: `${paymentMethodDisplay} payment of ${formattedAmount} for ${category.replace('_', ' ')}${description ? `: ${description}` : ''}`,
+      performedBy,
+      performedByName
+    });
+
+    console.log(`[Payments] Recorded offline ${paymentMethod} payment of ${formattedAmount} for ${memberEmail} by ${performedBy}`);
+
+    res.json({ 
+      success: true, 
+      message: `${paymentMethodDisplay} payment of ${formattedAmount} recorded successfully`
+    });
+  } catch (error: any) {
+    console.error('[Payments] Error recording offline payment:', error);
+    res.status(500).json({ error: 'Failed to record offline payment' });
+  }
+});
+
+router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffUser = (req as any).staffUser;
+    const { memberId, memberEmail, memberName, adjustment, reason } = req.body;
+    const performedBy = staffUser?.email || req.body.performedBy || 'staff';
+    const performedByName = staffUser?.name || req.body.performedByName || 'Staff Member';
+
+    if (!memberEmail || typeof adjustment !== 'number' || !reason) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: memberEmail, adjustment (number), reason' 
+      });
+    }
+
+    if (adjustment === 0) {
+      return res.status(400).json({ error: 'Adjustment cannot be zero' });
+    }
+
+    const existingResult = await pool.query(
+      'SELECT id, passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = $1',
+      [memberEmail.toLowerCase()]
+    );
+
+    let previousCount = 0;
+    let newCount = 0;
+    let passesUsed = 0;
+
+    if (existingResult.rows.length === 0) {
+      newCount = Math.max(0, adjustment);
+      await pool.query(
+        'INSERT INTO guest_passes (member_email, passes_used, passes_total) VALUES ($1, 0, $2)',
+        [memberEmail.toLowerCase(), newCount]
+      );
+      console.log(`[GuestPasses] Created new record for ${memberEmail} with ${newCount} passes`);
+    } else {
+      const current = existingResult.rows[0];
+      previousCount = current.passes_total || 0;
+      passesUsed = current.passes_used || 0;
+      newCount = Math.max(0, previousCount + adjustment);
+
+      await pool.query(
+        'UPDATE guest_passes SET passes_total = $1 WHERE id = $2',
+        [newCount, current.id]
+      );
+      console.log(`[GuestPasses] Updated ${memberEmail}: ${previousCount} -> ${newCount} (${adjustment > 0 ? '+' : ''}${adjustment})`);
+    }
+
+    await db.insert(billingAuditLog).values({
+      memberEmail,
+      hubspotDealId: null,
+      actionType: 'guest_pass_adjustment',
+      actionDetails: {
+        adjustment,
+        reason,
+        previousCount,
+        newCount,
+        memberId: memberId || null,
+        memberName: memberName || null
+      },
+      previousValue: previousCount.toString(),
+      newValue: newCount.toString(),
+      performedBy,
+      performedByName
+    });
+
+    res.json({ 
+      success: true, 
+      previousCount,
+      newCount,
+      remaining: newCount - passesUsed
+    });
+  } catch (error: any) {
+    console.error('[GuestPasses] Error adjusting guest passes:', error);
+    res.status(500).json({ error: 'Failed to adjust guest passes' });
+  }
+});
+
 router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { getStripeClient } = await import('../core/stripe/client');
@@ -1671,6 +1824,489 @@ router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request
   } catch (error: any) {
     console.error('[Stripe] Error fetching today transactions:', error);
     res.status(500).json({ error: 'Failed to fetch transactions' });
+  }
+});
+
+router.post('/api/payments/add-note', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { transactionId, note, performedBy, performedByName } = req.body;
+
+    if (!transactionId || !note) {
+      return res.status(400).json({ error: 'Missing required fields: transactionId, note' });
+    }
+
+    const staffUser = (req as any).staffUser;
+    const finalPerformedBy = performedBy || staffUser?.email || 'staff';
+    const finalPerformedByName = performedByName || staffUser?.name || 'Staff Member';
+
+    const piResult = await pool.query(
+      `SELECT u.email as member_email 
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id = spi.user_id
+       WHERE spi.stripe_payment_intent_id = $1`,
+      [transactionId]
+    );
+
+    let memberEmail = 'unknown';
+    if (piResult.rows.length > 0 && piResult.rows[0].member_email) {
+      memberEmail = piResult.rows[0].member_email;
+    }
+
+    await db.insert(billingAuditLog).values({
+      memberEmail,
+      actionType: 'payment_note_added',
+      actionDetails: { paymentIntentId: transactionId, note },
+      newValue: note,
+      performedBy: finalPerformedBy,
+      performedByName: finalPerformedByName
+    });
+
+    console.log(`[Payments] Note added to transaction ${transactionId} by ${finalPerformedByName}`);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Payments] Error adding note:', error);
+    res.status(500).json({ error: 'Failed to add note' });
+  }
+});
+
+router.get('/api/payments/:paymentIntentId/notes', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId } = req.params;
+
+    const result = await pool.query(
+      `SELECT id, action_details->>'note' as note, performed_by_name, created_at
+       FROM billing_audit_log
+       WHERE action_type = 'payment_note_added'
+         AND action_details->>'paymentIntentId' = $1
+       ORDER BY created_at DESC`,
+      [paymentIntentId]
+    );
+
+    const notes = result.rows.map(row => ({
+      id: row.id,
+      note: row.note,
+      performedByName: row.performed_by_name,
+      createdAt: row.created_at
+    }));
+
+    res.json({ notes });
+  } catch (error: any) {
+    console.error('[Payments] Error fetching notes:', error);
+    res.status(500).json({ error: 'Failed to fetch notes' });
+  }
+});
+
+router.get('/api/payments/refundable', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const result = await pool.query(
+      `SELECT 
+        spi.id,
+        spi.stripe_payment_intent_id as "paymentIntentId",
+        u.email as "memberEmail",
+        u.name as "memberName",
+        spi.amount_cents as amount,
+        spi.description,
+        spi.created_at as "createdAt",
+        spi.status
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id = spi.user_id
+       WHERE spi.status = 'succeeded'
+         AND spi.created_at >= $1
+       ORDER BY spi.created_at DESC`,
+      [thirtyDaysAgo]
+    );
+
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error('[Payments] Error fetching refundable payments:', error);
+    res.status(500).json({ error: 'Failed to fetch refundable payments' });
+  }
+});
+
+router.get('/api/payments/failed', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        spi.id,
+        spi.stripe_payment_intent_id as "paymentIntentId",
+        u.email as "memberEmail",
+        COALESCE(u.name, 'Unknown') as "memberName",
+        spi.amount_cents as amount,
+        spi.description,
+        spi.status,
+        spi.created_at as "createdAt"
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id::text = spi.user_id
+       WHERE spi.status IN ('failed', 'canceled', 'requires_action', 'requires_payment_method')
+       ORDER BY spi.created_at DESC
+       LIMIT 50`
+    );
+
+    const payments = result.rows.map(row => ({
+      id: row.id,
+      paymentIntentId: row.paymentIntentId,
+      memberEmail: row.memberEmail || 'unknown',
+      memberName: row.memberName,
+      amount: row.amount,
+      description: row.description,
+      status: row.status,
+      failureReason: null,
+      createdAt: row.createdAt
+    }));
+
+    res.json(payments);
+  } catch (error: any) {
+    console.error('[Payments] Error fetching failed payments:', error);
+    res.status(500).json({ error: 'Failed to fetch failed payments' });
+  }
+});
+
+router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId, amountCents, reason } = req.body;
+    const staffUser = (req as any).staffUser;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
+    }
+
+    const localRecord = await pool.query(
+      `SELECT spi.*, u.email as member_email, u.name as member_name
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id = spi.user_id
+       WHERE spi.stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+
+    if (localRecord.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    const payment = localRecord.rows[0];
+
+    if (payment.status !== 'succeeded') {
+      return res.status(400).json({ error: `Cannot refund payment with status: ${payment.status}` });
+    }
+
+    const stripe = await (await import('../core/stripe/client')).getStripeClient();
+
+    const refundParams: any = {
+      payment_intent: paymentIntentId
+    };
+
+    if (amountCents && amountCents > 0 && amountCents < payment.amount_cents) {
+      refundParams.amount = amountCents;
+    }
+
+    const refund = await stripe.refunds.create(refundParams);
+
+    const refundedAmount = refund.amount;
+    const isPartialRefund = refundedAmount < payment.amount_cents;
+    const newStatus = isPartialRefund ? 'partially_refunded' : 'refunded';
+
+    await pool.query(
+      `UPDATE stripe_payment_intents 
+       SET status = $1, updated_at = NOW() 
+       WHERE stripe_payment_intent_id = $2`,
+      [newStatus, paymentIntentId]
+    );
+
+    await db.insert(billingAuditLog).values({
+      memberEmail: payment.member_email || 'unknown',
+      hubspotDealId: null,
+      actionType: 'payment_refunded',
+      actionDetails: {
+        paymentIntentId,
+        refundId: refund.id,
+        refundAmount: refundedAmount,
+        reason: reason || 'No reason provided',
+        originalAmount: payment.amount_cents,
+        isPartialRefund
+      },
+      newValue: `Refunded $${(refundedAmount / 100).toFixed(2)} of $${(payment.amount_cents / 100).toFixed(2)}`,
+      performedBy: staffUser?.email || 'staff',
+      performedByName: staffUser?.name || 'Staff Member'
+    });
+
+    console.log(`[Payments] Refund ${refund.id} created for ${paymentIntentId}: $${(refundedAmount / 100).toFixed(2)}`);
+
+    res.json({
+      success: true,
+      refundId: refund.id,
+      refundedAmount,
+      newStatus
+    });
+  } catch (error: any) {
+    console.error('[Payments] Error creating refund:', error);
+    res.status(500).json({ error: error.message || 'Failed to create refund' });
+  }
+});
+
+router.get('/api/payments/pending-authorizations', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        spi.id,
+        spi.stripe_payment_intent_id as "paymentIntentId",
+        u.email as "memberEmail",
+        COALESCE(u.name, spi.description) as "memberName",
+        spi.amount_cents as "amount",
+        spi.description,
+        spi.created_at as "createdAt"
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id = spi.user_id
+       WHERE spi.status = 'requires_capture'
+       ORDER BY spi.created_at DESC`
+    );
+
+    const authorizations = result.rows.map(row => ({
+      ...row,
+      expiresAt: new Date(new Date(row.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    }));
+
+    res.json(authorizations);
+  } catch (error: any) {
+    console.error('[Payments] Error fetching pending authorizations:', error);
+    res.status(500).json({ error: 'Failed to fetch pending authorizations' });
+  }
+});
+
+router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId, amountCents } = req.body;
+    const staffUser = (req as any).staffUser;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Missing paymentIntentId' });
+    }
+
+    const localRecord = await pool.query(
+      `SELECT spi.*, u.email as member_email, u.name as member_name
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id = spi.user_id
+       WHERE spi.stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+
+    if (localRecord.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment authorization not found' });
+    }
+
+    const payment = localRecord.rows[0];
+
+    if (payment.status !== 'requires_capture') {
+      return res.status(400).json({ error: `Cannot capture payment with status: ${payment.status}` });
+    }
+
+    const stripe = await (await import('../core/stripe/client')).getStripeClient();
+
+    const captureParams: any = {};
+    if (amountCents && amountCents > 0 && amountCents <= payment.amount_cents) {
+      captureParams.amount_to_capture = amountCents;
+    }
+
+    const capturedPaymentIntent = await stripe.paymentIntents.capture(paymentIntentId, captureParams);
+
+    const capturedAmount = capturedPaymentIntent.amount_received || amountCents || payment.amount_cents;
+
+    await pool.query(
+      `UPDATE stripe_payment_intents 
+       SET status = 'succeeded', amount_cents = $1, updated_at = NOW() 
+       WHERE stripe_payment_intent_id = $2`,
+      [capturedAmount, paymentIntentId]
+    );
+
+    await db.insert(billingAuditLog).values({
+      memberEmail: payment.member_email || 'unknown',
+      hubspotDealId: null,
+      actionType: 'payment_captured',
+      actionDetails: {
+        paymentIntentId,
+        originalAmount: payment.amount_cents,
+        capturedAmount,
+        isPartialCapture: amountCents && amountCents < payment.amount_cents
+      },
+      previousValue: `Pre-authorized: $${(payment.amount_cents / 100).toFixed(2)}`,
+      newValue: `Captured: $${(capturedAmount / 100).toFixed(2)}`,
+      performedBy: staffUser?.email || 'staff',
+      performedByName: staffUser?.name || 'Staff Member'
+    });
+
+    console.log(`[Payments] Captured ${paymentIntentId}: $${(capturedAmount / 100).toFixed(2)}`);
+
+    res.json({
+      success: true,
+      capturedAmount,
+      paymentIntentId
+    });
+  } catch (error: any) {
+    console.error('[Payments] Error capturing payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to capture payment' });
+  }
+});
+
+router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId, reason } = req.body;
+    const staffUser = (req as any).staffUser;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Missing paymentIntentId' });
+    }
+
+    const localRecord = await pool.query(
+      `SELECT spi.*, u.email as member_email, u.name as member_name
+       FROM stripe_payment_intents spi
+       LEFT JOIN users u ON u.id = spi.user_id
+       WHERE spi.stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+
+    if (localRecord.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment authorization not found' });
+    }
+
+    const payment = localRecord.rows[0];
+
+    if (payment.status !== 'requires_capture') {
+      return res.status(400).json({ error: `Cannot void payment with status: ${payment.status}` });
+    }
+
+    const stripe = await (await import('../core/stripe/client')).getStripeClient();
+
+    await stripe.paymentIntents.cancel(paymentIntentId);
+
+    await pool.query(
+      `UPDATE stripe_payment_intents 
+       SET status = 'canceled', updated_at = NOW() 
+       WHERE stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+
+    await db.insert(billingAuditLog).values({
+      memberEmail: payment.member_email || 'unknown',
+      hubspotDealId: null,
+      actionType: 'authorization_voided',
+      actionDetails: {
+        paymentIntentId,
+        amount: payment.amount_cents,
+        reason: reason || 'No reason provided'
+      },
+      previousValue: `Pre-authorized: $${(payment.amount_cents / 100).toFixed(2)}`,
+      newValue: 'Voided',
+      performedBy: staffUser?.email || 'staff',
+      performedByName: staffUser?.name || 'Staff Member'
+    });
+
+    console.log(`[Payments] Voided authorization ${paymentIntentId}: $${(payment.amount_cents / 100).toFixed(2)} - ${reason || 'No reason'}`);
+
+    res.json({
+      success: true,
+      paymentIntentId
+    });
+  } catch (error: any) {
+    console.error('[Payments] Error voiding authorization:', error);
+    res.status(500).json({ error: error.message || 'Failed to void authorization' });
+  }
+});
+
+router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const today = getTodayPacific();
+    
+    const stripeResult = await pool.query(
+      `SELECT 
+        purpose,
+        SUM(amount_cents) as total_cents,
+        COUNT(*) as count
+       FROM stripe_payment_intents
+       WHERE status = 'succeeded'
+         AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $1
+       GROUP BY purpose`,
+      [today]
+    );
+
+    const offlineResult = await pool.query(
+      `SELECT 
+        action_details->>'paymentMethod' as payment_method,
+        action_details->>'category' as category,
+        (action_details->>'amountCents')::int as amount_cents
+       FROM billing_audit_log
+       WHERE action_type = 'offline_payment'
+         AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $1`,
+      [today]
+    );
+
+    const breakdown: Record<string, number> = {
+      guest_fee: 0,
+      overage: 0,
+      merchandise: 0,
+      membership: 0,
+      cash: 0,
+      check: 0,
+      other: 0
+    };
+
+    let transactionCount = 0;
+
+    for (const row of stripeResult.rows) {
+      const purpose = row.purpose || 'other';
+      const cents = parseInt(row.total_cents) || 0;
+      const count = parseInt(row.count) || 0;
+      
+      transactionCount += count;
+      
+      if (purpose === 'guest_fee') {
+        breakdown.guest_fee += cents;
+      } else if (purpose === 'overage_fee') {
+        breakdown.overage += cents;
+      } else if (purpose === 'one_time_purchase') {
+        breakdown.merchandise += cents;
+      } else {
+        breakdown.other += cents;
+      }
+    }
+
+    for (const row of offlineResult.rows) {
+      const method = row.payment_method || 'other';
+      const category = row.category || 'other';
+      const cents = row.amount_cents || 0;
+      
+      transactionCount += 1;
+
+      if (method === 'cash') {
+        breakdown.cash += cents;
+      } else if (method === 'check') {
+        breakdown.check += cents;
+      } else {
+        if (category === 'guest_fee') {
+          breakdown.guest_fee += cents;
+        } else if (category === 'overage') {
+          breakdown.overage += cents;
+        } else if (category === 'merchandise') {
+          breakdown.merchandise += cents;
+        } else if (category === 'membership') {
+          breakdown.membership += cents;
+        } else {
+          breakdown.other += cents;
+        }
+      }
+    }
+
+    const totalCollected = Object.values(breakdown).reduce((sum, val) => sum + val, 0);
+
+    res.json({
+      date: today,
+      totalCollected,
+      breakdown,
+      transactionCount
+    });
+  } catch (error: any) {
+    console.error('[Payments] Error getting daily summary:', error);
+    res.status(500).json({ error: 'Failed to get daily summary' });
   }
 });
 
