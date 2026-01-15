@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../Toast';
 import BookingMembersEditor from '../../admin/BookingMembersEditor';
+import { CheckinBillingModal } from './CheckinBillingModal';
 
 interface BookingContext {
   bookingId: number;
@@ -37,6 +38,7 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [rosterComplete, setRosterComplete] = useState(false);
+  const [showBillingModal, setShowBillingModal] = useState(false);
 
   useEffect(() => {
     if (isOpen && bookingId) {
@@ -195,6 +197,7 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
               <BookingMembersEditor 
                 bookingId={bookingId} 
                 onMemberLinked={handleMemberLinked}
+                onCollectPayment={() => setShowBillingModal(true)}
               />
             </div>
           ) : null}
@@ -226,7 +229,20 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
     </div>
   );
 
-  return createPortal(modalContent, document.body);
+  return (
+    <>
+      {createPortal(modalContent, document.body)}
+      <CheckinBillingModal
+        isOpen={showBillingModal}
+        onClose={() => setShowBillingModal(false)}
+        bookingId={bookingId}
+        onCheckinComplete={() => {
+          setShowBillingModal(false);
+          onRosterComplete();
+        }}
+      />
+    </>
+  );
 };
 
 export default CompleteRosterModal;

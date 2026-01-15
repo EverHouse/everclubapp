@@ -59,9 +59,10 @@ interface FinancialSummary {
 interface BookingMembersEditorProps {
   bookingId: number | string;
   onMemberLinked?: () => void;
+  onCollectPayment?: (bookingId: number) => void;
 }
 
-const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, onMemberLinked }) => {
+const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, onMemberLinked, onCollectPayment }) => {
   const [members, setMembers] = useState<BookingMember[]>([]);
   const [guests, setGuests] = useState<BookingGuest[]>([]);
   const [validation, setValidation] = useState<ValidationInfo | null>(null);
@@ -737,6 +738,17 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({ bookingId, 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Collect Payment Button */}
+      {financialSummary && financialSummary.grandTotal > 0 && (
+        <button
+          onClick={() => onCollectPayment?.(Number(bookingId))}
+          className="w-full mt-3 py-2.5 px-4 bg-primary text-white rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+        >
+          <span className="material-symbols-outlined text-lg">credit_card</span>
+          Collect ${financialSummary.grandTotal.toFixed(2)}
+        </button>
       )}
 
       {/* Member Match Warning Modal */}

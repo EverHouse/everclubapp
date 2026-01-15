@@ -13,6 +13,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { TabType } from '../layout/types';
 import BookingMembersEditor from '../../../components/admin/BookingMembersEditor';
 import { RosterManager } from '../../../components/booking';
+import { CheckinBillingModal } from '../../../components/staff-command-center/modals/CheckinBillingModal';
 
 interface BookingRequest {
     id: number | string;
@@ -722,6 +723,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [editingTrackmanId, setEditingTrackmanId] = useState(false);
     const [trackmanIdDraft, setTrackmanIdDraft] = useState('');
     const [savingTrackmanId, setSavingTrackmanId] = useState(false);
+    const [billingModal, setBillingModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
 
     useEffect(() => {
         setEditingTrackmanId(false);
@@ -2554,6 +2556,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                             onMemberLinked={() => {
                                 handleRefresh();
                             }}
+                            onCollectPayment={(bookingId) => setBillingModal({isOpen: true, bookingId})}
                         />
                     )}
 
@@ -2888,6 +2891,16 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     </div>
                 </div>
             </ModalShell>
+
+            <CheckinBillingModal
+              isOpen={billingModal.isOpen}
+              onClose={() => setBillingModal({isOpen: false, bookingId: null})}
+              bookingId={billingModal.bookingId || 0}
+              onCheckinComplete={() => {
+                setBillingModal({isOpen: false, bookingId: null});
+                handleRefresh();
+              }}
+            />
                 </div>
                 <FloatingActionButton onClick={() => setShowManualBooking(true)} color="brand" label="Create manual booking" />
             </div>
