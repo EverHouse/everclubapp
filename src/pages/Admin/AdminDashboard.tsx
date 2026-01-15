@@ -128,25 +128,26 @@ const AdminDashboard: React.FC = () => {
   };
 
   const headerContent = (
-    <header className="fixed top-0 left-0 right-0 lg:left-64 grid grid-cols-[auto_1fr_auto] items-center gap-2 px-4 md:px-6 pt-[max(16px,env(safe-area-inset-top))] pb-4 bg-[#293515] shadow-md transition-all duration-200 text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)' }}>
-      <button 
-        onClick={() => navigate('/')}
-        className="flex items-center justify-center min-h-[44px] hover:opacity-70 transition-opacity py-1 flex-shrink-0 lg:hidden"
-        aria-label="Go to home"
-      >
-        <img 
-          src="/assets/logos/mascot-white.webp" 
-          alt="Ever House" 
-          className="h-10 w-auto object-contain"
-        />
-      </button>
-      <div className="hidden lg:block" />
+    <header className="fixed top-0 left-0 right-0 lg:left-64 flex items-center justify-between px-4 md:px-6 pt-[max(16px,env(safe-area-inset-top))] pb-4 bg-[#293515] shadow-md transition-all duration-200 text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)' }}>
+      <div className="flex items-center flex-shrink-0 w-[88px] lg:w-0">
+        <button 
+          onClick={() => navigate('/')}
+          className="flex items-center justify-center min-h-[44px] hover:opacity-70 transition-opacity py-1 lg:hidden"
+          aria-label="Go to home"
+        >
+          <img 
+            src="/assets/logos/mascot-white.webp" 
+            alt="Ever House" 
+            className="h-10 w-auto object-contain"
+          />
+        </button>
+      </div>
       
-      <h1 className="text-lg font-bold text-[#F2F2EC] tracking-wide text-center truncate">
+      <h1 className="text-lg font-bold text-[#F2F2EC] tracking-wide text-center truncate flex-1">
         {getTabTitle()}
       </h1>
 
-      <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+      <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 w-[88px] justify-end">
         <button 
           onClick={() => {
             handleTabChange('updates');

@@ -654,7 +654,7 @@ const DirectoryTab: React.FC = () => {
                         {/* FAB Button with Enhanced Styling */}
                         <button
                             onClick={() => setAddMemberModalOpen(true)}
-                            className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 dark:from-green-600 dark:to-green-700 dark:hover:from-green-700 dark:hover:to-green-800 text-white transition-all duration-300 hover:scale-110 active:scale-95 shadow-[0_4px_12px_rgba(34,197,94,0.4),inset_0_1px_2px_rgba(255,255,255,0.2)]  dark:shadow-[0_4px_12px_rgba(34,197,94,0.3),inset_0_1px_2px_rgba(255,255,255,0.1)] hover:shadow-[0_6px_20px_rgba(34,197,94,0.5),inset_0_1px_2px_rgba(255,255,255,0.2)] dark:hover:shadow-[0_6px_20px_rgba(34,197,94,0.4),inset_0_1px_2px_rgba(255,255,255,0.1)]"
+                            className="w-14 h-14 rounded-full flex items-center justify-center bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl"
                             aria-label="Add New Member"
                         >
                             <span className="material-symbols-outlined text-2xl">person_add</span>

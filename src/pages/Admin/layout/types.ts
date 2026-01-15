@@ -10,8 +10,7 @@ export interface NavItemData {
 export const NAV_ITEMS: NavItemData[] = [
   { id: 'home', icon: 'home', label: 'Home' },
   { id: 'simulator', icon: 'event_note', label: 'Bookings' },
-  { id: 'blocks', icon: 'domain', label: 'Facility' },
+  { id: 'payments', icon: 'point_of_sale', label: 'Payments' },
   { id: 'events', icon: 'calendar_month', label: 'Calendar' },
   { id: 'directory', icon: 'groups', label: 'Directory' },
-  { id: 'payments', icon: 'point_of_sale', label: 'Payments' },
 ];

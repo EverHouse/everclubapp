@@ -13,9 +13,9 @@ interface FloatingActionButtonProps {
 }
 
 const colorClasses: Record<FABColor, string> = {
-  brand: 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl border border-white/30 dark:border-white/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
+  brand: 'bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] backdrop-blur-xl border border-[#293515]/80 dark:border-[#CCB8E4]/80 shadow-lg',
   amber: 'bg-amber-500/50 dark:bg-amber-400/50 text-white dark:text-gray-900 backdrop-blur-xl border border-white/30 dark:border-amber-300/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
-  green: 'bg-[#293515]/50 dark:bg-[#4a5f2a]/50 text-white backdrop-blur-xl border border-white/20 dark:border-white/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]',
+  green: 'bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] backdrop-blur-xl border border-[#293515]/80 dark:border-[#CCB8E4]/80 shadow-lg',
   purple: 'bg-[#CCB8E4]/50 dark:bg-[#CCB8E4]/50 text-[#293515] dark:text-[#293515] backdrop-blur-xl border border-white/40 dark:border-white/50 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]',
   red: 'bg-red-600/50 dark:bg-red-500/50 text-white backdrop-blur-xl border border-white/30 dark:border-red-400/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]',
 };
