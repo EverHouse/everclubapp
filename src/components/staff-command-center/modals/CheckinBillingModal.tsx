@@ -141,6 +141,31 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   };
 
+  const handleUseGuestPass = async (participantId: number) => {
+    setActionInProgress(`guest-pass-${participantId}`);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/payments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ participantId, action: 'use_guest_pass' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Guest pass used${data.passesRemaining !== undefined ? ` (${data.passesRemaining} remaining)` : ''}`, 'success');
+        await fetchContext();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to use guest pass', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to use guest pass:', err);
+      showToast('Failed to use guest pass', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const handleConfirmAll = async () => {
     setActionInProgress('confirm-all');
     try {
@@ -394,7 +419,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <div className="flex gap-2">
+                            <div className={`flex gap-2 ${p.participantType === 'guest' ? 'flex-wrap' : ''}`}>
                               <button
                                 onClick={() => handleConfirmPayment(p.participantId)}
                                 disabled={actionInProgress !== null}
@@ -402,6 +427,16 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                               >
                                 {actionInProgress === `confirm-${p.participantId}` ? 'Processing...' : 'Mark Paid'}
                               </button>
+                              {p.participantType === 'guest' && (
+                                <button
+                                  onClick={() => handleUseGuestPass(p.participantId)}
+                                  disabled={actionInProgress !== null}
+                                  className="py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1 px-3"
+                                >
+                                  <span className="material-symbols-outlined text-sm">loyalty</span>
+                                  Guest Pass
+                                </button>
+                              )}
                               <button
                                 onClick={() => setShowWaiverInput(p.participantId)}
                                 disabled={actionInProgress !== null}
