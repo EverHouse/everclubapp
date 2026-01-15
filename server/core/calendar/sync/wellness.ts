@@ -235,14 +235,19 @@ export async function syncWellnessCalendarEvents(): Promise<{ synced: number; cr
           const reviewDismissed = dbRow.review_dismissed === true;
           const shouldSetNeedsReview = reviewDismissed ? false : needsReview;
           
+          // Normalize date for comparison to avoid false positives from format differences
+          const dbDate = dbRow.date instanceof Date 
+            ? dbRow.date.toISOString().split('T')[0] 
+            : String(dbRow.date || '').split('T')[0];
+          
           const wasReviewed = dbRow.needs_review === false && dbRow.reviewed_at !== null;
           const hasChanges = (
             dbRow.title !== title ||
-            dbRow.date !== eventDate ||
+            dbDate !== eventDate ||
             dbRow.time !== startTime ||
-            dbRow.instructor !== instructor ||
+            (dbRow.instructor || null) !== (instructor || null) ||
             dbRow.duration !== duration ||
-            dbRow.category !== category
+            (dbRow.category || null) !== (category || null)
           );
           // Only mark as conflict if reviewed AND has changes AND not dismissed
           const isConflict = wasReviewed && hasChanges && !reviewDismissed;
@@ -255,7 +260,7 @@ export async function syncWellnessCalendarEvents(): Promise<{ synced: number; cr
               image_url = COALESCE($10, image_url),
               external_url = COALESCE($11, external_url),
               google_event_etag = $12, google_event_updated_at = $13, last_synced_at = NOW(),
-              needs_review = CASE WHEN $17 THEN true ELSE CASE WHEN $15 THEN needs_review ELSE $16 END END,
+              needs_review = CASE WHEN $15 THEN needs_review ELSE CASE WHEN $17 THEN true ELSE $16 END END,
               conflict_detected = CASE WHEN $17 THEN true ELSE conflict_detected END
              WHERE google_calendar_id = $14`,
             [title, startTime, instructor, duration, category, spots, status, description, eventDate,

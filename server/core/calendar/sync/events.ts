@@ -177,16 +177,26 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
           const reviewDismissed = dbRow.review_dismissed === true;
           const shouldSetNeedsReview = reviewDismissed ? false : needsReview;
           
+          // Normalize dates/times for comparison to avoid false positives from format differences
+          const dbEventDate = dbRow.event_date instanceof Date 
+            ? dbRow.event_date.toISOString().split('T')[0] 
+            : String(dbRow.event_date || '').split('T')[0];
+          const dbStartTime = String(dbRow.start_time || '').substring(0, 8);
+          const dbEndTime = dbRow.end_time ? String(dbRow.end_time).substring(0, 8) : null;
+          const normalizedStartTime = startTime.substring(0, 8);
+          const normalizedEndTime = endTime ? endTime.substring(0, 8) : null;
+          
           const wasReviewed = dbRow.needs_review === false && dbRow.reviewed_at !== null;
           const hasChanges = (
             dbRow.title !== title ||
-            dbRow.event_date !== eventDate ||
-            dbRow.start_time !== startTime ||
-            dbRow.end_time !== endTime ||
-            dbRow.description !== description ||
-            dbRow.location !== location
+            dbEventDate !== eventDate ||
+            dbStartTime !== normalizedStartTime ||
+            dbEndTime !== normalizedEndTime ||
+            (dbRow.description || null) !== (description || null) ||
+            (dbRow.location || null) !== (location || null)
           );
-          const isConflict = wasReviewed && hasChanges;
+          // Only flag conflict if reviewed AND has real changes AND not already dismissed
+          const isConflict = wasReviewed && hasChanges && !reviewDismissed;
           
           await pool.query(
             `UPDATE events SET title = $1, description = $2, event_date = $3, start_time = $4, 
@@ -198,7 +208,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
              visibility = COALESCE($10, visibility),
              requires_rsvp = COALESCE($11, requires_rsvp),
              google_event_etag = $12, google_event_updated_at = $13, last_synced_at = NOW(),
-             needs_review = CASE WHEN $17 THEN true ELSE CASE WHEN $15 THEN needs_review ELSE $16 END END,
+             needs_review = CASE WHEN $15 THEN needs_review ELSE CASE WHEN $17 THEN true ELSE $16 END END,
              conflict_detected = CASE WHEN $17 THEN true ELSE conflict_detected END
              WHERE google_calendar_id = $14`,
             [title, description, eventDate, startTime, endTime, location,
