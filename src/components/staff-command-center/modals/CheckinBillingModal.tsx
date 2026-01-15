@@ -67,6 +67,17 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   }, [isOpen, bookingId]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   const fetchContext = async () => {
     setLoading(true);
     setError(null);
@@ -309,8 +320,11 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   
 
   const modalContent = (
-    <div className="fixed inset-0 z-[10001] flex items-center justify-center pt-16 pb-24 px-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg max-h-full bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden flex flex-col">
+    <div 
+      className="fixed inset-0 z-[10001] flex items-center justify-center pt-16 pb-24 px-4 bg-black/50 backdrop-blur-sm overscroll-contain"
+      onTouchMove={(e) => e.stopPropagation()}
+    >
+      <div className="w-full max-w-lg max-h-full bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden flex flex-col overscroll-contain">
         <div className="px-6 py-4 border-b border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
