@@ -39,6 +39,7 @@ interface MemberSearchResult {
   email: string;
   name: string;
   stripeCustomerId: string | null;
+  membershipTier: string | null;
 }
 
 interface Invoice {
@@ -410,12 +411,20 @@ const SubscriptionsView: React.FC = () => {
         return email.includes(searchTerm) || name.includes(searchTerm);
       });
       
-      const results = filtered.slice(0, 5).map((m: any) => ({
-        id: m.hs_object_id || m.id,
-        email: m.email,
-        name: `${m.firstname || ''} ${m.lastname || ''}`.trim() || m.email,
-        stripeCustomerId: m.stripe_customer_id || null,
-      }));
+      const results = filtered.slice(0, 5).map((m: any) => {
+        const firstName = m.firstname || '';
+        const lastName = m.lastname || '';
+        const calculatedName = m.hs_calculated_full_name || '';
+        const displayName = `${firstName} ${lastName}`.trim() || calculatedName || m.email?.split('@')[0] || 'Unknown';
+        
+        return {
+          id: m.hs_object_id || m.id,
+          email: m.email,
+          name: displayName,
+          stripeCustomerId: m.stripe_customer_id || null,
+          membershipTier: m.membership_tier || null,
+        };
+      });
       
       setSearchResults(results);
     } catch (err: any) {
@@ -577,17 +586,17 @@ const SubscriptionsView: React.FC = () => {
           </div>
           <div>
             <h3 className="text-lg font-bold text-primary dark:text-white">Find Member</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Search by email to manage subscriptions</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Search by name or email to manage subscriptions</p>
           </div>
         </div>
 
         <div className="flex gap-3">
           <input
-            type="email"
+            type="text"
             value={searchEmail}
             onChange={(e) => setSearchEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Enter member email..."
+            placeholder="Enter name or email..."
             className="flex-1 px-4 py-3 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
@@ -612,11 +621,15 @@ const SubscriptionsView: React.FC = () => {
                 onClick={() => handleSelectMember(member)}
                 className="w-full p-3 text-left bg-gray-50 dark:bg-black/20 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition-colors"
               >
-                <p className="font-medium text-primary dark:text-white">{member.name}</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-primary dark:text-white">{member.name}</p>
+                  {member.membershipTier && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-accent/20 dark:bg-accent/30 text-primary dark:text-white">
+                      {member.membershipTier}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
-                {member.stripeCustomerId && (
-                  <p className="text-xs text-gray-400 mt-1">Stripe Customer: {member.stripeCustomerId}</p>
-                )}
               </button>
             ))}
           </div>
@@ -805,12 +818,20 @@ const InvoicesView: React.FC = () => {
         return email.includes(searchTerm) || name.includes(searchTerm);
       });
       
-      const results = filtered.slice(0, 5).map((m: any) => ({
-        id: m.hs_object_id || m.id,
-        email: m.email,
-        name: `${m.firstname || ''} ${m.lastname || ''}`.trim() || m.email,
-        stripeCustomerId: m.stripe_customer_id || null,
-      }));
+      const results = filtered.slice(0, 5).map((m: any) => {
+        const firstName = m.firstname || '';
+        const lastName = m.lastname || '';
+        const calculatedName = m.hs_calculated_full_name || '';
+        const displayName = `${firstName} ${lastName}`.trim() || calculatedName || m.email?.split('@')[0] || 'Unknown';
+        
+        return {
+          id: m.hs_object_id || m.id,
+          email: m.email,
+          name: displayName,
+          stripeCustomerId: m.stripe_customer_id || null,
+          membershipTier: m.membership_tier || null,
+        };
+      });
       
       setSearchResults(results);
     } catch (err: any) {
@@ -1044,11 +1065,11 @@ const InvoicesView: React.FC = () => {
 
         <div className="flex gap-3">
           <input
-            type="email"
+            type="text"
             value={searchEmail}
             onChange={(e) => setSearchEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Enter member email..."
+            placeholder="Enter name or email..."
             className="flex-1 px-4 py-3 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
@@ -1073,11 +1094,15 @@ const InvoicesView: React.FC = () => {
                 onClick={() => handleSelectMember(member)}
                 className="w-full p-3 text-left bg-gray-50 dark:bg-black/20 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition-colors"
               >
-                <p className="font-medium text-primary dark:text-white">{member.name}</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-primary dark:text-white">{member.name}</p>
+                  {member.membershipTier && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-accent/20 dark:bg-accent/30 text-primary dark:text-white">
+                      {member.membershipTier}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
-                {member.stripeCustomerId && (
-                  <p className="text-xs text-gray-400 mt-1">Stripe Customer: {member.stripeCustomerId}</p>
-                )}
               </button>
             ))}
           </div>
