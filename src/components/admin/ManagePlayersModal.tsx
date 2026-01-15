@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ModalShell from '../ModalShell';
 import TierBadge from '../TierBadge';
-import MemberSearchInput, { SelectedMember } from '../shared/MemberSearchInput';
+import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useData } from '../../contexts/DataContext';
 
 interface BookingMember {
