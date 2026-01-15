@@ -207,3 +207,25 @@ export const stripeProducts = pgTable("stripe_products", {
 
 export type StripeProduct = typeof stripeProducts.$inferSelect;
 export type InsertStripeProduct = typeof stripeProducts.$inferInsert;
+
+export const stripePaymentIntents = pgTable("stripe_payment_intents", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id").notNull().unique(),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  amountCents: integer("amount_cents").notNull(),
+  purpose: varchar("purpose").notNull(),
+  bookingId: integer("booking_id"),
+  sessionId: integer("session_id"),
+  description: text("description"),
+  status: varchar("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("stripe_payment_intents_user_id_idx").on(table.userId),
+  index("stripe_payment_intents_booking_id_idx").on(table.bookingId),
+  index("stripe_payment_intents_status_idx").on(table.status),
+]);
+
+export type StripePaymentIntent = typeof stripePaymentIntents.$inferSelect;
+export type InsertStripePaymentIntent = typeof stripePaymentIntents.$inferInsert;

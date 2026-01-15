@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { runAllIntegrityChecks } from '../core/dataIntegrity';
 import { sendIntegrityAlertEmail } from '../emails/integrityAlertEmail';
 import { getPacificHour, getTodayPacific } from '../utils/dateUtils';
+import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 
 const INTEGRITY_CHECK_HOUR = 0;
 const INTEGRITY_SETTING_KEY = 'last_integrity_check_date';
@@ -76,11 +77,29 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
           }
         } catch (err) {
           console.error('[Integrity Check] Check failed:', err);
+          
+          // Notify staff about integrity check failure
+          alertOnScheduledTaskFailure(
+            'Daily Integrity Check',
+            err instanceof Error ? err : new Error(String(err)),
+            { context: 'Scheduled check at midnight Pacific' }
+          ).catch(alertErr => {
+            console.error('[Integrity Check] Failed to send staff alert:', alertErr);
+          });
         }
       }
     }
   } catch (err) {
     console.error('[Integrity Check] Scheduler error:', err);
+    
+    // Notify staff about scheduler error
+    alertOnScheduledTaskFailure(
+      'Daily Integrity Check',
+      err instanceof Error ? err : new Error(String(err)),
+      { context: 'Scheduler loop error' }
+    ).catch(alertErr => {
+      console.error('[Integrity Check] Failed to send staff alert:', alertErr);
+    });
   }
 }
 

@@ -14,6 +14,25 @@ import {
 
 export type { CafeItem, EventSource, EventData, Announcement, MemberProfile, Booking };
 
+// Pagination response type for paginated member fetching
+export interface PaginatedMembersResponse {
+  members: MemberProfile[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+// Options for paginated member fetching
+export interface FetchMembersOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: 'active' | 'former';
+  append?: boolean; // If true, appends to existing cache instead of replacing
+}
+
 interface DataContextType {
   user: MemberProfile | null;
   actualUser: MemberProfile | null;
@@ -30,6 +49,11 @@ interface DataContextType {
   sessionChecked: boolean;
   sessionVersion: number;
   fetchFormerMembers: (forceRefresh?: boolean) => Promise<void>;
+  
+  // Paginated member fetching
+  fetchMembersPaginated: (options?: FetchMembersOptions) => Promise<PaginatedMembersResponse>;
+  membersPagination: { total: number; page: number; totalPages: number; hasMore: boolean } | null;
+  isFetchingMembers: boolean;
   
   // Auth Actions
   login: (email: string) => Promise<void>;
@@ -92,6 +116,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [members, setMembers] = useState<MemberProfile[]>(INITIAL_MEMBERS);
   const [formerMembers, setFormerMembers] = useState<MemberProfile[]>([]);
   const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
+  const [membersPagination, setMembersPagination] = useState<{ total: number; page: number; totalPages: number; hasMore: boolean } | null>(null);
+  const [isFetchingMembers, setIsFetchingMembers] = useState(false);
+  const paginatedMembersCache = useRef<Map<string, MemberProfile[]>>(new Map());
   
   const isDataReady = !isLoading && cafeMenuLoaded && eventsLoaded && announcementsLoaded;
   
@@ -427,6 +454,105 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       return { success: false, count: 0 };
     }
   }, [actualUser]);
+
+  // Paginated member fetching with local cache that grows as pages are fetched
+  const fetchMembersPaginated = useCallback(async (options: FetchMembersOptions = {}): Promise<PaginatedMembersResponse> => {
+    const currentUser = actualUserRef.current;
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'staff')) {
+      return { members: [], total: 0, page: 1, limit: 50, totalPages: 0, hasMore: false };
+    }
+    
+    const { page = 1, limit = 50, search = '', status = 'active', append = false } = options;
+    
+    setIsFetchingMembers(true);
+    
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        status
+      });
+      
+      if (search.trim()) {
+        params.set('search', search.trim());
+      }
+      
+      const res = await fetch(`/api/hubspot/contacts?${params.toString()}`, { credentials: 'include' });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const contacts = Array.isArray(data) ? data : (data.contacts || []);
+        const formatted: MemberProfile[] = contacts.map((contact: any) => ({
+          id: contact.id,
+          name: [contact.firstName, contact.lastName].filter(Boolean).join(' ') || contact.email || 'Unknown',
+          tier: contact.tier || (status === 'active' ? 'Core' : 'Unknown'),
+          rawTier: contact.rawTier,
+          tags: contact.tags || [],
+          status: contact.status || (status === 'active' ? 'Active' : 'Inactive'),
+          email: contact.email || '',
+          phone: contact.phone || '',
+          role: 'member',
+          lifetimeVisits: contact.lifetimeVisits || 0,
+          lastBookingDate: contact.lastBookingDate || null,
+          joinDate: contact.joinDate || null,
+          mindbodyClientId: contact.mindbodyClientId || null,
+          manuallyLinkedEmails: contact.manuallyLinkedEmails || []
+        }));
+        
+        // Update pagination info
+        const paginationInfo = {
+          total: data.total || formatted.length,
+          page: data.page || page,
+          totalPages: data.totalPages || 1,
+          hasMore: data.hasMore || false
+        };
+        setMembersPagination(paginationInfo);
+        
+        // Update the appropriate members state based on status
+        if (status === 'active') {
+          if (append && page > 1) {
+            // Append to existing members (for "load more" functionality)
+            setMembers(prev => {
+              const existingIds = new Set(prev.map(m => m.id));
+              const newMembers = formatted.filter(m => !existingIds.has(m.id));
+              return [...prev, ...newMembers];
+            });
+          } else if (!append) {
+            // Replace members (for new search or page 1)
+            setMembers(formatted);
+          }
+        } else if (status === 'former') {
+          if (append && page > 1) {
+            setFormerMembers(prev => {
+              const existingIds = new Set(prev.map(m => m.id));
+              const newMembers = formatted.filter(m => !existingIds.has(m.id));
+              return [...prev, ...newMembers];
+            });
+          } else if (!append) {
+            setFormerMembers(formatted);
+          }
+          formerMembersFetched.current = true;
+          formerMembersLastFetch.current = Date.now();
+        }
+        
+        return {
+          members: formatted,
+          total: paginationInfo.total,
+          page: paginationInfo.page,
+          limit: data.limit || limit,
+          totalPages: paginationInfo.totalPages,
+          hasMore: paginationInfo.hasMore
+        };
+      }
+      
+      return { members: [], total: 0, page, limit, totalPages: 0, hasMore: false };
+    } catch (err) {
+      console.error('Failed to fetch paginated members:', err);
+      return { members: [], total: 0, page, limit, totalPages: 0, hasMore: false };
+    } finally {
+      setIsFetchingMembers(false);
+    }
+  }, []);
 
   // Start background sync
   useEffect(() => {
@@ -1102,6 +1228,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       login, loginWithMember, logout, refreshUser, setViewAsUser, clearViewAsUser,
       cafeMenu, events, announcements, members, formerMembers, bookings, isLoading, isDataReady, sessionChecked, sessionVersion,
       fetchFormerMembers,
+      fetchMembersPaginated, membersPagination, isFetchingMembers,
       addCafeItem, updateCafeItem, deleteCafeItem, refreshCafeMenu,
       addEvent, updateEvent, deleteEvent, syncEventbrite,
       addAnnouncement, updateAnnouncement, deleteAnnouncement,

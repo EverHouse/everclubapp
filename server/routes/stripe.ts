@@ -30,6 +30,14 @@ import {
 import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
 import { checkExpiringCards } from '../core/billing/cardExpiryChecker';
 import { checkStaleWaivers } from '../schedulers/waiverReviewScheduler';
+import {
+  getRefundablePayments,
+  getFailedPayments,
+  getPendingAuthorizations,
+  getPaymentByIntentId,
+  updatePaymentStatus,
+  updatePaymentStatusAndAmount
+} from '../core/stripe/paymentRepository';
 
 const router = Router();
 
@@ -1898,28 +1906,8 @@ router.get('/api/payments/:paymentIntentId/notes', isStaffOrAdmin, async (req: R
 
 router.get('/api/payments/refundable', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const result = await pool.query(
-      `SELECT 
-        spi.id,
-        spi.stripe_payment_intent_id as "paymentIntentId",
-        u.email as "memberEmail",
-        COALESCE(TRIM(CONCAT(u.first_name, ' ', u.last_name)), u.email) as "memberName",
-        spi.amount_cents as amount,
-        spi.description,
-        spi.created_at as "createdAt",
-        spi.status
-       FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
-       WHERE spi.status = 'succeeded'
-         AND spi.created_at >= $1
-       ORDER BY spi.created_at DESC`,
-      [thirtyDaysAgo]
-    );
-
-    res.json(result.rows);
+    const payments = await getRefundablePayments();
+    res.json(payments);
   } catch (error: any) {
     console.error('[Payments] Error fetching refundable payments:', error);
     res.status(500).json({ error: 'Failed to fetch refundable payments' });
@@ -1928,35 +1916,7 @@ router.get('/api/payments/refundable', isStaffOrAdmin, async (req: Request, res:
 
 router.get('/api/payments/failed', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT 
-        spi.id,
-        spi.stripe_payment_intent_id as "paymentIntentId",
-        u.email as "memberEmail",
-        COALESCE(TRIM(CONCAT(u.first_name, ' ', u.last_name)), 'Unknown') as "memberName",
-        spi.amount_cents as amount,
-        spi.description,
-        spi.status,
-        spi.created_at as "createdAt"
-       FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
-       WHERE spi.status IN ('failed', 'canceled', 'requires_action', 'requires_payment_method')
-       ORDER BY spi.created_at DESC
-       LIMIT 50`
-    );
-
-    const payments = result.rows.map(row => ({
-      id: row.id,
-      paymentIntentId: row.paymentIntentId,
-      memberEmail: row.memberEmail || 'unknown',
-      memberName: row.memberName,
-      amount: row.amount,
-      description: row.description,
-      status: row.status,
-      failureReason: null,
-      createdAt: row.createdAt
-    }));
-
+    const payments = await getFailedPayments();
     res.json(payments);
   } catch (error: any) {
     console.error('[Payments] Error fetching failed payments:', error);
@@ -1973,19 +1933,11 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
       return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
     }
 
-    const localRecord = await pool.query(
-      `SELECT spi.*, u.email as member_email, TRIM(CONCAT(u.first_name, ' ', u.last_name)) as member_name
-       FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
-       WHERE spi.stripe_payment_intent_id = $1`,
-      [paymentIntentId]
-    );
+    const payment = await getPaymentByIntentId(paymentIntentId);
 
-    if (localRecord.rows.length === 0) {
+    if (!payment) {
       return res.status(404).json({ error: 'Payment not found' });
     }
-
-    const payment = localRecord.rows[0];
 
     if (payment.status !== 'succeeded') {
       return res.status(400).json({ error: `Cannot refund payment with status: ${payment.status}` });
@@ -2007,12 +1959,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
     const isPartialRefund = refundedAmount < payment.amount_cents;
     const newStatus = isPartialRefund ? 'partially_refunded' : 'refunded';
 
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = $1, updated_at = NOW() 
-       WHERE stripe_payment_intent_id = $2`,
-      [newStatus, paymentIntentId]
-    );
+    await updatePaymentStatus(paymentIntentId, newStatus);
 
     await db.insert(billingAuditLog).values({
       memberEmail: payment.member_email || 'unknown',
@@ -2047,26 +1994,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
 
 router.get('/api/payments/pending-authorizations', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT 
-        spi.id,
-        spi.stripe_payment_intent_id as "paymentIntentId",
-        u.email as "memberEmail",
-        COALESCE(TRIM(CONCAT(u.first_name, ' ', u.last_name)), spi.description) as "memberName",
-        spi.amount_cents as "amount",
-        spi.description,
-        spi.created_at as "createdAt"
-       FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
-       WHERE spi.status = 'requires_capture'
-       ORDER BY spi.created_at DESC`
-    );
-
-    const authorizations = result.rows.map(row => ({
-      ...row,
-      expiresAt: new Date(new Date(row.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    }));
-
+    const authorizations = await getPendingAuthorizations();
     res.json(authorizations);
   } catch (error: any) {
     console.error('[Payments] Error fetching pending authorizations:', error);
@@ -2083,19 +2011,11 @@ router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: R
       return res.status(400).json({ error: 'Missing paymentIntentId' });
     }
 
-    const localRecord = await pool.query(
-      `SELECT spi.*, u.email as member_email, TRIM(CONCAT(u.first_name, ' ', u.last_name)) as member_name
-       FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
-       WHERE spi.stripe_payment_intent_id = $1`,
-      [paymentIntentId]
-    );
+    const payment = await getPaymentByIntentId(paymentIntentId);
 
-    if (localRecord.rows.length === 0) {
+    if (!payment) {
       return res.status(404).json({ error: 'Payment authorization not found' });
     }
-
-    const payment = localRecord.rows[0];
 
     if (payment.status !== 'requires_capture') {
       return res.status(400).json({ error: `Cannot capture payment with status: ${payment.status}` });
@@ -2112,12 +2032,7 @@ router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: R
 
     const capturedAmount = capturedPaymentIntent.amount_received || amountCents || payment.amount_cents;
 
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = 'succeeded', amount_cents = $1, updated_at = NOW() 
-       WHERE stripe_payment_intent_id = $2`,
-      [capturedAmount, paymentIntentId]
-    );
+    await updatePaymentStatusAndAmount(paymentIntentId, 'succeeded', capturedAmount);
 
     await db.insert(billingAuditLog).values({
       memberEmail: payment.member_email || 'unknown',
@@ -2157,19 +2072,11 @@ router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Requ
       return res.status(400).json({ error: 'Missing paymentIntentId' });
     }
 
-    const localRecord = await pool.query(
-      `SELECT spi.*, u.email as member_email, TRIM(CONCAT(u.first_name, ' ', u.last_name)) as member_name
-       FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
-       WHERE spi.stripe_payment_intent_id = $1`,
-      [paymentIntentId]
-    );
+    const payment = await getPaymentByIntentId(paymentIntentId);
 
-    if (localRecord.rows.length === 0) {
+    if (!payment) {
       return res.status(404).json({ error: 'Payment authorization not found' });
     }
-
-    const payment = localRecord.rows[0];
 
     if (payment.status !== 'requires_capture') {
       return res.status(400).json({ error: `Cannot void payment with status: ${payment.status}` });
@@ -2179,12 +2086,7 @@ router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Requ
 
     await stripe.paymentIntents.cancel(paymentIntentId);
 
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = 'canceled', updated_at = NOW() 
-       WHERE stripe_payment_intent_id = $1`,
-      [paymentIntentId]
-    );
+    await updatePaymentStatus(paymentIntentId, 'canceled');
 
     await db.insert(billingAuditLog).values({
       memberEmail: payment.member_email || 'unknown',

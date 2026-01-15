@@ -184,7 +184,7 @@ async function isStaffOrAdminCheck(email: string): Promise<boolean> {
 
 router.get('/api/booking-requests', async (req, res) => {
   try {
-    const { user_email, status, include_all, limit: limitParam, offset: offsetParam } = req.query;
+    const { user_email, status, include_all, limit: limitParam, offset: offsetParam, page: pageParam } = req.query;
     const sessionUser = getSessionUser(req);
     
     if (!sessionUser) {
@@ -228,10 +228,16 @@ router.get('/api/booking-requests', async (req, res) => {
       conditions.push(eq(bookingRequests.status, status as string));
     }
     
-    // Support optional pagination (frontend must explicitly request it with limit param)
+    // Support optional pagination with page/limit or legacy offset/limit
     // Don't force pagination as staff UI currently expects full dataset
     const limit = limitParam ? Math.min(parseInt(limitParam as string), 500) : undefined;
-    const offset = offsetParam ? parseInt(offsetParam as string) : undefined;
+    const page = pageParam ? Math.max(1, parseInt(pageParam as string)) : undefined;
+    const offset = page && limit ? (page - 1) * limit : (offsetParam ? parseInt(offsetParam as string) : undefined);
+    
+    // Determine if pagination metadata should be returned
+    // Only return paginated format when `page` is explicitly provided
+    // This maintains backwards compatibility for existing callers that only use `limit`
+    const isPaginated = !!page;
     
     // Build base query
     let query = db.select({
@@ -276,10 +282,34 @@ router.get('/api/booking-requests', async (req, res) => {
       query = query.offset(offset) as typeof query;
     }
     
+    // Get total count for pagination metadata (only when paginated)
+    let totalCount = 0;
+    if (isPaginated) {
+      const countResult = await db.select({
+        count: sql<number>`count(*)::int`
+      })
+      .from(bookingRequests)
+      .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      totalCount = countResult[0]?.count || 0;
+    }
+    
     const result = await query;
     
     // Early return if no results
     if (result.length === 0) {
+      if (isPaginated) {
+        return res.json({
+          data: [],
+          pagination: {
+            total: 0,
+            page: page || 1,
+            limit: limit || 0,
+            totalPages: 0,
+            hasMore: false
+          }
+        });
+      }
       return res.json([]);
     }
     
@@ -427,7 +457,23 @@ router.get('/api/booking-requests', async (req, res) => {
       };
     });
     
-    res.json(enrichedResult);
+    // Return with pagination metadata when paginated, otherwise return array for backwards compatibility
+    if (isPaginated) {
+      const totalPages = limit ? Math.ceil(totalCount / limit) : 1;
+      const currentPage = page || 1;
+      res.json({
+        data: enrichedResult,
+        pagination: {
+          total: totalCount,
+          page: currentPage,
+          limit: limit || enrichedResult.length,
+          totalPages,
+          hasMore: currentPage < totalPages
+        }
+      });
+    } else {
+      res.json(enrichedResult);
+    }
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to fetch booking requests', error);
   }

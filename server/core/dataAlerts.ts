@@ -5,7 +5,30 @@ export type DataAlertType =
   | 'import_failure'
   | 'low_match_rate'
   | 'data_integrity_critical'
-  | 'sync_failure';
+  | 'sync_failure'
+  | 'scheduled_task_failure';
+
+// Rate limiting for alerts to prevent duplicate notifications
+const alertCooldowns: Map<string, number> = new Map();
+const ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between same-type alerts
+
+function canSendAlert(alertKey: string): boolean {
+  const now = Date.now();
+  const lastSent = alertCooldowns.get(alertKey);
+  
+  if (lastSent && (now - lastSent) < ALERT_COOLDOWN_MS) {
+    if (!isProduction) {
+      console.log(`[DataAlerts] Alert rate-limited: ${alertKey} (${Math.round((ALERT_COOLDOWN_MS - (now - lastSent)) / 60000)} min remaining)`);
+    }
+    return false;
+  }
+  
+  return true;
+}
+
+function recordAlertSent(alertKey: string): void {
+  alertCooldowns.set(alertKey, Date.now());
+}
 
 interface ImportResult {
   total: number;
@@ -129,10 +152,21 @@ export async function alertOnSyncFailure(
   service: 'hubspot' | 'calendar' | 'mindbody',
   operation: string,
   error: Error | string,
-  details?: { synced?: number; errors?: number; total?: number }
+  details?: { synced?: number; errors?: number; total?: number; calendarName?: string }
 ): Promise<void> {
+  const alertKey = `sync_failure:${service}:${operation}`;
+  
+  if (!canSendAlert(alertKey)) {
+    return;
+  }
+  
   const serviceName = service.charAt(0).toUpperCase() + service.slice(1);
-  const title = `${serviceName} Sync Failed`;
+  let title = `${serviceName} Sync Failed`;
+  
+  // Include calendar name if provided
+  if (details?.calendarName) {
+    title = `${serviceName} Sync Failed: ${details.calendarName}`;
+  }
   
   const errorMessage = error instanceof Error ? error.message : error;
   let message = `${operation} failed: ${errorMessage}`;
@@ -155,6 +189,7 @@ export async function alertOnSyncFailure(
   }
 
   await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  recordAlertSent(alertKey);
 }
 
 export async function alertOnHubSpotSyncComplete(
@@ -167,6 +202,12 @@ export async function alertOnHubSpotSyncComplete(
   const errorRate = (errors / total) * 100;
   
   if (errors > 5 || errorRate > 5) {
+    const alertKey = 'hubspot_sync_errors';
+    
+    if (!canSendAlert(alertKey)) {
+      return;
+    }
+    
     const title = `HubSpot Sync Completed with Errors`;
     const message = `Sync completed: ${synced} synced, ${errors} failed out of ${total} contacts (${errorRate.toFixed(1)}% error rate). ` +
       `Review member data for potential issues.`;
@@ -176,5 +217,33 @@ export async function alertOnHubSpotSyncComplete(
     }
 
     await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+    recordAlertSent(alertKey);
   }
+}
+
+export async function alertOnScheduledTaskFailure(
+  taskName: string,
+  error: Error | string,
+  details?: { context?: string }
+): Promise<void> {
+  const alertKey = `scheduled_task:${taskName}`;
+  
+  if (!canSendAlert(alertKey)) {
+    return;
+  }
+  
+  const errorMessage = error instanceof Error ? error.message : error;
+  const title = `Scheduled Task Failed: ${taskName}`;
+  let message = `The ${taskName} scheduled task failed: ${errorMessage}`;
+  
+  if (details?.context) {
+    message += ` (${details.context})`;
+  }
+  
+  if (!isProduction) {
+    console.log(`[DataAlerts] Creating scheduled task failure alert: ${taskName}`);
+  }
+  
+  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  recordAlertSent(alertKey);
 }

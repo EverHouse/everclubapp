@@ -393,18 +393,65 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
 router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
   const forceRefresh = req.query.refresh === 'true';
   const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
+  const searchQuery = (req.query.search as string)?.toLowerCase().trim() || '';
   const now = Date.now();
   
+  // Pagination parameters - when not provided, returns all (backwards compatible)
+  const pageParam = parseInt(req.query.page as string, 10);
+  const limitParam = parseInt(req.query.limit as string, 10);
+  const isPaginated = !isNaN(pageParam) || !isNaN(limitParam);
+  const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+  const limit = isNaN(limitParam) ? 50 : Math.min(Math.max(limitParam, 1), 100); // Default 50, max 100
+  
   const filterContacts = (contacts: any[]) => {
-    return contacts.filter((contact: any) => {
+    let filtered = contacts.filter((contact: any) => {
       if (statusFilter === 'active') return contact.isActiveMember;
       if (statusFilter === 'former') return contact.isFormerMember;
       return true;
     });
+    
+    // Apply search filter if provided
+    if (searchQuery) {
+      filtered = filtered.filter((contact: any) => {
+        const firstName = (contact.firstName || '').toLowerCase();
+        const lastName = (contact.lastName || '').toLowerCase();
+        const email = (contact.email || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        return firstName.includes(searchQuery) || 
+               lastName.includes(searchQuery) || 
+               fullName.includes(searchQuery) ||
+               email.includes(searchQuery);
+      });
+    }
+    
+    return filtered;
   };
   
-  const buildResponse = (contacts: any[], stale: boolean, refreshing: boolean) => {
-    return { contacts, stale, refreshing, count: contacts.length };
+  const buildResponse = (allFilteredContacts: any[], stale: boolean, refreshing: boolean) => {
+    const total = allFilteredContacts.length;
+    
+    // If pagination is requested, slice the results
+    if (isPaginated) {
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedContacts = allFilteredContacts.slice(startIndex, endIndex);
+      const totalPages = Math.ceil(total / limit);
+      
+      return { 
+        contacts: paginatedContacts, 
+        stale, 
+        refreshing, 
+        count: paginatedContacts.length,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore: page < totalPages
+      };
+    }
+    
+    // Backwards compatible: return all contacts without pagination metadata
+    return { contacts: allFilteredContacts, stale, refreshing, count: total };
   };
   
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');

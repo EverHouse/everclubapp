@@ -5,6 +5,7 @@ import { events } from '../../../../shared/models/auth';
 import { and, isNotNull, eq } from 'drizzle-orm';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
+import { alertOnSyncFailure } from '../../dataAlerts';
 
 export async function syncGoogleCalendarEvents(): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
   try {
@@ -254,6 +255,17 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
     return { synced: calendarEvents.length, created, updated, deleted, pushedToCalendar };
   } catch (error) {
     console.error('Error syncing Google Calendar events:', error);
+    
+    // Notify staff about calendar sync failure
+    alertOnSyncFailure(
+      'calendar',
+      'Events calendar sync',
+      error instanceof Error ? error : new Error(String(error)),
+      { calendarName: CALENDAR_CONFIG.events.name }
+    ).catch(alertErr => {
+      console.error('[Events Sync] Failed to send staff alert:', alertErr);
+    });
+    
     return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Failed to sync events' };
   }
 }

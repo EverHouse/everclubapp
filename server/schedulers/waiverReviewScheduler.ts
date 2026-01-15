@@ -1,5 +1,6 @@
 import { pool } from '../core/db';
 import { notifyAllStaff } from '../core/notificationService';
+import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 
 interface StaleWaiver {
   id: number;
@@ -80,6 +81,15 @@ async function scheduledCheck(): Promise<void> {
     await checkStaleWaivers();
   } catch (error) {
     console.error('[Waiver Review] Scheduled check failed:', error);
+    
+    // Notify staff about waiver review scheduler failure
+    alertOnScheduledTaskFailure(
+      'Waiver Review Check',
+      error instanceof Error ? error : new Error(String(error)),
+      { context: 'Scheduled check for stale waivers' }
+    ).catch(alertErr => {
+      console.error('[Waiver Review] Failed to send staff alert:', alertErr);
+    });
   }
 }
 
