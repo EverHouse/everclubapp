@@ -16,6 +16,7 @@ interface ParticipantFee {
   minutesUsed?: number;
   guestPassUsed?: boolean;
   waiverNeedsReview?: boolean;
+  prepaidOnline?: boolean;
 }
 
 interface CheckinContext {
@@ -489,7 +490,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             </div>
                           )
                         ) : (
-                          <div className="flex items-center gap-2 text-xs">
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
                             <div className="flex items-center gap-1">
                               <span className={`material-symbols-outlined text-sm ${
                                 p.paymentStatus === 'paid' ? 'text-green-500' : 
@@ -505,6 +506,12 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                                 {p.paymentStatus}
                               </span>
                             </div>
+                            {p.paymentStatus === 'paid' && p.prepaidOnline && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded">
+                                <span className="material-symbols-outlined text-xs">credit_card</span>
+                                Prepaid online
+                              </span>
+                            )}
                             {p.waiverNeedsReview && (
                               <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded">
                                 Needs Review

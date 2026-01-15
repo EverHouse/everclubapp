@@ -24,6 +24,8 @@ interface ParticipantFee {
   totalFee: number;
   tierAtBooking: string | null;
   waiverNeedsReview?: boolean;
+  guestPassUsed?: boolean;
+  prepaidOnline?: boolean;
 }
 
 interface CheckinContext {
@@ -115,6 +117,26 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         feeMap.set(f.participantId, f.amountCents / 100);
       }
       
+      const prepaidParticipantIds = new Set<number>();
+      const snapshotResult = await pool.query(`
+        SELECT participant_fees
+        FROM booking_fee_snapshots
+        WHERE booking_id = $1
+          AND status = 'completed'
+          AND stripe_payment_intent_id IS NOT NULL
+      `, [bookingId]);
+      
+      for (const row of snapshotResult.rows) {
+        const fees = row.participant_fees;
+        if (Array.isArray(fees)) {
+          for (const fee of fees) {
+            if (fee && typeof fee.id === 'number') {
+              prepaidParticipantIds.add(fee.id);
+            }
+          }
+        }
+      }
+      
       for (const p of participantsResult.rows) {
         const ledgerOverageFee = parseFloat(p.overage_fee) || 0;
         const ledgerGuestFee = parseFloat(p.guest_fee) || 0;
@@ -138,7 +160,9 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           guestFee: ledgerGuestFee > 0 ? ledgerGuestFee : (p.participant_type === 'guest' && calculatedFee > 0 ? calculatedFee : 0),
           totalFee,
           tierAtBooking: p.tier_at_booking,
-          waiverNeedsReview
+          waiverNeedsReview,
+          guestPassUsed: p.used_guest_pass || false,
+          prepaidOnline: prepaidParticipantIds.has(p.participant_id)
         });
 
         if (p.payment_status !== 'paid' && p.payment_status !== 'waived') {
