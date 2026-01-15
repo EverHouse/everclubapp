@@ -7,6 +7,7 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { logAndRespond } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { notifyMember } from '../core/notificationService';
+import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
 
 const router = Router();
 
@@ -25,6 +26,7 @@ interface ParticipantFee {
 interface CheckinContext {
   bookingId: number;
   sessionId: number | null;
+  ownerId: string;
   ownerEmail: string;
   ownerName: string;
   bookingDate: string;
@@ -55,6 +57,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
       SELECT 
         br.id as booking_id,
         br.session_id,
+        u.id as owner_id,
         br.user_email as owner_email,
         br.user_name as owner_name,
         br.request_date as booking_date,
@@ -64,6 +67,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         r.name as resource_name
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
       WHERE br.id = $1
     `, [bookingId]);
 
@@ -98,10 +102,20 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           bp.created_at
       `, [booking.session_id]);
 
+      const allParticipantIds = participantsResult.rows.map(p => p.participant_id);
+      const feeResult = await calculateAndCacheParticipantFees(booking.session_id, allParticipantIds);
+      
+      const feeMap = new Map<number, number>();
+      for (const f of feeResult.fees) {
+        feeMap.set(f.participantId, f.amountCents / 100);
+      }
+      
       for (const p of participantsResult.rows) {
-        const overageFee = parseFloat(p.overage_fee) || 0;
-        const guestFee = parseFloat(p.guest_fee) || 0;
-        const totalFee = overageFee + guestFee;
+        const ledgerOverageFee = parseFloat(p.overage_fee) || 0;
+        const ledgerGuestFee = parseFloat(p.guest_fee) || 0;
+        const calculatedFee = feeMap.get(p.participant_id) || 0;
+        
+        const totalFee = calculatedFee > 0 ? calculatedFee : (ledgerOverageFee + ledgerGuestFee);
         
         participants.push({
           participantId: p.participant_id,
@@ -109,8 +123,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           participantType: p.participant_type,
           userId: p.user_id,
           paymentStatus: p.payment_status || 'pending',
-          overageFee,
-          guestFee,
+          overageFee: ledgerOverageFee,
+          guestFee: ledgerGuestFee > 0 ? ledgerGuestFee : (p.participant_type === 'guest' && calculatedFee > 0 ? calculatedFee : 0),
           totalFee,
           tierAtBooking: p.tier_at_booking
         });
@@ -132,6 +146,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
     const context: CheckinContext = {
       bookingId,
       sessionId: booking.session_id,
+      ownerId: booking.owner_id || '',
       ownerEmail: booking.owner_email,
       ownerName: booking.owner_name || booking.owner_email,
       bookingDate: booking.booking_date,

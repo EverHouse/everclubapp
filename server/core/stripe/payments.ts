@@ -44,20 +44,23 @@ export async function createPaymentIntent(
 
   const stripe = await getStripeClient();
 
+  const stripeMetadata: Record<string, string> = {
+    userId,
+    email,
+    purpose,
+    source: 'even_house_app'
+  };
+  
+  if (bookingId) stripeMetadata.bookingId = bookingId.toString();
+  if (sessionId) stripeMetadata.sessionId = sessionId.toString();
+  if (metadata?.participantFees) stripeMetadata.participantFees = metadata.participantFees;
+
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountCents,
     currency: 'usd',
     customer: customerId,
     description: description,
-    metadata: {
-      userId,
-      email,
-      purpose,
-      bookingId: bookingId?.toString() || '',
-      sessionId: sessionId?.toString() || '',
-      source: 'even_house_app',
-      ...metadata
-    },
+    metadata: stripeMetadata,
     automatic_payment_methods: {
       enabled: true,
     },

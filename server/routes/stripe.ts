@@ -9,6 +9,7 @@ import {
   cancelPaymentIntent,
   getOrCreateStripeCustomer
 } from '../core/stripe';
+import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
 
 const router = Router();
 
@@ -33,17 +34,13 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       bookingId, 
       sessionId, 
       description,
-      participantId
+      participantFees
     } = req.body;
 
     if (!userId || !email || !amountCents || !purpose || !description) {
       return res.status(400).json({ 
         error: 'Missing required fields: userId, email, amountCents, purpose, description' 
       });
-    }
-
-    if (amountCents < 50) {
-      return res.status(400).json({ error: 'Amount must be at least $0.50' });
     }
 
     const validPurposes = ['guest_fee', 'overage_fee', 'one_time_purchase'];
@@ -53,19 +50,110 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       });
     }
 
-    const result = await createPaymentIntent({
-      userId,
-      email,
-      memberName: memberName || email.split('@')[0],
-      amountCents: Math.round(amountCents),
-      purpose,
-      bookingId,
-      sessionId,
-      description,
-      metadata: {
-        participantId: participantId?.toString() || ''
+    let snapshotId: number | null = null;
+    let serverFees: Array<{id: number; amountCents: number}> = [];
+    let serverTotal = Math.round(amountCents);
+    const isBookingPayment = bookingId && sessionId && participantFees && Array.isArray(participantFees) && participantFees.length > 0;
+
+    if (isBookingPayment) {
+      const sessionCheck = await pool.query(
+        `SELECT id FROM booking_sessions WHERE id = $1 AND booking_id = $2`,
+        [sessionId, bookingId]
+      );
+      if (sessionCheck.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid session/booking combination' });
       }
-    });
+
+      const requestedIds: number[] = participantFees.map((pf: any) => pf.id);
+
+      const feeResult = await calculateAndCacheParticipantFees(sessionId, requestedIds);
+      
+      if (!feeResult.success) {
+        return res.status(500).json({ error: feeResult.error || 'Failed to calculate fees' });
+      }
+      
+      if (feeResult.fees.length === 0) {
+        return res.status(400).json({ error: 'No valid pending participants with fees to charge' });
+      }
+      
+      for (const fee of feeResult.fees) {
+        serverFees.push({ id: fee.participantId, amountCents: fee.amountCents });
+      }
+      
+      console.log(`[Stripe] Calculated ${feeResult.fees.length} authoritative fees using fee calculator`);
+
+      serverTotal = serverFees.reduce((sum, f) => sum + f.amountCents, 0);
+      
+      if (serverTotal < 50) {
+        return res.status(400).json({ error: 'Total amount must be at least $0.50' });
+      }
+
+      console.log(`[Stripe] Using authoritative cached fees from DB, total: $${(serverTotal/100).toFixed(2)}`);
+      if (Math.abs(serverTotal - amountCents) > 1) {
+        console.warn(`[Stripe] Client total mismatch: client=${amountCents}, server=${serverTotal} - using server total`);
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        const snapshotResult = await client.query(
+          `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
+           VALUES ($1, $2, $3, $4, 'pending') RETURNING id`,
+          [bookingId, sessionId, JSON.stringify(serverFees), serverTotal]
+        );
+        snapshotId = snapshotResult.rows[0].id;
+        
+        await client.query('COMMIT');
+        console.log(`[Stripe] Created fee snapshot ${snapshotId} for booking ${bookingId}: $${(serverTotal/100).toFixed(2)} with ${serverFees.length} participants`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } else {
+      if (serverTotal < 50) {
+        return res.status(400).json({ error: 'Amount must be at least $0.50' });
+      }
+      console.log(`[Stripe] Non-booking payment: $${(serverTotal/100).toFixed(2)} for ${purpose}`);
+    }
+
+    const metadata: Record<string, string> = {};
+    if (snapshotId) {
+      metadata.feeSnapshotId = snapshotId.toString();
+    }
+    if (serverFees.length > 0) {
+      metadata.participantFees = JSON.stringify(serverFees);
+    }
+    
+    let result;
+    try {
+      result = await createPaymentIntent({
+        userId,
+        email,
+        memberName: memberName || email.split('@')[0],
+        amountCents: serverTotal,
+        purpose,
+        bookingId,
+        sessionId,
+        description,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+      });
+    } catch (stripeErr) {
+      if (snapshotId) {
+        await pool.query(`DELETE FROM booking_fee_snapshots WHERE id = $1`, [snapshotId]);
+        console.log(`[Stripe] Deleted orphaned snapshot ${snapshotId} after PaymentIntent creation failed`);
+      }
+      throw stripeErr;
+    }
+
+    if (snapshotId) {
+      await pool.query(
+        `UPDATE booking_fee_snapshots SET stripe_payment_intent_id = $1 WHERE id = $2`,
+        [result.paymentIntentId, snapshotId]
+      );
+    }
 
     res.json({
       paymentIntentId: result.paymentIntentId,

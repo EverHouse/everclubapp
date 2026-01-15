@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../Toast';
+import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 
 interface ParticipantFee {
   participantId: number;
@@ -19,6 +20,8 @@ interface ParticipantFee {
 interface CheckinContext {
   bookingId: number;
   sessionId: number | null;
+  ownerId: string;
+  ownerEmail: string;
   ownerName: string;
   bookingDate: string;
   startTime: string;
@@ -50,6 +53,12 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [waiverReason, setWaiverReason] = useState('');
   const [showWaiverInput, setShowWaiverInput] = useState<number | 'all' | null>(null);
+  const [showStripePayment, setShowStripePayment] = useState(false);
+  const [frozenPaymentData, setFrozenPaymentData] = useState<{
+    participantFees: Array<{id: number; amount: number}>;
+    totalAmount: number;
+    description: string;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen && bookingId) {
@@ -201,12 +210,50 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   };
 
+  const handleStripePaymentSuccess = async () => {
+    showToast('Payment successful - completing check-in...', 'success');
+    setShowStripePayment(false);
+    setFrozenPaymentData(null);
+    setActionInProgress('checkin-after-payment');
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'attended', skipPaymentCheck: true })
+      });
+      if (res.ok) {
+        onCheckinComplete();
+        onClose();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Payment succeeded but check-in failed - please retry', 'error');
+      }
+    } catch (err) {
+      showToast('Payment succeeded but check-in failed - please retry', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+  
+  const handleShowStripePayment = () => {
+    if (!context) return;
+    const pendingParticipants = context.participants.filter(p => p.paymentStatus === 'pending' && p.totalFee > 0);
+    const fees = pendingParticipants.map(p => ({ id: p.participantId, amount: p.totalFee }));
+    const totalAmount = fees.reduce((sum, f) => sum + f.amount, 0);
+    const description = `Fees for ${context.resourceName} - ${context.bookingDate}`;
+    
+    setFrozenPaymentData({ participantFees: fees, totalAmount, description });
+    setShowStripePayment(true);
+  };
+
   if (!isOpen) return null;
 
   const unpaidParticipants = context?.participants.filter(p => 
     p.paymentStatus === 'pending' && p.totalFee > 0
   ) || [];
   const hasPendingPayments = unpaidParticipants.length > 0;
+  
 
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -402,68 +449,94 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         </div>
 
         <div className="px-6 py-4 border-t border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5">
-          <div className="flex flex-col gap-2">
-            {hasPendingPayments ? (
-              <>
+          {showStripePayment && context && frozenPaymentData ? (
+            <StripePaymentForm
+              amount={frozenPaymentData.totalAmount}
+              description={frozenPaymentData.description}
+              userId={context.ownerId}
+              userEmail={context.ownerEmail}
+              memberName={context.ownerName}
+              purpose="guest_fee"
+              bookingId={bookingId}
+              sessionId={context.sessionId || undefined}
+              participantFees={frozenPaymentData.participantFees}
+              onSuccess={handleStripePaymentSuccess}
+              onCancel={() => { setShowStripePayment(false); setFrozenPaymentData(null); }}
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {hasPendingPayments ? (
+                <>
+                  {context?.totalOutstanding && context.totalOutstanding > 0 && (
+                    <button
+                      onClick={handleShowStripePayment}
+                      disabled={actionInProgress !== null}
+                      className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <span className="material-symbols-outlined">credit_card</span>
+                      Pay with Card (${context.totalOutstanding.toFixed(2)})
+                    </button>
+                  )}
+                  <button
+                    onClick={handleConfirmAll}
+                    disabled={actionInProgress !== null}
+                    className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined">payments</span>
+                    {actionInProgress === 'confirm-all' ? 'Processing...' : 'Mark Paid (Cash/External)'}
+                  </button>
+                  <button
+                    onClick={() => setShowWaiverInput('all')}
+                    disabled={actionInProgress !== null}
+                    className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    Waive All Fees
+                  </button>
+                  {showWaiverInput === 'all' && (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={waiverReason}
+                        onChange={(e) => setWaiverReason(e.target.value)}
+                        placeholder="Reason for waiving all fees..."
+                        className="w-full px-3 py-2 text-sm border border-primary/20 dark:border-white/20 rounded-lg bg-white dark:bg-black/20 text-primary dark:text-white"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleWaivePayment('all')}
+                          disabled={!waiverReason.trim() || actionInProgress !== null}
+                          className="flex-1 py-2 text-sm font-medium bg-gray-600 text-white rounded-lg disabled:opacity-50"
+                        >
+                          Confirm Waive All
+                        </button>
+                        <button
+                          onClick={() => { setShowWaiverInput(null); setWaiverReason(''); }}
+                          className="px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
                 <button
-                  onClick={handleConfirmAll}
+                  onClick={handleCheckinNoPayment}
                   disabled={actionInProgress !== null}
                   className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">payments</span>
-                  {actionInProgress === 'confirm-all' ? 'Processing...' : 'Confirm All Payments & Check In'}
+                  <span className="material-symbols-outlined">how_to_reg</span>
+                  {actionInProgress === 'checkin-skip' ? 'Processing...' : 'Complete Check-In'}
                 </button>
-                <button
-                  onClick={() => setShowWaiverInput('all')}
-                  disabled={actionInProgress !== null}
-                  className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
-                >
-                  Waive All Fees
-                </button>
-                {showWaiverInput === 'all' && (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={waiverReason}
-                      onChange={(e) => setWaiverReason(e.target.value)}
-                      placeholder="Reason for waiving all fees..."
-                      className="w-full px-3 py-2 text-sm border border-primary/20 dark:border-white/20 rounded-lg bg-white dark:bg-black/20 text-primary dark:text-white"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleWaivePayment('all')}
-                        disabled={!waiverReason.trim() || actionInProgress !== null}
-                        className="flex-1 py-2 text-sm font-medium bg-gray-600 text-white rounded-lg disabled:opacity-50"
-                      >
-                        Confirm Waive All
-                      </button>
-                      <button
-                        onClick={() => { setShowWaiverInput(null); setWaiverReason(''); }}
-                        className="px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
+              )}
               <button
-                onClick={handleCheckinNoPayment}
-                disabled={actionInProgress !== null}
-                className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={onClose}
+                className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
               >
-                <span className="material-symbols-outlined">how_to_reg</span>
-                {actionInProgress === 'checkin-skip' ? 'Processing...' : 'Complete Check-In'}
+                Cancel
               </button>
-            )}
-            <button
-              onClick={onClose}
-              className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
-            >
-              Cancel
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

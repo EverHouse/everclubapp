@@ -275,6 +275,8 @@ export const bookingParticipants = pgTable("booking_participants", {
   respondedAt: timestamp("responded_at"),
   inviteExpiresAt: timestamp("invite_expires_at"),
   expiredReason: varchar("expired_reason"),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id"),
+  paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("booking_participants_session_idx").on(table.sessionId),
@@ -304,6 +306,7 @@ export const bookingPaymentAudit = pgTable("booking_payment_audit", {
   amountAffected: numeric("amount_affected", { precision: 10, scale: 2 }),
   previousStatus: varchar("previous_status"),
   newStatus: varchar("new_status"),
+  paymentMethod: varchar("payment_method"),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [

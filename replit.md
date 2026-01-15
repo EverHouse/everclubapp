@@ -69,6 +69,14 @@ The application is built with a React 19 frontend utilizing Vite, styled with Ta
 - **Former Members Caching**: 10-minute cache in DataContext reduces repeated API calls when viewing former/inactive members, with force-refresh option.
 
 ## External Dependencies
+- **Stripe Payments**: Integrated via Replit Connectors for in-app payment collection.
+    - **Hybrid Billing**: Existing Mindbody members stay on current billing; Stripe handles new signups and one-off charges.
+    - **Payment Collection**: Staff can collect guest fees and overage payments in-app via Stripe Elements in the Check-In Billing Modal.
+    - **Customer Management**: Members are linked to Stripe customers (`stripe_customer_id` on users table).
+    - **Payment Tracking**: All payment intents tracked in `stripe_payment_intents` table with status and HubSpot sync.
+    - **HubSpot Sync**: Successful payments create line items on member deals for accounting visibility.
+    - **Webhook Processing**: Real-time payment status updates via managed webhooks (auto-configured).
+    - **Key Files**: `server/core/stripe/`, `server/routes/stripe.ts`, `src/components/stripe/StripePaymentForm.tsx`
 - **Resend**: Used for email-based OTP verification and email alerts from automated integrity checks.
 - **HubSpot CRM**: Integrated for contact and member management using Replit Connectors.
     - **Two-Way Sync**: Communication preferences (`eh_email_updates_opt_in`, `eh_sms_updates_opt_in`) sync bidirectionally.
