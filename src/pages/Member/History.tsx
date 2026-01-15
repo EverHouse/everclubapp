@@ -447,7 +447,7 @@ const History: React.FC = () => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'purchases' ? (
             <div className="space-y-4">
               <div className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
                 {purchases.length} purchase{purchases.length !== 1 ? 's' : ''}
