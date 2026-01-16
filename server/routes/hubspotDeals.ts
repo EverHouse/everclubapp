@@ -13,7 +13,7 @@ import {
   syncDealStageFromMindbodyStatus,
   updateDealStage
 } from '../core/hubspotDeals';
-import { syncAllMembersFromHubSpot } from '../core/memberSync';
+import { syncAllMembersFromHubSpot, syncCommunicationLogsFromHubSpot } from '../core/memberSync';
 import { db } from '../db';
 import { hubspotProductMappings, discountRules, hubspotDeals } from '../../shared/schema';
 import { eq, and, ne } from 'drizzle-orm';
@@ -217,6 +217,19 @@ router.post('/api/hubspot/sync-all-members', isStaffOrAdmin, async (req, res) =>
   } catch (error: any) {
     console.error('Error during manual member sync:', error);
     res.status(500).json({ error: 'Failed to sync members' });
+  }
+});
+
+// Manual trigger for communication logs sync (calls, SMS from HubSpot)
+router.post('/api/hubspot/sync-communication-logs', isStaffOrAdmin, async (req, res) => {
+  try {
+    console.log('[HubSpotDeals] Manual communication logs sync triggered');
+    const result = await syncCommunicationLogsFromHubSpot();
+    console.log(`[HubSpotDeals] Comm logs sync complete - Synced: ${result.synced}, Errors: ${result.errors}`);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('Error during communication logs sync:', error);
+    res.status(500).json({ error: 'Failed to sync communication logs' });
   }
 });
 

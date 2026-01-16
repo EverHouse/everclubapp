@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { users, membershipTiers } from '../../shared/schema';
-import { memberNotes } from '../../shared/models/membership';
+import { memberNotes, communicationLogs } from '../../shared/models/membership';
 import { getHubSpotClient } from './integrations';
 import { normalizeTierName, extractTierTags, TIER_NAMES } from '../../shared/constants/tiers';
 import { sql, eq, and } from 'drizzle-orm';
@@ -448,6 +448,359 @@ export async function updateHubSpotContactVisitCount(hubspotId: string, visitCou
     console.error(`[MemberSync] Failed to update HubSpot visit count for ${hubspotId}:`, error);
     return false;
   }
+}
+
+// Sync communication logs (calls) from HubSpot Engagements API
+// This is a separate sync that runs less frequently due to higher API cost
+let commLogsSyncInProgress = false;
+let lastCommLogsSyncTime = 0;
+const COMM_LOGS_SYNC_COOLDOWN = 30 * 60 * 1000; // 30 minutes cooldown
+
+export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: number; errors: number }> {
+  if (commLogsSyncInProgress) {
+    if (!isProduction) console.log('[CommLogs] Sync already in progress, skipping');
+    return { synced: 0, errors: 0 };
+  }
+  
+  const now = Date.now();
+  if (now - lastCommLogsSyncTime < COMM_LOGS_SYNC_COOLDOWN) {
+    if (!isProduction) console.log('[CommLogs] Sync cooldown active, skipping');
+    return { synced: 0, errors: 0 };
+  }
+  
+  commLogsSyncInProgress = true;
+  lastCommLogsSyncTime = now;
+  
+  let synced = 0;
+  let errors = 0;
+  
+  try {
+    const hubspot = await getHubSpotClient();
+    
+    // Get all active member emails with HubSpot IDs for efficient lookup
+    const membersResult = await db.select({
+      email: users.email,
+      hubspotId: users.hubspotId
+    })
+    .from(users)
+    .where(sql`${users.hubspotId} IS NOT NULL AND ${users.archivedAt} IS NULL`);
+    
+    const emailByHubSpotId = new Map<string, string>();
+    for (const m of membersResult) {
+      if (m.hubspotId) {
+        emailByHubSpotId.set(m.hubspotId, m.email);
+      }
+    }
+    
+    if (!isProduction) console.log(`[CommLogs] Found ${emailByHubSpotId.size} members with HubSpot IDs`);
+    
+    // Fetch calls from HubSpot (paginated)
+    const callProperties = [
+      'hs_call_body',
+      'hs_call_direction',
+      'hs_call_disposition',
+      'hs_call_duration',
+      'hs_call_from_number',
+      'hs_call_status',
+      'hs_call_title',
+      'hs_call_to_number',
+      'hs_timestamp',
+      'hubspot_owner_id'
+    ];
+    
+    let allCalls: any[] = [];
+    let after: string | undefined = undefined;
+    
+    // Limit to last 90 days of calls to avoid processing too much data
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    do {
+      try {
+        const response = await hubspot.crm.objects.calls.basicApi.getPage(
+          100,
+          after,
+          callProperties
+        );
+        
+        // Filter to recent calls only
+        const recentCalls = response.results.filter((call: any) => {
+          const timestamp = call.properties?.hs_timestamp;
+          if (!timestamp) return false;
+          return new Date(timestamp) >= ninetyDaysAgo;
+        });
+        
+        allCalls = allCalls.concat(recentCalls);
+        after = response.paging?.next?.after;
+        
+        // Rate limiting: pause between pages
+        await delay(200);
+      } catch (err: any) {
+        // Handle rate limits gracefully
+        if (err?.response?.status === 429) {
+          if (!isProduction) console.log('[CommLogs] Rate limited, waiting 10 seconds...');
+          await delay(10000);
+          continue;
+        }
+        throw err;
+      }
+    } while (after && allCalls.length < 1000); // Cap at 1000 calls per sync
+    
+    if (!isProduction) console.log(`[CommLogs] Fetched ${allCalls.length} calls from HubSpot`);
+    
+    // Process calls in batches
+    const BATCH_SIZE = 10;
+    const callLimit = pLimit(BATCH_SIZE);
+    
+    for (let i = 0; i < allCalls.length; i += BATCH_SIZE) {
+      const batch = allCalls.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(
+        batch.map(call =>
+          callLimit(async () => {
+            try {
+              const callId = call.id;
+              const props = call.properties || {};
+              
+              // Check if this call already exists
+              const existingLog = await db.select({ id: communicationLogs.id })
+                .from(communicationLogs)
+                .where(eq(communicationLogs.hubspotEngagementId, callId))
+                .limit(1);
+              
+              if (existingLog.length > 0) {
+                return; // Already synced
+              }
+              
+              // Get associated contact for this call
+              let memberEmail: string | null = null;
+              
+              try {
+                const associations = await hubspot.crm.objects.calls.associationsApi.getAll(
+                  callId,
+                  'contacts'
+                );
+                
+                if (associations.results && associations.results.length > 0) {
+                  const contactId = associations.results[0].id;
+                  memberEmail = emailByHubSpotId.get(contactId) || null;
+                  
+                  // If not in our map, try to fetch the contact directly
+                  if (!memberEmail) {
+                    try {
+                      const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['email']);
+                      memberEmail = contact.properties?.email?.toLowerCase() || null;
+                    } catch {
+                      // Contact not found
+                    }
+                  }
+                }
+              } catch {
+                // Associations not available
+              }
+              
+              if (!memberEmail) {
+                return; // Can't associate with a member
+              }
+              
+              // Determine direction
+              const direction = props.hs_call_direction === 'INBOUND' ? 'inbound' : 'outbound';
+              
+              // Parse timestamp
+              const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp) : new Date();
+              
+              // Build call body/subject
+              const subject = props.hs_call_title || 
+                `${direction === 'inbound' ? 'Inbound' : 'Outbound'} Call`;
+              
+              let body = props.hs_call_body || '';
+              if (props.hs_call_duration) {
+                const durationSecs = parseInt(props.hs_call_duration);
+                const mins = Math.floor(durationSecs / 60);
+                const secs = durationSecs % 60;
+                body = `Duration: ${mins}m ${secs}s\n${body}`.trim();
+              }
+              if (props.hs_call_disposition) {
+                body = `Outcome: ${props.hs_call_disposition}\n${body}`.trim();
+              }
+              
+              // Determine status based on disposition
+              let status = 'completed';
+              if (props.hs_call_status === 'NO_ANSWER') status = 'no_answer';
+              if (props.hs_call_status === 'BUSY') status = 'busy';
+              if (props.hs_call_status === 'FAILED') status = 'failed';
+              
+              // Insert the call log
+              await db.insert(communicationLogs).values({
+                memberEmail,
+                type: 'call',
+                direction,
+                subject,
+                body: body || null,
+                status,
+                hubspotEngagementId: callId,
+                hubspotSyncedAt: new Date(),
+                loggedBy: 'system',
+                loggedByName: 'HubSpot Sync',
+                occurredAt,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+              
+              synced++;
+            } catch (err) {
+              errors++;
+              if (!isProduction) console.error('[CommLogs] Error processing call:', err);
+            }
+          })
+        )
+      );
+      
+      // Rate limiting between batches
+      if (i + BATCH_SIZE < allCalls.length) {
+        await delay(500);
+      }
+    }
+    
+    // Also fetch SMS/communications if available (HubSpot Communications object)
+    try {
+      let allComms: any[] = [];
+      let commAfter: string | undefined = undefined;
+      
+      const commProperties = [
+        'hs_communication_channel_type',
+        'hs_communication_body',
+        'hs_timestamp',
+        'hubspot_owner_id'
+      ];
+      
+      do {
+        try {
+          // HubSpot stores SMS in the 'communications' object type
+          const response = await hubspot.apiRequest({
+            method: 'GET',
+            path: `/crm/v3/objects/communications?limit=100${commAfter ? `&after=${commAfter}` : ''}&properties=${commProperties.join(',')}`
+          });
+          
+          const data = await response.json();
+          
+          // Filter to SMS/text messages and recent ones
+          const recentComms = (data.results || []).filter((comm: any) => {
+            const channelType = comm.properties?.hs_communication_channel_type;
+            const timestamp = comm.properties?.hs_timestamp;
+            if (!timestamp) return false;
+            // Filter to SMS/WhatsApp type communications
+            return (channelType === 'SMS' || channelType === 'WHATS_APP') &&
+                   new Date(timestamp) >= ninetyDaysAgo;
+          });
+          
+          allComms = allComms.concat(recentComms);
+          commAfter = data.paging?.next?.after;
+          
+          await delay(200);
+        } catch (err: any) {
+          if (err?.response?.status === 429) {
+            await delay(10000);
+            continue;
+          }
+          // Communications object may not be available in all HubSpot accounts
+          if (!isProduction) console.log('[CommLogs] Communications object not available, skipping SMS sync');
+          break;
+        }
+      } while (commAfter && allComms.length < 500);
+      
+      if (!isProduction && allComms.length > 0) {
+        console.log(`[CommLogs] Fetched ${allComms.length} SMS/communications from HubSpot`);
+      }
+      
+      // Process SMS communications
+      for (const comm of allComms) {
+        try {
+          const commId = comm.id;
+          const props = comm.properties || {};
+          
+          // Check if already synced
+          const existingSms = await db.select({ id: communicationLogs.id })
+            .from(communicationLogs)
+            .where(eq(communicationLogs.hubspotEngagementId, `sms_${commId}`))
+            .limit(1);
+          
+          if (existingSms.length > 0) continue;
+          
+          // Get associated contact
+          let memberEmail: string | null = null;
+          try {
+            const assocResponse = await hubspot.apiRequest({
+              method: 'GET',
+              path: `/crm/v3/objects/communications/${commId}/associations/contacts`
+            });
+            const assocData = await assocResponse.json();
+            
+            if (assocData.results && assocData.results.length > 0) {
+              const contactId = assocData.results[0].id;
+              memberEmail = emailByHubSpotId.get(contactId) || null;
+              
+              if (!memberEmail) {
+                try {
+                  const contact = await hubspot.crm.contacts.basicApi.getById(contactId, ['email']);
+                  memberEmail = contact.properties?.email?.toLowerCase() || null;
+                } catch {
+                  // Contact not found
+                }
+              }
+            }
+          } catch {
+            // Associations not available
+          }
+          
+          if (!memberEmail) continue;
+          
+          const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp) : new Date();
+          const channelType = props.hs_communication_channel_type === 'WHATS_APP' ? 'whatsapp' : 'sms';
+          
+          await db.insert(communicationLogs).values({
+            memberEmail,
+            type: channelType,
+            direction: 'outbound', // Default to outbound for synced SMS
+            subject: `${channelType.toUpperCase()} Message`,
+            body: props.hs_communication_body || null,
+            status: 'sent',
+            hubspotEngagementId: `sms_${commId}`,
+            hubspotSyncedAt: new Date(),
+            loggedBy: 'system',
+            loggedByName: 'HubSpot Sync',
+            occurredAt,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          synced++;
+        } catch (err) {
+          errors++;
+          if (!isProduction) console.error('[CommLogs] Error processing SMS:', err);
+        }
+      }
+      
+    } catch (err) {
+      // SMS sync is optional, don't fail the whole sync
+      if (!isProduction) console.log('[CommLogs] SMS sync skipped:', err);
+    }
+    
+    if (!isProduction) console.log(`[CommLogs] Complete - Synced: ${synced}, Errors: ${errors}`);
+    
+    return { synced, errors };
+  } catch (error) {
+    console.error('[CommLogs] Fatal error:', error);
+    return { synced: 0, errors: 1 };
+  } finally {
+    commLogsSyncInProgress = false;
+  }
+}
+
+export function triggerCommunicationLogsSync(): void {
+  syncCommunicationLogsFromHubSpot().catch(err => {
+    console.error('[CommLogs] Background sync failed:', err);
+  });
 }
 
 // Push communication preferences to HubSpot

@@ -13,7 +13,7 @@ import { db } from './db';
 import { systemSettings } from '../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { syncGoogleCalendarEvents, syncWellnessCalendarEvents, syncInternalCalendarToClosures, syncConferenceRoomCalendarToBookings } from './core/calendar/index';
-import { syncAllMembersFromHubSpot } from './core/memberSync';
+import { syncAllMembersFromHubSpot, triggerCommunicationLogsSync } from './core/memberSync';
 
 import resourcesRouter from './routes/resources';
 import calendarRouter from './routes/calendar';
@@ -810,6 +810,19 @@ async function startServer() {
 
   // Waiver review scheduler - checks for stale waivers every 4 hours
   startWaiverReviewScheduler();
+  
+  // Communication logs sync scheduler - runs every 30 minutes
+  // Syncs calls and SMS from HubSpot Engagements API
+  const COMM_LOGS_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+  
+  // First sync after a delay to avoid startup congestion
+  setTimeout(() => {
+    triggerCommunicationLogsSync();
+    // Then run every 30 minutes
+    setInterval(triggerCommunicationLogsSync, COMM_LOGS_SYNC_INTERVAL_MS);
+  }, 10 * 60 * 1000); // Start 10 minutes after server startup
+  
+  console.log('[Startup] Communication logs sync scheduler enabled (runs every 30 minutes)');
 }
 
 startServer().catch((err) => {
