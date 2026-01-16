@@ -433,7 +433,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400">summarize</span>
+          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">summarize</span>
           <h3 className="font-bold text-primary dark:text-white">Daily Summary</h3>
         </div>
         {content}
@@ -445,7 +445,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-green-600 dark:text-green-400">summarize</span>
+          <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">summarize</span>
           <h3 className="font-bold text-primary dark:text-white">Daily Summary</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
@@ -634,7 +634,7 @@ const QuickChargeSection: React.FC<SectionProps> = ({ onClose, variant = 'modal'
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary dark:text-lavender">point_of_sale</span>
+          <span className="material-symbols-outlined text-slate-600 dark:text-slate-400">point_of_sale</span>
           <h3 className="font-bold text-primary dark:text-white">Quick Charge</h3>
         </div>
         {content}
@@ -646,7 +646,7 @@ const QuickChargeSection: React.FC<SectionProps> = ({ onClose, variant = 'modal'
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary dark:text-lavender">point_of_sale</span>
+          <span className="material-symbols-outlined text-slate-600 dark:text-slate-400">point_of_sale</span>
           <h3 className="font-bold text-primary dark:text-white">Quick Charge</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
@@ -856,7 +856,7 @@ const CashCheckPaymentSection: React.FC<SectionProps> = ({ onClose, variant = 'm
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-orange-500">savings</span>
+          <span className="material-symbols-outlined text-orange-600 dark:text-orange-400">savings</span>
           <h3 className="font-bold text-primary dark:text-white">Record Cash/Check</h3>
         </div>
         {content}
@@ -868,7 +868,7 @@ const CashCheckPaymentSection: React.FC<SectionProps> = ({ onClose, variant = 'm
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-orange-500">savings</span>
+          <span className="material-symbols-outlined text-orange-600 dark:text-orange-400">savings</span>
           <h3 className="font-bold text-primary dark:text-white">Record Cash/Check</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
@@ -952,7 +952,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
       {variant === 'card' ? (
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5 min-h-[300px]">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-red-500">warning</span>
+            <span className="material-symbols-outlined text-red-600 dark:text-red-400">warning</span>
             <h3 className="font-bold text-primary dark:text-white">Overdue Payments</h3>
             {overduePayments.length > 0 && (
               <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -966,7 +966,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
         <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-red-500">warning</span>
+              <span className="material-symbols-outlined text-red-600 dark:text-red-400">warning</span>
               <h3 className="font-bold text-primary dark:text-white">Overdue Payments</h3>
               {overduePayments.length > 0 && (
                 <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -1233,7 +1233,7 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-amber-500">person_search</span>
+          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
           <h3 className="font-bold text-primary dark:text-white">Member Lookup</h3>
         </div>
         {content}
@@ -1245,7 +1245,7 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-amber-500">person_search</span>
+          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
           <h3 className="font-bold text-primary dark:text-white">Member Lookup</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
@@ -1449,7 +1449,7 @@ const RecentTransactionsSection: React.FC<SectionProps> = ({ onClose, variant = 
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-blue-500">receipt_long</span>
+          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
           <h3 className="font-bold text-primary dark:text-white">Today's Transactions</h3>
           {transactions.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full">
@@ -1466,7 +1466,7 @@ const RecentTransactionsSection: React.FC<SectionProps> = ({ onClose, variant = 
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-blue-500">receipt_long</span>
+          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
           <h3 className="font-bold text-primary dark:text-white">Today's Transactions</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
@@ -1845,7 +1845,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-blue-500">hourglass_top</span>
+          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">hourglass_top</span>
           <h3 className="font-bold text-primary dark:text-white">Pending Authorizations</h3>
           {authorizations.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full">
@@ -1862,7 +1862,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-blue-500">hourglass_top</span>
+          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">hourglass_top</span>
           <h3 className="font-bold text-primary dark:text-white">Pending Authorizations</h3>
           {authorizations.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full">
@@ -2018,7 +2018,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-red-500">error</span>
+          <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
           <h3 className="font-bold text-primary dark:text-white">Failed Payments</h3>
           {failedPayments.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -2035,7 +2035,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-red-500">error</span>
+          <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
           <h3 className="font-bold text-primary dark:text-white">Failed Payments</h3>
           {failedPayments.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-full">
@@ -2317,7 +2317,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
     return (
       <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-purple-500">undo</span>
+          <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
           <h3 className="font-bold text-primary dark:text-white">Refunds</h3>
           {payments.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full">
@@ -2334,7 +2334,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-purple-500">undo</span>
+          <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">undo</span>
           <h3 className="font-bold text-primary dark:text-white">Refunds</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
