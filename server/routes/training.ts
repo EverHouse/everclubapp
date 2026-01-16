@@ -47,6 +47,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Approve or Decline', content: 'Click Approve to confirm the booking (this syncs to Google Calendar) or Decline to reject it. You can add staff notes with either action.' },
       { title: 'Calendar View', content: 'Switch to Calendar view to see all approved bookings for a selected date. Closures appear as red "CLOSED" blocks.', pageIcon: 'calendar_month' },
       { title: 'Quick Actions (FAB)', content: 'The floating action button (+) in the bottom right provides quick access to create a manual booking for walk-in members or phone reservations.' },
+      { title: 'Guardian Consent for Minors', content: 'When a member under 18 makes a booking, the system requires guardian consent. Staff will see a consent form that captures guardian name, relationship, and phone number before the booking can proceed.' },
     ]
   },
   {
@@ -172,6 +173,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Member Profile Drawer', content: 'Tap a member to open their profile drawer with tabs for: Overview (contact info, tier, tags), History (bookings, events, wellness, visits), Communications, and Staff Notes.' },
       { title: 'Booking History', content: 'In the History tab, view all member bookings and mark them as Attended or No Show directly from the profile.' },
       { title: 'View As Member (Admin Only)', content: 'Admins can tap "View As" to see the app from a member\'s perspective. A banner shows when viewing as another member. Exit by tapping the banner.' },
+      { title: 'Privacy Controls', content: 'Members can access Privacy settings from their Profile. This includes options to opt out of data sharing (CCPA compliant) and request a data export. Staff may receive data export requests via email.' },
     ]
   },
   {

@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.9",
+    date: "2026-01-16",
+    title: "Mobile App & Privacy Compliance",
+    changes: [
+      "Mobile app foundation with API endpoints for iOS and Android development",
+      "New privacy controls let members opt out of data sharing (CCPA/CPRA compliant)",
+      "Request your data export directly from your profile's Privacy section",
+      "Guardian consent required for members under 18 when making bookings",
+      "Improved performance on the member directory with faster list scrolling",
+      "Fixed join date display to show correct membership start dates"
+    ]
+  },
+  {
     version: "8.8",
     date: "2026-01-13",
     title: "Billing & Payment Tracking",
