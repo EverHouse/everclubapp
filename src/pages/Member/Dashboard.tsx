@@ -983,11 +983,11 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* My Balance Section */}
-        {!isStaffOrAdminProfile && (
+        {!isStaffOrAdminProfile && user?.email && (
           <div className="mb-6 animate-pop-in" style={{animationDelay: '0.125s'}}>
             <BalanceCard 
-              key={balanceRefreshKey}
-              memberEmail={user?.email}
+              key={`${balanceRefreshKey}-${user.email}`}
+              memberEmail={user.email}
               onPayNow={() => setShowBalancePaymentModal(true)} 
             />
           </div>
