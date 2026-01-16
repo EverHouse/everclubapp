@@ -16,12 +16,23 @@ import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts
 
 /**
  * Normalize a date string to YYYY-MM-DD format
- * Handles both YYYY-MM-DD and ISO timestamp formats
+ * Handles YYYY-MM-DD, ISO timestamp, and Unix timestamp (milliseconds) formats
  */
 function normalizeDateToYYYYMMDD(dateStr: string | null): string | null {
   if (!dateStr) return null;
   
   try {
+    // Check if it's a Unix timestamp (all digits, typically 13 digits for ms)
+    if (/^\d{10,13}$/.test(dateStr)) {
+      const timestamp = parseInt(dateStr, 10);
+      // Convert to date in Pacific timezone for consistency
+      const date = new Date(timestamp);
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
     // Extract just the date part (YYYY-MM-DD) from ISO or date strings
     const cleanDate = dateStr.split('T')[0];
     
