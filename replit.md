@@ -58,6 +58,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Staff Payments Dashboard**: Full POS functionality at `/admin?tab=payments` with Quick Charge, Cash/Check Recording, Refunds, Failed Payments, Daily Summary, Pending Authorizations, Member Lookup, and Guest Pass adjustments, all logged in `billing_audit_log`.
 - **Unified Payment History**: Members can view combined payment history from Mindbody, Stripe, and POS sources, with `Pay Now` and `View` links for invoices.
 - **Database Integrity**: Added `user_id` FK to `booking_requests` and FK constraints for `resource_id` across booking tables with appropriate ON DELETE behaviors. Optimized admin member loading with pagination.
+- **Centralized Member Lookup (MemberService)**: All member data lookups should go through `server/core/memberService/`. This service handles the complexity of matching members by email, UUID, linked emails, or trackman email in a single place. Key methods: `findByEmail()`, `findById()`, `findByAnyIdentifier()`, `resolveMemberForBilling()`. The service includes caching to improve performance. SQL join helpers (`USAGE_LEDGER_MEMBER_JOIN`, `USAGE_LEDGER_MEMBER_JOIN_WITH_BOOKING`) are exported for use in raw SQL queries that need to match usage_ledger entries correctly.
 
 ## External Dependencies
 - **Stripe Payments**: Integrated via Replit Connectors for in-app payment collection, customer management, payment tracking, HubSpot sync, webhook processing, product synchronization, subscription management, and invoice management.
