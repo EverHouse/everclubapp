@@ -10,6 +10,15 @@ export interface SelectedMember {
   stripeCustomerId?: string | null;
 }
 
+// Helper to search by multiple words (e.g., "nick luu" matches "Nick Luu")
+const matchesMultiWordQuery = (text: string | undefined, query: string): boolean => {
+  if (!text) return false;
+  const lowerText = text.toLowerCase();
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // All words must appear somewhere in the text
+  return words.every(word => lowerText.includes(word));
+};
+
 interface MemberSearchInputProps {
   onSelect: (member: SelectedMember) => void;
   onClear?: () => void;
@@ -54,24 +63,23 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Update dropdown position when open
+  // For position: fixed, use viewport-relative coordinates (no scroll offset)
   useEffect(() => {
     if (isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
+        top: rect.bottom + 4,  // Just below the input
+        left: rect.left,
         width: rect.width
       });
     }
   }, [isOpen, query]);
 
+  // Use multi-word matching for better "first last" name search
+  // Always filter locally - members array should be populated by DataContext
   const filteredMembers = members.filter(m => {
     if (!query.trim()) return false;
-    const searchQuery = query.toLowerCase();
-    return (
-      m.name?.toLowerCase().includes(searchQuery) ||
-      m.email?.toLowerCase().includes(searchQuery)
-    );
+    return matchesMultiWordQuery(m.name, query) || matchesMultiWordQuery(m.email, query);
   }).slice(0, 8);
 
   useEffect(() => {

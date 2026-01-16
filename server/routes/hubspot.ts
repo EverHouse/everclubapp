@@ -410,17 +410,22 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
       return true;
     });
     
-    // Apply search filter if provided
+    // Apply search filter if provided - supports multi-word queries like "nick luu"
     if (searchQuery) {
+      const searchWords = searchQuery.split(/\s+/).filter(Boolean);
       filtered = filtered.filter((contact: any) => {
         const firstName = (contact.firstName || '').toLowerCase();
         const lastName = (contact.lastName || '').toLowerCase();
         const email = (contact.email || '').toLowerCase();
         const fullName = `${firstName} ${lastName}`.trim();
-        return firstName.includes(searchQuery) || 
-               lastName.includes(searchQuery) || 
-               fullName.includes(searchQuery) ||
-               email.includes(searchQuery);
+        
+        // All words in the search query must match somewhere in name or email
+        return searchWords.every(word => 
+          firstName.includes(word) || 
+          lastName.includes(word) || 
+          fullName.includes(word) ||
+          email.includes(word)
+        );
       });
     }
     
