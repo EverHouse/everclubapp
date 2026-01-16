@@ -14,6 +14,7 @@ import {
 } from '../core/bookingService/trackmanReconciliation';
 import { getGuestPassesRemaining } from './guestPasses';
 import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes, getTotalDailyUsageMinutes } from '../core/tierService';
+import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
 
 const router = Router();
 
@@ -753,7 +754,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     });
     
     // Calculate remaining passes after this booking's deduction
-    const guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+    // Note: This will be recalculated if session data overrides guestPassesUsedThisBooking
+    let guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
     
     // Build tier metadata for the response
     const dailyAllowance = ownerTierLimits?.daily_sim_minutes || 0;
@@ -765,12 +767,117 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         : 'Pay-as-you-go';
     
     // Calculate financial summary for display
-    const ownerMember = membersWithFees.find(m => m.isPrimary);
-    const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);
-    const guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0);
-    const ownerOverageFee = ownerMember?.fee || 0;
+    // When session_id exists, use the authoritative participant fees from booking_participants
+    // This ensures the summary matches what's shown in the Check-In & Billing modal
+    let ownerOverageFee = 0;
+    let guestFeesWithoutPass = 0;
+    let totalPlayersOwe = 0;
+    let playerBreakdownFromSession: Array<{ name: string; tier: string | null; fee: number; feeNote: string }> = [];
+    
+    const sessionId = bookingResult.rows[0]?.session_id;
+    if (sessionId) {
+      // Get actual participant fees from booking_participants (authoritative source)
+      const participantsResult = await pool.query(`
+        SELECT 
+          bp.id as participant_id,
+          bp.display_name,
+          bp.participant_type,
+          bp.user_id,
+          bp.used_guest_pass,
+          u.tier as user_tier,
+          u.email as user_email
+        FROM booking_participants bp
+        LEFT JOIN users u ON u.id = bp.user_id
+        WHERE bp.session_id = $1
+        ORDER BY bp.participant_type, bp.created_at
+      `, [sessionId]);
+      
+      if (participantsResult.rows.length > 0) {
+        const allParticipantIds = participantsResult.rows.map(p => p.participant_id);
+        const feeResult = await calculateAndCacheParticipantFees(sessionId, allParticipantIds);
+        
+        const feeMap = new Map<number, number>();
+        for (const f of feeResult.fees) {
+          feeMap.set(f.participantId, f.amountCents / 100);
+        }
+        
+        // Build email-to-fee map to update membersWithFees array
+        const emailToFeeMap = new Map<string, { fee: number; feeNote: string }>();
+        
+        for (const p of participantsResult.rows) {
+          const participantFee = feeMap.get(p.participant_id) || 0;
+          const email = p.user_email?.toLowerCase();
+          
+          if (p.participant_type === 'owner') {
+            ownerOverageFee = participantFee;
+            if (email) {
+              emailToFeeMap.set(email, {
+                fee: participantFee,
+                feeNote: participantFee > 0 ? 'Overage fee' : 'Within daily allowance'
+              });
+            }
+          } else if (p.participant_type === 'member') {
+            totalPlayersOwe += participantFee;
+            playerBreakdownFromSession.push({
+              name: p.display_name || 'Unknown Member',
+              tier: p.user_tier || null,
+              fee: participantFee,
+              feeNote: participantFee > 0 ? 'Overage fee' : 'Within allowance'
+            });
+            if (email) {
+              emailToFeeMap.set(email, {
+                fee: participantFee,
+                feeNote: participantFee > 0 ? 'Overage fee' : 'Within daily allowance'
+              });
+            }
+          } else if (p.participant_type === 'guest') {
+            if (!p.used_guest_pass && participantFee > 0) {
+              guestFeesWithoutPass += participantFee;
+            }
+          }
+        }
+        
+        // Update membersWithFees with authoritative session-based fees
+        for (const member of membersWithFees) {
+          if (member.userEmail) {
+            const sessionFeeData = emailToFeeMap.get(member.userEmail.toLowerCase());
+            if (sessionFeeData) {
+              member.fee = sessionFeeData.fee;
+              member.feeNote = sessionFeeData.feeNote;
+            }
+          }
+        }
+        
+        // Also update guestsWithFees from session data for guest participants
+        const guestParticipants = participantsResult.rows.filter(p => p.participant_type === 'guest');
+        for (let i = 0; i < guestsWithFees.length && i < guestParticipants.length; i++) {
+          const gp = guestParticipants[i];
+          const participantFee = feeMap.get(gp.participant_id) || 0;
+          guestsWithFees[i].fee = participantFee;
+          guestsWithFees[i].usedGuestPass = gp.used_guest_pass || false;
+          guestsWithFees[i].feeNote = gp.used_guest_pass ? 'Guest Pass Used' : (participantFee > 0 ? 'No passes - $25 due' : 'No charge');
+        }
+        
+        // Recalculate guest pass counts from session data
+        guestPassesUsedThisBooking = guestParticipants.filter(gp => gp.used_guest_pass).length;
+        guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+      }
+    } else {
+      // Fallback to calculated fees for legacy bookings without session_id
+      const ownerMember = membersWithFees.find(m => m.isPrimary);
+      const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);
+      guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0);
+      ownerOverageFee = ownerMember?.fee || 0;
+      totalPlayersOwe = nonOwnerMembers.reduce((sum, m) => sum + m.fee, 0);
+      playerBreakdownFromSession = nonOwnerMembers.map(m => ({
+        name: m.memberName,
+        tier: m.tier,
+        fee: m.fee,
+        feeNote: m.feeNote
+      }));
+    }
+    
     const totalOwnerOwes = ownerOverageFee + guestFeesWithoutPass;
-    const totalPlayersOwe = nonOwnerMembers.reduce((sum, m) => sum + m.fee, 0);
     
     res.json({
       ownerGuestPassesRemaining,
@@ -813,12 +920,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         totalOwnerOwes,
         totalPlayersOwe,
         grandTotal: totalOwnerOwes + totalPlayersOwe,
-        playerBreakdown: nonOwnerMembers.map(m => ({
-          name: m.memberName,
-          tier: m.tier,
-          fee: m.fee,
-          feeNote: m.feeNote
-        }))
+        playerBreakdown: playerBreakdownFromSession
       }
     });
   } catch (error: any) {
