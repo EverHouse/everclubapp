@@ -108,18 +108,17 @@ export function MemberPaymentModal({
   const modalContent = (
     <div
       className={`fixed inset-0 z-[60] ${isDark ? 'dark' : ''}`}
-      style={{ overscrollBehavior: 'contain', touchAction: 'none' }}
+      style={{ overscrollBehavior: 'contain' }}
     >
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-backdrop-fade-in"
         aria-hidden="true"
         onClick={onClose}
-        style={{ touchAction: 'none' }}
       />
 
       <div
         className="fixed inset-0 overflow-y-auto"
-        style={{ overscrollBehavior: 'contain' }}
+        style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             onClose();
