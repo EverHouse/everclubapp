@@ -151,15 +151,99 @@ const MobilePaymentsView: React.FC = () => {
   }, []);
 
   const quickActions = [
-    { id: 'summary' as const, icon: 'summarize', label: 'Summary', color: 'bg-green-600' },
-    { id: 'quick-charge' as const, icon: 'point_of_sale', label: 'Quick Charge', color: 'bg-primary dark:bg-lavender' },
-    { id: 'record-payment' as const, icon: 'savings', label: 'Record Payment', color: 'bg-orange-500' },
-    { id: 'pending' as const, icon: 'hourglass_top', label: 'Pending', color: 'bg-blue-500', badge: pendingCount },
-    { id: 'overdue' as const, icon: 'warning', label: 'Overdue', color: overdueCount > 0 ? 'bg-red-500' : 'bg-gray-400', badge: overdueCount },
-    { id: 'failed' as const, icon: 'error', label: 'Failed', color: failedCount > 0 ? 'bg-red-600' : 'bg-gray-400', badge: failedCount },
-    { id: 'refunds' as const, icon: 'undo', label: 'Refunds', color: 'bg-purple-500' },
-    { id: 'lookup' as const, icon: 'person_search', label: 'Member Lookup', color: 'bg-amber-500' },
-    { id: 'transactions' as const, icon: 'receipt_long', label: 'Recent', color: 'bg-blue-500' },
+    { 
+      id: 'summary' as const, 
+      icon: 'summarize', 
+      label: 'Summary', 
+      bgClass: 'bg-emerald-100/60 dark:bg-emerald-950/40',
+      textClass: 'text-emerald-900 dark:text-emerald-100',
+      borderClass: 'border-emerald-200 dark:border-emerald-500/20',
+      hoverClass: 'hover:bg-emerald-200/60 dark:hover:bg-emerald-900/60',
+      iconClass: 'text-emerald-600 dark:text-emerald-400'
+    },
+    { 
+      id: 'quick-charge' as const, 
+      icon: 'point_of_sale', 
+      label: 'Quick Charge', 
+      bgClass: 'bg-slate-100/60 dark:bg-slate-800/40',
+      textClass: 'text-slate-900 dark:text-slate-100',
+      borderClass: 'border-slate-200 dark:border-slate-500/20',
+      hoverClass: 'hover:bg-slate-200/60 dark:hover:bg-slate-700/60',
+      iconClass: 'text-slate-600 dark:text-slate-400'
+    },
+    { 
+      id: 'record-payment' as const, 
+      icon: 'savings', 
+      label: 'Record Payment', 
+      bgClass: 'bg-orange-100/60 dark:bg-orange-950/40',
+      textClass: 'text-orange-900 dark:text-orange-100',
+      borderClass: 'border-orange-200 dark:border-orange-500/20',
+      hoverClass: 'hover:bg-orange-200/60 dark:hover:bg-orange-900/60',
+      iconClass: 'text-orange-600 dark:text-orange-400'
+    },
+    { 
+      id: 'pending' as const, 
+      icon: 'hourglass_top', 
+      label: 'Pending', 
+      bgClass: 'bg-blue-100/60 dark:bg-blue-950/40',
+      textClass: 'text-blue-900 dark:text-blue-100',
+      borderClass: 'border-blue-200 dark:border-blue-500/20',
+      hoverClass: 'hover:bg-blue-200/60 dark:hover:bg-blue-900/60',
+      iconClass: 'text-blue-600 dark:text-blue-400',
+      badge: pendingCount 
+    },
+    { 
+      id: 'overdue' as const, 
+      icon: 'warning', 
+      label: 'Overdue', 
+      bgClass: overdueCount > 0 ? 'bg-red-100/60 dark:bg-red-950/40' : 'bg-zinc-100/60 dark:bg-zinc-800/40',
+      textClass: overdueCount > 0 ? 'text-red-900 dark:text-red-100' : 'text-zinc-600 dark:text-zinc-400',
+      borderClass: overdueCount > 0 ? 'border-red-200 dark:border-red-500/20' : 'border-zinc-200 dark:border-zinc-600/20',
+      hoverClass: overdueCount > 0 ? 'hover:bg-red-200/60 dark:hover:bg-red-900/60' : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60',
+      iconClass: overdueCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-500',
+      badge: overdueCount 
+    },
+    { 
+      id: 'failed' as const, 
+      icon: 'error', 
+      label: 'Failed', 
+      bgClass: failedCount > 0 ? 'bg-red-100/60 dark:bg-red-950/40' : 'bg-zinc-100/60 dark:bg-zinc-800/40',
+      textClass: failedCount > 0 ? 'text-red-900 dark:text-red-100' : 'text-zinc-600 dark:text-zinc-400',
+      borderClass: failedCount > 0 ? 'border-red-200 dark:border-red-500/20' : 'border-zinc-200 dark:border-zinc-600/20',
+      hoverClass: failedCount > 0 ? 'hover:bg-red-200/60 dark:hover:bg-red-900/60' : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60',
+      iconClass: failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-500',
+      badge: failedCount 
+    },
+    { 
+      id: 'refunds' as const, 
+      icon: 'undo', 
+      label: 'Refunds', 
+      bgClass: 'bg-purple-100/60 dark:bg-purple-950/40',
+      textClass: 'text-purple-900 dark:text-purple-100',
+      borderClass: 'border-purple-200 dark:border-purple-500/20',
+      hoverClass: 'hover:bg-purple-200/60 dark:hover:bg-purple-900/60',
+      iconClass: 'text-purple-600 dark:text-purple-400'
+    },
+    { 
+      id: 'lookup' as const, 
+      icon: 'person_search', 
+      label: 'Member Lookup', 
+      bgClass: 'bg-amber-100/60 dark:bg-amber-950/40',
+      textClass: 'text-amber-900 dark:text-amber-100',
+      borderClass: 'border-amber-200 dark:border-amber-500/20',
+      hoverClass: 'hover:bg-amber-200/60 dark:hover:bg-amber-900/60',
+      iconClass: 'text-amber-600 dark:text-amber-400'
+    },
+    { 
+      id: 'transactions' as const, 
+      icon: 'receipt_long', 
+      label: 'Recent', 
+      bgClass: 'bg-blue-100/60 dark:bg-blue-950/40',
+      textClass: 'text-blue-900 dark:text-blue-100',
+      borderClass: 'border-blue-200 dark:border-blue-500/20',
+      hoverClass: 'hover:bg-blue-200/60 dark:hover:bg-blue-900/60',
+      iconClass: 'text-blue-600 dark:text-blue-400'
+    },
   ];
 
   return (
@@ -169,12 +253,12 @@ const MobilePaymentsView: React.FC = () => {
           <button
             key={action.id}
             onClick={() => setActiveSection(action.id)}
-            className={`${action.color} text-white rounded-2xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-transform relative`}
+            className={`${action.bgClass} ${action.textClass} ${action.borderClass} ${action.hoverClass} border backdrop-blur-md rounded-2xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-all duration-300 relative`}
           >
-            <span className="material-symbols-outlined text-3xl">{action.icon}</span>
+            <span className={`material-symbols-outlined text-3xl ${action.iconClass}`}>{action.icon}</span>
             <span className="font-semibold text-sm">{action.label}</span>
             {action.badge !== undefined && action.badge > 0 && (
-              <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 flex items-center justify-center bg-white text-red-600 text-sm font-bold rounded-full">
+              <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 flex items-center justify-center bg-red-500 text-white text-sm font-bold rounded-full">
                 {action.badge > 99 ? '99+' : action.badge}
               </span>
             )}
