@@ -39,6 +39,12 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Real-Time Sync**: Instant updates across clients via WebSocket for various data points.
 - **PWA Features**: Service Worker caching, offline support, and iOS-style interactions.
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling.
+- **Performance Optimizations**: 
+  - List virtualization using react-window for DirectoryTab and StaffCommandCenter booking lists (threshold: 20+ items for directory, 6+ items for bookings).
+  - Skeleton loaders for member/admin routes during data loading (`src/components/skeletons/`).
+  - CSS glass effects optimized for mobile with reduced blur, touch device detection, and prefers-reduced-motion support.
+  - Admin tabs lazy-loaded in AdminDashboard to reduce initial bundle size.
+  - Optimistic updates for booking approve/deny actions in StaffCommandCenter.
 - **Trackman Historical Import**: Staff and admin tool for importing CSV data, auto-matching to bookings, handling cancellations, and managing player counts, creating `booking_sessions` and `usage_ledger` entries.
 - **Multi-Member Booking System**: Uses `booking_sessions`, `booking_participants`, `usage_ledger`, and `guests` tables for tracking.
 - **Staff Check-In Tools**: Payment guard, check-in billing modal with fee breakdown, individual payment marking, fee waiving, and staff direct-add with tier override, all audited in `booking_payment_audit`.

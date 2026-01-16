@@ -87,26 +87,47 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
     if (!trackmanModal) return;
     const request = trackmanModal;
     const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', '')) : request.id;
+    const trackmanId = trackmanBookingIdInput || undefined;
+    
     setActionInProgress(`approve-${request.id}`);
+    
+    const previousPendingRequests = [...data.pendingRequests];
+    
+    updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
+    
+    const newActivity: RecentActivity = {
+      id: `approve-${apiId}-${Date.now()}`,
+      type: 'booking_approved',
+      timestamp: new Date().toISOString(),
+      primary_text: request.user_name || 'Member',
+      secondary_text: request.bay_name || 'Bay',
+      icon: 'check_circle'
+    };
+    updateRecentActivity(prev => [newActivity, ...prev]);
+    
+    setTrackmanModal(null);
+    setTrackmanBookingIdInput('');
+    
     try {
       const res = await fetch(`/api/booking-requests/${apiId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: 'approved', resource_id: request.resource_id, trackman_booking_id: trackmanBookingIdInput || undefined })
+        body: JSON.stringify({ status: 'approved', resource_id: request.resource_id, trackman_booking_id: trackmanId })
       });
       if (res.ok) {
-        updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
         showToast('Booking approved', 'success');
         window.dispatchEvent(new CustomEvent('booking-action-completed'));
         refresh();
-        setTrackmanModal(null);
-        setTrackmanBookingIdInput('');
       } else {
-        const data = await res.json();
-        showToast(data.error || 'Failed to approve', 'error');
+        updatePendingRequests(() => previousPendingRequests);
+        updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
+        const errorData = await res.json();
+        showToast(errorData.error || 'Failed to approve', 'error');
       }
     } catch (err) {
+      updatePendingRequests(() => previousPendingRequests);
+      updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       showToast('Failed to approve booking', 'error');
     } finally {
       setActionInProgress(null);
@@ -116,6 +137,21 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
   const handleDeny = async (request: BookingRequest) => {
     const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', '')) : request.id;
     setActionInProgress(`deny-${request.id}`);
+    
+    const previousPendingRequests = [...data.pendingRequests];
+    
+    updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
+    
+    const newActivity: RecentActivity = {
+      id: `deny-${apiId}-${Date.now()}`,
+      type: 'booking_declined',
+      timestamp: new Date().toISOString(),
+      primary_text: request.user_name || 'Member',
+      secondary_text: request.bay_name || 'Bay',
+      icon: 'cancel'
+    };
+    updateRecentActivity(prev => [newActivity, ...prev]);
+    
     try {
       const res = await fetch(`/api/booking-requests/${apiId}`, {
         method: 'PUT',
@@ -124,13 +160,16 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         body: JSON.stringify({ status: 'declined' })
       });
       if (res.ok) {
-        updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
         showToast('Booking declined', 'success');
         window.dispatchEvent(new CustomEvent('booking-action-completed'));
       } else {
+        updatePendingRequests(() => previousPendingRequests);
+        updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
         showToast('Failed to decline booking', 'error');
       }
     } catch (err) {
+      updatePendingRequests(() => previousPendingRequests);
+      updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       showToast('Failed to decline booking', 'error');
     } finally {
       setActionInProgress(null);

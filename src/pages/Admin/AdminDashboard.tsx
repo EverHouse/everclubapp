@@ -7,10 +7,10 @@ import BackToTop from '../../components/BackToTop';
 import Toggle from '../../components/Toggle';
 import Avatar from '../../components/Avatar';
 import ModalShell from '../../components/ModalShell';
-import StaffCommandCenter from '../../components/StaffCommandCenter';
 import MenuOverlay from '../../components/MenuOverlay';
 import PageErrorBoundary from '../../components/PageErrorBoundary';
 import { useStaffWebSocket } from '../../hooks/useStaffWebSocket';
+import StaffCommandCenter from '../../components/StaffCommandCenter';
 
 import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications } from './layout';
 

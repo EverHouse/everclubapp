@@ -16,6 +16,9 @@ import { getTierColor, getTagColor } from '../../../utils/tierUtils';
 const TIER_OPTIONS = ['All', 'Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const ASSIGNABLE_TIERS = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 
+// Only virtualize lists with more than this many items to avoid overhead on small lists
+const VIRTUALIZATION_THRESHOLD = 20;
+
 type SortField = 'name' | 'tier' | 'visits' | 'joinDate' | 'lastVisit';
 type SortDirection = 'asc' | 'desc';
 type MemberTab = 'active' | 'former';
@@ -319,9 +322,10 @@ const DirectoryTab: React.FC = () => {
         navigate('/dashboard');
     };
 
-    const SortableHeader = ({ field, label, className = '' }: { field: SortField; label: string; className?: string }) => (
-        <th 
+    const SortableHeader = ({ field, label, className = '', width }: { field: SortField; label: string; className?: string; width: string }) => (
+        <div 
             className={`p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none ${className}`}
+            style={{ width }}
             onClick={() => handleSort(field)}
         >
             <div className="flex items-center gap-1">
@@ -330,7 +334,7 @@ const DirectoryTab: React.FC = () => {
                     {getSortIcon(field)}
                 </span>
             </div>
-        </th>
+        </div>
     );
 
     return (
@@ -601,46 +605,105 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
-            {/* Mobile view - Virtualized */}
+            {/* Mobile view - Virtualized only for large lists */}
             {!formerLoading && filteredList.length > 0 && (
-            <div className="md:hidden h-[calc(100vh-400px)] min-h-[400px]">
-                <AutoSizer>
-                    {({ height, width }) => {
-                        const MobileRow = ({ index, style }: ListChildComponentProps) => {
-                            const m = filteredList[index];
-                            return (
-                                <div style={{ ...style, paddingBottom: 12 }}>
-                                    <div 
-                                        onClick={() => openDetailsModal(m)}
-                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors h-full" 
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
-                                                    {memberTab === 'former' && m.status && (
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(m.status)}`}>
-                                                            {formatStatusLabel(m.status)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
-                                                {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
-                                                {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
-                                            </div>
+            <div className="md:hidden">
+                {/* Non-virtualized rendering for small lists */}
+                {filteredList.length < VIRTUALIZATION_THRESHOLD ? (
+                    <div className="space-y-3">
+                        {filteredList.map((m) => (
+                            <div 
+                                key={m.email}
+                                onClick={() => openDetailsModal(m)}
+                                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors" 
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
+                                            {memberTab === 'former' && m.status && (
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(m.status)}`}>
+                                                    {formatStatusLabel(m.status)}
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                                                {m.tags?.map(tag => (
-                                                    <TagBadge key={tag} tag={tag} size="sm" />
-                                                ))}
-                                                {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
+                                        {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
+                                        {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                        {m.tags?.map(tag => (
+                                            <TagBadge key={tag} tag={tag} size="sm" />
+                                        ))}
+                                        {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                            >
+                                                <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
+                                                Assign Tier
+                                            </button>
+                                        )}
+                                    </div>
+                                    {isAdmin && memberTab === 'active' && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
+                                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-colors"
+                                        >
+                                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
+                                            View As
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    /* Virtualized rendering for large lists */
+                    <div className="h-[calc(100vh-400px)] min-h-[400px]">
+                        <AutoSizer>
+                            {({ height, width }) => {
+                                const MobileRow = ({ index, style }: ListChildComponentProps) => {
+                                    const m = filteredList[index];
+                                    return (
+                                        <div style={{ ...style, paddingBottom: 12 }}>
+                                            <div 
+                                                onClick={() => openDetailsModal(m)}
+                                                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors h-full" 
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
+                                                            {memberTab === 'former' && m.status && (
+                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(m.status)}`}>
+                                                                    {formatStatusLabel(m.status)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
+                                                        {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
+                                                        {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                                        {m.tags?.map(tag => (
+                                                            <TagBadge key={tag} tag={tag} size="sm" />
+                                                        ))}
+                                                        {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
                                                         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
                                                     >
                                                         <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
@@ -678,102 +741,153 @@ const DirectoryTab: React.FC = () => {
             </div>
             )}
 
-            {/* Desktop table view - Virtualized */}
+            {/* Desktop view - Virtualized only for large lists with flex-based layout */}
             {!formerLoading && filteredList.length > 0 && (
             <div className="hidden md:block overflow-hidden">
-                <table className="w-full text-left table-fixed">
-                    <colgroup>
-                        <col className="w-[15%]" />
-                        <col className="w-[20%]" />
-                        <col className="w-[8%]" />
-                        <col className="w-[10%]" />
-                        <col className="w-[10%]" />
-                        <col className="w-[22%]" />
-                        {memberTab === 'former' && <col className="w-[15%]" />}
-                    </colgroup>
-                    <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20">
-                        <tr>
-                            <SortableHeader field="name" label="Name" />
-                            <SortableHeader field="tier" label="Tier" />
-                            <SortableHeader field="visits" label="Visits" className="text-center" />
-                            <SortableHeader field="joinDate" label="Joined" />
-                            <SortableHeader field="lastVisit" label="Last Visit" />
-                            <th className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm">Email</th>
-                            {memberTab === 'former' && (
-                                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm">Status</th>
-                            )}
-                        </tr>
-                    </thead>
-                </table>
-                <div className="h-[calc(100vh-450px)] min-h-[400px]">
-                    <AutoSizer>
-                        {({ height, width }) => {
-                            const DesktopRow = ({ index, style }: ListChildComponentProps) => {
-                                const m = filteredList[index];
-                                return (
-                                    <div 
-                                        style={style}
-                                        onClick={() => openDetailsModal(m)}
-                                        className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-                                    >
-                                        <div className="w-[15%] p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
-                                        <div className="w-[20%] p-4">
-                                            <div className="flex items-center gap-1 flex-wrap">
-                                                <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                                                {m.tags?.map(tag => (
-                                                    <TagBadge key={tag} tag={tag} size="sm" />
-                                                ))}
-                                                {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                        className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
-                                                    >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
-                                                        Assign
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="w-[8%] p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
-                                            {m.lifetimeVisits || 0}
-                                        </div>
-                                        <div className="w-[10%] p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                            {formatJoinDate(m.joinDate)}
-                                        </div>
-                                        <div className="w-[10%] p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                            {formatJoinDate(m.lastBookingDate)}
-                                        </div>
-                                        <div className={`${memberTab === 'former' ? 'w-[22%]' : 'w-[37%]'} p-4 text-gray-500 dark:text-gray-400 text-sm truncate`} title={m.email}>{m.email}</div>
-                                        {memberTab === 'former' && (
-                                            <div className="w-[15%] p-4">
-                                                {m.status ? (
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
-                                                        {formatStatusLabel(m.status)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                                                        Unknown
-                                                    </span>
-                                                )}
-                                            </div>
+                {/* Header row - fixed */}
+                <div className="flex bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20">
+                    <SortableHeader field="name" label="Name" width="15%" />
+                    <SortableHeader field="tier" label="Tier" width="20%" />
+                    <SortableHeader field="visits" label="Visits" width="8%" className="text-center" />
+                    <SortableHeader field="joinDate" label="Joined" width="10%" />
+                    <SortableHeader field="lastVisit" label="Last Visit" width="10%" />
+                    <div 
+                        className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm"
+                        style={{ width: memberTab === 'former' ? '22%' : '37%' }}
+                    >
+                        Email
+                    </div>
+                    {memberTab === 'former' && (
+                        <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>
+                            Status
+                        </div>
+                    )}
+                </div>
+                {/* Non-virtualized body for small lists */}
+                {filteredList.length < VIRTUALIZATION_THRESHOLD ? (
+                    <div>
+                        {filteredList.map((m) => (
+                            <div 
+                                key={m.email}
+                                onClick={() => openDetailsModal(m)}
+                                className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+                            >
+                                <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
+                                <div style={{ width: '20%' }} className="p-4">
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                        <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                        {m.tags?.map(tag => (
+                                            <TagBadge key={tag} tag={tag} size="sm" />
+                                        ))}
+                                        {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                                className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                            >
+                                                <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                Assign
+                                            </button>
                                         )}
                                     </div>
+                                </div>
+                                <div style={{ width: '8%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                                    {m.lifetimeVisits || 0}
+                                </div>
+                                <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                    {formatJoinDate(m.joinDate)}
+                                </div>
+                                <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                    {formatJoinDate(m.lastBookingDate)}
+                                </div>
+                                <div style={{ width: memberTab === 'former' ? '22%' : '37%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
+                                {memberTab === 'former' && (
+                                    <div style={{ width: '15%' }} className="p-4">
+                                        {m.status ? (
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
+                                                {formatStatusLabel(m.status)}
+                                            </span>
+                                        ) : (
+                                            <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                                                Unknown
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    /* Virtualized body for large lists */
+                    <div className="h-[calc(100vh-450px)] min-h-[400px]">
+                        <AutoSizer>
+                            {({ height, width }) => {
+                                const DesktopRow = ({ index, style }: ListChildComponentProps) => {
+                                    const m = filteredList[index];
+                                    return (
+                                        <div 
+                                            style={style}
+                                            onClick={() => openDetailsModal(m)}
+                                            className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+                                        >
+                                            <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
+                                            <div style={{ width: '20%' }} className="p-4">
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                    <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                                    {m.tags?.map(tag => (
+                                                        <TagBadge key={tag} tag={tag} size="sm" />
+                                                    ))}
+                                                    {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                                        >
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                            Assign
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div style={{ width: '8%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                                                {m.lifetimeVisits || 0}
+                                            </div>
+                                            <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                                {formatJoinDate(m.joinDate)}
+                                            </div>
+                                            <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                                {formatJoinDate(m.lastBookingDate)}
+                                            </div>
+                                            <div style={{ width: memberTab === 'former' ? '22%' : '37%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
+                                            {memberTab === 'former' && (
+                                                <div style={{ width: '15%' }} className="p-4">
+                                                    {m.status ? (
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
+                                                            {formatStatusLabel(m.status)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                                                            Unknown
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                };
+                                return (
+                                    <List
+                                        height={height}
+                                        width={width}
+                                        itemCount={filteredList.length}
+                                        itemSize={56}
+                                        overscanCount={5}
+                                    >
+                                        {DesktopRow}
+                                    </List>
                                 );
-                            };
-                            return (
-                                <List
-                                    height={height}
-                                    width={width}
-                                    itemCount={filteredList.length}
-                                    itemSize={56}
-                                    overscanCount={5}
-                                >
-                                    {DesktopRow}
-                                </List>
-                            );
-                        }}
-                    </AutoSizer>
-                </div>
+                            }}
+                        </AutoSizer>
+                    </div>
+                )}
             </div>
             )}
             </div>
