@@ -151,9 +151,9 @@ export function useCommandCenterData(userEmail?: string) {
       }
       const bayMap = new Map<number, BayStatus>();
 
-      if (bookingsRes.ok) {
+      // Handle 304 (Not Modified) as success - browser uses cached response body
+      if (bookingsRes.ok || bookingsRes.status === 304) {
         const data = await bookingsRes.json();
-        console.log('[DEBUG] Approved bookings API response:', { count: data.length, sample: data.slice(0, 3), today });
         // Enhance booking names with HubSpot member names
         const enhancedBookings = data.map((b: BookingRequest) => ({
           ...b,
@@ -177,9 +177,8 @@ export function useCommandCenterData(userEmail?: string) {
             });
           }
         });
-      } else {
-        setTodaysBookings([]);
       }
+      // On error, keep existing todaysBookings state instead of clearing
       
       const resourceMap = new Map<number, any>();
 
