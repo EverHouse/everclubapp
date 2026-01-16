@@ -782,6 +782,33 @@ const BookGolf: React.FC = () => {
     (activeTab !== 'simulator' || !isAtDailyLimit || rescheduleBookingId)
   );
 
+  // Calculate estimated fees for booking
+  const estimatedFees = useMemo(() => {
+    if (activeTab !== 'simulator' || !duration) {
+      return { overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0 };
+    }
+    
+    const isSocialTier = effectiveUser?.tier?.toLowerCase() === 'social';
+    const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
+    const perPersonMins = Math.floor(duration / playerCount);
+    
+    // Social tier pays for full booking duration (0 included minutes)
+    // Other tiers pay overage based on their share of time vs daily allowance
+    const overageMinutes = isSocialTier 
+      ? duration  // Social pays for the full booking duration
+      : Math.max(0, (usedMinutesForDay + perPersonMins) - dailyAllowance);
+    const overageBlocks = Math.ceil(overageMinutes / 30);
+    const overageFee = overageBlocks * 25;
+    
+    // Guest fees: $25 per guest
+    const guestCount = Math.max(0, playerCount - 1);
+    const guestFees = guestCount * 25;
+    
+    const totalFee = overageFee + guestFees;
+    
+    return { overageFee, guestFees, totalFee, guestCount, overageMinutes };
+  }, [activeTab, duration, playerCount, effectiveUser?.tier, tierPermissions.dailySimulatorMinutes, usedMinutesForDay]);
+
   const activeClosures = useMemo(() => {
     if (!selectedDateObj?.date) return [];
     return closures.filter(closure => {
@@ -1373,7 +1400,40 @@ const BookGolf: React.FC = () => {
       )}
 
       {canBook && (
-        <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-6 flex justify-center w-full max-w-md mx-auto animate-in slide-in-from-bottom-4 duration-300">
+        <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-6 flex flex-col items-center w-full max-w-md mx-auto animate-in slide-in-from-bottom-4 duration-300 gap-2">
+          {/* Fee Breakdown */}
+          {estimatedFees.totalFee > 0 && activeTab === 'simulator' && (
+            <div className={`w-full px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`material-symbols-outlined text-lg ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>receipt_long</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Estimated Fees</span>
+              </div>
+              <div className="space-y-1">
+                {estimatedFees.overageFee > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                      {effectiveUser?.tier?.toLowerCase() === 'social' 
+                        ? `Simulator time (${estimatedFees.overageMinutes} min)`
+                        : `Your time (${estimatedFees.overageMinutes} min overage)`}
+                    </span>
+                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.overageFee}</span>
+                  </div>
+                )}
+                {estimatedFees.guestFees > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                      Guest fees ({estimatedFees.guestCount} guest{estimatedFees.guestCount > 1 ? 's' : ''} @ $25)
+                    </span>
+                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
+                  </div>
+                )}
+                <div className={`flex justify-between items-center pt-1 border-t ${isDark ? 'border-white/20' : 'border-black/10'}`}>
+                  <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Total due at check-in</span>
+                  <span className={`text-base font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>${estimatedFees.totalFee}</span>
+                </div>
+              </div>
+            </div>
+          )}
           <button 
             onClick={() => { haptic.heavy(); handleConfirm(); }}
             disabled={isBooking}
