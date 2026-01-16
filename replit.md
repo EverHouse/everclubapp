@@ -38,7 +38,9 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Notifications & Notices**: In-app real-time notifications and a database-tracked sequential notice dismissal system with 3-channel delivery (database + push + real-time) and user targeting.
 - **Real-Time Sync**: Instant updates across clients via WebSocket for various data points.
 - **PWA Features**: Service Worker caching, offline support, and iOS-style interactions.
-- **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling.
+- **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling. Entry/exit animations for modals, toasts, cards. Staggered list item animations for DirectoryTab and BookingQueuesSection.
+- **Double-Tap Prevention**: `useAsyncAction` hook (`src/hooks/useAsyncAction.ts`) provides loading states, debounce protection, and error handling for all async button actions to prevent duplicate submissions.
+- **Toast Deduplication**: Toast component prevents stacking identical messages within 2 seconds and supports key-based updates for action-in-progress patterns. Exit animations for smooth dismissal.
 - **Performance Optimizations**: 
   - List virtualization using react-window for DirectoryTab and StaffCommandCenter booking lists (threshold: 20+ items for directory, 6+ items for bookings).
   - Skeleton loaders for member/admin routes during data loading (`src/components/skeletons/`).

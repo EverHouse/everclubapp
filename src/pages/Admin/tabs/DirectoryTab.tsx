@@ -611,11 +611,12 @@ const DirectoryTab: React.FC = () => {
                 {/* Non-virtualized rendering for small lists */}
                 {filteredList.length < VIRTUALIZATION_THRESHOLD ? (
                     <div className="space-y-3">
-                        {filteredList.map((m) => (
+                        {filteredList.map((m, index) => (
                             <div 
                                 key={m.email}
                                 onClick={() => openDetailsModal(m)}
-                                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors" 
+                                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-in-up"
+                                style={{ animationDelay: `${index * 40}ms` }}
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex-1">
@@ -644,7 +645,7 @@ const DirectoryTab: React.FC = () => {
                                         {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
                                             >
                                                 <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
                                                 Assign Tier
@@ -654,7 +655,7 @@ const DirectoryTab: React.FC = () => {
                                     {isAdmin && memberTab === 'active' && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
-                                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-colors"
+                                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-200 active:scale-95"
                                         >
                                             <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
                                             View As
@@ -704,7 +705,7 @@ const DirectoryTab: React.FC = () => {
                                                         {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
                                                     >
                                                         <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
                                                         Assign Tier
@@ -714,7 +715,7 @@ const DirectoryTab: React.FC = () => {
                                             {isAdmin && memberTab === 'active' && (
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
-                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-colors"
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-200 active:scale-95"
                                                 >
                                                     <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
                                                     View As
@@ -766,11 +767,12 @@ const DirectoryTab: React.FC = () => {
                 {/* Non-virtualized body for small lists */}
                 {filteredList.length < VIRTUALIZATION_THRESHOLD ? (
                     <div>
-                        {filteredList.map((m) => (
+                        {filteredList.map((m, index) => (
                             <div 
                                 key={m.email}
                                 onClick={() => openDetailsModal(m)}
-                                className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+                                className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer animate-slide-in-up"
+                                style={{ animationDelay: `${index * 25}ms` }}
                             >
                                 <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
                                 <div style={{ width: '20%' }} className="p-4">
@@ -782,7 +784,7 @@ const DirectoryTab: React.FC = () => {
                                         {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                                className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
                                             >
                                                 <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
                                                 Assign
@@ -839,7 +841,7 @@ const DirectoryTab: React.FC = () => {
                                                     {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
                                                         >
                                                             <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
                                                             Assign

@@ -759,6 +759,46 @@ export function broadcastMemberStatsUpdated(memberEmail: string, data: { guestPa
   return sent;
 }
 
+export function broadcastTierUpdate(data: {
+  action: 'assigned' | 'updated' | 'removed';
+  memberEmail: string;
+  tier?: string;
+  previousTier?: string | null;
+  assignedBy?: string;
+}) {
+  const payload = JSON.stringify({
+    type: 'tier_update',
+    ...data
+  });
+
+  let sent = 0;
+  const memberEmail = data.memberEmail.toLowerCase();
+
+  // Send to the member whose tier changed
+  const memberConnections = clients.get(memberEmail) || [];
+  memberConnections.forEach(conn => {
+    if (conn.ws.readyState === WebSocket.OPEN) {
+      conn.ws.send(payload);
+      sent++;
+    }
+  });
+
+  // Also broadcast to all staff
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast tier ${data.action} for ${memberEmail} to ${sent} connections`);
+  }
+  return sent;
+}
+
 export function broadcastDataIntegrityUpdate(action: 'check_complete' | 'issue_resolved' | 'data_changed', details?: { source?: string; affectedChecks?: string[] }) {
   const payload = JSON.stringify({
     type: 'data_integrity_update',

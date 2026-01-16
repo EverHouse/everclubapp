@@ -226,6 +226,18 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
               });
             }
           }
+
+          // Handle tier assignment updates
+          if (message.type === 'tier_update') {
+            console.log('[StaffWebSocket] Received tier_update:', message.action);
+            window.dispatchEvent(new CustomEvent('tier-update', { detail: message }));
+          }
+
+          // Handle member stats updates (guest passes, visits)
+          if (message.type === 'member_stats_updated') {
+            console.log('[StaffWebSocket] Received member_stats_updated for:', message.memberEmail);
+            window.dispatchEvent(new CustomEvent('member-stats-updated', { detail: message }));
+          }
         } catch (e) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }

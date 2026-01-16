@@ -772,6 +772,46 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     };
   }, [actualUser?.email]);
 
+  // Listen for tier assignment updates via WebSocket
+  useEffect(() => {
+    const handleTierUpdate = (event: CustomEvent) => {
+      const memberEmail = event.detail?.memberEmail;
+      const currentEmail = actualUser?.email;
+      const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
+      
+      // If the current user's tier was updated, refresh their profile
+      if (currentEmail && memberEmail && currentEmail.toLowerCase() === memberEmail.toLowerCase()) {
+        refreshUserRef.current?.();
+      }
+      
+      // If staff, also refresh the members list to reflect the change
+      if (isStaff) {
+        refreshMembers();
+      }
+    };
+    
+    window.addEventListener('tier-update', handleTierUpdate as EventListener);
+    return () => {
+      window.removeEventListener('tier-update', handleTierUpdate as EventListener);
+    };
+  }, [actualUser?.email, actualUser?.role, refreshMembers]);
+
+  // Listen for billing updates via WebSocket (staff only - refresh billing data)
+  useEffect(() => {
+    const handleBillingUpdate = () => {
+      const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
+      if (isStaff) {
+        // Dispatch a custom event that billing components can listen to for refreshing their data
+        window.dispatchEvent(new CustomEvent('billing-data-refresh'));
+      }
+    };
+    
+    window.addEventListener('billing-update', handleBillingUpdate as EventListener);
+    return () => {
+      window.removeEventListener('billing-update', handleBillingUpdate as EventListener);
+    };
+  }, [actualUser?.role]);
+
   // Fetch events with background sync
   useEffect(() => {
     const normalizeCategory = (cat: string | null | undefined): string => {
