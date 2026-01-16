@@ -72,11 +72,11 @@ const DirectoryTab: React.FC = () => {
     
     const isAdmin = actualUser?.role === 'admin';
     
-    // Count active members without a tier assigned
+    // Count active members without a tier assigned (use rawTier which is the actual HubSpot value)
     const membersWithoutTierCount = useMemo(() => {
         return members.filter(m => 
             (!m.role || m.role === 'member') && 
-            (!m.tier || m.tier.trim() === '')
+            (!m.rawTier || m.rawTier.trim() === '')
         ).length;
     }, [members]);
     
@@ -243,9 +243,9 @@ const DirectoryTab: React.FC = () => {
     const filteredList = useMemo(() => {
         let filtered = regularMembers;
         
-        // Missing tier filter (takes priority when active)
+        // Missing tier filter (takes priority when active) - use rawTier which is the actual HubSpot value
         if (showMissingTierOnly && memberTab === 'active') {
-            filtered = filtered.filter(m => !m.tier || m.tier.trim() === '');
+            filtered = filtered.filter(m => !m.rawTier || m.rawTier.trim() === '');
         }
         
         // Tier filter
