@@ -15,6 +15,29 @@ import { broadcastDirectoryUpdate } from '../core/websocket';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 
 /**
+ * Normalize a date string to YYYY-MM-DD format
+ * Handles both YYYY-MM-DD and ISO timestamp formats
+ */
+function normalizeDateToYYYYMMDD(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  
+  try {
+    // Extract just the date part (YYYY-MM-DD) from ISO or date strings
+    const cleanDate = dateStr.split('T')[0];
+    
+    // Validate it's a proper date format
+    const [year, month, day] = cleanDate.split('-').map(Number);
+    if (!year || !month || month < 1 || month > 12 || !day || day < 1 || day > 31) {
+      return null;
+    }
+    
+    return cleanDate;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Validate HubSpot webhook signature (v3 method)
  * See: https://developers.hubspot.com/docs/api/webhooks/validating-requests
  */
@@ -384,7 +407,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
     return {
       ...contact,
       lifetimeVisits: pastBookings + eventVisits + wellnessVisits,
-      joinDate: dbUser?.joined_on || null,
+      joinDate: normalizeDateToYYYYMMDD(dbUser?.joined_on || contact.createdAt) || null,
       mindbodyClientId: dbUser?.mindbody_client_id || null,
       manuallyLinkedEmails: dbUser?.manually_linked_emails || [],
       lastBookingDate: lastActivityMap[emailLower] || null
@@ -548,7 +571,8 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
       status: contact.properties.membership_status || contact.properties.hs_lead_status || 'Active',
       tier: normalizeTierName(contact.properties.membership_tier),
       tags: extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason),
-      createdAt: contact.properties.createdate
+      createdAt: contact.properties.createdate,
+      joinDate: normalizeDateToYYYYMMDD(contact.properties.createdate) || null
     });
   } catch (error: any) {
     if (!isProduction) console.error('API error:', error);
@@ -939,7 +963,7 @@ router.put('/contacts/:id/tier', isStaffOrAdmin, async (req, res) => {
     }
     
     // Update local database FIRST to prevent background sync overwriting
-    const updateResult = await db.update(users)
+    let updateResult = await db.update(users)
       .set({
         tier: tierData.tier,
         tier_id: tierData.tier_id,
@@ -948,8 +972,26 @@ router.put('/contacts/:id/tier', isStaffOrAdmin, async (req, res) => {
       .where(eq(users.hubspot_id, id))
       .returning({ id: users.id, email: users.email });
     
+    // If no user found by hubspot_id, try to find by email and link the hubspot_id
+    if (updateResult.length === 0 && contactEmail) {
+      console.log(`[Tier Update] No user found with hubspot_id ${id}, trying email: ${contactEmail}`);
+      updateResult = await db.update(users)
+        .set({
+          tier: tierData.tier,
+          tier_id: tierData.tier_id,
+          membership_tier: tierData.membership_tier,
+          hubspot_id: id, // Link the HubSpot ID for future updates
+        })
+        .where(eq(users.email, contactEmail))
+        .returning({ id: users.id, email: users.email });
+      
+      if (updateResult.length > 0) {
+        console.log(`[Tier Update] Found and updated user by email ${contactEmail}, linked hubspot_id ${id}`);
+      }
+    }
+    
     if (updateResult.length === 0) {
-      console.warn(`[Tier Update] No local user found with hubspot_id ${id}`);
+      console.warn(`[Tier Update] No local user found with hubspot_id ${id} or email ${contactEmail}`);
     } else {
       console.log(`[Tier Update] Updated local database for user ${updateResult[0].email}`);
     }

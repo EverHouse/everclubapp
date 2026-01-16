@@ -54,7 +54,7 @@ const MobileRowComponent = ({ index, style, data, memberTab, isAdmin, openDetail
                         {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
                     </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
+                <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
                     <div className="flex items-center gap-1.5 flex-wrap">
                         <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
                         {m.tags?.map(tag => (

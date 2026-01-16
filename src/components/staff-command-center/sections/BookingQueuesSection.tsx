@@ -2,7 +2,7 @@ import React, { useMemo, useCallback, useState } from 'react';
 import { List as FixedSizeList, RowComponentProps as ListChildComponentProps } from 'react-window';
 import { AutoSizer } from 'react-virtualized-auto-sizer';
 import EmptyState from '../../EmptyState';
-import { formatTime12Hour, getNowTimePacific } from '../../../utils/dateUtils';
+import { formatTime12Hour, getNowTimePacific, getTodayPacific } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow } from '../helpers';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import type { BookingRequest, TabType } from '../types';
@@ -72,11 +72,13 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   }, [loadingAction, actionInProgress]);
 
   const upcomingBookings = useMemo(() => {
-    const nowTimePacific = getNowTimePacific();
-    const todayPacific = nowTimePacific.slice(0, 10);
+    const nowTime = getNowTimePacific(); // Returns "HH:MM" format
+    const todayPacific = getTodayPacific(); // Returns "YYYY-MM-DD" format
     return todaysBookings.filter(booking => {
+      // Include all future dates
       if (booking.request_date > todayPacific) return true;
-      if (booking.request_date === todayPacific && booking.end_time > nowTimePacific.slice(11, 16)) return true;
+      // For today, include if booking hasn't ended yet
+      if (booking.request_date === todayPacific && booking.end_time > nowTime) return true;
       return false;
     }).sort((a, b) => {
       if (a.request_date !== b.request_date) return a.request_date.localeCompare(b.request_date);
