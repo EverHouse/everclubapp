@@ -339,7 +339,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   
   // Get user data including id for matched_user_id joins
   const dbResult = await pool.query(
-    `SELECT id, email, joined_on, mindbody_client_id, manually_linked_emails 
+    `SELECT id, email, join_date, joined_on, mindbody_client_id, manually_linked_emails 
      FROM users WHERE LOWER(email) = ANY($1)`,
     [emails]
   );
@@ -427,7 +427,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
     const pastBookings = pastBookingsMap[emailLower] || 0;
     const eventVisits = eventVisitsMap[emailLower] || 0;
     const wellnessVisits = wellnessVisitsMap[emailLower] || 0;
-    const rawJoinDate = dbUser?.joined_on || contact.membershipStartDate || contact.createdAt;
+    const rawJoinDate = dbUser?.join_date || dbUser?.joined_on || contact.membershipStartDate || contact.createdAt;
     const normalizedJoinDate = normalizeDateToYYYYMMDD(rawJoinDate);
     
     return {
