@@ -591,7 +591,7 @@ const Profile: React.FC = () => {
         title="Privacy"
         size="md"
       >
-        <div className="space-y-4">
+        <div className="space-y-4 p-4">
           {!showDeleteConfirm ? (
             <>
               {/* Privacy Policy Link */}
