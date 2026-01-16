@@ -74,7 +74,18 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   const upcomingBookings = useMemo(() => {
     const nowTime = getNowTimePacific(); // Returns "HH:MM" format
     const todayPacific = getTodayPacific(); // Returns "YYYY-MM-DD" format
-    return todaysBookings.filter(booking => {
+    console.log('[DEBUG] BookingQueuesSection input:', { 
+      todaysBookingsCount: todaysBookings.length, 
+      nowTime, 
+      todayPacific,
+      firstThree: todaysBookings.slice(0, 3).map(b => ({ 
+        id: b.id, 
+        request_date: b.request_date, 
+        end_time: b.end_time,
+        status: b.status 
+      }))
+    });
+    const filtered = todaysBookings.filter(booking => {
       // Include all future dates
       if (booking.request_date > todayPacific) return true;
       // For today, include if booking hasn't ended yet
@@ -84,6 +95,8 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       if (a.request_date !== b.request_date) return a.request_date.localeCompare(b.request_date);
       return a.start_time.localeCompare(b.start_time);
     });
+    console.log('[DEBUG] BookingQueuesSection output:', { filteredCount: filtered.length });
+    return filtered;
   }, [todaysBookings]);
 
   const isDesktopGrid = variant === 'desktop-top' || variant === 'desktop-bottom';

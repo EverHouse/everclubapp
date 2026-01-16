@@ -153,6 +153,7 @@ export function useCommandCenterData(userEmail?: string) {
 
       if (bookingsRes.ok) {
         const data = await bookingsRes.json();
+        console.log('[DEBUG] Approved bookings API response:', { count: data.length, sample: data.slice(0, 3), today });
         // Enhance booking names with HubSpot member names
         const enhancedBookings = data.map((b: BookingRequest) => ({
           ...b,
