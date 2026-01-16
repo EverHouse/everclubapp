@@ -62,10 +62,9 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Update dropdown position when open
-  // For position: fixed, use viewport-relative coordinates (no scroll offset)
-  useEffect(() => {
-    if (isOpen && containerRef.current) {
+  // Update dropdown position - recalculates on scroll/resize to follow input
+  const updateDropdownPosition = () => {
+    if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       setDropdownPosition({
         top: rect.bottom + 4,  // Just below the input
@@ -73,7 +72,32 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         width: rect.width
       });
     }
+  };
+
+  // Initial position update when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      updateDropdownPosition();
+    }
   }, [isOpen, query]);
+
+  // Update position on scroll and resize so dropdown follows the input
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleScrollOrResize = () => {
+      updateDropdownPosition();
+    };
+    
+    // Listen for scroll on window and any scrollable parent
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen]);
 
   // Use multi-word matching for better "first last" name search
   // Always filter locally - members array should be populated by DataContext
