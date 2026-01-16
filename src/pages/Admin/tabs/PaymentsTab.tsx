@@ -1010,7 +1010,7 @@ const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal
       const [balanceRes, passesRes, historyRes] = await Promise.all([
         fetch(`/api/staff/member-balance/${encodeURIComponent(email)}`, { credentials: 'include' }),
         fetch(`/api/guest-passes/${encodeURIComponent(email)}?tier=${tier || ''}`, { credentials: 'include' }),
-        fetch(`/api/members/${encodeURIComponent(email)}/purchases?limit=5`, { credentials: 'include' })
+        fetch(`/api/members/${encodeURIComponent(email)}/unified-purchases`, { credentials: 'include' })
       ]);
 
       const balanceData = balanceRes.ok ? await balanceRes.json() : { totalCents: 0, items: [] };
