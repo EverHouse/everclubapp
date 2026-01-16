@@ -671,41 +671,42 @@ export async function syncToursFromCalendar(): Promise<{ synced: number; created
           updated++;
         }
       } else {
-        let matchedPendingTour = null;
+        let matchedExistingTour = null;
         if (guestEmail) {
           const eventTimeMinutes = parseTimeToMinutes(startTime);
-          const pendingTours = await db.select().from(tours).where(
+          // First, check for any existing tour with same email/date/time (including those from HubSpot)
+          const existingTours = await db.select().from(tours).where(
             and(
               ilike(tours.guestEmail, guestEmail),
               eq(tours.tourDate, tourDate),
-              or(eq(tours.status, 'pending'), eq(tours.status, 'scheduled')),
               sql`${tours.googleCalendarId} IS NULL`
             )
           );
           
-          matchedPendingTour = pendingTours.find(t => {
+          matchedExistingTour = existingTours.find(t => {
             if (t.startTime === '00:00:00') return true;
-            const pendingTimeMinutes = parseTimeToMinutes(t.startTime);
-            return Math.abs(eventTimeMinutes - pendingTimeMinutes) <= 15;
+            const existingTimeMinutes = parseTimeToMinutes(t.startTime);
+            return Math.abs(eventTimeMinutes - existingTimeMinutes) <= 15;
           });
         }
         
-        if (matchedPendingTour) {
+        if (matchedExistingTour) {
+          // Link this calendar event to the existing tour (may have been created from HubSpot)
           await db.update(tours)
             .set({
               googleCalendarId: googleEventId,
               title,
-              guestName: matchedPendingTour.guestName || guestName,
-              guestEmail: matchedPendingTour.guestEmail || guestEmail,
-              guestPhone: matchedPendingTour.guestPhone || guestPhone,
+              guestName: matchedExistingTour.guestName || guestName,
+              guestEmail: matchedExistingTour.guestEmail || guestEmail,
+              guestPhone: matchedExistingTour.guestPhone || guestPhone,
               tourDate,
               startTime,
               endTime,
               notes: description || null,
-              status: 'scheduled',
+              status: isCancelledEvent ? 'cancelled' : (matchedExistingTour.status === 'cancelled' ? 'cancelled' : 'scheduled'),
               updatedAt: new Date(),
             })
-            .where(eq(tours.id, matchedPendingTour.id));
+            .where(eq(tours.id, matchedExistingTour.id));
           updated++;
         } else {
           await db.insert(tours).values({
@@ -925,11 +926,11 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
         let matchedExistingTour = null;
         if (guestEmail) {
           const eventTimeMinutes = parseTimeToMinutes(startTime);
+          // Check for any existing tour with same email/date/time (including those from Google Calendar)
           const existingTours = await db.select().from(tours).where(
             and(
               ilike(tours.guestEmail, guestEmail),
               eq(tours.tourDate, tourDate),
-              or(eq(tours.status, 'pending'), eq(tours.status, 'scheduled'), eq(tours.status, 'checked_in')),
               sql`${tours.hubspotMeetingId} IS NULL`
             )
           );
@@ -942,6 +943,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
         }
         
         if (matchedExistingTour) {
+          // Link this HubSpot meeting to the existing tour (may have been created from Google Calendar)
           await db.update(tours)
             .set({
               hubspotMeetingId,
@@ -953,7 +955,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
               startTime,
               endTime,
               notes: notes || null,
-              status: isCancelled ? 'cancelled' : (matchedExistingTour.status === 'checked_in' ? 'checked_in' : 'scheduled'),
+              status: isCancelled ? 'cancelled' : (matchedExistingTour.status === 'checked_in' ? 'checked_in' : matchedExistingTour.status === 'cancelled' ? 'cancelled' : 'scheduled'),
               updatedAt: new Date(),
             })
             .where(eq(tours.id, matchedExistingTour.id));
