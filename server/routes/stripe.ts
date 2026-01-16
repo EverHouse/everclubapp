@@ -1185,7 +1185,9 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
        FROM booking_participants bp
        JOIN booking_sessions bs ON bs.id = bp.session_id
        LEFT JOIN resources r ON r.id = bs.resource_id
-       LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id AND ul.member_id = bp.user_id
+       LEFT JOIN users pu ON pu.id = bp.user_id
+       LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
+         AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email))
        WHERE LOWER(bp.user_id) = $1
          AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
          AND bp.participant_type IN ('owner', 'member')
@@ -1299,7 +1301,9 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
         bp.cached_fee_cents,
         COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) as ledger_fee
        FROM booking_participants bp
-       LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id AND ul.member_id = bp.user_id
+       LEFT JOIN users pu ON pu.id = bp.user_id
+       LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
+         AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email))
        WHERE LOWER(bp.user_id) = $1
          AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
          AND bp.participant_type IN ('owner', 'member')`,
@@ -1583,7 +1587,9 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
        FROM booking_participants bp
        JOIN booking_sessions bs ON bs.id = bp.session_id
        LEFT JOIN resources r ON r.id = bs.resource_id
-       LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id AND ul.member_id = bp.user_id
+       LEFT JOIN users pu ON pu.id = bp.user_id
+       LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
+         AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email))
        WHERE LOWER(bp.user_id) = $1
          AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
          AND bp.participant_type IN ('owner', 'member')

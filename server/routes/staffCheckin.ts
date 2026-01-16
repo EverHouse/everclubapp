@@ -98,7 +98,14 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           COALESCE(ul.guest_fee, 0)::numeric as guest_fee,
           ul.tier_at_booking
         FROM booking_participants bp
-        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id AND ul.member_id = bp.user_id
+        LEFT JOIN users u ON u.id = bp.user_id
+        LEFT JOIN booking_requests br ON br.session_id = bp.session_id
+        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
+          AND (
+            ul.member_id = bp.user_id 
+            OR LOWER(ul.member_id) = LOWER(u.email)
+            OR (bp.user_id IS NULL AND LOWER(ul.member_id) = LOWER(br.user_email))
+          )
         WHERE bp.session_id = $1
         ORDER BY 
           CASE bp.participant_type 
@@ -525,7 +532,9 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
         LEFT JOIN booking_participants bp ON bp.session_id = br.session_id
-        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id AND ul.member_id = bp.user_id
+        LEFT JOIN users pu ON pu.id = bp.user_id
+        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
+          AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email) OR LOWER(ul.member_id) = LOWER(br.user_email))
         WHERE br.request_date < CURRENT_DATE
           AND br.request_date >= CURRENT_DATE - INTERVAL '30 days'
           AND br.session_id IS NOT NULL
