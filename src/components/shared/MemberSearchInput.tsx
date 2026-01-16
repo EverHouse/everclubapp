@@ -172,8 +172,9 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
             type="button"
             onClick={handleClear}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
+            aria-label="Clear search"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">close</span>
           </button>
         )}
       </div>

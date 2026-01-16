@@ -235,7 +235,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
               role: sessionData.member.role || 'member',
               mindbodyClientId: sessionData.member.mindbodyClientId || '',
               lifetimeVisits: 0,
-              lastBookingDate: undefined
+              lastBookingDate: undefined,
+              dateOfBirth: sessionData.member.dateOfBirth || null
             };
             
             localStorage.setItem('eh_member', JSON.stringify(sessionProfile));

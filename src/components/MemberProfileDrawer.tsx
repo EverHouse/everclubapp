@@ -449,7 +449,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         onClick={() => handleRemoveLinkedEmail(email)}
                         disabled={removingEmail === email}
                         className="text-red-500 hover:text-red-600 p-1 disabled:opacity-50"
-                        title="Remove linked email"
+                        aria-label="Remove linked email"
                       >
                         {removingEmail === email ? (
                           <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>

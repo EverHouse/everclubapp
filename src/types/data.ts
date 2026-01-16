@@ -60,6 +60,7 @@ export interface MemberProfile {
   lifetimeVisits?: number;
   lastBookingDate?: string;
   manuallyLinkedEmails?: string[];
+  dateOfBirth?: string | null;
 }
 
 export interface Booking {

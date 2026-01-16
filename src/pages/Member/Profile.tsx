@@ -19,6 +19,7 @@ import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import BugReportModal from '../../components/BugReportModal';
 import ModalShell from '../../components/ModalShell';
 import GuestPassPurchaseModal from '../../components/billing/GuestPassPurchaseModal';
+import WaiverModal from '../../components/WaiverModal';
 
 
 const GUEST_CHECKIN_FIELDS = [
@@ -62,6 +63,12 @@ const Profile: React.FC = () => {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [doNotSellMyInfo, setDoNotSellMyInfo] = useState<boolean>(false);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [dataExportLoading, setDataExportLoading] = useState(false);
+  const [dataExportRequestedAt, setDataExportRequestedAt] = useState<string | null>(null);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
+  const [currentWaiverVersion, setCurrentWaiverVersion] = useState<string>('1.0');
 
   // Check if viewing a staff/admin profile (either directly or via view-as)
   const isStaffOrAdminProfile = user?.role === 'admin' || user?.role === 'staff';
@@ -115,6 +122,20 @@ const Profile: React.FC = () => {
       fetch(`/api/staff-users/by-email/${encodeURIComponent(user.email)}`, { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => setStaffDetails(data))
+        .catch(() => {});
+    }
+  }, [user?.email, isStaffOrAdminProfile]);
+
+  useEffect(() => {
+    if (user?.email && !isStaffOrAdminProfile) {
+      fetch('/api/waivers/status', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.needsWaiverUpdate) {
+            setCurrentWaiverVersion(data.currentVersion);
+            setShowWaiverModal(true);
+          }
+        })
         .catch(() => {});
     }
   }, [user?.email, isStaffOrAdminProfile]);
@@ -186,14 +207,16 @@ const Profile: React.FC = () => {
     checkPush();
   }, []);
 
-  // Fetch communication preferences (only for members, not staff)
+  // Fetch communication and privacy preferences (only for members, not staff)
   useEffect(() => {
     if (user?.email && !isStaffOrAdminProfile) {
       fetch(`/api/members/me/preferences?user_email=${encodeURIComponent(user.email)}`, { credentials: 'include' })
-        .then(res => res.ok ? res.json() : { emailOptIn: null, smsOptIn: null })
+        .then(res => res.ok ? res.json() : { emailOptIn: null, smsOptIn: null, doNotSellMyInfo: false, dataExportRequestedAt: null })
         .then(data => {
           setEmailOptIn(data.emailOptIn);
           setSmsOptIn(data.smsOptIn);
+          setDoNotSellMyInfo(data.doNotSellMyInfo || false);
+          setDataExportRequestedAt(data.dataExportRequestedAt);
         })
         .catch(() => {});
     }
@@ -255,6 +278,60 @@ const Profile: React.FC = () => {
       showToast('Failed to update push notifications', 'error');
     } finally {
       setPushLoading(false);
+    }
+  };
+
+  const handleDoNotSellToggle = async (newValue: boolean) => {
+    if (!user?.email || privacyLoading) return;
+    
+    const previousValue = doNotSellMyInfo;
+    setDoNotSellMyInfo(newValue);
+    setPrivacyLoading(true);
+    
+    try {
+      const res = await fetch(`/api/members/me/preferences?user_email=${encodeURIComponent(user.email)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doNotSellMyInfo: newValue }),
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        showToast(newValue ? 'Your data will not be sold or shared' : 'Preference updated', 'success');
+      } else {
+        setDoNotSellMyInfo(previousValue);
+        showToast('Failed to update privacy settings', 'error');
+      }
+    } catch {
+      setDoNotSellMyInfo(previousValue);
+      showToast('Failed to update privacy settings', 'error');
+    } finally {
+      setPrivacyLoading(false);
+    }
+  };
+
+  const handleDataExportRequest = async () => {
+    if (!user?.email || dataExportLoading) return;
+    
+    setDataExportLoading(true);
+    try {
+      const res = await fetch('/api/members/me/data-export-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setDataExportRequestedAt(data.requestedAt);
+        showToast('Data export request submitted. We will email you within 45 days.', 'success');
+      } else {
+        showToast('Failed to submit data export request', 'error');
+      }
+    } catch {
+      showToast('Failed to submit data export request', 'error');
+    } finally {
+      setDataExportLoading(false);
     }
   };
 
@@ -638,6 +715,82 @@ const Profile: React.FC = () => {
                 </span>
               </a>
 
+              {/* California Privacy Rights (CCPA/CPRA) Section */}
+              {!isStaffOrAdminProfile && (
+                <div className={`pt-4 mt-4 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                  <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+                    California Privacy Rights
+                  </h4>
+                  
+                  {/* Do Not Sell/Share My Info Toggle */}
+                  <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                          shield
+                        </span>
+                        <div>
+                          <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
+                            Do Not Sell or Share My Info
+                          </span>
+                          <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                            Opt out of personal data sales/sharing
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDoNotSellToggle(!doNotSellMyInfo)}
+                        disabled={privacyLoading}
+                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                          doNotSellMyInfo 
+                            ? 'bg-accent' 
+                            : isDark ? 'bg-white/20' : 'bg-gray-300'
+                        } ${privacyLoading ? 'opacity-50' : ''}`}
+                        aria-label="Toggle do not sell my personal information"
+                      >
+                        <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                          doNotSellMyInfo ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Request Data Export Button */}
+                  <button
+                    onClick={handleDataExportRequest}
+                    disabled={dataExportLoading}
+                    className={`mt-3 w-full p-4 flex items-center justify-between rounded-xl transition-colors ${
+                      isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'
+                    } ${dataExportLoading ? 'opacity-50' : ''}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                        download
+                      </span>
+                      <div className="text-left">
+                        <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>
+                          Request Data Export
+                        </span>
+                        <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                          {dataExportRequestedAt 
+                            ? `Last requested: ${new Date(dataExportRequestedAt).toLocaleDateString()}`
+                            : 'Get a copy of your personal data'}
+                        </p>
+                      </div>
+                    </div>
+                    {dataExportLoading ? (
+                      <span className={`material-symbols-outlined text-sm animate-spin ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                        progress_activity
+                      </span>
+                    ) : (
+                      <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                        chevron_right
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {/* Danger Zone - Delete Account */}
               <div className="pt-4 mt-4 border-t border-red-500/30">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-red-500 mb-3">
@@ -874,6 +1027,12 @@ const Profile: React.FC = () => {
           );
         })()}
       </ModalShell>
+
+      <WaiverModal
+        isOpen={showWaiverModal}
+        onComplete={() => setShowWaiverModal(false)}
+        currentVersion={currentWaiverVersion}
+      />
     </div>
   );
 };

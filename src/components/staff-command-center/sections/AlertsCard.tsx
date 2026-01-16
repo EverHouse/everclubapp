@@ -110,7 +110,7 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
             </span>
           )}
         </div>
-        <span className="text-xs text-primary/60 dark:text-white/60">Recent</span>
+        <span className="text-xs text-primary/80 dark:text-white/80">Recent</span>
       </div>
       
       {notifications.length === 0 ? (
@@ -129,14 +129,14 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
                 <span className="material-symbols-outlined text-base">{getNotificationIcon(notif.type)}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium truncate ${!notif.is_read ? 'text-primary dark:text-white' : 'text-primary/70 dark:text-white/70'}`}>
+                <p className={`text-sm font-medium truncate ${!notif.is_read ? 'text-primary dark:text-white' : 'text-primary/85 dark:text-white/85'}`}>
                   {notif.title}
                 </p>
-                <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                <p className="text-xs text-primary/80 dark:text-white/80 truncate">
                   {notif.message}
                 </p>
               </div>
-              <span className="text-[10px] text-primary/50 dark:text-white/50 flex-shrink-0 whitespace-nowrap">
+              <span className="text-[10px] text-primary/70 dark:text-white/70 flex-shrink-0 whitespace-nowrap">
                 {formatRelativeTime(notif.created_at)}
               </span>
             </div>

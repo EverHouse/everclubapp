@@ -56,7 +56,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
     <div className={`${variant === 'desktop' ? 'h-full' : ''} bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${variant === 'desktop' ? 'flex flex-col' : ''}`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4">
         <h3 className="font-bold text-primary dark:text-white">Internal Notice Board</h3>
-        <button onClick={() => onTabChange('blocks')} className="text-xs text-primary/60 dark:text-white/60 hover:underline">Manage</button>
+        <button onClick={() => onTabChange('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (
         upcomingClosure ? (
@@ -169,7 +169,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
     <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3 lg:mb-4">
         <h3 className="font-bold text-primary dark:text-white">Facility Status</h3>
-        <div className="flex items-center gap-3 text-xs text-primary/60 dark:text-white/60">
+        <div className="flex items-center gap-3 text-xs text-primary/80 dark:text-white/80">
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />Available</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />Booked</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />Closed</span>
@@ -190,7 +190,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
             <div>
               <p className="text-sm font-medium text-primary dark:text-white">{bay.name}</p>
               {bay.currentBooking && !isClosed && (
-                <p className="text-xs text-primary/60 dark:text-white/60">
+                <p className="text-xs text-primary/80 dark:text-white/80">
                   {bay.currentBooking.userName} (until {formatTime12Hour(bay.currentBooking.endTime)})
                 </p>
               )}
@@ -215,7 +215,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
                 <p className="text-sm font-medium text-primary dark:text-white">{bay.name.replace(/^Simulator\s*/i, '')}</p>
               </div>
               {bay.currentBooking && !isClosed && (
-                <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                <p className="text-xs text-primary/80 dark:text-white/80 truncate">
                   {bay.currentBooking.userName} (until {formatTime12Hour(bay.currentBooking.endTime)})
                 </p>
               )}
@@ -281,7 +281,7 @@ export const NoticeBoardWidget: React.FC<{
     <div className="h-full min-h-[140px] bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-primary dark:text-white">Internal Notice Board</h3>
-        <button onClick={() => onTabChange('blocks')} className="text-xs text-primary/60 dark:text-white/60 hover:underline">Manage</button>
+        <button onClick={() => onTabChange('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (
         upcomingClosure ? (

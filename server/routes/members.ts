@@ -23,6 +23,9 @@ import { updateHubSpotContactPreferences } from '../core/memberSync';
 import { createMemberWithDeal, getAllDiscountRules, handleTierChange } from '../core/hubspotDeals';
 import { TIER_NAMES, TIER_HIERARCHY } from '../../shared/constants/tiers';
 import { notifyMember } from '../core/notificationService';
+import { getResendClient } from '../utils/resend';
+import { withResendRetry } from '../core/retryUtils';
+import { staffUsers } from '../../shared/schema';
 
 const router = Router();
 
@@ -777,7 +780,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-// Update member communication preferences (email/sms opt-in) - for the logged-in user
+// Update member communication preferences (email/sms opt-in, privacy) - for the logged-in user
 // Supports ?user_email param for "View As" feature when staff edits another member's preferences
 router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) => {
   try {
@@ -786,9 +789,9 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { emailOptIn, smsOptIn } = req.body;
+    const { emailOptIn, smsOptIn, doNotSellMyInfo } = req.body;
     
-    if (emailOptIn === undefined && smsOptIn === undefined) {
+    if (emailOptIn === undefined && smsOptIn === undefined && doNotSellMyInfo === undefined) {
       return res.status(400).json({ error: 'No preferences provided' });
     }
     
@@ -806,6 +809,7 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
     const updateData: Record<string, any> = { updatedAt: new Date() };
     if (emailOptIn !== undefined) updateData.emailOptIn = emailOptIn;
     if (smsOptIn !== undefined) updateData.smsOptIn = smsOptIn;
+    if (doNotSellMyInfo !== undefined) updateData.doNotSellMyInfo = doNotSellMyInfo;
     
     const result = await db.update(users)
       .set(updateData)
@@ -813,6 +817,7 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
       .returning({ 
         emailOptIn: users.emailOptIn, 
         smsOptIn: users.smsOptIn,
+        doNotSellMyInfo: users.doNotSellMyInfo,
         hubspotId: users.hubspotId 
       });
     
@@ -829,7 +834,11 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
       }).catch(err => console.error('[Members] Failed to sync preferences to HubSpot:', err));
     }
     
-    res.json({ emailOptIn: updated.emailOptIn, smsOptIn: updated.smsOptIn });
+    res.json({ 
+      emailOptIn: updated.emailOptIn, 
+      smsOptIn: updated.smsOptIn,
+      doNotSellMyInfo: updated.doNotSellMyInfo
+    });
   } catch (error: any) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to update preferences' });
@@ -945,7 +954,81 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-// Get member communication preferences
+// Anonymize a member (CCPA/CPRA compliance - full data erasure)
+// This replaces PII with anonymized placeholders while preserving financial records
+router.post('/api/members/:email/anonymize', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const normalizedEmail = decodeURIComponent(email).toLowerCase();
+    const sessionUser = getSessionUser(req);
+    const anonymizedBy = sessionUser?.email || 'unknown';
+    
+    const userResult = await db.select({ 
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      archivedAt: users.archivedAt 
+    })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
+    
+    if (userResult.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const userId = userResult[0].id;
+    const anonymizedId = userId.slice(0, 8);
+    const anonymizedEmail = `deleted_${anonymizedId}@anonymized.local`;
+    const now = new Date();
+    
+    await db.update(users)
+      .set({
+        firstName: 'Deleted',
+        lastName: 'Member',
+        email: anonymizedEmail,
+        phone: null,
+        trackmanEmail: null,
+        linkedEmails: sql`'[]'::jsonb`,
+        manuallyLinkedEmails: sql`'[]'::jsonb`,
+        emailOptIn: false,
+        smsOptIn: false,
+        doNotSellMyInfo: true,
+        archivedAt: now,
+        archivedBy: anonymizedBy,
+        membershipStatus: 'deleted',
+        updatedAt: now
+      })
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
+    
+    await db.execute(sql`
+      UPDATE booking_requests 
+      SET user_name = 'Deleted Member', 
+          user_email = ${anonymizedEmail}
+      WHERE LOWER(user_email) = ${normalizedEmail}
+    `);
+    
+    await db.execute(sql`
+      UPDATE booking_members 
+      SET user_name = 'Deleted Member',
+          user_email = ${anonymizedEmail}
+      WHERE LOWER(user_email) = ${normalizedEmail}
+    `);
+    
+    console.log(`[Privacy] Member ${normalizedEmail} anonymized by ${anonymizedBy} at ${now.toISOString()}`);
+    
+    res.json({ 
+      success: true, 
+      anonymized: true,
+      anonymizedBy,
+      message: 'Member data anonymized successfully. Financial records preserved for compliance.'
+    });
+  } catch (error: any) {
+    if (!isProduction) console.error('Member anonymize error:', error);
+    res.status(500).json({ error: 'Failed to anonymize member data' });
+  }
+});
+
+// Get member communication preferences (includes CCPA privacy settings)
 // Supports ?user_email param for "View As" feature when staff views as another member
 router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
   try {
@@ -967,19 +1050,94 @@ router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
     
     const result = await db.select({ 
       emailOptIn: users.emailOptIn, 
-      smsOptIn: users.smsOptIn 
+      smsOptIn: users.smsOptIn,
+      doNotSellMyInfo: users.doNotSellMyInfo,
+      dataExportRequestedAt: users.dataExportRequestedAt
     })
       .from(users)
       .where(eq(users.email, targetEmail.toLowerCase()));
     
     if (result.length === 0) {
-      return res.json({ emailOptIn: null, smsOptIn: null });
+      return res.json({ emailOptIn: null, smsOptIn: null, doNotSellMyInfo: false, dataExportRequestedAt: null });
     }
     
     res.json(result[0]);
   } catch (error: any) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch preferences' });
+  }
+});
+
+// Request data export (CCPA/CPRA compliance)
+// Records the request timestamp and sends email notification to staff
+router.post('/api/members/me/data-export-request', isAuthenticated, async (req, res) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser?.email) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Record the request timestamp
+    const result = await db.update(users)
+      .set({ 
+        dataExportRequestedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(users.email, sessionUser.email.toLowerCase()))
+      .returning({ 
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        dataExportRequestedAt: users.dataExportRequestedAt
+      });
+    
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const member = result[0];
+    const memberName = [member.firstName, member.lastName].filter(Boolean).join(' ') || 'Member';
+    console.log(`[Privacy] Data export requested by ${member.email} at ${member.dataExportRequestedAt}`);
+    
+    // Send email notification to admin staff
+    try {
+      const adminStaff = await db.select({ email: staffUsers.email, name: staffUsers.name })
+        .from(staffUsers)
+        .where(and(eq(staffUsers.role, 'admin'), eq(staffUsers.isActive, true)));
+      
+      if (adminStaff.length > 0) {
+        const { client: resendClient, fromEmail } = await getResendClient();
+        const adminEmails = adminStaff.map(s => s.email);
+        
+        await withResendRetry(() => resendClient.emails.send({
+          from: fromEmail,
+          to: adminEmails,
+          subject: `[Action Required] CCPA Data Export Request from ${memberName}`,
+          html: `
+            <h2>Data Export Request</h2>
+            <p>A member has requested a copy of their personal data under CCPA/CPRA.</p>
+            <p><strong>Member:</strong> ${memberName}</p>
+            <p><strong>Email:</strong> ${member.email}</p>
+            <p><strong>Requested At:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</p>
+            <hr/>
+            <p><em>Under California law, you must respond within 45 days.</em></p>
+            <p>Please prepare and send the member's data export.</p>
+          `
+        }));
+        console.log(`[Privacy] Data export notification sent to ${adminEmails.length} admin(s)`);
+      }
+    } catch (emailError) {
+      console.error('[Privacy] Failed to send data export notification email:', emailError);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Data export request submitted successfully',
+      requestedAt: member.dataExportRequestedAt
+    });
+  } catch (error: any) {
+    if (!isProduction) console.error('Data export request error:', error);
+    res.status(500).json({ error: 'Failed to submit data export request' });
   }
 });
 

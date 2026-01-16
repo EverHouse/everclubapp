@@ -571,7 +571,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
             value: normalizedEmail
           }]
         }],
-        properties: ['firstname', 'lastname', 'email', 'phone', 'membership_tier', 'membership_status', 'membership_discount_reason', 'mindbody_client_id', 'membership_start_date'],
+        properties: ['firstname', 'lastname', 'email', 'phone', 'membership_tier', 'membership_status', 'membership_discount_reason', 'mindbody_client_id', 'membership_start_date', 'date_of_birth'],
         limit: 1
       });
       
@@ -594,7 +594,8 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         membershipStartDate: contact.properties.membership_start_date || '',
         status: 'Active',
         role,
-        expires_at: Date.now() + sessionTtl
+        expires_at: Date.now() + sessionTtl,
+        dateOfBirth: contact.properties.date_of_birth || null
       };
     }
     
@@ -680,7 +681,8 @@ router.get('/api/auth/session', (req, res) => {
       tags: sessionUser.tags || [],
       mindbodyClientId: sessionUser.mindbodyClientId || '',
       status: sessionUser.status || 'Active',
-      role: sessionUser.role || 'member'
+      role: sessionUser.role || 'member',
+      dateOfBirth: sessionUser.dateOfBirth || null
     }
   });
 });
@@ -779,7 +781,7 @@ router.post('/api/auth/password-login', async (req, res) => {
             value: normalizedEmail
           }]
         }],
-        properties: ['firstname', 'lastname', 'email', 'phone', 'membership_tier', 'membership_status', 'membership_discount_reason', 'mindbody_client_id', 'membership_start_date'],
+        properties: ['firstname', 'lastname', 'email', 'phone', 'membership_tier', 'membership_status', 'membership_discount_reason', 'mindbody_client_id', 'membership_start_date', 'date_of_birth'],
         limit: 1
       });
       

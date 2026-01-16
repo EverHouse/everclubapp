@@ -41,6 +41,10 @@ interface BookingRequest {
     trackman_booking_id?: string | null;
     has_unpaid_fees?: boolean;
     total_owed?: number;
+    guardian_name?: string | null;
+    guardian_relationship?: string | null;
+    guardian_phone?: string | null;
+    guardian_consent_at?: string | null;
 }
 
 interface Bay {
@@ -2464,6 +2468,37 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                 Member Notes
                             </p>
                             <p className="font-medium text-primary dark:text-white text-sm">{(selectedCalendarBooking as any).member_notes}</p>
+                        </div>
+                    )}
+
+                    {selectedCalendarBooking?.guardian_name && (
+                        <div className="p-3 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-lg">
+                            <p className="text-xs text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-sm">family_restroom</span>
+                                Guardian Consent (Minor Booking)
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Guardian Name</p>
+                                    <p className="font-medium text-primary dark:text-white">{selectedCalendarBooking.guardian_name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Relationship</p>
+                                    <p className="font-medium text-primary dark:text-white">{selectedCalendarBooking.guardian_relationship}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
+                                    <p className="font-medium text-primary dark:text-white">{selectedCalendarBooking.guardian_phone}</p>
+                                </div>
+                                {selectedCalendarBooking.guardian_consent_at && (
+                                    <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Consent Given</p>
+                                        <p className="font-medium text-primary dark:text-white text-xs">
+                                            {new Date(selectedCalendarBooking.guardian_consent_at).toLocaleString()}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 

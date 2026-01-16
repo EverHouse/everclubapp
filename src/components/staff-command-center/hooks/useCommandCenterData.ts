@@ -29,6 +29,7 @@ export function useCommandCenterData(userEmail?: string) {
     const tomorrow = addDaysToPacificDate(today, 1);
     
     try {
+      const weekAhead = addDaysToPacificDate(today, 7);
       const futureDate = addDaysToPacificDate(today, 30);
       const [
         requestsRes,
@@ -49,7 +50,7 @@ export function useCommandCenterData(userEmail?: string) {
         fetch('/api/booking-requests?include_all=true', { credentials: 'include' }),
         fetch('/api/pending-bookings', { credentials: 'include' }),
         fetch(`/api/tours?upcoming=true`, { credentials: 'include' }),
-        fetch(`/api/approved-bookings?start_date=${today}&end_date=${today}`, { credentials: 'include' }),
+        fetch(`/api/approved-bookings?start_date=${today}&end_date=${weekAhead}`, { credentials: 'include' }),
         fetch(`/api/approved-bookings?start_date=${today}&end_date=${futureDate}`, { credentials: 'include' }),
         fetch('/api/bays', { credentials: 'include' }),
         fetch('/api/resources', { credentials: 'include' }),

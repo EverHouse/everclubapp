@@ -135,7 +135,8 @@ const HUBSPOT_CONTACT_PROPERTIES = [
   'membership_tier',
   'membership_status',
   'membership_discount_reason',
-  'lastmodifieddate'
+  'lastmodifieddate',
+  'date_of_birth'
 ];
 
 /**
@@ -167,6 +168,7 @@ function transformHubSpotContact(contact: any): any {
     tags: extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason),
     createdAt: contact.properties.createdate,
     lastModified: contact.properties.lastmodifieddate,
+    dateOfBirth: contact.properties.date_of_birth || null,
     isActiveMember,
     isFormerMember
   };

@@ -73,8 +73,14 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
 
   const upcomingBookings = useMemo(() => {
     const nowTimePacific = getNowTimePacific();
+    const todayPacific = nowTimePacific.slice(0, 10);
     return todaysBookings.filter(booking => {
-      return booking.end_time > nowTimePacific;
+      if (booking.request_date > todayPacific) return true;
+      if (booking.request_date === todayPacific && booking.end_time > nowTimePacific.slice(11, 16)) return true;
+      return false;
+    }).sort((a, b) => {
+      if (a.request_date !== b.request_date) return a.request_date.localeCompare(b.request_date);
+      return a.start_time.localeCompare(b.start_time);
     });
   }, [todaysBookings]);
 
@@ -104,7 +110,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">pending_actions</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
-              <p className="text-xs text-primary/60 dark:text-white/60">
+              <p className="text-xs text-primary/80 dark:text-white/80">
                 {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
               </p>
             </div>
@@ -154,10 +160,10 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           className="h-full animate-slide-in-up"
           style={{ animationDelay: `${index * 50}ms` }}
         >
-          <DateBlock dateStr={today} today={today} />
+          <DateBlock dateStr={booking.request_date} today={today} />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-primary dark:text-white truncate">{booking.user_name}</p>
-            <p className="text-xs text-primary/60 dark:text-white/60">
+            <p className="text-xs text-primary/80 dark:text-white/80">
               {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)} • {booking.bay_name}
             </p>
           </div>
@@ -193,7 +199,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                 ) : 'Check In'}
               </button>
             )}
-            <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40">chevron_right</span>
+            <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70">chevron_right</span>
           </div>
         </GlassListRow>
       </div>
@@ -215,7 +221,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             </span>
           )}
         </div>
-        <button onClick={() => onTabChange('simulator')} className="text-xs text-primary/60 dark:text-white/60 hover:underline">View all</button>
+        <button onClick={() => onTabChange('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       {pendingRequests.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -253,7 +259,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                   <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">pending_actions</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
-                    <p className="text-xs text-primary/60 dark:text-white/60">
+                    <p className="text-xs text-primary/80 dark:text-white/80">
                       {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
                     </p>
                   </div>
@@ -296,7 +302,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
         <h3 className="font-bold text-primary dark:text-white">Upcoming Bookings</h3>
-        <button onClick={() => onTabChange('simulator')} className="text-xs text-primary/60 dark:text-white/60 hover:underline">View all</button>
+        <button onClick={() => onTabChange('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       {upcomingBookings.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -328,10 +334,10 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                 className="animate-slide-in-up"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <DateBlock dateStr={today} today={today} />
+                <DateBlock dateStr={booking.request_date} today={today} />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-primary dark:text-white truncate">{booking.user_name}</p>
-                  <p className="text-xs text-primary/60 dark:text-white/60">
+                  <p className="text-xs text-primary/80 dark:text-white/80">
                     {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)} • {booking.bay_name}
                   </p>
                 </div>
@@ -367,7 +373,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                       ) : 'Check In'}
                     </button>
                   )}
-                  <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40">chevron_right</span>
+                  <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70">chevron_right</span>
                 </div>
               </GlassListRow>
             );

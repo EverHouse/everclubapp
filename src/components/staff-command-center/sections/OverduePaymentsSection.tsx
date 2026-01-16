@@ -96,7 +96,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
                 <DateBlock dateStr={payment.bookingDate} today={today} />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-primary dark:text-white truncate">{payment.ownerName}</p>
-                  <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                  <p className="text-xs text-primary/80 dark:text-white/80 truncate">
                     {payment.resourceName}
                   </p>
                 </div>
@@ -110,12 +110,12 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
                       Needs Review
                     </span>
                   ) : null}
-                  <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40">chevron_right</span>
+                  <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70">chevron_right</span>
                 </div>
               </GlassListRow>
             ))}
             {count > maxItems && (
-              <p className="text-xs text-center text-primary/50 dark:text-white/50 pt-2">
+              <p className="text-xs text-center text-primary/70 dark:text-white/70 pt-2">
                 +{count - maxItems} more overdue payments
               </p>
             )}

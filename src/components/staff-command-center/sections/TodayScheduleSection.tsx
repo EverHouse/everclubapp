@@ -66,7 +66,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
             {getTimeLeft()}
           </p>
           {hasTour && (
-            <p className={`${isDesktop ? 'text-xs mt-1' : 'text-[10px] mt-0.5 truncate'} text-primary/60 dark:text-white/60`}>
+            <p className={`${isDesktop ? 'text-xs mt-1' : 'text-[10px] mt-0.5 truncate'} text-primary/80 dark:text-white/80`}>
               {getDateDisplay()}
             </p>
           )}
@@ -151,7 +151,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
             {getTimeLeft()}
           </p>
           {hasItem && (
-            <p className={`${isDesktop ? 'text-xs mt-1' : 'text-[10px] mt-0.5 truncate'} text-primary/60 dark:text-white/60`}>
+            <p className={`${isDesktop ? 'text-xs mt-1' : 'text-[10px] mt-0.5 truncate'} text-primary/80 dark:text-white/80`}>
               {getDateDisplay()}
             </p>
           )}
@@ -164,7 +164,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
     <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
         <h3 className="font-bold text-primary dark:text-white">Upcoming Wellness</h3>
-        <button onClick={navigateToWellnessTab} className="text-xs text-primary/60 dark:text-white/60 hover:underline">View all</button>
+        <button onClick={navigateToWellnessTab} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       {upcomingWellness.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -180,11 +180,11 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
                 <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">{getWellnessIcon(wellness.title)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-primary dark:text-white truncate">{wellness.title}</p>
-                  <p className="text-xs text-primary/60 dark:text-white/60">
+                  <p className="text-xs text-primary/80 dark:text-white/80">
                     {formatTime12Hour(wellness.time)} - {formatTime12Hour(wellness.end_time)}
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40 flex-shrink-0">chevron_right</span>
+                <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70 flex-shrink-0">chevron_right</span>
               </GlassListRow>
             );
           })}
@@ -197,7 +197,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
     <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
         <h3 className="font-bold text-primary dark:text-white">Upcoming Events</h3>
-        <button onClick={() => onTabChange('events')} className="text-xs text-primary/60 dark:text-white/60 hover:underline">View all</button>
+        <button onClick={() => onTabChange('events')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       {upcomingEvents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -220,9 +220,9 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
                 <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">{getEventIcon(event.category || '')}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-primary dark:text-white truncate">{event.title}</p>
-                  <p className="text-xs text-primary/60 dark:text-white/60">{timeDisplay}</p>
+                  <p className="text-xs text-primary/80 dark:text-white/80">{timeDisplay}</p>
                 </div>
-                <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40 flex-shrink-0">chevron_right</span>
+                <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70 flex-shrink-0">chevron_right</span>
               </GlassListRow>
             );
           })}

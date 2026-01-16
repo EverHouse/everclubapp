@@ -19,6 +19,7 @@ import { getStatusColor } from '../../utils/statusColors';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import ModalShell from '../../components/ModalShell';
 import { BookGolfSkeleton } from '../../components/skeletons';
+import { GuardianConsentForm, type GuardianConsentData } from '../../components/booking';
 
 
 interface APIResource {
@@ -174,6 +175,8 @@ const BookGolf: React.FC = () => {
   const [existingDayBooking, setExistingDayBooking] = useState<BookingRequest | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showGuardianConsent, setShowGuardianConsent] = useState(false);
+  const [guardianConsentData, setGuardianConsentData] = useState<GuardianConsentData | null>(null);
   const [existingBookingCheck, setExistingBookingCheck] = useState<{
     hasExisting: boolean;
     bookings: Array<{ id: number; resourceName: string; startTime: string; endTime: string; status: string; isStaffCreated: boolean }>;
@@ -188,6 +191,23 @@ const BookGolf: React.FC = () => {
   const prevDurationRef = useRef<number | null>(null);
 
   const effectiveUser = viewAsUser || user;
+  
+  // Helper to check if member is a minor (under 18)
+  const isMinor = useMemo(() => {
+    const dob = effectiveUser?.dateOfBirth;
+    if (!dob) return false; // If no DOB, don't block bookings
+    
+    const birthDate = new Date(dob);
+    if (isNaN(birthDate.getTime())) return false;
+    
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age < 18;
+  }, [effectiveUser?.dateOfBirth]);
   
   // Check if admin is viewing as a member
   const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
@@ -685,12 +705,15 @@ const BookGolf: React.FC = () => {
   };
 
   // Handle the actual booking submission
-  const submitBooking = async () => {
+  const submitBooking = async (consentData?: GuardianConsentData) => {
     if (!selectedSlot || !selectedResource || !effectiveUser || !selectedDateObj) return;
     
     setIsBooking(true);
     setError(null);
     setShowViewAsConfirm(false);
+    
+    // Use passed consent data or existing state
+    const consent = consentData || guardianConsentData;
     
     try {
       const { ok, data, error } = await apiRequest('/api/booking-requests', {
@@ -707,7 +730,13 @@ const BookGolf: React.FC = () => {
           notes: activeTab === 'conference' ? 'Conference room booking' : null,
           declared_player_count: activeTab === 'simulator' ? playerCount : undefined,
           member_notes: memberNotes.trim() || undefined,
-          ...(rescheduleBookingId ? { reschedule_booking_id: rescheduleBookingId } : {})
+          ...(rescheduleBookingId ? { reschedule_booking_id: rescheduleBookingId } : {}),
+          ...(consent ? {
+            guardian_name: consent.guardianName,
+            guardian_relationship: consent.guardianRelationship,
+            guardian_phone: consent.guardianPhone,
+            guardian_consent: consent.acknowledged
+          } : {})
         })
       });
       
@@ -768,8 +797,20 @@ const BookGolf: React.FC = () => {
       return;
     }
     
+    // For simulator bookings, check if member is a minor and needs guardian consent
+    if (activeTab === 'simulator' && isMinor && !guardianConsentData) {
+      setShowGuardianConsent(true);
+      return;
+    }
+    
     // Otherwise proceed directly
     await submitBooking();
+  };
+  
+  const handleGuardianConsentSubmit = (data: GuardianConsentData) => {
+    setGuardianConsentData(data);
+    setShowGuardianConsent(false);
+    submitBooking(data);
   };
 
   const canBook = Boolean(
@@ -1506,6 +1547,18 @@ const BookGolf: React.FC = () => {
             </div>
           </div>
         )}
+      </ModalShell>
+      
+      <ModalShell 
+        isOpen={showGuardianConsent} 
+        onClose={() => setShowGuardianConsent(false)}
+        title="Guardian Consent Required"
+      >
+        <GuardianConsentForm
+          memberName={effectiveUser?.name || 'this member'}
+          onSubmit={handleGuardianConsentSubmit}
+          onCancel={() => setShowGuardianConsent(false)}
+        />
       </ModalShell>
     </SwipeablePage>
     </PullToRefresh>

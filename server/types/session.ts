@@ -15,6 +15,7 @@ export interface SessionUser {
   status?: string;
   expires_at?: number;
   isTestUser?: boolean;
+  dateOfBirth?: string | null;
 }
 
 declare module 'express-session' {

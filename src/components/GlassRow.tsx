@@ -36,7 +36,7 @@ const GlassRow: React.FC<GlassRowProps> = ({ title, subtitle, icon, color, actio
              <h4 className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-primary'}`}>{title}</h4>
              {badge}
            </div>
-           <p className={`text-xs truncate ${isDark ? 'text-white/60' : 'text-primary/70'}`}>{subtitle}</p>
+           <p className={`text-xs truncate ${isDark ? 'text-white/80' : 'text-primary/90'}`}>{subtitle}</p>
         </div>
         {actions && (
             <div className="flex gap-2">
@@ -44,7 +44,7 @@ const GlassRow: React.FC<GlassRowProps> = ({ title, subtitle, icon, color, actio
                   <button 
                       key={idx} 
                       onClick={(e) => { e.stopPropagation(); action.onClick(); }} 
-                      className={`w-8 h-8 rounded-[1rem] glass-button flex items-center justify-center active:scale-90 ${isDark ? 'text-white/60 hover:text-white' : 'text-primary/60 hover:text-primary'}`}
+                      className={`w-8 h-8 rounded-[1rem] glass-button flex items-center justify-center active:scale-90 ${isDark ? 'text-white/80 hover:text-white' : 'text-primary/80 hover:text-primary'}`}
                       aria-label={action.label}
                   >
                       <span className="material-symbols-outlined text-[18px]">{action.icon}</span>

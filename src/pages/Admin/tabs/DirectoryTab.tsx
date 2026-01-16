@@ -799,7 +799,7 @@ const DirectoryTab: React.FC = () => {
                         <List
                             defaultHeight={500}
                             rowCount={filteredList.length}
-                            rowHeight={140}
+                            rowHeight={160}
                             overscanCount={3}
                             rowProps={{ data: filteredList, memberTab, isAdmin, openDetailsModal, openAssignTierModal, handleViewAs }}
                             rowComponent={MobileRowComponent}

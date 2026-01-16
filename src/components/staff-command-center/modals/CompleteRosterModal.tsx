@@ -151,8 +151,8 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
               <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">group_add</span>
               Complete Booking Details
             </h2>
-            <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
-              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+            <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg" aria-label="Close">
+              <span className="material-symbols-outlined text-primary/60 dark:text-white/60" aria-hidden="true">close</span>
             </button>
           </div>
           <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">

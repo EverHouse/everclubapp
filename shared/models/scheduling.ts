@@ -79,6 +79,11 @@ export const bookingRequests = pgTable("booking_requests", {
   reconciledAt: timestamp("reconciled_at"),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by"),
+  // Guardian consent fields for minor bookings (under 18)
+  guardianName: varchar("guardian_name"),
+  guardianRelationship: varchar("guardian_relationship"),
+  guardianPhone: varchar("guardian_phone"),
+  guardianConsentAt: timestamp("guardian_consent_at"),
 }, (table) => [
   uniqueIndex("booking_requests_trackman_id_idx").on(table.trackmanBookingId),
   index("booking_requests_session_idx").on(table.sessionId),

@@ -20,7 +20,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
         
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <p className="text-xs text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Quick Links</p>
+            <p className="text-xs text-primary/80 dark:text-white/80 uppercase tracking-wide mb-2">Quick Links</p>
             <div className="grid grid-cols-2 gap-2">
               {EMPLOYEE_RESOURCES_LINKS.map(link => (
                 <button
@@ -37,7 +37,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
           
           {isAdmin && (
             <div className="pt-4 border-t border-primary/10 dark:border-white/10">
-              <p className="text-xs text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Admin Settings</p>
+              <p className="text-xs text-primary/80 dark:text-white/80 uppercase tracking-wide mb-2">Admin Settings</p>
               <div className="grid grid-cols-2 gap-2">
                 {ADMIN_LINKS.map(link => (
                   <button
@@ -72,7 +72,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
       <h3 className="font-bold text-primary dark:text-white mb-4">Employee Resources</h3>
       
       <div className="mb-4">
-        <p className="text-xs text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Quick Links</p>
+        <p className="text-xs text-primary/80 dark:text-white/80 uppercase tracking-wide mb-2">Quick Links</p>
         <div className="grid grid-cols-4 gap-2">
           {EMPLOYEE_RESOURCES_LINKS.map(link => (
             <button
@@ -89,7 +89,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
       
       {isAdmin && (
         <div className="pt-4 border-t border-primary/10 dark:border-white/10">
-          <p className="text-xs text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Admin Settings</p>
+          <p className="text-xs text-primary/80 dark:text-white/80 uppercase tracking-wide mb-2">Admin Settings</p>
           <div className="grid grid-cols-3 gap-2">
             {ADMIN_LINKS.map(link => (
               <button
