@@ -8,6 +8,7 @@ import { getMemberStatusColor, getMemberStatusLabel } from '../utils/statusColor
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
 import { TIER_NAMES } from '../../shared/constants/tiers';
+import FamilyBillingManager from './admin/FamilyBillingManager';
 
 interface MemberProfileDrawerProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ interface CommunicationLog {
   createdAt: string;
 }
 
-type TabType = 'overview' | 'bookings' | 'events' | 'wellness' | 'visits' | 'guest-passes' | 'purchases' | 'communications' | 'notes';
+type TabType = 'overview' | 'bookings' | 'events' | 'wellness' | 'visits' | 'guest-passes' | 'purchases' | 'communications' | 'notes' | 'family';
 
 const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'dashboard' },
@@ -75,6 +76,7 @@ const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'wellness', label: 'Wellness', icon: 'spa' },
   { id: 'visits', label: 'Visits', icon: 'check_circle' },
   { id: 'guest-passes', label: 'Guests', icon: 'group_add' },
+  { id: 'family', label: 'Family', icon: 'family_restroom' },
   { id: 'purchases', label: 'Purchases', icon: 'receipt_long' },
   { id: 'communications', label: 'Comms', icon: 'chat' },
   { id: 'notes', label: 'Notes', icon: 'sticky_note_2' },
@@ -997,6 +999,13 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 ))}
               </div>
             )}
+          </div>
+        );
+
+      case 'family':
+        return (
+          <div className="space-y-4">
+            <FamilyBillingManager memberEmail={member.email} />
           </div>
         );
 

@@ -229,3 +229,92 @@ export const stripePaymentIntents = pgTable("stripe_payment_intents", {
 
 export type StripePaymentIntent = typeof stripePaymentIntents.$inferSelect;
 export type InsertStripePaymentIntent = typeof stripePaymentIntents.$inferInsert;
+
+// Family billing groups - tracks primary payer and family add-on members
+export const familyGroups = pgTable("family_groups", {
+  id: serial("id").primaryKey(),
+  
+  // Primary payer info
+  primaryEmail: varchar("primary_email").notNull().unique(),
+  primaryStripeCustomerId: varchar("primary_stripe_customer_id"),
+  primaryStripeSubscriptionId: varchar("primary_stripe_subscription_id"),
+  
+  // Group metadata
+  groupName: varchar("group_name"), // optional friendly name like "Smith Family"
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by"),
+  createdByName: varchar("created_by_name"),
+}, (table) => [
+  index("family_groups_primary_email_idx").on(table.primaryEmail),
+]);
+
+// Family members - links individual members to a family group
+export const familyMembers = pgTable("family_members", {
+  id: serial("id").primaryKey(),
+  
+  // Family group linkage
+  familyGroupId: integer("family_group_id").notNull(),
+  
+  // Member info
+  memberEmail: varchar("member_email").notNull(),
+  memberTier: varchar("member_tier").notNull(), // tier name for allowance calculation
+  relationship: varchar("relationship"), // 'spouse', 'child', 'parent', etc.
+  
+  // Stripe line item tracking
+  stripeSubscriptionItemId: varchar("stripe_subscription_item_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  
+  // Add-on pricing (stored for audit purposes)
+  addOnPriceCents: integer("add_on_price_cents"),
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  
+  // Timestamps
+  addedAt: timestamp("added_at").defaultNow(),
+  removedAt: timestamp("removed_at"),
+  addedBy: varchar("added_by"),
+  addedByName: varchar("added_by_name"),
+}, (table) => [
+  index("family_members_family_group_id_idx").on(table.familyGroupId),
+  index("family_members_member_email_idx").on(table.memberEmail),
+]);
+
+// Family add-on products - configurable pricing for family add-ons by tier
+export const familyAddOnProducts = pgTable("family_add_on_products", {
+  id: serial("id").primaryKey(),
+  
+  // Tier info
+  tierName: varchar("tier_name").notNull().unique(), // 'Premium', 'Social', etc.
+  
+  // Stripe product/price IDs
+  stripeProductId: varchar("stripe_product_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  
+  // Pricing
+  priceCents: integer("price_cents").notNull(), // e.g., 7500 for $75
+  billingInterval: varchar("billing_interval").default("month"),
+  
+  // Display
+  displayName: varchar("display_name"), // e.g., "Family Add-on - Premium"
+  description: text("description"),
+  
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("family_add_on_products_tier_name_idx").on(table.tierName),
+]);
+
+export type FamilyGroup = typeof familyGroups.$inferSelect;
+export type InsertFamilyGroup = typeof familyGroups.$inferInsert;
+export type FamilyMember = typeof familyMembers.$inferSelect;
+export type InsertFamilyMember = typeof familyMembers.$inferInsert;
+export type FamilyAddOnProduct = typeof familyAddOnProducts.$inferSelect;
+export type InsertFamilyAddOnProduct = typeof familyAddOnProducts.$inferInsert;
