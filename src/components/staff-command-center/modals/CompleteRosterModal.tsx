@@ -143,8 +143,8 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-20 sm:py-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-lg bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden max-h-[calc(100vh-10rem)] sm:max-h-[90vh] flex flex-col my-auto">
         <div className="px-6 py-4 border-b border-primary/10 dark:border-white/10 bg-amber-50 dark:bg-amber-900/20 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
