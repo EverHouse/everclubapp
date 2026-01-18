@@ -67,7 +67,9 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
 
         const customer = await stripe.customers.retrieve(member.stripe_customer_id);
         if (customer && !customer.deleted) {
-          billingInfo.customerBalance = (customer as any).balance || 0;
+          const balanceCents = (customer as any).balance || 0;
+          billingInfo.customerBalance = balanceCents;
+          billingInfo.customerBalanceDollars = balanceCents / 100;
         }
       } catch (stripeError: any) {
         console.error('[MemberBilling] Stripe API error:', stripeError.message);
@@ -139,16 +141,23 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
 
     const stripe = await getStripeClient();
 
-    const subscriptions = await stripe.subscriptions.list({
+    const activeSubscriptions = await stripe.subscriptions.list({
       customer: member.stripe_customer_id,
       status: 'active',
     });
 
-    if (subscriptions.data.length === 0) {
-      return res.status(400).json({ error: 'No active subscription found' });
+    const trialingSubscriptions = await stripe.subscriptions.list({
+      customer: member.stripe_customer_id,
+      status: 'trialing',
+    });
+
+    const allActiveOrTrialing = [...activeSubscriptions.data, ...trialingSubscriptions.data];
+    const subscription = allActiveOrTrialing.find(s => !s.pause_collection);
+
+    if (!subscription) {
+      return res.status(400).json({ error: 'No active subscription found to pause' });
     }
 
-    const subscription = subscriptions.data[0];
     await stripe.subscriptions.update(subscription.id, {
       pause_collection: {
         behavior: 'void',
@@ -186,9 +195,13 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
       customer: member.stripe_customer_id,
     });
 
-    const pausedSub = subscriptions.data.find(s => s.pause_collection !== null);
+    const pausedSub = subscriptions.data.find(s => 
+      s.pause_collection !== null && 
+      (s.status === 'active' || s.status === 'trialing')
+    );
+    
     if (!pausedSub) {
-      return res.status(400).json({ error: 'No paused subscription found' });
+      return res.status(400).json({ error: 'No paused subscription found to resume' });
     }
 
     await stripe.subscriptions.update(pausedSub.id, {
@@ -222,16 +235,23 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
 
     const stripe = await getStripeClient();
 
-    const subscriptions = await stripe.subscriptions.list({
+    const activeSubscriptions = await stripe.subscriptions.list({
       customer: member.stripe_customer_id,
       status: 'active',
     });
 
-    if (subscriptions.data.length === 0) {
-      return res.status(400).json({ error: 'No active subscription found' });
+    const trialingSubscriptions = await stripe.subscriptions.list({
+      customer: member.stripe_customer_id,
+      status: 'trialing',
+    });
+
+    const allActiveOrTrialing = [...activeSubscriptions.data, ...trialingSubscriptions.data];
+    const subscription = allActiveOrTrialing.find(s => !s.cancel_at_period_end);
+
+    if (!subscription) {
+      return res.status(400).json({ error: 'No subscription found to cancel' });
     }
 
-    const subscription = subscriptions.data[0];
     const updated = await stripe.subscriptions.update(subscription.id, {
       cancel_at_period_end: true,
     });
@@ -309,9 +329,15 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
       return res.status(400).json({ error: 'Either couponId or percentOff is required' });
     }
 
-    const validDurations = ['once', 'forever', 'repeating'];
+    if (!couponId && percentOff) {
+      if (typeof percentOff !== 'number' || percentOff < 1 || percentOff > 100) {
+        return res.status(400).json({ error: 'Discount percentage must be between 1 and 100' });
+      }
+    }
+
+    const validDurations = ['once', 'forever'];
     if (!validDurations.includes(duration)) {
-      return res.status(400).json({ error: 'Invalid duration' });
+      return res.status(400).json({ error: 'Invalid duration. Must be "once" or "forever"' });
     }
 
     const member = await getMemberByEmail(email);
@@ -330,22 +356,29 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
 
     const stripe = await getStripeClient();
 
-    const subscriptions = await stripe.subscriptions.list({
+    const activeSubscriptions = await stripe.subscriptions.list({
       customer: member.stripe_customer_id,
       status: 'active',
     });
 
-    if (subscriptions.data.length === 0) {
-      return res.status(400).json({ error: 'No active subscription found' });
+    const trialingSubscriptions = await stripe.subscriptions.list({
+      customer: member.stripe_customer_id,
+      status: 'trialing',
+    });
+
+    const allEligible = [...activeSubscriptions.data, ...trialingSubscriptions.data];
+    const subscription = allEligible.find(s => !s.cancel_at_period_end);
+
+    if (!subscription) {
+      return res.status(400).json({ error: 'No eligible subscription found to apply discount' });
     }
 
-    const subscription = subscriptions.data[0];
     let appliedCouponId = couponId;
 
     if (!couponId && percentOff) {
       const coupon = await stripe.coupons.create({
         percent_off: percentOff,
-        duration: duration as 'once' | 'forever' | 'repeating',
+        duration: duration as 'once' | 'forever',
         name: `Staff discount for ${email}`,
       });
       appliedCouponId = coupon.id;

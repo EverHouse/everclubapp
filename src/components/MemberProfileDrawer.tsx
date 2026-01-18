@@ -9,6 +9,7 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import FamilyBillingManager from './admin/FamilyBillingManager';
+import MemberBillingTab from './admin/MemberBillingTab';
 
 interface MemberProfileDrawerProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ interface CommunicationLog {
   createdAt: string;
 }
 
-type TabType = 'overview' | 'bookings' | 'events' | 'wellness' | 'visits' | 'guest-passes' | 'purchases' | 'communications' | 'notes' | 'family';
+type TabType = 'overview' | 'bookings' | 'events' | 'wellness' | 'visits' | 'guest-passes' | 'billing' | 'purchases' | 'communications' | 'notes' | 'family';
 
 const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'dashboard' },
@@ -76,6 +77,7 @@ const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'wellness', label: 'Wellness', icon: 'spa' },
   { id: 'visits', label: 'Visits', icon: 'check_circle' },
   { id: 'guest-passes', label: 'Guests', icon: 'group_add' },
+  { id: 'billing', label: 'Billing', icon: 'payments' },
   { id: 'family', label: 'Family', icon: 'family_restroom' },
   { id: 'purchases', label: 'Purchases', icon: 'receipt_long' },
   { id: 'communications', label: 'Comms', icon: 'chat' },
@@ -999,6 +1001,13 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 ))}
               </div>
             )}
+          </div>
+        );
+
+      case 'billing':
+        return (
+          <div className="space-y-4">
+            <MemberBillingTab memberEmail={member.email} />
           </div>
         );
 
