@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../Toast';
+import { useData } from '../../contexts/DataContext';
 
 interface BillingInfo {
   billingProvider: 'stripe' | 'mindbody' | 'family_addon' | 'comped' | null;
@@ -42,6 +43,7 @@ interface Props {
 
 export default function BillingSection({ isDark }: Props) {
   const { showToast } = useToast();
+  const { viewAsUser } = useData();
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,15 +51,16 @@ export default function BillingSection({ isDark }: Props) {
   const [updatingPayment, setUpdatingPayment] = useState(false);
 
   useEffect(() => {
+    const emailParam = viewAsUser?.email ? `?email=${encodeURIComponent(viewAsUser.email)}` : '';
     Promise.all([
-      fetch('/api/my/billing', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch('/api/my/billing/invoices', { credentials: 'include' }).then(r => r.ok ? r.json() : { invoices: [] }),
+      fetch(`/api/my/billing${emailParam}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      fetch(`/api/my/billing/invoices${emailParam}`, { credentials: 'include' }).then(r => r.ok ? r.json() : { invoices: [] }),
     ]).then(([billing, invoiceData]) => {
       setBillingInfo(billing);
       setInvoices(invoiceData?.invoices || []);
     }).catch(() => {})
     .finally(() => setLoading(false));
-  }, []);
+  }, [viewAsUser?.email]);
 
   const handleUpdatePaymentMethod = async () => {
     setUpdatingPayment(true);

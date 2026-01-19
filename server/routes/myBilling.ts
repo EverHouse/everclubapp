@@ -16,7 +16,10 @@ function requireAuth(req: any, res: any, next: any) {
 
 router.get('/api/my/billing', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user.email;
+    const sessionUser = req.session.user;
+    const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+    const targetEmail = (req.query.email && isStaff) ? String(req.query.email) : sessionUser.email;
+    const email = targetEmail;
     
     const result = await pool.query(
       `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id, tier
@@ -94,7 +97,9 @@ router.get('/api/my/billing', requireAuth, async (req, res) => {
 
 router.get('/api/my/billing/invoices', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user.email;
+    const sessionUser = req.session.user;
+    const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+    const email = (req.query.email && isStaff) ? String(req.query.email) : sessionUser.email;
     
     const result = await pool.query(
       `SELECT stripe_customer_id, billing_provider FROM users WHERE LOWER(email) = $1`,

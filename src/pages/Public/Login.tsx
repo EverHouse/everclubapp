@@ -21,6 +21,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [devLoading, setDevLoading] = useState(false);
+  const [devMemberLoading, setDevMemberLoading] = useState(false);
   const [error, setError] = useState('');
   const [isStaffOrAdmin, setIsStaffOrAdmin] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
@@ -72,14 +73,20 @@ const Login: React.FC = () => {
     return () => clearTimeout(debounceTimer);
   }, [email, checkStaffAdmin]);
 
-  const handleDevLogin = async () => {
-    setDevLoading(true);
+  const handleDevLogin = async (email?: string) => {
+    const isStaffLogin = !email;
+    if (isStaffLogin) {
+      setDevLoading(true);
+    } else {
+      setDevMemberLoading(true);
+    }
     setError('');
     
     try {
       const res = await fetch('/api/auth/dev-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(email ? { email } : {}),
         credentials: 'include'
       });
       
@@ -95,6 +102,7 @@ const Login: React.FC = () => {
       setError(err.message || 'Dev login failed');
     } finally {
       setDevLoading(false);
+      setDevMemberLoading(false);
     }
   };
 
@@ -414,8 +422,8 @@ const Login: React.FC = () => {
                     <hr className="border-black/10" />
                     <button
                       type="button"
-                      onClick={handleDevLogin}
-                      disabled={devLoading}
+                      onClick={() => handleDevLogin()}
+                      disabled={devLoading || devMemberLoading}
                       className="flex w-full justify-center items-center gap-2 rounded-xl bg-amber-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-amber-600 transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       <span className="material-symbols-outlined text-lg">developer_mode</span>
@@ -423,6 +431,18 @@ const Login: React.FC = () => {
                     </button>
                     <p className="text-center text-xs text-amber-600">
                       Development only - logs in as nick@evenhouse.club
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDevLogin('nicholasallanluu@gmail.com')}
+                      disabled={devLoading || devMemberLoading}
+                      className="flex w-full justify-center items-center gap-2 rounded-xl bg-purple-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-purple-600 transition-all active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-lg">person</span>
+                      {devMemberLoading ? 'Logging in...' : 'Dev Login (Nick Luu Member)'}
+                    </button>
+                    <p className="text-center text-xs text-purple-600">
+                      Development only - logs in as nicholasallanluu@gmail.com
                     </p>
                   </>
                 )}

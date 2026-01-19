@@ -909,11 +909,11 @@ router.post('/api/auth/dev-login', async (req, res) => {
   }
   
   try {
-    const devEmail = 'nick@evenhouse.club';
+    const devEmail = req.body.email || 'nick@evenhouse.club';
     
     const existingUser = await db.select()
       .from(users)
-      .where(eq(users.email, devEmail));
+      .where(sql`LOWER(${users.email}) = LOWER(${devEmail})`);
     
     if (existingUser.length === 0) {
       return res.status(404).json({ error: 'Dev user not found' });
@@ -924,12 +924,12 @@ router.post('/api/auth/dev-login', async (req, res) => {
     const sessionTtl = 7 * 24 * 60 * 60 * 1000;
     const member = {
       id: user.id,
-      firstName: user.firstName || 'Nick',
-      lastName: user.lastName || 'Luu',
-      email: devEmail,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      email: user.email,
       phone: user.phone || '',
-      tier: user.tier || 'Premium',
-      role: user.role || 'admin',
+      tier: user.tier || null,
+      role: user.role || 'member',
       expires_at: Date.now() + sessionTtl
     };
     
