@@ -11,6 +11,7 @@ import { retryableHubSpotRequest } from "../core/hubspot/request";
 import { listCustomerInvoices } from "../core/stripe/invoices";
 import { getSessionUser } from "../types/session";
 import path from "path";
+import { normalizeTierName as normalizeTierNameUtil, normalizeTierSlug } from '../utils/tierUtils';
 
 interface UnifiedPurchase {
   id: string;
@@ -447,15 +448,11 @@ router.post("/api/legacy-purchases/admin/link-guest-fees", isAdmin, async (req: 
 function extractTierFromItemName(itemName: string | null): string | null {
   if (!itemName) return null;
   
-  const name = itemName.toLowerCase();
-  
-  if (name.includes('premium')) return 'Premium';
-  if (name.includes('vip')) return 'VIP';
-  if (name.includes('corporate')) return 'Corporate';
-  if (name.includes('social')) return 'Social';
-  if (name.includes('core')) return 'Core';
-  
-  return null;
+  const slug = normalizeTierSlug(itemName);
+  if (slug === 'social' && !itemName.toLowerCase().includes('social')) {
+    return null;
+  }
+  return normalizeTierNameUtil(itemName);
 }
 
 // Helper: Map item_category and item_name to correct HubSpot product ID

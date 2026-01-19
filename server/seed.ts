@@ -1,6 +1,7 @@
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
+import { normalizeTierName } from './utils/tierUtils';
 const { Pool } = pg;
 
 const pool = new Pool({
@@ -51,13 +52,7 @@ function parseJoinedOnDate(dateStr: string): Date {
 }
 
 function mapMembershipTier(csvTier: string): string {
-  const tierLower = csvTier.toLowerCase();
-  if (tierLower.includes('vip')) return 'VIP';
-  if (tierLower.includes('premium')) return 'Premium';
-  if (tierLower.includes('corporate')) return 'Corporate';
-  if (tierLower.includes('core')) return 'Core';
-  if (tierLower.includes('social')) return 'Social';
-  return 'Core';
+  return normalizeTierName(csvTier);
 }
 
 function parseLinkedEmails(trackmanEmails: string): string[] {

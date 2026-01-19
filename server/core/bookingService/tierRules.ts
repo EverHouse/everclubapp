@@ -112,10 +112,10 @@ export async function enforceSocialTierRules(
   participants: ParticipantForValidation[]
 ): Promise<SocialTierResult> {
   try {
-    const normalizedTier = ownerTier.toLowerCase();
+    const { isSocialTier } = await import('../../utils/tierUtils');
     
     // Non-Social tiers can always have guests
-    if (!normalizedTier.includes('social')) {
+    if (!isSocialTier(ownerTier)) {
       return { allowed: true };
     }
     
@@ -174,9 +174,11 @@ export async function getGuestPassesRemaining(memberEmail: string): Promise<numb
       `SELECT COUNT(*) as guest_count
        FROM booking_participants bp
        JOIN booking_sessions bs ON bp.session_id = bs.id
+       JOIN booking_requests br ON bs.id = br.session_id
        WHERE bp.participant_type = 'guest'
          AND bs.session_date >= $1
          AND bs.session_date <= $2
+         AND br.status NOT IN ('cancelled', 'declined')
          AND EXISTS (
            SELECT 1 FROM booking_participants owner_bp
            WHERE owner_bp.session_id = bs.id

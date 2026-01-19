@@ -37,6 +37,8 @@ export const membershipTiers = pgTable("membership_tiers", {
   hasDiscountedMerch: boolean("has_discounted_merch").default(false),
   unlimitedAccess: boolean("unlimited_access").default(false),
   
+  guestFeeCents: integer("guest_fee_cents").default(2500),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

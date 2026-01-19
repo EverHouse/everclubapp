@@ -1279,16 +1279,12 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
       errors: { email: string; error: string }[];
     } = { updated: [], unchanged: [], notFound: [], errors: [] };
     
-    // Map tier names from CSV to normalized tier names
+    // Map tier names from CSV to normalized tier names using centralized utility
+    const { normalizeTierName: normalizeTierNameUtil, TIER_SLUGS } = await import('../utils/tierUtils');
     function normalizeCsvTier(csvTier: string): string | null {
       if (!csvTier) return null;
-      const lower = csvTier.toLowerCase();
-      if (lower.includes('vip')) return 'VIP';
-      if (lower.includes('premium')) return 'Premium';
-      if (lower.includes('corporate')) return 'Corporate';
-      if (lower.includes('core')) return 'Core';
-      if (lower.includes('social')) return 'Social';
-      return null;
+      const normalized = normalizeTierNameUtil(csvTier);
+      return normalized;
     }
     
     // Get tier ID from tier name

@@ -13,7 +13,7 @@ export interface FeeCalculationResult {
   error?: string;
 }
 
-const GUEST_FEE_DOLLARS = 25;
+const DEFAULT_GUEST_FEE_CENTS = 2500;
 
 export async function calculateAndCacheParticipantFees(
   sessionId: number,
@@ -27,6 +27,7 @@ export async function calculateAndCacheParticipantFees(
     // Join usage_ledger by resolving user_id to email via users table
     // This handles UUID-based user_ids, email-based member_ids, and fallback via booking_requests
     // When user_id is null, we can still match via the booking_request's user_email
+    // Also join membership_tiers to get the tier-specific guest fee for the booking member
     const participantsResult = await client.query(
       `SELECT 
         bp.id as participant_id,
@@ -34,10 +35,13 @@ export async function calculateAndCacheParticipantFees(
         bp.user_id,
         bp.payment_status,
         bp.cached_fee_cents,
-        COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) as ledger_fee
+        COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) as ledger_fee,
+        mt.guest_fee_cents as tier_guest_fee_cents
        FROM booking_participants bp
        LEFT JOIN users u ON u.id = bp.user_id
        LEFT JOIN booking_requests br ON br.session_id = bp.session_id
+       LEFT JOIN users booking_member ON LOWER(booking_member.email) = LOWER(br.user_email)
+       LEFT JOIN membership_tiers mt ON mt.id = booking_member.tier_id
        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
          AND (
            ul.member_id = bp.user_id 
@@ -66,7 +70,7 @@ export async function calculateAndCacheParticipantFees(
         amountCents = Math.round(parseFloat(row.ledger_fee) * 100);
         source = 'ledger';
       } else if (row.participant_type === 'guest') {
-        amountCents = Math.round(GUEST_FEE_DOLLARS * 100);
+        amountCents = row.tier_guest_fee_cents ?? DEFAULT_GUEST_FEE_CENTS;
         source = 'calculated';
       }
       

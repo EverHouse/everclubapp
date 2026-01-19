@@ -29,7 +29,7 @@ import { useUserStore } from './stores/userStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { StaffBookingToast } from './components/StaffBookingToast';
 
-const INITIAL_LOAD_SAFETY_TIMEOUT_MS = 2000;
+const INITIAL_LOAD_SAFETY_TIMEOUT_MS = 100;
 
 const InitialLoadingScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isDataReady } = useData();
