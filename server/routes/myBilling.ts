@@ -1,0 +1,174 @@
+import { Router } from 'express';
+import { pool } from '../core/db';
+import { getStripeClient } from '../core/stripe/client';
+import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
+import { getFamilyGroupByMemberEmail } from '../core/stripe/familyBilling';
+import { listCustomerInvoices } from '../core/stripe/invoices';
+
+const router = Router();
+
+function requireAuth(req: any, res: any, next: any) {
+  if (!req.session?.user?.email) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  next();
+}
+
+router.get('/api/my/billing', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user.email;
+    
+    const result = await pool.query(
+      `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id, tier
+       FROM users WHERE LOWER(email) = $1`,
+      [email.toLowerCase()]
+    );
+    
+    const member = result.rows[0];
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const billingInfo: any = {
+      billingProvider: member.billing_provider,
+      tier: member.tier,
+    };
+    
+    if (member.billing_provider === 'stripe' && member.stripe_customer_id) {
+      try {
+        const stripe = await getStripeClient();
+        
+        const subsResult = await listCustomerSubscriptions(member.stripe_customer_id);
+        if (subsResult.success && subsResult.subscriptions) {
+          const activeSub = subsResult.subscriptions.find(
+            s => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
+          );
+          if (activeSub) {
+            billingInfo.subscription = {
+              status: activeSub.status,
+              currentPeriodEnd: Math.floor(activeSub.currentPeriodEnd.getTime() / 1000),
+              cancelAtPeriodEnd: activeSub.cancelAtPeriodEnd,
+              isPaused: activeSub.isPaused,
+            };
+          }
+        }
+        
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: member.stripe_customer_id,
+          type: 'card',
+        });
+        billingInfo.paymentMethods = paymentMethods.data.map(pm => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+        }));
+        
+        const customer = await stripe.customers.retrieve(member.stripe_customer_id);
+        if (customer && !customer.deleted) {
+          billingInfo.customerBalanceDollars = ((customer as any).balance || 0) / 100;
+        }
+      } catch (stripeError: any) {
+        console.error('[MyBilling] Stripe error:', stripeError.message);
+        billingInfo.stripeError = 'Unable to load billing details';
+      }
+    } else if (member.billing_provider === 'family_addon') {
+      try {
+        const familyGroup = await getFamilyGroupByMemberEmail(email);
+        if (familyGroup) {
+          billingInfo.familyGroup = {
+            primaryName: familyGroup.primaryName,
+            primaryEmail: familyGroup.primaryEmail,
+          };
+        }
+      } catch (e) {}
+    }
+    
+    res.json(billingInfo);
+  } catch (error: any) {
+    console.error('[MyBilling] Error:', error);
+    res.status(500).json({ error: 'Failed to load billing info' });
+  }
+});
+
+router.get('/api/my/billing/invoices', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user.email;
+    
+    const result = await pool.query(
+      `SELECT stripe_customer_id, billing_provider FROM users WHERE LOWER(email) = $1`,
+      [email.toLowerCase()]
+    );
+    
+    const member = result.rows[0];
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    if (member.billing_provider !== 'stripe' || !member.stripe_customer_id) {
+      return res.json({ invoices: [] });
+    }
+    
+    const invoicesResult = await listCustomerInvoices(member.stripe_customer_id);
+    
+    if (!invoicesResult.success) {
+      return res.status(500).json({ error: 'Failed to load invoices' });
+    }
+    
+    const invoices = (invoicesResult.invoices || []).map((inv: any) => ({
+      id: inv.id,
+      number: inv.number,
+      status: inv.status,
+      amountDue: inv.amountDue,
+      amountPaid: inv.amountPaid,
+      created: Math.floor(inv.created.getTime() / 1000),
+      hostedInvoiceUrl: inv.hostedInvoiceUrl,
+      invoicePdf: inv.invoicePdf,
+    }));
+    
+    res.json({ invoices });
+  } catch (error: any) {
+    console.error('[MyBilling] Invoice error:', error);
+    res.status(500).json({ error: 'Failed to load invoices' });
+  }
+});
+
+router.post('/api/my/billing/update-payment-method', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user.email;
+    
+    const result = await pool.query(
+      `SELECT stripe_customer_id, billing_provider FROM users WHERE LOWER(email) = $1`,
+      [email.toLowerCase()]
+    );
+    
+    const member = result.rows[0];
+    if (!member || member.billing_provider !== 'stripe' || !member.stripe_customer_id) {
+      return res.status(400).json({ error: 'Stripe billing not available' });
+    }
+    
+    const stripe = await getStripeClient();
+    
+    const returnUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}/profile`
+      : process.env.REPLIT_DEPLOYMENT_DOMAIN
+        ? `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}/profile`
+        : 'https://everhouse.com/profile';
+    
+    const session = await stripe.billingPortal.sessions.create({
+      customer: member.stripe_customer_id,
+      return_url: returnUrl,
+      flow_data: {
+        type: 'payment_method_update',
+      },
+    });
+    
+    res.json({ url: session.url });
+  } catch (error: any) {
+    console.error('[MyBilling] Payment update error:', error);
+    res.status(500).json({ error: 'Failed to create payment update link' });
+  }
+});
+
+export default router;

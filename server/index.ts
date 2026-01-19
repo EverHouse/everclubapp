@@ -54,6 +54,7 @@ import stripeRouter from './routes/stripe';
 import waiversRouter from './routes/waivers';
 import familyBillingRouter from './routes/familyBilling';
 import memberBillingRouter from './routes/memberBilling';
+import myBillingRouter from './routes/myBilling';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { ensureDatabaseConstraints, seedDefaultNoticeTypes } from './db-init';
 import { initWebSocketServer } from './core/websocket';
@@ -314,6 +315,7 @@ app.use(stripeRouter);
 app.use(waiversRouter);
 app.use(familyBillingRouter);
 app.use(memberBillingRouter);
+app.use(myBillingRouter);
 registerObjectStorageRoutes(app);
 
 // SPA catch-all using middleware (avoids Express 5 path-to-regexp issues)

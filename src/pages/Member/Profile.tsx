@@ -20,6 +20,7 @@ import BugReportModal from '../../components/BugReportModal';
 import ModalShell from '../../components/ModalShell';
 import GuestPassPurchaseModal from '../../components/billing/GuestPassPurchaseModal';
 import WaiverModal from '../../components/WaiverModal';
+import BillingSection from '../../components/profile/BillingSection';
 
 
 const GUEST_CHECKIN_FIELDS = [
@@ -434,6 +435,13 @@ const Profile: React.FC = () => {
             
             <Row icon="lock" label="Privacy" arrow isDark={isDark} onClick={() => setShowPrivacyModal(true)} />
          </Section>
+
+         {/* Billing Section - only for members, not staff/admin */}
+         {!isStaffOrAdminProfile && (
+           <Section title="Billing & Invoices" isDark={isDark} delay="0.12s">
+             <BillingSection isDark={isDark} />
+           </Section>
+         )}
 
          {/* Guest Passes Section - only for members, not staff/admin */}
          {!isStaffOrAdminProfile && guestPasses && (

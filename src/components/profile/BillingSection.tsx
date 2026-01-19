@@ -1,0 +1,331 @@
+import React, { useState, useEffect } from 'react';
+import { useToast } from '../Toast';
+
+interface BillingInfo {
+  billingProvider: 'stripe' | 'mindbody' | 'family_addon' | 'comped' | null;
+  tier: string;
+  subscription?: {
+    status: string;
+    currentPeriodEnd: number;
+    cancelAtPeriodEnd: boolean;
+    isPaused: boolean;
+  };
+  paymentMethods?: Array<{
+    id: string;
+    brand: string;
+    last4: string;
+    expMonth: number;
+    expYear: number;
+  }>;
+  customerBalanceDollars?: number;
+  familyGroup?: {
+    primaryName: string;
+    primaryEmail: string;
+  };
+  stripeError?: string;
+}
+
+interface Invoice {
+  id: string;
+  number: string;
+  status: string;
+  amountDue: number;
+  amountPaid: number;
+  created: number;
+  hostedInvoiceUrl: string;
+  invoicePdf: string;
+}
+
+interface Props {
+  isDark: boolean;
+}
+
+export default function BillingSection({ isDark }: Props) {
+  const { showToast } = useToast();
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showInvoices, setShowInvoices] = useState(false);
+  const [updatingPayment, setUpdatingPayment] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/my/billing', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      fetch('/api/my/billing/invoices', { credentials: 'include' }).then(r => r.ok ? r.json() : { invoices: [] }),
+    ]).then(([billing, invoiceData]) => {
+      setBillingInfo(billing);
+      setInvoices(invoiceData?.invoices || []);
+    }).catch(() => {})
+    .finally(() => setLoading(false));
+  }, []);
+
+  const handleUpdatePaymentMethod = async () => {
+    setUpdatingPayment(true);
+    try {
+      const res = await fetch('/api/my/billing/update-payment-method', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        showToast('Unable to update payment method', 'error');
+      }
+    } catch {
+      showToast('Failed to open payment portal', 'error');
+    } finally {
+      setUpdatingPayment(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+        <div className="p-4">
+          <div className="animate-pulse space-y-3">
+            <div className={`h-4 w-32 rounded ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+            <div className={`h-4 w-48 rounded ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!billingInfo || !billingInfo.billingProvider) {
+    return null;
+  }
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  };
+
+  const formatCurrency = (cents: number) => {
+    return `$${(cents / 100).toFixed(2)}`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+      case 'trialing':
+      case 'paid':
+        return 'text-green-600';
+      case 'past_due':
+        return 'text-amber-600';
+      case 'canceled':
+      case 'unpaid':
+        return 'text-red-600';
+      default:
+        return isDark ? 'text-white/70' : 'text-primary/70';
+    }
+  };
+
+  if (billingInfo.billingProvider === 'stripe') {
+    const sub = billingInfo.subscription;
+    const card = billingInfo.paymentMethods?.[0];
+    
+    if (billingInfo.stripeError) {
+      return (
+        <div className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+          <div className="p-4">
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                credit_card
+              </span>
+              <div>
+                <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Billing</span>
+                <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                  Unable to load billing details. Please try again later.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+        <div className={`p-4 ${isDark ? '' : ''}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                credit_card
+              </span>
+              <div>
+                <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Membership</span>
+                {sub && (
+                  <p className={`text-xs mt-0.5 ${getStatusColor(sub.status)}`}>
+                    {sub.isPaused ? 'Paused' : sub.cancelAtPeriodEnd ? 'Cancels at period end' : sub.status === 'active' ? 'Active' : sub.status}
+                  </p>
+                )}
+                {!sub && (
+                  <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                    No active subscription
+                  </p>
+                )}
+              </div>
+            </div>
+            {sub && !sub.isPaused && !sub.cancelAtPeriodEnd && (
+              <span className={`text-xs ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                Renews {formatDate(sub.currentPeriodEnd)}
+              </span>
+            )}
+          </div>
+          
+          {card && (
+            <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+              <div className="flex items-center gap-3">
+                <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
+                  payment
+                </span>
+                <span className={`text-sm ${isDark ? 'opacity-80' : 'text-primary/80'}`}>
+                  {card.brand?.charAt(0).toUpperCase()}{card.brand?.slice(1)} ending in {card.last4}
+                </span>
+              </div>
+              <button
+                onClick={handleUpdatePaymentMethod}
+                disabled={updatingPayment}
+                className={`text-xs font-medium ${isDark ? 'text-accent' : 'text-primary'} hover:underline disabled:opacity-50`}
+              >
+                {updatingPayment ? 'Loading...' : 'Update'}
+              </button>
+            </div>
+          )}
+          
+          {billingInfo.customerBalanceDollars !== undefined && billingInfo.customerBalanceDollars < 0 && (
+            <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+              <span className={`text-sm ${isDark ? 'opacity-80' : 'text-primary/80'}`}>Account Credit</span>
+              <span className={`text-sm font-medium text-green-600`}>
+                ${Math.abs(billingInfo.customerBalanceDollars).toFixed(2)}
+              </span>
+            </div>
+          )}
+          
+          <button
+            onClick={() => setShowInvoices(!showInvoices)}
+            className={`w-full flex items-center justify-between py-3 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}
+          >
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
+                receipt_long
+              </span>
+              <span className={`text-sm ${isDark ? 'opacity-80' : 'text-primary/80'}`}>Invoices</span>
+            </div>
+            <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
+              {showInvoices ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
+          
+          {showInvoices && invoices.length > 0 && (
+            <div className={`border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+              {invoices.slice(0, 5).map((invoice) => (
+                <div key={invoice.id} className={`flex items-center justify-between py-3 px-2 ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
+                  <div>
+                    <p className={`text-sm ${isDark ? '' : 'text-primary'}`}>
+                      {invoice.number || 'Invoice'}
+                    </p>
+                    <p className={`text-xs ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
+                      {formatDate(invoice.created)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-medium ${getStatusColor(invoice.status)}`}>
+                      {formatCurrency(invoice.amountPaid || invoice.amountDue)}
+                    </span>
+                    {invoice.hostedInvoiceUrl && (
+                      <a
+                        href={invoice.hostedInvoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`text-xs ${isDark ? 'text-accent' : 'text-primary'} hover:underline`}
+                      >
+                        View
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {showInvoices && invoices.length === 0 && (
+            <p className={`text-sm py-3 ${isDark ? 'opacity-50' : 'text-primary/50'}`}>No invoices yet</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (billingInfo.billingProvider === 'mindbody') {
+    return (
+      <div className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+        <div className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+              credit_card
+            </span>
+            <div>
+              <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Billing</span>
+              <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                Managed through Mindbody
+              </p>
+            </div>
+          </div>
+          <p className={`text-sm ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+            Your billing is handled through our legacy system. Contact the front desk for billing questions.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (billingInfo.billingProvider === 'family_addon') {
+    return (
+      <div className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+        <div className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+              family_restroom
+            </span>
+            <div>
+              <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Family Membership</span>
+              <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                Add-on member
+              </p>
+            </div>
+          </div>
+          {billingInfo.familyGroup && (
+            <p className={`text-sm ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+              Your membership is covered by {billingInfo.familyGroup.primaryName || billingInfo.familyGroup.primaryEmail}.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (billingInfo.billingProvider === 'comped') {
+    return (
+      <div className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+        <div className="p-4">
+          <div className="flex items-center gap-3">
+            <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+              verified
+            </span>
+            <div>
+              <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Complimentary Access</span>
+              <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                No billing required
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
