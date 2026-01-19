@@ -4,6 +4,15 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import Logo from '../components/Logo';
 
+interface DayPassProduct {
+  id: string;
+  name: string;
+  priceCents: number;
+  description: string | null;
+  stripePriceId: string | null;
+  hasPriceId: boolean;
+}
+
 let stripePromise: Promise<Stripe | null> | null = null;
 
 async function getStripePromise(): Promise<Stripe | null> {
@@ -97,11 +106,239 @@ function CheckoutForm({ tier, email }: { tier: string; email?: string }) {
   );
 }
 
+function DayPassesSection() {
+  const [products, setProducts] = useState<DayPassProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<DayPassProduct | null>(null);
+  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/day-passes/products');
+        if (!res.ok) throw new Error('Failed to fetch products');
+        const data = await res.json();
+        setProducts(data.products || []);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const handleCheckout = async (product: DayPassProduct) => {
+    if (!email) {
+      setSelectedProduct(product);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/day-passes/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productSlug: product.id,
+          email,
+          firstName,
+          lastName,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create checkout');
+      }
+
+      const { sessionUrl } = await res.json();
+      if (sessionUrl) {
+        window.location.href = sessionUrl;
+      }
+    } catch (err: any) {
+      setError(err.message);
+      setSubmitting(false);
+    }
+  };
+
+  const formatPrice = (cents: number) => {
+    return `$${(cents / 100).toFixed(0)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-12 w-12 border-3 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error && !selectedProduct) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600 dark:text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-primary dark:text-white mb-2">Day Passes</h1>
+        <p className="text-primary/70 dark:text-white/70">Experience the club for a day</p>
+      </div>
+
+      {selectedProduct ? (
+        <div className="glass-card rounded-2xl p-6 md:p-8 max-w-md mx-auto">
+          <h2 className="text-xl font-bold text-primary dark:text-white mb-4">
+            Complete Your Purchase
+          </h2>
+          <p className="text-primary/70 dark:text-white/70 mb-6">
+            {selectedProduct.name} - {formatPrice(selectedProduct.priceCents)}
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="John"
+                  className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Doe"
+                  className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-red-500 text-sm">{error}</p>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="flex-1 py-3 px-4 rounded-xl font-medium border border-primary/20 dark:border-white/20 text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => handleCheckout(selectedProduct)}
+                disabled={!email || submitting}
+                className="flex-1 py-3 px-4 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-brand-green border-t-transparent" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-lg">shopping_cart</span>
+                    Pay {formatPrice(selectedProduct.priceCents)}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          {products.map((product) => (
+            <div
+              key={product.id}
+              className="glass-card rounded-2xl p-6 flex flex-col hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-white/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary dark:text-white">
+                    {product.id.includes('golf') ? 'sports_golf' : product.id.includes('cowork') ? 'work' : 'confirmation_number'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-primary dark:text-white">{product.name}</h3>
+                  <p className="text-2xl font-bold text-accent">{formatPrice(product.priceCents)}</p>
+                </div>
+              </div>
+
+              <p className="text-primary/70 dark:text-white/70 text-sm mb-6 flex-grow">
+                {product.description || 'Experience the club for a day'}
+              </p>
+
+              {product.hasPriceId ? (
+                <button
+                  onClick={() => handleCheckout(product)}
+                  className="w-full py-3 px-4 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-lg">shopping_cart</span>
+                  Buy Now
+                </button>
+              ) : (
+                <div className="w-full py-3 px-4 rounded-xl font-medium bg-primary/10 dark:bg-white/10 text-primary/50 dark:text-white/50 text-center">
+                  Coming Soon
+                </div>
+              )}
+            </div>
+          ))}
+
+          {products.length === 0 && (
+            <div className="col-span-3 text-center py-8 text-primary/70 dark:text-white/70">
+              No day passes available at this time.
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="text-center pt-8 border-t border-primary/10 dark:border-white/10">
+        <p className="text-primary/60 dark:text-white/60 mb-4">Looking for a membership instead?</p>
+        <a
+          href="/#/membership"
+          className="inline-flex items-center gap-2 py-3 px-6 rounded-xl font-medium bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+        >
+          <span className="material-symbols-outlined">card_membership</span>
+          View Membership Options
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [customerEmail, setCustomerEmail] = useState<string | null>(null);
+  const [purchaseType, setPurchaseType] = useState<'membership' | 'day_pass' | null>(null);
 
   useEffect(() => {
     if (!sessionId) {
@@ -117,6 +354,12 @@ function CheckoutSuccess() {
         const data = await res.json();
         setCustomerEmail(data.customerEmail);
         setStatus(data.status === 'complete' ? 'success' : 'error');
+        
+        if (data.metadata?.purpose === 'day_pass') {
+          setPurchaseType('day_pass');
+        } else {
+          setPurchaseType('membership');
+        }
       } catch {
         setStatus('error');
       }
@@ -144,6 +387,45 @@ function CheckoutSuccess() {
           className="inline-block py-3 px-6 rounded-xl font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
         >
           Contact Support
+        </a>
+      </div>
+    );
+  }
+
+  if (purchaseType === 'day_pass') {
+    return (
+      <div className="text-center py-16">
+        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+          <span className="material-symbols-outlined text-5xl text-emerald-600 dark:text-emerald-400">check_circle</span>
+        </div>
+        <h2 className="text-3xl font-bold text-primary dark:text-white mb-2">Purchase Complete!</h2>
+        <p className="text-primary/70 dark:text-white/70 text-lg mb-2">Your day pass has been confirmed.</p>
+        {customerEmail && (
+          <p className="text-primary/60 dark:text-white/60 mb-4">A confirmation has been sent to {customerEmail}</p>
+        )}
+        <div className="glass-card rounded-2xl p-6 max-w-md mx-auto mb-8 text-left">
+          <h3 className="font-bold text-primary dark:text-white mb-3">What's Next?</h3>
+          <ul className="space-y-2 text-primary/70 dark:text-white/70 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-accent text-lg">mail</span>
+              Check your email for your day pass details
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-accent text-lg">location_on</span>
+              Visit us at 123 Ever House Lane
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-accent text-lg">schedule</span>
+              Present your confirmation at the front desk
+            </li>
+          </ul>
+        </div>
+        <a
+          href="/#/"
+          className="inline-flex items-center justify-center gap-2 py-3 px-8 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity"
+        >
+          <span className="material-symbols-outlined">home</span>
+          Return Home
         </a>
       </div>
     );
@@ -200,17 +482,7 @@ export default function Checkout() {
             <CheckoutForm tier={tier} email={email} />
           </div>
         ) : (
-          <div className="text-center py-16">
-            <span className="material-symbols-outlined text-6xl text-amber-500 mb-4 block">warning</span>
-            <h2 className="text-2xl font-bold text-primary dark:text-white mb-2">No Membership Selected</h2>
-            <p className="text-primary/70 dark:text-white/70 mb-6">Please select a membership tier to continue.</p>
-            <a
-              href="/#/membership"
-              className="inline-block py-3 px-6 rounded-xl font-medium bg-accent text-brand-green hover:opacity-90 transition-opacity"
-            >
-              View Membership Options
-            </a>
-          </div>
+          <DayPassesSection />
         )}
       </main>
     </div>
