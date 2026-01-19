@@ -738,7 +738,7 @@ const DirectoryTab: React.FC = () => {
                 <div className="md:hidden">
                 {/* Non-virtualized rendering for small lists */}
                 {filteredList.length < VIRTUALIZATION_THRESHOLD ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 pb-24">
                         {filteredList.map((m, index) => (
                             <div 
                                 key={m.email}
@@ -795,7 +795,7 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 ) : (
                     /* Virtualized rendering for large lists - react-window v2 API with named component */
-                    <div className="h-[calc(100vh-350px)] min-h-[500px]">
+                    <div className="h-[calc(100vh-350px)] min-h-[500px] pb-24">
                         <List
                             defaultHeight={500}
                             rowCount={filteredList.length}

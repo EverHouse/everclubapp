@@ -27,7 +27,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   secondaryIcon,
   label,
 }) => {
-  const { isAtBottom } = useBottomNav();
+  const { isAtBottom, drawerOpen } = useBottomNav();
   
   useEffect(() => {
     document.body.classList.add('has-fab');
@@ -35,6 +35,8 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
       document.body.classList.remove('has-fab');
     };
   }, []);
+  
+  if (drawerOpen) return null;
   
   const fabContent = (
     <button

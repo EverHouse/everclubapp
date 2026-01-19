@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useBottomNav } from '../contexts/BottomNavContext';
 import TierBadge from './TierBadge';
 import TagBadge from './TagBadge';
 import { formatPhoneNumber } from '../utils/formatting';
@@ -10,6 +11,8 @@ import type { MemberProfile } from '../types/data';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import FamilyBillingManager from './admin/FamilyBillingManager';
 import MemberBillingTab from './admin/MemberBillingTab';
+
+const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '';
 
 interface MemberProfileDrawerProps {
   isOpen: boolean;
@@ -114,7 +117,13 @@ const formatTime12Hour = (timeStr: string): string => {
 
 const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs }) => {
   const { effectiveTheme } = useTheme();
+  const { setDrawerOpen } = useBottomNav();
   const isDark = effectiveTheme === 'dark';
+  
+  useEffect(() => {
+    setDrawerOpen(isOpen);
+    return () => setDrawerOpen(false);
+  }, [isOpen, setDrawerOpen]);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<MemberHistory | null>(null);
@@ -882,7 +891,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                             {comm.direction}
                           </span>
                         </div>
-                        {comm.body && <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{comm.body}</p>}
+                        {comm.body && <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stripHtml(comm.body)}</p>}
                         <p className={`text-[10px] mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                           {formatDateTimePacific(comm.occurredAt)} · {comm.loggedByName}
                         </p>
