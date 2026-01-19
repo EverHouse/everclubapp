@@ -192,30 +192,38 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           
           const status = (contact.properties.membership_status || 'non-member').toLowerCase();
           
-          // STRICT TIER LOGIC: Set to NULL if tier is blank/unrecognized (don't default to 'Social')
+          // Tier logic: Only sync recognized tiers, leave null for unrecognized (preserves existing in upsert)
           const rawTier = contact.properties.membership_tier;
-          const normalizedTier = isRecognizedTier(rawTier) ? normalizeTierName(rawTier) : null;
+          let normalizedTier: string | null = null;
+          
+          if (isRecognizedTier(rawTier)) {
+            // Known tier from HubSpot - use it
+            normalizedTier = normalizeTierName(rawTier);
+          } else if (rawTier && rawTier.trim()) {
+            // Unrecognized non-empty tier - log warning for manual review, don't overwrite existing
+            console.warn(`[MemberSync] UNRECOGNIZED TIER "${rawTier}" for ${email} - requires manual mapping, tier will not be updated`);
+          }
+          // If normalizedTier is null, the upsert will preserve the existing tier value via COALESCE
           const tierId = normalizedTier ? (tierCache.get(normalizedTier.toLowerCase()) || null) : null;
           const tags = extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason);
           
-          // PRIORITIZE createdate for joinDate, fallback to membership_start_date
+          // PRIORITIZE membership_start_date for joinDate (when they became a member), fallback to createdate
           let joinDate: string | null = null;
-          if (contact.properties.createdate) {
-            // createdate is a timestamp, parse it properly
+          if (contact.properties.membership_start_date) {
+            const dateStr = contact.properties.membership_start_date;
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+              joinDate = dateStr.split('T')[0];
+            }
+          }
+          // Fallback to createdate if membership_start_date wasn't available
+          if (!joinDate && contact.properties.createdate) {
             try {
               const createDate = new Date(contact.properties.createdate);
               if (!isNaN(createDate.getTime())) {
                 joinDate = createDate.toISOString().split('T')[0];
               }
             } catch (e) {
-              // If parsing fails, fall through to membership_start_date
-            }
-          }
-          // Fallback to membership_start_date if createdate wasn't available
-          if (!joinDate && contact.properties.membership_start_date) {
-            const dateStr = contact.properties.membership_start_date;
-            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-              joinDate = dateStr.split('T')[0];
+              // If parsing fails, joinDate remains null
             }
           }
           
@@ -254,8 +262,8 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 firstName: sql`COALESCE(${firstName}, ${users.firstName})`,
                 lastName: sql`COALESCE(${lastName}, ${users.lastName})`,
                 phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
-                tier: normalizedTier,
-                tierId,
+                tier: normalizedTier ? normalizedTier : sql`${users.tier}`,
+                tierId: tierId !== null ? tierId : sql`${users.tierId}`,
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
                 membershipStatus: status,
@@ -361,7 +369,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     
     // Sync deal stages in batches with throttling to avoid HubSpot rate limits
     // Run this AFTER the main sync completes to avoid blocking member data updates
-    const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen'];
+    const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen', 'past_due', 'past due', 'pastdue'];
     const contactsNeedingDealSync = allContacts.filter(c => {
       const email = c.properties.email?.toLowerCase();
       const status = (c.properties.membership_status || 'non-member').toLowerCase();

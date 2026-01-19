@@ -7,17 +7,17 @@ import { alertOnImportFailure, alertOnLowMatchRate } from "../dataAlerts";
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Tier name mapping: Mindbody tier names → normalized tier names
+// Tier name mapping: Mindbody tier names → normalized tier names (Title Case for HubSpot compatibility)
 const TIER_MAPPING: Record<string, string | null> = {
-  'core membership': 'core',
-  'core membership founding members': 'core',
-  'premium membership': 'premium',
-  'premium membership founding members': 'premium',
-  'social membership': 'social',
-  'social membership founding members': 'social',
-  'vip membership': 'vip',
-  'corporate membership': 'corporate',
-  'group lessons membership': 'group_lessons',
+  'core membership': 'Core',
+  'core membership founding members': 'Core',
+  'premium membership': 'Premium',
+  'premium membership founding members': 'Premium',
+  'social membership': 'Social',
+  'social membership founding members': 'Social',
+  'vip membership': 'VIP',
+  'corporate membership': 'Corporate',
+  'group lessons membership': 'Group Lessons',
   'approved pre sale clients': null, // No tier - these should be null
 };
 
@@ -66,7 +66,7 @@ function normalizeTierName(mbTier: string | undefined): string | null {
 
 // Get item category from item name
 function getItemCategory(itemName: string): string {
-  const lower = itemName.toLowerCase().trim();
+  const lower = itemName.toLowerCase().replace(/\s+/g, ' ').trim();
   for (const [pattern, category] of Object.entries(ITEM_CATEGORY_MAPPING)) {
     if (lower.includes(pattern)) {
       return category;

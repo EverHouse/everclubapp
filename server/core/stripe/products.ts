@@ -42,7 +42,8 @@ function parseRecurringPeriod(period: string | null): { interval: 'month' | 'yea
     return { interval: 'month', intervalCount: 1 };
   }
   
-  const match = period.match(/^P(\d+)([YMWD])$/);
+  const cleanPeriod = period.trim().toUpperCase();
+  const match = cleanPeriod.match(/^P(\d+)([YMWD])$/);
   if (!match) {
     return { interval: 'month', intervalCount: 1 };
   }

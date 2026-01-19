@@ -39,12 +39,32 @@ export interface FindDiscrepanciesOptions {
   offset?: number;
 }
 
-const OVERAGE_RATE_PER_30_MIN = 25;
+const DEFAULT_OVERAGE_RATE_PER_30_MIN = 25;
+
+async function getTierOverageRate(tier: string | null): Promise<number> {
+  if (!tier) return DEFAULT_OVERAGE_RATE_PER_30_MIN;
+  
+  try {
+    const result = await pool.query(
+      `SELECT guest_fee_cents FROM membership_tiers WHERE LOWER(slug) = LOWER($1) OR LOWER(name) = LOWER($1) LIMIT 1`,
+      [tier]
+    );
+    
+    if (result.rows.length > 0 && result.rows[0].guest_fee_cents) {
+      return Math.round(result.rows[0].guest_fee_cents / 100);
+    }
+  } catch (error) {
+    logger.warn('[getTierOverageRate] Failed to fetch tier overage rate, using default', { extra: { tier, error } });
+  }
+  
+  return DEFAULT_OVERAGE_RATE_PER_30_MIN;
+}
 
 function calculatePotentialFeeAdjustment(
   durationMinutes: number,
   declaredCount: number,
-  actualCount: number
+  actualCount: number,
+  overageRatePer30Min: number = DEFAULT_OVERAGE_RATE_PER_30_MIN
 ): number {
   if (actualCount <= declaredCount) return 0;
   
@@ -53,7 +73,7 @@ function calculatePotentialFeeAdjustment(
   const additionalMinutes = minutesPerPlayer * additionalPlayers;
   
   const thirtyMinBlocks = Math.ceil(additionalMinutes / 30);
-  return thirtyMinBlocks * OVERAGE_RATE_PER_30_MIN;
+  return thirtyMinBlocks * overageRatePer30Min;
 }
 
 export async function findAttendanceDiscrepancies(
@@ -344,7 +364,8 @@ export async function adjustLedgerForReconciliation(
       return { success: true, adjustmentAmount: 0 };
     }
     
-    const feeAdjustment = calculatePotentialFeeAdjustment(durationMinutes, declaredCount, actualCount);
+    const overageRate = await getTierOverageRate(booking.tier);
+    const feeAdjustment = calculatePotentialFeeAdjustment(durationMinutes, declaredCount, actualCount, overageRate);
     
     if (booking.session_id && feeAdjustment > 0) {
       await pool.query(

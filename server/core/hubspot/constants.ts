@@ -19,9 +19,13 @@ export const MINDBODY_TO_STAGE_MAP: Record<string, string> = {
   'expired': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'froze': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'frozen': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
+  'past_due': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
+  'pastdue': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
+  'paymentfailed': HUBSPOT_STAGE_IDS.PAYMENT_DECLINED,
   'terminated': HUBSPOT_STAGE_IDS.CLOSED_LOST,
   'cancelled': HUBSPOT_STAGE_IDS.CLOSED_LOST,
   'non-member': HUBSPOT_STAGE_IDS.CLOSED_LOST,
+  'nonmember': HUBSPOT_STAGE_IDS.CLOSED_LOST,
 };
 
 export type ContactMembershipStatus = 'active' | 'inactive' | 'former_member';

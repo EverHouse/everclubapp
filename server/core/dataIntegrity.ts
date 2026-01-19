@@ -724,9 +724,13 @@ async function checkDealStageDrift(): Promise<IntegrityCheckResult> {
     'expired': '2825519820',
     'froze': '2825519820',
     'frozen': '2825519820',
+    'past_due': '2825519820',
+    'pastdue': '2825519820',
+    'paymentfailed': '2825519820',
     'terminated': 'closedlost',
     'cancelled': 'closedlost',
-    'non-member': 'closedlost'
+    'non-member': 'closedlost',
+    'nonmember': 'closedlost'
   };
   
   const STAGE_NAMES: Record<string, string> = {
