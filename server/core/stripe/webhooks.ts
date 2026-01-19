@@ -1,10 +1,11 @@
 import { getStripeSync } from './client';
-import { syncPaymentToHubSpot } from './hubspotSync';
+import { syncPaymentToHubSpot, syncDayPassToHubSpot } from './hubspotSync';
 import { pool } from '../db';
 import { notifyPaymentSuccess, notifyPaymentFailed, notifyStaffPaymentFailed, notifyMember, notifyAllStaff } from '../notificationService';
 import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../../emails/paymentEmails';
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../../emails/membershipEmails';
 import { broadcastBillingUpdate } from '../websocket';
+import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 
 export async function processStripeWebhook(
   payload: Buffer,
@@ -33,6 +34,8 @@ export async function processStripeWebhook(
     await handleInvoicePaymentSucceeded(event.data.object);
   } else if (event.type === 'invoice.payment_failed') {
     await handleInvoicePaymentFailed(event.data.object);
+  } else if (event.type === 'checkout.session.completed') {
+    await handleCheckoutSessionCompleted(event.data.object);
   } else if (event.type === 'customer.subscription.created') {
     await handleSubscriptionCreated(event.data.object);
   } else if (event.type === 'customer.subscription.updated') {
@@ -474,6 +477,78 @@ async function handleInvoicePaymentFailed(invoice: any): Promise<void> {
     console.log(`[Stripe Webhook] Membership payment failure processed for ${email}, amount: $${(amountDue / 100).toFixed(2)}`);
   } catch (error) {
     console.error('[Stripe Webhook] Error handling invoice payment failed:', error);
+  }
+}
+
+async function handleCheckoutSessionCompleted(session: any): Promise<void> {
+  try {
+    // Only handle day pass purchases
+    if (session.metadata?.purpose !== 'day_pass') {
+      console.log(`[Stripe Webhook] Skipping checkout session ${session.id} (not a day_pass)`);
+      return;
+    }
+
+    console.log(`[Stripe Webhook] Processing day pass checkout session: ${session.id}`);
+
+    // Extract metadata
+    const productSlug = session.metadata?.product_slug;
+    const email = session.metadata?.purchaser_email;
+    const firstName = session.metadata?.purchaser_first_name;
+    const lastName = session.metadata?.purchaser_last_name;
+    const phone = session.metadata?.purchaser_phone;
+    const amountCents = session.amount_total || 0;
+
+    // Get payment_intent_id
+    let paymentIntentId: string | null = null;
+    if (session.payment_intent) {
+      paymentIntentId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent.id;
+    }
+
+    if (!productSlug || !email || !paymentIntentId) {
+      console.error(`[Stripe Webhook] Missing required data for day pass: productSlug=${productSlug}, email=${email}, paymentIntentId=${paymentIntentId}`);
+      return;
+    }
+
+    const customerId = session.customer as string;
+
+    // Record the day pass purchase
+    const result = await recordDayPassPurchaseFromWebhook({
+      productSlug,
+      email,
+      firstName,
+      lastName,
+      phone,
+      amountCents,
+      paymentIntentId,
+      customerId
+    });
+
+    if (!result.success) {
+      console.error(`[Stripe Webhook] Failed to record day pass purchase:`, result.error);
+      return;
+    }
+
+    console.log(`[Stripe Webhook] Day pass purchase recorded: ${result.purchaseId}`);
+
+    // Sync to HubSpot for non-members
+    try {
+      await syncDayPassToHubSpot({
+        email,
+        firstName,
+        lastName,
+        phone,
+        productSlug,
+        amountCents,
+        paymentIntentId,
+        purchaseId: result.purchaseId
+      });
+    } catch (hubspotError) {
+      console.error('[Stripe Webhook] HubSpot sync failed for day pass:', hubspotError);
+    }
+  } catch (error) {
+    console.error('[Stripe Webhook] Error handling checkout session completed:', error);
   }
 }
 

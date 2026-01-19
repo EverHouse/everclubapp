@@ -60,3 +60,9 @@ export {
   updateDiscountRule,
   getBillingAuditLog
 } from './admin';
+
+export {
+  syncDayPassPurchaseToHubSpot,
+  type SyncDayPassPurchaseInput,
+  type SyncDayPassPurchaseResult
+} from './contacts';
