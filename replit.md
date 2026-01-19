@@ -41,6 +41,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **PWA Features**: Service Worker caching, offline support, and iOS-style interactions.
 - **Action Management**: `useAsyncAction` hook prevents double-tap submissions, provides loading states, and error handling. Toast component prevents stacking identical messages and supports key-based updates.
 - **Performance Optimizations**: List virtualization using `react-window` for large lists, skeleton loaders, optimized CSS glass effects, lazy-loaded admin tabs, and optimistic updates for booking actions.
+- **Directory Layout**: Member directory uses flex layout filling available viewport height. Lists scroll internally without page scroll. Scroll fade gradients (top/bottom) indicate scrollability on both mobile and desktop. Row heights: mobile 180px, desktop 56px.
 - **Admin Tools**: Admin-configurable features (push notifications, booking intervals, RSVP, banners, capacity, waitlists, closure reasons), data integrity dashboard with email alerts, data migration tools (Mindbody), and self-service recovery tools.
 - **Privacy Compliance**: Includes a Privacy modal for App Store compliance with links to policy/TOS and account deletion. CCPA/CPRA compliance features like "Do Not Sell/Share My Info" toggle, "Request Data Export," and PII anonymization.
 - **Waiver Management**: Tracks waiver versions, requires signing on login via a non-dismissible modal.
