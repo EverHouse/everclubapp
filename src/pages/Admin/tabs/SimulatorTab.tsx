@@ -1642,7 +1642,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 </div>
             ) : (
                 <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
-                    <div className={`lg:w-[400px] xl:w-[450px] lg:border-r border-gray-200 dark:border-white/25 flex-shrink-0 lg:h-full lg:overflow-y-auto scrollbar-hide ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}>
+                    <div className={`lg:w-[400px] xl:w-[450px] lg:border-r border-gray-200 dark:border-white/25 flex-shrink-0 lg:h-full lg:overflow-y-auto scrollbar-hide relative ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}>
+                        <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
                         <div className="space-y-6 p-5 animate-pop-in" style={{animationDelay: '0.1s'}}>
                     <div className="animate-pop-in" style={{animationDelay: '0.05s'}}>
                         <div className="flex items-center justify-between mb-4">
@@ -1859,11 +1860,11 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         )}
                     </div>
                         </div>
+                        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
                     </div>
                     
-                    <div className={`flex-1 lg:h-full lg:overflow-y-auto scrollbar-hide ${activeView === 'calendar' ? 'block' : 'hidden lg:block'}`}>
-                        <div className="animate-pop-in" style={{animationDelay: '0.1s'}}>
-                    <div className="bg-gray-50 dark:bg-white/5 py-3 mb-4 animate-pop-in" style={{animationDelay: '0.2s'}}>
+                    <div className={`flex-1 lg:flex lg:flex-col lg:h-full lg:overflow-hidden ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
+                    <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-pop-in" style={{animationDelay: '0.1s'}}>
                         <div className="flex items-center justify-between px-2">
                             <div className="w-24 hidden lg:block"></div>
                             <div className="flex items-center gap-2 relative">
@@ -1966,8 +1967,10 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         </div>
                     </div>
                     
-                    <div className="w-full px-1 sm:px-2 pb-4 animate-pop-in" style={{animationDelay: '0.25s'}}>
-                        <div className="w-full">
+                    <div className="flex-1 min-h-0 lg:overflow-y-auto scrollbar-hide relative animate-pop-in" style={{animationDelay: '0.15s'}}>
+                        <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
+                        <div className="w-full px-1 sm:px-2 pb-4">
+                            <div className="w-full">
                             <div className="grid gap-0.5 w-full" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>
                                 <div className="h-8 sm:h-10 bg-white dark:bg-surface-dark"></div>
                                 {[...resources].sort((a, b) => {
@@ -2119,9 +2122,10 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     </React.Fragment>
                                 ))}
                             </div>
+                            </div>
                         </div>
+                        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
                     </div>
-                        </div>
                     </div>
                 </div>
             )}
