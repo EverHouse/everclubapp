@@ -9,15 +9,21 @@ export {
   syncAllHubSpotProductsToStripe, 
   getStripeProducts, 
   getProductSyncStatus,
+  syncMembershipTiersToStripe,
+  getTierSyncStatus,
   type HubSpotProduct,
   type StripeProductWithPrice,
-  type ProductSyncStatus
+  type ProductSyncStatus,
+  type TierSyncResult
 } from './products';
 export { 
   createSubscription, 
   cancelSubscription, 
   listCustomerSubscriptions, 
   getSubscription,
+  pauseSubscription,
+  resumeSubscription,
+  changeSubscriptionTier,
   type CreateSubscriptionParams,
   type SubscriptionResult
 } from './subscriptions';
@@ -32,3 +38,9 @@ export {
   type CreateInvoiceParams,
   type InvoiceResult
 } from './invoices';
+export {
+  syncDiscountRulesToStripeCoupons,
+  getDiscountSyncStatus,
+  findOrCreateCoupon,
+  type DiscountSyncResult
+} from './discounts';

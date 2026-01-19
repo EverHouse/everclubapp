@@ -25,7 +25,11 @@ import {
   finalizeAndSendInvoice,
   listCustomerInvoices,
   getInvoice,
-  voidInvoice
+  voidInvoice,
+  syncMembershipTiersToStripe,
+  getTierSyncStatus,
+  syncDiscountRulesToStripeCoupons,
+  getDiscountSyncStatus
 } from '../core/stripe';
 import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
 import { checkExpiringCards } from '../core/billing/cardExpiryChecker';
@@ -38,6 +42,7 @@ import {
   updatePaymentStatus,
   updatePaymentStatusAndAmount
 } from '../core/stripe/paymentRepository';
+import { getBillingClassificationSummary, getMembersNeedingStripeMigration } from '../scripts/classifyMemberBilling';
 
 const router = Router();
 
@@ -389,6 +394,91 @@ router.post('/api/stripe/products/sync-all', isStaffOrAdmin, async (req: Request
   } catch (error: any) {
     console.error('[Stripe] Error syncing all products:', error);
     res.status(500).json({ error: 'Failed to sync products to Stripe' });
+  }
+});
+
+router.get('/api/stripe/tiers/status', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const status = await getTierSyncStatus();
+    res.json({ tiers: status });
+  } catch (error: any) {
+    console.error('[Stripe] Error getting tier sync status:', error);
+    res.status(500).json({ error: 'Failed to get tier sync status' });
+  }
+});
+
+router.post('/api/stripe/tiers/sync', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await syncMembershipTiersToStripe();
+    
+    res.json({
+      success: result.success,
+      synced: result.synced,
+      failed: result.failed,
+      skipped: result.skipped,
+      results: result.results
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error syncing tiers:', error);
+    res.status(500).json({ error: 'Failed to sync membership tiers to Stripe' });
+  }
+});
+
+router.get('/api/stripe/discounts/status', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const status = await getDiscountSyncStatus();
+    res.json({ discounts: status });
+  } catch (error: any) {
+    console.error('[Stripe] Error getting discount sync status:', error);
+    res.status(500).json({ error: 'Failed to get discount sync status' });
+  }
+});
+
+router.post('/api/stripe/discounts/sync', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await syncDiscountRulesToStripeCoupons();
+    
+    res.json({
+      success: result.success,
+      synced: result.synced,
+      failed: result.failed,
+      skipped: result.skipped,
+      results: result.results
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error syncing discounts:', error);
+    res.status(500).json({ error: 'Failed to sync discount rules to Stripe coupons' });
+  }
+});
+
+router.get('/api/stripe/billing/classification', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const summary = await getBillingClassificationSummary();
+    res.json(summary);
+  } catch (error: any) {
+    console.error('[Stripe] Error getting billing classification:', error);
+    res.status(500).json({ error: 'Failed to classify member billing' });
+  }
+});
+
+router.get('/api/stripe/billing/needs-migration', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const members = await getMembersNeedingStripeMigration();
+    res.json({ 
+      count: members.length,
+      members: members.map(m => ({
+        id: m.id,
+        email: m.email,
+        name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email,
+        tier: m.tier,
+        currentProvider: m.billingProvider,
+        hasStripeCustomer: !!m.stripeCustomerId,
+        hasMindbodyId: !!m.mindbodyClientId,
+      }))
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error getting members needing migration:', error);
+    res.status(500).json({ error: 'Failed to get members needing migration' });
   }
 });
 

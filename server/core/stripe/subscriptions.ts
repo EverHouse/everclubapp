@@ -183,3 +183,75 @@ export async function getSubscription(subscriptionId: string): Promise<{
     };
   }
 }
+
+export async function pauseSubscription(
+  subscriptionId: string,
+  pauseDurationDays: number,
+  resumeAt?: Date
+): Promise<{ success: boolean; resumeDate?: Date; error?: string }> {
+  try {
+    const stripe = await getStripeClient();
+    
+    const resumeDate = resumeAt || new Date(Date.now() + (pauseDurationDays * 24 * 60 * 60 * 1000));
+    
+    await stripe.subscriptions.update(subscriptionId, {
+      pause_collection: {
+        behavior: 'mark_uncollectible',
+        resumes_at: Math.floor(resumeDate.getTime() / 1000),
+      },
+    });
+
+    console.log(`[Stripe Subscriptions] Paused subscription ${subscriptionId} until ${resumeDate.toISOString()}`);
+    return { success: true, resumeDate };
+  } catch (error: any) {
+    console.error('[Stripe Subscriptions] Error pausing subscription:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function resumeSubscription(subscriptionId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const stripe = await getStripeClient();
+    
+    await stripe.subscriptions.update(subscriptionId, {
+      pause_collection: null as any,
+    });
+
+    console.log(`[Stripe Subscriptions] Resumed subscription ${subscriptionId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Stripe Subscriptions] Error resuming subscription:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function changeSubscriptionTier(
+  subscriptionId: string,
+  newPriceId: string,
+  immediate: boolean = false
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const stripe = await getStripeClient();
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    const itemId = sub.items.data[0].id;
+
+    if (immediate) {
+      await stripe.subscriptions.update(subscriptionId, {
+        items: [{ id: itemId, price: newPriceId }],
+        proration_behavior: 'always_invoice',
+      });
+      console.log(`[Stripe Subscriptions] Immediately upgraded subscription ${subscriptionId} to price ${newPriceId}`);
+    } else {
+      await stripe.subscriptions.update(subscriptionId, {
+        items: [{ id: itemId, price: newPriceId }],
+        proration_behavior: 'none',
+      });
+      console.log(`[Stripe Subscriptions] Changed subscription ${subscriptionId} to price ${newPriceId} (next cycle)`);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Stripe Subscriptions] Error changing tier:', error);
+    return { success: false, error: error.message };
+  }
+}

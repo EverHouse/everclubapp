@@ -365,12 +365,29 @@ async function handleInvoicePaymentSucceeded(invoice: any): Promise<void> {
     }
 
     const userResult = await pool.query(
-      'SELECT first_name, last_name FROM users WHERE email = $1',
+      'SELECT id, first_name, last_name FROM users WHERE email = $1',
       [email]
     );
     const memberName = userResult.rows[0]
       ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
       : email;
+    const userId = userResult.rows[0]?.id;
+
+    try {
+      await syncPaymentToHubSpot({
+        paymentIntentId: invoice.payment_intent || invoice.id,
+        memberEmail: email,
+        memberName,
+        amountCents: amountPaid,
+        description: `Membership Renewal: ${planName}`,
+        purpose: 'membership_renewal',
+        bookingId: undefined,
+        userId,
+      });
+      console.log(`[Stripe Webhook] Synced invoice payment to HubSpot for ${email}`);
+    } catch (hubspotError) {
+      console.error('[Stripe Webhook] HubSpot sync failed for invoice payment:', hubspotError);
+    }
 
     await notifyMember({
       userEmail: email,
@@ -511,9 +528,10 @@ async function handleSubscriptionUpdated(subscription: any): Promise<void> {
   try {
     const customerId = subscription.customer;
     const status = subscription.status;
+    const currentPriceId = subscription.items?.data?.[0]?.price?.id;
 
     const userResult = await pool.query(
-      'SELECT email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
+      'SELECT id, email, first_name, last_name, tier FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -522,8 +540,35 @@ async function handleSubscriptionUpdated(subscription: any): Promise<void> {
       return;
     }
 
-    const { email, first_name, last_name } = userResult.rows[0];
+    const { id: userId, email, first_name, last_name, tier: currentTier } = userResult.rows[0];
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
+
+    if (currentPriceId) {
+      const tierResult = await pool.query(
+        'SELECT name FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
+        [currentPriceId]
+      );
+      
+      if (tierResult.rows.length > 0) {
+        const newTier = tierResult.rows[0].name;
+        
+        if (newTier && newTier !== currentTier) {
+          await pool.query(
+            'UPDATE users SET tier = $1, updated_at = NOW() WHERE id = $2',
+            [newTier, userId]
+          );
+          
+          console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTier}`);
+          
+          await notifyMember({
+            userEmail: email,
+            title: 'Membership Updated',
+            message: `Your membership has been changed from ${currentTier || 'unknown'} to ${newTier}.`,
+            type: 'system',
+          });
+        }
+      }
+    }
 
     if (status === 'past_due') {
       await notifyMember({

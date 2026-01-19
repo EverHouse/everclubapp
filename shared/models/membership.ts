@@ -39,6 +39,12 @@ export const membershipTiers = pgTable("membership_tiers", {
   
   guestFeeCents: integer("guest_fee_cents").default(2500),
   
+  stripeProductId: varchar("stripe_product_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  foundingPriceId: varchar("founding_price_id"),
+  priceCents: integer("price_cents"),
+  billingInterval: varchar("billing_interval").default("month"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

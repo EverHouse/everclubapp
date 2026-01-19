@@ -112,6 +112,7 @@ const Login = lazy(() => import('./pages/Public/Login'));
 const AuthCallback = lazy(() => import('./pages/Public/AuthCallback'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const DataIntegrity = lazy(() => import('./pages/Admin/DataIntegrity'));
+const Checkout = lazy(() => import('./pages/Checkout'));
 
 import { prefetchRoute, prefetchAdjacentRoutes, prefetchOnIdle } from './lib/prefetch';
 
@@ -331,6 +332,7 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="/login" element={<DirectionalPageTransition><PageErrorBoundary pageName="Login"><Login /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/auth/callback" element={<DirectionalPageTransition><PageErrorBoundary pageName="AuthCallback"><AuthCallback /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/reset-password" element={<DirectionalPageTransition><PageErrorBoundary pageName="ResetPassword"><Login /></PageErrorBoundary></DirectionalPageTransition>} />
+            <Route path="/checkout/*" element={<DirectionalPageTransition><PageErrorBoundary pageName="Checkout"><Checkout /></PageErrorBoundary></DirectionalPageTransition>} />
 
             <Route path="/admin" element={
               <AdminProtectedRoute>

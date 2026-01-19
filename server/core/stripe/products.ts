@@ -1,6 +1,6 @@
 import { pool } from '../db';
 import { db } from '../../db';
-import { stripeProducts } from '../../../shared/schema';
+import { stripeProducts, membershipTiers } from '../../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { getHubSpotClientWithFallback } from '../integrations';
@@ -291,6 +291,202 @@ export async function getProductSyncStatus(): Promise<ProductSyncStatus[]> {
     });
   } catch (error: any) {
     console.error('[Stripe Products] Error getting sync status:', error);
+    return [];
+  }
+}
+
+export interface TierSyncResult {
+  tierId: number;
+  tierName: string;
+  tierSlug: string;
+  success: boolean;
+  stripeProductId?: string;
+  stripePriceId?: string;
+  foundingPriceId?: string;
+  error?: string;
+  action: 'created' | 'updated' | 'skipped';
+}
+
+export async function syncMembershipTiersToStripe(): Promise<{
+  success: boolean;
+  results: TierSyncResult[];
+  synced: number;
+  failed: number;
+  skipped: number;
+}> {
+  const results: TierSyncResult[] = [];
+  let synced = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  try {
+    const stripe = await getStripeClient();
+    const tiers = await db.select().from(membershipTiers).where(eq(membershipTiers.isActive, true));
+
+    console.log(`[Tier Sync] Starting sync for ${tiers.length} active tiers`);
+
+    for (const tier of tiers) {
+      try {
+        if (!tier.priceCents || tier.priceCents <= 0) {
+          console.log(`[Tier Sync] Skipping ${tier.name}: No price configured`);
+          results.push({
+            tierId: tier.id,
+            tierName: tier.name,
+            tierSlug: tier.slug,
+            success: true,
+            action: 'skipped',
+          });
+          skipped++;
+          continue;
+        }
+
+        const billingInterval = (tier.billingInterval as 'month' | 'year' | 'week' | 'day') || 'month';
+        let stripeProductId = tier.stripeProductId;
+        let stripePriceId = tier.stripePriceId;
+
+        if (stripeProductId) {
+          await stripe.products.update(stripeProductId, {
+            name: `${tier.name} Membership`,
+            description: tier.description || undefined,
+            metadata: {
+              tier_id: tier.id.toString(),
+              tier_slug: tier.slug,
+            },
+          });
+          console.log(`[Tier Sync] Updated existing product for ${tier.name}`);
+
+          if (stripePriceId) {
+            const existingPrice = await stripe.prices.retrieve(stripePriceId);
+            if (existingPrice.unit_amount !== tier.priceCents) {
+              await stripe.prices.update(stripePriceId, { active: false });
+              const newPrice = await stripe.prices.create({
+                product: stripeProductId,
+                unit_amount: tier.priceCents,
+                currency: 'usd',
+                recurring: { interval: billingInterval },
+                metadata: { tier_id: tier.id.toString(), tier_slug: tier.slug },
+              });
+              stripePriceId = newPrice.id;
+              console.log(`[Tier Sync] Created new price for ${tier.name} (price changed)`);
+            }
+          } else {
+            const newPrice = await stripe.prices.create({
+              product: stripeProductId,
+              unit_amount: tier.priceCents,
+              currency: 'usd',
+              recurring: { interval: billingInterval },
+              metadata: { tier_id: tier.id.toString(), tier_slug: tier.slug },
+            });
+            stripePriceId = newPrice.id;
+          }
+
+          await db.update(membershipTiers)
+            .set({ stripePriceId, updatedAt: new Date() })
+            .where(eq(membershipTiers.id, tier.id));
+
+          results.push({
+            tierId: tier.id,
+            tierName: tier.name,
+            tierSlug: tier.slug,
+            success: true,
+            stripeProductId,
+            stripePriceId,
+            action: 'updated',
+          });
+          synced++;
+        } else {
+          const stripeProduct = await stripe.products.create({
+            name: `${tier.name} Membership`,
+            description: tier.description || undefined,
+            metadata: {
+              tier_id: tier.id.toString(),
+              tier_slug: tier.slug,
+            },
+          });
+          stripeProductId = stripeProduct.id;
+
+          const stripePrice = await stripe.prices.create({
+            product: stripeProductId,
+            unit_amount: tier.priceCents,
+            currency: 'usd',
+            recurring: { interval: billingInterval },
+            metadata: { tier_id: tier.id.toString(), tier_slug: tier.slug },
+          });
+          stripePriceId = stripePrice.id;
+
+          await db.update(membershipTiers)
+            .set({
+              stripeProductId,
+              stripePriceId,
+              updatedAt: new Date(),
+            })
+            .where(eq(membershipTiers.id, tier.id));
+
+          console.log(`[Tier Sync] Created product and price for ${tier.name}`);
+          results.push({
+            tierId: tier.id,
+            tierName: tier.name,
+            tierSlug: tier.slug,
+            success: true,
+            stripeProductId,
+            stripePriceId,
+            action: 'created',
+          });
+          synced++;
+        }
+      } catch (error: any) {
+        console.error(`[Tier Sync] Error syncing tier ${tier.name}:`, error);
+        results.push({
+          tierId: tier.id,
+          tierName: tier.name,
+          tierSlug: tier.slug,
+          success: false,
+          error: error.message,
+          action: 'skipped',
+        });
+        failed++;
+      }
+    }
+
+    console.log(`[Tier Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
+    return { success: true, results, synced, failed, skipped };
+  } catch (error: any) {
+    console.error('[Tier Sync] Fatal error:', error);
+    return {
+      success: false,
+      results,
+      synced,
+      failed,
+      skipped,
+    };
+  }
+}
+
+export async function getTierSyncStatus(): Promise<Array<{
+  tierId: number;
+  tierName: string;
+  tierSlug: string;
+  priceCents: number | null;
+  hasStripeProduct: boolean;
+  hasStripePrice: boolean;
+  stripeProductId: string | null;
+  stripePriceId: string | null;
+}>> {
+  try {
+    const tiers = await db.select().from(membershipTiers).where(eq(membershipTiers.isActive, true));
+    
+    return tiers.map(tier => ({
+      tierId: tier.id,
+      tierName: tier.name,
+      tierSlug: tier.slug,
+      priceCents: tier.priceCents,
+      hasStripeProduct: !!tier.stripeProductId,
+      hasStripePrice: !!tier.stripePriceId,
+      stripeProductId: tier.stripeProductId,
+      stripePriceId: tier.stripePriceId,
+    }));
+  } catch (error: any) {
+    console.error('[Tier Sync] Error getting status:', error);
     return [];
   }
 }

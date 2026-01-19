@@ -23,6 +23,8 @@ import { updateHubSpotContactPreferences } from '../core/memberSync';
 import { createMemberWithDeal, getAllDiscountRules, handleTierChange } from '../core/hubspotDeals';
 import { TIER_NAMES, TIER_HIERARCHY } from '../../shared/constants/tiers';
 import { notifyMember } from '../core/notificationService';
+import { pauseSubscription, changeSubscriptionTier } from '../core/stripe';
+import { membershipTiers } from '../../shared/schema';
 import { getResendClient } from '../utils/resend';
 import { withResendRetry } from '../core/retryUtils';
 import { staffUsers } from '../../shared/schema';
@@ -689,7 +691,7 @@ router.put('/api/members/:id/role', async (req, res) => {
 router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
   try {
     const { email } = req.params;
-    const { tier } = req.body;
+    const { tier, immediate = false } = req.body;
     const sessionUser = getSessionUser(req);
     
     if (!tier || typeof tier !== 'string') {
@@ -707,7 +709,9 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       email: users.email,
       tier: users.tier,
       firstName: users.firstName,
-      lastName: users.lastName
+      lastName: users.lastName,
+      billingProvider: users.billingProvider,
+      stripeSubscriptionId: users.stripeSubscriptionId
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -748,7 +752,32 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       console.warn(`[Members] HubSpot tier change failed for ${normalizedEmail}: ${hubspotResult.error}`);
     }
     
-    // Notify the member about their tier change
+    let stripeSync = { success: true, warning: null as string | null };
+    
+    if (member.billingProvider === 'stripe' && member.stripeSubscriptionId) {
+      const tierRecord = await db.select()
+        .from(membershipTiers)
+        .where(eq(membershipTiers.name, tier))
+        .limit(1);
+      
+      if (tierRecord.length > 0 && tierRecord[0].stripePriceId) {
+        const isUpgrade = getTierRank(tier) > getTierRank(oldTier);
+        const stripeResult = await changeSubscriptionTier(
+          member.stripeSubscriptionId,
+          tierRecord[0].stripePriceId,
+          immediate || isUpgrade
+        );
+        
+        if (!stripeResult.success) {
+          stripeSync = { success: false, warning: `Stripe update failed: ${stripeResult.error}. Manual billing adjustment may be needed.` };
+        }
+      } else {
+        stripeSync = { success: true, warning: 'Tier updated but Stripe price not configured. Billing unchanged.' };
+      }
+    } else if (member.billingProvider === 'mindbody') {
+      stripeSync = { success: true, warning: 'Tier updated in App & HubSpot. PLEASE UPDATE MINDBODY BILLING MANUALLY.' };
+    }
+    
     const isUpgrade = getTierRank(tier) > getTierRank(oldTier);
     const changeType = isUpgrade ? 'upgraded' : 'changed';
     await notifyMember({
@@ -772,11 +801,97 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         success: hubspotResult.success,
         oldLineItemRemoved: hubspotResult.oldLineItemRemoved,
         newLineItemAdded: hubspotResult.newLineItemAdded
-      }
+      },
+      stripeSync,
+      warning: stripeSync.warning
     });
   } catch (error: any) {
     if (!isProduction) console.error('Member tier update error:', error);
     res.status(500).json({ error: 'Failed to update member tier' });
+  }
+});
+
+router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, durationDays, reason } = req.body;
+    const sessionUser = getSessionUser(req);
+    
+    if (!startDate || !durationDays) {
+      return res.status(400).json({ error: 'startDate and durationDays are required' });
+    }
+    
+    const start = new Date(startDate);
+    const now = new Date();
+    const daysUntilStart = (start.getTime() - now.getTime()) / (1000 * 3600 * 24);
+    
+    if (daysUntilStart < 30) {
+      return res.status(400).json({ 
+        error: 'Suspension requests must be made at least 30 days in advance.' 
+      });
+    }
+    
+    const userResult = await db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      billingProvider: users.billingProvider,
+      stripeSubscriptionId: users.stripeSubscriptionId,
+      membershipStatus: users.membershipStatus
+    })
+      .from(users)
+      .where(eq(users.id, id));
+    
+    if (userResult.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const member = userResult[0];
+    
+    if (member.billingProvider === 'mindbody') {
+      await db.update(users)
+        .set({ membershipStatus: 'suspended', updatedAt: new Date() })
+        .where(eq(users.id, id));
+      
+      return res.json({ 
+        success: true, 
+        warning: 'Member marked suspended in App/HubSpot. PLEASE PAUSE BILLING IN MINDBODY MANUALLY.',
+        member: { id: member.id, email: member.email, status: 'suspended' }
+      });
+    }
+    
+    if (member.billingProvider === 'stripe' && member.stripeSubscriptionId) {
+      const result = await pauseSubscription(member.stripeSubscriptionId, parseInt(durationDays), start);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || 'Failed to pause subscription' });
+      }
+      
+      await db.update(users)
+        .set({ membershipStatus: 'suspended', updatedAt: new Date() })
+        .where(eq(users.id, id));
+      
+      await notifyMember({
+        userEmail: member.email || '',
+        title: 'Membership Paused',
+        message: `Your membership has been paused for ${durationDays} days starting ${start.toLocaleDateString()}.`,
+        type: 'system',
+        url: '/#/profile'
+      });
+      
+      return res.json({ 
+        success: true, 
+        message: `Billing suspended for ${durationDays} days starting ${startDate}`,
+        resumeDate: result.resumeDate,
+        member: { id: member.id, email: member.email, status: 'suspended' }
+      });
+    }
+    
+    return res.status(400).json({ error: 'No active billing found for this member.' });
+  } catch (error: any) {
+    if (!isProduction) console.error('Member suspend error:', error);
+    res.status(500).json({ error: 'Failed to suspend member' });
   }
 });
 
