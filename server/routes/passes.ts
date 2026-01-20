@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { dayPassPurchases, passRedemptionLogs } from '../../shared/schema';
-import { eq, and, gt, ilike, sql } from 'drizzle-orm';
+import { eq, and, gt, ilike, sql, desc } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 
 const router = Router();
@@ -111,6 +111,28 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
   } catch (error: any) {
     console.error('[Passes] Error redeeming pass:', error);
     res.status(500).json({ error: 'Failed to redeem pass' });
+  }
+});
+
+router.get('/api/staff/passes/:passId/history', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { passId } = req.params;
+
+    const logs = await db
+      .select({
+        redeemedAt: passRedemptionLogs.redeemedAt,
+        redeemedBy: passRedemptionLogs.redeemedBy,
+        location: passRedemptionLogs.location,
+      })
+      .from(passRedemptionLogs)
+      .where(eq(passRedemptionLogs.purchaseId, passId))
+      .orderBy(desc(passRedemptionLogs.redeemedAt))
+      .limit(5);
+
+    res.json({ logs });
+  } catch (error: any) {
+    console.error('[Passes] Error fetching pass history:', error);
+    res.status(500).json({ error: 'Failed to fetch pass history' });
   }
 });
 

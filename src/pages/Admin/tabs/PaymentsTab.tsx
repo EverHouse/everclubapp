@@ -929,6 +929,12 @@ const formatPassType = (productType: string): string => {
     .replace('Day Pass', 'Day Pass -');
 };
 
+interface RedemptionLog {
+  redeemedAt: string;
+  redeemedBy: string;
+  location: string | null;
+}
+
 const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
   const [searchEmail, setSearchEmail] = useState('');
   const [passes, setPasses] = useState<DayPass[]>([]);
@@ -937,6 +943,9 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [expandedPassId, setExpandedPassId] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState<{ passId: string; logs: RedemptionLog[] }[]>([]);
+  const [loadingHistoryId, setLoadingHistoryId] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!searchEmail.trim()) return;
@@ -993,9 +1002,65 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     }
   };
 
+  const handleScanQR = () => {
+    const passId = window.prompt('Enter Pass ID:');
+    if (passId && passId.trim()) {
+      handleRedeem(passId.trim());
+    }
+  };
+
+  const handleViewHistory = async (passId: string) => {
+    if (expandedPassId === passId) {
+      setExpandedPassId(null);
+      return;
+    }
+
+    const cached = historyData.find(h => h.passId === passId);
+    if (cached) {
+      setExpandedPassId(passId);
+      return;
+    }
+
+    setLoadingHistoryId(passId);
+    try {
+      const res = await fetch(`/api/staff/passes/${passId}/history`, {
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to fetch history');
+      }
+      
+      const data = await res.json();
+      setHistoryData(prev => [...prev, { passId, logs: data.logs || [] }]);
+      setExpandedPassId(passId);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch history');
+    } finally {
+      setLoadingHistoryId(null);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getPassHistory = (passId: string) => {
+    return historyData.find(h => h.passId === passId)?.logs || [];
   };
 
   const content = (
@@ -1012,14 +1077,20 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
         <button
           onClick={handleSearch}
           disabled={!searchEmail.trim() || isSearching}
-          className="px-5 py-3 rounded-xl bg-teal-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-4 py-3 rounded-xl bg-teal-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {isSearching ? (
             <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
           ) : (
             <span className="material-symbols-outlined text-lg">search</span>
           )}
-          Search
+        </button>
+        <button
+          onClick={handleScanQR}
+          className="px-4 py-3 rounded-xl bg-teal-600 text-white font-semibold flex items-center gap-2 hover:bg-teal-700 transition-colors"
+          title="Scan QR / Enter Pass ID"
+        >
+          <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
         </button>
       </div>
 
@@ -1072,19 +1143,64 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => handleRedeem(pass.id)}
-                  disabled={redeemingId === pass.id}
-                  className="px-4 py-2 rounded-lg bg-teal-500 text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
-                >
-                  {redeemingId === pass.id ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  ) : (
-                    <span className="material-symbols-outlined text-base">check</span>
-                  )}
-                  Redeem
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleViewHistory(pass.id)}
+                    disabled={loadingHistoryId === pass.id}
+                    className="px-3 py-2 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-sm hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {loadingHistoryId === pass.id ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary dark:border-white border-t-transparent" />
+                    ) : (
+                      <span className="material-symbols-outlined text-base">
+                        {expandedPassId === pass.id ? 'expand_less' : 'history'}
+                      </span>
+                    )}
+                    History
+                  </button>
+                  <button
+                    onClick={() => handleRedeem(pass.id)}
+                    disabled={redeemingId === pass.id}
+                    className="px-4 py-2 rounded-lg bg-teal-500 text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    {redeemingId === pass.id ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <span className="material-symbols-outlined text-base">check</span>
+                    )}
+                    Redeem
+                  </button>
+                </div>
               </div>
+              
+              {expandedPassId === pass.id && (
+                <div className="mt-3 pt-3 border-t border-primary/10 dark:border-white/10">
+                  {getPassHistory(pass.id).length === 0 ? (
+                    <p className="text-sm text-primary/50 dark:text-white/50 text-center py-2">
+                      No redemptions yet
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {getPassHistory(pass.id).map((log, idx) => (
+                        <div 
+                          key={idx} 
+                          className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-primary/5 dark:bg-white/5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-primary/60 dark:text-white/60">schedule</span>
+                            <span className="text-xs text-primary dark:text-white">
+                              {formatDateTime(log.redeemedAt)}
+                            </span>
+                          </div>
+                          <span className="text-xs text-primary/70 dark:text-white/70">
+                            {log.redeemedBy}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

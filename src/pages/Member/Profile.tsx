@@ -367,6 +367,34 @@ const Profile: React.FC = () => {
             <Row icon="call" label="Phone" value={formatPhoneNumber(staffDetails?.phone || user.phone)} isDark={isDark} />
          </Section>
 
+         {/* Digital Access Card - only for members, not staff/admin */}
+         {!isStaffOrAdminProfile && user.id && (
+           <Section title="Digital Access Card" isDark={isDark} delay="0.07s">
+             <div className={`p-6 flex flex-col items-center ${isDark ? '' : ''}`}>
+               <div className={`w-full max-w-xs rounded-2xl overflow-hidden ${isDark ? 'bg-gradient-to-br from-primary via-primary/90 to-primary/80' : 'bg-gradient-to-br from-primary via-primary/95 to-primary/85'} p-6 shadow-xl`}>
+                 <div className="flex justify-center mb-4">
+                   <div className="bg-white p-3 rounded-xl shadow-md">
+                     <img
+                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`MEMBER:${user.id}`)}`}
+                       alt="Member QR Code"
+                       className="w-40 h-40"
+                     />
+                   </div>
+                 </div>
+                 <div className="text-center text-white space-y-2">
+                   <h4 className="font-bold text-lg font-serif tracking-wide">{user.name}</h4>
+                   <div className="flex justify-center">
+                     <TierBadge tier={user.tier} size="sm" />
+                   </div>
+                 </div>
+               </div>
+               <p className={`text-xs mt-4 text-center max-w-xs ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                 Show this QR code at the front desk for quick check-in
+               </p>
+             </div>
+           </Section>
+         )}
+
          <Section title="Settings" isDark={isDark} delay="0.1s">
             <div className={`p-4 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
               <div className="flex items-center gap-4">
