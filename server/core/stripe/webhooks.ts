@@ -620,25 +620,27 @@ async function handleSubscriptionUpdated(subscription: any): Promise<void> {
 
     if (currentPriceId) {
       const tierResult = await pool.query(
-        'SELECT name FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
+        'SELECT slug, name FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
         [currentPriceId]
       );
       
       if (tierResult.rows.length > 0) {
-        const newTier = tierResult.rows[0].name;
+        const newTierSlug = tierResult.rows[0].slug;
+        const newTierName = tierResult.rows[0].name;
         
-        if (newTier && newTier !== currentTier) {
+        // Compare slugs for consistency (users.tier stores slug, not name)
+        if (newTierSlug && newTierSlug !== currentTier) {
           await pool.query(
             'UPDATE users SET tier = $1, updated_at = NOW() WHERE id = $2',
-            [newTier, userId]
+            [newTierSlug, userId]
           );
           
-          console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTier}`);
+          console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierSlug}`);
           
           await notifyMember({
             userEmail: email,
             title: 'Membership Updated',
-            message: `Your membership has been changed from ${currentTier || 'unknown'} to ${newTier}.`,
+            message: `Your membership has been changed to ${newTierName}.`,
             type: 'system',
           });
         }

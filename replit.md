@@ -47,7 +47,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Privacy Compliance**: Includes a Privacy modal for App Store compliance with links to policy/TOS and account deletion. CCPA/CPRA compliance features like "Do Not Sell/Share My Info" toggle, "Request Data Export," and PII anonymization.
 - **Waiver Management**: Tracks waiver versions, requires signing on login via a non-dismissible modal.
 - **Member Lookup**: Centralized `MemberService` handles member data lookups by various identifiers with caching.
-- **Billing Management**: Staff Payments Dashboard for full POS functionality. Unified payment history for members from multiple sources. Staff can manage member billing (subscriptions, credits, discounts) via a dedicated tab in the member profile. Members have a self-service billing portal to view subscriptions and invoices.
+- **Billing Management**: Staff Payments Dashboard for full POS functionality. Unified payment history for members from multiple sources. Staff can manage member billing (subscriptions, credits, discounts) via a dedicated tab in the member profile. Members have a self-service billing portal to view subscriptions and invoices. Features include: Tier Change Wizard with proration preview (immediate or end-of-cycle changes), Upcoming Changes visibility for members (cancellations, pauses, pending tier changes), automated dunning for failed payments with email/push notifications, and refund processing UI.
 - **Day Pass System**: Non-members can purchase day passes (Guest Pass $25, Coworking $35, Golf Sim $50) without creating an account. Visitor matching service links purchases to existing users by email/phone/name/Mindbody ID. Purchases tracked in `day_pass_purchases` table, synced to HubSpot contacts, and viewable by staff via `/api/visitors` endpoints.
 - **Tier Normalization**: Centralized tier matching utility (`server/utils/tierUtils.ts`) provides exact slug-based matching with warning logs for fuzzy fallbacks. All tier name parsing uses this utility.
 - **Guest Fee Configuration**: Guest fees are stored per-tier in `membership_tiers.guest_fee_cents` (default $25), allowing pricing changes without code deployment.
@@ -55,7 +55,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **PWA Gesture Handling**: Edge swipe gestures are disabled in standalone PWA mode to avoid conflicts with iOS native back gestures.
 
 ## External Dependencies
-- **Stripe Payments**: Integrated for in-app payment collection, customer management, subscription management, payment tracking, HubSpot sync, and webhook processing.
+- **Stripe Payments**: Integrated for in-app payment collection, customer management, subscription management, payment tracking, HubSpot sync, and webhook processing. Supports one-time products (day passes, guest fees) and recurring subscriptions. Admin "Sync to Stripe" button syncs membership tier pricing and privileges (daily simulator minutes, guest passes, booking window) to Stripe product metadata.
 - **Resend**: Used for email-based OTP verification and automated email alerts.
 - **HubSpot CRM**: Integrated for contact and member management, two-way sync of communication preferences, background sync of member data, visit count push, profile preference updates, tour scheduling sync, tier management, and webhooks. Handles tier logic, join date mapping, notes sync, and communication log sync.
 - **HubSpot Forms**: Application forms submit to the HubSpot Forms API.
