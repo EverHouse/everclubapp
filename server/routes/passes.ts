@@ -52,36 +52,48 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
       return res.status(401).json({ error: 'Staff email not found in session' });
     }
 
-    const [pass] = await db
-      .select()
-      .from(dayPassPurchases)
-      .where(eq(dayPassPurchases.id, id))
-      .limit(1);
-
-    if (!pass) {
-      return res.status(404).json({ error: 'Pass not found' });
-    }
-
-    if (pass.status !== 'active') {
-      return res.status(400).json({ error: 'Pass is not active' });
-    }
-
-    const currentUses = pass.remainingUses ?? 0;
-    if (currentUses <= 0) {
-      return res.status(400).json({ error: 'Pass has no remaining uses' });
-    }
-
-    const newRemainingUses = currentUses - 1;
-    const newStatus = newRemainingUses === 0 ? 'exhausted' : 'active';
-
-    await db
+    // Atomic update: decrement only if remaining_uses > 0 and status is active
+    // This prevents race conditions where concurrent requests could double-redeem
+    const updateResult = await db
       .update(dayPassPurchases)
       .set({
-        remainingUses: newRemainingUses,
-        status: newStatus,
+        remainingUses: sql`${dayPassPurchases.remainingUses} - 1`,
+        status: sql`CASE WHEN ${dayPassPurchases.remainingUses} - 1 = 0 THEN 'exhausted' ELSE 'active' END`,
         updatedAt: new Date(),
       })
-      .where(eq(dayPassPurchases.id, id));
+      .where(
+        and(
+          eq(dayPassPurchases.id, id),
+          eq(dayPassPurchases.status, 'active'),
+          gt(dayPassPurchases.remainingUses, 0)
+        )
+      )
+      .returning({
+        remainingUses: dayPassPurchases.remainingUses,
+        status: dayPassPurchases.status,
+      });
+
+    if (updateResult.length === 0) {
+      // No rows updated - pass doesn't exist, is not active, or has no uses
+      const [pass] = await db
+        .select({ status: dayPassPurchases.status, remainingUses: dayPassPurchases.remainingUses })
+        .from(dayPassPurchases)
+        .where(eq(dayPassPurchases.id, id))
+        .limit(1);
+
+      if (!pass) {
+        return res.status(404).json({ error: 'Pass not found' });
+      }
+      if (pass.status !== 'active') {
+        return res.status(400).json({ error: 'Pass is not active' });
+      }
+      if ((pass.remainingUses ?? 0) <= 0) {
+        return res.status(409).json({ error: 'Pass has no remaining uses' });
+      }
+      return res.status(409).json({ error: 'Pass could not be redeemed' });
+    }
+
+    const { remainingUses, status } = updateResult[0];
 
     await db.insert(passRedemptionLogs).values({
       purchaseId: id,
@@ -89,12 +101,12 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
       location: location || 'front_desk',
     });
 
-    console.log(`[Passes] Pass ${id} redeemed by ${staffEmail}. Remaining uses: ${newRemainingUses}`);
+    console.log(`[Passes] Pass ${id} redeemed by ${staffEmail}. Remaining uses: ${remainingUses}`);
 
     res.json({
       success: true,
-      remainingUses: newRemainingUses,
-      status: newStatus,
+      remainingUses,
+      status,
     });
   } catch (error: any) {
     console.error('[Passes] Error redeeming pass:', error);
