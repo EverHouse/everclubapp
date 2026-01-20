@@ -134,8 +134,6 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
         channel.subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log(`[Supabase Realtime] Subscribed to ${table}`);
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error(`[Supabase Realtime] Error subscribing to ${table}`);
           }
         });
 

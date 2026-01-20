@@ -9,7 +9,6 @@ export function getSupabase(): SupabaseClient | null {
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
   if (!url || !anonKey) {
-    console.warn('[Supabase] Not configured - VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing');
     return null;
   }
   
