@@ -264,7 +264,12 @@ function transformHubSpotContact(contact: any): any {
   const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined', 'suspended', 'frozen', 'froze', 'pending', 'non-member'];
   
   const isActiveMember = activeStatuses.includes(membershipStatus);
-  const isFormerMember = formerStatuses.includes(membershipStatus);
+  
+  const membershipStartDate = contact.properties.membership_start_date || null;
+  const wasEverMember = membershipStartDate !== null && membershipStartDate.trim() !== '';
+  
+  const isFormerMember = formerStatuses.includes(membershipStatus) && wasEverMember;
+  const isNonMemberLead = formerStatuses.includes(membershipStatus) && !wasEverMember;
   
   const rawTierValue = contact.properties.membership_tier;
   
@@ -280,12 +285,14 @@ function transformHubSpotContact(contact: any): any {
     tier: normalizeTierName(rawTierValue),
     rawTier: rawTierValue && rawTierValue.trim() ? rawTierValue.trim() : null,
     tags: extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason),
-    membershipStartDate: contact.properties.membership_start_date || null,
+    membershipStartDate,
     createdAt: contact.properties.createdate,
     lastModified: contact.properties.lastmodifieddate,
     dateOfBirth: contact.properties.date_of_birth || null,
     isActiveMember,
-    isFormerMember
+    isFormerMember,
+    wasEverMember,
+    isNonMemberLead
   };
 }
 
@@ -500,13 +507,35 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
     const rawJoinDate = computeHubSpotJoinDate(contact, dbUser);
     const normalizedJoinDate = normalizeDateToYYYYMMDD(rawJoinDate);
     
+    // Define formerStatuses for classification checks
+    const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined', 'suspended', 'frozen', 'froze', 'pending', 'non-member'];
+    const contactStatus = (contact.status || '').toLowerCase();
+    const hasFormerStatus = formerStatuses.includes(contactStatus);
+    
+    // Recalculate wasEverMember considering both HubSpot membershipStartDate AND DB join_date
+    // A contact was ever a member if:
+    // 1. HubSpot membershipStartDate exists AND is not empty, OR
+    // 2. DB user exists with a non-null join_date
+    const membershipStartExists = contact.membershipStartDate !== null && contact.membershipStartDate !== undefined && String(contact.membershipStartDate).trim() !== '';
+    const dbHasJoinDate = dbUser?.join_date !== null && dbUser?.join_date !== undefined;
+    const wasEverMember = membershipStartExists || dbHasJoinDate;
+    
+    // isFormerMember = contact has a former status AND was ever a member
+    const isFormerMember = hasFormerStatus && wasEverMember;
+    
+    // isNonMemberLead = contact has a former status but was NEVER a member (never paid)
+    const isNonMemberLead = hasFormerStatus && !wasEverMember;
+    
     return {
       ...contact,
       lifetimeVisits: pastBookings + eventVisits + wellnessVisits,
       joinDate: normalizedJoinDate,
       mindbodyClientId: dbUser?.mindbody_client_id || null,
       manuallyLinkedEmails: dbUser?.manually_linked_emails || [],
-      lastBookingDate: lastActivityMap[emailLower] || null
+      lastBookingDate: lastActivityMap[emailLower] || null,
+      wasEverMember,
+      isFormerMember,
+      isNonMemberLead
     };
   });
 }
@@ -1303,4 +1332,5 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
   }
 });
 
+export { fetchAllHubSpotContacts };
 export default router;

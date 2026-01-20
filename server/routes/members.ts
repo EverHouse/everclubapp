@@ -30,6 +30,7 @@ import { getResendClient } from '../utils/resend';
 import { withResendRetry } from '../core/retryUtils';
 import { staffUsers } from '../../shared/schema';
 import { previewTierChange, commitTierChange, getAvailableTiersForChange } from '../core/stripe/tierChanges';
+import { fetchAllHubSpotContacts } from './hubspot';
 
 const router = Router();
 
@@ -1578,7 +1579,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       LIMIT ${maxResults}
     `);
     
-    const visitors = (visitorsWithPurchases.rows as any[]).map((row: any) => ({
+    const dbVisitors = (visitorsWithPurchases.rows as any[]).map((row: any) => ({
       id: row.id,
       email: row.email,
       firstName: row.first_name,
@@ -1588,13 +1589,76 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       totalSpentCents: row.total_spent_cents,
       lastPurchaseDate: row.last_purchase_date,
       membershipStatus: row.membership_status,
-      role: row.role
+      role: row.role,
+      source: 'database' as const
     }));
+    
+    // Also fetch HubSpot non-member leads (contacts who were never actual members)
+    let hubspotLeads: any[] = [];
+    try {
+      // Directly call the HubSpot contact fetching function instead of HTTP self-fetch
+      const contacts = await fetchAllHubSpotContacts();
+      
+      // Filter for non-member leads (never were actual members)
+      const nonMemberLeads = contacts.filter((c: any) => c.isNonMemberLead === true);
+      
+      // Get emails of existing db visitors to avoid duplicates
+      const dbVisitorEmails = new Set(dbVisitors.map(v => v.email?.toLowerCase()).filter(Boolean));
+      
+      // Transform and add non-member leads that aren't already in db visitors
+      hubspotLeads = nonMemberLeads
+        .filter((c: any) => c.email && !dbVisitorEmails.has(c.email.toLowerCase()))
+        .map((c: any) => ({
+          id: `hubspot_${c.id}`,
+          email: c.email,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          phone: c.phone,
+          purchaseCount: 0,
+          totalSpentCents: 0,
+          lastPurchaseDate: null,
+          membershipStatus: c.status || 'lead',
+          role: 'lead',
+          source: 'hubspot' as const,
+          hubspotId: c.id,
+          company: c.company
+        }));
+    } catch (hubspotError: any) {
+      if (!isProduction) console.warn('Failed to fetch HubSpot leads for visitors:', hubspotError.message);
+    }
+    
+    // Merge db visitors and hubspot leads
+    const allVisitors = [...dbVisitors, ...hubspotLeads];
+    
+    // Sort the merged list
+    allVisitors.sort((a, b) => {
+      if (sortBy === 'name') {
+        const nameA = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
+        const nameB = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
+        return order === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      } else if (sortBy === 'totalSpent') {
+        return order === 'asc' 
+          ? (a.totalSpentCents || 0) - (b.totalSpentCents || 0)
+          : (b.totalSpentCents || 0) - (a.totalSpentCents || 0);
+      } else if (sortBy === 'purchaseCount') {
+        return order === 'asc'
+          ? (a.purchaseCount || 0) - (b.purchaseCount || 0)
+          : (b.purchaseCount || 0) - (a.purchaseCount || 0);
+      } else {
+        // Default: sort by lastPurchaseDate
+        const dateA = a.lastPurchaseDate ? new Date(a.lastPurchaseDate).getTime() : 0;
+        const dateB = b.lastPurchaseDate ? new Date(b.lastPurchaseDate).getTime() : 0;
+        return order === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+    });
+    
+    // Apply limit after merge and sort
+    const limitedVisitors = allVisitors.slice(0, maxResults);
     
     res.json({
       success: true,
-      total: visitors.length,
-      visitors
+      total: limitedVisitors.length,
+      visitors: limitedVisitors
     });
   } catch (error: any) {
     if (!isProduction) console.error('Visitors list error:', error);
