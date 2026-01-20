@@ -603,6 +603,11 @@ export async function cleanupOrphanStripeProducts(): Promise<{
     const activeTierIds = new Set(tiers.map(t => t.id.toString()));
     const activeStripeProductIds = new Set(tiers.map(t => t.stripeProductId).filter(Boolean));
     
+    const tierProductNames = new Set(tiers.flatMap(t => [
+      t.name,
+      `${t.name} Membership`,
+    ]));
+    
     console.log(`[Stripe Cleanup] Found ${activeTierIds.size} active tiers, ${activeStripeProductIds.size} with Stripe products`);
 
     let hasMore = true;
@@ -615,37 +620,50 @@ export async function cleanupOrphanStripeProducts(): Promise<{
       const products = await stripe.products.list(params);
       
       for (const product of products.data) {
-        if (product.metadata?.source !== 'ever_house_app') {
+        if (activeStripeProductIds.has(product.id)) {
           continue;
         }
         
-        const tierId = product.metadata?.tier_id;
+        const isFromApp = product.metadata?.source === 'ever_house_app';
+        const matchesTierName = tierProductNames.has(product.name);
         
-        if (!tierId) {
-          console.log(`[Stripe Cleanup] Skipping ${product.name}: No tier_id metadata`);
-          results.push({
-            productId: product.id,
-            productName: product.name,
-            action: 'skipped',
-            reason: 'No tier_id metadata - may be manually created',
-          });
-          skipped++;
+        if (!isFromApp && !matchesTierName) {
           continue;
         }
         
-        if (activeTierIds.has(tierId)) {
-          continue;
+        if (isFromApp) {
+          const tierId = product.metadata?.tier_id;
+          
+          if (!tierId) {
+            console.log(`[Stripe Cleanup] Skipping ${product.name}: No tier_id metadata`);
+            results.push({
+              productId: product.id,
+              productName: product.name,
+              action: 'skipped',
+              reason: 'No tier_id metadata - may be manually created',
+            });
+            skipped++;
+            continue;
+          }
+          
+          if (activeTierIds.has(tierId)) {
+            continue;
+          }
         }
         
         try {
           await stripe.products.update(product.id, { active: false });
           
-          console.log(`[Stripe Cleanup] Archived orphan product: ${product.name} (tier_id: ${tierId})`);
+          const reason = matchesTierName && !isFromApp
+            ? `Duplicate product not linked to app (name matches tier)`
+            : `Tier ID ${product.metadata?.tier_id} no longer active in app`;
+          
+          console.log(`[Stripe Cleanup] Archived orphan product: ${product.name} (${product.id})`);
           results.push({
             productId: product.id,
             productName: product.name,
             action: 'archived',
-            reason: `Tier ID ${tierId} no longer active in app`,
+            reason,
           });
           archived++;
         } catch (archiveError: any) {
