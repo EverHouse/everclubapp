@@ -2405,11 +2405,13 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       return res.status(400).json({ error: 'First name and last name are required' });
     }
 
-    // Only allow subscription-based tiers (not one_time products like day passes)
+    // Only allow subscription-based tiers with valid billing intervals (not one_time products like day passes)
     const tierResult = await pool.query(
       `SELECT id, name, stripe_price_id, price_cents, billing_interval 
        FROM membership_tiers 
-       WHERE id = $1 AND is_active = true AND (product_type IS NULL OR product_type = 'subscription')`,
+       WHERE id = $1 AND is_active = true 
+         AND product_type = 'subscription'
+         AND billing_interval IN ('month', 'year', 'week')`,
       [tierId]
     );
 
