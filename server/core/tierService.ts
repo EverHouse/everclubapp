@@ -33,7 +33,12 @@ const DEFAULT_TIER_LIMITS: TierLimits = {
   unlimited_access: false,
 };
 
-const tierCache = new Map<string, { data: TierLimits; expiry: number }>();
+// --- Proactive Tier Cache Invalidation ---
+// lastTierUpdateTimestamp tracks the last time a tier was modified.
+// Any cache entry older than this timestamp is considered stale.
+let lastTierUpdateTimestamp = Date.now();
+
+const tierCache = new Map<string, { data: TierLimits; expiry: number; cachedAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function getTierLimits(tierName: string): Promise<TierLimits> {
@@ -45,7 +50,8 @@ export async function getTierLimits(tierName: string): Promise<TierLimits> {
   const cacheKey = normalizedTier.toLowerCase();
   const cached = tierCache.get(cacheKey);
   
-  if (cached && cached.expiry > Date.now()) {
+  // A cached item is valid if it hasn't expired AND it's not older than the last known update.
+  if (cached && cached.expiry > Date.now() && cached.cachedAt >= lastTierUpdateTimestamp) {
     return cached.data;
   }
   
@@ -68,7 +74,8 @@ export async function getTierLimits(tierName: string): Promise<TierLimits> {
     }
     
     const data = result.rows[0] as TierLimits;
-    tierCache.set(cacheKey, { data, expiry: Date.now() + CACHE_TTL_MS });
+    // Set the cache with the current timestamp
+    tierCache.set(cacheKey, { data, expiry: Date.now() + CACHE_TTL_MS, cachedAt: Date.now() });
     
     return data;
   } catch (error) {
@@ -77,14 +84,25 @@ export async function getTierLimits(tierName: string): Promise<TierLimits> {
   }
 }
 
+/**
+ * Clears the entire tier cache and updates the timestamp to force refetching.
+ */
 export function clearTierCache(): void {
   tierCache.clear();
+  lastTierUpdateTimestamp = Date.now();
+  console.log('[TierService] Proactive cache cleared.');
 }
 
+/**
+ * Invalidates a specific tier and updates the global timestamp
+ * to proactively invalidate all other potentially stale cache entries on next read.
+ */
 export function invalidateTierCache(tierName: string): void {
   const normalizedKey = normalizeTierName(tierName).toLowerCase();
   tierCache.delete(normalizedKey);
   tierCache.delete(tierName.toLowerCase());
+  lastTierUpdateTimestamp = Date.now(); // Proactively invalidate
+  console.log(`[TierService] Invalidated tier "${tierName}" and updated timestamp.`);
 }
 
 export async function getMemberTierByEmail(email: string): Promise<string | null> {

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useData } from '../../contexts/DataContext';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 export interface SelectedMember {
   id: number;
@@ -9,14 +9,19 @@ export interface SelectedMember {
   stripeCustomerId?: string | null;
 }
 
-// Helper to search by multiple words (e.g., "nick luu" matches "Nick Luu")
-const matchesMultiWordQuery = (text: string | undefined, query: string): boolean => {
-  if (!text) return false;
-  const lowerText = text.toLowerCase();
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  // All words must appear somewhere in the text
-  return words.every(word => lowerText.includes(word));
-};
+// Simple debounce hook
+function useDebounce(value: string, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 interface MemberSearchInputProps {
   onSelect: (member: SelectedMember) => void;
@@ -52,20 +57,50 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   autoFocus = false,
   privacyMode = false
 }) => {
-  const { members } = useData();
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filteredMembers = useMemo(() => {
-    if (!query.trim()) return [];
-    return members.filter(m => 
-      matchesMultiWordQuery(m.name, query) || matchesMultiWordQuery(m.email, query)
-    ).slice(0, 8);
-  }, [members, query]);
+  const debouncedQuery = useDebounce(query, 300);
+
+  const searchMembers = useCallback(async (searchQuery: string) => {
+    if (searchQuery.trim().length < 2) {
+      setResults([]);
+      setIsOpen(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/members/search?query=${encodeURIComponent(searchQuery)}&limit=8`);
+      if (!response.ok) throw new Error('Search failed');
+      const data = await response.json();
+
+      // The API now returns `emailRedacted` but we need the full email for selection.
+      // This component is used in admin/staff areas, so we'll fetch full member profiles.
+      // For now, let's assume the search endpoint will be updated to return full data for authorized users.
+      // Awaiting that, we'll map what we have.
+      setResults(data.map((m: any) => ({
+        ...m,
+        email: m.email || m.emailRedacted, // Use full email if available
+      })));
+      setIsOpen(true);
+    } catch (error) {
+      toast.error('Failed to search for members.');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    searchMembers(debouncedQuery);
+  }, [debouncedQuery, searchMembers]);
 
   useEffect(() => {
     if (selectedMember) {
@@ -79,14 +114,11 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
 
   useEffect(() => {
     setHighlightedIndex(0);
-  }, [filteredMembers.length]);
+  }, [results.length]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current && 
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -97,13 +129,12 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
-    setIsOpen(value.trim().length > 0);
     if (selectedMember && onClear) {
       onClear();
     }
   };
 
-  const handleSelect = (member: typeof members[0]) => {
+  const handleSelect = (member: any) => {
     const selected: SelectedMember = {
       id: member.id,
       email: member.email,
@@ -117,20 +148,18 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen || filteredMembers.length === 0) return;
+    if (!isOpen || results.length === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlightedIndex(prev => 
-        prev < filteredMembers.length - 1 ? prev + 1 : prev
-      );
+      setHighlightedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlightedIndex(prev => prev > 0 ? prev - 1 : 0);
+      setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredMembers[highlightedIndex]) {
-        handleSelect(filteredMembers[highlightedIndex]);
+      if (results[highlightedIndex]) {
+        handleSelect(results[highlightedIndex]);
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
@@ -180,45 +209,48 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         )}
       </div>
 
-      {/* Dropdown positioned absolutely within the container - moves naturally with scroll */}
-      {isOpen && filteredMembers.length > 0 && (
-        <div 
-          ref={dropdownRef}
-          className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"
-        >
-          {filteredMembers.map((member, index) => (
-            <button
-              key={member.email}
-              type="button"
-              onClick={() => handleSelect(member)}
-              onMouseEnter={() => setHighlightedIndex(index)}
-              className={`w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
-                index === highlightedIndex 
-                  ? 'bg-primary/10 dark:bg-white/10' 
-                  : 'hover:bg-primary/5 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="w-9 h-9 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-base text-primary dark:text-white">person</span>
-              </div>
-              <div className="text-left flex-1 min-w-0">
-                <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
-                <p className="text-xs text-primary/60 dark:text-white/60 truncate">
-                  {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? redactEmail(member.email) : member.email}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isOpen && query.trim() && filteredMembers.length === 0 && (
-        <div 
-          className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-lg p-4 text-center"
-        >
-          <p className="text-sm text-primary/60 dark:text-white/60">No members found</p>
-        </div>
-      )}
+      <div
+        ref={dropdownRef}
+        className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden"
+        style={{ display: isOpen ? 'block' : 'none' }}
+      >
+        {isLoading && (
+          <div className="p-4 text-center text-sm text-primary/60 dark:text-white/60">Loading...</div>
+        )}
+        {!isLoading && results.length > 0 && (
+          <div className="max-h-64 overflow-y-auto">
+            {results.map((member, index) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => handleSelect(member)}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                className={`w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
+                  index === highlightedIndex
+                    ? 'bg-primary/10 dark:bg-white/10'
+                    : 'hover:bg-primary/5 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-base text-primary dark:text-white">person</span>
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
+                  <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                    {showTier && member.tier ? `${member.tier} • ` : ''}
+                    {privacyMode ? redactEmail(member.email) : member.email}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        {!isLoading && isOpen && query.trim().length > 1 && results.length === 0 && (
+          <div className="p-4 text-center">
+            <p className="text-sm text-primary/60 dark:text-white/60">No members found</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
