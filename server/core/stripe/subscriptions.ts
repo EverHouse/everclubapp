@@ -112,9 +112,53 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
       expand: ['data.items.data.price.product', 'data.schedule'],
     });
     
+    const pendingPriceIds: string[] = [];
+    const subsWithPendingUpdates: { subId: string; priceId: string; effectiveTimestamp: number }[] = [];
+    
+    for (const sub of subscriptions.data) {
+      if (sub.pending_update && (sub.pending_update as any).subscription_items) {
+        const pendingItems = (sub.pending_update as any).subscription_items;
+        if (pendingItems && pendingItems.length > 0 && pendingItems[0].price) {
+          const pendingData = sub.pending_update as any;
+          const effectiveTimestamp = pendingData.billing_cycle_anchor 
+            || pendingData.expires_at 
+            || sub.current_period_end;
+          
+          const priceId = pendingItems[0].price;
+          if (!pendingPriceIds.includes(priceId)) {
+            pendingPriceIds.push(priceId);
+          }
+          subsWithPendingUpdates.push({ subId: sub.id, priceId, effectiveTimestamp });
+        }
+      }
+    }
+    
+    const priceProductMap = new Map<string, string>();
+    if (pendingPriceIds.length > 0) {
+      try {
+        const batchSize = 10;
+        for (let i = 0; i < pendingPriceIds.length; i += batchSize) {
+          const batch = pendingPriceIds.slice(i, i + batchSize);
+          const results = await Promise.all(
+            batch.map(priceId => 
+              stripe.prices.retrieve(priceId, { expand: ['product'] }).catch(() => null)
+            )
+          );
+          for (const result of results) {
+            if (result) {
+              const product = result.product as Stripe.Product;
+              priceProductMap.set(result.id, product?.name || '');
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Stripe Subscriptions] Error batch fetching pending prices:', e);
+      }
+    }
+    
     return {
       success: true,
-      subscriptions: await Promise.all(subscriptions.data.map(async sub => {
+      subscriptions: subscriptions.data.map(sub => {
         const item = sub.items.data[0];
         const price = item?.price;
         const productRef = price?.product;
@@ -123,31 +167,13 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
         const productName = product?.name || '';
         
         let pendingUpdate: { newPriceId: string; newProductName: string; effectiveAt: Date } | null = null;
-        if (sub.pending_update && (sub.pending_update as any).subscription_items) {
-          const pendingItems = (sub.pending_update as any).subscription_items;
-          if (pendingItems && pendingItems.length > 0) {
-            // Use Stripe's billing_cycle_anchor if available, otherwise expires_at, fallback to period end
-            const pendingData = sub.pending_update as any;
-            const effectiveTimestamp = pendingData.billing_cycle_anchor 
-              || pendingData.expires_at 
-              || sub.current_period_end;
-            
-            // Fetch product name for the pending price
-            let newProductName = '';
-            try {
-              const newPrice = await stripe.prices.retrieve(pendingItems[0].price, { expand: ['product'] });
-              const newProduct = newPrice.product as Stripe.Product;
-              newProductName = newProduct?.name || '';
-            } catch (e) {
-              // Ignore errors fetching product name
-            }
-            
-            pendingUpdate = {
-              newPriceId: pendingItems[0].price || '',
-              newProductName,
-              effectiveAt: new Date(effectiveTimestamp * 1000),
-            };
-          }
+        const pendingInfo = subsWithPendingUpdates.find(p => p.subId === sub.id);
+        if (pendingInfo) {
+          pendingUpdate = {
+            newPriceId: pendingInfo.priceId,
+            newProductName: priceProductMap.get(pendingInfo.priceId) || '',
+            effectiveAt: new Date(pendingInfo.effectiveTimestamp * 1000),
+          };
         }
         
         return {
@@ -164,7 +190,7 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           pausedUntil: sub.pause_collection?.resumes_at ? new Date(sub.pause_collection.resumes_at * 1000) : null,
           pendingUpdate,
         };
-      })),
+      }),
     };
   } catch (error: any) {
     console.error('[Stripe Subscriptions] Error listing subscriptions:', error);

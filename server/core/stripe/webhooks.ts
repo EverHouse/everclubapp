@@ -390,6 +390,17 @@ async function handleInvoicePaymentSucceeded(invoice: any): Promise<void> {
         userId,
       });
       console.log(`[Stripe Webhook] Synced invoice payment to HubSpot for ${email}`);
+      
+      await pool.query(
+        `UPDATE hubspot_deals 
+         SET last_payment_status = 'current',
+             last_payment_check = NOW(),
+             last_sync_error = NULL,
+             updated_at = NOW()
+         WHERE LOWER(member_email) = LOWER($1)`,
+        [email]
+      );
+      console.log(`[Stripe Webhook] Updated HubSpot deal payment status to 'current' for ${email}`);
     } catch (hubspotError) {
       console.error('[Stripe Webhook] HubSpot sync failed for invoice payment:', hubspotError);
     }
@@ -446,6 +457,21 @@ async function handleInvoicePaymentFailed(invoice: any): Promise<void> {
     const memberName = userResult.rows[0]
       ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
       : email;
+
+    try {
+      await pool.query(
+        `UPDATE hubspot_deals 
+         SET last_payment_status = 'failed',
+             last_payment_check = NOW(),
+             last_sync_error = $2,
+             updated_at = NOW()
+         WHERE LOWER(member_email) = LOWER($1)`,
+        [email, `Payment failed: ${reason}`]
+      );
+      console.log(`[Stripe Webhook] Updated HubSpot deal payment status to 'failed' for ${email}`);
+    } catch (hubspotError) {
+      console.error('[Stripe Webhook] Error updating HubSpot deal status:', hubspotError);
+    }
 
     await notifyMember({
       userEmail: email,

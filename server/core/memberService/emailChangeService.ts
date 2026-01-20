@@ -1,0 +1,193 @@
+import { pool } from '../db';
+
+export interface EmailChangeResult {
+  success: boolean;
+  oldEmail: string;
+  newEmail: string;
+  tablesUpdated: {
+    tableName: string;
+    rowsAffected: number;
+  }[];
+  error?: string;
+}
+
+export async function cascadeEmailChange(
+  oldEmail: string,
+  newEmail: string,
+  performedBy: string,
+  performedByName?: string
+): Promise<EmailChangeResult> {
+  const client = await pool.connect();
+  const tablesUpdated: EmailChangeResult['tablesUpdated'] = [];
+
+  try {
+    await client.query('BEGIN');
+
+    const normalizedOldEmail = oldEmail.toLowerCase().trim();
+    const normalizedNewEmail = newEmail.toLowerCase().trim();
+
+    if (!normalizedOldEmail || !normalizedNewEmail) {
+      throw new Error('Both old and new email addresses are required');
+    }
+
+    if (normalizedOldEmail === normalizedNewEmail) {
+      throw new Error('Old and new email addresses are the same');
+    }
+
+    const existingCheck = await client.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [normalizedNewEmail]
+    );
+    if (existingCheck.rows.length > 0) {
+      throw new Error(`A user with email ${newEmail} already exists`);
+    }
+
+    const updateTable = async (
+      tableName: string,
+      emailColumn: string,
+      additionalCondition?: string
+    ): Promise<number> => {
+      const query = `
+        UPDATE ${tableName}
+        SET ${emailColumn} = $1
+        WHERE LOWER(${emailColumn}) = LOWER($2)
+        ${additionalCondition || ''}
+      `;
+      const result = await client.query(query, [normalizedNewEmail, normalizedOldEmail]);
+      return result.rowCount || 0;
+    };
+
+    let rowCount: number;
+
+    rowCount = await updateTable('users', 'email');
+    if (rowCount === 0) {
+      throw new Error(`No user found with email ${oldEmail}. Email change aborted.`);
+    }
+    tablesUpdated.push({ tableName: 'users', rowsAffected: rowCount });
+
+    rowCount = await updateTable('hubspot_deals', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'hubspot_deals', rowsAffected: rowCount });
+
+    rowCount = await updateTable('guest_passes', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'guest_passes', rowsAffected: rowCount });
+
+    rowCount = await updateTable('member_notes', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'member_notes', rowsAffected: rowCount });
+
+    rowCount = await updateTable('communication_logs', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'communication_logs', rowsAffected: rowCount });
+
+    rowCount = await updateTable('guest_check_ins', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'guest_check_ins', rowsAffected: rowCount });
+
+    rowCount = await updateTable('billing_groups', 'primary_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'billing_groups', rowsAffected: rowCount });
+
+    rowCount = await updateTable('group_members', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'group_members', rowsAffected: rowCount });
+
+    rowCount = await updateTable('booking_requests', 'user_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'booking_requests', rowsAffected: rowCount });
+
+    rowCount = await updateTable('booking_members', 'user_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'booking_members', rowsAffected: rowCount });
+
+    rowCount = await updateTable('billing_audit_log', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'billing_audit_log', rowsAffected: rowCount });
+
+    rowCount = await updateTable('hubspot_line_items', 'created_by');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'hubspot_line_items (created_by)', rowsAffected: rowCount });
+
+    rowCount = await updateTable('legacy_purchases', 'member_email');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'legacy_purchases', rowsAffected: rowCount });
+
+    rowCount = await updateTable('usage_ledger', 'member_id');
+    if (rowCount > 0) tablesUpdated.push({ tableName: 'usage_ledger', rowsAffected: rowCount });
+
+    await client.query(
+      `INSERT INTO billing_audit_log (
+        member_email, action_type, action_details, previous_value, new_value,
+        performed_by, performed_by_name, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [
+        normalizedNewEmail,
+        'email_changed',
+        JSON.stringify({
+          tables_updated: tablesUpdated,
+          timestamp: new Date().toISOString(),
+        }),
+        normalizedOldEmail,
+        normalizedNewEmail,
+        performedBy,
+        performedByName || null,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    console.log(`[EmailChangeService] Successfully cascaded email change from ${oldEmail} to ${newEmail}. Tables updated:`, tablesUpdated);
+
+    return {
+      success: true,
+      oldEmail: normalizedOldEmail,
+      newEmail: normalizedNewEmail,
+      tablesUpdated,
+    };
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('[EmailChangeService] Error cascading email change:', error);
+    return {
+      success: false,
+      oldEmail,
+      newEmail,
+      tablesUpdated: [],
+      error: error.message || 'Failed to cascade email change',
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function previewEmailChangeImpact(
+  email: string
+): Promise<{
+  tables: { tableName: string; columnName: string; rowCount: number }[];
+  totalRows: number;
+}> {
+  const tables: { tableName: string; columnName: string; rowCount: number }[] = [];
+
+  const tablesToCheck = [
+    { table: 'users', column: 'email' },
+    { table: 'hubspot_deals', column: 'member_email' },
+    { table: 'guest_passes', column: 'member_email' },
+    { table: 'member_notes', column: 'member_email' },
+    { table: 'communication_logs', column: 'member_email' },
+    { table: 'guest_check_ins', column: 'member_email' },
+    { table: 'billing_groups', column: 'primary_email' },
+    { table: 'group_members', column: 'member_email' },
+    { table: 'booking_requests', column: 'user_email' },
+    { table: 'booking_members', column: 'user_email' },
+    { table: 'billing_audit_log', column: 'member_email' },
+    { table: 'legacy_purchases', column: 'member_email' },
+    { table: 'usage_ledger', column: 'member_id' },
+  ];
+
+  for (const { table, column } of tablesToCheck) {
+    try {
+      const result = await pool.query(
+        `SELECT COUNT(*) as count FROM ${table} WHERE LOWER(${column}) = LOWER($1)`,
+        [email]
+      );
+      const count = parseInt(result.rows[0].count, 10);
+      if (count > 0) {
+        tables.push({ tableName: table, columnName: column, rowCount: count });
+      }
+    } catch (error) {
+      console.warn(`[EmailChangeService] Could not check table ${table}:`, error);
+    }
+  }
+
+  const totalRows = tables.reduce((sum, t) => sum + t.rowCount, 0);
+
+  return { tables, totalRows };
+}

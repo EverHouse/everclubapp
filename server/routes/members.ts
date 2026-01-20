@@ -31,6 +31,7 @@ import { withResendRetry } from '../core/retryUtils';
 import { staffUsers } from '../../shared/schema';
 import { previewTierChange, commitTierChange, getAvailableTiersForChange } from '../core/stripe/tierChanges';
 import { fetchAllHubSpotContacts } from './hubspot';
+import { cascadeEmailChange, previewEmailChangeImpact } from '../core/memberService/emailChangeService';
 
 const router = Router();
 
@@ -1715,6 +1716,53 @@ router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
   } catch (error: any) {
     if (!isProduction) console.error('Visitor purchases error:', error);
     res.status(500).json({ error: 'Failed to fetch visitor purchases' });
+  }
+});
+
+router.post('/api/admin/member/change-email', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { oldEmail, newEmail } = req.body;
+    const sessionUser = getSessionUser(req);
+    
+    if (!oldEmail || !newEmail) {
+      return res.status(400).json({ error: 'Both oldEmail and newEmail are required' });
+    }
+    
+    const performedBy = sessionUser?.email || 'unknown';
+    const performedByName = sessionUser?.firstName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName || ''}`.trim() 
+      : sessionUser?.email?.split('@')[0] || 'Staff';
+    
+    const result = await cascadeEmailChange(oldEmail, newEmail, performedBy, performedByName);
+    
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    
+    res.json({
+      success: true,
+      message: `Email changed from ${result.oldEmail} to ${result.newEmail}`,
+      tablesUpdated: result.tablesUpdated
+    });
+  } catch (error: any) {
+    console.error('[Email Change] Error:', error);
+    res.status(500).json({ error: 'Failed to change email' });
+  }
+});
+
+router.get('/api/admin/member/change-email/preview', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    const impact = await previewEmailChangeImpact(email);
+    res.json(impact);
+  } catch (error: any) {
+    console.error('[Email Change Preview] Error:', error);
+    res.status(500).json({ error: 'Failed to preview email change impact' });
   }
 });
 
