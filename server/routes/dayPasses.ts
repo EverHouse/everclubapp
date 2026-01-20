@@ -19,7 +19,7 @@ router.get('/api/day-passes/products', async (req: Request, res: Response) => {
       .where(eq(membershipTiers.productType, 'one_time'));
 
     const formattedProducts = products
-      .filter(p => p.isActive && p.priceCents && p.priceCents > 0)
+      .filter(p => p.isActive && p.priceCents && p.priceCents > 0 && p.slug !== 'guest-pass')
       .map(p => ({
         id: p.slug,
         name: p.name,

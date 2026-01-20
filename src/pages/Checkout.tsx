@@ -464,11 +464,11 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f5f7f0] to-[#eef1e6] dark:from-[#0f120a] dark:to-[#1a1d12]">
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-[#0f120a]/80 backdrop-blur-xl border-b border-primary/10 dark:border-white/5">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/#/" className="flex items-center gap-3">
-            <Logo size={36} />
-            <span className="font-serif text-xl text-primary dark:text-white">EverHouse</span>
+      <header className="sticky top-0 z-50 bg-transparent">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <a href="/#/" className="inline-flex items-center gap-2 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors text-sm">
+            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            Back to EverHouse
           </a>
         </div>
       </header>
