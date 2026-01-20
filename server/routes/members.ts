@@ -722,9 +722,14 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
     }
     
     const member = userResult[0];
-    const oldTier = member.tier || 'Social';
+    // Use actual DB value for comparison (can be null)
+    const actualTier = member.tier;
+    // For display/sync purposes, default null to 'Social'
+    const oldTierDisplay = actualTier || 'Social';
     
-    if (oldTier === tier) {
+    // Compare against actual DB value, not defaulted value
+    // This allows "No Tier" (null) -> "Social" transitions to work
+    if (actualTier === tier) {
       return res.json({ 
         success: true, 
         message: 'Member is already on this tier',
@@ -743,7 +748,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
     
     const hubspotResult = await handleTierChange(
       normalizedEmail,
-      oldTier,
+      oldTierDisplay,
       tier,
       performedBy,
       performedByName
@@ -762,7 +767,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         .limit(1);
       
       if (tierRecord.length > 0 && tierRecord[0].stripePriceId) {
-        const isUpgrade = getTierRank(tier) > getTierRank(oldTier);
+        const isUpgrade = getTierRank(tier) > getTierRank(oldTierDisplay);
         const stripeResult = await changeSubscriptionTier(
           member.stripeSubscriptionId,
           tierRecord[0].stripePriceId,
@@ -779,24 +784,24 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       stripeSync = { success: true, warning: 'Tier updated in App & HubSpot. PLEASE UPDATE MINDBODY BILLING MANUALLY.' };
     }
     
-    const isUpgrade = getTierRank(tier) > getTierRank(oldTier);
+    const isUpgrade = getTierRank(tier) > getTierRank(oldTierDisplay);
     const changeType = isUpgrade ? 'upgraded' : 'changed';
     await notifyMember({
       userEmail: normalizedEmail,
       title: isUpgrade ? 'Membership Upgraded' : 'Membership Updated',
-      message: `Your membership has been ${changeType} from ${oldTier} to ${tier}`,
+      message: `Your membership has been ${changeType} from ${oldTierDisplay} to ${tier}`,
       type: 'system',
       url: '/#/profile'
     });
     
     res.json({
       success: true,
-      message: `Member tier updated from ${oldTier} to ${tier}`,
+      message: `Member tier updated from ${oldTierDisplay} to ${tier}`,
       member: {
         id: member.id,
         email: member.email,
         tier,
-        previousTier: oldTier
+        previousTier: oldTierDisplay
       },
       hubspotSync: {
         success: hubspotResult.success,
@@ -1447,11 +1452,14 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
         }
         
         const user = userResult[0];
-        const oldTier = user.tier || 'Social';
+        // Use actual DB value for comparison (can be null)
+        const actualTier = user.tier;
+        // For display/sync purposes, default null to 'Social'
+        const oldTierDisplay = actualTier || 'Social';
         const memberName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || normalizedEmail;
         
-        // Check if tier is already correct
-        if (oldTier === normalizedTier) {
+        // Check if tier is already correct - compare against actual DB value
+        if (actualTier === normalizedTier) {
           results.unchanged.push({ email: normalizedEmail, name: memberName, tier: normalizedTier });
           continue;
         }
@@ -1460,7 +1468,7 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
           results.updated.push({ 
             email: normalizedEmail, 
             name: memberName, 
-            oldTier, 
+            oldTier: oldTierDisplay, 
             newTier: normalizedTier,
             hubspotSynced: false
           });
@@ -1483,7 +1491,7 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
         if (syncToHubspot) {
           const hubspotResult = await handleTierChange(
             normalizedEmail,
-            oldTier,
+            oldTierDisplay,
             normalizedTier,
             performedBy,
             performedByName
@@ -1498,7 +1506,7 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
         results.updated.push({ 
           email: normalizedEmail, 
           name: memberName, 
-          oldTier, 
+          oldTier: oldTierDisplay, 
           newTier: normalizedTier,
           hubspotSynced
         });
