@@ -24,6 +24,15 @@ interface BillingInfo {
     primaryEmail: string;
   };
   stripeError?: string;
+  upcomingChanges?: {
+    cancelAtPeriodEnd: boolean;
+    cancelAt: number | null;
+    pausedUntil: number | null;
+    pendingTierChange: {
+      newPlanName: string;
+      effectiveDate: number;
+    } | null;
+  };
 }
 
 interface Invoice {
@@ -204,6 +213,26 @@ export default function BillingSection({ isDark }: Props) {
               <span className={`text-sm font-medium text-green-600`}>
                 ${Math.abs(billingInfo.customerBalanceDollars).toFixed(2)}
               </span>
+            </div>
+          )}
+          
+          {billingInfo.upcomingChanges && (
+            <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-yellow-900/20 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-yellow-500 text-lg">schedule</span>
+                <span className={`text-sm font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>Upcoming Changes</span>
+              </div>
+              <div className={`text-sm ${isDark ? 'text-yellow-300/80' : 'text-yellow-700'}`}>
+                {billingInfo.upcomingChanges.cancelAtPeriodEnd && billingInfo.upcomingChanges.cancelAt && (
+                  <p>Your membership will cancel on {formatDate(billingInfo.upcomingChanges.cancelAt)}</p>
+                )}
+                {billingInfo.upcomingChanges.pausedUntil && (
+                  <p>Your membership is paused until {formatDate(billingInfo.upcomingChanges.pausedUntil)}</p>
+                )}
+                {billingInfo.upcomingChanges.pendingTierChange && (
+                  <p>Your plan will change to {billingInfo.upcomingChanges.pendingTierChange.newPlanName} on {formatDate(billingInfo.upcomingChanges.pendingTierChange.effectiveDate)}</p>
+                )}
+              </div>
             </div>
           )}
           

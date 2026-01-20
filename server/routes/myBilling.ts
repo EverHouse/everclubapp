@@ -53,6 +53,25 @@ router.get('/api/my/billing', requireAuth, async (req, res) => {
               cancelAtPeriodEnd: activeSub.cancelAtPeriodEnd,
               isPaused: activeSub.isPaused,
             };
+            
+            const hasUpcomingChanges = activeSub.cancelAtPeriodEnd || activeSub.pausedUntil || activeSub.pendingUpdate;
+            if (hasUpcomingChanges) {
+              billingInfo.upcomingChanges = {
+                cancelAtPeriodEnd: activeSub.cancelAtPeriodEnd,
+                cancelAt: activeSub.cancelAtPeriodEnd 
+                  ? Math.floor(activeSub.currentPeriodEnd.getTime() / 1000)
+                  : null,
+                pausedUntil: activeSub.pausedUntil 
+                  ? Math.floor(activeSub.pausedUntil.getTime() / 1000)
+                  : null,
+                pendingTierChange: activeSub.pendingUpdate
+                  ? {
+                      newPlanName: activeSub.pendingUpdate.newProductName || 'New Plan',
+                      effectiveDate: Math.floor(activeSub.currentPeriodEnd.getTime() / 1000),
+                    }
+                  : null,
+              };
+            }
           }
         }
         

@@ -307,6 +307,64 @@ export interface TierSyncResult {
   action: 'created' | 'updated' | 'skipped';
 }
 
+// Helper to build privilege metadata for Stripe products
+function buildPrivilegeMetadata(tier: any): Record<string, string> {
+  const metadata: Record<string, string> = {
+    tier_id: tier.id.toString(),
+    tier_slug: tier.slug,
+    product_type: tier.productType || 'subscription',
+    source: 'ever_house_app',
+  };
+  
+  // Add privilege/limit metadata (prefixed for clarity)
+  if (tier.dailySimMinutes != null) {
+    metadata.privilege_daily_sim_minutes = tier.dailySimMinutes.toString();
+  }
+  if (tier.guestPassesPerMonth != null) {
+    metadata.privilege_guest_passes = tier.guestPassesPerMonth.toString();
+  }
+  if (tier.bookingWindowDays != null) {
+    metadata.privilege_booking_window_days = tier.bookingWindowDays.toString();
+  }
+  if (tier.dailyConfRoomMinutes != null) {
+    metadata.privilege_conf_room_minutes = tier.dailyConfRoomMinutes.toString();
+  }
+  if (tier.unlimitedAccess) {
+    metadata.privilege_unlimited_access = 'true';
+  }
+  if (tier.canBookSimulators) {
+    metadata.privilege_can_book_simulators = 'true';
+  }
+  if (tier.canBookConference) {
+    metadata.privilege_can_book_conference = 'true';
+  }
+  if (tier.canBookWellness) {
+    metadata.privilege_can_book_wellness = 'true';
+  }
+  if (tier.hasGroupLessons) {
+    metadata.privilege_group_lessons = 'true';
+  }
+  if (tier.hasPrivateLesson) {
+    metadata.privilege_private_lesson = 'true';
+  }
+  if (tier.hasSimulatorGuestPasses) {
+    metadata.privilege_sim_guest_passes = 'true';
+  }
+  if (tier.hasDiscountedMerch) {
+    metadata.privilege_discounted_merch = 'true';
+  }
+  
+  // Include highlighted features as JSON (truncated to fit Stripe's 500 char limit per value)
+  if (tier.highlightedFeatures && Array.isArray(tier.highlightedFeatures) && tier.highlightedFeatures.length > 0) {
+    const featuresJson = JSON.stringify(tier.highlightedFeatures.slice(0, 5));
+    if (featuresJson.length <= 500) {
+      metadata.highlighted_features = featuresJson;
+    }
+  }
+  
+  return metadata;
+}
+
 export async function syncMembershipTiersToStripe(): Promise<{
   success: boolean;
   results: TierSyncResult[];
@@ -346,18 +404,20 @@ export async function syncMembershipTiersToStripe(): Promise<{
         let stripeProductId = tier.stripeProductId;
         let stripePriceId = tier.stripePriceId;
 
+        // Build privilege metadata for this tier
+        const privilegeMetadata = buildPrivilegeMetadata(tier);
+
         if (stripeProductId) {
           await stripe.products.update(stripeProductId, {
             name: productName,
             description: tier.description || undefined,
-            metadata: {
-              tier_id: tier.id.toString(),
-              tier_slug: tier.slug,
-              product_type: tier.productType || 'subscription',
-            },
+            metadata: privilegeMetadata,
           });
-          console.log(`[Tier Sync] Updated existing product for ${tier.name}`);
+          console.log(`[Tier Sync] Updated existing product for ${tier.name} with privileges`);
 
+          // Price metadata (subset of privilege metadata for reference)
+          const priceMetadata = { tier_id: tier.id.toString(), tier_slug: tier.slug, product_type: tier.productType || 'subscription' };
+          
           if (stripePriceId) {
             const existingPrice = await stripe.prices.retrieve(stripePriceId);
             if (existingPrice.unit_amount !== tier.priceCents) {
@@ -366,7 +426,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
                 product: stripeProductId,
                 unit_amount: tier.priceCents,
                 currency: 'usd',
-                metadata: { tier_id: tier.id.toString(), tier_slug: tier.slug, product_type: tier.productType || 'subscription' },
+                metadata: priceMetadata,
               };
               if (!isOneTime) {
                 priceParams.recurring = { interval: billingInterval };
@@ -380,7 +440,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
               product: stripeProductId,
               unit_amount: tier.priceCents,
               currency: 'usd',
-              metadata: { tier_id: tier.id.toString(), tier_slug: tier.slug, product_type: tier.productType || 'subscription' },
+              metadata: priceMetadata,
             };
             if (!isOneTime) {
               priceParams.recurring = { interval: billingInterval };
@@ -404,22 +464,20 @@ export async function syncMembershipTiersToStripe(): Promise<{
           });
           synced++;
         } else {
+          // Create new product with privilege metadata
           const stripeProduct = await stripe.products.create({
             name: productName,
             description: tier.description || undefined,
-            metadata: {
-              tier_id: tier.id.toString(),
-              tier_slug: tier.slug,
-              product_type: tier.productType || 'subscription',
-            },
+            metadata: privilegeMetadata,
           });
           stripeProductId = stripeProduct.id;
 
+          const priceMetadata = { tier_id: tier.id.toString(), tier_slug: tier.slug, product_type: tier.productType || 'subscription' };
           const priceParams: any = {
             product: stripeProductId,
             unit_amount: tier.priceCents,
             currency: 'usd',
-            metadata: { tier_id: tier.id.toString(), tier_slug: tier.slug, product_type: tier.productType || 'subscription' },
+            metadata: priceMetadata,
           };
           if (!isOneTime) {
             priceParams.recurring = { interval: billingInterval };
@@ -435,7 +493,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
             })
             .where(eq(membershipTiers.id, tier.id));
 
-          console.log(`[Tier Sync] Created product and price for ${tier.name}`);
+          console.log(`[Tier Sync] Created product and price for ${tier.name} with privileges`);
           results.push({
             tierId: tier.id,
             tierName: tier.name,

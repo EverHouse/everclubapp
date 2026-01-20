@@ -88,10 +88,17 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
     status: string;
     priceId: string;
     productId: string;
+    productName: string;
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
     cancelAtPeriodEnd: boolean;
+    cancelAt: Date | null;
     isPaused: boolean;
+    pausedUntil: Date | null;
+    pendingUpdate: {
+      newPriceId: string;
+      newProductName: string;
+    } | null;
   }>;
   error?: string;
 }> {
@@ -101,7 +108,7 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: 'all',
-      expand: ['data.items.data.price'],
+      expand: ['data.items.data.price.product', 'data.schedule'],
     });
     
     return {
@@ -110,17 +117,34 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
         const item = sub.items.data[0];
         const price = item?.price;
         const productRef = price?.product;
-        const productId = typeof productRef === 'string' ? productRef : (productRef as Stripe.Product)?.id || '';
+        const product = typeof productRef === 'string' ? null : (productRef as Stripe.Product);
+        const productId = product?.id || (typeof productRef === 'string' ? productRef : '');
+        const productName = product?.name || '';
+        
+        let pendingUpdate: { newPriceId: string; newProductName: string } | null = null;
+        if (sub.pending_update && (sub.pending_update as any).subscription_items) {
+          const pendingItems = (sub.pending_update as any).subscription_items;
+          if (pendingItems && pendingItems.length > 0) {
+            pendingUpdate = {
+              newPriceId: pendingItems[0].price || '',
+              newProductName: '',
+            };
+          }
+        }
         
         return {
           id: sub.id,
           status: sub.status,
           priceId: price?.id || '',
           productId,
+          productName,
           currentPeriodStart: new Date(sub.current_period_start * 1000),
           currentPeriodEnd: new Date(sub.current_period_end * 1000),
           cancelAtPeriodEnd: sub.cancel_at_period_end,
+          cancelAt: sub.cancel_at ? new Date(sub.cancel_at * 1000) : null,
           isPaused: !!(sub.pause_collection && sub.pause_collection.behavior),
+          pausedUntil: sub.pause_collection?.resumes_at ? new Date(sub.pause_collection.resumes_at * 1000) : null,
+          pendingUpdate,
         };
       }),
     };
