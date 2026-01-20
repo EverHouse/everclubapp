@@ -20,6 +20,7 @@ import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import ModalShell from '../../components/ModalShell';
 import { BookGolfSkeleton } from '../../components/skeletons';
 import { GuardianConsentForm, type GuardianConsentData } from '../../components/booking';
+import { useStripe } from '@stripe/react-stripe-js';
 
 
 interface APIResource {
@@ -148,6 +149,7 @@ const BookGolf: React.FC = () => {
   const { addBooking, user, viewAsUser, actualUser, isViewingAs } = useData();
   const { effectiveTheme } = useTheme();
   const { setPageReady } = usePageReady();
+  const stripe = useStripe();
   const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
   const initialTab = searchParams.get('tab') === 'conference' ? 'conference' : 'simulator';
@@ -748,6 +750,13 @@ const BookGolf: React.FC = () => {
         }
         throw new Error(error || 'Booking failed');
       }
+
+      if (data.clientSecret) {
+        const { error: stripeError } = await stripe.confirmCardPayment(data.clientSecret);
+        if (stripeError) {
+          throw new Error(stripeError.message);
+        }
+      }
       
       addBooking({
         id: Date.now().toString(),
@@ -824,32 +833,35 @@ const BookGolf: React.FC = () => {
     (activeTab !== 'simulator' || !isAtDailyLimit || rescheduleBookingId)
   );
 
-  // Calculate estimated fees for booking
-  const estimatedFees = useMemo(() => {
-    if (activeTab !== 'simulator' || !duration) {
-      return { overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0 };
-    }
-    
-    const isSocialTier = effectiveUser?.tier?.toLowerCase() === 'social';
-    const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
-    const perPersonMins = Math.floor(duration / playerCount);
-    
-    // Social tier pays for full booking duration (0 included minutes)
-    // Other tiers pay overage based on their share of time vs daily allowance
-    const overageMinutes = isSocialTier 
-      ? duration  // Social pays for the full booking duration
-      : Math.max(0, (usedMinutesForDay + perPersonMins) - dailyAllowance);
-    const overageBlocks = Math.ceil(overageMinutes / 30);
-    const overageFee = overageBlocks * 25;
-    
-    // Guest fees: $25 per guest
-    const guestCount = Math.max(0, playerCount - 1);
-    const guestFees = guestCount * 25;
-    
-    const totalFee = overageFee + guestFees;
-    
-    return { overageFee, guestFees, totalFee, guestCount, overageMinutes };
-  }, [activeTab, duration, playerCount, effectiveUser?.tier, tierPermissions.dailySimulatorMinutes, usedMinutesForDay]);
+  const [estimatedFees, setEstimatedFees] = useState({ overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0 });
+
+  useEffect(() => {
+    const fetchEstimatedFees = async () => {
+        if (activeTab !== 'simulator' || !duration || !effectiveUser || !selectedDateObj) return;
+
+        try {
+            const { ok, data } = await apiRequest('/api/bookings/estimate-fees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_tier: effectiveUser.tier,
+                    duration: duration,
+                    declared_player_count: playerCount,
+                    user_email: effectiveUser.email,
+                    request_date: selectedDateObj.date
+                })
+            });
+
+            if (ok) {
+                setEstimatedFees(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch estimated fees", error);
+        }
+    };
+
+    fetchEstimatedFees();
+  }, [activeTab, duration, playerCount, effectiveUser, selectedDateObj]);
 
   const activeClosures = useMemo(() => {
     if (!selectedDateObj?.date) return [];

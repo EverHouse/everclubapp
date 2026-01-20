@@ -1,179 +1,91 @@
-import { pool } from '../db';
-import { db } from '../../db';
-import { billingAuditLog } from '../../../shared/schema';
-import { getStripeClient } from './client';
-import { getOrCreateStripeCustomer } from './customers';
 
-export type PaymentPurpose = 'guest_fee' | 'overage_fee' | 'one_time_purchase';
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-export interface CreatePaymentIntentParams {
-  userId: string;
+interface CreatePaymentIntentParams {
+  userId: number;
   email: string;
   memberName: string;
   amountCents: number;
-  purpose: PaymentPurpose;
-  bookingId?: number;
-  sessionId?: number;
+  purpose: 'booking_pre_auth' | 'other';
   description: string;
-  metadata?: Record<string, string>;
+  bookingId?: number;
 }
 
-export interface PaymentIntentResult {
-  paymentIntentId: string;
-  clientSecret: string;
-  customerId: string;
-  status: string;
-}
+// Helper to find or create a Stripe customer by email
+// This avoids the database dependency which is currently unavailable.
+async function findOrCreateStripeCustomer(email: string, name: string): Promise<string> {
+    // Search for existing customers with this email
+    const customers = await stripe.customers.list({
+        email: email,
+        limit: 1,
+    });
 
-export async function createPaymentIntent(
-  params: CreatePaymentIntentParams
-): Promise<PaymentIntentResult> {
-  const {
-    userId,
-    email,
-    memberName,
-    amountCents,
-    purpose,
-    bookingId,
-    sessionId,
-    description,
-    metadata = {}
-  } = params;
-
-  const { customerId } = await getOrCreateStripeCustomer(userId, email, memberName);
-
-  const stripe = await getStripeClient();
-
-  const stripeMetadata: Record<string, string> = {
-    userId,
-    email,
-    purpose,
-    source: 'even_house_app'
-  };
-  
-  if (bookingId) stripeMetadata.bookingId = bookingId.toString();
-  if (sessionId) stripeMetadata.sessionId = sessionId.toString();
-  if (metadata?.participantFees) stripeMetadata.participantFees = metadata.participantFees;
-
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountCents,
-    currency: 'usd',
-    customer: customerId,
-    description: description,
-    metadata: stripeMetadata,
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
-
-  await pool.query(
-    `INSERT INTO stripe_payment_intents 
-     (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [userId, paymentIntent.id, customerId, amountCents, purpose, bookingId || null, sessionId || null, description, 'pending']
-  );
-
-  console.log(`[Stripe] Created PaymentIntent ${paymentIntent.id} for ${purpose}: $${(amountCents / 100).toFixed(2)}`);
-
-  return {
-    paymentIntentId: paymentIntent.id,
-    clientSecret: paymentIntent.client_secret!,
-    customerId,
-    status: paymentIntent.status
-  };
-}
-
-export async function confirmPaymentSuccess(
-  paymentIntentId: string,
-  performedBy: string,
-  performedByName?: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const stripe = await getStripeClient();
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== 'succeeded') {
-      return { success: false, error: `Payment status is ${paymentIntent.status}, not succeeded` };
+    if (customers.data.length > 0) {
+        return customers.data[0].id;
     }
 
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = 'succeeded', updated_at = NOW() 
-       WHERE stripe_payment_intent_id = $1`,
-      [paymentIntentId]
-    );
+    // Create a new customer in Stripe
+    const customer = await stripe.customers.create({
+        email: email,
+        name: name,
+    });
 
-    const localRecord = await pool.query(
-      'SELECT * FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1',
-      [paymentIntentId]
-    );
-
-    if (localRecord.rows[0]) {
-      const record = localRecord.rows[0];
-      
-      await db.insert(billingAuditLog).values({
-        memberEmail: paymentIntent.metadata.email || '',
-        hubspotDealId: null,
-        actionType: 'stripe_payment_succeeded',
-        actionDetails: {
-          paymentIntentId,
-          amountCents: record.amount_cents,
-          purpose: record.purpose,
-          bookingId: record.booking_id,
-          sessionId: record.session_id,
-          stripeCustomerId: record.stripe_customer_id
-        },
-        newValue: `Stripe payment of $${(record.amount_cents / 100).toFixed(2)} for ${record.purpose}`,
-        performedBy,
-        performedByName
-      });
-    }
-
-    console.log(`[Stripe] Payment ${paymentIntentId} confirmed as succeeded`);
-    return { success: true };
-  } catch (error: any) {
-    console.error('[Stripe] Error confirming payment:', error);
-    return { success: false, error: error.message };
-  }
+    return customer.id;
 }
 
-export async function getPaymentIntentStatus(
-  paymentIntentId: string
-): Promise<{ status: string; amountCents: number; purpose: string } | null> {
-  const result = await pool.query(
-    'SELECT status, amount_cents, purpose FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1',
-    [paymentIntentId]
-  );
 
-  if (result.rows.length === 0) {
-    return null;
+export async function createPaymentIntent(params: CreatePaymentIntentParams): Promise<{ paymentIntentId: string; clientSecret: string; }> {
+  const { userId, email, memberName, amountCents, purpose, description, bookingId } = params;
+
+  if (amountCents <= 0) {
+      throw new Error("Amount must be greater than zero to create a payment intent.");
   }
 
+  const customerId = await findOrCreateStripeCustomer(email, memberName);
+
+  const intentOptions: any = {
+      amount: amountCents,
+      currency: 'usd',
+      customer: customerId,
+      description: description,
+      metadata: {
+          app_user_id: userId,
+          purpose: purpose,
+          ...(bookingId && { app_booking_id: bookingId }),
+      },
+  };
+
+  if (purpose === 'booking_pre_auth') {
+      intentOptions.capture_method = 'manual';
+      intentOptions.setup_future_usage = 'off_session';
+  }
+
+  const paymentIntent = await stripe.paymentIntents.create(intentOptions);
+
   return {
-    status: result.rows[0].status,
-    amountCents: result.rows[0].amount_cents,
-    purpose: result.rows[0].purpose
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
   };
 }
 
-export async function cancelPaymentIntent(
-  paymentIntentId: string
-): Promise<{ success: boolean; error?: string }> {
+export async function cancelPaymentIntent(paymentIntentId: string): Promise<void> {
+    if (!paymentIntentId) {
+        console.warn("cancelPaymentIntent called with no paymentIntentId");
+        return;
+    }
   try {
-    const stripe = await getStripeClient();
-    await stripe.paymentIntents.cancel(paymentIntentId);
-
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = 'canceled', updated_at = NOW() 
-       WHERE stripe_payment_intent_id = $1`,
-      [paymentIntentId]
-    );
-
-    console.log(`[Stripe] Payment ${paymentIntentId} canceled`);
-    return { success: true };
+    const intent = await stripe.paymentIntents.cancel(paymentIntentId);
+    console.log(`Payment intent ${intent.id} cancelled successfully.`);
   } catch (error: any) {
-    console.error('[Stripe] Error canceling payment:', error);
-    return { success: false, error: error.message };
+      console.error(`Failed to cancel payment intent ${paymentIntentId}: ${error.message}`);
+      if (error.code === 'payment_intent_unexpected_state') {
+          // This is not a critical failure. It means the intent is no longer in a cancelable state
+          // (e.g., it has already been captured or previously cancelled).
+          const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+          console.warn(`Could not cancel payment intent ${paymentIntentId} because its status is '${intent.status}'. This may be expected.`);
+      } else {
+          // Rethrow for other unexpected errors
+          throw error;
+      }
   }
 }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db';
 import { pool } from '../core/db';
 import { resources, availabilityBlocks, bookingRequests, notifications, facilityClosures, users, bookingMembers, bookingGuests, bookingParticipants, bookingPaymentAudit } from '../../shared/schema';
-import { eq, and, or, gte, lte, gt, lt, desc, asc, ne, sql } from 'drizzle-orm';
+import { eq, and, or, gte, lte, gt, lt, desc, asc, ne, sql, inArray } from 'drizzle-orm';
 import { isProduction } from '../core/db';
 import { getGoogleCalendarClient } from '../core/integrations';
 import { CALENDAR_CONFIG, getCalendarIdByName, createCalendarEvent, createCalendarEventOnCalendar, deleteCalendarEvent, getConferenceRoomBookingsFromCalendar } from '../core/calendar/index';
@@ -20,8 +20,10 @@ import { getSessionUser } from '../types/session';
 import { refundGuestPass } from './guestPasses';
 import { updateHubSpotContactVisitCount } from '../core/memberSync';
 import { createSessionWithUsageTracking } from '../core/bookingService/sessionManager';
-import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
+import { estimateBookingFees, calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
+import { createPaymentIntent, cancelPaymentIntent } from '../core/stripe/payments';
 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const router = Router();
 
 // Conference room bay ID constant
@@ -66,6 +68,30 @@ async function dismissStaffNotificationsForBooking(bookingId: number): Promise<v
     console.error('Failed to dismiss staff notifications:', error);
   }
 }
+
+router.post('/api/bookings/estimate-fees', async (req, res) => {
+    const { user_tier, duration, declared_player_count, user_email, request_date } = req.body;
+
+    if (!user_tier || !duration || !declared_player_count || !user_email || !request_date) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    try {
+        const { getTierPermissions } = await import('../core/tierService');
+        const tierPermissions = await getTierPermissions(user_tier);
+
+        const myRequests = await db.select()
+            .from(bookingRequests)
+            .where(and(eq(bookingRequests.userEmail, user_email), eq(bookingRequests.requestDate, request_date)));
+
+        const usedMinutesForDay = myRequests.reduce((acc, booking) => acc + booking.durationMinutes, 0);
+
+        const fees = estimateBookingFees(user_tier, duration, declared_player_count, usedMinutesForDay, tierPermissions);
+        res.json(fees);
+    } catch (error) {
+        logAndRespond(req, res, 500, 'Failed to estimate fees', error);
+    }
+});
 
 
 router.get('/api/bays', async (req, res) => {
@@ -590,6 +616,40 @@ router.post('/api/booking-requests', async (req, res) => {
     const endMins = totalMins % 60;
     const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
     
+    // Fee estimation logic
+    let estimatedFee = 0;
+    if (!reschedule_booking_id) {
+        const { getTierPermissions } = await import('../core/tierService');
+        const tierPermissions = await getTierPermissions(user_tier);
+
+        const myRequests = await db.select()
+            .from(bookingRequests)
+            .where(and(eq(bookingRequests.userEmail, user_email), eq(bookingRequests.requestDate, request_date)));
+
+        const usedMinutesForDay = myRequests.reduce((acc, booking) => acc + booking.durationMinutes, 0);
+
+        const fees = estimateBookingFees(user_tier, duration_minutes, declared_player_count, usedMinutesForDay, tierPermissions);
+        estimatedFee = fees.totalFee;
+    }
+
+    let paymentIntentResult;
+    if (estimatedFee > 0) {
+        try {
+            paymentIntentResult = await createPaymentIntent({
+                userId: sessionUser.id,
+                email: user_email,
+                memberName: user_name,
+                amountCents: estimatedFee * 100,
+                purpose: 'booking_pre_auth',
+                description: `Booking pre-authorization for ${user_name}`,
+                bookingId: undefined, // Not created yet
+            });
+        } catch (error) {
+            console.error("Failed to create payment intent", error);
+            return res.status(500).json({ error: "Failed to create payment intent" });
+        }
+    }
+
     const result = await db.insert(bookingRequests).values({
       userEmail: user_email.toLowerCase(),
       userName: user_name,
@@ -603,6 +663,7 @@ router.post('/api/booking-requests', async (req, res) => {
       rescheduleBookingId: reschedule_booking_id || null,
       declaredPlayerCount: declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null,
       memberNotes: member_notes ? String(member_notes).slice(0, 280) : null,
+      stripePaymentIntentId: paymentIntentResult?.paymentIntentId,
       guardianName: guardian_consent && guardian_name ? guardian_name : null,
       guardianRelationship: guardian_consent && guardian_relationship ? guardian_relationship : null,
       guardianPhone: guardian_consent && guardian_phone ? guardian_phone : null,
@@ -726,7 +787,8 @@ router.post('/api/booking-requests', async (req, res) => {
       created_at: row.createdAt,
       updated_at: row.updatedAt,
       calendar_event_id: row.calendarEventId,
-      reschedule_booking_id: row.rescheduleBookingId
+      reschedule_booking_id: row.rescheduleBookingId,
+      clientSecret: paymentIntentResult?.clientSecret
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to create booking request', error);
@@ -1228,7 +1290,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           requestDate: bookingRequests.requestDate,
           startTime: bookingRequests.startTime,
           status: bookingRequests.status,
-          resourceId: bookingRequests.resourceId
+          resourceId: bookingRequests.resourceId,
+          stripePaymentIntentId: bookingRequests.stripePaymentIntentId
         })
           .from(bookingRequests)
           .where(eq(bookingRequests.id, bookingId));
@@ -1330,6 +1393,15 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         return { updated: updatedRow, bookingData: existing, pushInfo };
       });
       
+      if (bookingData?.stripePaymentIntentId) {
+        try {
+            await cancelPaymentIntent(bookingData.stripePaymentIntentId);
+            console.log(`[Staff Cancel] Voided pre-authorization ${bookingData.stripePaymentIntentId} for booking ${bookingId}`);
+        } catch (error) {
+            console.error(`[Staff Cancel] Failed to void pre-authorization for booking ${bookingId}:`, error);
+        }
+      }
+
       if (bookingData?.calendarEventId) {
         try {
           const calendarName = await getCalendarNameForBayAsync(bookingData.resourceId);
@@ -1460,7 +1532,8 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       startTime: bookingRequests.startTime,
       status: bookingRequests.status,
       calendarEventId: bookingRequests.calendarEventId,
-      resourceId: bookingRequests.resourceId
+      resourceId: bookingRequests.resourceId,
+      stripePaymentIntentId: bookingRequests.stripePaymentIntentId
     })
       .from(bookingRequests)
       .where(eq(bookingRequests.id, bookingId));
@@ -1499,6 +1572,15 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       .where(eq(bookingRequests.id, bookingId))
       .returning();
     
+    if (existing.stripePaymentIntentId) {
+        try {
+            await cancelPaymentIntent(existing.stripePaymentIntentId);
+            console.log(`[Member Cancel] Voided pre-authorization ${existing.stripePaymentIntentId} for booking ${bookingId}`);
+        } catch (error) {
+            console.error(`[Member Cancel] Failed to void pre-authorization for booking ${bookingId}:`, error);
+        }
+    }
+
     if (wasApproved) {
       const memberName = existing.userName || existing.userEmail;
       const bookingDate = existing.requestDate;
@@ -1565,8 +1647,17 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     
     // First check the current booking status and session
     const existingResult = await pool.query(`
-      SELECT br.status, br.user_email, br.session_id
+      SELECT
+        br.status,
+        br.user_email,
+        br.session_id,
+        br.stripe_payment_intent_id,
+        br.request_date,
+        br.duration_minutes,
+        br.declared_player_count,
+        u.tier as user_tier
       FROM booking_requests br
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
       WHERE br.id = $1
     `, [bookingId]);
     
@@ -1729,6 +1820,41 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Booking status changed before update' });
     }
     
+    if (existing.stripe_payment_intent_id) {
+        const { getTierPermissions } = await import('../core/tierService');
+        const tierPermissions = await getTierPermissions(existing.user_tier);
+
+        const myRequests = await db.select()
+            .from(bookingRequests)
+            .where(and(
+                eq(bookingRequests.userEmail, existing.user_email),
+                eq(bookingRequests.requestDate, existing.request_date),
+                inArray(bookingRequests.status, ['approved', 'attended'])
+            ));
+
+        // Exclude the current booking's duration from the previously used minutes
+        const previouslyUsedMinutes = myRequests
+            .filter(booking => booking.id !== bookingId)
+            .reduce((acc, booking) => acc + booking.durationMinutes, 0);
+
+        const fees = estimateBookingFees(existing.user_tier, existing.duration_minutes, existing.declared_player_count, previouslyUsedMinutes, tierPermissions);
+        const finalAmountToCapture = fees.totalFee * 100;
+
+        if (finalAmountToCapture > 0) {
+            try {
+                await stripe.paymentIntents.capture(existing.stripe_payment_intent_id, {
+                    amount_to_capture: finalAmountToCapture,
+                });
+            } catch (error) {
+                console.error("Failed to capture payment intent", error);
+                return res.status(500).json({
+                    error: 'Payment capture failed',
+                    message: 'Could not capture the pre-authorized amount. Please check Stripe for details.'
+                });
+            }
+        }
+    }
+
     // Increment lifetime visits for the member only if marked as attended
     const booking = result[0];
     if (newStatus === 'attended' && booking.userEmail) {
