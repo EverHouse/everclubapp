@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
+import { useRealtimeStore } from '../stores/realtimeStore';
 import { bookingEvents } from '../lib/bookingEvents';
 
 export interface UseSupabaseRealtimeOptions {
@@ -21,27 +22,26 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
     onBookingUpdate,
     onAnnouncementUpdate
   } = options;
+  const { setSupabaseConnected, shouldUseSupabase } = useRealtimeStore();
 
   const channelsRef = useRef<RealtimeChannel[]>([]);
   const isSubscribedRef = useRef(false);
 
   const handleNotification = useCallback((payload: any) => {
     window.dispatchEvent(new CustomEvent('member-notification', { detail: payload }));
-    // Only emit if WebSocket is not handling events (Supabase Realtime acts as fallback)
-    if (!window.__wsConnected) {
+    if (shouldUseSupabase()) {
       bookingEvents.emit();
     }
     onNotification?.(payload);
-  }, [onNotification]);
+  }, [onNotification, shouldUseSupabase]);
 
   const handleBookingUpdate = useCallback((payload: any) => {
     window.dispatchEvent(new CustomEvent('booking-update', { detail: payload }));
-    // Only emit if WebSocket is not handling events (Supabase Realtime acts as fallback)
-    if (!window.__wsConnected) {
+    if (shouldUseSupabase()) {
       bookingEvents.emit();
     }
     onBookingUpdate?.(payload);
-  }, [onBookingUpdate]);
+  }, [onBookingUpdate, shouldUseSupabase]);
 
   const handleAnnouncementUpdate = useCallback((payload: any) => {
     window.dispatchEvent(new CustomEvent('announcement-update', { detail: payload }));
@@ -139,7 +139,10 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
 
         channel.subscribe((status) => {
           if (status === 'SUBSCRIBED') {
+            setSupabaseConnected(true);
             console.log(`[Supabase Realtime] Subscribed to ${table}`);
+          } else {
+            setSupabaseConnected(false);
           }
         });
 
@@ -153,13 +156,14 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
     subscribeToTables();
 
     return () => {
+      setSupabaseConnected(false);
       channelsRef.current.forEach((channel) => {
         supabase.removeChannel(channel);
       });
       channelsRef.current = [];
       isSubscribedRef.current = false;
     };
-  }, [userEmail, tables, handleNotification, handleBookingUpdate, handleAnnouncementUpdate]);
+  }, [userEmail, tables, handleNotification, handleBookingUpdate, handleAnnouncementUpdate, setSupabaseConnected]);
 
   return {
     isConfigured: !!getSupabase()

@@ -1,13 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useUserStore } from '../stores/userStore';
+import { useRealtimeStore } from '../stores/realtimeStore';
 import { apiRequest } from '../lib/apiRequest';
 import { bookingEvents } from '../lib/bookingEvents';
-
-declare global {
-  interface Window {
-    __wsConnected?: boolean;
-  }
-}
 
 interface WebSocketMessage {
   type: string;
@@ -22,6 +17,7 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
   const { user, fetchNotifications } = useUserStore();
+  const setWsConnected = useRealtimeStore((state) => state.setWsConnected);
   const { effectiveEmail } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -61,7 +57,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       ws.onopen = () => {
         isConnectingRef.current = false;
-        window.__wsConnected = true;
+        setWsConnected(true);
         ws.send(JSON.stringify({ type: 'auth', email: emailToUse }));
       };
 
@@ -143,7 +139,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ws.onclose = () => {
         isConnectingRef.current = false;
         wsRef.current = null;
-        window.__wsConnected = false;
+        setWsConnected(false);
         
         if (emailToUse) {
           reconnectTimeoutRef.current = setTimeout(() => {

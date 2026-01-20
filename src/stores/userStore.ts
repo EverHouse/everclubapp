@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiRequest } from '../lib/apiRequest';
+import { getSupabase, setSupabaseAuth } from '../lib/supabase';
 
 export interface UserProfile {
   id: string;
@@ -39,9 +40,10 @@ interface UserState {
   guestPasses: GuestPasses | null;
   bookings: UserBooking[];
   unreadNotifications: number;
+  supabaseToken: string | null;
   isHydrated: boolean;
   
-  setUser: (user: UserProfile | null) => void;
+  setUser: (user: UserProfile | null, supabaseToken?: string) => void;
   clearUser: () => void;
   
   fetchGuestPasses: () => Promise<void>;
@@ -57,10 +59,14 @@ export const useUserStore = create<UserState>()(
       guestPasses: null,
       bookings: [],
       unreadNotifications: 0,
+      supabaseToken: null,
       isHydrated: false,
 
-      setUser: (user) => {
-        set({ user });
+      setUser: (user, supabaseToken) => {
+        set({ user, supabaseToken: supabaseToken || null });
+        if (supabaseToken) {
+          setSupabaseAuth(supabaseToken);
+        }
         if (user) {
           get().refreshAll();
         }
@@ -71,8 +77,10 @@ export const useUserStore = create<UserState>()(
           user: null, 
           guestPasses: null, 
           bookings: [], 
-          unreadNotifications: 0 
+          unreadNotifications: 0,
+          supabaseToken: null
         });
+        setSupabaseAuth(null);
       },
 
       fetchGuestPasses: async () => {
@@ -125,11 +133,15 @@ export const useUserStore = create<UserState>()(
       partialize: (state) => ({
         user: state.user,
         guestPasses: state.guestPasses,
-        unreadNotifications: state.unreadNotifications
+        unreadNotifications: state.unreadNotifications,
+        supabaseToken: state.supabaseToken
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.isHydrated = true;
+          if (state.supabaseToken) {
+            setSupabaseAuth(state.supabaseToken);
+          }
           if (state.user) {
             state.refreshAll();
           }

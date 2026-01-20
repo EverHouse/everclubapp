@@ -17,9 +17,7 @@ export function getSupabase(): SupabaseClient | null {
   const url = import.meta.env.VITE_SUPABASE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
-  // Validate both URL and key format to prevent connection errors
   if (!url || !anonKey || !isValidSupabaseKey(anonKey)) {
-    // Silently skip - Supabase Realtime is optional, WebSocket is primary
     return null;
   }
   
@@ -29,6 +27,9 @@ export function getSupabase(): SupabaseClient | null {
         params: {
           eventsPerSecond: 10
         }
+      },
+      auth: {
+        persistSession: false
       }
     });
     return supabaseClient;
@@ -39,6 +40,18 @@ export function getSupabase(): SupabaseClient | null {
 
 export const supabase = getSupabase();
 export const isSupabaseConfigured = !!supabase;
+
+export function setSupabaseAuth(token: string | null) {
+  const client = getSupabase();
+  if (client && token) {
+    client.auth.setSession({
+      access_token: token,
+      refresh_token: ''
+    });
+  } else if (client) {
+    client.auth.signOut();
+  }
+}
 
 export type AuthProvider = 'google' | 'apple' | 'github';
 
