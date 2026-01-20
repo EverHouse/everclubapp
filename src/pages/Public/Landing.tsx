@@ -6,6 +6,7 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useParallax } from '../../hooks/useParallax';
 import { playSound } from '../../utils/sounds';
 import ModalShell from '../../components/ModalShell';
+import EditorialSection from '../../components/layout/EditorialSection';
 
 interface MembershipTier {
   id: number;
@@ -365,6 +366,36 @@ const Landing: React.FC = () => {
             delay="0.4s"
           />
         </div>
+      </div>
+
+      {/* Editorial Sections */}
+      <div>
+        <EditorialSection
+          image="/images/golf-sims-optimized.webp"
+          title="World-Class Golf Simulators"
+          description="Experience golf like never before with our four TrackMan 4 bays featuring the industry's most accurate ball-tracking technology. Whether you're perfecting your swing, playing Pebble Beach, or enjoying a round with friends, our simulators bring the world's best courses to you."
+          ctaLabel="Book a Bay"
+          ctaLink="/membership"
+          reversed={false}
+        />
+        
+        <EditorialSection
+          image="/images/cafe-bar-optimized.webp"
+          title="Farm-to-Table Cafe"
+          description="Our chef-driven cafe serves thoughtfully crafted dishes and specialty coffee in a relaxed atmosphere. From morning espresso to afternoon bites, fuel your day with locally-sourced ingredients and a menu designed for both quick visits and lingering conversations."
+          ctaLabel="View Menu"
+          ctaLink="/cafe"
+          reversed={true}
+        />
+        
+        <EditorialSection
+          image="/images/cowork-optimized.webp"
+          title="Work From the Club"
+          description="Blend productivity with pleasure in our dedicated co-working spaces. High-speed wifi, private conference rooms, and a professional yet relaxed atmosphere make Ever House the perfect alternative to your home office or crowded coffee shop."
+          ctaLabel="Learn More"
+          ctaLink="/membership"
+          reversed={false}
+        />
       </div>
 
       {/* Press & Media Section */}
