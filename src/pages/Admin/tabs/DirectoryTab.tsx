@@ -29,7 +29,8 @@ interface MobileRowProps {
 }
 
 const MobileRowComponent = ({ index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal, handleViewAs }: ListChildComponentProps & MobileRowProps) => {
-    const m = data[index];
+    const m = data?.[index];
+    if (!m) return null;
     return (
         <div style={{ ...style, paddingBottom: 12 }}>
             <div 
@@ -95,7 +96,8 @@ interface DesktopRowProps {
 }
 
 const DesktopRowComponent = ({ index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal }: ListChildComponentProps & DesktopRowProps) => {
-    const m = data[index];
+    const m = data?.[index];
+    if (!m) return null;
     return (
         <div 
             style={style}
@@ -329,6 +331,23 @@ const DirectoryTab: React.FC = () => {
         };
     }, [isViewingDetails, selectedMember]);
 
+    // Fetch visitors - defined before handleTabChange to avoid circular reference
+    const fetchVisitors = useCallback(async () => {
+        setVisitorsLoading(true);
+        setVisitorsError(false);
+        try {
+            const res = await fetch('/api/visitors', { credentials: 'include' });
+            if (!res.ok) throw new Error('Failed to fetch visitors');
+            const data = await res.json();
+            setVisitors(data.visitors || []);
+        } catch (err) {
+            console.error('Error loading visitors:', err);
+            setVisitorsError(true);
+        } finally {
+            setVisitorsLoading(false);
+        }
+    }, []);
+
     // Fetch former members or visitors when switching to that tab
     const handleTabChange = useCallback(async (tab: MemberTab) => {
         setMemberTab(tab);
@@ -363,23 +382,6 @@ const DirectoryTab: React.FC = () => {
         }
     }, [fetchFormerMembers]);
 
-    // Fetch visitors
-    const fetchVisitors = useCallback(async () => {
-        setVisitorsLoading(true);
-        setVisitorsError(false);
-        try {
-            const res = await fetch('/api/visitors', { credentials: 'include' });
-            if (!res.ok) throw new Error('Failed to fetch visitors');
-            const data = await res.json();
-            setVisitors(data.visitors || []);
-        } catch (err) {
-            console.error('Error loading visitors:', err);
-            setVisitorsError(true);
-        } finally {
-            setVisitorsLoading(false);
-        }
-    }, []);
-
     // Fetch visitor purchases
     const fetchVisitorPurchases = useCallback(async (visitorId: string) => {
         setPurchasesLoading(true);
@@ -403,11 +405,11 @@ const DirectoryTab: React.FC = () => {
         fetchVisitorPurchases(visitor.id);
     }, [fetchVisitorPurchases]);
 
-    // Get current member list based on tab
-    const currentMembers = memberTab === 'active' ? members : formerMembers;
+    // Get current member list based on tab - ensure arrays are always defined
+    const currentMembers = memberTab === 'active' ? (members || []) : (formerMembers || []);
     
     const regularMembers = useMemo(() => 
-        currentMembers.filter(m => !m.role || m.role === 'member'), 
+        (currentMembers || []).filter(m => !m.role || m.role === 'member'), 
         [currentMembers]
     );
 

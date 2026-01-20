@@ -1,19 +1,40 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseClient: SupabaseClient | null = null;
+let initAttempted = false;
+
+function isValidSupabaseKey(key: string): boolean {
+  // Supabase anon keys are JWTs that start with 'eyJ'
+  return key && key.startsWith('eyJ') && key.length > 100;
+}
 
 export function getSupabase(): SupabaseClient | null {
   if (supabaseClient) return supabaseClient;
+  if (initAttempted) return null;
+  
+  initAttempted = true;
   
   const url = import.meta.env.VITE_SUPABASE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   
-  if (!url || !anonKey) {
+  // Validate both URL and key format to prevent connection errors
+  if (!url || !anonKey || !isValidSupabaseKey(anonKey)) {
+    // Silently skip - Supabase Realtime is optional, WebSocket is primary
     return null;
   }
   
-  supabaseClient = createClient(url, anonKey);
-  return supabaseClient;
+  try {
+    supabaseClient = createClient(url, anonKey, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      }
+    });
+    return supabaseClient;
+  } catch {
+    return null;
+  }
 }
 
 export const supabase = getSupabase();
