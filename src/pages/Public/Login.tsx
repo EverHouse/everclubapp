@@ -228,6 +228,26 @@ const Login: React.FC = () => {
         throw new Error(data.error || 'Invalid code');
       }
       
+      // NOTE: Supabase Auth Session Sync for RLS
+      // Since OTP is verified server-side (not via Supabase Auth), we cannot directly
+      // establish a Supabase session here. For RLS on the notifications table to work:
+      // 1. The server would need to generate Supabase access/refresh tokens via Admin API
+      // 2. The server would return these tokens in the response
+      // 3. We would call supabase.auth.setSession({ access_token, refresh_token })
+      // 
+      // Current implementation: Supabase Realtime is used for real-time updates without RLS.
+      // If the server returns supabaseSession data in the future, enable the session sync:
+      // if (data.supabaseSession?.access_token && data.supabaseSession?.refresh_token) {
+      //   const { getSupabase } = await import('../../lib/supabase');
+      //   const supabase = getSupabase();
+      //   if (supabase) {
+      //     await supabase.auth.setSession({
+      //       access_token: data.supabaseSession.access_token,
+      //       refresh_token: data.supabaseSession.refresh_token,
+      //     });
+      //   }
+      // }
+      
       loginWithMember(data.member);
       
       const isStaff = data.member.role === 'admin' || data.member.role === 'staff';

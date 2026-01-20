@@ -202,6 +202,11 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
       unlimited_access ?? false
     ]);
     
+    // Invalidate tier cache for the new tier
+    const newTier = result.rows[0];
+    if (newTier.name) invalidateTierCache(newTier.name);
+    if (newTier.slug) invalidateTierCache(newTier.slug);
+    
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
     if (!isProduction) console.error('Membership tier create error:', error);

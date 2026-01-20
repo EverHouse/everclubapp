@@ -65,6 +65,7 @@ import { startIntegrityScheduler } from './schedulers/integrityScheduler';
 import { startWaiverReviewScheduler } from './schedulers/waiverReviewScheduler';
 import { processStripeWebhook, getStripeSync } from './core/stripe';
 import { runMigrations } from 'stripe-replit-sync';
+import { enableRealtimeForTable } from './core/supabase/client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -511,6 +512,17 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error('[Stripe] Initialization failed (non-fatal):', err.message);
+    }
+
+    // Enable Supabase Realtime for tables that need real-time updates
+    try {
+      console.log('[Supabase] Enabling realtime for tables...');
+      await enableRealtimeForTable('notifications');
+      await enableRealtimeForTable('booking_sessions');
+      await enableRealtimeForTable('announcements');
+      console.log('[Supabase] Realtime enabled for notifications, booking_sessions, announcements');
+    } catch (err: any) {
+      console.error('[Supabase] Realtime setup failed (non-fatal):', err.message);
     }
   }, 5000);
 

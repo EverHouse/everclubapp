@@ -3,6 +3,12 @@ import { useUserStore } from '../stores/userStore';
 import { apiRequest } from '../lib/apiRequest';
 import { bookingEvents } from '../lib/bookingEvents';
 
+declare global {
+  interface Window {
+    __wsConnected?: boolean;
+  }
+}
+
 interface WebSocketMessage {
   type: string;
   title?: string;
@@ -55,6 +61,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       ws.onopen = () => {
         isConnectingRef.current = false;
+        window.__wsConnected = true;
         ws.send(JSON.stringify({ type: 'auth', email: emailToUse }));
       };
 
@@ -136,6 +143,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ws.onclose = () => {
         isConnectingRef.current = false;
         wsRef.current = null;
+        window.__wsConnected = false;
         
         if (emailToUse) {
           reconnectTimeoutRef.current = setTimeout(() => {

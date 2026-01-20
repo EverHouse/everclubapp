@@ -27,13 +27,19 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
 
   const handleNotification = useCallback((payload: any) => {
     window.dispatchEvent(new CustomEvent('member-notification', { detail: payload }));
-    bookingEvents.emit();
+    // Only emit if WebSocket is not handling events (Supabase Realtime acts as fallback)
+    if (!window.__wsConnected) {
+      bookingEvents.emit();
+    }
     onNotification?.(payload);
   }, [onNotification]);
 
   const handleBookingUpdate = useCallback((payload: any) => {
     window.dispatchEvent(new CustomEvent('booking-update', { detail: payload }));
-    bookingEvents.emit();
+    // Only emit if WebSocket is not handling events (Supabase Realtime acts as fallback)
+    if (!window.__wsConnected) {
+      bookingEvents.emit();
+    }
     onBookingUpdate?.(payload);
   }, [onBookingUpdate]);
 

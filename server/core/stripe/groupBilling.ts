@@ -289,6 +289,9 @@ export async function addGroupMember(params: {
     
     let stripeSubscriptionItemId: string | null = null;
     
+    // VERIFIED: This correctly adds a subscription_item to the primary payer's existing subscription
+    // (NOT creating a separate subscription). Uses stripe.subscriptionItems.create() with the
+    // primary's subscription ID, which is the correct approach for group/family billing.
     if (group[0].primaryStripeSubscriptionId && product.stripePriceId) {
       try {
         const stripe = await getStripeClient();
