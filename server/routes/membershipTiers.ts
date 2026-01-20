@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool, isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { invalidateTierCache, clearTierCache } from '../core/tierService';
-import { syncMembershipTiersToStripe, getTierSyncStatus } from '../core/stripe/products';
+import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts } from '../core/stripe/products';
 
 const router = Router();
 
@@ -213,18 +213,29 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
   }
 });
 
-// Admin endpoint to sync all membership tiers to Stripe
+// Admin endpoint to sync all membership tiers to Stripe (two-way sync)
 router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) => {
   try {
     console.log('[Admin] Starting Stripe product sync...');
-    const result = await syncMembershipTiersToStripe();
-    console.log(`[Admin] Stripe sync complete: ${result.synced} synced, ${result.failed} failed, ${result.skipped} skipped`);
+    
+    // Step 1: Push app products to Stripe
+    const syncResult = await syncMembershipTiersToStripe();
+    console.log(`[Admin] Stripe sync complete: ${syncResult.synced} synced, ${syncResult.failed} failed, ${syncResult.skipped} skipped`);
+    
+    // Step 2: Archive orphan Stripe products not in the app
+    const cleanupResult = await cleanupOrphanStripeProducts();
+    console.log(`[Admin] Stripe cleanup complete: ${cleanupResult.archived} archived, ${cleanupResult.skipped} skipped`);
+    
     res.json({ 
-      success: result.success, 
-      synced: result.synced,
-      failed: result.failed,
-      skipped: result.skipped,
-      details: result.results 
+      success: syncResult.success && cleanupResult.success, 
+      synced: syncResult.synced,
+      failed: syncResult.failed,
+      skipped: syncResult.skipped,
+      archived: cleanupResult.archived,
+      cleanupSkipped: cleanupResult.skipped,
+      cleanupErrors: cleanupResult.errors,
+      details: syncResult.results,
+      cleanupDetails: cleanupResult.results
     });
   } catch (error: any) {
     console.error('[Admin] Stripe sync error:', error);

@@ -561,3 +561,100 @@ export async function getTierSyncStatus(): Promise<Array<{
     return [];
   }
 }
+
+export interface OrphanCleanupResult {
+  productId: string;
+  productName: string;
+  action: 'archived' | 'skipped' | 'error';
+  reason?: string;
+}
+
+export async function cleanupOrphanStripeProducts(): Promise<{
+  success: boolean;
+  archived: number;
+  skipped: number;
+  errors: number;
+  results: OrphanCleanupResult[];
+}> {
+  const results: OrphanCleanupResult[] = [];
+  let archived = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  try {
+    const stripe = await getStripeClient();
+    
+    const tiers = await db.select().from(membershipTiers).where(eq(membershipTiers.isActive, true));
+    const activeTierIds = new Set(tiers.map(t => t.id.toString()));
+    const activeStripeProductIds = new Set(tiers.map(t => t.stripeProductId).filter(Boolean));
+    
+    console.log(`[Stripe Cleanup] Found ${activeTierIds.size} active tiers, ${activeStripeProductIds.size} with Stripe products`);
+
+    let hasMore = true;
+    let startingAfter: string | undefined;
+    
+    while (hasMore) {
+      const params: any = { limit: 100, active: true };
+      if (startingAfter) params.starting_after = startingAfter;
+      
+      const products = await stripe.products.list(params);
+      
+      for (const product of products.data) {
+        if (product.metadata?.source !== 'ever_house_app') {
+          continue;
+        }
+        
+        const tierId = product.metadata?.tier_id;
+        
+        if (!tierId) {
+          console.log(`[Stripe Cleanup] Skipping ${product.name}: No tier_id metadata`);
+          results.push({
+            productId: product.id,
+            productName: product.name,
+            action: 'skipped',
+            reason: 'No tier_id metadata - may be manually created',
+          });
+          skipped++;
+          continue;
+        }
+        
+        if (activeTierIds.has(tierId)) {
+          continue;
+        }
+        
+        try {
+          await stripe.products.update(product.id, { active: false });
+          
+          console.log(`[Stripe Cleanup] Archived orphan product: ${product.name} (tier_id: ${tierId})`);
+          results.push({
+            productId: product.id,
+            productName: product.name,
+            action: 'archived',
+            reason: `Tier ID ${tierId} no longer active in app`,
+          });
+          archived++;
+        } catch (archiveError: any) {
+          console.error(`[Stripe Cleanup] Error archiving ${product.name}:`, archiveError);
+          results.push({
+            productId: product.id,
+            productName: product.name,
+            action: 'error',
+            reason: archiveError.message,
+          });
+          errors++;
+        }
+      }
+      
+      hasMore = products.has_more;
+      if (products.data.length > 0) {
+        startingAfter = products.data[products.data.length - 1].id;
+      }
+    }
+    
+    console.log(`[Stripe Cleanup] Complete: ${archived} archived, ${skipped} skipped, ${errors} errors`);
+    return { success: true, archived, skipped, errors, results };
+  } catch (error: any) {
+    console.error('[Stripe Cleanup] Fatal error:', error);
+    return { success: false, archived, skipped, errors, results };
+  }
+}
