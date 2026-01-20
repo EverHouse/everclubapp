@@ -89,7 +89,7 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
     const formattedResults = results.map(user => ({
       id: user.id,
       name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown',
-      emailRedacted: redactEmail(user.email || ''),
+      email: user.email || '',
       tier: user.tier || undefined,
     }));
     
