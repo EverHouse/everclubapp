@@ -2095,6 +2095,152 @@ router.get('/api/payments/failed', isStaffOrAdmin, async (req: Request, res: Res
   }
 });
 
+const MAX_RETRY_ATTEMPTS = 3;
+
+router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId } = req.body;
+    const staffUser = (req as any).staffUser;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
+    }
+
+    const payment = await getPaymentByIntentId(paymentIntentId);
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    const retryResult = await pool.query(
+      `SELECT retry_count, requires_card_update FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+    
+    const currentRetryCount = retryResult.rows[0]?.retry_count || 0;
+    const requiresCardUpdate = retryResult.rows[0]?.requires_card_update || false;
+
+    if (requiresCardUpdate) {
+      return res.status(400).json({ 
+        error: 'This payment has reached the maximum retry limit. The member needs to update their payment method.',
+        requiresCardUpdate: true,
+        retryCount: currentRetryCount
+      });
+    }
+
+    if (currentRetryCount >= MAX_RETRY_ATTEMPTS) {
+      return res.status(400).json({ 
+        error: `Maximum retry limit (${MAX_RETRY_ATTEMPTS}) reached. Member must update their card.`,
+        requiresCardUpdate: true,
+        retryCount: currentRetryCount
+      });
+    }
+
+    const stripe = await (await import('../core/stripe/client')).getStripeClient();
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (paymentIntent.status === 'succeeded') {
+      await updatePaymentStatus(paymentIntentId, 'succeeded');
+      return res.json({ 
+        success: true, 
+        message: 'Payment was already successful',
+        status: 'succeeded'
+      });
+    }
+
+    if (!['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status)) {
+      return res.status(400).json({ 
+        error: `Cannot retry payment with status: ${paymentIntent.status}` 
+      });
+    }
+
+    const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntentId);
+    const newRetryCount = currentRetryCount + 1;
+    const nowReachesLimit = newRetryCount >= MAX_RETRY_ATTEMPTS;
+
+    if (confirmedIntent.status === 'succeeded') {
+      await pool.query(
+        `UPDATE stripe_payment_intents 
+         SET status = 'succeeded', 
+             updated_at = NOW(),
+             retry_count = $2,
+             last_retry_at = NOW(),
+             requires_card_update = FALSE
+         WHERE stripe_payment_intent_id = $1`,
+        [paymentIntentId, newRetryCount]
+      );
+
+      await db.insert(billingAuditLog).values({
+        memberEmail: payment.member_email || 'unknown',
+        hubspotDealId: null,
+        actionType: 'payment_retry_succeeded',
+        actionDetails: {
+          paymentIntentId,
+          retryAttempt: newRetryCount,
+          amount: payment.amount_cents
+        },
+        newValue: `Retry #${newRetryCount} succeeded: $${(payment.amount_cents / 100).toFixed(2)}`,
+        performedBy: staffUser?.email || 'staff',
+        performedByName: staffUser?.name || 'Staff Member'
+      });
+
+      console.log(`[Payments] Retry #${newRetryCount} succeeded for ${paymentIntentId}`);
+
+      res.json({
+        success: true,
+        status: 'succeeded',
+        retryCount: newRetryCount,
+        message: 'Payment retry successful'
+      });
+    } else {
+      const failureReason = (confirmedIntent as any).last_payment_error?.message || `Status: ${confirmedIntent.status}`;
+      
+      await pool.query(
+        `UPDATE stripe_payment_intents 
+         SET status = $2, 
+             updated_at = NOW(),
+             retry_count = $3,
+             last_retry_at = NOW(),
+             failure_reason = $4,
+             requires_card_update = $5
+         WHERE stripe_payment_intent_id = $1`,
+        [paymentIntentId, confirmedIntent.status, newRetryCount, failureReason, nowReachesLimit]
+      );
+
+      await db.insert(billingAuditLog).values({
+        memberEmail: payment.member_email || 'unknown',
+        hubspotDealId: null,
+        actionType: 'payment_retry_failed',
+        actionDetails: {
+          paymentIntentId,
+          retryAttempt: newRetryCount,
+          newStatus: confirmedIntent.status,
+          reachedLimit: nowReachesLimit
+        },
+        newValue: `Retry #${newRetryCount} failed: ${confirmedIntent.status}${nowReachesLimit ? ' (limit reached)' : ''}`,
+        performedBy: staffUser?.email || 'staff',
+        performedByName: staffUser?.name || 'Staff Member'
+      });
+
+      console.log(`[Payments] Retry #${newRetryCount} failed for ${paymentIntentId}: ${confirmedIntent.status}`);
+
+      res.json({
+        success: false,
+        status: confirmedIntent.status,
+        retryCount: newRetryCount,
+        requiresCardUpdate: nowReachesLimit,
+        message: nowReachesLimit 
+          ? 'Maximum retry attempts reached. Member must update their payment method.'
+          : `Payment requires further action: ${confirmedIntent.status}`
+      });
+    }
+  } catch (error: any) {
+    console.error('[Payments] Error retrying payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to retry payment' });
+  }
+});
+
 router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents, reason } = req.body;

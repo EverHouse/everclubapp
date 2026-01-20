@@ -17,6 +17,10 @@ export interface RefundablePayment extends PaymentWithMember {}
 
 export interface FailedPayment extends PaymentWithMember {
   failureReason: string | null;
+  retryCount: number;
+  lastRetryAt: Date | null;
+  requiresCardUpdate: boolean;
+  dunningNotifiedAt: Date | null;
 }
 
 export interface PendingAuthorization extends PaymentWithMember {
@@ -75,6 +79,11 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
       description: stripePaymentIntents.description,
       status: stripePaymentIntents.status,
       createdAt: stripePaymentIntents.createdAt,
+      failureReason: stripePaymentIntents.failureReason,
+      retryCount: stripePaymentIntents.retryCount,
+      lastRetryAt: stripePaymentIntents.lastRetryAt,
+      requiresCardUpdate: stripePaymentIntents.requiresCardUpdate,
+      dunningNotifiedAt: stripePaymentIntents.dunningNotifiedAt,
     })
     .from(stripePaymentIntents)
     .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
@@ -90,7 +99,11 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
     amount: row.amount,
     description: row.description,
     status: row.status,
-    failureReason: null,
+    failureReason: row.failureReason,
+    retryCount: row.retryCount || 0,
+    lastRetryAt: row.lastRetryAt,
+    requiresCardUpdate: row.requiresCardUpdate || false,
+    dunningNotifiedAt: row.dunningNotifiedAt,
     createdAt: row.createdAt,
   }));
 }

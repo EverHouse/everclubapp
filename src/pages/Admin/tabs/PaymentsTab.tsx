@@ -88,6 +88,10 @@ interface FailedPayment {
   description: string | null;
   status: string;
   failureReason: string | null;
+  retryCount: number;
+  lastRetryAt: string | null;
+  requiresCardUpdate: boolean;
+  dunningNotifiedAt: string | null;
   createdAt: string;
 }
 
@@ -1402,30 +1406,59 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
   );
 };
 
+const MAX_RETRY_ATTEMPTS = 3;
+
 const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
   const [failedPayments, setFailedPayments] = useState<FailedPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
+  const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(null);
+
+  const fetchFailedPayments = async () => {
+    try {
+      const res = await fetch('/api/payments/failed', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setFailedPayments(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch failed payments:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchFailedPayments = async () => {
-      try {
-        const res = await fetch('/api/payments/failed', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setFailedPayments(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch failed payments:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchFailedPayments();
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const handleRetryPayment = async (paymentIntentId: string) => {
+    setRetryingPaymentId(paymentIntentId);
+    try {
+      const res = await fetch('/api/payments/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ paymentIntentId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await fetchFailedPayments();
+      } else {
+        console.error('Retry failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Error retrying payment:', err);
+    } finally {
+      setRetryingPaymentId(null);
+    }
+  };
+
+  const getStatusBadge = (payment: FailedPayment) => {
+    if (payment.requiresCardUpdate) {
+      return { label: 'Card Update Required', className: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400' };
+    }
+    switch (payment.status) {
       case 'failed':
         return { label: 'Failed', className: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' };
       case 'canceled':
@@ -1435,7 +1468,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
       case 'requires_payment_method':
         return { label: 'No Payment Method', className: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400' };
       default:
-        return { label: status, className: 'bg-gray-100 dark:bg-gray-800/40 text-gray-700 dark:text-gray-400' };
+        return { label: payment.status, className: 'bg-gray-100 dark:bg-gray-800/40 text-gray-700 dark:text-gray-400' };
     }
   };
 
@@ -1457,12 +1490,24 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
   ) : (
     <div className="space-y-2 max-h-[350px] overflow-y-auto">
       {failedPayments.map(payment => {
-        const badge = getStatusBadge(payment.status);
+        const badge = getStatusBadge(payment);
+        const canRetry = !payment.requiresCardUpdate && payment.retryCount < MAX_RETRY_ATTEMPTS;
+        const isRetrying = retryingPaymentId === payment.paymentIntentId;
         return (
           <div key={payment.id} className="p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-red-100 dark:border-red-900/20">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                payment.requiresCardUpdate 
+                  ? 'bg-purple-100 dark:bg-purple-900/30' 
+                  : 'bg-red-100 dark:bg-red-900/30'
+              }`}>
+                <span className={`material-symbols-outlined ${
+                  payment.requiresCardUpdate 
+                    ? 'text-purple-600 dark:text-purple-400' 
+                    : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {payment.requiresCardUpdate ? 'credit_card_off' : 'error'}
+                </span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1470,6 +1515,11 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                   <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badge.className}`}>
                     {badge.label}
                   </span>
+                  {payment.retryCount > 0 && (
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800/40 text-gray-600 dark:text-gray-400">
+                      Attempt {payment.retryCount}/{MAX_RETRY_ATTEMPTS}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-primary/60 dark:text-white/60 truncate mt-0.5">
                   {payment.description || 'No description'}
@@ -1490,13 +1540,29 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="font-bold text-red-600 dark:text-red-400">${(payment.amount / 100).toFixed(2)}</p>
-                <button
-                  onClick={() => handleContactMember(payment.memberEmail)}
-                  className="mt-1 px-2 py-1 text-xs font-medium text-primary dark:text-lavender hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-sm">mail</span>
-                  Contact
-                </button>
+                <div className="mt-1 flex flex-col gap-1">
+                  {canRetry && (
+                    <button
+                      onClick={() => handleRetryPayment(payment.paymentIntentId)}
+                      disabled={isRetrying}
+                      className="px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {isRetrying ? (
+                        <span className="animate-spin w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full" />
+                      ) : (
+                        <span className="material-symbols-outlined text-sm">refresh</span>
+                      )}
+                      Retry
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleContactMember(payment.memberEmail)}
+                    className="px-2 py-1 text-xs font-medium text-primary dark:text-lavender hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-sm">mail</span>
+                    Contact
+                  </button>
+                </div>
               </div>
             </div>
           </div>

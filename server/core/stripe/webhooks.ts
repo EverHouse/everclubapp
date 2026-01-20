@@ -292,19 +292,41 @@ async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
   }
 }
 
+const MAX_RETRY_ATTEMPTS = 3;
+
 async function handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
   const { id, metadata, amount, last_payment_error } = paymentIntent;
   const reason = last_payment_error?.message || 'Payment could not be processed';
   
   console.log(`[Stripe Webhook] Payment failed: ${id}, amount: $${(amount / 100).toFixed(2)}, reason: ${reason}`);
 
+  let currentRetryCount = 0;
+  let requiresCardUpdate = false;
+
   try {
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = 'failed', updated_at = NOW() 
-       WHERE stripe_payment_intent_id = $1`,
+    const existingResult = await pool.query(
+      `SELECT retry_count FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
       [id]
     );
+    currentRetryCount = existingResult.rows[0]?.retry_count || 0;
+    
+    const newRetryCount = currentRetryCount + 1;
+    requiresCardUpdate = newRetryCount >= MAX_RETRY_ATTEMPTS;
+
+    await pool.query(
+      `UPDATE stripe_payment_intents 
+       SET status = 'failed', 
+           updated_at = NOW(),
+           retry_count = $2,
+           last_retry_at = NOW(),
+           failure_reason = $3,
+           dunning_notified_at = NOW(),
+           requires_card_update = $4
+       WHERE stripe_payment_intent_id = $1`,
+      [id, newRetryCount, reason, requiresCardUpdate]
+    );
+    
+    console.log(`[Stripe Webhook] Updated payment ${id}: retry ${newRetryCount}/${MAX_RETRY_ATTEMPTS}, requires_card_update=${requiresCardUpdate}`);
   } catch (error) {
     console.error('[Stripe Webhook] Error updating payment intent status to failed:', error);
   }
@@ -323,7 +345,13 @@ async function handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
       ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
       : email;
 
-    await notifyPaymentFailed(email, amount / 100, reason, { 
+    const memberMessage = requiresCardUpdate
+      ? `Your payment of $${(amount / 100).toFixed(2)} failed after ${MAX_RETRY_ATTEMPTS} attempts. Please update your payment method.`
+      : `Your payment of $${(amount / 100).toFixed(2)} could not be processed. Reason: ${reason}`;
+    
+    const memberTitle = requiresCardUpdate ? 'Card Update Required' : 'Payment Failed';
+
+    await notifyPaymentFailed(email, amount / 100, memberMessage, { 
       sendEmail: false, 
       bookingId: !isNaN(bookingId) ? bookingId : undefined 
     });
@@ -331,18 +359,25 @@ async function handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
     await sendPaymentFailedEmail(email, { 
       memberName, 
       amount: amount / 100, 
-      reason 
+      reason: requiresCardUpdate 
+        ? `Payment failed after ${MAX_RETRY_ATTEMPTS} attempts. Please update your card.`
+        : reason
     });
 
-    console.log(`[Stripe Webhook] Payment failed notifications sent to ${email}`);
+    console.log(`[Stripe Webhook] Payment failed notifications sent to ${email} (requires_card_update=${requiresCardUpdate})`);
 
-    await notifyStaffPaymentFailed(email, memberName, amount / 100, reason);
+    const staffMessage = requiresCardUpdate
+      ? `${memberName} (${email}) payment failed ${MAX_RETRY_ATTEMPTS}x - card update required`
+      : `Payment of $${(amount / 100).toFixed(2)} failed for ${memberName} (${email}). Reason: ${reason}`;
+    
+    await notifyStaffPaymentFailed(email, memberName, amount / 100, staffMessage);
 
     broadcastBillingUpdate({
       action: 'payment_failed',
       memberEmail: email,
       memberName,
-      amount: amount / 100
+      amount: amount / 100,
+      requiresCardUpdate
     });
 
     console.log(`[Stripe Webhook] Staff notified about payment failure for ${email}`);
