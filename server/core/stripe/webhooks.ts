@@ -1,5 +1,6 @@
 import { getStripeSync } from './client';
 import { syncPaymentToHubSpot, syncDayPassToHubSpot } from './hubspotSync';
+import { syncCompanyToHubSpot } from '../hubspot';
 import { pool } from '../db';
 import { notifyPaymentSuccess, notifyPaymentFailed, notifyStaffPaymentFailed, notifyMember, notifyAllStaff } from '../notificationService';
 import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../../emails/paymentEmails';
@@ -483,6 +484,43 @@ async function handleInvoicePaymentFailed(invoice: any): Promise<void> {
 
 async function handleCheckoutSessionCompleted(session: any): Promise<void> {
   try {
+    // Handle corporate membership company sync if company_name is present
+    const companyName = session.metadata?.company_name;
+    const userEmail = session.metadata?.purchaser_email || session.customer_email;
+    
+    if (companyName && userEmail) {
+      console.log(`[Stripe Webhook] Processing company sync for "${companyName}" (${userEmail})`);
+      
+      try {
+        const companyResult = await syncCompanyToHubSpot({
+          companyName,
+          userEmail
+        });
+
+        if (companyResult.success && companyResult.hubspotCompanyId) {
+          console.log(`[Stripe Webhook] Company synced to HubSpot: ${companyResult.hubspotCompanyId} (created: ${companyResult.created})`);
+          
+          // Update user with hubspot company ID
+          await pool.query(
+            `UPDATE users SET hubspot_company_id = $1, company_name = $2, updated_at = NOW() WHERE email = $3`,
+            [companyResult.hubspotCompanyId, companyName, userEmail.toLowerCase()]
+          );
+          
+          // Update billing_group with hubspot company ID if it exists
+          await pool.query(
+            `UPDATE billing_groups SET hubspot_company_id = $1, company_name = $2, updated_at = NOW() WHERE primary_email = $3`,
+            [companyResult.hubspotCompanyId, companyName, userEmail.toLowerCase()]
+          );
+          
+          console.log(`[Stripe Webhook] Updated user and billing_group with HubSpot company ID`);
+        } else if (!companyResult.success) {
+          console.error(`[Stripe Webhook] Company sync failed: ${companyResult.error}`);
+        }
+      } catch (companyError) {
+        console.error('[Stripe Webhook] Error syncing company to HubSpot:', companyError);
+      }
+    }
+
     // Only handle day pass purchases
     if (session.metadata?.purpose !== 'day_pass') {
       console.log(`[Stripe Webhook] Skipping checkout session ${session.id} (not a day_pass)`);
@@ -620,7 +658,7 @@ async function handleSubscriptionUpdated(subscription: any, previousAttributes?:
     const currentPriceId = subscription.items?.data?.[0]?.price?.id;
 
     if (previousAttributes?.items?.data) {
-      const { handleSubscriptionItemsChanged } = await import('./familyBilling');
+      const { handleSubscriptionItemsChanged } = await import('./groupBilling');
       const currentItems = subscription.items?.data?.map((i: any) => ({
         id: i.id,
         metadata: i.metadata,

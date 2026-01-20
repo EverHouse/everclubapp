@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
-import { getFamilyGroupByMemberEmail } from '../core/stripe/familyBilling';
+import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
 
 const router = Router();
@@ -97,7 +97,7 @@ router.get('/api/my/billing', requireAuth, async (req, res) => {
       }
     } else if (member.billing_provider === 'family_addon') {
       try {
-        const familyGroup = await getFamilyGroupByMemberEmail(email);
+        const familyGroup = await getBillingGroupByMemberEmail(email);
         if (familyGroup) {
           billingInfo.familyGroup = {
             primaryName: familyGroup.primaryName,

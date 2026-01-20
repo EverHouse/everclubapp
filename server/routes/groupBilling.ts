@@ -1,0 +1,433 @@
+import { Router } from 'express';
+import { isStaffOrAdmin } from '../core/middleware';
+import {
+  syncGroupAddOnProductsToStripe,
+  getGroupAddOnProducts,
+  getBillingGroupByPrimaryEmail,
+  getBillingGroupByMemberEmail,
+  createBillingGroup,
+  addGroupMember,
+  removeGroupMember,
+  linkStripeSubscriptionToBillingGroup,
+  updateGroupAddOnPricing,
+  getAllBillingGroups,
+  reconcileGroupBillingWithStripe,
+  getCorporateVolumePrice,
+  addCorporateMember,
+} from '../core/stripe/groupBilling';
+
+const router = Router();
+
+router.get('/api/group-billing/products', isStaffOrAdmin, async (req, res) => {
+  try {
+    const products = await getGroupAddOnProducts();
+    res.json(products);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting products:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/family-billing/products', isStaffOrAdmin, async (req, res) => {
+  try {
+    const products = await getGroupAddOnProducts();
+    res.json(products);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting products:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/group-billing/products/sync', isStaffOrAdmin, async (req, res) => {
+  try {
+    const result = await syncGroupAddOnProductsToStripe();
+    res.json(result);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error syncing products:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/family-billing/products/sync', isStaffOrAdmin, async (req, res) => {
+  try {
+    const result = await syncGroupAddOnProductsToStripe();
+    res.json(result);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error syncing products:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { tierName } = req.params;
+    const { priceCents } = req.body;
+    
+    if (typeof priceCents !== 'number' || priceCents < 0) {
+      return res.status(400).json({ error: 'Invalid price' });
+    }
+    
+    const result = await updateGroupAddOnPricing({ tierName, priceCents });
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error updating pricing:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/api/family-billing/products/:tierName', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { tierName } = req.params;
+    const { priceCents } = req.body;
+    
+    if (typeof priceCents !== 'number' || priceCents < 0) {
+      return res.status(400).json({ error: 'Invalid price' });
+    }
+    
+    const result = await updateGroupAddOnPricing({ tierName, priceCents });
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error updating pricing:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
+  try {
+    const groups = await getAllBillingGroups();
+    res.json(groups);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting all groups:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
+  try {
+    const groups = await getAllBillingGroups();
+    res.json(groups);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting all groups:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const group = await getBillingGroupByMemberEmail(email);
+    
+    if (!group) {
+      return res.status(404).json({ error: 'Billing group not found' });
+    }
+    
+    res.json(group);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const group = await getBillingGroupByMemberEmail(email);
+    
+    if (!group) {
+      return res.status(404).json({ error: 'Family group not found' });
+    }
+    
+    res.json(group);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { primaryEmail, groupName } = req.body;
+    const user = req.user as any;
+    
+    if (!primaryEmail) {
+      return res.status(400).json({ error: 'Primary email is required' });
+    }
+    
+    const result = await createBillingGroup({
+      primaryEmail,
+      groupName,
+      createdBy: user?.email || 'staff',
+      createdByName: user?.displayName || 'Staff Member',
+    });
+    
+    if (result.success) {
+      res.json({ success: true, groupId: result.groupId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error creating group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { primaryEmail, groupName } = req.body;
+    const user = req.user as any;
+    
+    if (!primaryEmail) {
+      return res.status(400).json({ error: 'Primary email is required' });
+    }
+    
+    const result = await createBillingGroup({
+      primaryEmail,
+      groupName,
+      createdBy: user?.email || 'staff',
+      createdByName: user?.displayName || 'Staff Member',
+    });
+    
+    if (result.success) {
+      res.json({ success: true, groupId: result.groupId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error creating group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { memberEmail, memberTier, relationship } = req.body;
+    const user = req.user as any;
+    
+    if (!memberEmail || !memberTier) {
+      return res.status(400).json({ error: 'Member email and tier are required' });
+    }
+    
+    const result = await addGroupMember({
+      billingGroupId: parseInt(groupId, 10),
+      memberEmail,
+      memberTier,
+      relationship,
+      addedBy: user?.email || 'staff',
+      addedByName: user?.displayName || 'Staff Member',
+    });
+    
+    if (result.success) {
+      res.json({ success: true, memberId: result.memberId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error adding member:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { memberEmail, memberTier, relationship } = req.body;
+    const user = req.user as any;
+    
+    if (!memberEmail || !memberTier) {
+      return res.status(400).json({ error: 'Member email and tier are required' });
+    }
+    
+    const result = await addGroupMember({
+      billingGroupId: parseInt(groupId, 10),
+      memberEmail,
+      memberTier,
+      relationship,
+      addedBy: user?.email || 'staff',
+      addedByName: user?.displayName || 'Staff Member',
+    });
+    
+    if (result.success) {
+      res.json({ success: true, memberId: result.memberId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error adding member:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { memberEmail, memberTier } = req.body;
+    const user = req.user as any;
+    
+    if (!memberEmail || !memberTier) {
+      return res.status(400).json({ error: 'Member email and tier are required' });
+    }
+    
+    const result = await addCorporateMember({
+      billingGroupId: parseInt(groupId, 10),
+      memberEmail,
+      memberTier,
+      addedBy: user?.email || 'staff',
+      addedByName: user?.displayName || 'Staff Member',
+    });
+    
+    if (result.success) {
+      res.json({ success: true, memberId: result.memberId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error adding corporate member:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, async (req, res) => {
+  try {
+    const memberCount = parseInt(req.query.memberCount as string, 10) || 1;
+    const pricePerSeat = getCorporateVolumePrice(memberCount);
+    res.json({
+      memberCount,
+      pricePerSeatCents: pricePerSeat,
+      pricePerSeatDollars: pricePerSeat / 100,
+      totalCents: pricePerSeat * memberCount,
+      totalDollars: (pricePerSeat * memberCount) / 100,
+    });
+  } catch (error: any) {
+    console.error('[GroupBilling] Error getting corporate pricing:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const user = req.user as any;
+    
+    const result = await removeGroupMember({
+      memberId: parseInt(memberId, 10),
+      removedBy: user?.email || 'staff',
+    });
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error removing member:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const user = req.user as any;
+    
+    const result = await removeGroupMember({
+      memberId: parseInt(memberId, 10),
+      removedBy: user?.email || 'staff',
+    });
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error removing member:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { stripeSubscriptionId } = req.body;
+    
+    if (!stripeSubscriptionId) {
+      return res.status(400).json({ error: 'Stripe subscription ID is required' });
+    }
+    
+    const result = await linkStripeSubscriptionToBillingGroup({
+      billingGroupId: parseInt(groupId, 10),
+      stripeSubscriptionId,
+    });
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error linking subscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { stripeSubscriptionId } = req.body;
+    
+    if (!stripeSubscriptionId) {
+      return res.status(400).json({ error: 'Stripe subscription ID is required' });
+    }
+    
+    const result = await linkStripeSubscriptionToBillingGroup({
+      billingGroupId: parseInt(groupId, 10),
+      stripeSubscriptionId,
+    });
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error linking subscription:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/group-billing/reconcile', isStaffOrAdmin, async (req, res) => {
+  try {
+    console.log('[GroupBilling] Starting reconciliation with Stripe...');
+    const result = await reconcileGroupBillingWithStripe();
+    console.log(`[GroupBilling] Reconciliation complete: ${result.groupsChecked} groups checked, ${result.membersDeactivated} deactivated, ${result.membersReactivated} reactivated, ${result.membersCreated} created, ${result.itemsRelinked} relinked`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error during reconciliation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/family-billing/reconcile', isStaffOrAdmin, async (req, res) => {
+  try {
+    console.log('[GroupBilling] Starting reconciliation with Stripe...');
+    const result = await reconcileGroupBillingWithStripe();
+    console.log(`[GroupBilling] Reconciliation complete: ${result.groupsChecked} groups checked, ${result.membersDeactivated} deactivated, ${result.membersReactivated} reactivated, ${result.membersCreated} created, ${result.itemsRelinked} relinked`);
+    res.json(result);
+  } catch (error: any) {
+    console.error('[GroupBilling] Error during reconciliation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export default router;

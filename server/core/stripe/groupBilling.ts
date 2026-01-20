@@ -1,22 +1,22 @@
 import { pool } from '../db';
 import { db } from '../../db';
-import { familyGroups, familyMembers, familyAddOnProducts } from '../../../shared/models/hubspot-billing';
+import { billingGroups, groupMembers, familyAddOnProducts } from '../../../shared/models/hubspot-billing';
 import { eq, and } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import Stripe from 'stripe';
 
-export interface FamilyGroupWithMembers {
+export interface BillingGroupWithMembers {
   id: number;
   primaryEmail: string;
   primaryName: string;
   groupName: string | null;
   stripeSubscriptionId: string | null;
-  members: FamilyMemberInfo[];
+  members: GroupMemberInfo[];
   totalMonthlyAmount: number;
   isActive: boolean;
 }
 
-export interface FamilyMemberInfo {
+export interface GroupMemberInfo {
   id: number;
   memberEmail: string;
   memberName: string;
@@ -27,7 +27,18 @@ export interface FamilyMemberInfo {
   addedAt: Date | null;
 }
 
-export async function syncFamilyAddOnProductsToStripe(): Promise<{
+export type FamilyGroupWithMembers = BillingGroupWithMembers;
+export type FamilyMemberInfo = GroupMemberInfo;
+
+export function getCorporateVolumePrice(memberCount: number): number {
+  if (memberCount >= 50) return 24900;
+  if (memberCount >= 20) return 27500;
+  if (memberCount >= 10) return 29900;
+  if (memberCount >= 5) return 32500;
+  return 35000;
+}
+
+export async function syncGroupAddOnProductsToStripe(): Promise<{
   success: boolean;
   synced: number;
   errors: string[];
@@ -47,10 +58,10 @@ export async function syncFamilyAddOnProductsToStripe(): Promise<{
         
         if (!stripeProductId) {
           const stripeProduct = await stripe.products.create({
-            name: product.displayName || `Family Add-on - ${product.tierName}`,
-            description: product.description || `Family add-on membership for ${product.tierName} tier`,
+            name: product.displayName || `Group Add-on - ${product.tierName}`,
+            description: product.description || `Group add-on membership for ${product.tierName} tier`,
             metadata: {
-              family_addon: 'true',
+              group_addon: 'true',
               tier_name: product.tierName,
             },
           });
@@ -66,7 +77,7 @@ export async function syncFamilyAddOnProductsToStripe(): Promise<{
               interval: (product.billingInterval || 'month') as 'month' | 'year',
             },
             metadata: {
-              family_addon: 'true',
+              group_addon: 'true',
               tier_name: product.tierName,
             },
           });
@@ -93,25 +104,29 @@ export async function syncFamilyAddOnProductsToStripe(): Promise<{
   }
 }
 
-export async function getFamilyAddOnProducts(): Promise<typeof familyAddOnProducts.$inferSelect[]> {
+export const syncFamilyAddOnProductsToStripe = syncGroupAddOnProductsToStripe;
+
+export async function getGroupAddOnProducts(): Promise<typeof familyAddOnProducts.$inferSelect[]> {
   return db.select().from(familyAddOnProducts).where(eq(familyAddOnProducts.isActive, true));
 }
 
-export async function getFamilyGroupByPrimaryEmail(primaryEmail: string): Promise<FamilyGroupWithMembers | null> {
+export const getFamilyAddOnProducts = getGroupAddOnProducts;
+
+export async function getBillingGroupByPrimaryEmail(primaryEmail: string): Promise<BillingGroupWithMembers | null> {
   const group = await db.select()
-    .from(familyGroups)
-    .where(eq(familyGroups.primaryEmail, primaryEmail.toLowerCase()))
+    .from(billingGroups)
+    .where(eq(billingGroups.primaryEmail, primaryEmail.toLowerCase()))
     .limit(1);
   
   if (group.length === 0) return null;
   
-  const familyGroup = group[0];
+  const billingGroup = group[0];
   
   const members = await db.select()
-    .from(familyMembers)
+    .from(groupMembers)
     .where(and(
-      eq(familyMembers.familyGroupId, familyGroup.id),
-      eq(familyMembers.isActive, true)
+      eq(groupMembers.billingGroupId, billingGroup.id),
+      eq(groupMembers.isActive, true)
     ));
   
   const primaryUserResult = await pool.query(
@@ -122,7 +137,7 @@ export async function getFamilyGroupByPrimaryEmail(primaryEmail: string): Promis
     ? `${primaryUserResult.rows[0].first_name || ''} ${primaryUserResult.rows[0].last_name || ''}`.trim()
     : primaryEmail;
   
-  const memberInfos: FamilyMemberInfo[] = [];
+  const memberInfos: GroupMemberInfo[] = [];
   for (const member of members) {
     const memberUserResult = await pool.query(
       'SELECT first_name, last_name FROM users WHERE LOWER(email) = $1',
@@ -147,42 +162,46 @@ export async function getFamilyGroupByPrimaryEmail(primaryEmail: string): Promis
   const totalMonthlyAmount = memberInfos.reduce((sum, m) => sum + m.addOnPriceCents, 0);
   
   return {
-    id: familyGroup.id,
-    primaryEmail: familyGroup.primaryEmail,
+    id: billingGroup.id,
+    primaryEmail: billingGroup.primaryEmail,
     primaryName,
-    groupName: familyGroup.groupName,
-    stripeSubscriptionId: familyGroup.primaryStripeSubscriptionId,
+    groupName: billingGroup.groupName,
+    stripeSubscriptionId: billingGroup.primaryStripeSubscriptionId,
     members: memberInfos,
     totalMonthlyAmount,
-    isActive: familyGroup.isActive ?? true,
+    isActive: billingGroup.isActive ?? true,
   };
 }
 
-export async function getFamilyGroupByMemberEmail(memberEmail: string): Promise<FamilyGroupWithMembers | null> {
+export const getFamilyGroupByPrimaryEmail = getBillingGroupByPrimaryEmail;
+
+export async function getBillingGroupByMemberEmail(memberEmail: string): Promise<BillingGroupWithMembers | null> {
   const member = await db.select()
-    .from(familyMembers)
+    .from(groupMembers)
     .where(and(
-      eq(familyMembers.memberEmail, memberEmail.toLowerCase()),
-      eq(familyMembers.isActive, true)
+      eq(groupMembers.memberEmail, memberEmail.toLowerCase()),
+      eq(groupMembers.isActive, true)
     ))
     .limit(1);
   
   if (member.length === 0) {
-    const asGroup = await getFamilyGroupByPrimaryEmail(memberEmail);
+    const asGroup = await getBillingGroupByPrimaryEmail(memberEmail);
     return asGroup;
   }
   
   const group = await db.select()
-    .from(familyGroups)
-    .where(eq(familyGroups.id, member[0].familyGroupId))
+    .from(billingGroups)
+    .where(eq(billingGroups.id, member[0].billingGroupId))
     .limit(1);
   
   if (group.length === 0) return null;
   
-  return getFamilyGroupByPrimaryEmail(group[0].primaryEmail);
+  return getBillingGroupByPrimaryEmail(group[0].primaryEmail);
 }
 
-export async function createFamilyGroup(params: {
+export const getFamilyGroupByMemberEmail = getBillingGroupByMemberEmail;
+
+export async function createBillingGroup(params: {
   primaryEmail: string;
   groupName?: string;
   createdBy: string;
@@ -190,12 +209,12 @@ export async function createFamilyGroup(params: {
 }): Promise<{ success: boolean; groupId?: number; error?: string }> {
   try {
     const existingGroup = await db.select()
-      .from(familyGroups)
-      .where(eq(familyGroups.primaryEmail, params.primaryEmail.toLowerCase()))
+      .from(billingGroups)
+      .where(eq(billingGroups.primaryEmail, params.primaryEmail.toLowerCase()))
       .limit(1);
     
     if (existingGroup.length > 0) {
-      return { success: false, error: 'A family group already exists for this member' };
+      return { success: false, error: 'A billing group already exists for this member' };
     }
     
     const primaryUserResult = await pool.query(
@@ -205,28 +224,30 @@ export async function createFamilyGroup(params: {
     
     const stripeCustomerId = primaryUserResult.rows[0]?.stripe_customer_id || null;
     
-    const result = await db.insert(familyGroups).values({
+    const result = await db.insert(billingGroups).values({
       primaryEmail: params.primaryEmail.toLowerCase(),
       primaryStripeCustomerId: stripeCustomerId,
       groupName: params.groupName || null,
       createdBy: params.createdBy,
       createdByName: params.createdByName,
-    }).returning({ id: familyGroups.id });
+    }).returning({ id: billingGroups.id });
     
     await pool.query(
-      'UPDATE users SET family_group_id = $1, is_family_primary = true WHERE LOWER(email) = $2',
+      'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
       [result[0].id, params.primaryEmail.toLowerCase()]
     );
     
     return { success: true, groupId: result[0].id };
   } catch (err: any) {
-    console.error('[FamilyBilling] Error creating family group:', err);
+    console.error('[GroupBilling] Error creating billing group:', err);
     return { success: false, error: err.message };
   }
 }
 
-export async function addFamilyMember(params: {
-  familyGroupId: number;
+export const createFamilyGroup = createBillingGroup;
+
+export async function addGroupMember(params: {
+  billingGroupId: number;
   memberEmail: string;
   memberTier: string;
   relationship?: string;
@@ -235,15 +256,15 @@ export async function addFamilyMember(params: {
 }): Promise<{ success: boolean; memberId?: number; error?: string }> {
   try {
     const existingMember = await db.select()
-      .from(familyMembers)
+      .from(groupMembers)
       .where(and(
-        eq(familyMembers.memberEmail, params.memberEmail.toLowerCase()),
-        eq(familyMembers.isActive, true)
+        eq(groupMembers.memberEmail, params.memberEmail.toLowerCase()),
+        eq(groupMembers.isActive, true)
       ))
       .limit(1);
     
     if (existingMember.length > 0) {
-      return { success: false, error: 'This member is already part of a family group' };
+      return { success: false, error: 'This member is already part of a billing group' };
     }
     
     const addOnProduct = await db.select()
@@ -252,18 +273,18 @@ export async function addFamilyMember(params: {
       .limit(1);
     
     if (addOnProduct.length === 0) {
-      return { success: false, error: `No family add-on product found for tier: ${params.memberTier}` };
+      return { success: false, error: `No add-on product found for tier: ${params.memberTier}` };
     }
     
     const product = addOnProduct[0];
     
     const group = await db.select()
-      .from(familyGroups)
-      .where(eq(familyGroups.id, params.familyGroupId))
+      .from(billingGroups)
+      .where(eq(billingGroups.id, params.billingGroupId))
       .limit(1);
     
     if (group.length === 0) {
-      return { success: false, error: 'Family group not found' };
+      return { success: false, error: 'Billing group not found' };
     }
     
     let stripeSubscriptionItemId: string | null = null;
@@ -276,22 +297,22 @@ export async function addFamilyMember(params: {
           price: product.stripePriceId,
           quantity: 1,
           metadata: {
-            family_member_email: params.memberEmail.toLowerCase(),
-            family_group_id: params.familyGroupId.toString(),
+            group_member_email: params.memberEmail.toLowerCase(),
+            billing_group_id: params.billingGroupId.toString(),
             tier: params.memberTier,
           },
         });
         stripeSubscriptionItemId = subscriptionItem.id;
       } catch (stripeErr: any) {
-        console.error('[FamilyBilling] Error adding Stripe subscription item:', stripeErr);
+        console.error('[GroupBilling] Error adding Stripe subscription item:', stripeErr);
         return { success: false, error: `Failed to add billing: ${stripeErr.message}` };
       }
     } else if (group[0].primaryStripeSubscriptionId && !product.stripePriceId) {
-      return { success: false, error: 'Family add-on product not synced to Stripe. Please sync products first.' };
+      return { success: false, error: 'Add-on product not synced to Stripe. Please sync products first.' };
     }
     
-    const result = await db.insert(familyMembers).values({
-      familyGroupId: params.familyGroupId,
+    const result = await db.insert(groupMembers).values({
+      billingGroupId: params.billingGroupId,
       memberEmail: params.memberEmail.toLowerCase(),
       memberTier: params.memberTier,
       relationship: params.relationship || null,
@@ -300,32 +321,133 @@ export async function addFamilyMember(params: {
       addOnPriceCents: product.priceCents,
       addedBy: params.addedBy,
       addedByName: params.addedByName,
-    }).returning({ id: familyMembers.id });
+    }).returning({ id: groupMembers.id });
     
     await pool.query(
-      'UPDATE users SET family_group_id = $1, is_family_primary = false WHERE LOWER(email) = $2',
-      [params.familyGroupId, params.memberEmail.toLowerCase()]
+      'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
+      [params.billingGroupId, params.memberEmail.toLowerCase()]
     );
     
     return { success: true, memberId: result[0].id };
   } catch (err: any) {
-    console.error('[FamilyBilling] Error adding family member:', err);
+    console.error('[GroupBilling] Error adding group member:', err);
     return { success: false, error: err.message };
   }
 }
 
-export async function removeFamilyMember(params: {
+export async function addFamilyMember(params: {
+  familyGroupId: number;
+  memberEmail: string;
+  memberTier: string;
+  relationship?: string;
+  addedBy: string;
+  addedByName: string;
+}): Promise<{ success: boolean; memberId?: number; error?: string }> {
+  return addGroupMember({
+    billingGroupId: params.familyGroupId,
+    memberEmail: params.memberEmail,
+    memberTier: params.memberTier,
+    relationship: params.relationship,
+    addedBy: params.addedBy,
+    addedByName: params.addedByName,
+  });
+}
+
+export async function addCorporateMember(params: {
+  billingGroupId: number;
+  memberEmail: string;
+  memberTier: string;
+  addedBy: string;
+  addedByName: string;
+}): Promise<{ success: boolean; memberId?: number; error?: string }> {
+  try {
+    const existingMember = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.memberEmail, params.memberEmail.toLowerCase()),
+        eq(groupMembers.isActive, true)
+      ))
+      .limit(1);
+    
+    if (existingMember.length > 0) {
+      return { success: false, error: 'This member is already part of a billing group' };
+    }
+    
+    const group = await db.select()
+      .from(billingGroups)
+      .where(eq(billingGroups.id, params.billingGroupId))
+      .limit(1);
+    
+    if (group.length === 0) {
+      return { success: false, error: 'Billing group not found' };
+    }
+    
+    const currentMembers = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.billingGroupId, params.billingGroupId),
+        eq(groupMembers.isActive, true)
+      ));
+    
+    const newMemberCount = currentMembers.length + 1;
+    const pricePerSeat = getCorporateVolumePrice(newMemberCount);
+    
+    if (group[0].primaryStripeSubscriptionId) {
+      try {
+        const stripe = await getStripeClient();
+        const subscription = await stripe.subscriptions.retrieve(group[0].primaryStripeSubscriptionId, {
+          expand: ['items.data'],
+        });
+        
+        const corporateItem = subscription.items.data.find(
+          item => item.metadata?.corporate_membership === 'true'
+        );
+        
+        if (corporateItem) {
+          await stripe.subscriptionItems.update(corporateItem.id, {
+            quantity: newMemberCount,
+          });
+        }
+      } catch (stripeErr: any) {
+        console.error('[GroupBilling] Error updating corporate subscription quantity:', stripeErr);
+        return { success: false, error: `Failed to update billing: ${stripeErr.message}` };
+      }
+    }
+    
+    const result = await db.insert(groupMembers).values({
+      billingGroupId: params.billingGroupId,
+      memberEmail: params.memberEmail.toLowerCase(),
+      memberTier: params.memberTier,
+      relationship: 'employee',
+      addOnPriceCents: pricePerSeat,
+      addedBy: params.addedBy,
+      addedByName: params.addedByName,
+    }).returning({ id: groupMembers.id });
+    
+    await pool.query(
+      'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
+      [params.billingGroupId, params.memberEmail.toLowerCase()]
+    );
+    
+    return { success: true, memberId: result[0].id };
+  } catch (err: any) {
+    console.error('[GroupBilling] Error adding corporate member:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+export async function removeGroupMember(params: {
   memberId: number;
   removedBy: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const member = await db.select()
-      .from(familyMembers)
-      .where(eq(familyMembers.id, params.memberId))
+      .from(groupMembers)
+      .where(eq(groupMembers.id, params.memberId))
       .limit(1);
     
     if (member.length === 0) {
-      return { success: false, error: 'Family member not found' };
+      return { success: false, error: 'Group member not found' };
     }
     
     const memberRecord = member[0];
@@ -335,25 +457,46 @@ export async function removeFamilyMember(params: {
         const stripe = await getStripeClient();
         await stripe.subscriptionItems.del(memberRecord.stripeSubscriptionItemId);
       } catch (stripeErr: any) {
-        console.error('[FamilyBilling] Error removing Stripe subscription item:', stripeErr);
+        console.error('[GroupBilling] Error removing Stripe subscription item:', stripeErr);
       }
     }
     
-    await db.update(familyMembers)
+    await db.update(groupMembers)
       .set({
         isActive: false,
         removedAt: new Date(),
       })
-      .where(eq(familyMembers.id, params.memberId));
+      .where(eq(groupMembers.id, params.memberId));
     
     await pool.query(
-      'UPDATE users SET family_group_id = NULL, is_family_primary = false WHERE LOWER(email) = $1',
+      'UPDATE users SET billing_group_id = NULL WHERE LOWER(email) = $1',
       [memberRecord.memberEmail.toLowerCase()]
     );
     
     return { success: true };
   } catch (err: any) {
-    console.error('[FamilyBilling] Error removing family member:', err);
+    console.error('[GroupBilling] Error removing group member:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+export const removeFamilyMember = removeGroupMember;
+
+export async function linkStripeSubscriptionToBillingGroup(params: {
+  billingGroupId: number;
+  stripeSubscriptionId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db.update(billingGroups)
+      .set({
+        primaryStripeSubscriptionId: params.stripeSubscriptionId,
+        updatedAt: new Date(),
+      })
+      .where(eq(billingGroups.id, params.billingGroupId));
+    
+    return { success: true };
+  } catch (err: any) {
+    console.error('[GroupBilling] Error linking subscription:', err);
     return { success: false, error: err.message };
   }
 }
@@ -362,22 +505,13 @@ export async function linkStripeSubscriptionToFamilyGroup(params: {
   familyGroupId: number;
   stripeSubscriptionId: string;
 }): Promise<{ success: boolean; error?: string }> {
-  try {
-    await db.update(familyGroups)
-      .set({
-        primaryStripeSubscriptionId: params.stripeSubscriptionId,
-        updatedAt: new Date(),
-      })
-      .where(eq(familyGroups.id, params.familyGroupId));
-    
-    return { success: true };
-  } catch (err: any) {
-    console.error('[FamilyBilling] Error linking subscription:', err);
-    return { success: false, error: err.message };
-  }
+  return linkStripeSubscriptionToBillingGroup({
+    billingGroupId: params.familyGroupId,
+    stripeSubscriptionId: params.stripeSubscriptionId,
+  });
 }
 
-export async function updateFamilyAddOnPricing(params: {
+export async function updateGroupAddOnPricing(params: {
   tierName: string;
   priceCents: number;
 }): Promise<{ success: boolean; error?: string }> {
@@ -391,7 +525,7 @@ export async function updateFamilyAddOnPricing(params: {
       await db.insert(familyAddOnProducts).values({
         tierName: params.tierName,
         priceCents: params.priceCents,
-        displayName: `Family Add-on - ${params.tierName}`,
+        displayName: `Group Add-on - ${params.tierName}`,
       });
     } else {
       const product = existing[0];
@@ -405,7 +539,7 @@ export async function updateFamilyAddOnPricing(params: {
             currency: 'usd',
             recurring: { interval: 'month' },
             metadata: {
-              family_addon: 'true',
+              group_addon: 'true',
               tier_name: params.tierName,
             },
           });
@@ -418,7 +552,7 @@ export async function updateFamilyAddOnPricing(params: {
             })
             .where(eq(familyAddOnProducts.id, product.id));
         } catch (stripeErr: any) {
-          console.error('[FamilyBilling] Error creating new Stripe price:', stripeErr);
+          console.error('[GroupBilling] Error creating new Stripe price:', stripeErr);
           return { success: false, error: stripeErr.message };
         }
       } else {
@@ -433,20 +567,22 @@ export async function updateFamilyAddOnPricing(params: {
     
     return { success: true };
   } catch (err: any) {
-    console.error('[FamilyBilling] Error updating pricing:', err);
+    console.error('[GroupBilling] Error updating pricing:', err);
     return { success: false, error: err.message };
   }
 }
 
-export async function getAllFamilyGroups(): Promise<FamilyGroupWithMembers[]> {
+export const updateFamilyAddOnPricing = updateGroupAddOnPricing;
+
+export async function getAllBillingGroups(): Promise<BillingGroupWithMembers[]> {
   const groups = await db.select()
-    .from(familyGroups)
-    .where(eq(familyGroups.isActive, true));
+    .from(billingGroups)
+    .where(eq(billingGroups.isActive, true));
   
-  const result: FamilyGroupWithMembers[] = [];
+  const result: BillingGroupWithMembers[] = [];
   
   for (const group of groups) {
-    const fullGroup = await getFamilyGroupByPrimaryEmail(group.primaryEmail);
+    const fullGroup = await getBillingGroupByPrimaryEmail(group.primaryEmail);
     if (fullGroup) {
       result.push(fullGroup);
     }
@@ -454,6 +590,8 @@ export async function getAllFamilyGroups(): Promise<FamilyGroupWithMembers[]> {
   
   return result;
 }
+
+export const getAllFamilyGroups = getAllBillingGroups;
 
 export interface ReconciliationResult {
   success: boolean;
@@ -467,14 +605,14 @@ export interface ReconciliationResult {
 }
 
 export interface ReconciliationDetail {
-  familyGroupId: number;
+  billingGroupId: number;
   primaryEmail: string;
   action: 'deactivated' | 'reactivated' | 'relinked' | 'error' | 'ok';
   memberEmail?: string;
   reason: string;
 }
 
-export async function reconcileFamilyBillingWithStripe(): Promise<ReconciliationResult> {
+export async function reconcileGroupBillingWithStripe(): Promise<ReconciliationResult> {
   const result: ReconciliationResult = {
     success: true,
     groupsChecked: 0,
@@ -490,15 +628,15 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
     const stripe = await getStripeClient();
     
     const activeGroups = await db.select()
-      .from(familyGroups)
-      .where(eq(familyGroups.isActive, true));
+      .from(billingGroups)
+      .where(eq(billingGroups.isActive, true));
     
     for (const group of activeGroups) {
       result.groupsChecked++;
       
       if (!group.primaryStripeSubscriptionId) {
         result.details.push({
-          familyGroupId: group.id,
+          billingGroupId: group.id,
           primaryEmail: group.primaryEmail,
           action: 'ok',
           reason: 'No Stripe subscription linked - skipped',
@@ -516,17 +654,18 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
         
         for (const item of subscription.items.data) {
           stripeItemsMap.set(item.id, item);
-          const familyEmail = item.metadata?.family_member_email?.toLowerCase();
-          if (familyEmail) {
-            stripeEmailToItemMap.set(familyEmail, item);
+          const memberEmail = item.metadata?.group_member_email?.toLowerCase() || 
+                              item.metadata?.family_member_email?.toLowerCase();
+          if (memberEmail) {
+            stripeEmailToItemMap.set(memberEmail, item);
           }
         }
         
         const localMembers = await db.select()
-          .from(familyMembers)
+          .from(groupMembers)
           .where(and(
-            eq(familyMembers.familyGroupId, group.id),
-            eq(familyMembers.isActive, true)
+            eq(groupMembers.billingGroupId, group.id),
+            eq(groupMembers.isActive, true)
           ));
         
         for (const member of localMembers) {
@@ -534,37 +673,37 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
             if (!stripeItemsMap.has(member.stripeSubscriptionItemId)) {
               const stripeItem = stripeEmailToItemMap.get(member.memberEmail.toLowerCase());
               if (stripeItem) {
-                await db.update(familyMembers)
+                await db.update(groupMembers)
                   .set({
                     stripeSubscriptionItemId: stripeItem.id,
                     updatedAt: new Date(),
                   })
-                  .where(eq(familyMembers.id, member.id));
+                  .where(eq(groupMembers.id, member.id));
                 
                 result.itemsRelinked++;
                 result.details.push({
-                  familyGroupId: group.id,
+                  billingGroupId: group.id,
                   primaryEmail: group.primaryEmail,
                   action: 'relinked',
                   memberEmail: member.memberEmail,
                   reason: `Subscription item ID updated from ${member.stripeSubscriptionItemId} to ${stripeItem.id}`,
                 });
               } else {
-                await db.update(familyMembers)
+                await db.update(groupMembers)
                   .set({
                     isActive: false,
                     removedAt: new Date(),
                   })
-                  .where(eq(familyMembers.id, member.id));
+                  .where(eq(groupMembers.id, member.id));
                 
                 await pool.query(
-                  'UPDATE users SET family_group_id = NULL, is_family_primary = false WHERE LOWER(email) = $1',
+                  'UPDATE users SET billing_group_id = NULL WHERE LOWER(email) = $1',
                   [member.memberEmail.toLowerCase()]
                 );
                 
                 result.membersDeactivated++;
                 result.details.push({
-                  familyGroupId: group.id,
+                  billingGroupId: group.id,
                   primaryEmail: group.primaryEmail,
                   action: 'deactivated',
                   memberEmail: member.memberEmail,
@@ -575,16 +714,16 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
           } else {
             const stripeItem = stripeEmailToItemMap.get(member.memberEmail.toLowerCase());
             if (stripeItem) {
-              await db.update(familyMembers)
+              await db.update(groupMembers)
                 .set({
                   stripeSubscriptionItemId: stripeItem.id,
                   updatedAt: new Date(),
                 })
-                .where(eq(familyMembers.id, member.id));
+                .where(eq(groupMembers.id, member.id));
               
               result.itemsRelinked++;
               result.details.push({
-                familyGroupId: group.id,
+                billingGroupId: group.id,
                 primaryEmail: group.primaryEmail,
                 action: 'relinked',
                 memberEmail: member.memberEmail,
@@ -601,32 +740,32 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
           
           if (!hasLocalMember) {
             const inactiveMember = await db.select()
-              .from(familyMembers)
+              .from(groupMembers)
               .where(and(
-                eq(familyMembers.familyGroupId, group.id),
-                eq(familyMembers.memberEmail, email),
-                eq(familyMembers.isActive, false)
+                eq(groupMembers.billingGroupId, group.id),
+                eq(groupMembers.memberEmail, email),
+                eq(groupMembers.isActive, false)
               ))
               .limit(1);
             
             if (inactiveMember.length > 0) {
-              await db.update(familyMembers)
+              await db.update(groupMembers)
                 .set({
                   isActive: true,
                   stripeSubscriptionItemId: item.id,
                   removedAt: null,
                   updatedAt: new Date(),
                 })
-                .where(eq(familyMembers.id, inactiveMember[0].id));
+                .where(eq(groupMembers.id, inactiveMember[0].id));
               
               await pool.query(
-                'UPDATE users SET family_group_id = $1 WHERE LOWER(email) = $2',
+                'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
                 [group.id, email]
               );
               
               result.membersReactivated++;
               result.details.push({
-                familyGroupId: group.id,
+                billingGroupId: group.id,
                 primaryEmail: group.primaryEmail,
                 action: 'reactivated',
                 memberEmail: email,
@@ -637,8 +776,8 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
               const priceInfo = item.price;
               const priceCents = priceInfo?.unit_amount || 0;
               
-              await db.insert(familyMembers).values({
-                familyGroupId: group.id,
+              await db.insert(groupMembers).values({
+                billingGroupId: group.id,
                 memberEmail: email,
                 memberTier: tierFromMetadata,
                 stripeSubscriptionItemId: item.id,
@@ -649,17 +788,17 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
               });
               
               await pool.query(
-                'UPDATE users SET family_group_id = $1, is_family_primary = false WHERE LOWER(email) = $2',
+                'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
                 [group.id, email]
               );
               
               result.membersCreated++;
               result.details.push({
-                familyGroupId: group.id,
+                billingGroupId: group.id,
                 primaryEmail: group.primaryEmail,
                 action: 'reactivated',
                 memberEmail: email,
-                reason: `Created new family member from Stripe item (tier: ${tierFromMetadata})`,
+                reason: `Created new group member from Stripe item (tier: ${tierFromMetadata})`,
               });
             }
           }
@@ -668,89 +807,80 @@ export async function reconcileFamilyBillingWithStripe(): Promise<Reconciliation
       } catch (stripeErr: any) {
         result.errors.push(`Group ${group.id} (${group.primaryEmail}): ${stripeErr.message}`);
         result.details.push({
-          familyGroupId: group.id,
+          billingGroupId: group.id,
           primaryEmail: group.primaryEmail,
           action: 'error',
           reason: stripeErr.message,
         });
+        result.success = false;
       }
     }
     
-    result.success = result.errors.length === 0;
     return result;
   } catch (err: any) {
     return {
+      ...result,
       success: false,
-      groupsChecked: result.groupsChecked,
-      membersDeactivated: result.membersDeactivated,
-      membersReactivated: result.membersReactivated,
-      membersCreated: result.membersCreated,
-      itemsRelinked: result.itemsRelinked,
-      errors: [err.message],
-      details: result.details,
+      errors: [...result.errors, err.message],
     };
   }
 }
 
-export async function handleSubscriptionItemsChanged(params: {
-  subscriptionId: string;
-  currentItems: Array<{ id: string; metadata?: Record<string, string> }>;
-  previousItems?: Array<{ id: string; metadata?: Record<string, string> }>;
-}): Promise<{ deactivated: string[]; added: string[] }> {
-  const result = { deactivated: [] as string[], added: [] as string[] };
-  
+export const reconcileFamilyBillingWithStripe = reconcileGroupBillingWithStripe;
+
+export async function handleSubscriptionItemsChanged(
+  subscriptionId: string,
+  currentItems: Array<{ id: string; metadata?: Record<string, string> }>,
+  previousItems: Array<{ id: string; metadata?: Record<string, string> }>
+): Promise<void> {
   try {
     const group = await db.select()
-      .from(familyGroups)
-      .where(eq(familyGroups.primaryStripeSubscriptionId, params.subscriptionId))
+      .from(billingGroups)
+      .where(eq(billingGroups.primaryStripeSubscriptionId, subscriptionId))
       .limit(1);
     
     if (group.length === 0) {
-      return result;
+      return;
     }
     
-    const familyGroupId = group[0].id;
-    const currentItemIds = new Set(params.currentItems.map(i => i.id));
+    const billingGroupId = group[0].id;
     
-    if (params.previousItems) {
-      for (const prevItem of params.previousItems) {
-        if (!currentItemIds.has(prevItem.id)) {
-          const familyEmail = prevItem.metadata?.family_member_email?.toLowerCase();
+    const currentItemIds = new Set(currentItems.map(i => i.id));
+    const previousItemIds = new Set(previousItems.map(i => i.id));
+    
+    const removedItems = previousItems.filter(item => !currentItemIds.has(item.id));
+    
+    for (const item of removedItems) {
+      const memberEmail = item.metadata?.group_member_email?.toLowerCase() ||
+                          item.metadata?.family_member_email?.toLowerCase();
+      if (memberEmail) {
+        const member = await db.select()
+          .from(groupMembers)
+          .where(and(
+            eq(groupMembers.billingGroupId, billingGroupId),
+            eq(groupMembers.memberEmail, memberEmail),
+            eq(groupMembers.isActive, true)
+          ))
+          .limit(1);
+        
+        if (member.length > 0) {
+          await db.update(groupMembers)
+            .set({
+              isActive: false,
+              removedAt: new Date(),
+            })
+            .where(eq(groupMembers.id, member[0].id));
           
-          if (familyEmail) {
-            const member = await db.select()
-              .from(familyMembers)
-              .where(and(
-                eq(familyMembers.familyGroupId, familyGroupId),
-                eq(familyMembers.stripeSubscriptionItemId, prevItem.id),
-                eq(familyMembers.isActive, true)
-              ))
-              .limit(1);
-            
-            if (member.length > 0) {
-              await db.update(familyMembers)
-                .set({
-                  isActive: false,
-                  removedAt: new Date(),
-                })
-                .where(eq(familyMembers.id, member[0].id));
-              
-              await pool.query(
-                'UPDATE users SET family_group_id = NULL, is_family_primary = false WHERE LOWER(email) = $1',
-                [familyEmail]
-              );
-              
-              result.deactivated.push(familyEmail);
-              console.log(`[FamilyBilling] Deactivated family member ${familyEmail} - Stripe item ${prevItem.id} was removed`);
-            }
-          }
+          await pool.query(
+            'UPDATE users SET billing_group_id = NULL WHERE LOWER(email) = $1',
+            [memberEmail]
+          );
+          
+          console.log(`[GroupBilling] Auto-deactivated member ${memberEmail} - subscription item removed`);
         }
       }
     }
-    
-    return result;
   } catch (err: any) {
-    console.error('[FamilyBilling] Error handling subscription items changed:', err);
-    return result;
+    console.error('[GroupBilling] Error handling subscription items change:', err);
   }
 }

@@ -66,3 +66,9 @@ export {
   type SyncDayPassPurchaseInput,
   type SyncDayPassPurchaseResult
 } from './contacts';
+
+export {
+  syncCompanyToHubSpot,
+  type SyncCompanyInput,
+  type SyncCompanyResult
+} from './companies';

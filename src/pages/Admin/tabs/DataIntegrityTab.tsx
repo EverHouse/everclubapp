@@ -708,7 +708,7 @@ const DataIntegrityTab: React.FC = () => {
     setIsReconciling(true);
     setReconcileResult(null);
     try {
-      const res = await fetch('/api/family-billing/reconcile', {
+      const res = await fetch('/api/group-billing/reconcile', {
         method: 'POST',
         credentials: 'include',
       });

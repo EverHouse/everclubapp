@@ -46,6 +46,9 @@ export const membershipTiers = pgTable("membership_tiers", {
   billingInterval: varchar("billing_interval").default("month"),
   productType: varchar("product_type").default("subscription"), // 'subscription' or 'one_time'
   
+  minQuantity: integer("min_quantity").default(1),
+  tierType: text("tier_type").default("individual"), // 'individual' or 'corporate'
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

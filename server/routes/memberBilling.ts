@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { isStaffOrAdmin } from '../core/middleware';
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
-import { getFamilyGroupByMemberEmail } from '../core/stripe/familyBilling';
+import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 
@@ -142,7 +142,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       billingInfo.mindbodyClientId = member.mindbody_client_id;
     } else if (member.billing_provider === 'family_addon') {
       try {
-        const familyGroup = await getFamilyGroupByMemberEmail(email);
+        const familyGroup = await getBillingGroupByMemberEmail(email);
         billingInfo.familyGroup = familyGroup;
       } catch (familyError: any) {
         console.error('[MemberBilling] Family group error:', familyError.message);

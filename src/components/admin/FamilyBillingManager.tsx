@@ -71,7 +71,7 @@ const FamilyBillingManager: React.FC<FamilyBillingManagerProps> = ({ memberEmail
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/family-billing/group/${encodeURIComponent(memberEmail)}`, {
+      const res = await fetch(`/api/group-billing/group/${encodeURIComponent(memberEmail)}`, {
         credentials: 'include',
       });
       if (res.ok) {
@@ -92,7 +92,7 @@ const FamilyBillingManager: React.FC<FamilyBillingManagerProps> = ({ memberEmail
 
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await fetch('/api/family-billing/products', { credentials: 'include' });
+      const res = await fetch('/api/group-billing/products', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setProducts(data);
@@ -116,7 +116,7 @@ const FamilyBillingManager: React.FC<FamilyBillingManagerProps> = ({ memberEmail
     setIsCreatingGroup(true);
     setError(null);
     try {
-      const res = await fetch('/api/family-billing/groups', {
+      const res = await fetch('/api/group-billing/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -147,7 +147,7 @@ const FamilyBillingManager: React.FC<FamilyBillingManagerProps> = ({ memberEmail
     setIsAddingMember(true);
     setError(null);
     try {
-      const res = await fetch(`/api/family-billing/groups/${familyGroup.id}/members`, {
+      const res = await fetch(`/api/group-billing/groups/${familyGroup.id}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -179,7 +179,7 @@ const FamilyBillingManager: React.FC<FamilyBillingManagerProps> = ({ memberEmail
     setRemovingMemberId(memberId);
     setError(null);
     try {
-      const res = await fetch(`/api/family-billing/members/${memberId}`, {
+      const res = await fetch(`/api/group-billing/members/${memberId}`, {
         method: 'DELETE',
         credentials: 'include',
       });

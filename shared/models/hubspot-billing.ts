@@ -230,8 +230,8 @@ export const stripePaymentIntents = pgTable("stripe_payment_intents", {
 export type StripePaymentIntent = typeof stripePaymentIntents.$inferSelect;
 export type InsertStripePaymentIntent = typeof stripePaymentIntents.$inferInsert;
 
-// Family billing groups - tracks primary payer and family add-on members
-export const familyGroups = pgTable("family_groups", {
+// Billing groups - tracks primary payer and group members (family or corporate)
+export const billingGroups = pgTable("billing_groups", {
   id: serial("id").primaryKey(),
   
   // Primary payer info
@@ -241,6 +241,9 @@ export const familyGroups = pgTable("family_groups", {
   
   // Group metadata
   groupName: varchar("group_name"), // optional friendly name like "Smith Family"
+  type: text("type").default("family"), // 'family' or 'corporate'
+  companyName: text("company_name"),
+  hubspotCompanyId: text("hubspot_company_id"),
   
   // Status
   isActive: boolean("is_active").default(true),
@@ -251,15 +254,15 @@ export const familyGroups = pgTable("family_groups", {
   createdBy: varchar("created_by"),
   createdByName: varchar("created_by_name"),
 }, (table) => [
-  index("family_groups_primary_email_idx").on(table.primaryEmail),
+  index("billing_groups_primary_email_idx").on(table.primaryEmail),
 ]);
 
-// Family members - links individual members to a family group
-export const familyMembers = pgTable("family_members", {
+// Group members - links individual members to a billing group
+export const groupMembers = pgTable("group_members", {
   id: serial("id").primaryKey(),
   
-  // Family group linkage
-  familyGroupId: integer("family_group_id").notNull(),
+  // Billing group linkage
+  billingGroupId: integer("billing_group_id").notNull(),
   
   // Member info
   memberEmail: varchar("member_email").notNull(),
@@ -282,8 +285,8 @@ export const familyMembers = pgTable("family_members", {
   addedBy: varchar("added_by"),
   addedByName: varchar("added_by_name"),
 }, (table) => [
-  index("family_members_family_group_id_idx").on(table.familyGroupId),
-  index("family_members_member_email_idx").on(table.memberEmail),
+  index("group_members_billing_group_id_idx").on(table.billingGroupId),
+  index("group_members_member_email_idx").on(table.memberEmail),
 ]);
 
 // Family add-on products - configurable pricing for family add-ons by tier
@@ -312,9 +315,19 @@ export const familyAddOnProducts = pgTable("family_add_on_products", {
   index("family_add_on_products_tier_name_idx").on(table.tierName),
 ]);
 
-export type FamilyGroup = typeof familyGroups.$inferSelect;
-export type InsertFamilyGroup = typeof familyGroups.$inferInsert;
-export type FamilyMember = typeof familyMembers.$inferSelect;
-export type InsertFamilyMember = typeof familyMembers.$inferInsert;
+export type BillingGroup = typeof billingGroups.$inferSelect;
+export type InsertBillingGroup = typeof billingGroups.$inferInsert;
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type InsertGroupMember = typeof groupMembers.$inferInsert;
 export type FamilyAddOnProduct = typeof familyAddOnProducts.$inferSelect;
 export type InsertFamilyAddOnProduct = typeof familyAddOnProducts.$inferInsert;
+
+// Legacy table aliases for backwards compatibility
+export const familyGroups = billingGroups;
+export const familyMembers = groupMembers;
+
+// Legacy type aliases for backwards compatibility
+export type FamilyGroup = BillingGroup;
+export type InsertFamilyGroup = InsertBillingGroup;
+export type FamilyMember = GroupMember;
+export type InsertFamilyMember = InsertGroupMember;

@@ -30,7 +30,16 @@ async function getStripePromise(): Promise<Stripe | null> {
   }
 }
 
-function CheckoutForm({ tier, email }: { tier: string; email?: string }) {
+interface CheckoutFormProps {
+  tier: string;
+  email?: string;
+  quantity?: number;
+  companyName?: string;
+  jobTitle?: string;
+  isCorporate?: boolean;
+}
+
+function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorporate }: CheckoutFormProps) {
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +58,13 @@ function CheckoutForm({ tier, email }: { tier: string; email?: string }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ tier, email }),
+          body: JSON.stringify({ 
+            tier, 
+            email,
+            quantity: isCorporate ? quantity : 1,
+            companyName: isCorporate ? companyName : undefined,
+            jobTitle: isCorporate ? jobTitle : undefined,
+          }),
         });
 
         if (!res.ok) {
@@ -67,7 +82,7 @@ function CheckoutForm({ tier, email }: { tier: string; email?: string }) {
     };
 
     init();
-  }, [tier, email]);
+  }, [tier, email, quantity, companyName, jobTitle, isCorporate]);
 
   if (loading) {
     return (
@@ -103,6 +118,191 @@ function CheckoutForm({ tier, email }: { tier: string; email?: string }) {
     >
       <EmbeddedCheckout />
     </EmbeddedCheckoutProvider>
+  );
+}
+
+function getCorporatePriceDisplay(count: number): number {
+  if (count >= 50) return 249;
+  if (count >= 20) return 275;
+  if (count >= 10) return 299;
+  if (count >= 5) return 325;
+  return 350;
+}
+
+function getPriceTier(count: number): string {
+  if (count >= 50) return '50+ employees';
+  if (count >= 20) return '20-49 employees';
+  if (count >= 10) return '10-19 employees';
+  return '5-9 employees';
+}
+
+interface CorporateCheckoutFormProps {
+  tier: string;
+  email?: string;
+  initialQuantity: number;
+}
+
+function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateCheckoutFormProps) {
+  const [companyName, setCompanyName] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [quantity, setQuantity] = useState(Math.max(initialQuantity, 5));
+  const [showStripeCheckout, setShowStripeCheckout] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pricePerSeat = getCorporatePriceDisplay(quantity);
+  const totalMonthly = pricePerSeat * quantity;
+  const priceTier = getPriceTier(quantity);
+
+  const handleQuantityChange = (delta: number) => {
+    setQuantity(prev => Math.max(5, Math.min(100, prev + delta)));
+  };
+
+  const handleContinue = () => {
+    if (!companyName.trim()) {
+      setError('Company name is required');
+      return;
+    }
+    setError(null);
+    setShowStripeCheckout(true);
+  };
+
+  if (showStripeCheckout) {
+    return (
+      <div className="space-y-6">
+        <div className="glass-card rounded-2xl p-4 backdrop-blur-xl bg-white/30 dark:bg-white/5 border border-white/20">
+          <div className="flex items-center justify-between text-sm">
+            <div className="text-primary/70 dark:text-white/70">
+              <span className="font-medium text-primary dark:text-white">{companyName}</span>
+              {jobTitle && <span className="ml-2">({jobTitle})</span>}
+            </div>
+            <div className="text-primary dark:text-white font-medium">
+              {quantity} seats × ${pricePerSeat}/mo = ${totalMonthly.toLocaleString()}/mo
+            </div>
+          </div>
+        </div>
+        <CheckoutForm 
+          tier={tier} 
+          email={email} 
+          quantity={quantity}
+          companyName={companyName}
+          jobTitle={jobTitle}
+          isCorporate={true}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/20 flex items-center justify-center">
+          <span className="material-symbols-outlined text-3xl text-accent">corporate_fare</span>
+        </div>
+        <h2 className="text-2xl font-bold text-primary dark:text-white mb-2">Corporate Membership</h2>
+        <p className="text-primary/70 dark:text-white/70">Team memberships with volume discounts</p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-2">
+            Company Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="Acme Corporation"
+            className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 backdrop-blur-sm text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-2">
+            Your Job Title
+          </label>
+          <input
+            type="text"
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            placeholder="HR Manager, CEO, etc."
+            className="w-full px-4 py-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 backdrop-blur-sm text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-2">
+            Number of Employee Seats
+          </label>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => handleQuantityChange(-5)}
+              disabled={quantity <= 5}
+              className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined">remove</span>
+            </button>
+            <div className="flex-1 text-center">
+              <div className="text-4xl font-bold text-primary dark:text-white">{quantity}</div>
+              <div className="text-sm text-primary/60 dark:text-white/60">{priceTier}</div>
+            </div>
+            <button
+              onClick={() => handleQuantityChange(5)}
+              disabled={quantity >= 100}
+              className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10 dark:bg-white/10 text-primary dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined">add</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-2xl p-5 backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/30 dark:border-white/10">
+        <h3 className="font-semibold text-primary dark:text-white mb-4 flex items-center gap-2">
+          <span className="material-symbols-outlined text-accent">receipt_long</span>
+          Price Summary
+        </h3>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-primary/70 dark:text-white/70">Price per employee</span>
+            <span className="text-primary dark:text-white font-medium">${pricePerSeat}/month</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-primary/70 dark:text-white/70">Number of seats</span>
+            <span className="text-primary dark:text-white font-medium">×{quantity}</span>
+          </div>
+          <div className="border-t border-primary/10 dark:border-white/10 pt-3 flex justify-between">
+            <span className="text-primary dark:text-white font-semibold">Total Monthly</span>
+            <span className="text-2xl font-bold text-accent">${totalMonthly.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/10">
+          <h4 className="text-xs font-medium text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Volume Discounts</h4>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className={`p-2 rounded-lg ${quantity >= 5 && quantity < 10 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>5-9 seats: $325/mo</div>
+            <div className={`p-2 rounded-lg ${quantity >= 10 && quantity < 20 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>10-19 seats: $299/mo</div>
+            <div className={`p-2 rounded-lg ${quantity >= 20 && quantity < 50 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>20-49 seats: $275/mo</div>
+            <div className={`p-2 rounded-lg ${quantity >= 50 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>50+ seats: $249/mo</div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <p className="text-red-500 text-sm text-center">{error}</p>
+      )}
+
+      <button
+        onClick={handleContinue}
+        className="w-full py-4 px-6 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-lg"
+      >
+        <span className="material-symbols-outlined">arrow_forward</span>
+        Continue to Payment
+      </button>
+
+      <p className="text-xs text-center text-primary/50 dark:text-white/50">
+        Minimum 5 employees required for corporate membership
+      </p>
+    </div>
   );
 }
 
@@ -461,6 +661,8 @@ export default function Checkout() {
   
   const tier = searchParams.get('tier');
   const email = searchParams.get('email') || undefined;
+  const qty = parseInt(searchParams.get('qty') || '1', 10);
+  const isCorporate = tier === 'corporate';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f5f7f0] to-[#eef1e6] dark:from-[#0f120a] dark:to-[#1a1d12]">
@@ -477,9 +679,19 @@ export default function Checkout() {
         {isSuccess ? (
           <CheckoutSuccess />
         ) : tier ? (
-          <div className="glass-card rounded-2xl p-6 md:p-8">
-            <h1 className="text-2xl font-bold text-primary dark:text-white mb-6 text-center">Complete Your Membership</h1>
-            <CheckoutForm tier={tier} email={email} />
+          <div className="glass-card rounded-2xl p-6 md:p-8 backdrop-blur-xl bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10">
+            {isCorporate ? (
+              <CorporateCheckoutForm 
+                tier={tier} 
+                email={email} 
+                initialQuantity={qty}
+              />
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-primary dark:text-white mb-6 text-center">Complete Your Membership</h1>
+                <CheckoutForm tier={tier} email={email} />
+              </>
+            )}
           </div>
         ) : (
           <DayPassesSection />

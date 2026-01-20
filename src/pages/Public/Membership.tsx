@@ -460,6 +460,23 @@ const MembershipCard: React.FC<any> = ({ title, price, suffix="/mo", desc, featu
 
 const Corporate: React.FC = () => {
     const { setPageReady } = usePageReady();
+    const [employeeCount, setEmployeeCount] = useState(5);
+
+    const getPricePerEmployee = (count: number): number => {
+      if (count >= 50) return 249;
+      if (count >= 20) return 275;
+      if (count >= 10) return 299;
+      if (count >= 5) return 325;
+      return 350;
+    };
+
+    const getPricingTier = (count: number): string => {
+      if (count >= 50) return '50+ employees';
+      if (count >= 20) return '20-49 employees';
+      if (count >= 10) return '10-19 employees';
+      if (count >= 5) return '5-9 employees';
+      return '1-4 employees';
+    };
 
     useEffect(() => {
       setPageReady(true);
@@ -520,34 +537,72 @@ const Corporate: React.FC = () => {
              </div>
              
              <div className="bg-white/40 backdrop-blur-md rounded-[2rem] border border-white/60 shadow-sm overflow-hidden divide-y divide-primary/5">
-                <DiscountRow count="1–4" price="$350" icon="1+" />
-                <DiscountRow count="5–9" price="$325" icon="5+" />
-                <DiscountRow count="10–19" price="$299" icon="10+" />
-                <DiscountRow count="20–49" price="$275" icon="20+" />
-                <DiscountRow count="50+" price="$249" icon="50+" />
+                <DiscountRow count="1–4" price="$350" icon="1+" isActive={employeeCount < 5} />
+                <DiscountRow count="5–9" price="$325" icon="5+" isActive={employeeCount >= 5 && employeeCount < 10} />
+                <DiscountRow count="10–19" price="$299" icon="10+" isActive={employeeCount >= 10 && employeeCount < 20} />
+                <DiscountRow count="20–49" price="$275" icon="20+" isActive={employeeCount >= 20 && employeeCount < 50} />
+                <DiscountRow count="50+" price="$249" icon="50+" isActive={employeeCount >= 50} />
              </div>
+
+             <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-sm p-6 mt-6">
+                <div className="flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-primary">Team Size</span>
+                      <span className="text-lg font-bold text-primary">{employeeCount} employees</span>
+                   </div>
+                   <input
+                      type="range"
+                      min={5}
+                      max={100}
+                      step={1}
+                      value={employeeCount}
+                      onChange={(e) => setEmployeeCount(Number(e.target.value))}
+                      className="w-full h-2 bg-primary/20 rounded-full appearance-none cursor-pointer accent-primary [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0"
+                   />
+                   <div className="flex justify-between text-[10px] text-primary/50 font-medium">
+                      <span>5</span>
+                      <span>100</span>
+                   </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-primary/10">
+                   <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-primary/60 uppercase tracking-wider">Current Tier</span>
+                      <span className="px-3 py-1 bg-primary/10 rounded-full text-xs font-bold text-primary">{getPricingTier(employeeCount)}</span>
+                   </div>
+                   <div className="flex items-center justify-between mb-4">
+                      <span className="text-xs font-medium text-primary/60 uppercase tracking-wider">Price per Employee</span>
+                      <span className="text-xl font-bold text-primary">${getPricePerEmployee(employeeCount)}<span className="text-sm font-medium text-primary/60">/mo</span></span>
+                   </div>
+                   <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl">
+                      <span className="text-sm font-semibold text-primary">Estimated Monthly Total</span>
+                      <span className="text-2xl font-bold text-primary">${(employeeCount * getPricePerEmployee(employeeCount)).toLocaleString()}</span>
+                   </div>
+                </div>
+             </div>
+
              <p className="text-center text-[10px] text-primary/40 mt-6 px-8 leading-relaxed max-w-xs mx-auto">
                  Prices listed are per employee, billed monthly. Minimum contract terms may apply.
              </p>
         </div>
 
-        <Link to="/contact" className="w-full py-5 px-6 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group animate-pop-in" style={{animationDelay: '0.15s'}}>
-            Apply for Corporate Membership
+        <Link to={`/checkout?tier=corporate&qty=${employeeCount}`} className="w-full py-5 px-6 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group animate-pop-in" style={{animationDelay: '0.15s'}}>
+            Join as Corporate
             <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
         </Link>
       </div>
     );
 };
 
-const DiscountRow: React.FC<{count: string; price: string; icon: string}> = ({ count, price, icon }) => (
-    <div className="flex items-center justify-between p-5 hover:bg-white/40 transition-colors group">
+const DiscountRow: React.FC<{count: string; price: string; icon: string; isActive?: boolean}> = ({ count, price, icon, isActive }) => (
+    <div className={`flex items-center justify-between p-5 transition-colors group ${isActive ? 'bg-primary/10' : 'hover:bg-white/40'}`}>
         <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm border border-white group-hover:scale-105 transition-all">
-                <span className="text-xs font-bold text-primary/70">{icon}</span>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm border group-hover:scale-105 transition-all ${isActive ? 'bg-primary border-primary' : 'bg-white border-white'}`}>
+                <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-primary/70'}`}>{icon}</span>
             </div>
-            <span className="font-medium text-primary text-lg">{count} employees</span>
+            <span className={`font-medium text-lg ${isActive ? 'text-primary font-semibold' : 'text-primary'}`}>{count} employees</span>
         </div>
-        <span className="font-semibold text-primary text-xl tracking-tight">{price}</span>
+        <span className={`font-semibold text-xl tracking-tight ${isActive ? 'text-primary' : 'text-primary'}`}>{price}</span>
     </div>
 );
 
