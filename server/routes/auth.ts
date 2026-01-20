@@ -12,6 +12,7 @@ import { triggerMemberSync } from '../core/memberSync';
 import { withResendRetry } from '../core/retryUtils';
 import { getSessionUser } from '../types/session';
 import { sendWelcomeEmail } from '../emails/welcomeEmail';
+import { getSupabaseAdmin } from '../core/supabase/client';
 
 interface StaffUserData {
   firstName: string;
@@ -135,6 +136,33 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
     if (!isProduction) console.log(`[Auth] Updated user ${normalizedEmail} with role ${data.role}, tier ${normalizedTier || 'none'}`);
   } catch (error) {
     console.error('[Auth] Error upserting user tier:', error);
+  }
+}
+
+async function createSupabaseToken(user: { id: string, email: string, role: string, firstName?: string, lastName?: string }): Promise<string | null> {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: user.email,
+      options: {
+        data: {
+          first_name: user.firstName,
+          last_name: user.lastName,
+          app_role: user.role,
+        }
+      }
+    });
+
+    if (error) {
+      console.error('[Supabase] Token generation error:', error);
+      return null;
+    }
+
+    return data?.properties?.access_token || null;
+  } catch (e) {
+    console.error('[Supabase] Failed to generate token:', e);
+    return null;
   }
 }
 
@@ -600,6 +628,8 @@ router.post('/api/auth/verify-otp', async (req, res) => {
     }
     
     req.session.user = member;
+
+    const supabaseToken = await createSupabaseToken(member);
     
     await upsertUserWithTier({
       email: member.email,
@@ -639,7 +669,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         if (!isProduction) console.error('Session save error:', err);
         return res.status(500).json({ error: 'Failed to create session' });
       }
-      res.json({ success: true, member, shouldSetupPassword });
+      res.json({ success: true, member, shouldSetupPassword, supabaseToken });
     });
   } catch (error: any) {
     if (!isProduction) console.error('OTP verification error:', error);
@@ -820,6 +850,8 @@ router.post('/api/auth/password-login', async (req, res) => {
     };
     
     req.session.user = member;
+
+    const supabaseToken = await createSupabaseToken(member);
     
     await upsertUserWithTier({
       email: member.email,
@@ -838,7 +870,7 @@ router.post('/api/auth/password-login', async (req, res) => {
         if (!isProduction) console.error('Session save error:', err);
         return res.status(500).json({ error: 'Failed to create session' });
       }
-      res.json({ success: true, member });
+      res.json({ success: true, member, supabaseToken });
     });
   } catch (error: any) {
     if (!isProduction) console.error('Password login error:', error);
@@ -934,13 +966,15 @@ router.post('/api/auth/dev-login', async (req, res) => {
     };
     
     req.session.user = member;
+
+    const supabaseToken = await createSupabaseToken(member);
     
     req.session.save((err) => {
       if (err) {
         if (!isProduction) console.error('Session save error:', err);
         return res.status(500).json({ error: 'Failed to create session' });
       }
-      res.json({ success: true, member });
+      res.json({ success: true, member, supabaseToken });
     });
   } catch (error: any) {
     if (!isProduction) console.error('Dev login error:', error);

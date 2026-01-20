@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
-import { useData } from '../../contexts/DataContext';
+import { useUserStore } from '../../stores/userStore';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
@@ -11,7 +11,7 @@ const Spinner = () => (
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { loginWithMember } = useData();
+  const setUser = useUserStore((state) => state.setUser);
   const { setPageReady } = usePageReady();
   const [email, setEmail] = useState('');
   
@@ -95,8 +95,8 @@ const Login: React.FC = () => {
         throw new Error(data.error || 'Dev login failed');
       }
       
-      const { member } = await res.json();
-      loginWithMember(member);
+      const { member, supabaseToken } = await res.json();
+      setUser(member, supabaseToken);
       navigate(member.role === 'admin' || member.role === 'staff' ? '/admin' : '/member/dashboard');
     } catch (err: any) {
       setError(err.message || 'Dev login failed');
@@ -125,7 +125,7 @@ const Login: React.FC = () => {
         throw new Error(data.error || 'Login failed');
       }
       
-      loginWithMember(data.member);
+      setUser(data.member, data.supabaseToken);
       navigate(data.member.role === 'admin' || data.member.role === 'staff' ? '/admin' : '/member/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -237,27 +237,7 @@ const Login: React.FC = () => {
         throw new Error(data.error || 'Invalid code');
       }
       
-      // NOTE: Supabase Auth Session Sync for RLS
-      // Since OTP is verified server-side (not via Supabase Auth), we cannot directly
-      // establish a Supabase session here. For RLS on the notifications table to work:
-      // 1. The server would need to generate Supabase access/refresh tokens via Admin API
-      // 2. The server would return these tokens in the response
-      // 3. We would call supabase.auth.setSession({ access_token, refresh_token })
-      // 
-      // Current implementation: Supabase Realtime is used for real-time updates without RLS.
-      // If the server returns supabaseSession data in the future, enable the session sync:
-      // if (data.supabaseSession?.access_token && data.supabaseSession?.refresh_token) {
-      //   const { getSupabase } = await import('../../lib/supabase');
-      //   const supabase = getSupabase();
-      //   if (supabase) {
-      //     await supabase.auth.setSession({
-      //       access_token: data.supabaseSession.access_token,
-      //       refresh_token: data.supabaseSession.refresh_token,
-      //     });
-      //   }
-      // }
-      
-      loginWithMember(data.member);
+      setUser(data.member, data.supabaseToken);
       
       const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
       const destination = isStaff ? '/admin' : '/member/dashboard';

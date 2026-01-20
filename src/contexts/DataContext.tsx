@@ -57,7 +57,6 @@ interface DataContextType {
   
   // Auth Actions
   login: (email: string) => Promise<void>;
-  loginWithMember: (member: any) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   
@@ -898,32 +897,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     setSessionVersion(v => v + 1);
   };
 
-  const loginWithMember = (member: any) => {
-    const memberProfile: MemberProfile = {
-      id: member.id,
-      name: [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email || 'Member',
-      tier: member.tier || 'Core',
-      tags: member.tags || [],
-      status: 'Active',
-      email: member.email,
-      phone: member.phone || '',
-      jobTitle: member.jobTitle || '',
-      role: member.role || 'member',
-      mindbodyClientId: member.mindbodyClientId || '',
-      lifetimeVisits: member.lifetimeVisits || 0,
-      lastBookingDate: member.lastBookingDate || undefined
-    };
-    
-    // Only set ref if session check is still in progress (race protection)
-    if (!sessionChecked) {
-      loginInProgressRef.current = true;
-    }
-    localStorage.setItem('eh_member', JSON.stringify(memberProfile));
-    setActualUser(memberProfile);
-    useUserStore.getState().setUser(memberProfile);
-    setSessionVersion(v => v + 1);
-  };
-
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', {
@@ -1280,7 +1253,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   return (
     <DataContext.Provider value={{
       user, actualUser, viewAsUser, isViewingAs,
-      login, loginWithMember, logout, refreshUser, setViewAsUser, clearViewAsUser,
+      login, logout, refreshUser, setViewAsUser, clearViewAsUser,
       cafeMenu, events, announcements, members, formerMembers, bookings, isLoading, isDataReady, sessionChecked, sessionVersion,
       fetchFormerMembers,
       fetchMembersPaginated, membersPagination, isFetchingMembers,
