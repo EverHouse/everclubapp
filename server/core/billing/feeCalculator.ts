@@ -134,3 +134,34 @@ export async function clearCachedFees(participantIds: number[]): Promise<void> {
     console.error('[FeeCalculator] Error clearing cached fees:', error);
   }
 }
+
+export function estimateBookingFees(
+    userTier: string,
+    duration: number,
+    playerCount: number,
+    usedMinutesForDay: number,
+    tierPermissions: { dailySimulatorMinutes?: number }
+): {
+    overageFee: number;
+    guestFees: number;
+    totalFee: number;
+    guestCount: number;
+    overageMinutes: number;
+} {
+    const isSocialTier = userTier?.toLowerCase() === 'social';
+    const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
+    const perPersonMins = Math.floor(duration / playerCount);
+
+    const overageMinutes = isSocialTier
+        ? duration
+        : Math.max(0, (usedMinutesForDay + perPersonMins) - dailyAllowance);
+    const overageBlocks = Math.ceil(overageMinutes / 30);
+    const overageFee = overageBlocks * 25;
+
+    const guestCount = Math.max(0, playerCount - 1);
+    const guestFees = guestCount * 25;
+
+    const totalFee = overageFee + guestFees;
+
+    return { overageFee, guestFees, totalFee, guestCount, overageMinutes };
+}
