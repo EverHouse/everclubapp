@@ -27,6 +27,7 @@ const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'HubSpot Sync Mismatch': 'critical',
   'Deal Stage Drift': 'critical',
   'Stripe Subscription Sync': 'critical',
+  'Stuck Transitional Members': 'critical',
   'Calendar Sync Mismatches': 'high',
   'Participant User Relationships': 'high',
   'Booking Request Integrity': 'high',
@@ -1027,6 +1028,51 @@ async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
   };
 }
 
+async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  
+  const stuckMembersResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, membership_status, stripe_subscription_id, updated_at
+    FROM users 
+    WHERE stripe_subscription_id IS NOT NULL
+      AND membership_status IN ('pending', 'non-member')
+      AND updated_at < NOW() - INTERVAL '24 hours'
+      AND role = 'member'
+    ORDER BY updated_at ASC
+    LIMIT 50
+  `);
+  const stuckMembers = stuckMembersResult.rows as any[];
+  
+  for (const member of stuckMembers) {
+    const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const hoursStuck = Math.round((Date.now() - new Date(member.updated_at).getTime()) / (1000 * 60 * 60));
+    
+    issues.push({
+      category: 'sync_mismatch',
+      severity: 'error',
+      table: 'users',
+      recordId: member.id,
+      description: `Member "${memberName}" has Stripe subscription but is stuck in '${member.membership_status}' status for ${hoursStuck} hours`,
+      suggestion: 'Check Stripe webhook delivery or manually sync membership status',
+      context: {
+        memberName,
+        memberEmail: member.email,
+        memberTier: member.tier,
+        stripeCustomerId: member.stripe_subscription_id,
+        userId: member.id
+      }
+    });
+  }
+  
+  return {
+    checkName: 'Stuck Transitional Members',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
 async function storeCheckHistory(results: IntegrityCheckResult[], triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<void> {
   const totalIssues = results.reduce((sum, r) => sum + r.issueCount, 0);
   
@@ -1121,7 +1167,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     checkMembersWithoutEmail(),
     checkDealsWithoutLineItems(),
     checkDealStageDrift(),
-    checkStripeSubscriptionSync()
+    checkStripeSubscriptionSync(),
+    checkStuckTransitionalMembers()
   ]);
   
   const now = new Date();

@@ -13,15 +13,42 @@ import { broadcastBillingUpdate } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 import { handlePrimarySubscriptionCancelled } from './groupBilling';
 
-const processedEvents = new Map<string, number>();
-const EVENT_DEDUP_WINDOW_MS = 5 * 60 * 1000;
+const EVENT_DEDUP_WINDOW_HOURS = 24;
 
-function cleanupProcessedEvents(): void {
-  const now = Date.now();
-  for (const [eventId, timestamp] of processedEvents.entries()) {
-    if (now - timestamp > EVENT_DEDUP_WINDOW_MS) {
-      processedEvents.delete(eventId);
+async function isEventAlreadyProcessed(eventId: string): Promise<boolean> {
+  try {
+    const result = await pool.query(
+      'SELECT id FROM webhook_processed_events WHERE event_id = $1',
+      [eventId]
+    );
+    return result.rows.length > 0;
+  } catch (err) {
+    console.error('[Stripe Webhook] Error checking event deduplication:', err);
+    return false;
+  }
+}
+
+async function markEventProcessed(eventId: string, eventType: string): Promise<void> {
+  try {
+    await pool.query(
+      'INSERT INTO webhook_processed_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING',
+      [eventId, eventType]
+    );
+  } catch (err) {
+    console.error('[Stripe Webhook] Error marking event as processed:', err);
+  }
+}
+
+async function cleanupOldProcessedEvents(): Promise<void> {
+  try {
+    const result = await pool.query(
+      'DELETE FROM webhook_processed_events WHERE processed_at < NOW() - INTERVAL \'24 hours\' RETURNING id'
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      console.log(`[Stripe Webhook] Cleaned up ${result.rowCount} old processed events`);
     }
+  } catch (err) {
+    console.error('[Stripe Webhook] Error cleaning up old events:', err);
   }
 }
 
@@ -44,30 +71,35 @@ export async function processStripeWebhook(
   const payloadString = payload.toString('utf8');
   const event = JSON.parse(payloadString);
 
-  if (processedEvents.has(event.id)) {
+  if (await isEventAlreadyProcessed(event.id)) {
     console.log(`[Stripe Webhook] Skipping duplicate event: ${event.id} (${event.type})`);
     return;
   }
   
-  processedEvents.set(event.id, Date.now());
-  cleanupProcessedEvents();
-
-  if (event.type === 'payment_intent.succeeded') {
-    await handlePaymentIntentSucceeded(event.data.object);
-  } else if (event.type === 'payment_intent.payment_failed') {
-    await handlePaymentIntentFailed(event.data.object);
-  } else if (event.type === 'invoice.payment_succeeded') {
-    await handleInvoicePaymentSucceeded(event.data.object);
-  } else if (event.type === 'invoice.payment_failed') {
-    await handleInvoicePaymentFailed(event.data.object);
-  } else if (event.type === 'checkout.session.completed') {
-    await handleCheckoutSessionCompleted(event.data.object);
-  } else if (event.type === 'customer.subscription.created') {
-    await handleSubscriptionCreated(event.data.object);
-  } else if (event.type === 'customer.subscription.updated') {
-    await handleSubscriptionUpdated(event.data.object, event.data.previous_attributes);
-  } else if (event.type === 'customer.subscription.deleted') {
-    await handleSubscriptionDeleted(event.data.object);
+  try {
+    if (event.type === 'payment_intent.succeeded') {
+      await handlePaymentIntentSucceeded(event.data.object);
+    } else if (event.type === 'payment_intent.payment_failed') {
+      await handlePaymentIntentFailed(event.data.object);
+    } else if (event.type === 'invoice.payment_succeeded') {
+      await handleInvoicePaymentSucceeded(event.data.object);
+    } else if (event.type === 'invoice.payment_failed') {
+      await handleInvoicePaymentFailed(event.data.object);
+    } else if (event.type === 'checkout.session.completed') {
+      await handleCheckoutSessionCompleted(event.data.object);
+    } else if (event.type === 'customer.subscription.created') {
+      await handleSubscriptionCreated(event.data.object);
+    } else if (event.type === 'customer.subscription.updated') {
+      await handleSubscriptionUpdated(event.data.object, event.data.previous_attributes);
+    } else if (event.type === 'customer.subscription.deleted') {
+      await handleSubscriptionDeleted(event.data.object);
+    }
+    
+    await markEventProcessed(event.id, event.type);
+    cleanupOldProcessedEvents().catch(() => {});
+  } catch (handlerError) {
+    console.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}):`, handlerError);
+    throw handlerError;
   }
 }
 

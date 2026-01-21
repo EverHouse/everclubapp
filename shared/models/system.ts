@@ -95,3 +95,15 @@ export const appSettings = pgTable("app_settings", {
 
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
+
+export const webhookProcessedEvents = pgTable("webhook_processed_events", {
+  id: serial("id").primaryKey(),
+  eventId: varchar("event_id", { length: 255 }).notNull().unique(),
+  eventType: varchar("event_type", { length: 100 }),
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
+}, (table) => ({
+  eventIdIdx: uniqueIndex("webhook_processed_events_event_id_idx").on(table.eventId),
+  processedAtIdx: index("webhook_processed_events_processed_at_idx").on(table.processedAt),
+}));
+
+export type WebhookProcessedEvent = typeof webhookProcessedEvents.$inferSelect;
