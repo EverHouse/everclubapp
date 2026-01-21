@@ -146,7 +146,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     } finally {
       setOptionsLoading(false);
     }
-  }, [tier]);
+  }, [tierId]);
 
   useEffect(() => {
     if (isOpen) {
