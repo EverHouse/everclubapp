@@ -15,3 +15,10 @@ export {
   detectIdentifierType,
   normalizeEmail
 } from './memberTypes';
+export {
+  syncMemberTierFromStripe,
+  syncMemberStatusFromStripe,
+  getTierFromPriceId,
+  validateTierConsistency
+} from './tierSync';
+export type { TierSyncResult } from './tierSync';

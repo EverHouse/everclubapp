@@ -461,6 +461,8 @@ export async function addCorporateMember(params: {
   addedBy: string;
   addedByName: string;
 }): Promise<{ success: boolean; memberId?: number; error?: string }> {
+  const client = await pool.connect();
+  
   try {
     const existingMember = await db.select()
       .from(groupMembers)
@@ -493,6 +495,9 @@ export async function addCorporateMember(params: {
     const newMemberCount = currentMembers.length + 1;
     const pricePerSeat = getCorporateVolumePrice(newMemberCount);
     
+    let originalQuantity: number | null = null;
+    let corporateItemId: string | null = null;
+    
     if (group[0].primaryStripeSubscriptionId) {
       try {
         const stripe = await getStripeClient();
@@ -505,6 +510,9 @@ export async function addCorporateMember(params: {
         );
         
         if (corporateItem) {
+          originalQuantity = corporateItem.quantity || 0;
+          corporateItemId = corporateItem.id;
+          
           await stripe.subscriptionItems.update(corporateItem.id, {
             quantity: newMemberCount,
           });
@@ -515,25 +523,57 @@ export async function addCorporateMember(params: {
       }
     }
     
-    const result = await db.insert(groupMembers).values({
-      billingGroupId: params.billingGroupId,
-      memberEmail: params.memberEmail.toLowerCase(),
-      memberTier: params.memberTier,
-      relationship: 'employee',
-      addOnPriceCents: pricePerSeat,
-      addedBy: params.addedBy,
-      addedByName: params.addedByName,
-    }).returning({ id: groupMembers.id });
-    
-    await pool.query(
-      'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
-      [params.billingGroupId, params.memberEmail.toLowerCase()]
-    );
-    
-    return { success: true, memberId: result[0].id };
+    try {
+      await client.query('BEGIN');
+      
+      const insertResult = await client.query(
+        `INSERT INTO group_members (
+          billing_group_id, member_email, member_tier, relationship,
+          add_on_price_cents, added_by, added_by_name, is_active, added_at
+        ) VALUES ($1, $2, $3, 'employee', $4, $5, $6, true, NOW())
+        RETURNING id`,
+        [
+          params.billingGroupId,
+          params.memberEmail.toLowerCase(),
+          params.memberTier,
+          pricePerSeat,
+          params.addedBy,
+          params.addedByName,
+        ]
+      );
+      
+      await client.query(
+        'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
+        [params.billingGroupId, params.memberEmail.toLowerCase()]
+      );
+      
+      await client.query('COMMIT');
+      
+      return { success: true, memberId: insertResult.rows[0].id };
+      
+    } catch (dbErr: any) {
+      await client.query('ROLLBACK');
+      console.error('[GroupBilling] DB transaction failed. Initiating Stripe rollback.', dbErr);
+      
+      if (corporateItemId && originalQuantity !== null) {
+        try {
+          const stripe = await getStripeClient();
+          await stripe.subscriptionItems.update(corporateItemId, {
+            quantity: originalQuantity,
+          });
+          console.log(`[GroupBilling] Rolled back Stripe quantity to ${originalQuantity}`);
+        } catch (rollbackErr: any) {
+          console.error(`[GroupBilling] CRITICAL: Failed to rollback Stripe quantity. Manual intervention required.`, rollbackErr);
+        }
+      }
+      
+      return { success: false, error: 'System error. No charges were made.' };
+    }
   } catch (err: any) {
     console.error('[GroupBilling] Error adding corporate member:', err);
     return { success: false, error: err.message };
+  } finally {
+    client.release();
   }
 }
 
@@ -541,6 +581,8 @@ export async function removeGroupMember(params: {
   memberId: number;
   removedBy: string;
 }): Promise<{ success: boolean; error?: string }> {
+  const client = await pool.connect();
+  
   try {
     const member = await db.select()
       .from(groupMembers)
@@ -557,27 +599,51 @@ export async function removeGroupMember(params: {
       try {
         const stripe = await getStripeClient();
         await stripe.subscriptionItems.del(memberRecord.stripeSubscriptionItemId);
+        console.log(`[GroupBilling] Deleted Stripe subscription item ${memberRecord.stripeSubscriptionItemId}`);
       } catch (stripeErr: any) {
-        console.error('[GroupBilling] Error removing Stripe subscription item:', stripeErr);
+        console.error('[GroupBilling] Failed to remove Stripe subscription item:', stripeErr);
+        return { 
+          success: false, 
+          error: `Cannot remove billing: ${stripeErr.message}. Member is still being charged.` 
+        };
       }
     }
     
-    await db.update(groupMembers)
-      .set({
-        isActive: false,
-        removedAt: new Date(),
-      })
-      .where(eq(groupMembers.id, params.memberId));
-    
-    await pool.query(
-      'UPDATE users SET billing_group_id = NULL WHERE LOWER(email) = $1',
-      [memberRecord.memberEmail.toLowerCase()]
-    );
-    
-    return { success: true };
+    try {
+      await client.query('BEGIN');
+      
+      await client.query(
+        `UPDATE group_members SET is_active = false, removed_at = NOW() WHERE id = $1`,
+        [params.memberId]
+      );
+      
+      await client.query(
+        'UPDATE users SET billing_group_id = NULL WHERE LOWER(email) = $1',
+        [memberRecord.memberEmail.toLowerCase()]
+      );
+      
+      await client.query('COMMIT');
+      
+      return { success: true };
+    } catch (dbErr: any) {
+      await client.query('ROLLBACK');
+      
+      console.error(
+        `[GroupBilling] CRITICAL: Stripe item deleted but DB update failed for member ${params.memberId}. ` +
+        `Manual reconciliation required.`, 
+        dbErr
+      );
+      
+      return { 
+        success: false, 
+        error: 'Billing was removed but system update failed. Please contact support.' 
+      };
+    }
   } catch (err: any) {
     console.error('[GroupBilling] Error removing group member:', err);
     return { success: false, error: err.message };
+  } finally {
+    client.release();
   }
 }
 

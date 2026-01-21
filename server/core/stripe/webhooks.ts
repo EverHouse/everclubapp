@@ -13,6 +13,18 @@ import { broadcastBillingUpdate } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 import { handlePrimarySubscriptionCancelled } from './groupBilling';
 
+const processedEvents = new Map<string, number>();
+const EVENT_DEDUP_WINDOW_MS = 5 * 60 * 1000;
+
+function cleanupProcessedEvents(): void {
+  const now = Date.now();
+  for (const [eventId, timestamp] of processedEvents.entries()) {
+    if (now - timestamp > EVENT_DEDUP_WINDOW_MS) {
+      processedEvents.delete(eventId);
+    }
+  }
+}
+
 export async function processStripeWebhook(
   payload: Buffer,
   signature: string
@@ -31,6 +43,14 @@ export async function processStripeWebhook(
 
   const payloadString = payload.toString('utf8');
   const event = JSON.parse(payloadString);
+
+  if (processedEvents.has(event.id)) {
+    console.log(`[Stripe Webhook] Skipping duplicate event: ${event.id} (${event.type})`);
+    return;
+  }
+  
+  processedEvents.set(event.id, Date.now());
+  cleanupProcessedEvents();
 
   if (event.type === 'payment_intent.succeeded') {
     await handlePaymentIntentSucceeded(event.data.object);
@@ -1020,6 +1040,17 @@ async function handleSubscriptionDeleted(subscription: any): Promise<void> {
         console.log(`[Stripe Webhook] Deactivated billing group ${billingGroup.id} for cancelled primary member`);
       }
     }
+
+    // CRITICAL: Update the user's membership status to cancelled
+    await pool.query(
+      `UPDATE users SET 
+        membership_status = 'cancelled',
+        stripe_subscription_id = NULL,
+        updated_at = NOW()
+      WHERE LOWER(email) = LOWER($1)`,
+      [email]
+    );
+    console.log(`[Stripe Webhook] Updated ${email} membership_status to cancelled`);
 
     await notifyMember({
       userEmail: email,
