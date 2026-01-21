@@ -3,8 +3,9 @@ import crypto from 'crypto';
 import { pool } from '../core/db';
 import { logger } from '../core/logger';
 import { isStaffOrAdmin } from '../core/middleware';
-import { sendNotificationToUser } from '../core/websocket';
+import { sendNotificationToUser, broadcastToStaff } from '../core/websocket';
 import { sendBookingConfirmationEmail } from '../emails/bookingEmails';
+import { notifyAllStaff } from '../core/staffNotifications';
 
 const router = Router();
 
@@ -658,6 +659,71 @@ async function notifyMemberBookingConfirmed(
   }
 }
 
+async function notifyStaffBookingCreated(
+  action: 'auto_approved' | 'auto_created' | 'unmatched',
+  memberName: string,
+  memberEmail: string | undefined,
+  slotDate: string,
+  startTime: string,
+  bayName?: string,
+  bookingId?: number
+): Promise<void> {
+  try {
+    let title: string;
+    let message: string;
+    let notificationType: string;
+    
+    switch (action) {
+      case 'auto_approved':
+        title = 'Booking Auto-Approved';
+        message = `${memberName}'s pending request for ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} was auto-approved via Trackman.`;
+        notificationType = 'trackman_booking';
+        break;
+      case 'auto_created':
+        title = 'Booking Auto-Created';
+        message = `A booking for ${memberName} on ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} was auto-created from Trackman.`;
+        notificationType = 'trackman_booking';
+        break;
+      case 'unmatched':
+        title = 'Unmatched Trackman Booking';
+        message = `Booking for "${memberName}" (${memberEmail || 'no email'}) on ${slotDate} at ${startTime} needs staff review.`;
+        notificationType = 'trackman_unmatched';
+        break;
+    }
+    
+    // Send real-time WebSocket notification to all connected staff
+    broadcastToStaff({
+      type: notificationType,
+      title,
+      message,
+      data: { 
+        bookingId, 
+        memberEmail, 
+        action,
+        date: slotDate,
+        time: startTime
+      }
+    });
+    
+    // Also save to database for staff notification history (optional - only for unmatched)
+    if (action === 'unmatched') {
+      await notifyAllStaff(
+        title,
+        message,
+        notificationType,
+        bookingId,
+        'trackman_booking'
+      );
+    }
+    
+    logger.info('[Trackman Webhook] Notified staff', { 
+      extra: { action, memberName, memberEmail, date: slotDate } 
+    });
+  } catch (e) {
+    logger.error('[Trackman Webhook] Failed to notify staff', { error: e as Error });
+  }
+}
+
 async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ success: boolean; matchedBookingId?: number }> {
   const bookingData = extractBookingData(payload);
   if (!bookingData) {
@@ -765,12 +831,24 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
   if (autoApproveResult.matched && autoApproveResult.bookingId) {
     matchedBookingId = autoApproveResult.bookingId;
     
+    // Notify member their booking is confirmed
     await notifyMemberBookingConfirmed(
       emailForLookup,
       autoApproveResult.bookingId,
       startParsed.date,
       startParsed.time,
       normalized.bayName
+    );
+    
+    // Notify staff about the auto-approval
+    await notifyStaffBookingCreated(
+      'auto_approved',
+      normalized.customerName || emailForLookup,
+      emailForLookup,
+      startParsed.date,
+      startParsed.time,
+      normalized.bayName,
+      autoApproveResult.bookingId
     );
     
     logger.info('[Trackman Webhook] Auto-approved pending booking request', {
@@ -821,6 +899,9 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
     if (createResult.success && createResult.bookingId) {
       matchedBookingId = createResult.bookingId;
       
+      const memberName = [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email;
+      
+      // Notify member their booking is confirmed
       await notifyMemberBookingConfirmed(
         member.email,
         createResult.bookingId,
@@ -829,8 +910,19 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
         normalized.bayName
       );
       
+      // Notify staff about the auto-created booking
+      await notifyStaffBookingCreated(
+        'auto_created',
+        memberName,
+        member.email,
+        startParsed.date,
+        startParsed.time,
+        normalized.bayName,
+        createResult.bookingId
+      );
+      
       logger.info('[Trackman Webhook] Auto-created booking for known member (no pending request)', {
-        extra: { bookingId: matchedBookingId, email: member.email, resourceId, memberName: `${member.firstName} ${member.lastName}` }
+        extra: { bookingId: matchedBookingId, email: member.email, resourceId, memberName }
       });
     }
     
@@ -850,6 +942,16 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
     normalized.customerEmail,
     normalized.customerName,
     normalized.playerCount
+  );
+  
+  // Notify staff about the unmatched booking that needs review
+  await notifyStaffBookingCreated(
+    'unmatched',
+    normalized.customerName || 'Unknown',
+    normalized.customerEmail,
+    startParsed.date,
+    startParsed.time,
+    normalized.bayName
   );
   
   return { success: true, matchedBookingId };
