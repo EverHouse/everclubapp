@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
-import { formatDateTimePacific } from '../../../utils/dateUtils';
+import { formatDateTimePacific, formatRelativeTime } from '../../../utils/dateUtils';
 import { useNotificationSounds } from '../../../hooks/useNotificationSounds';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import PullToRefresh from '../../../components/PullToRefresh';
@@ -298,7 +298,7 @@ const UpdatesTab: React.FC = () => {
                                             {activity.primary_text}
                                         </h4>
                                         <span className="text-[10px] ml-2 shrink-0 text-primary/70 dark:text-white/70">
-                                            {activity.timestamp ? formatDateTimePacific(activity.timestamp) : 'Just now'}
+                                            {activity.timestamp ? formatRelativeTime(activity.timestamp) : 'Just now'}
                                         </span>
                                     </div>
                                     <p className="text-xs mt-0.5 text-primary/70 dark:text-white/70">
@@ -389,7 +389,7 @@ const UpdatesTab: React.FC = () => {
                                             {notif.title}
                                         </h4>
                                         <span className="text-[10px] ml-2 shrink-0 text-primary/70 dark:text-white/70">
-                                            {notif.created_at ? formatDateTimePacific(notif.created_at) : 'Just now'}
+                                            {notif.created_at ? formatRelativeTime(notif.created_at) : 'Just now'}
                                         </span>
                                     </div>
                                     <p className={`text-xs mt-0.5 ${notif.is_read ? 'text-primary/70 dark:text-white/70' : 'text-primary/70 dark:text-white/70'}`}>

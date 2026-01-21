@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import EmptyState from '../../EmptyState';
-import { formatTime12Hour, getNowTimePacific, getTodayPacific } from '../../../utils/dateUtils';
+import { formatTime12Hour, getNowTimePacific, getTodayPacific, formatRelativeTime } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow } from '../helpers';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import type { BookingRequest, TabType } from '../types';
@@ -124,7 +124,14 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                   <DateBlock dateStr={request.request_date} today={today} />
                   <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">pending_actions</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-sm text-primary dark:text-white truncate">{request.user_name}</p>
+                      {request.created_at && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 shrink-0">
+                          {formatRelativeTime(request.created_at)}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-primary/80 dark:text-white/80">
                       {formatTime12Hour(request.start_time)} - {formatTime12Hour(request.end_time)} • {request.bay_name}
                     </p>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import ReactDOM from 'react-dom';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
-import { getTodayPacific, addDaysToPacificDate, formatDateDisplayWithDay, formatTime12Hour, getRelativeDateLabel, formatDuration } from '../../../utils/dateUtils';
+import { getTodayPacific, addDaysToPacificDate, formatDateDisplayWithDay, formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime } from '../../../utils/dateUtils';
 import { getStatusBadge, formatStatusLabel } from '../../../utils/statusColors';
 import TierBadge from '../../../components/TierBadge';
 import { SwipeableListItem } from '../../../components/SwipeableListItem';
@@ -1686,6 +1686,11 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                 {req.reschedule_booking_id && (
                                                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-600 dark:text-blue-400">
                                                         Reschedule
+                                                    </span>
+                                                )}
+                                                {req.created_at && (
+                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400">
+                                                        Requested {formatRelativeTime(req.created_at)}
                                                     </span>
                                                 )}
                                             </div>
