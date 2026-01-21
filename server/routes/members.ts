@@ -1837,4 +1837,180 @@ router.post('/api/admin/tier-change/commit', isStaffOrAdmin, async (req, res) =>
   }
 });
 
+router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
+  try {
+    const statusFilter = (req.query.status as string)?.toLowerCase() || 'active';
+    const searchQuery = (req.query.search as string)?.toLowerCase().trim() || '';
+    
+    const pageParam = parseInt(req.query.page as string, 10);
+    const limitParam = parseInt(req.query.limit as string, 10);
+    const isPaginated = !isNaN(pageParam) || !isNaN(limitParam);
+    const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+    const limit = isNaN(limitParam) ? 200 : Math.min(Math.max(limitParam, 1), 500);
+    
+    let statusCondition = sql`1=1`;
+    if (statusFilter === 'active') {
+      statusCondition = sql`(${users.membershipStatus} = 'active' OR ${users.membershipStatus} IS NULL)`;
+    } else if (statusFilter === 'former') {
+      statusCondition = sql`${users.membershipStatus} IN ('inactive', 'cancelled', 'expired', 'terminated', 'former_member', 'churned', 'suspended', 'frozen')`;
+    }
+    
+    let searchCondition = sql`1=1`;
+    if (searchQuery) {
+      const searchWords = searchQuery.split(/\s+/).filter(Boolean);
+      const searchConditions = searchWords.map(word => {
+        const pattern = `%${word}%`;
+        return sql`(
+          LOWER(COALESCE(${users.firstName}, '')) LIKE ${pattern}
+          OR LOWER(COALESCE(${users.lastName}, '')) LIKE ${pattern}
+          OR LOWER(COALESCE(${users.email}, '')) LIKE ${pattern}
+        )`;
+      });
+      searchCondition = and(...searchConditions)!;
+    }
+    
+    const whereClause = and(
+      statusCondition,
+      searchCondition,
+      sql`${users.archivedAt} IS NULL`,
+      sql`${users.role} != 'staff'`
+    );
+    
+    const countResult = await db.select({ count: sql<number>`COUNT(*)` })
+      .from(users)
+      .where(whereClause);
+    const total = Number(countResult[0]?.count || 0);
+    
+    const offset = (page - 1) * limit;
+    const allMembers = await db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      tier: users.tier,
+      tags: users.tags,
+      phone: users.phone,
+      membershipStatus: users.membershipStatus,
+      joinDate: users.joinDate,
+      hubspotId: users.hubspotId,
+      mindbodyClientId: users.mindbodyClientId,
+      stripeCustomerId: users.stripeCustomerId,
+      manuallyLinkedEmails: users.manuallyLinkedEmails,
+      dataSource: users.dataSource,
+    })
+      .from(users)
+      .where(whereClause)
+      .orderBy(sql`COALESCE(${users.firstName}, ${users.email}) ASC`)
+      .limit(limit)
+      .offset(offset);
+    
+    const memberEmails = allMembers.map(m => m.email?.toLowerCase()).filter(Boolean) as string[];
+    
+    let bookingCounts: Record<string, number> = {};
+    let eventCounts: Record<string, number> = {};
+    let lastActivityMap: Record<string, string | null> = {};
+    
+    if (memberEmails.length > 0) {
+      const bookingsResult = await db.execute(sql`
+        SELECT LOWER(user_email) as email, COUNT(*) as count
+        FROM booking_requests
+        WHERE LOWER(user_email) = ANY(${memberEmails})
+          AND status NOT IN ('cancelled', 'declined')
+          AND request_date < CURRENT_DATE
+        GROUP BY LOWER(user_email)
+      `);
+      for (const row of (bookingsResult as any).rows || []) {
+        bookingCounts[row.email] = Number(row.count);
+      }
+      
+      const eventsResult = await db.execute(sql`
+        SELECT LOWER(user_email) as email, COUNT(*) as count
+        FROM event_rsvps er
+        JOIN events e ON er.event_id = e.id
+        WHERE LOWER(er.user_email) = ANY(${memberEmails})
+          AND er.status != 'cancelled'
+          AND e.event_date < CURRENT_DATE
+        GROUP BY LOWER(user_email)
+      `);
+      for (const row of (eventsResult as any).rows || []) {
+        eventCounts[row.email] = Number(row.count);
+      }
+      
+      const lastActivityResult = await db.execute(sql`
+        SELECT email, MAX(last_date) as last_date FROM (
+          SELECT LOWER(user_email) as email, MAX(request_date) as last_date
+          FROM booking_requests
+          WHERE LOWER(user_email) = ANY(${memberEmails}) AND status NOT IN ('cancelled', 'declined')
+          GROUP BY LOWER(user_email)
+          UNION ALL
+          SELECT LOWER(er.user_email) as email, MAX(e.event_date) as last_date
+          FROM event_rsvps er
+          JOIN events e ON er.event_id = e.id
+          WHERE LOWER(er.user_email) = ANY(${memberEmails}) AND er.status != 'cancelled'
+          GROUP BY LOWER(er.user_email)
+        ) combined
+        GROUP BY email
+      `);
+      for (const row of (lastActivityResult as any).rows || []) {
+        lastActivityMap[row.email] = row.last_date ? String(row.last_date).split('T')[0] : null;
+      }
+    }
+    
+    const contacts = allMembers.map(member => {
+      const emailLower = member.email?.toLowerCase() || '';
+      const bookings = bookingCounts[emailLower] || 0;
+      const events = eventCounts[emailLower] || 0;
+      const status = member.membershipStatus || 'active';
+      const isActive = status === 'active' || !status;
+      
+      return {
+        id: member.hubspotId || member.id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+        phone: member.phone,
+        tier: member.tier,
+        rawTier: member.tier,
+        tags: member.tags || [],
+        status: isActive ? 'Active' : status,
+        isActiveMember: isActive,
+        isFormerMember: !isActive,
+        lifetimeVisits: bookings + events,
+        joinDate: member.joinDate,
+        lastBookingDate: lastActivityMap[emailLower] || null,
+        mindbodyClientId: member.mindbodyClientId,
+        manuallyLinkedEmails: member.manuallyLinkedEmails || [],
+        dataSource: member.dataSource,
+      };
+    });
+    
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    
+    if (isPaginated) {
+      const totalPages = Math.ceil(total / limit);
+      return res.json({
+        contacts,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore: page < totalPages,
+        count: contacts.length,
+        stale: false,
+        refreshing: false,
+      });
+    }
+    
+    return res.json({
+      contacts,
+      count: contacts.length,
+      stale: false,
+      refreshing: false,
+    });
+  } catch (error: any) {
+    console.error('[Members Directory] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch members directory' });
+  }
+});
+
 export default router;

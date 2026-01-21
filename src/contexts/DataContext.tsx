@@ -402,7 +402,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     }
     
     try {
-      const res = await fetch('/api/hubspot/contacts?status=former', { credentials: 'include' });
+      const res = await fetch('/api/members/directory?status=former', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         const contacts = Array.isArray(data) ? data : (data.contacts || []);
@@ -439,7 +439,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     }
     
     try {
-      const res = await fetch('/api/hubspot/contacts?refresh=true', { credentials: 'include' });
+      const res = await fetch('/api/members/directory?status=active', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         const contacts = Array.isArray(data) ? data : (data.contacts || []);
@@ -465,7 +465,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
       return { success: false, count: 0 };
     } catch (err) {
-      console.error('Failed to refresh members from HubSpot:', err);
+      console.error('Failed to refresh members from database:', err);
       return { success: false, count: 0 };
     }
   }, [actualUser]);
@@ -492,7 +492,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         params.set('search', search.trim());
       }
       
-      const res = await fetch(`/api/hubspot/contacts?${params.toString()}`, { credentials: 'include' });
+      const res = await fetch(`/api/members/directory?${params.toString()}`, { credentials: 'include' });
       
       if (res.ok) {
         const data = await res.json();
