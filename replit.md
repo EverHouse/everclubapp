@@ -77,3 +77,12 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Checkout Flow**: Corporate checkout captures company name, job title, and employee count with real-time price calculation.
 - **HubSpot Company Sync**: Corporate members sync to HubSpot as Companies with contact associations.
 - **Individual Tracking**: Each corporate member tracked in `group_members` table with Stripe subscription item linking.
+
+## Data Integrity Architecture (Jan 2026)
+- **Stripe/Database Sync Pattern**: Stripe is the source of truth for billing state. Database syncs via webhooks.
+- **Transaction Rollback**: `addCorporateMember` and `removeGroupMember` use database transactions with Stripe rollback capability. If the database transaction fails after Stripe is updated, the system attempts to revert the Stripe change.
+- **Fail-Fast on Stripe Errors**: Group member operations fail immediately on Stripe errors before making database changes, preventing data drift between systems.
+- **Webhook Idempotency**: Stripe webhook handler uses event ID deduplication (5-minute TTL) to prevent duplicate event processing. Note: Uses in-memory storage; production should use Redis/DB for persistence.
+- **Automatic Status Sync**: When a Stripe subscription is cancelled, the user's `membership_status` is automatically updated to 'cancelled' and `stripe_subscription_id` is cleared.
+- **Tier Sync Utility**: `server/core/memberService/tierSync.ts` provides centralized functions for syncing membership tiers from Stripe price IDs, syncing status, and validating tier consistency between `tier` and `tier_id` fields.
+- **Pool Client Management**: Database pool clients are released only in `finally` blocks, never on early return paths, to prevent double-release errors.
