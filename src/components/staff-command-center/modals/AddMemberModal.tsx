@@ -9,8 +9,18 @@ interface DiscountReason {
   description: string;
 }
 
+interface TierWithId {
+  id: number;
+  name: string;
+  slug: string;
+  priceCents: number;
+  billingInterval: string;
+  hasStripePrice: boolean;
+}
+
 interface AddMemberOptions {
   tiers: string[];
+  tiersWithIds: TierWithId[];
   discountReasons: DiscountReason[];
 }
 
@@ -56,7 +66,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [tier, setTier] = useState('');
+  const [tierId, setTierId] = useState<number | null>(null);
   const [discountReason, setDiscountReason] = useState('');
   const [startDate, setStartDate] = useState('');
   
@@ -96,8 +106,10 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     return undefined;
   };
 
-  const validateTier = (value: string): string | undefined => {
+  const validateTier = (value: number | null): string | undefined => {
     if (!value) return 'Please select a tier';
+    const tier = options?.tiersWithIds.find(t => t.id === value);
+    if (tier && !tier.hasStripePrice) return 'This tier has not been synced to Stripe yet';
     return undefined;
   };
 
@@ -107,7 +119,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       lastName: validateLastName(lastName),
       email: validateEmail(email),
       phone: validatePhone(phone),
-      tier: validateTier(tier)
+      tier: validateTier(tierId)
     };
   };
 
@@ -123,8 +135,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       if (res.ok) {
         const data = await res.json();
         setOptions(data);
-        if (data.tiers?.length > 0 && !tier) {
-          setTier(data.tiers[0]);
+        if (data.tiersWithIds?.length > 0 && !tierId) {
+          setTierId(data.tiersWithIds[0].id);
         }
       } else {
         setOptionsError('Failed to load form options');
@@ -149,7 +161,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     setLastName('');
     setEmail('');
     setPhone('');
-    setTier('');
+    setTierId(null);
     setDiscountReason('');
     setStartDate('');
     setError(null);
@@ -200,8 +212,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   };
 
   const handleTierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setTier(value);
+    const value = e.target.value ? parseInt(e.target.value, 10) : null;
+    setTierId(value);
     if (fieldErrors.tier) {
       setFieldErrors(prev => ({ ...prev, tier: validateTier(value) }));
     }
@@ -217,11 +229,22 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       return;
     }
 
+    if (!tierId) {
+      setError('Please select a membership tier');
+      return;
+    }
+
+    const selectedTier = options?.tiersWithIds.find(t => t.id === tierId);
+    if (!selectedTier?.hasStripePrice) {
+      setError('This tier has not been synced to Stripe. Please sync tiers first.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch('/api/members', {
+      const res = await fetch('/api/stripe/staff/send-membership-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -229,27 +252,28 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim().toLowerCase(),
-          phone: phone.trim() || undefined,
-          tier,
-          discountReason: discountReason || undefined,
-          startDate: startDate || undefined
+          tierId
         })
       });
 
       if (res.ok) {
+        const data = await res.json();
         setCreatedMember({
           email: email.trim().toLowerCase(),
           name: `${firstName.trim()} ${lastName.trim()}`,
-          tier
+          tier: selectedTier.name
         });
+        setPaymentLinkUrl(data.checkoutUrl || null);
+        setPaymentLinkSent(true);
         setStep('next-steps');
         onSuccess?.();
+        showToast(`Payment link sent to ${email.trim()}`, 'success');
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to create member');
+        setError(data.error || 'Failed to send payment link');
       }
     } catch (err) {
-      setError('Failed to create member');
+      setError('Failed to send payment link');
     } finally {
       setLoading(false);
     }
@@ -534,15 +558,18 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 Membership Tier *
               </label>
               <select
-                value={tier}
+                value={tierId || ''}
                 onChange={handleTierChange}
                 className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white ${
                   fieldErrors.tier ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
                 }`}
               >
                 <option value="">Select a tier...</option>
-                {options?.tiers.map(t => (
-                  <option key={t} value={t}>{t}</option>
+                {options?.tiersWithIds.map(t => (
+                  <option key={t.id} value={t.id} disabled={!t.hasStripePrice}>
+                    {t.name} - ${(t.priceCents / 100).toFixed(0)}/{t.billingInterval}
+                    {!t.hasStripePrice && ' (not synced)'}
+                  </option>
                 ))}
               </select>
               {fieldErrors.tier && (
@@ -550,40 +577,9 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                Discount Reason <span className="text-primary/50 dark:text-white/50">(optional)</span>
-              </label>
-              <select
-                value={discountReason}
-                onChange={(e) => setDiscountReason(e.target.value)}
-                className="w-full px-4 py-2 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white"
-              >
-                <option value="">No discount</option>
-                {options?.discountReasons.map(dr => (
-                  <option key={dr.tag} value={dr.tag}>
-                    {dr.tag} ({dr.percent}% off)
-                  </option>
-                ))}
-              </select>
-              {discountReason && options?.discountReasons.find(dr => dr.tag === discountReason)?.description && (
-                <p className="text-xs text-primary/60 dark:text-white/60 mt-1">
-                  {options.discountReasons.find(dr => dr.tag === discountReason)?.description}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                Start Date <span className="text-primary/50 dark:text-white/50">(defaults to today)</span>
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white"
-              />
-            </div>
+            <p className="text-xs text-primary/50 dark:text-white/50">
+              When they complete payment, their account will be automatically created and activated.
+            </p>
 
             {error && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-xl">
@@ -614,12 +610,12 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
             {loading ? (
               <>
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                Creating...
+                Sending...
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-lg">person_add</span>
-                Create Member
+                <span className="material-symbols-outlined text-lg">link</span>
+                Send Payment Link
               </>
             )}
           </button>
@@ -638,7 +634,7 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
                 <span className="material-symbols-outlined">
                   {step === 'next-steps' ? 'check_circle' : 'person_add'}
                 </span>
-                {step === 'next-steps' ? 'Next Steps' : 'Add New Member'}
+                {step === 'next-steps' ? 'Invite Sent' : 'Invite New Member'}
               </h2>
               <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>

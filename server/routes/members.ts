@@ -1275,8 +1275,26 @@ router.get('/api/members/add-options', isStaffOrAdmin, async (req, res) => {
   try {
     const discountRules = await getAllDiscountRules();
     
+    // Get active subscription tiers with IDs for Stripe payment links
+    const tiersResult = await pool.query(
+      `SELECT id, name, slug, price_cents, billing_interval, stripe_price_id
+       FROM membership_tiers 
+       WHERE is_active = true 
+         AND product_type = 'subscription'
+         AND billing_interval IN ('month', 'year', 'week')
+       ORDER BY display_order ASC NULLS LAST, name ASC`
+    );
+    
     res.json({
       tiers: TIER_NAMES,
+      tiersWithIds: tiersResult.rows.map(t => ({
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        priceCents: t.price_cents,
+        billingInterval: t.billing_interval,
+        hasStripePrice: !!t.stripe_price_id
+      })),
       discountReasons: discountRules
         .filter(r => r.isActive)
         .map(r => ({

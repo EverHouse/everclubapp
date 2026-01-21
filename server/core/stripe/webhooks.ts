@@ -585,9 +585,91 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
       }
     }
 
+    // Handle staff-initiated membership invites - auto-create user on checkout completion
+    if (session.metadata?.source === 'staff_invite') {
+      console.log(`[Stripe Webhook] Processing staff invite checkout: ${session.id}`);
+      
+      const email = session.customer_email?.toLowerCase();
+      const firstName = session.metadata?.firstName;
+      const lastName = session.metadata?.lastName;
+      const tierId = session.metadata?.tierId ? parseInt(session.metadata.tierId, 10) : null;
+      const tierName = session.metadata?.tierName;
+      const customerId = session.customer as string;
+      
+      if (!email || !customerId) {
+        console.error(`[Stripe Webhook] Missing email or customer ID for staff invite: ${session.id}`);
+        return;
+      }
+      
+      // Check if user already exists
+      const existingUser = await pool.query(
+        'SELECT id, status FROM users WHERE LOWER(email) = LOWER($1)',
+        [email]
+      );
+      
+      if (existingUser.rows.length > 0) {
+        // User exists - just update their Stripe customer ID and status
+        console.log(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID`);
+        await pool.query(
+          `UPDATE users SET stripe_customer_id = $1, status = 'active', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+          [customerId, email]
+        );
+      } else {
+        // Create new user
+        console.log(`[Stripe Webhook] Creating new user from staff invite: ${email}`);
+        
+        // Get tier slug from tier ID
+        let tierSlug = null;
+        if (tierId) {
+          const tierResult = await pool.query(
+            'SELECT slug FROM membership_tiers WHERE id = $1',
+            [tierId]
+          );
+          if (tierResult.rows.length > 0) {
+            tierSlug = tierResult.rows[0].slug;
+          }
+        }
+        
+        await pool.query(
+          `INSERT INTO users (email, first_name, last_name, tier, status, stripe_customer_id, join_date, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, 'active', $5, NOW(), NOW(), NOW())
+           ON CONFLICT (email) DO UPDATE SET 
+             stripe_customer_id = EXCLUDED.stripe_customer_id,
+             status = 'active',
+             tier = COALESCE(EXCLUDED.tier, users.tier),
+             updated_at = NOW()`,
+          [email, firstName || '', lastName || '', tierSlug, customerId]
+        );
+        
+        console.log(`[Stripe Webhook] Created user ${email} with tier ${tierSlug || 'none'}`);
+      }
+      
+      // Sync to HubSpot with proper tier name
+      try {
+        const { createOrGetContact, updateContactMembershipStatus } = await import('../hubspot/members');
+        const contactResult = await createOrGetContact(
+          email,
+          firstName || '',
+          lastName || '',
+          undefined,
+          tierName || undefined
+        );
+        
+        if (contactResult?.contactId) {
+          await updateContactMembershipStatus(contactResult.contactId, 'Active');
+          console.log(`[Stripe Webhook] Synced ${email} to HubSpot contact ${contactResult.contactId}`);
+        }
+      } catch (hubspotError) {
+        console.error('[Stripe Webhook] HubSpot sync failed for staff invite:', hubspotError);
+      }
+      
+      console.log(`[Stripe Webhook] Staff invite checkout completed for ${email}`);
+      return;
+    }
+
     // Only handle day pass purchases
     if (session.metadata?.purpose !== 'day_pass') {
-      console.log(`[Stripe Webhook] Skipping checkout session ${session.id} (not a day_pass)`);
+      console.log(`[Stripe Webhook] Skipping checkout session ${session.id} (not a day_pass or staff_invite)`);
       return;
     }
 
