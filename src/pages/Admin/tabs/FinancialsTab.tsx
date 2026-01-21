@@ -211,7 +211,7 @@ const FinancialsTab: React.FC = () => {
 };
 
 const MobilePaymentsView: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'record-purchase' | 'overdue' | 'lookup' | 'transactions' | 'refunds' | 'failed' | 'summary' | 'pending' | 'redeem-pass' | null>(null);
+  const [activeSection, setActiveSection] = useState<'record-purchase' | 'overdue' | 'transactions' | 'refunds' | 'failed' | 'summary' | 'pending' | 'redeem-pass' | null>(null);
   const [overdueCount, setOverdueCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -320,16 +320,6 @@ const MobilePaymentsView: React.FC = () => {
       iconClass: 'text-purple-600 dark:text-purple-400'
     },
     { 
-      id: 'lookup' as const, 
-      icon: 'person_search', 
-      label: 'Member Lookup', 
-      bgClass: 'bg-amber-100/60 dark:bg-amber-950/40',
-      textClass: 'text-amber-900 dark:text-amber-100',
-      borderClass: 'border-amber-200 dark:border-amber-500/20',
-      hoverClass: 'hover:bg-amber-200/60 dark:hover:bg-amber-900/60',
-      iconClass: 'text-amber-600 dark:text-amber-400'
-    },
-    { 
       id: 'transactions' as const, 
       icon: 'receipt_long', 
       label: 'Recent', 
@@ -374,9 +364,6 @@ const MobilePaymentsView: React.FC = () => {
         {activeSection === 'refunds' && (
           <RefundsSection onClose={() => setActiveSection(null)} />
         )}
-        {activeSection === 'lookup' && (
-          <MemberLookupSection onClose={() => setActiveSection(null)} />
-        )}
         {activeSection === 'transactions' && (
           <RecentTransactionsSection onClose={() => setActiveSection(null)} />
         )}
@@ -401,9 +388,6 @@ const DesktopPaymentsView: React.FC = () => {
         <DailySummaryCard variant="card" />
         <div className="relative z-20 focus-within:z-50">
           <RecordPurchaseCard variant="card" />
-        </div>
-        <div className="relative z-20 focus-within:z-50">
-          <MemberLookupSection variant="card" />
         </div>
         <RedeemDayPassSection variant="card" />
       </div>
@@ -547,269 +531,6 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">summarize</span>
           <h3 className="font-bold text-primary dark:text-white">Daily Summary</h3>
-        </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
-        </button>
-      </div>
-      {content}
-    </div>
-  );
-};
-
-const MemberLookupSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
-  const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
-  const [memberBalance, setMemberBalance] = useState<MemberBalance | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const [showAdjustForm, setShowAdjustForm] = useState(false);
-  const [adjustmentAmount, setAdjustmentAmount] = useState(0);
-  const [adjustmentReason, setAdjustmentReason] = useState('');
-  const [isAdjusting, setIsAdjusting] = useState(false);
-  const [adjustError, setAdjustError] = useState<string | null>(null);
-
-  const loadMemberBalance = useCallback(async (email: string, tier: string | null) => {
-    setIsLoadingBalance(true);
-    try {
-      const [balanceRes, passesRes, historyRes] = await Promise.all([
-        fetch(`/api/staff/member-balance/${encodeURIComponent(email)}`, { credentials: 'include' }),
-        fetch(`/api/guest-passes/${encodeURIComponent(email)}?tier=${tier || ''}`, { credentials: 'include' }),
-        fetch(`/api/members/${encodeURIComponent(email)}/unified-purchases`, { credentials: 'include' })
-      ]);
-
-      const balanceData = balanceRes.ok ? await balanceRes.json() : { totalCents: 0, items: [] };
-      const passesData = passesRes.ok ? await passesRes.json() : null;
-      const historyData = historyRes.ok ? await historyRes.json() : [];
-
-      setMemberBalance({
-        totalCents: balanceData.totalCents || 0,
-        items: balanceData.items || [],
-        guestPasses: passesData ? {
-          remaining: passesData.passes_remaining || 0,
-          total: passesData.passes_total || 0,
-          used: passesData.passes_used || 0
-        } : null,
-        purchaseHistory: historyData
-      });
-    } catch (err) {
-      console.error('Failed to load member balance:', err);
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (selectedMember) {
-      loadMemberBalance(selectedMember.email, selectedMember.tier);
-    }
-  }, [selectedMember, loadMemberBalance]);
-
-  const handleAdjustGuestPasses = async () => {
-    if (!selectedMember || adjustmentAmount === 0 || !adjustmentReason.trim()) return;
-    
-    setIsAdjusting(true);
-    setAdjustError(null);
-    
-    try {
-      const res = await fetch('/api/payments/adjust-guest-passes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          memberId: selectedMember.id,
-          memberEmail: selectedMember.email,
-          memberName: selectedMember.name,
-          adjustment: adjustmentAmount,
-          reason: adjustmentReason.trim()
-        })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to adjust guest passes');
-      }
-
-      setShowAdjustForm(false);
-      setAdjustmentAmount(0);
-      setAdjustmentReason('');
-      loadMemberBalance(selectedMember.email, selectedMember.tier);
-    } catch (err: any) {
-      setAdjustError(err.message || 'Failed to adjust guest passes');
-    } finally {
-      setIsAdjusting(false);
-    }
-  };
-
-  const cancelAdjustment = () => {
-    setShowAdjustForm(false);
-    setAdjustmentAmount(0);
-    setAdjustmentReason('');
-    setAdjustError(null);
-  };
-
-  const content = (
-    <div className="space-y-4">
-      <MemberSearchInput
-        placeholder="Search by name or email..."
-        selectedMember={selectedMember}
-        onSelect={(member) => setSelectedMember(member)}
-        onClear={() => {
-          setSelectedMember(null);
-          setMemberBalance(null);
-        }}
-      />
-
-      {selectedMember && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10">
-            <div className="w-12 h-12 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
-              <span className="text-xl text-primary dark:text-lavender font-semibold">
-                {selectedMember.name?.charAt(0)?.toUpperCase() || '?'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-primary dark:text-white truncate">{selectedMember.name}</p>
-              <p className="text-sm text-primary/60 dark:text-white/60 truncate">{selectedMember.email}</p>
-              {selectedMember.tier && (
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-lavender/20 text-primary dark:text-lavender rounded-full">
-                  {selectedMember.tier}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {isLoadingBalance ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-            </div>
-          ) : memberBalance && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
-                  <p className="text-xs text-primary/60 dark:text-white/60">Outstanding Balance</p>
-                  <p className={`text-xl font-bold ${memberBalance.totalCents > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    ${(memberBalance.totalCents / 100).toFixed(2)}
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-primary/60 dark:text-white/60">Guest Passes</p>
-                    <button
-                      onClick={() => setShowAdjustForm(true)}
-                      className="text-xs text-primary dark:text-lavender hover:underline font-medium"
-                    >
-                      Adjust
-                    </button>
-                  </div>
-                  <p className="text-xl font-bold text-primary dark:text-white">
-                    {memberBalance.guestPasses ? `${memberBalance.guestPasses.remaining}/${memberBalance.guestPasses.total}` : '0/0'}
-                  </p>
-                </div>
-              </div>
-
-              {showAdjustForm && (
-                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 space-y-3">
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Adjust Guest Passes</p>
-                  
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setAdjustmentAmount(prev => prev - 1)}
-                      className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
-                    >
-                      <span className="material-symbols-outlined">remove</span>
-                    </button>
-                    <div className="flex-1 text-center">
-                      <span className={`text-2xl font-bold ${adjustmentAmount > 0 ? 'text-green-600' : adjustmentAmount < 0 ? 'text-red-600' : 'text-primary dark:text-white'}`}>
-                        {adjustmentAmount > 0 ? '+' : ''}{adjustmentAmount}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setAdjustmentAmount(prev => prev + 1)}
-                      className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                    >
-                      <span className="material-symbols-outlined">add</span>
-                    </button>
-                  </div>
-
-                  <input
-                    type="text"
-                    value={adjustmentReason}
-                    onChange={(e) => setAdjustmentReason(e.target.value)}
-                    placeholder="Reason for adjustment (required)"
-                    className="w-full px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-amber-300 dark:border-amber-700 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
-                  />
-
-                  {adjustError && (
-                    <p className="text-xs text-red-600 dark:text-red-400">{adjustError}</p>
-                  )}
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={cancelAdjustment}
-                      disabled={isAdjusting}
-                      className="flex-1 py-2 rounded-full bg-white dark:bg-white/10 text-primary dark:text-white text-sm font-medium hover:bg-primary/5 dark:hover:bg-white/20 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAdjustGuestPasses}
-                      disabled={adjustmentAmount === 0 || !adjustmentReason.trim() || isAdjusting}
-                      className="flex-1 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                    >
-                      {isAdjusting ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                      ) : (
-                        'Save'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {memberBalance.purchaseHistory.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Recent Purchases</p>
-                  <div className="space-y-1.5">
-                    {memberBalance.purchaseHistory.slice(0, 3).map(purchase => (
-                      <div key={purchase.id} className="flex items-center justify-between p-2 rounded-lg bg-white/30 dark:bg-white/5">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-primary dark:text-white truncate">{purchase.itemName}</p>
-                          <p className="text-xs text-primary/50 dark:text-white/50">
-                            {new Date(purchase.purchaseDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <span className="text-sm font-semibold text-primary dark:text-white">
-                          ${purchase.totalAmount.toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  if (variant === 'card') {
-    return (
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
-          <h3 className="font-bold text-primary dark:text-white">Member Lookup</h3>
-        </div>
-        {content}
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">person_search</span>
-          <h3 className="font-bold text-primary dark:text-white">Member Lookup</h3>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
           <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
