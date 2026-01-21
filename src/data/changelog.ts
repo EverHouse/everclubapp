@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.0",
+    date: "2026-01-21",
+    title: "Relative Times & Bug Fixes",
+    changes: [
+      "Notifications now show relative times like '2h ago' or 'Yesterday' instead of dates",
+      "Pending booking requests display how long they've been waiting for approval",
+      "Fixed bug report submission - you can now successfully report issues from your profile",
+      "Fixed QR code scanner for redeeming day passes on the Financials page",
+      "Improved scanner reliability with better camera permission handling"
+    ]
+  },
+  {
     version: "8.9",
     date: "2026-01-16",
     title: "Mobile App & Privacy Compliance",
