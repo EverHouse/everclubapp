@@ -7,6 +7,7 @@ import { sendNotificationToUser, broadcastToStaff } from '../core/websocket';
 import { sendBookingConfirmationEmail } from '../emails/bookingEmails';
 import { notifyAllStaff } from '../core/staffNotifications';
 import { notifyMember } from '../core/notificationService';
+import { formatDatePacific, formatTimePacific } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -207,22 +208,10 @@ function parseDateTime(dateTimeStr: string | undefined, dateStr: string | undefi
     if (dateTimeStr) {
       const dt = new Date(dateTimeStr);
       if (!isNaN(dt.getTime())) {
-        const pacificFormatter = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'America/Los_Angeles',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        });
-        const timeFormatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'America/Los_Angeles',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        });
-        
+        // Use centralized Pacific timezone utilities for consistent handling
         return {
-          date: pacificFormatter.format(dt),
-          time: timeFormatter.format(dt).replace(/^24:/, '00:'),
+          date: formatDatePacific(dt),
+          time: formatTimePacific(dt).substring(0, 5), // HH:MM from HH:MM:SS
         };
       }
     }
@@ -237,6 +226,30 @@ function parseDateTime(dateTimeStr: string | undefined, dateStr: string | undefi
   return null;
 }
 
+function redactPII(payload: any): any {
+  if (!payload || typeof payload !== 'object') return payload;
+  
+  const redacted = Array.isArray(payload) ? [...payload] : { ...payload };
+  const sensitiveFields = ['email', 'phone', 'phoneNumber', 'mobile', 'customer_email', 'customerEmail'];
+  
+  for (const key of Object.keys(redacted)) {
+    if (sensitiveFields.some(f => key.toLowerCase().includes(f.toLowerCase()))) {
+      if (typeof redacted[key] === 'string' && redacted[key].includes('@')) {
+        // Redact email but keep domain for debugging
+        const parts = redacted[key].split('@');
+        redacted[key] = `${parts[0].substring(0, 2)}***@${parts[1]}`;
+      } else if (typeof redacted[key] === 'string') {
+        // Redact phone numbers
+        redacted[key] = redacted[key].replace(/\d/g, '*').substring(0, 6) + '...';
+      }
+    } else if (typeof redacted[key] === 'object' && redacted[key] !== null) {
+      redacted[key] = redactPII(redacted[key]);
+    }
+  }
+  
+  return redacted;
+}
+
 async function logWebhookEvent(
   eventType: string,
   payload: any,
@@ -247,12 +260,15 @@ async function logWebhookEvent(
   error?: string
 ): Promise<number> {
   try {
+    // Redact PII before storing in logs
+    const redactedPayload = redactPII(payload);
+    
     const result = await pool.query(
       `INSERT INTO trackman_webhook_events 
        (event_type, payload, trackman_booking_id, trackman_user_id, matched_booking_id, matched_user_id, processed_at, processing_error)
        VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
        RETURNING id`,
-      [eventType, JSON.stringify(payload), trackmanBookingId, trackmanUserId, matchedBookingId, matchedUserId, error]
+      [eventType, JSON.stringify(redactedPayload), trackmanBookingId, trackmanUserId, matchedBookingId, matchedUserId, error]
     );
     return result.rows[0]?.id;
   } catch (e) {
@@ -427,6 +443,27 @@ async function createBookingForMember(
   }
   
   try {
+    // IDEMPOTENCY CHECK: Prevent duplicate bookings from webhook retries
+    // Guard against null/undefined trackmanBookingId to avoid false positives
+    if (!trackmanBookingId) {
+      logger.error('[Trackman Webhook] createBookingForMember called without trackmanBookingId', {
+        extra: { email: member.email }
+      });
+      return { success: false };
+    }
+    
+    const existing = await pool.query(
+      `SELECT id FROM booking_requests WHERE trackman_booking_id = $1`,
+      [trackmanBookingId]
+    );
+    
+    if (existing.rows.length > 0) {
+      logger.info('[Trackman Webhook] Booking already exists, skipping creation (idempotency)', { 
+        extra: { trackmanBookingId, existingBookingId: existing.rows[0].id } 
+      });
+      return { success: true, bookingId: existing.rows[0].id };
+    }
+    
     const startParts = startTime.split(':').map(Number);
     const endParts = endTime.split(':').map(Number);
     const startMinutes = startParts[0] * 60 + startParts[1];
@@ -1247,6 +1284,157 @@ router.get('/api/availability/trackman-cache', async (req: Request, res: Respons
   } catch (error: any) {
     logger.error('[Trackman Webhook] Failed to fetch availability cache', { error });
     res.status(500).json({ error: 'Failed to fetch availability' });
+  }
+});
+
+// Get failed webhook events for admin review
+router.get('/api/admin/trackman-webhook/failed', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        id,
+        event_type,
+        trackman_booking_id,
+        processing_error,
+        processed_at,
+        retry_count,
+        last_retry_at
+       FROM trackman_webhook_events 
+       WHERE processing_error IS NOT NULL
+       ORDER BY processed_at DESC
+       LIMIT 50`
+    );
+    
+    res.json(result.rows);
+  } catch (error: any) {
+    logger.error('[Trackman Webhook] Failed to fetch failed events', { error });
+    res.status(500).json({ error: 'Failed to fetch failed events' });
+  }
+});
+
+// Retry a failed webhook event
+router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const eventId = parseInt(req.params.eventId);
+    
+    if (isNaN(eventId)) {
+      return res.status(400).json({ error: 'Invalid event ID' });
+    }
+    
+    // Fetch the original event
+    const eventResult = await pool.query(
+      `SELECT id, event_type, payload, trackman_booking_id, retry_count
+       FROM trackman_webhook_events 
+       WHERE id = $1`,
+      [eventId]
+    );
+    
+    if (eventResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    const event = eventResult.rows[0];
+    const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+    
+    // Mark retry attempt
+    await pool.query(
+      `UPDATE trackman_webhook_events 
+       SET retry_count = COALESCE(retry_count, 0) + 1, 
+           last_retry_at = NOW()
+       WHERE id = $1`,
+      [eventId]
+    );
+    
+    // Log the retry
+    logger.info('[Trackman Webhook] Admin triggered retry', {
+      extra: { eventId, eventType: event.event_type, retryCount: (event.retry_count || 0) + 1 }
+    });
+    
+    // Re-process based on event type - actually call the processing function
+    let success = false;
+    let message = '';
+    let matchedBookingId: number | undefined;
+    
+    if (event.event_type === 'booking.created' || event.event_type === 'booking.updated') {
+      try {
+        // Actually re-process the webhook using the same handler
+        const result = await handleBookingUpdate(payload);
+        success = result.success;
+        matchedBookingId = result.matchedBookingId;
+        message = success 
+          ? `Successfully reprocessed webhook${matchedBookingId ? ` (matched booking #${matchedBookingId})` : ''}`
+          : 'Reprocessing completed but no booking was matched';
+          
+        logger.info('[Trackman Webhook] Retry processing completed', {
+          extra: { eventId, success, matchedBookingId }
+        });
+      } catch (processError: any) {
+        message = `Reprocessing failed: ${processError.message}`;
+        logger.error('[Trackman Webhook] Retry processing error', {
+          error: processError,
+          extra: { eventId }
+        });
+      }
+    } else {
+      message = 'Event type not supported for retry';
+    }
+    
+    // Only clear error if retry was actually successful
+    if (success) {
+      await pool.query(
+        `UPDATE trackman_webhook_events 
+         SET processing_error = NULL
+         WHERE id = $1`,
+        [eventId]
+      );
+    } else {
+      // Update the error message if retry failed
+      await pool.query(
+        `UPDATE trackman_webhook_events 
+         SET processing_error = $2
+         WHERE id = $1`,
+        [eventId, message]
+      );
+    }
+    
+    res.json({ success, message, matchedBookingId });
+  } catch (error: any) {
+    logger.error('[Trackman Webhook] Failed to retry event', { error });
+    res.status(500).json({ error: 'Failed to retry event' });
+  }
+});
+
+// Cleanup old webhook logs (called by scheduler)
+export async function cleanupOldWebhookLogs(): Promise<{ deleted: number }> {
+  try {
+    const result = await pool.query(
+      `DELETE FROM trackman_webhook_events 
+       WHERE processed_at < NOW() - INTERVAL '30 days'
+       RETURNING id`
+    );
+    
+    const deleted = result.rowCount || 0;
+    if (deleted > 0) {
+      logger.info('[Trackman Webhook] Cleaned up old webhook logs', { 
+        extra: { deletedCount: deleted } 
+      });
+    }
+    
+    return { deleted };
+  } catch (error) {
+    logger.error('[Trackman Webhook] Failed to cleanup old logs', { error: error as Error });
+    return { deleted: 0 };
+  }
+}
+
+// Manual cleanup endpoint for admins
+router.post('/api/admin/trackman-webhook/cleanup', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await cleanupOldWebhookLogs();
+    res.json({ success: true, deleted: result.deleted });
+  } catch (error: any) {
+    logger.error('[Trackman Webhook] Manual cleanup failed', { error });
+    res.status(500).json({ error: 'Failed to cleanup logs' });
   }
 });
 

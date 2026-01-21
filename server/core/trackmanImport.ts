@@ -182,6 +182,7 @@ async function getAllHubSpotMembers(): Promise<HubSpotMember[]> {
   try {
     const hubspot = await getHubSpotClient();
     
+    // Only fetch the minimal properties needed for matching (memory optimization)
     const properties = [
       'firstname',
       'lastname',
@@ -189,32 +190,43 @@ async function getAllHubSpotMembers(): Promise<HubSpotMember[]> {
       'membership_status'
     ];
     
-    let allContacts: any[] = [];
+    // Memory-efficient approach: filter as we paginate instead of storing everything
+    const validMembers: HubSpotMember[] = [];
     let after: string | undefined = undefined;
+    let totalProcessed = 0;
+    const BATCH_SIZE = 100;
     
     do {
-      const response = await hubspot.crm.contacts.basicApi.getPage(100, after, properties);
-      allContacts = allContacts.concat(response.results);
-      after = response.paging?.next?.after;
-    } while (after);
-    
-    // Include contacts with active OR former member status (for historical matching)
-    const validMembers = allContacts
-      .filter((contact: any) => {
+      const response = await hubspot.crm.contacts.basicApi.getPage(BATCH_SIZE, after, properties);
+      totalProcessed += response.results.length;
+      
+      // Process and filter each batch immediately (not storing raw contacts)
+      for (const contact of response.results) {
         const status = (contact.properties.membership_status || '').toLowerCase();
-        return VALID_MEMBER_STATUSES.includes(status);
-      })
-      .map((contact: any) => ({
-        email: (contact.properties.email || '').toLowerCase(),
-        firstName: contact.properties.firstname || '',
-        lastName: contact.properties.lastname || '',
-        status: (contact.properties.membership_status || '').toLowerCase()
-      }))
-      .filter((m: HubSpotMember) => m.email);
+        if (VALID_MEMBER_STATUSES.includes(status)) {
+          const email = (contact.properties.email || '').toLowerCase();
+          if (email) {
+            validMembers.push({
+              email,
+              firstName: contact.properties.firstname || '',
+              lastName: contact.properties.lastname || '',
+              status
+            });
+          }
+        }
+      }
+      
+      after = response.paging?.next?.after;
+      
+      // Log progress for large imports
+      if (totalProcessed % 500 === 0) {
+        process.stderr.write(`[Trackman Import] Processed ${totalProcessed} contacts, found ${validMembers.length} valid members...\n`);
+      }
+    } while (after);
     
     const activeCount = validMembers.filter(m => m.status === 'active').length;
     const formerCount = validMembers.length - activeCount;
-    process.stderr.write(`[Trackman Import] Loaded ${validMembers.length} members from HubSpot (${activeCount} active, ${formerCount} former)\n`);
+    process.stderr.write(`[Trackman Import] Loaded ${validMembers.length} members from HubSpot (${activeCount} active, ${formerCount} former) from ${totalProcessed} total contacts\n`);
     return validMembers;
   } catch (err: any) {
     process.stderr.write(`[Trackman Import] Error fetching HubSpot contacts: ${err.message}\n`);
