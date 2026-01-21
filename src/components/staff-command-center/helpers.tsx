@@ -130,7 +130,7 @@ export const EMPLOYEE_RESOURCES_LINKS = [
 export const ADMIN_LINKS = [
   { id: 'gallery' as const, icon: 'photo_library', label: 'Gallery' },
   { id: 'faqs' as const, icon: 'help_outline', label: 'FAQs' },
-  { id: 'tiers' as const, icon: 'loyalty', label: 'Manage Tiers' },
+  { id: 'tiers' as const, icon: 'loyalty', label: 'Membership Config' },
   { id: 'bugs' as const, icon: 'bug_report', label: 'Bug Reports' },
   { id: 'inquiries' as const, icon: 'mail', label: 'Inquiries' },
   { id: 'changelog' as const, icon: 'history', label: 'Version History' },

@@ -132,12 +132,54 @@ interface DayPass {
   purchasedAt: string;
 }
 
-const PaymentsTab: React.FC = () => {
+const FinancialsTab: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'POS' | 'Subscriptions' | 'Invoices'>('POS');
   const isMobile = useIsMobile();
 
   return (
     <div className="animate-pop-in pb-32">
-      {isMobile ? <MobilePaymentsView /> : <DesktopPaymentsView />}
+      {/* Sub-tab Navigation */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab('POS')}
+          className={`px-4 py-2 rounded-full font-medium transition-colors ${
+            activeTab === 'POS'
+              ? 'bg-primary dark:bg-accent text-white dark:text-primary'
+              : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60'
+          }`}
+        >
+          POS
+        </button>
+        <button
+          onClick={() => setActiveTab('Subscriptions')}
+          className={`px-4 py-2 rounded-full font-medium transition-colors ${
+            activeTab === 'Subscriptions'
+              ? 'bg-primary dark:bg-accent text-white dark:text-primary'
+              : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60'
+          }`}
+        >
+          Subscriptions
+        </button>
+        <button
+          onClick={() => setActiveTab('Invoices')}
+          className={`px-4 py-2 rounded-full font-medium transition-colors ${
+            activeTab === 'Invoices'
+              ? 'bg-primary dark:bg-accent text-white dark:text-primary'
+              : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60'
+          }`}
+        >
+          Invoices
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'POS' && (
+        <>
+          {isMobile ? <MobilePaymentsView /> : <DesktopPaymentsView />}
+        </>
+      )}
+      {activeTab === 'Subscriptions' && <SubscriptionsPlaceholder />}
+      {activeTab === 'Invoices' && <InvoicesPlaceholder />}
     </div>
   );
 };
@@ -1955,4 +1997,40 @@ const QuickInvoiceCard: React.FC = () => {
   );
 };
 
-export default PaymentsTab;
+const SubscriptionsPlaceholder: React.FC = () => {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-8 max-w-md w-full">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
+            <span className="material-symbols-outlined text-4xl text-primary dark:text-lavender">subscriptions</span>
+          </div>
+          <h3 className="text-xl font-bold text-primary dark:text-white">Subscription management coming soon</h3>
+          <p className="text-sm text-primary/60 dark:text-white/60">
+            This feature is currently being developed. Check back soon!
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InvoicesPlaceholder: React.FC = () => {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-8 max-w-md w-full">
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-lavender/20 flex items-center justify-center">
+            <span className="material-symbols-outlined text-4xl text-primary dark:text-lavender">description</span>
+          </div>
+          <h3 className="text-xl font-bold text-primary dark:text-white">Invoice management coming soon</h3>
+          <p className="text-sm text-primary/60 dark:text-white/60">
+            This feature is currently being developed. Check back soon!
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FinancialsTab;

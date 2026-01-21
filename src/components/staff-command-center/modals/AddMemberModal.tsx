@@ -27,6 +27,14 @@ interface FieldErrors {
   tier?: string;
 }
 
+interface CreatedMemberInfo {
+  email: string;
+  name: string;
+  tier: string;
+}
+
+type ModalStep = 'form' | 'success' | 'next-steps';
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[\d\s\-\+\(\)\.]+$/;
 
@@ -36,6 +44,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   onSuccess
 }) => {
   const { showToast } = useToast();
+  const [step, setStep] = useState<ModalStep>('form');
+  const [createdMember, setCreatedMember] = useState<CreatedMemberInfo | null>(null);
   const [options, setOptions] = useState<AddMemberOptions | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [optionsError, setOptionsError] = useState<string | null>(null);
@@ -51,6 +61,8 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  
+  const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
 
   const validateFirstName = (value: string): string | undefined => {
     if (!value.trim()) return 'First name is required';
@@ -138,6 +150,9 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     setStartDate('');
     setError(null);
     setFieldErrors({});
+    setStep('form');
+    setCreatedMember(null);
+    setSendingPaymentLink(false);
   }, []);
 
   useEffect(() => {
@@ -216,11 +231,13 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        showToast(data.message || `Successfully created member ${firstName} ${lastName}`, 'success');
+        setCreatedMember({
+          email: email.trim().toLowerCase(),
+          name: `${firstName.trim()} ${lastName.trim()}`,
+          tier
+        });
+        setStep('next-steps');
         onSuccess?.();
-        onClose();
-        resetForm();
       } else {
         const data = await res.json();
         setError(data.error || 'Failed to create member');
@@ -232,211 +249,338 @@ export const AddMemberModal: React.FC<AddMemberModalProps> = ({
     }
   };
 
+  const handleSendPaymentLink = async () => {
+    if (!createdMember) return;
+    
+    setSendingPaymentLink(true);
+    try {
+      const res = await fetch(`/api/members/${encodeURIComponent(createdMember.email)}/send-payment-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        showToast(`Payment link sent to ${createdMember.email}`, 'success');
+        onClose();
+        resetForm();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to send payment link', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to send payment link', 'error');
+    } finally {
+      setSendingPaymentLink(false);
+    }
+  };
+
+  const handleChargeManually = () => {
+    if (!createdMember) return;
+    navigator.clipboard.writeText(createdMember.email).then(() => {
+      showToast(`Email copied: ${createdMember.email}. Use Quick Charge in the Financials tab to charge this member.`, 'info');
+    }).catch(() => {
+      showToast(`Use Quick Charge in Financials tab for: ${createdMember.email}`, 'info');
+    });
+    onClose();
+  };
+
+  const handleSkip = () => {
+    showToast(`Member ${createdMember?.name} created successfully`, 'success');
+    onClose();
+  };
+
   if (!isOpen) return null;
 
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden">
-        <div className="px-6 py-4 border-b border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
-              <span className="material-symbols-outlined">person_add</span>
-              Add New Member
-            </h2>
-            <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
-              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
-            </button>
-          </div>
+  const renderNextSteps = () => (
+    <div className="p-6 space-y-6">
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
+          <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">check_circle</span>
         </div>
+        <h3 className="text-xl font-bold text-primary dark:text-white mb-2">Member created successfully!</h3>
+        <div className="text-sm text-primary/70 dark:text-white/70">
+          <p className="font-medium">{createdMember?.name}</p>
+          <p>{createdMember?.email}</p>
+          <p className="mt-1 text-primary/50 dark:text-white/50">{createdMember?.tier}</p>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-            {optionsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-              </div>
-            ) : optionsError ? (
-              <div className="text-center py-8">
-                <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
-                <p className="text-red-600 dark:text-red-400">{optionsError}</p>
-                <button type="button" onClick={fetchOptions} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg">
-                  Retry
-                </button>
+      <div className="space-y-3">
+        <button
+          onClick={handleSendPaymentLink}
+          disabled={sendingPaymentLink}
+          className="w-full p-4 bg-white dark:bg-white/5 border border-primary/20 dark:border-white/20 rounded-xl hover:bg-primary/5 dark:hover:bg-white/10 transition-colors text-left group"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">link</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-primary dark:text-white group-hover:text-primary/80 dark:group-hover:text-white/80">
+                Send Payment Link
+              </h4>
+              <p className="text-sm text-primary/60 dark:text-white/60 mt-0.5">
+                Send member a payment link to set up their subscription
+              </p>
+            </div>
+            {sendingPaymentLink ? (
+              <div className="flex-shrink-0">
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-primary dark:border-white border-t-transparent inline-block" />
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                      First Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={firstName}
-                      onChange={handleFirstNameChange}
-                      placeholder="John"
-                      className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
-                        fieldErrors.firstName ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
-                      }`}
-                    />
-                    {fieldErrors.firstName && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.firstName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                      Last Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={lastName}
-                      onChange={handleLastNameChange}
-                      placeholder="Smith"
-                      className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
-                        fieldErrors.lastName ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
-                      }`}
-                    />
-                    {fieldErrors.lastName && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.lastName}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={handleEmailChange}
-                    placeholder="john@example.com"
-                    className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
-                      fieldErrors.email ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
-                    }`}
-                  />
-                  {fieldErrors.email && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                    Phone <span className="text-primary/50 dark:text-white/50">(optional)</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={handlePhoneChange}
-                    placeholder="+1 (555) 123-4567"
-                    className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
-                      fieldErrors.phone ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
-                    }`}
-                  />
-                  {fieldErrors.phone && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.phone}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                    Membership Tier *
-                  </label>
-                  <select
-                    value={tier}
-                    onChange={handleTierChange}
-                    className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white ${
-                      fieldErrors.tier ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
-                    }`}
-                  >
-                    <option value="">Select a tier...</option>
-                    {options?.tiers.map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  {fieldErrors.tier && (
-                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.tier}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                    Discount Reason <span className="text-primary/50 dark:text-white/50">(optional)</span>
-                  </label>
-                  <select
-                    value={discountReason}
-                    onChange={(e) => setDiscountReason(e.target.value)}
-                    className="w-full px-4 py-2 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white"
-                  >
-                    <option value="">No discount</option>
-                    {options?.discountReasons.map(dr => (
-                      <option key={dr.tag} value={dr.tag}>
-                        {dr.tag} ({dr.percent}% off)
-                      </option>
-                    ))}
-                  </select>
-                  {discountReason && options?.discountReasons.find(dr => dr.tag === discountReason)?.description && (
-                    <p className="text-xs text-primary/60 dark:text-white/60 mt-1">
-                      {options.discountReasons.find(dr => dr.tag === discountReason)?.description}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                    Start Date <span className="text-primary/50 dark:text-white/50">(defaults to today)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white"
-                  />
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-xl">
-                    <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-lg">error</span>
-                      {error}
-                    </p>
-                  </div>
-                )}
-              </>
+              <span className="material-symbols-outlined text-primary/40 dark:text-white/40 group-hover:text-primary/60 dark:group-hover:text-white/60 flex-shrink-0">
+                chevron_right
+              </span>
             )}
           </div>
+        </button>
 
-          <div className="px-6 py-4 border-t border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5">
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading || optionsLoading || !!optionsError}
-                className="flex-1 py-2 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-lg">person_add</span>
-                    Create Member
-                  </>
+        <button
+          onClick={handleChargeManually}
+          className="w-full p-4 bg-white dark:bg-white/5 border border-primary/20 dark:border-white/20 rounded-xl hover:bg-primary/5 dark:hover:bg-white/10 transition-colors text-left group"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">point_of_sale</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-primary dark:text-white group-hover:text-primary/80 dark:group-hover:text-white/80">
+                Charge via Financials Tab
+              </h4>
+              <p className="text-sm text-primary/60 dark:text-white/60 mt-0.5">
+                Copy email and use Quick Charge in Financials tab
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-primary/40 dark:text-white/40 group-hover:text-primary/60 dark:group-hover:text-white/60 flex-shrink-0">
+              content_copy
+            </span>
+          </div>
+        </button>
+      </div>
+
+      <div className="text-center pt-2">
+        <button
+          onClick={handleSkip}
+          className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white underline underline-offset-2"
+        >
+          Skip for Now
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderForm = () => (
+    <form onSubmit={handleSubmit}>
+      <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+        {optionsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+          </div>
+        ) : optionsError ? (
+          <div className="text-center py-8">
+            <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+            <p className="text-red-600 dark:text-red-400">{optionsError}</p>
+            <button type="button" onClick={fetchOptions} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg">
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={handleFirstNameChange}
+                  placeholder="John"
+                  className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
+                    fieldErrors.firstName ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
+                  }`}
+                />
+                {fieldErrors.firstName && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.firstName}</p>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={handleLastNameChange}
+                  placeholder="Smith"
+                  className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
+                    fieldErrors.lastName ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
+                  }`}
+                />
+                {fieldErrors.lastName && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.lastName}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                Email *
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={handleEmailChange}
+                placeholder="john@example.com"
+                className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
+                  fieldErrors.email ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
+                }`}
+              />
+              {fieldErrors.email && (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                Phone <span className="text-primary/50 dark:text-white/50">(optional)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={handlePhoneChange}
+                placeholder="+1 (555) 123-4567"
+                className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 ${
+                  fieldErrors.phone ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
+                }`}
+              />
+              {fieldErrors.phone && (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.phone}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                Membership Tier *
+              </label>
+              <select
+                value={tier}
+                onChange={handleTierChange}
+                className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white ${
+                  fieldErrors.tier ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
+                }`}
+              >
+                <option value="">Select a tier...</option>
+                {options?.tiers.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              {fieldErrors.tier && (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.tier}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                Discount Reason <span className="text-primary/50 dark:text-white/50">(optional)</span>
+              </label>
+              <select
+                value={discountReason}
+                onChange={(e) => setDiscountReason(e.target.value)}
+                className="w-full px-4 py-2 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white"
+              >
+                <option value="">No discount</option>
+                {options?.discountReasons.map(dr => (
+                  <option key={dr.tag} value={dr.tag}>
+                    {dr.tag} ({dr.percent}% off)
+                  </option>
+                ))}
+              </select>
+              {discountReason && options?.discountReasons.find(dr => dr.tag === discountReason)?.description && (
+                <p className="text-xs text-primary/60 dark:text-white/60 mt-1">
+                  {options.discountReasons.find(dr => dr.tag === discountReason)?.description}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                Start Date <span className="text-primary/50 dark:text-white/50">(defaults to today)</span>
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white"
+              />
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-xl">
+                <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-lg">error</span>
+                  {error}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="px-6 py-4 border-t border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5">
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading || optionsLoading || !!optionsError}
+            className="flex-1 py-2 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-lg">person_add</span>
+                Create Member
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+
+  const modalContent = (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="w-full max-w-md bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden">
+          <div className="px-6 py-4 border-b border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined">
+                  {step === 'next-steps' ? 'check_circle' : 'person_add'}
+                </span>
+                {step === 'next-steps' ? 'Next Steps' : 'Add New Member'}
+              </h2>
+              <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
+                <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
               </button>
             </div>
           </div>
-        </form>
+
+          {step === 'form' ? renderForm() : renderNextSteps()}
+        </div>
       </div>
-    </div>
+    </>
   );
 
   return createPortal(modalContent, document.body);

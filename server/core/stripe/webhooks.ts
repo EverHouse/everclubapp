@@ -668,12 +668,13 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
 async function handleSubscriptionCreated(subscription: any): Promise<void> {
   try {
     const customerId = subscription.customer;
+    const priceId = subscription.items?.data?.[0]?.price?.id;
     const planName = subscription.items?.data?.[0]?.price?.nickname || 
                      subscription.items?.data?.[0]?.plan?.nickname || 
                      'Membership';
 
     const userResult = await pool.query(
-      'SELECT email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
+      'SELECT email, first_name, last_name, tier, status FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -682,7 +683,7 @@ async function handleSubscriptionCreated(subscription: any): Promise<void> {
       return;
     }
 
-    const { email, first_name, last_name } = userResult.rows[0];
+    const { email, first_name, last_name, tier: currentTier, status: currentStatus } = userResult.rows[0];
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
     await notifyMember({
@@ -705,6 +706,50 @@ async function handleSubscriptionCreated(subscription: any): Promise<void> {
       memberName,
       planName
     });
+
+    // Closed-loop activation: Look up tier from price ID and update user
+    if (priceId) {
+      try {
+        const tierResult = await pool.query(
+          'SELECT slug, name FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
+          [priceId]
+        );
+
+        if (tierResult.rows.length > 0) {
+          const { slug: tierSlug, name: tierName } = tierResult.rows[0];
+          
+          // Update user's tier and conditionally activate if status is pending/inactive/null
+          const updateResult = await pool.query(
+            `UPDATE users SET tier = $1, status = CASE WHEN status IS NULL OR status IN ('pending', 'inactive') THEN 'active' ELSE status END, updated_at = NOW() WHERE email = $2 AND (tier IS NULL OR tier != $1) RETURNING id`,
+            [tierSlug, email]
+          );
+          
+          if (updateResult.rowCount && updateResult.rowCount > 0) {
+            console.log(`[Stripe Webhook] User activation: ${email} tier updated to ${tierSlug}, status conditionally updated (only if pending/inactive/null)`);
+          } else {
+            console.log(`[Stripe Webhook] User activation: ${email} tier already ${tierSlug}, no tier update needed`);
+          }
+
+          // Update hubspot deal status
+          try {
+            const dealUpdateResult = await pool.query(
+              `UPDATE hubspot_deals SET last_payment_status = 'current', last_payment_check = NOW() WHERE LOWER(member_email) = LOWER($1) RETURNING id`,
+              [email]
+            );
+            
+            if (dealUpdateResult.rowCount && dealUpdateResult.rowCount > 0) {
+              console.log(`[Stripe Webhook] User activation: ${email} HubSpot deal updated to current payment status`);
+            }
+          } catch (hubspotError) {
+            console.error('[Stripe Webhook] Error updating HubSpot deal:', hubspotError);
+          }
+        } else {
+          console.warn(`[Stripe Webhook] No tier found for price ID ${priceId}`);
+        }
+      } catch (tierError) {
+        console.error('[Stripe Webhook] Error with closed-loop activation:', tierError);
+      }
+    }
 
     console.log(`[Stripe Webhook] New subscription created for ${memberName} (${email}): ${planName}`);
   } catch (error) {

@@ -18,7 +18,7 @@ interface StaffSidebarProps {
 const MAIN_NAV_ITEMS: NavItem[] = [
   { id: 'home', icon: 'dashboard', label: 'Dashboard' },
   { id: 'simulator', icon: 'event_note', label: 'Bookings' },
-  { id: 'payments', icon: 'point_of_sale', label: 'Payments' },
+  { id: 'financials', icon: 'point_of_sale', label: 'Financials' },
   { id: 'tours', icon: 'directions_walk', label: 'Tours' },
   { id: 'events', icon: 'calendar_month', label: 'Calendar' },
   { id: 'blocks', icon: 'domain', label: 'Facility' },
@@ -33,8 +33,7 @@ const RESOURCES_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { id: 'tiers', icon: 'loyalty', label: 'Manage Tiers' },
-  { id: 'billing', icon: 'payments', label: 'Billing' },
+  { id: 'tiers', icon: 'settings', label: 'Membership Config' },
   { id: 'gallery', icon: 'photo_library', label: 'Gallery' },
   { id: 'faqs', icon: 'help_outline', label: 'FAQs' },
   { id: 'inquiries', icon: 'mail', label: 'Inquiries' },

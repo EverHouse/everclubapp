@@ -38,6 +38,40 @@ export function getCorporateVolumePrice(memberCount: number): number {
   return 35000;
 }
 
+const FAMILY_COUPON_ID = 'FAMILY20';
+const FAMILY_DISCOUNT_PERCENT = 20;
+
+export async function getOrCreateFamilyCoupon(): Promise<string> {
+  try {
+    const stripe = await getStripeClient();
+    
+    try {
+      const existingCoupon = await stripe.coupons.retrieve(FAMILY_COUPON_ID);
+      console.log(`[GroupBilling] Found existing FAMILY20 coupon: ${existingCoupon.id}`);
+      return existingCoupon.id;
+    } catch (retrieveError: any) {
+      if (retrieveError.code === 'resource_missing') {
+        const newCoupon = await stripe.coupons.create({
+          id: FAMILY_COUPON_ID,
+          percent_off: FAMILY_DISCOUNT_PERCENT,
+          duration: 'forever',
+          name: 'Family Member Discount (20% off)',
+          metadata: {
+            source: 'group_billing',
+            type: 'family_addon',
+          },
+        });
+        console.log(`[GroupBilling] Created FAMILY20 coupon: ${newCoupon.id}`);
+        return newCoupon.id;
+      }
+      throw retrieveError;
+    }
+  } catch (err: any) {
+    console.error('[GroupBilling] Error getting/creating FAMILY20 coupon:', err);
+    throw err;
+  }
+}
+
 export async function syncGroupAddOnProductsToStripe(): Promise<{
   success: boolean;
   synced: number;
@@ -295,7 +329,12 @@ export async function addGroupMember(params: {
     if (group[0].primaryStripeSubscriptionId && product.stripePriceId) {
       try {
         const stripe = await getStripeClient();
-        const subscriptionItem = await stripe.subscriptionItems.create({
+        
+        // Determine if this is a family group (not corporate/employee)
+        const isFamilyGroup = params.relationship !== 'employee';
+        
+        // Build subscription item creation params
+        const subscriptionItemParams: Stripe.SubscriptionItemCreateParams = {
           subscription: group[0].primaryStripeSubscriptionId,
           price: product.stripePriceId,
           quantity: 1,
@@ -304,7 +343,20 @@ export async function addGroupMember(params: {
             billing_group_id: params.billingGroupId.toString(),
             tier: params.memberTier,
           },
-        });
+        };
+        
+        // Apply FAMILY20 coupon for family group members
+        if (isFamilyGroup) {
+          try {
+            const couponId = await getOrCreateFamilyCoupon();
+            subscriptionItemParams.discounts = [{ coupon: couponId }];
+            console.log(`[GroupBilling] Applying FAMILY20 coupon to family member ${params.memberEmail}`);
+          } catch (couponErr: any) {
+            console.warn(`[GroupBilling] Could not apply FAMILY20 coupon: ${couponErr.message}. Proceeding without discount.`);
+          }
+        }
+        
+        const subscriptionItem = await stripe.subscriptionItems.create(subscriptionItemParams);
         stripeSubscriptionItemId = subscriptionItem.id;
       } catch (stripeErr: any) {
         console.error('[GroupBilling] Error adding Stripe subscription item:', stripeErr);
@@ -851,12 +903,55 @@ export async function handleSubscriptionItemsChanged(
     const currentItemIds = new Set(currentItems.map(i => i.id));
     const previousItemIds = new Set(previousItems.map(i => i.id));
     
+    // Build a map of current items by email for safety checks
+    const currentEmailToItemMap = new Map<string, { id: string; metadata?: Record<string, string> }>();
+    for (const item of currentItems) {
+      const email = item.metadata?.group_member_email?.toLowerCase() ||
+                    item.metadata?.family_member_email?.toLowerCase();
+      if (email) {
+        currentEmailToItemMap.set(email, item);
+      }
+    }
+    
     const removedItems = previousItems.filter(item => !currentItemIds.has(item.id));
     
     for (const item of removedItems) {
       const memberEmail = item.metadata?.group_member_email?.toLowerCase() ||
                           item.metadata?.family_member_email?.toLowerCase();
       if (memberEmail) {
+        // SAFETY CHECK: Verify the member's subscription item is actually fully removed
+        // and not just modified (e.g., price change, quantity update)
+        const existingItemForEmail = currentEmailToItemMap.get(memberEmail);
+        if (existingItemForEmail) {
+          // The member still has an active subscription item (possibly modified/replaced)
+          console.warn(
+            `[GroupBilling] Skipping deactivation for ${memberEmail} - item ${item.id} removed but ` +
+            `member still has active item ${existingItemForEmail.id}. Item may have been modified, not cancelled.`
+          );
+          
+          // Update the member's subscription item ID to the new one if different
+          const member = await db.select()
+            .from(groupMembers)
+            .where(and(
+              eq(groupMembers.billingGroupId, billingGroupId),
+              eq(groupMembers.memberEmail, memberEmail),
+              eq(groupMembers.isActive, true)
+            ))
+            .limit(1);
+          
+          if (member.length > 0 && member[0].stripeSubscriptionItemId !== existingItemForEmail.id) {
+            await db.update(groupMembers)
+              .set({
+                stripeSubscriptionItemId: existingItemForEmail.id,
+                updatedAt: new Date(),
+              })
+              .where(eq(groupMembers.id, member[0].id));
+            console.log(`[GroupBilling] Updated member ${memberEmail} subscription item ID from ${item.id} to ${existingItemForEmail.id}`);
+          }
+          continue;
+        }
+        
+        // Member's subscription item is truly removed - safe to deactivate
         const member = await db.select()
           .from(groupMembers)
           .where(and(
@@ -879,7 +974,7 @@ export async function handleSubscriptionItemsChanged(
             [memberEmail]
           );
           
-          console.log(`[GroupBilling] Auto-deactivated member ${memberEmail} - subscription item removed`);
+          console.log(`[GroupBilling] Auto-deactivated member ${memberEmail} - subscription item ${item.id} fully removed`);
         }
       }
     }

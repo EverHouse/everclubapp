@@ -33,8 +33,7 @@ const EventsTab = lazy(() => import('./tabs/EventsTab'));
 const SimulatorTab = lazy(() => import('./tabs/SimulatorTab'));
 const DataIntegrityTab = lazy(() => import('./tabs/DataIntegrityTab'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
-const BillingTab = lazy(() => import('./tabs/BillingTab'));
-const PaymentsTab = lazy(() => import('./tabs/PaymentsTab'));
+const FinancialsTab = lazy(() => import('./tabs/FinancialsTab'));
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
@@ -66,7 +65,7 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType | null;
-    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings', 'billing', 'payments'];
+    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings', 'financials'];
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (!tabParam) {
@@ -111,7 +110,7 @@ const AdminDashboard: React.FC = () => {
       case 'faqs': return 'FAQs';
       case 'inquiries': return 'Inquiries';
       case 'gallery': return 'Gallery';
-      case 'tiers': return 'Tiers';
+      case 'tiers': return 'Membership Config';
       case 'blocks': return 'Notices';
       case 'changelog': return 'Changelog';
       case 'bugs': return 'Bug Reports';
@@ -121,8 +120,7 @@ const AdminDashboard: React.FC = () => {
       case 'trackman': return 'Trackman Import';
       case 'data-integrity': return 'Data Integrity';
       case 'settings': return 'Settings';
-      case 'billing': return 'Billing';
-      case 'payments': return 'Payments';
+      case 'financials': return 'Financials';
       default: return 'Dashboard';
     }
   };
@@ -208,8 +206,7 @@ const AdminDashboard: React.FC = () => {
             {activeTab === 'trackman' && <TrackmanTab />}
             {activeTab === 'data-integrity' && actualUser?.role === 'admin' && <DataIntegrityTab />}
             {activeTab === 'settings' && actualUser?.role === 'admin' && <SettingsTab />}
-            {activeTab === 'billing' && actualUser?.role === 'admin' && <BillingTab />}
-            {activeTab === 'payments' && <PaymentsTab />}
+            {activeTab === 'financials' && <FinancialsTab />}
           </Suspense>
         </PageErrorBoundary>
         <BottomSentinel />
