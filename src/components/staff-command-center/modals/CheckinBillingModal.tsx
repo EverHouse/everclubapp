@@ -33,6 +33,10 @@ interface CheckinContext {
   participants: ParticipantFee[];
   totalOutstanding: number;
   hasUnpaidBalance: boolean;
+  overageMinutes?: number;
+  overageFeeCents?: number;
+  overagePaid?: boolean;
+  hasUnpaidOverage?: boolean;
 }
 
 interface CheckinBillingModalProps {
@@ -61,6 +65,8 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     totalAmount: number;
     description: string;
   } | null>(null);
+  const [showOveragePayment, setShowOveragePayment] = useState(false);
+  const [overageClientSecret, setOverageClientSecret] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && bookingId) {
@@ -273,6 +279,39 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   };
 
+  const handleChargeOverage = async () => {
+    if (!context) return;
+    setActionInProgress('overage-payment');
+    try {
+      const res = await fetch('/api/stripe/overage/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ bookingId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOverageClientSecret(data.clientSecret);
+        setShowOveragePayment(true);
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to create payment', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to create overage payment:', err);
+      showToast('Failed to create payment', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleOveragePaymentSuccess = async () => {
+    showToast('Overage payment successful!', 'success');
+    setShowOveragePayment(false);
+    setOverageClientSecret(null);
+    await fetchContext();
+  };
+
   const handleStripePaymentSuccess = async () => {
     showToast('Payment successful - completing check-in...', 'success');
     setShowStripePayment(false);
@@ -342,7 +381,27 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           className="p-6 overflow-y-auto flex-1"
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
         >
-          {showStripePayment && context && frozenPaymentData ? (
+          {showOveragePayment && context && overageClientSecret ? (
+            <div className="space-y-4">
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4">
+                <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">Simulator Overage Payment</h3>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  {context.overageMinutes} minutes over tier limit • ${((context.overageFeeCents || 0) / 100).toFixed(2)}
+                </p>
+              </div>
+              <StripePaymentForm
+                amount={(context.overageFeeCents || 0) / 100}
+                description={`Simulator overage fee - ${context.resourceName}`}
+                userId={context.ownerId}
+                userEmail={context.ownerEmail}
+                memberName={context.ownerName}
+                purpose="overage_fee"
+                bookingId={bookingId}
+                onSuccess={handleOveragePaymentSuccess}
+                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); }}
+              />
+            </div>
+          ) : showStripePayment && context && frozenPaymentData ? (
             <div className="space-y-4">
               <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-4">
                 <h3 className="font-semibold text-primary dark:text-white mb-2">{context.ownerName}</h3>
@@ -392,6 +451,29 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {context.hasUnpaidOverage && context.overageFeeCents && context.overageFeeCents > 0 && (
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-xl">warning</span>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-red-800 dark:text-red-300 mb-1">Simulator Overage Fee Required</h4>
+                      <p className="text-sm text-red-700 dark:text-red-400 mb-3">
+                        This booking exceeds the member's daily simulator allowance by {context.overageMinutes} minutes.
+                        Payment of ${(context.overageFeeCents / 100).toFixed(2)} is required before check-in.
+                      </p>
+                      <button
+                        onClick={handleChargeOverage}
+                        disabled={actionInProgress !== null}
+                        className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm">credit_card</span>
+                        {actionInProgress === 'overage-payment' ? 'Processing...' : `Charge $${(context.overageFeeCents / 100).toFixed(2)}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {context.participants.length > 0 && (
                 <div>
@@ -565,7 +647,14 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         </div>
 
         <div className="px-6 py-4 border-t border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 flex-shrink-0">
-          {showStripePayment ? (
+          {showOveragePayment ? (
+            <button
+              onClick={() => { setShowOveragePayment(false); setOverageClientSecret(null); }}
+              className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
+            >
+              Back
+            </button>
+          ) : showStripePayment ? (
             <button
               onClick={onClose}
               className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
