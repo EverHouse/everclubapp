@@ -63,11 +63,9 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
           bookingDetails = await bookingRes.json();
         }
         
-        // Use PRIMARY member as fallback for owner name if booking record doesn't have it
-        // API returns 'members' array with 'isPrimary' field and 'memberName'/'userEmail' fields
-        const primaryMember = data.members?.find((m: any) => m.isPrimary);
-        const ownerName = bookingDetails?.user_name || primaryMember?.memberName || primaryMember?.displayName || 'Unknown';
-        const ownerEmail = bookingDetails?.user_email || primaryMember?.userEmail || '';
+        // Booking details come from the proper API endpoint now
+        const ownerName = bookingDetails?.user_name || 'Unknown';
+        const ownerEmail = bookingDetails?.user_email || '';
         
         setContext({
           bookingId,
@@ -182,13 +180,31 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
           ) : context ? (
             <div className="space-y-4">
               <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-4">
-                <h3 className="font-semibold text-primary dark:text-white mb-2">{context.ownerName}</h3>
-                <p className="text-sm text-primary/70 dark:text-white/70">
-                  {context.resourceName} • {formatTime(context.startTime)} - {formatTime(context.endTime)}
-                </p>
-                <p className="text-xs text-primary/50 dark:text-white/50 mt-1">
-                  {formatDate(context.bookingDate)}
-                </p>
+                <div className="flex items-start gap-3">
+                  <span className="material-symbols-outlined text-primary/60 dark:text-white/60 mt-0.5">person</span>
+                  <div>
+                    <h3 className="font-semibold text-primary dark:text-white">{context.ownerName}</h3>
+                    {context.ownerEmail && (
+                      <p className="text-sm text-primary/70 dark:text-white/70">{context.ownerEmail}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-primary/10 dark:border-white/10 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-primary/50 dark:text-white/50 text-xs">Date</p>
+                    <p className="text-primary dark:text-white font-medium">{formatDate(context.bookingDate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-primary/50 dark:text-white/50 text-xs">Time</p>
+                    <p className="text-primary dark:text-white font-medium">{formatTime(context.startTime)} - {formatTime(context.endTime)}</p>
+                  </div>
+                  {context.resourceName && (
+                    <div className="col-span-2">
+                      <p className="text-primary/50 dark:text-white/50 text-xs">Bay/Resource</p>
+                      <p className="text-primary dark:text-white font-medium">{context.resourceName}</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl p-3">

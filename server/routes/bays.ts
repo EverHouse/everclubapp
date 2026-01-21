@@ -736,6 +736,66 @@ router.post('/api/booking-requests', async (req, res) => {
   }
 });
 
+// GET single booking request by ID
+router.get('/api/booking-requests/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bookingId = parseInt(id);
+    
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+    
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const result = await db.select({
+      id: bookingRequests.id,
+      user_email: bookingRequests.userEmail,
+      user_name: bookingRequests.userName,
+      resource_id: bookingRequests.resourceId,
+      request_date: bookingRequests.requestDate,
+      start_time: bookingRequests.startTime,
+      end_time: bookingRequests.endTime,
+      duration_minutes: bookingRequests.durationMinutes,
+      notes: bookingRequests.notes,
+      status: bookingRequests.status,
+      staff_notes: bookingRequests.staffNotes,
+      trackman_booking_id: bookingRequests.trackmanBookingId,
+      trackman_player_count: bookingRequests.trackmanPlayerCount,
+      declared_player_count: bookingRequests.declaredPlayerCount,
+      created_at: bookingRequests.createdAt,
+      bay_name: resources.name
+    })
+    .from(bookingRequests)
+    .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
+    .where(eq(bookingRequests.id, bookingId))
+    .limit(1);
+    
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    const booking = result[0];
+    const sessionEmail = sessionUser.email?.toLowerCase() || '';
+    const bookingEmail = booking.user_email?.toLowerCase() || '';
+    
+    // Check authorization: user can view their own bookings, staff can view all
+    if (sessionEmail !== bookingEmail) {
+      const hasStaffAccess = await isStaffOrAdminCheck(sessionEmail);
+      if (!hasStaffAccess) {
+        return res.status(403).json({ error: 'You can only view your own booking requests' });
+      }
+    }
+    
+    res.json(booking);
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to fetch booking request', error);
+  }
+});
+
 router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
