@@ -19,12 +19,14 @@ import { sql, eq, isNull, lt, and, or, gte, desc, isNotNull, gt } from 'drizzle-
 import { getHubSpotClient } from './integrations';
 import { isProduction } from './db';
 import { getTodayPacific } from '../utils/dateUtils';
+import { getStripeClient } from './stripe/client';
 import { alertOnCriticalIntegrityIssues, alertOnHighIntegrityIssues } from './dataAlerts';
 
 const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'HubSpot Sync Status': 'critical',
   'HubSpot Sync Mismatch': 'critical',
   'Deal Stage Drift': 'critical',
+  'Stripe Subscription Sync': 'critical',
   'Calendar Sync Mismatches': 'high',
   'Participant User Relationships': 'high',
   'Booking Request Integrity': 'high',
@@ -70,9 +72,10 @@ export interface IssueContext {
   eventDate?: string;
   tourDate?: string;
   guestName?: string;
-  syncType?: 'hubspot' | 'calendar';
+  syncType?: 'hubspot' | 'calendar' | 'stripe';
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;
+  stripeCustomerId?: string;
   userId?: number;
 }
 
@@ -797,6 +800,233 @@ async function checkDealStageDrift(): Promise<IntegrityCheckResult> {
   };
 }
 
+async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  
+  let stripe: any;
+  try {
+    stripe = await getStripeClient();
+  } catch (err) {
+    if (!isProduction) console.error('[DataIntegrity] Stripe API error:', err);
+    issues.push({
+      category: 'sync_mismatch',
+      severity: 'info',
+      table: 'stripe_sync',
+      recordId: 'stripe_api',
+      description: 'Unable to connect to Stripe - API may be unavailable',
+      suggestion: 'Check Stripe integration connection'
+    });
+    
+    return {
+      checkName: 'Stripe Subscription Sync',
+      status: 'warning',
+      issueCount: issues.length,
+      issues,
+      lastRun: new Date()
+    };
+  }
+  
+  const appMembersResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id
+    FROM users 
+    WHERE stripe_customer_id IS NOT NULL
+      AND membership_status IS NOT NULL
+      AND role = 'member'
+    LIMIT 100
+  `);
+  const appMembers = appMembersResult.rows as any[];
+  
+  if (appMembers.length === 0) {
+    return {
+      checkName: 'Stripe Subscription Sync',
+      status: 'pass',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date()
+    };
+  }
+  
+  const STATUS_MAPPING: Record<string, string[]> = {
+    'active': ['active', 'trialing'],
+    'pending': ['incomplete', 'incomplete_expired', 'past_due'],
+    'past_due': ['past_due'],
+    'suspended': ['past_due', 'unpaid'],
+    'frozen': ['past_due', 'unpaid'],
+    'cancelled': ['canceled'],
+    'terminated': ['canceled'],
+    'inactive': ['canceled', 'unpaid', 'incomplete_expired']
+  };
+  
+  const STRIPE_STATUS_TO_EXPECTED_DB: Record<string, string[]> = {
+    'active': ['active'],
+    'trialing': ['active', 'pending'],
+    'past_due': ['active', 'past_due', 'pending', 'suspended', 'frozen'],
+    'canceled': ['cancelled', 'terminated', 'inactive', 'non-member'],
+    'unpaid': ['suspended', 'frozen', 'inactive'],
+    'incomplete': ['pending'],
+    'incomplete_expired': ['pending', 'inactive']
+  };
+  
+  const BATCH_SIZE = 10;
+  const BATCH_DELAY_MS = 100;
+  
+  const processMember = async (member: any): Promise<void> => {
+    const customerId = member.stripe_customer_id;
+    if (!customerId) return;
+    
+    const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const dbStatus = (member.membership_status || '').toLowerCase();
+    const dbTier = (member.tier || '').toLowerCase();
+    
+    try {
+      const customerSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 10,
+        expand: ['data.items.data.price.product']
+      });
+      
+      if (!customerSubs.data || customerSubs.data.length === 0) {
+        if (dbStatus === 'active') {
+          issues.push({
+            category: 'sync_mismatch',
+            severity: 'error',
+            table: 'users',
+            recordId: member.id,
+            description: `Member "${memberName}" shows as active in database but has no Stripe subscription`,
+            suggestion: 'Verify member payment status or update membership status',
+            context: {
+              memberName,
+              memberEmail: member.email || undefined,
+              memberTier: member.tier || undefined,
+              syncType: 'stripe',
+              stripeCustomerId: customerId,
+              userId: member.id,
+              syncComparison: [
+                { field: 'Subscription', appValue: dbStatus, externalValue: 'no subscription' }
+              ]
+            }
+          });
+        }
+        return;
+      }
+      
+      const activeSub = customerSubs.data.find(s => 
+        ['active', 'trialing', 'past_due'].includes(s.status)
+      ) || customerSubs.data[0];
+      
+      const stripeStatus = activeSub.status;
+      const comparisons: SyncComparisonData[] = [];
+      
+      const expectedDbStatuses = STRIPE_STATUS_TO_EXPECTED_DB[stripeStatus] || [];
+      const statusMatches = expectedDbStatuses.includes(dbStatus);
+      
+      if (!statusMatches) {
+        const isStatusMismatch = 
+          (dbStatus === 'active' && ['canceled', 'unpaid', 'incomplete_expired'].includes(stripeStatus)) ||
+          (['cancelled', 'terminated', 'inactive'].includes(dbStatus) && ['active', 'trialing'].includes(stripeStatus));
+        
+        comparisons.push({
+          field: 'Membership Status',
+          appValue: member.membership_status || null,
+          externalValue: stripeStatus
+        });
+        
+        if (isStatusMismatch) {
+          issues.push({
+            category: 'sync_mismatch',
+            severity: 'error',
+            table: 'users',
+            recordId: member.id,
+            description: `Member "${memberName}" has status mismatch: DB shows "${member.membership_status}" but Stripe subscription is "${stripeStatus}"`,
+            suggestion: 'Sync membership status with Stripe subscription state',
+            context: {
+              memberName,
+              memberEmail: member.email || undefined,
+              memberTier: member.tier || undefined,
+              syncType: 'stripe',
+              stripeCustomerId: customerId,
+              userId: member.id,
+              syncComparison: comparisons
+            }
+          });
+          return;
+        }
+      }
+      
+      const item = activeSub.items?.data?.[0];
+      const price = item?.price;
+      const product = typeof price?.product === 'object' ? price.product : null;
+      
+      if (product && dbTier) {
+        const productTier = (product.metadata?.tier || product.name || '').toLowerCase();
+        const productName = (product.name || '').toLowerCase();
+        
+        const tierMatches = 
+          productTier.includes(dbTier) || 
+          dbTier.includes(productTier) ||
+          productName.includes(dbTier) ||
+          dbTier.includes(productName);
+        
+        if (!tierMatches && productTier) {
+          comparisons.push({
+            field: 'Membership Tier',
+            appValue: member.tier || null,
+            externalValue: product.metadata?.tier || product.name || null
+          });
+          
+          issues.push({
+            category: 'sync_mismatch',
+            severity: 'warning',
+            table: 'users',
+            recordId: member.id,
+            description: `Member "${memberName}" has tier mismatch: DB tier is "${member.tier}" but Stripe product is "${product.name}"`,
+            suggestion: 'Update database tier to match Stripe subscription product',
+            context: {
+              memberName,
+              memberEmail: member.email || undefined,
+              memberTier: member.tier || undefined,
+              syncType: 'stripe',
+              stripeCustomerId: customerId,
+              userId: member.id,
+              syncComparison: comparisons
+            }
+          });
+        }
+      }
+    } catch (err: any) {
+      if (!isProduction) console.error(`[DataIntegrity] Error fetching Stripe subscriptions for ${customerId}:`, err);
+      if (err?.code !== 'resource_missing') {
+        issues.push({
+          category: 'sync_mismatch',
+          severity: 'warning',
+          table: 'users',
+          recordId: member.id,
+          description: `Error fetching Stripe subscriptions for "${memberName}": ${err.message}`,
+          suggestion: 'Check Stripe customer ID validity'
+        });
+      }
+    }
+  };
+  
+  for (let i = 0; i < appMembers.length; i += BATCH_SIZE) {
+    const batch = appMembers.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(processMember));
+    
+    if (i + BATCH_SIZE < appMembers.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+    }
+  }
+  
+  return {
+    checkName: 'Stripe Subscription Sync',
+    status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
 async function storeCheckHistory(results: IntegrityCheckResult[], triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<void> {
   const totalIssues = results.reduce((sum, r) => sum + r.issueCount, 0);
   
@@ -890,7 +1120,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     checkStalePastTours(),
     checkMembersWithoutEmail(),
     checkDealsWithoutLineItems(),
-    checkDealStageDrift()
+    checkDealStageDrift(),
+    checkStripeSubscriptionSync()
   ]);
   
   const now = new Date();

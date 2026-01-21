@@ -1685,7 +1685,14 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
     const resolvedName = memberName || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email.split('@')[0];
 
     let finalProductName: string | undefined;
-    let finalDescription = description || 'Quick charge';
+    let finalDescription = description || 'Staff quick charge';
+
+    if (!productId) {
+      console.warn(`[Stripe] Quick charge for ${member.email} without productId - purchase reporting will be generic. Consider specifying a product for better reporting (e.g., "User bought 2 Gatorades" instead of "User paid $10").`);
+      if (!description) {
+        finalDescription = 'Staff quick charge (no product specified)';
+      }
+    }
 
     if (productId) {
       try {
