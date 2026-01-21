@@ -397,24 +397,21 @@ const MobilePaymentsView: React.FC = () => {
 const DesktopPaymentsView: React.FC = () => {
   return (
     <div className="grid grid-cols-12 gap-6">
-      <div className="col-span-4 space-y-6">
+      <div className="col-span-6 space-y-6">
         <DailySummaryCard variant="card" />
         <div className="relative z-20 focus-within:z-50">
           <RecordPurchaseCard variant="card" />
         </div>
-        <RedeemDayPassSection variant="card" />
-      </div>
-      
-      <div className="col-span-4 space-y-6">
         <div className="relative z-20 focus-within:z-50">
           <MemberLookupSection variant="card" />
         </div>
+        <RedeemDayPassSection variant="card" />
+      </div>
+      
+      <div className="col-span-6 space-y-6">
         <div className="relative z-10">
           <RecentTransactionsSection variant="card" />
         </div>
-      </div>
-      
-      <div className="col-span-4 space-y-6">
         <PendingAuthorizationsSection variant="card" />
         <OverduePaymentsPanel variant="card" />
         <FailedPaymentsSection variant="card" />

@@ -102,7 +102,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
     
     const listParams: Stripe.SubscriptionListParams = {
       limit: pageLimit,
-      expand: ['data.customer', 'data.items.data.price.product'],
+      expand: ['data.customer', 'data.items.data.price'],
     };
     
     if (statusFilter) {
@@ -119,13 +119,12 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       const customer = sub.customer as Stripe.Customer;
       const item = sub.items.data[0];
       const price = item?.price;
-      const product = price?.product as Stripe.Product | undefined;
       
       return {
         id: sub.id,
         memberEmail: customer?.email || 'Unknown',
         memberName: customer?.name || customer?.email || 'Unknown',
-        planName: product?.name || price?.nickname || 'Unknown Plan',
+        planName: price?.nickname || 'Subscription Plan',
         amount: price?.unit_amount || 0,
         currency: price?.currency || 'usd',
         interval: price?.recurring?.interval || 'month',
