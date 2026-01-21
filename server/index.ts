@@ -66,6 +66,7 @@ import { ensureDatabaseConstraints, seedDefaultNoticeTypes } from './db-init';
 import { initWebSocketServer } from './core/websocket';
 import { startIntegrityScheduler } from './schedulers/integrityScheduler';
 import { startWaiverReviewScheduler } from './schedulers/waiverReviewScheduler';
+import { startStripeReconciliationScheduler } from './schedulers/stripeReconciliationScheduler';
 import { processStripeWebhook, getStripeSync } from './core/stripe';
 import { runMigrations } from 'stripe-replit-sync';
 import { enableRealtimeForTable } from './core/supabase/client';
@@ -205,7 +206,12 @@ app.post(
       res.status(200).json({ received: true });
     } catch (error: any) {
       console.error('[Stripe Webhook] Error:', error.message);
-      res.status(400).json({ error: 'Webhook processing error' });
+      
+      if (error.message?.includes('signature') || error.message?.includes('payload') || error.type === 'StripeSignatureVerificationError') {
+        return res.status(400).json({ error: 'Invalid request' });
+      }
+      
+      res.status(500).json({ error: 'Server processing error' });
     }
   }
 );
@@ -861,6 +867,9 @@ async function startServer() {
 
   // Waiver review scheduler - checks for stale waivers every 4 hours
   startWaiverReviewScheduler();
+  
+  // Stripe reconciliation scheduler - runs at 5am Pacific daily
+  startStripeReconciliationScheduler();
   
   // Communication logs sync scheduler - runs every 30 minutes
   // Syncs calls and SMS from HubSpot Engagements API

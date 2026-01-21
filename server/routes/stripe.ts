@@ -199,7 +199,9 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       metadata.feeSnapshotId = snapshotId.toString();
     }
     if (serverFees.length > 0) {
-      metadata.participantFees = JSON.stringify(serverFees);
+      metadata.participantCount = serverFees.length.toString();
+      const participantIds = serverFees.map(f => f.id).join(',');
+      metadata.participantIds = participantIds.length > 490 ? participantIds.substring(0, 490) + '...' : participantIds;
     }
     
     let result;
@@ -856,7 +858,8 @@ router.post('/api/member/bookings/:id/pay-fees', async (req: Request, res: Respo
 
     const metadata: Record<string, string> = {
       feeSnapshotId: snapshotId!.toString(),
-      participantFees: JSON.stringify(serverFees),
+      participantCount: serverFees.length.toString(),
+      participantIds: serverFees.map(f => f.id).join(',').substring(0, 490),
       memberPayment: 'true'
     };
 
@@ -1551,7 +1554,8 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       description: `Outstanding balance payment - ${participantFees.length} item(s)`,
       metadata: {
         feeSnapshotId: snapshotId!.toString(),
-        participantFees: JSON.stringify(participantFees),
+        participantCount: participantFees.length.toString(),
+        participantIds: participantFees.map(f => f.id).join(',').substring(0, 490),
         balancePayment: 'true'
       }
     });
