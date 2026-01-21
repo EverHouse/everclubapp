@@ -1911,46 +1911,48 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
     let lastActivityMap: Record<string, string | null> = {};
     
     if (memberEmails.length > 0) {
-      const bookingsResult = await db.execute(sql`
+      const emailArray = memberEmails.map(e => `'${e.replace(/'/g, "''")}'`).join(',');
+      
+      const bookingsResult = await db.execute(sql.raw(`
         SELECT LOWER(user_email) as email, COUNT(*) as count
         FROM booking_requests
-        WHERE LOWER(user_email) = ANY(${memberEmails})
+        WHERE LOWER(user_email) IN (${emailArray})
           AND status NOT IN ('cancelled', 'declined')
           AND request_date < CURRENT_DATE
         GROUP BY LOWER(user_email)
-      `);
+      `));
       for (const row of (bookingsResult as any).rows || []) {
         bookingCounts[row.email] = Number(row.count);
       }
       
-      const eventsResult = await db.execute(sql`
+      const eventsResult = await db.execute(sql.raw(`
         SELECT LOWER(user_email) as email, COUNT(*) as count
         FROM event_rsvps er
         JOIN events e ON er.event_id = e.id
-        WHERE LOWER(er.user_email) = ANY(${memberEmails})
+        WHERE LOWER(er.user_email) IN (${emailArray})
           AND er.status != 'cancelled'
           AND e.event_date < CURRENT_DATE
         GROUP BY LOWER(user_email)
-      `);
+      `));
       for (const row of (eventsResult as any).rows || []) {
         eventCounts[row.email] = Number(row.count);
       }
       
-      const lastActivityResult = await db.execute(sql`
+      const lastActivityResult = await db.execute(sql.raw(`
         SELECT email, MAX(last_date) as last_date FROM (
           SELECT LOWER(user_email) as email, MAX(request_date) as last_date
           FROM booking_requests
-          WHERE LOWER(user_email) = ANY(${memberEmails}) AND status NOT IN ('cancelled', 'declined')
+          WHERE LOWER(user_email) IN (${emailArray}) AND status NOT IN ('cancelled', 'declined')
           GROUP BY LOWER(user_email)
           UNION ALL
           SELECT LOWER(er.user_email) as email, MAX(e.event_date) as last_date
           FROM event_rsvps er
           JOIN events e ON er.event_id = e.id
-          WHERE LOWER(er.user_email) = ANY(${memberEmails}) AND er.status != 'cancelled'
+          WHERE LOWER(er.user_email) IN (${emailArray}) AND er.status != 'cancelled'
           GROUP BY LOWER(er.user_email)
         ) combined
         GROUP BY email
-      `);
+      `));
       for (const row of (lastActivityResult as any).rows || []) {
         lastActivityMap[row.email] = row.last_date ? String(row.last_date).split('T')[0] : null;
       }
