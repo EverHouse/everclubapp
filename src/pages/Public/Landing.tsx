@@ -403,7 +403,7 @@ const Landing: React.FC = () => {
         <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-[#293515]/50 mb-8">As Featured In</p>
         
         {/* Quote Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">
           {/* Forbes Quote */}
           <a 
             href="https://www.forbes.com/sites/mikedojc/2025/09/09/even-house-turns-indoor-golf-into-a-community-social-hub/" 
@@ -430,6 +430,20 @@ const Landing: React.FC = () => {
               "A laid-back yet high-end culture where people can connect and unwind... creating a place where people can come to recharge."
             </blockquote>
             <p className="text-xs text-[#293515]/50 font-medium mt-4">February 2025</p>
+          </a>
+
+          {/* Fox 11 Good Day LA Quote */}
+          <a 
+            href="https://www.foxla.com/video/fmc-t05loqz15hed9sfa" 
+            target="_blank" 
+            rel="noreferrer"
+            className="backdrop-blur-xl bg-white/40 p-6 rounded-[1.5rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+          >
+            <p className="text-lg font-black text-[#293515]/80 uppercase tracking-wide mb-4">Fox 11</p>
+            <blockquote className="text-sm text-[#293515]/80 leading-relaxed flex-1">
+              "It's all about having another place where you feel like you belong... the third space. We are missing out on third spaces."
+            </blockquote>
+            <p className="text-xs text-[#293515]/50 font-medium mt-4">December 2025</p>
           </a>
         </div>
       </div>
