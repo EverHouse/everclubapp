@@ -128,7 +128,7 @@ router.post('/api/availability/batch', async (req, res) => {
     const currentMinutes = isToday ? pacificParts.hour * 60 + pacificParts.minute : 0;
     
     // Fetch all data in parallel with optimized queries
-    const [resourcesResult, bookedResult, blockedResult, unmatchedResult] = await Promise.all([
+    const [resourcesResult, bookedResult, blockedResult, unmatchedResult, webhookCacheResult] = await Promise.all([
       // Get resource types for all requested resources
       pool.query(
         `SELECT id, type FROM resources WHERE id = ANY($1)`,
@@ -158,6 +158,12 @@ router.post('/api/availability/batch', async (req, res) => {
         `SELECT bay_number, start_time, end_time FROM trackman_unmatched_bookings 
          WHERE bay_number = ANY($1::text[]) AND booking_date = $2 AND resolved_at IS NULL`,
         [resource_ids.map(String), date]
+      ).catch(() => ({ rows: [] })), // Non-blocking if table doesn't exist
+      // Fetch Trackman webhook cache slots (real-time availability from webhooks)
+      pool.query(
+        `SELECT resource_id, start_time, end_time FROM trackman_bay_slots 
+         WHERE resource_id = ANY($1) AND slot_date = $2 AND status = 'booked'`,
+        [resource_ids, date]
       ).catch(() => ({ rows: [] })) // Non-blocking if table doesn't exist
     ]);
     
@@ -187,6 +193,13 @@ router.post('/api/availability/batch', async (req, res) => {
     unmatchedResult.rows.forEach((row: { bay_number: string; start_time: string; end_time: string }) => {
       const resourceId = parseInt(row.bay_number);
       unmatchedByResource.get(resourceId)?.push({ start_time: row.start_time, end_time: row.end_time });
+    });
+    
+    // Group Trackman webhook cache slots by resource
+    const webhookCacheByResource = new Map<number, { start_time: string; end_time: string }[]>();
+    resource_ids.forEach(id => webhookCacheByResource.set(id, []));
+    webhookCacheResult.rows.forEach((row: { resource_id: number; start_time: string; end_time: string }) => {
+      webhookCacheByResource.get(row.resource_id)?.push({ start_time: row.start_time, end_time: row.end_time });
     });
     
     // Find conference room resources that need calendar lookups
@@ -221,6 +234,12 @@ router.post('/api/availability/batch', async (req, res) => {
     const result: Record<number, { slots: APISlot[] }> = {};
     
     for (const resourceId of resource_ids) {
+      // Combine unmatched and webhook cache slots (both are external Trackman data)
+      const combinedUnmatchedSlots = [
+        ...(unmatchedByResource.get(resourceId) || []),
+        ...(webhookCacheByResource.get(resourceId) || [])
+      ];
+      
       const slots = generateSlotsForResource(
         durationMinutes,
         hours,
@@ -228,7 +247,7 @@ router.post('/api/availability/batch', async (req, res) => {
         isToday,
         bookedByResource.get(resourceId) || [],
         blockedByResource.get(resourceId) || [],
-        unmatchedByResource.get(resourceId) || [],
+        combinedUnmatchedSlots,
         calendarByResource.get(resourceId) || []
       );
       result[resourceId] = { slots };

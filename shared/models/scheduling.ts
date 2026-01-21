@@ -356,3 +356,57 @@ export const dismissedHubspotMeetings = pgTable("dismissed_hubspot_meetings", {
 
 export type DismissedHubspotMeeting = typeof dismissedHubspotMeetings.$inferSelect;
 export type InsertDismissedHubspotMeeting = typeof dismissedHubspotMeetings.$inferInsert;
+
+export const trackmanWebhookEventTypeEnum = pgEnum("trackman_webhook_event_type", [
+  "user_update",
+  "booking_update",
+  "purchase_update",
+  "purchase_paid"
+]);
+
+export const trackmanBaySlotStatusEnum = pgEnum("trackman_bay_slot_status", [
+  "booked",
+  "cancelled",
+  "completed"
+]);
+
+export const trackmanWebhookEvents = pgTable("trackman_webhook_events", {
+  id: serial("id").primaryKey(),
+  eventType: trackmanWebhookEventTypeEnum("event_type").notNull(),
+  trackmanBookingId: varchar("trackman_booking_id"),
+  trackmanUserId: varchar("trackman_user_id"),
+  payload: jsonb("payload").notNull(),
+  processedAt: timestamp("processed_at"),
+  processingError: text("processing_error"),
+  matchedBookingId: integer("matched_booking_id"),
+  matchedUserId: varchar("matched_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("trackman_webhook_events_type_idx").on(table.eventType),
+  index("trackman_webhook_events_trackman_booking_idx").on(table.trackmanBookingId),
+  index("trackman_webhook_events_created_idx").on(table.createdAt),
+]);
+
+export const trackmanBaySlots = pgTable("trackman_bay_slots", {
+  id: serial("id").primaryKey(),
+  resourceId: integer("resource_id").notNull().references(() => resources.id, { onDelete: 'cascade' }),
+  slotDate: date("slot_date").notNull(),
+  startTime: time("start_time").notNull(),
+  endTime: time("end_time").notNull(),
+  status: trackmanBaySlotStatusEnum("status").default("booked"),
+  trackmanBookingId: varchar("trackman_booking_id"),
+  customerEmail: varchar("customer_email"),
+  customerName: varchar("customer_name"),
+  playerCount: integer("player_count").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("trackman_bay_slots_resource_date_idx").on(table.resourceId, table.slotDate),
+  index("trackman_bay_slots_trackman_booking_idx").on(table.trackmanBookingId),
+  uniqueIndex("trackman_bay_slots_unique_idx").on(table.resourceId, table.slotDate, table.startTime, table.trackmanBookingId),
+]);
+
+export type TrackmanWebhookEvent = typeof trackmanWebhookEvents.$inferSelect;
+export type InsertTrackmanWebhookEvent = typeof trackmanWebhookEvents.$inferInsert;
+export type TrackmanBaySlot = typeof trackmanBaySlots.$inferSelect;
+export type InsertTrackmanBaySlot = typeof trackmanBaySlots.$inferInsert;
