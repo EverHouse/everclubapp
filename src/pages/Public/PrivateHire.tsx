@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Footer } from '../../components/Footer';
-import HubSpotFormModal from '../../components/HubSpotFormModal';
+import EventInquiryForm from '../../components/EventInquiryForm';
 import VirtualTour from '../../components/VirtualTour';
 import { triggerHaptic } from '../../utils/haptics';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useParallax } from '../../hooks/useParallax';
-
-const PRIVATE_HIRE_FIELDS = [
-  { name: 'firstname', label: 'First Name', type: 'text' as const, required: true, placeholder: 'Jane' },
-  { name: 'lastname', label: 'Last Name', type: 'text' as const, required: true, placeholder: 'Doe' },
-  { name: 'email', label: 'Email', type: 'email' as const, required: true, placeholder: 'jane@example.com' },
-  { name: 'phone', label: 'Phone', type: 'tel' as const, required: false, placeholder: '(949) 555-0100' },
-  { name: 'company', label: 'Company', type: 'text' as const, required: false, placeholder: 'Your company name' },
-  { name: 'message', label: 'Event Details', type: 'textarea' as const, required: true, placeholder: 'Tell us about your event: date, guest count, type of event, special requests...' }
-];
 
 const PrivateHire: React.FC = () => {
   const { setPageReady } = usePageReady();
@@ -144,14 +135,9 @@ const PrivateHire: React.FC = () => {
        
        <Footer />
 
-       <HubSpotFormModal
+       <EventInquiryForm
          isOpen={showInquiryForm}
          onClose={() => setShowInquiryForm(false)}
-         formType="private-hire"
-         title="Private Event Inquiry"
-         subtitle="Tell us about your event and we'll get back to you with availability."
-         fields={PRIVATE_HIRE_FIELDS}
-         submitButtonText="Submit Inquiry"
        />
     </div>
   );

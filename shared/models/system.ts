@@ -107,3 +107,22 @@ export const webhookProcessedEvents = pgTable("webhook_processed_events", {
 }));
 
 export type WebhookProcessedEvent = typeof webhookProcessedEvents.$inferSelect;
+
+export const accountDeletionRequests = pgTable("account_deletion_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  processedBy: varchar("processed_by", { length: 255 }),
+  notes: text("notes"),
+}, (table) => ({
+  userIdIdx: index("account_deletion_requests_user_id_idx").on(table.userId),
+  statusIdx: index("account_deletion_requests_status_idx").on(table.status),
+  pendingUserIdx: uniqueIndex("account_deletion_requests_pending_user_idx")
+    .on(table.userId)
+    .where(sql`status = 'pending'`),
+}));
+
+export type AccountDeletionRequest = typeof accountDeletionRequests.$inferSelect;
