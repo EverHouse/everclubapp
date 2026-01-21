@@ -63,10 +63,11 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
           bookingDetails = await bookingRes.json();
         }
         
-        // Use PRIMARY player as fallback for owner name if booking record doesn't have it
-        const primaryPlayer = data.participants?.find((p: any) => p.is_primary);
-        const ownerName = bookingDetails?.user_name || primaryPlayer?.display_name || 'Unknown';
-        const ownerEmail = bookingDetails?.user_email || primaryPlayer?.user_email || '';
+        // Use PRIMARY member as fallback for owner name if booking record doesn't have it
+        // API returns 'members' array with 'isPrimary' field and 'memberName'/'userEmail' fields
+        const primaryMember = data.members?.find((m: any) => m.isPrimary);
+        const ownerName = bookingDetails?.user_name || primaryMember?.memberName || primaryMember?.displayName || 'Unknown';
+        const ownerEmail = bookingDetails?.user_email || primaryMember?.userEmail || '';
         
         setContext({
           bookingId,
@@ -148,8 +149,8 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-6 bg-black/50 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-lg bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden max-h-[calc(100vh-10rem)] sm:max-h-[90vh] flex flex-col my-auto">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-20 pb-6 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-lg bg-white dark:bg-[#1a1d12] rounded-2xl shadow-2xl border border-primary/20 dark:border-white/10 overflow-hidden max-h-[calc(100vh-6rem)] flex flex-col">
         <div className="px-6 py-4 border-b border-primary/10 dark:border-white/10 bg-amber-50 dark:bg-amber-900/20 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
