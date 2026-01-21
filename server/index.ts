@@ -511,6 +511,12 @@ async function startServer() {
         stripeSync.syncBackfill()
           .then(() => console.log('[Stripe] Data sync complete'))
           .catch((err: any) => console.error('[Stripe] Data sync error:', err.message));
+        
+        // Ensure FAMILY20 coupon exists for family billing
+        import('./core/stripe/groupBilling.js')
+          .then(({ getOrCreateFamilyCoupon }) => getOrCreateFamilyCoupon())
+          .then(() => console.log('[Stripe] FAMILY20 coupon ready'))
+          .catch((err: any) => console.error('[Stripe] FAMILY20 coupon setup failed:', err.message));
       }
     } catch (err: any) {
       console.error('[Stripe] Initialization failed (non-fatal):', err.message);
