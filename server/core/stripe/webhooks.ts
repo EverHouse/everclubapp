@@ -11,6 +11,7 @@ import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../../ema
 import { sendPassWithQrEmail } from '../../emails/passEmails';
 import { broadcastBillingUpdate } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
+import { handlePrimarySubscriptionCancelled } from './groupBilling';
 
 export async function processStripeWebhook(
   payload: Buffer,
@@ -950,6 +951,16 @@ async function handleSubscriptionUpdated(subscription: any, previousAttributes?:
 async function handleSubscriptionDeleted(subscription: any): Promise<void> {
   try {
     const customerId = subscription.customer;
+    const subscriptionId = subscription.id;
+
+    // CRITICAL: Handle group billing cancellation via centralized function
+    // This ensures sub-members lose access when primary cancels
+    try {
+      await handlePrimarySubscriptionCancelled(subscriptionId);
+    } catch (groupErr) {
+      console.error('[Stripe Webhook] Error in handlePrimarySubscriptionCancelled:', groupErr);
+      // Don't throw - continue to process other cancellation logic
+    }
 
     const userResult = await pool.query(
       'SELECT email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
@@ -964,6 +975,7 @@ async function handleSubscriptionDeleted(subscription: any): Promise<void> {
     const { email, first_name, last_name } = userResult.rows[0];
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
+    // Check if there was a billing group and notify staff of orphaned members
     const billingGroupResult = await pool.query(
       `SELECT bg.id, bg.group_name, bg.is_active
        FROM billing_groups bg
@@ -974,51 +986,33 @@ async function handleSubscriptionDeleted(subscription: any): Promise<void> {
     if (billingGroupResult.rows.length > 0) {
       const billingGroup = billingGroupResult.rows[0];
       
-      const activeGroupMembersResult = await pool.query(
-        `SELECT gm.id, gm.member_email, gm.member_tier, gm.stripe_subscription_item_id
+      // Get count of members that were just deactivated for notification
+      const deactivatedMembersResult = await pool.query(
+        `SELECT gm.member_email
          FROM group_members gm
-         WHERE gm.billing_group_id = $1 AND gm.is_active = true`,
+         WHERE gm.billing_group_id = $1 AND gm.is_active = false 
+         AND gm.removed_at >= NOW() - INTERVAL '1 minute'`,
         [billingGroup.id]
       );
 
-      if (activeGroupMembersResult.rows.length > 0) {
-        const orphanedMembers = activeGroupMembersResult.rows;
-        const orphanedEmails = orphanedMembers.map((m: any) => m.member_email);
+      if (deactivatedMembersResult.rows.length > 0) {
+        const orphanedEmails = deactivatedMembersResult.rows.map((m: any) => m.member_email);
         
         console.warn(
           `[Stripe Webhook] ORPHAN BILLING WARNING: Primary member ${memberName} (${email}) ` +
-          `subscription cancelled with ${orphanedMembers.length} active group members: ${orphanedEmails.join(', ')}`
+          `subscription cancelled with ${orphanedEmails.length} group members deactivated: ${orphanedEmails.join(', ')}`
         );
 
         await notifyAllStaff({
           title: 'Orphan Billing Alert',
           message: `Primary member ${memberName} (${email}) subscription was cancelled. ` +
-            `${orphanedMembers.length} group member(s) are now orphaned without billing: ${orphanedEmails.join(', ')}. ` +
-            `Their memberships have been automatically deactivated.`,
+            `${orphanedEmails.length} group member(s) have been automatically deactivated: ${orphanedEmails.join(', ')}.`,
           type: 'billing_alert',
         });
+      }
 
-        const stripe = await getStripeClient();
-        for (const member of orphanedMembers) {
-          if (member.stripe_subscription_item_id) {
-            try {
-              await stripe.subscriptionItems.del(member.stripe_subscription_item_id);
-              console.log(`[Stripe Webhook] Deleted subscription item ${member.stripe_subscription_item_id} for orphaned member ${member.member_email}`);
-            } catch (stripeErr: any) {
-              console.error(`[Stripe Webhook] Failed to delete subscription item for ${member.member_email}: ${stripeErr.message}`);
-            }
-          }
-        }
-
-        await db.update(groupMembers)
-          .set({
-            isActive: false,
-            removedAt: new Date(),
-          })
-          .where(eq(groupMembers.billingGroupId, billingGroup.id));
-        
-        console.log(`[Stripe Webhook] Deactivated ${orphanedMembers.length} orphaned group members for billing group ${billingGroup.id}`);
-
+      // Deactivate the billing group itself
+      if (billingGroup.is_active) {
         await pool.query(
           `UPDATE billing_groups SET is_active = false, updated_at = NOW() WHERE id = $1`,
           [billingGroup.id]

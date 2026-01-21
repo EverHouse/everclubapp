@@ -366,24 +366,70 @@ export async function addGroupMember(params: {
       return { success: false, error: 'Add-on product not synced to Stripe. Please sync products first.' };
     }
     
-    const result = await db.insert(groupMembers).values({
-      billingGroupId: params.billingGroupId,
-      memberEmail: params.memberEmail.toLowerCase(),
-      memberTier: params.memberTier,
-      relationship: params.relationship || null,
-      stripeSubscriptionItemId,
-      stripePriceId: product.stripePriceId,
-      addOnPriceCents: product.priceCents,
-      addedBy: params.addedBy,
-      addedByName: params.addedByName,
-    }).returning({ id: groupMembers.id });
+    // Database Write with Rollback Protection using a REAL transaction
+    // Both the group member insert and user update are wrapped in a single transaction
+    // If either fails, the entire transaction rolls back, then we also rollback Stripe
+    const client = await pool.connect();
+    let insertedMemberId: number | null = null;
     
-    await pool.query(
-      'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
-      [params.billingGroupId, params.memberEmail.toLowerCase()]
-    );
-    
-    return { success: true, memberId: result[0].id };
+    try {
+      await client.query('BEGIN');
+      
+      // Step 1: Insert the group member record using raw SQL within transaction
+      const insertResult = await client.query(
+        `INSERT INTO group_members (
+          billing_group_id, member_email, member_tier, relationship,
+          stripe_subscription_item_id, stripe_price_id, add_on_price_cents,
+          added_by, added_by_name, is_active, added_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW())
+        RETURNING id`,
+        [
+          params.billingGroupId,
+          params.memberEmail.toLowerCase(),
+          params.memberTier,
+          params.relationship || null,
+          stripeSubscriptionItemId,
+          product.stripePriceId,
+          product.priceCents,
+          params.addedBy,
+          params.addedByName,
+        ]
+      );
+      
+      insertedMemberId = insertResult.rows[0].id;
+
+      // Step 2: Link user record within the same transaction
+      await client.query(
+        'UPDATE users SET billing_group_id = $1 WHERE LOWER(email) = $2',
+        [params.billingGroupId, params.memberEmail.toLowerCase()]
+      );
+
+      // Both operations succeeded - commit the transaction
+      await client.query('COMMIT');
+      
+      return { success: true, memberId: insertedMemberId };
+
+    } catch (dbErr: any) {
+      // Transaction failed - rollback all database changes
+      await client.query('ROLLBACK');
+      console.error('[GroupBilling] DB transaction failed after Stripe charge. Initiating Stripe rollback.', dbErr);
+      
+      // CRITICAL: ROLLBACK STRIPE CHARGE since database transaction failed
+      if (stripeSubscriptionItemId) {
+        try {
+          const stripe = await getStripeClient();
+          await stripe.subscriptionItems.del(stripeSubscriptionItemId);
+          console.log(`[GroupBilling] Successfully rolled back Stripe item ${stripeSubscriptionItemId}`);
+        } catch (rollbackErr: any) {
+          console.error(`[GroupBilling] CRITICAL: Failed to rollback Stripe item ${stripeSubscriptionItemId}. Manual intervention required.`, rollbackErr);
+          // In production, this would trigger an alert (PagerDuty, Slack, etc.)
+        }
+      }
+      
+      return { success: false, error: 'System error. No charges were made.' };
+    } finally {
+      client.release();
+    }
   } catch (err: any) {
     console.error('[GroupBilling] Error adding group member:', err);
     return { success: false, error: err.message };
@@ -980,5 +1026,68 @@ export async function handleSubscriptionItemsChanged(
     }
   } catch (err: any) {
     console.error('[GroupBilling] Error handling subscription items change:', err);
+  }
+}
+
+/**
+ * CRITICAL: Handles the scenario where the Primary Member cancels their subscription entirely.
+ * This ensures Sub-Members do not retain free access when the primary payer leaves.
+ * This function should be called from the customer.subscription.deleted webhook.
+ */
+export async function handlePrimarySubscriptionCancelled(subscriptionId: string): Promise<void> {
+  try {
+    // 1. Find the group linked to this subscription
+    const group = await db.select()
+      .from(billingGroups)
+      .where(eq(billingGroups.primaryStripeSubscriptionId, subscriptionId))
+      .limit(1);
+
+    if (group.length === 0) {
+      // Not a group subscription - nothing to do
+      return;
+    }
+
+    const groupId = group[0].id;
+    console.log(`[GroupBilling] Primary subscription ${subscriptionId} cancelled. Deactivating group ${groupId}...`);
+
+    // 2. Find all active members in this group
+    const activeMembers = await db.select()
+      .from(groupMembers)
+      .where(and(
+        eq(groupMembers.billingGroupId, groupId),
+        eq(groupMembers.isActive, true)
+      ));
+
+    if (activeMembers.length === 0) {
+      console.log(`[GroupBilling] No active members in group ${groupId} - nothing to deactivate`);
+      return;
+    }
+
+    // 3. Deactivate all members in the group
+    await db.update(groupMembers)
+      .set({
+        isActive: false,
+        removedAt: new Date(),
+        // We keep the stripeSubscriptionItemId for audit history,
+        // but since the parent subscription is dead, the item is dead too.
+      })
+      .where(eq(groupMembers.billingGroupId, groupId));
+
+    // 4. Unlink the users so they lose access permissions
+    const emailsToDeactivate = activeMembers.map(m => m.memberEmail.toLowerCase());
+
+    if (emailsToDeactivate.length > 0) {
+      await pool.query(
+        `UPDATE users SET billing_group_id = NULL 
+         WHERE LOWER(email) = ANY($1::text[])`,
+        [emailsToDeactivate]
+      );
+    }
+
+    console.log(`[GroupBilling] Successfully deactivated ${emailsToDeactivate.length} members for group ${groupId}`);
+
+  } catch (err) {
+    console.error('[GroupBilling] Error handling primary subscription cancellation:', err);
+    throw err; // Re-throw to ensure webhook retries if this fails
   }
 }
