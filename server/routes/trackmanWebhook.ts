@@ -19,6 +19,10 @@ interface TrackmanBookingPayload {
   bayId?: string;
   bay_name?: string;
   bayName?: string;
+  bay_serial?: string;
+  baySerial?: string;
+  resource_serial?: string;
+  resourceSerial?: string;
   start_time?: string;
   startTime?: string;
   end_time?: string;
@@ -106,6 +110,7 @@ function normalizeBookingFields(booking: TrackmanBookingPayload) {
     trackmanBookingId: booking.id || booking.booking_id || booking.bookingId,
     bayId: booking.bay_id || booking.bayId,
     bayName: booking.bay_name || booking.bayName,
+    baySerial: booking.bay_serial || booking.baySerial || booking.resource_serial || booking.resourceSerial,
     startTime: booking.start_time || booking.startTime,
     endTime: booking.end_time || booking.endTime,
     date: booking.date,
@@ -118,7 +123,30 @@ function normalizeBookingFields(booking: TrackmanBookingPayload) {
   };
 }
 
-function mapBayNameToResourceId(bayName: string | undefined, bayId: string | undefined): number | null {
+// Ever House bay serial number mapping (from Trackman configuration)
+const BAY_SERIAL_TO_RESOURCE: Record<string, number> = {
+  '24120062': 1, // Bay 1
+  '23510044': 2, // Bay 2
+  '24070104': 3, // Bay 3
+  '24080064': 4, // Bay 4
+};
+
+function mapBayNameToResourceId(
+  bayName: string | undefined, 
+  bayId: string | undefined,
+  baySerial?: string
+): number | null {
+  // Check serial number first - most reliable mapping
+  if (baySerial) {
+    const serialMatch = BAY_SERIAL_TO_RESOURCE[baySerial.trim()];
+    if (serialMatch) {
+      logger.info('[Trackman Webhook] Matched bay by serial number', {
+        extra: { baySerial, resourceId: serialMatch }
+      });
+      return serialMatch;
+    }
+  }
+  
   if (!bayName && !bayId) return null;
   
   const name = (bayName || bayId || '').toLowerCase().trim();
@@ -564,6 +592,7 @@ async function notifyMemberBookingConfirmed(
     if (userResult.rows.length > 0) {
       const user = userResult.rows[0];
       
+      // Always save notification to database (for history)
       await pool.query(
         `INSERT INTO notifications (user_id, title, message, type, link, created_at)
          VALUES ($1, $2, $3, $4, $5, NOW())`,
@@ -576,22 +605,30 @@ async function notifyMemberBookingConfirmed(
         ]
       );
       
-      sendNotificationToUser(user.email, {
+      // Try WebSocket notification first - returns whether user has active connection
+      const wsResult = sendNotificationToUser(user.email, {
         type: 'booking_confirmed',
         title: 'Booking Confirmed',
         message: `Your booking for ${slotDate} at ${startTime} is confirmed!`,
         data: { bookingId },
       });
       
-      try {
-        await sendBookingConfirmationEmail(customerEmail, {
-          date: slotDate,
-          time: startTime,
-          bayName: bayName || 'Simulator Bay',
-          memberName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Member',
-        });
-      } catch (emailError) {
-        logger.warn('[Trackman Webhook] Failed to send confirmation email', { extra: { email: customerEmail } });
+      // Only send email if user is NOT actively viewing the app
+      // This prevents double-notifying someone already looking at the screen
+      if (!wsResult.hasActiveSocket) {
+        try {
+          await sendBookingConfirmationEmail(customerEmail, {
+            date: slotDate,
+            time: startTime,
+            bayName: bayName || 'Simulator Bay',
+            memberName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Member',
+          });
+          logger.info('[Trackman Webhook] Sent email (no active socket)', { extra: { email: customerEmail } });
+        } catch (emailError) {
+          logger.warn('[Trackman Webhook] Failed to send confirmation email', { extra: { email: customerEmail } });
+        }
+      } else {
+        logger.info('[Trackman Webhook] Skipped email - user has active socket', { extra: { email: customerEmail } });
       }
     }
   } catch (e) {
@@ -620,15 +657,16 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
     return { success: false };
   }
   
-  const resourceId = mapBayNameToResourceId(normalized.bayName, normalized.bayId);
+  const resourceId = mapBayNameToResourceId(normalized.bayName, normalized.bayId, normalized.baySerial);
   
   // Log warning if we couldn't map bay to resource - this helps debug bay naming issues
-  if (!resourceId && (normalized.bayName || normalized.bayId)) {
+  if (!resourceId && (normalized.bayName || normalized.bayId || normalized.baySerial)) {
     logger.warn('[Trackman Webhook] Could not map bay to resource ID', {
       extra: { 
         trackmanBookingId: normalized.trackmanBookingId,
         bayName: normalized.bayName,
-        bayId: normalized.bayId
+        bayId: normalized.bayId,
+        baySerial: normalized.baySerial
       }
     });
   }
