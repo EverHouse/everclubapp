@@ -1012,7 +1012,7 @@ const BookGolf: React.FC = () => {
           </a>
         </section>
 ) : (
-        <div className="relative z-10 animate-pop-in space-y-6">
+        <div key={activeTab} className="relative z-10 animate-content-enter space-y-6">
           {activeTab === 'simulator' && (
           <section className={`rounded-2xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
             <div className="flex items-center justify-between mb-3">

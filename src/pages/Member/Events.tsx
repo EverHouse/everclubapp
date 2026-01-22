@@ -248,7 +248,7 @@ const MemberEvents: React.FC = () => {
         </div>
       </section>
 
-      <section className="mb-6 animate-content-enter-delay-3">
+      <section key={filter} className="mb-6 animate-content-enter-delay-3">
         <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-100' : 'opacity-0 hidden'}`}>
           <SkeletonList count={4} Component={EventCardSkeleton} isDark={isDark} className="space-y-4" />
         </div>

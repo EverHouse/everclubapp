@@ -286,7 +286,7 @@ const History: React.FC = () => {
           </div>
         </section>
 
-        <div className="relative z-10 animate-content-enter-delay-3">
+        <div key={activeTab} className="relative z-10 animate-content-enter-delay-3">
           {isLoading ? (
             <div className="animate-pulse space-y-4">
               {[1, 2, 3].map(i => (

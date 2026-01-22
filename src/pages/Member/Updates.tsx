@@ -915,7 +915,9 @@ const MemberUpdates: React.FC = () => {
         </button>
       </div>
 
-      {activeTab === 'activity' ? renderActivityTab() : activeTab === 'announcements' ? renderAnnouncementsTab() : renderNoticesTab()}
+      <div key={activeTab} className="animate-content-enter">
+        {activeTab === 'activity' ? renderActivityTab() : activeTab === 'announcements' ? renderAnnouncementsTab() : renderNoticesTab()}
+      </div>
     </SwipeablePage>
     </PullToRefresh>
   );

@@ -672,6 +672,7 @@ const BlocksTab: React.FC = () => {
                 </button>
             </div>
 
+            <div key={activeSubTab} className="animate-content-enter">
             {activeSubTab === 'blocks' && <AvailabilityBlocksContent />}
 
             {activeSubTab === 'notices' && (
@@ -1478,6 +1479,7 @@ const BlocksTab: React.FC = () => {
             />
             </>
             )}
+            </div>
         </AnimatedPage>
         </PullToRefresh>
     );

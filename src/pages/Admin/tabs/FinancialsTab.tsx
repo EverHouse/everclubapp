@@ -200,13 +200,15 @@ const FinancialsTab: React.FC = () => {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'POS' && (
-        <>
-          {isMobile ? <MobilePaymentsView /> : <DesktopPaymentsView />}
-        </>
-      )}
-      {activeTab === 'Subscriptions' && <SubscriptionsSubTab />}
-      {activeTab === 'Invoices' && <InvoicesSubTab />}
+      <div key={activeTab} className="animate-content-enter">
+        {activeTab === 'POS' && (
+          <>
+            {isMobile ? <MobilePaymentsView /> : <DesktopPaymentsView />}
+          </>
+        )}
+        {activeTab === 'Subscriptions' && <SubscriptionsSubTab />}
+        {activeTab === 'Invoices' && <InvoicesSubTab />}
+      </div>
     </AnimatedPage>
   );
 };
@@ -2021,7 +2023,7 @@ const InvoicesSubTab: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 animate-content-enter-delay-1">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -2119,8 +2121,8 @@ const InvoicesSubTab: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-primary/5 dark:divide-white/5">
-                {filteredInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-primary/5 dark:hover:bg-white/5 transition-colors">
+                {filteredInvoices.map((invoice, index) => (
+                  <tr key={invoice.id} className={`hover:bg-primary/5 dark:hover:bg-white/5 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
                     <td className="px-4 py-3">
                       <p className="font-medium text-primary dark:text-white font-mono text-sm">
                         {invoice.number || '-'}

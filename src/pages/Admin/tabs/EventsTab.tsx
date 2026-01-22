@@ -1194,7 +1194,7 @@ const EventsAdminContent: React.FC = () => {
                     <p>No {activeCategory === 'all' ? 'events' : activeCategory.toLowerCase()} found</p>
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div key={activeCategory} className="space-y-6 animate-content-enter">
                     {upcomingEvents.length > 0 && (
                         <div className="animate-pop-in" style={{animationDelay: '0.1s'}}>
                             <div className="flex items-center gap-2 mb-3">

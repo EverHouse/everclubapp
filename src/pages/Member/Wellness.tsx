@@ -167,7 +167,7 @@ const Wellness: React.FC = () => {
         </div>
       </section>
 
-      <div className="relative z-10">
+      <div key={activeTab} className="relative z-10 animate-content-enter">
         {activeTab === 'classes' && <ClassesView onBook={handleBook} isDark={isDark} userEmail={user?.email} userStatus={user?.status} refreshKey={refreshKey} onRefreshComplete={onRefreshComplete} />}
         {activeTab === 'medspa' && <MedSpaView isDark={isDark} />}
       </div>

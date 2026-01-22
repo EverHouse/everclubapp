@@ -879,7 +879,7 @@ const DirectoryTab: React.FC = () => {
             </div>
 
             {/* Content area that fills remaining space */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div key={memberTab} className="flex-1 flex flex-col min-h-0 overflow-hidden animate-content-enter">
                 {/* Loading state for former members */}
                 {formerLoading && memberTab === 'former' && (
                     <DirectoryTabSkeleton />
