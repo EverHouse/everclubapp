@@ -140,7 +140,7 @@ html.overflow-hidden body {
 html, body {
   width: 100%;
   -webkit-tap-highlight-color: transparent;
-  background-color: #293515;
+  background-color: #F2F2EC;
   color: var(--brand-primary);
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
