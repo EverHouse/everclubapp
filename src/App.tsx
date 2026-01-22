@@ -499,6 +499,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isDarkTheme = (isAdminRoute || isMemberRoute) && effectiveTheme === 'dark';
   const showHeader = !isAdminRoute;
 
+  useEffect(() => {
+    const bgColor = isFullBleedHeroPage 
+      ? '#293515' 
+      : isDarkTheme 
+        ? '#0f120a' 
+        : '#F2F2EC';
+    document.documentElement.style.backgroundColor = bgColor;
+    document.body.style.backgroundColor = bgColor;
+  }, [isFullBleedHeroPage, isDarkTheme]);
+
   const handleTopLeftClick = () => {
     setIsMenuOpen(true);
   };
