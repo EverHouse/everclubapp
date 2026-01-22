@@ -1568,7 +1568,24 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     const isOwnBooking = bookingEmail === userEmail;
     const isValidViewAs = isAdminViewingAs && bookingEmail === actingAsEmail;
     
-    if (!isOwnBooking && !isValidViewAs) {
+    // Also check if the booking email is a linked email for the session user
+    let isLinkedEmail = false;
+    if (!isOwnBooking && !isValidViewAs && bookingEmail && userEmail) {
+      const linkedCheck = await pool.query(
+        `SELECT 1 FROM users 
+         WHERE LOWER(email) = $1 
+         AND (
+           LOWER(trackman_email) = $2
+           OR COALESCE(linked_emails, '[]'::jsonb) @> to_jsonb($2::text)
+           OR COALESCE(manually_linked_emails, '[]'::jsonb) @> to_jsonb($2::text)
+         )
+         LIMIT 1`,
+        [userEmail, bookingEmail]
+      );
+      isLinkedEmail = (linkedCheck.rowCount ?? 0) > 0;
+    }
+    
+    if (!isOwnBooking && !isValidViewAs && !isLinkedEmail) {
       console.warn('[Member Cancel] Email mismatch:', { 
         bookingId, 
         bookingEmail: existing.userEmail, 
