@@ -32,10 +32,43 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import { StaffBookingToast } from './components/StaffBookingToast';
 
-const INITIAL_LOAD_SAFETY_TIMEOUT_MS = 100;
+const MINIMUM_LOADER_DISPLAY_MS = 3000;
+
+const isInitialLandingLoad = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname === '/';
+};
 
 const InitialLoadingScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <>{children}</>;
+  const shouldShowLoader = isInitialLandingLoad();
+  const [showLoader, setShowLoader] = React.useState(shouldShowLoader);
+  const [hasHiddenLoader, setHasHiddenLoader] = React.useState(!shouldShowLoader);
+
+  React.useEffect(() => {
+    if (!shouldShowLoader) return;
+
+    const minTimer = setTimeout(() => {
+      setShowLoader(false);
+    }, MINIMUM_LOADER_DISPLAY_MS);
+
+    return () => clearTimeout(minTimer);
+  }, [shouldShowLoader]);
+
+  const handleFadeComplete = () => {
+    setHasHiddenLoader(true);
+  };
+
+  return (
+    <>
+      {!hasHiddenLoader && (
+        <WalkingGolferLoader 
+          isVisible={showLoader} 
+          onFadeComplete={handleFadeComplete} 
+        />
+      )}
+      {children}
+    </>
+  );
 };
 
 const PageSkeleton: React.FC = () => (
