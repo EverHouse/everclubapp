@@ -31,7 +31,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import { StaffBookingToast } from './components/StaffBookingToast';
 
-const MINIMUM_LOADER_DISPLAY_MS = 3000;
+const MINIMUM_LOADER_DISPLAY_MS = 2000;
 
 const isInitialLandingLoad = () => {
   if (typeof window === 'undefined') return false;
