@@ -22,14 +22,8 @@ export const BottomFadeOverlay: React.FC<BottomFadeOverlayProps> = ({ isDark = f
         zIndex: 8400,
         height: '120px',
         background: getGradient(),
-        backdropFilter: variant === 'colored' ? 'blur(1px)' : undefined,
-        WebkitBackdropFilter: variant === 'colored' ? 'blur(1px)' : undefined,
-        maskImage: variant === 'colored' 
-          ? 'linear-gradient(to top, black 0%, black 25%, transparent 100%)'
-          : undefined,
-        WebkitMaskImage: variant === 'colored'
-          ? 'linear-gradient(to top, black 0%, black 25%, transparent 100%)'
-          : undefined,
+        backdropFilter: 'blur(2px)',
+        WebkitBackdropFilter: 'blur(2px)',
       }}
     />
   );
