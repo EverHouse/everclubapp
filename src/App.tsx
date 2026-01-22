@@ -35,46 +35,7 @@ import { StaffBookingToast } from './components/StaffBookingToast';
 const INITIAL_LOAD_SAFETY_TIMEOUT_MS = 100;
 
 const InitialLoadingScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isDataReady } = useData();
-  const [showLoader, setShowLoader] = React.useState(true);
-  const [hasHiddenLoader, setHasHiddenLoader] = React.useState(false);
-  const safetyTimerFiredRef = React.useRef(false);
-
-  React.useEffect(() => {
-    if (isDataReady && !hasHiddenLoader) {
-      const timer = setTimeout(() => {
-        setShowLoader(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isDataReady, hasHiddenLoader]);
-
-  React.useEffect(() => {
-    if (safetyTimerFiredRef.current) return;
-    
-    const safetyTimer = setTimeout(() => {
-      safetyTimerFiredRef.current = true;
-      setShowLoader(false);
-    }, INITIAL_LOAD_SAFETY_TIMEOUT_MS);
-    
-    return () => clearTimeout(safetyTimer);
-  }, []);
-
-  const handleFadeComplete = () => {
-    setHasHiddenLoader(true);
-  };
-
-  return (
-    <>
-      {!hasHiddenLoader && (
-        <WalkingGolferLoader 
-          isVisible={showLoader} 
-          onFadeComplete={handleFadeComplete} 
-        />
-      )}
-      {children}
-    </>
-  );
+  return <>{children}</>;
 };
 
 const PageSkeleton: React.FC = () => (
