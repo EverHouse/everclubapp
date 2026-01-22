@@ -18,7 +18,7 @@ import {
   dayPassPurchases
 } from '../../shared/schema';
 import { isProduction, pool } from '../core/db';
-import { isStaffOrAdmin, isAuthenticated } from '../core/middleware';
+import { isStaffOrAdmin, isAuthenticated, isAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
 import { updateHubSpotContactPreferences } from '../core/memberSync';
 import { createMemberWithDeal, getAllDiscountRules, handleTierChange } from '../core/hubspotDeals';
@@ -1079,10 +1079,12 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
 });
 
 // Hard delete a member (ADMIN ONLY - for testing purposes)
-// This permanently removes the user from the database
+// This permanently removes the user and all associated data from the database
+// Optionally also removes from HubSpot and Stripe
 router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
   try {
     const { email } = req.params;
+    const { deleteFromHubSpot, deleteFromStripe } = req.query;
     const normalizedEmail = decodeURIComponent(email).toLowerCase();
     const sessionUser = getSessionUser(req);
     
@@ -1090,7 +1092,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
       id: users.id,
       firstName: users.firstName,
       lastName: users.lastName,
-      stripeCustomerId: users.stripeCustomerId
+      stripeCustomerId: users.stripeCustomerId,
+      hubspotId: users.hubspotId
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -1101,15 +1104,77 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     
     const userId = userResult[0].id;
     const memberName = `${userResult[0].firstName || ''} ${userResult[0].lastName || ''}`.trim();
+    const stripeCustomerId = userResult[0].stripeCustomerId;
+    const hubspotId = userResult[0].hubspotId;
     
+    const deletionLog: string[] = [];
+    
+    // Delete related records first (before deleting user due to foreign keys)
+    await pool.query('DELETE FROM member_notes WHERE member_email = $1', [normalizedEmail]);
+    deletionLog.push('member_notes');
+    
+    await pool.query('DELETE FROM communication_logs WHERE member_email = $1', [normalizedEmail]);
+    deletionLog.push('communication_logs');
+    
+    await pool.query('DELETE FROM guest_passes WHERE member_email = $1', [normalizedEmail]);
+    deletionLog.push('guest_passes');
+    
+    await pool.query('DELETE FROM guest_check_ins WHERE member_email = $1', [normalizedEmail]);
+    deletionLog.push('guest_check_ins');
+    
+    await pool.query('DELETE FROM event_rsvps WHERE user_email = $1', [normalizedEmail]);
+    deletionLog.push('event_rsvps');
+    
+    await pool.query('DELETE FROM wellness_enrollments WHERE user_email = $1', [normalizedEmail]);
+    deletionLog.push('wellness_enrollments');
+    
+    await pool.query('DELETE FROM booking_requests WHERE user_email = $1', [normalizedEmail]);
+    deletionLog.push('booking_requests');
+    
+    await pool.query('DELETE FROM booking_members WHERE user_email = $1', [normalizedEmail]);
+    deletionLog.push('booking_members');
+    
+    // Delete from Stripe if requested
+    let stripeDeleted = false;
+    if (deleteFromStripe === 'true' && stripeCustomerId) {
+      try {
+        const { getStripe } = await import('../core/stripe');
+        const stripe = getStripe();
+        await stripe.customers.del(stripeCustomerId);
+        stripeDeleted = true;
+        deletionLog.push('stripe_customer');
+      } catch (stripeError: any) {
+        console.error(`[Admin] Failed to delete Stripe customer ${stripeCustomerId}:`, stripeError.message);
+      }
+    }
+    
+    // Archive from HubSpot if requested (HubSpot only supports archive, not permanent delete)
+    let hubspotArchived = false;
+    if (deleteFromHubSpot === 'true' && hubspotId) {
+      try {
+        const { getHubSpotClient } = await import('../core/integrations');
+        const hubspot = await getHubSpotClient();
+        await hubspot.crm.contacts.basicApi.archive(hubspotId);
+        hubspotArchived = true;
+        deletionLog.push('hubspot_contact (archived)');
+      } catch (hubspotError: any) {
+        console.error(`[Admin] Failed to archive HubSpot contact ${hubspotId}:`, hubspotError.message);
+      }
+    }
+    
+    // Finally delete the user record
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    deletionLog.push('users');
     
-    console.log(`[Admin] Member permanently deleted: ${normalizedEmail} (${memberName}) by ${sessionUser?.email}`);
+    console.log(`[Admin] Member permanently deleted: ${normalizedEmail} (${memberName}) by ${sessionUser?.email}. Records: ${deletionLog.join(', ')}`);
     
     res.json({ 
       success: true, 
       deleted: true,
       deletedBy: sessionUser?.email,
+      deletedRecords: deletionLog,
+      stripeDeleted,
+      hubspotArchived,
       message: `Member ${memberName || normalizedEmail} permanently deleted`
     });
   } catch (error: any) {

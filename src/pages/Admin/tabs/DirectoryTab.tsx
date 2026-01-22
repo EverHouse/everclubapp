@@ -1194,6 +1194,7 @@ const DirectoryTab: React.FC = () => {
                 isAdmin={isAdmin}
                 onClose={() => { setIsViewingDetails(false); setSelectedMember(null); }}
                 onViewAs={(member) => { setIsViewingDetails(false); setSelectedMember(null); handleViewAs(member); }}
+                onMemberDeleted={() => { refreshMembers(); }}
             />
 
             {/* Add Member FAB - Improved with safe-area padding, tooltip, and glow effect */}

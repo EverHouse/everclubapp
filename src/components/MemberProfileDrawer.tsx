@@ -19,6 +19,7 @@ interface MemberProfileDrawerProps {
   isAdmin: boolean;
   onClose: () => void;
   onViewAs: (member: MemberProfile) => void;
+  onMemberDeleted?: () => void;
 }
 
 interface MemberHistory {
@@ -114,7 +115,7 @@ const formatTime12Hour = (timeStr: string): string => {
   return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 };
 
-const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs }) => {
+const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs, onMemberDeleted }) => {
   const { effectiveTheme } = useTheme();
   const { setDrawerOpen } = useBottomNav();
   const isDark = effectiveTheme === 'dark';
@@ -131,6 +132,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [guestHistory, setGuestHistory] = useState<GuestVisit[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [linkedEmails, setLinkedEmails] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteOptions, setDeleteOptions] = useState({ hubspot: true, stripe: true });
+  const [isDeleting, setIsDeleting] = useState(false);
   const [removingEmail, setRemovingEmail] = useState<string | null>(null);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNotePinned, setNewNotePinned] = useState(false);
@@ -269,6 +273,37 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       console.error('Failed to add note:', err);
     } finally {
       setIsAddingNote(false);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!member?.email) return;
+    setIsDeleting(true);
+    try {
+      const params = new URLSearchParams();
+      if (deleteOptions.hubspot) params.append('deleteFromHubSpot', 'true');
+      if (deleteOptions.stripe) params.append('deleteFromStripe', 'true');
+      
+      const res = await fetch(`/api/members/${encodeURIComponent(member.email)}/permanent?${params}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        const result = await res.json();
+        alert(`Member deleted successfully.\n\nDeleted records: ${result.deletedRecords?.join(', ') || 'user'}\nStripe deleted: ${result.stripeDeleted ? 'Yes' : 'No'}\nHubSpot archived: ${result.hubspotArchived ? 'Yes' : 'No'}`);
+        setShowDeleteModal(false);
+        onClose();
+        onMemberDeleted?.();
+      } else {
+        const error = await res.json();
+        alert(`Failed to delete member: ${error.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to delete member:', err);
+      alert('Failed to delete member. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1069,15 +1104,95 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           </div>
 
           {isAdmin && (
-            <button
-              onClick={() => onViewAs(member)}
-              className="mt-4 w-full py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-            >
-              <span className="material-symbols-outlined text-lg">visibility</span>
-              View As This Member
-            </button>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => onViewAs(member)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-lg">visibility</span>
+                View As This Member
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors"
+                title="Permanently delete member (for testing)"
+              >
+                <span className="material-symbols-outlined text-lg">delete_forever</span>
+              </button>
+            </div>
           )}
         </div>
+
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full shadow-xl`}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="material-symbols-outlined text-3xl text-red-500">warning</span>
+                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Delete Member Permanently
+                </h3>
+              </div>
+              
+              <p className={`mb-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                This will permanently delete <strong>{member.firstName} {member.lastName}</strong> ({member.email}) and all their data from the app.
+              </p>
+              
+              <div className="space-y-3 mb-6">
+                <label className={`flex items-center gap-3 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.hubspot}
+                    onChange={(e) => setDeleteOptions(prev => ({ ...prev, hubspot: e.target.checked }))}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span>Also archive from HubSpot</span>
+                </label>
+                <label className={`flex items-center gap-3 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.stripe}
+                    onChange={(e) => setDeleteOptions(prev => ({ ...prev, stripe: e.target.checked }))}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span>Also delete from Stripe (cancels subscriptions)</span>
+                </label>
+              </div>
+              
+              <p className={`text-sm mb-4 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                This action cannot be undone. All bookings, notes, and history will be removed.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeleting}
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium ${
+                    isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  } transition-colors`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePermanentDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-lg">delete_forever</span>
+                      Delete Forever
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className={`flex-shrink-0 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
           <div className="flex overflow-x-auto scrollbar-hide">
