@@ -184,31 +184,33 @@ const AdminDashboard: React.FC = () => {
       {createPortal(headerContent, document.body)}
 
       <main className="flex-1 px-4 md:px-8 pt-[max(112px,calc(env(safe-area-inset-top)+96px))] relative z-0 lg:ml-64 w-full lg:w-auto">
-        {activeTab === 'home' && <StaffCommandCenter onTabChange={handleTabChange} isAdmin={actualUser?.role === 'admin'} wsConnected={staffWsConnected} />}
-        {activeTab === 'training' && <StaffTrainingGuide />}
-        <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
-          <Suspense fallback={<TabLoadingFallback />}>
-            {activeTab === 'cafe' && <CafeTab />}
-            {activeTab === 'events' && <EventsTab />}
-            {activeTab === 'announcements' && <AnnouncementsTab />}
-            {activeTab === 'directory' && <DirectoryTab />}
-            {activeTab === 'simulator' && <SimulatorTab onTabChange={handleTabChange} />}
-            {activeTab === 'team' && <TeamTab />}
-            {activeTab === 'faqs' && <FaqsAdmin />}
-            {activeTab === 'inquiries' && <InquiriesAdmin />}
-            {activeTab === 'gallery' && <GalleryAdmin />}
-            {activeTab === 'tiers' && actualUser?.role === 'admin' && <TiersTab />}
-            {activeTab === 'blocks' && <BlocksTab />}
-            {activeTab === 'changelog' && <ChangelogTab />}
-            {activeTab === 'bugs' && actualUser?.role === 'admin' && <BugReportsAdmin />}
-            {activeTab === 'updates' && <UpdatesTab />}
-            {activeTab === 'tours' && <ToursTab />}
-            {activeTab === 'trackman' && <TrackmanTab />}
-            {activeTab === 'data-integrity' && actualUser?.role === 'admin' && <DataIntegrityTab />}
-            {activeTab === 'settings' && actualUser?.role === 'admin' && <SettingsTab />}
-            {activeTab === 'financials' && <FinancialsTab />}
-          </Suspense>
-        </PageErrorBoundary>
+        <div key={activeTab} className="animate-content-enter">
+          {activeTab === 'home' && <StaffCommandCenter onTabChange={handleTabChange} isAdmin={actualUser?.role === 'admin'} wsConnected={staffWsConnected} />}
+          {activeTab === 'training' && <StaffTrainingGuide />}
+          <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
+            <Suspense fallback={<TabLoadingFallback />}>
+              {activeTab === 'cafe' && <CafeTab />}
+              {activeTab === 'events' && <EventsTab />}
+              {activeTab === 'announcements' && <AnnouncementsTab />}
+              {activeTab === 'directory' && <DirectoryTab />}
+              {activeTab === 'simulator' && <SimulatorTab onTabChange={handleTabChange} />}
+              {activeTab === 'team' && <TeamTab />}
+              {activeTab === 'faqs' && <FaqsAdmin />}
+              {activeTab === 'inquiries' && <InquiriesAdmin />}
+              {activeTab === 'gallery' && <GalleryAdmin />}
+              {activeTab === 'tiers' && actualUser?.role === 'admin' && <TiersTab />}
+              {activeTab === 'blocks' && <BlocksTab />}
+              {activeTab === 'changelog' && <ChangelogTab />}
+              {activeTab === 'bugs' && actualUser?.role === 'admin' && <BugReportsAdmin />}
+              {activeTab === 'updates' && <UpdatesTab />}
+              {activeTab === 'tours' && <ToursTab />}
+              {activeTab === 'trackman' && <TrackmanTab />}
+              {activeTab === 'data-integrity' && actualUser?.role === 'admin' && <DataIntegrityTab />}
+              {activeTab === 'settings' && actualUser?.role === 'admin' && <SettingsTab />}
+              {activeTab === 'financials' && <FinancialsTab />}
+            </Suspense>
+          </PageErrorBoundary>
+        </div>
         <BottomSentinel />
       </main>
 

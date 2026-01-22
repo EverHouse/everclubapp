@@ -353,6 +353,7 @@ const TiersTab: React.FC = () => {
             </div>
 
             {/* Products/Fees/Discounts sub-tabs */}
+            <div key={activeSubTab} className="animate-content-enter">
             {activeSubTab === 'products' && <ProductsSubTab activeSubTab="membership" />}
             {activeSubTab === 'fees' && (() => {
                 const oneTimePasses = tiers.filter(t => t.product_type === 'one_time');
@@ -860,6 +861,7 @@ const TiersTab: React.FC = () => {
                 </>
                 );
             })()}
+            </div>
 
             {activeSubTab === 'tiers' && (
                 <FloatingActionButton onClick={openCreate} color="brand" icon="add" label="Add new tier" />
