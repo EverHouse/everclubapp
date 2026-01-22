@@ -1786,8 +1786,21 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               }
             }
             
-            // Create guest entries
+            // Create guest entries (skip if guest name matches owner name to prevent duplicates)
+            const ownerNameNormalized = (row.userName || matchedEmail).toLowerCase().trim();
             for (const guest of guests) {
+              const guestNameNormalized = (guest.name || '').toLowerCase().trim();
+              
+              // Skip if guest name matches owner name (prevents owner appearing as guest of their own booking)
+              if (guestNameNormalized && (
+                guestNameNormalized === ownerNameNormalized ||
+                ownerNameNormalized.includes(guestNameNormalized) ||
+                guestNameNormalized.includes(ownerNameNormalized.split(' ')[0])
+              )) {
+                process.stderr.write(`[Trackman Import] Skipping booking_guests entry for "${guest.name}" - matches owner name "${row.userName || matchedEmail}"\n`);
+                continue;
+              }
+              
               await db.insert(bookingGuests).values({
                 bookingId: bookingId,
                 guestName: guest.name,
@@ -2227,16 +2240,31 @@ async function insertBookingIfNotExists(
       });
     }
     
-    // Create guest entries if notes have G: format
+    // Create guest entries if notes have G: format (skip if guest name matches owner name)
     const guests = parsedPlayers.filter(p => p.type === 'guest');
+    const ownerNameNormalized = (booking.userName || memberEmail).toLowerCase().trim();
+    let guestSlotNumber = 1;
     for (let i = 0; i < guests.length; i++) {
+      const guestNameNormalized = (guests[i].name || '').toLowerCase().trim();
+      
+      // Skip if guest name matches owner name (prevents owner appearing as guest of their own booking)
+      if (guestNameNormalized && (
+        guestNameNormalized === ownerNameNormalized ||
+        ownerNameNormalized.includes(guestNameNormalized) ||
+        guestNameNormalized.includes(ownerNameNormalized.split(' ')[0])
+      )) {
+        process.stderr.write(`[Trackman Import] Skipping booking_guests entry for "${guests[i].name}" - matches owner name "${booking.userName || memberEmail}"\n`);
+        continue;
+      }
+      
       await db.insert(bookingGuests).values({
         bookingId: bookingId,
         guestName: guests[i].name,
         guestEmail: guests[i].email,
-        slotNumber: i + 1,
+        slotNumber: guestSlotNumber,
         trackmanBookingId: booking.trackmanBookingId
       });
+      guestSlotNumber++;
       
       // Deduct guest pass from booking owner
       // For upcoming bookings: send notification; for past bookings: deduct silently
