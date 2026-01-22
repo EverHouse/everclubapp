@@ -50,6 +50,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Add Member Workflow**: Staff can invite new members via payment links for automated account creation.
 - **Closed-Loop Activation**: Automated member activation upon Stripe subscription confirmation.
 - **Payment Recovery (Dunning)**: Tracks failed payments with retry attempts and notifies members to update payment methods.
+- **Grace Period System**: Automated 3-day grace period for billing failures. Daily scheduler (10am Pacific) sends reminder emails with Stripe billing portal links. After 3 days, membership terminates (tier=NULL, last_tier preserved). Staff can manually send reactivation links via MemberProfileDrawer. TierBadge displays "No Active Membership" with grayed-out last tier for terminated members.
 - **Day Pass System**: Non-members can purchase day passes with visitor matching, HubSpot sync, and QR code delivery.
 - **QR Code System**: QR codes for day passes and digital access cards for members, with staff scanning functionality.
 - **Membership Invites**: Staff can send Stripe payment links to prospective members.

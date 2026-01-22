@@ -2794,7 +2794,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     }
 
     const memberResult = await pool.query(
-      `SELECT id, email, first_name, last_name, tier, last_tier, membership_status, billing_provider
+      `SELECT id, email, first_name, last_name, tier, last_tier, membership_status, billing_provider, stripe_customer_id
        FROM users WHERE LOWER(email) = LOWER($1)`,
       [memberEmail]
     );
@@ -2806,9 +2806,30 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     const member = memberResult.rows[0];
     const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
+    let reactivationLink = 'https://everhouse.app/billing';
+
+    if (member.stripe_customer_id) {
+      try {
+        const stripe = await getStripeClient();
+        const returnUrl = process.env.NODE_ENV === 'production' 
+          ? 'https://everhouse.app'
+          : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://everhouse.app');
+
+        const session = await stripe.billingPortal.sessions.create({
+          customer: member.stripe_customer_id,
+          return_url: returnUrl,
+          flow_data: {
+            type: 'payment_method_update',
+          },
+        });
+        reactivationLink = session.url;
+        console.log(`[Stripe] Created billing portal session for reactivation: ${member.email}`);
+      } catch (portalError: any) {
+        console.warn(`[Stripe] Could not create billing portal for ${member.email}, using fallback link:`, portalError.message);
+      }
+    }
+
     const { sendGracePeriodReminderEmail } = await import('../emails/membershipEmails');
-    
-    const reactivationLink = 'https://everhouse.app/billing/reactivate';
     
     await sendGracePeriodReminderEmail(member.email, {
       memberName,
