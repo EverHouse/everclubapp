@@ -704,7 +704,7 @@ const DataIntegrityTab: React.FC = () => {
     }
   };
 
-  const handleReconcileFamilyBilling = async () => {
+  const handleReconcileGroupBilling = async () => {
     setIsReconciling(true);
     setReconcileResult(null);
     try {
@@ -722,8 +722,8 @@ const DataIntegrityTab: React.FC = () => {
         showToast(data.error || 'Failed to reconcile', 'error');
       }
     } catch (err) {
-      console.error('Failed to reconcile family billing:', err);
-      showToast('Failed to reconcile family billing', 'error');
+      console.error('Failed to reconcile group billing:', err);
+      showToast('Failed to reconcile group billing', 'error');
     } finally {
       setIsReconciling(false);
     }
@@ -1315,20 +1315,20 @@ const DataIntegrityTab: React.FC = () => {
 
             <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
               <h4 className="font-semibold text-primary dark:text-white mb-3 flex items-center gap-2">
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">family_restroom</span>
-                Family Billing Reconciliation
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">groups</span>
+                Group Billing Reconciliation
               </h4>
               <p className="text-xs text-gray-500 mb-3">
-                Sync family member billing with Stripe. This checks all family groups and ensures local records match Stripe subscription items.
+                Sync group member billing with Stripe. This checks all billing groups and ensures local records match Stripe subscription items.
                 Members removed in Stripe will be deactivated, and missing links will be restored.
               </p>
               <button
-                onClick={handleReconcileFamilyBilling}
+                onClick={handleReconcileGroupBilling}
                 disabled={isReconciling}
                 className="px-4 py-2 bg-primary dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
               >
                 {isReconciling && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                {isReconciling ? 'Reconciling...' : 'Reconcile Family Billing'}
+                {isReconciling ? 'Reconciling...' : 'Reconcile Group Billing'}
               </button>
               {reconcileResult && (
                 <div className={`mt-3 p-3 rounded-lg ${reconcileResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'}`}>

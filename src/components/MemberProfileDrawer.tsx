@@ -8,7 +8,7 @@ import { formatPhoneNumber } from '../utils/formatting';
 import { getMemberStatusColor, getMemberStatusLabel } from '../utils/statusColors';
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
-import FamilyBillingManager from './admin/FamilyBillingManager';
+import GroupBillingManager from './admin/GroupBillingManager';
 import MemberBillingTab from './admin/MemberBillingTab';
 
 const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '';
@@ -81,7 +81,7 @@ const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'visits', label: 'Visits', icon: 'check_circle' },
   { id: 'guest-passes', label: 'Guests', icon: 'group_add' },
   { id: 'billing', label: 'Billing', icon: 'payments' },
-  { id: 'family', label: 'Family', icon: 'family_restroom' },
+  { id: 'family', label: 'Group', icon: 'groups' },
   { id: 'purchases', label: 'Purchases', icon: 'receipt_long' },
   { id: 'communications', label: 'Comms', icon: 'chat' },
   { id: 'notes', label: 'Notes', icon: 'sticky_note_2' },
@@ -1023,7 +1023,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       case 'family':
         return (
           <div className="space-y-4">
-            <FamilyBillingManager memberEmail={member.email} />
+            <GroupBillingManager memberEmail={member.email} />
           </div>
         );
 

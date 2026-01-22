@@ -14,6 +14,8 @@ import {
   reconcileGroupBillingWithStripe,
   getCorporateVolumePrice,
   addCorporateMember,
+  updateBillingGroupName,
+  deleteBillingGroup,
 } from '../core/stripe/groupBilling';
 
 const router = Router();
@@ -150,6 +152,56 @@ router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) 
     res.json(group);
   } catch (error: any) {
     console.error('[GroupBilling] Error getting group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    let { groupName } = req.body;
+    
+    // Normalize empty strings to null
+    if (typeof groupName === 'string') {
+      groupName = groupName.trim() || null;
+    }
+    
+    // Validate groupName if provided
+    if (groupName !== null && groupName !== undefined) {
+      if (typeof groupName !== 'string') {
+        return res.status(400).json({ error: 'Group name must be a string' });
+      }
+      if (groupName.length > 100) {
+        return res.status(400).json({ error: 'Group name must be 100 characters or less' });
+      }
+    }
+    
+    const result = await updateBillingGroupName(parseInt(groupId, 10), groupName);
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error updating group name:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    
+    const result = await deleteBillingGroup(parseInt(groupId, 10));
+    
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error deleting group:', error);
     res.status(500).json({ error: error.message });
   }
 });

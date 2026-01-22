@@ -417,10 +417,10 @@ export default function BillingSection({ isDark }: Props) {
         <div className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-              family_restroom
+              groups
             </span>
             <div>
-              <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Family Membership</span>
+              <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Group Membership</span>
               <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
                 Add-on member
               </p>

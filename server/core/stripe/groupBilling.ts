@@ -280,6 +280,75 @@ export async function createBillingGroup(params: {
 
 export const createFamilyGroup = createBillingGroup;
 
+export async function updateBillingGroupName(
+  groupId: number,
+  groupName: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const existingGroup = await db.select()
+      .from(billingGroups)
+      .where(eq(billingGroups.id, groupId))
+      .limit(1);
+    
+    if (existingGroup.length === 0) {
+      return { success: false, error: 'Billing group not found' };
+    }
+    
+    await db.update(billingGroups)
+      .set({
+        groupName: groupName,
+        updatedAt: new Date(),
+      })
+      .where(eq(billingGroups.id, groupId));
+    
+    return { success: true };
+  } catch (err: any) {
+    console.error('[GroupBilling] Error updating billing group name:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteBillingGroup(
+  groupId: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const existingGroup = await db.select()
+      .from(billingGroups)
+      .where(eq(billingGroups.id, groupId))
+      .limit(1);
+    
+    if (existingGroup.length === 0) {
+      return { success: false, error: 'Billing group not found' };
+    }
+    
+    const group = existingGroup[0];
+    
+    if (group.primaryStripeSubscriptionId) {
+      return { 
+        success: false, 
+        error: 'Cannot delete billing group with an active Stripe subscription. Please cancel the subscription first.' 
+      };
+    }
+    
+    await db.update(groupMembers)
+      .set({ isActive: false, removedAt: new Date() })
+      .where(eq(groupMembers.billingGroupId, groupId));
+    
+    await pool.query(
+      'UPDATE users SET billing_group_id = NULL WHERE billing_group_id = $1',
+      [groupId]
+    );
+    
+    await db.delete(billingGroups)
+      .where(eq(billingGroups.id, groupId));
+    
+    return { success: true };
+  } catch (err: any) {
+    console.error('[GroupBilling] Error deleting billing group:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function addGroupMember(params: {
   billingGroupId: number;
   memberEmail: string;
