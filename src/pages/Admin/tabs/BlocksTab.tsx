@@ -740,6 +740,7 @@ const BlocksTab: React.FC = () => {
                 </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden">
                 <button
                     onClick={() => setShowClosureReasonsSection(!showClosureReasonsSection)}
@@ -1005,6 +1006,7 @@ const BlocksTab: React.FC = () => {
                         </div>
                     </div>
                 )}
+            </div>
             </div>
 
             {needsReviewClosures.length > 0 && (

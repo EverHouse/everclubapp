@@ -308,52 +308,29 @@ const AvailabilityBlocksContent: React.FC = () => {
     return (
         <div className="animate-pop-in">
             <div className="mb-4 p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20">
-                <div className="flex flex-wrap gap-3">
-                    <div className="flex-1 min-w-[150px]">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Resource</label>
-                        <select
-                            value={filterResource}
-                            onChange={(e) => setFilterResource(e.target.value)}
-                            className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white text-sm"
-                        >
-                            <option value="">All Resources</option>
-                            {resources.map(r => (
-                                <option key={r.id} value={r.id}>{r.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex-1 min-w-[130px]">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start Date</label>
-                        <input
-                            type="date"
-                            value={filterStartDate}
-                            onChange={(e) => setFilterStartDate(e.target.value)}
-                            className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white text-sm"
-                        />
-                    </div>
-                    <div className="flex-1 min-w-[130px]">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Date</label>
-                        <input
-                            type="date"
-                            value={filterEndDate}
-                            onChange={(e) => setFilterEndDate(e.target.value)}
-                            className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white text-sm"
-                        />
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <button
-                            onClick={handleFilter}
-                            className="py-2.5 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity"
-                        >
-                            Filter
-                        </button>
-                        <button
-                            onClick={handleReset}
-                            className="py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                        >
-                            Reset
-                        </button>
-                    </div>
+                <div className="flex items-center gap-3">
+                    <select
+                        value={filterResource}
+                        onChange={(e) => setFilterResource(e.target.value)}
+                        className="flex-1 min-w-[120px] p-2.5 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white text-sm"
+                    >
+                        <option value="">All Resources</option>
+                        {resources.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={handleFilter}
+                        className="py-2.5 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                        Filter
+                    </button>
+                    <button
+                        onClick={handleReset}
+                        className="py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                        Reset
+                    </button>
                 </div>
             </div>
 
