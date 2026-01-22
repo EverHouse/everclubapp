@@ -488,6 +488,10 @@ const TrackmanTab: React.FC = () => {
     setIsImporting(true);
     setImportResult(null);
     
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -495,13 +499,20 @@ const TrackmanTab: React.FC = () => {
       const res = await fetch('/api/admin/trackman/upload', {
         method: 'POST',
         credentials: 'include',
-        body: formData
+        body: formData,
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       setImportResult(data);
       fetchData();
     } catch (err: any) {
-      setImportResult({ success: false, error: err.message });
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        setImportResult({ success: false, error: 'Import timed out. The file may be too large or the server is busy. Please try again or use a smaller date range.' });
+      } else {
+        setImportResult({ success: false, error: err.message || 'Network error - please check your connection and try again' });
+      }
     } finally {
       setIsImporting(false);
     }
