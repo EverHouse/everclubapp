@@ -644,7 +644,7 @@ router.get('/api/members/:email/guests', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/members/:id/role', async (req, res) => {
+router.put('/api/members/:id/role', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { role, tags } = req.body;

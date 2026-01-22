@@ -8,9 +8,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ["Inter", "sans-serif"],
+        display: ["Playfair Display", "Georgia", "serif"],
         sans: ["Inter", "sans-serif"],
-        serif: ["Inter", "sans-serif"],
+        serif: ["Playfair Display", "Georgia", "serif"],
       },
       colors: {
         primary: "#293515",
