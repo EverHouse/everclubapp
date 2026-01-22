@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { TabType } from './types';
+import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 
 interface NavItem {
   id: TabType;
@@ -48,6 +49,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   isAdmin = false 
 }) => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   
   const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {
     const isActive = activeTab === item.id;
@@ -73,7 +75,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   const sidebarContent = (
     <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515]" style={{ zIndex: 'var(--z-sidebar, 40)' }}>
       <button 
-        onClick={() => navigate('/')}
+        onClick={() => { startNavigation(); navigate('/'); }}
         className="flex items-center gap-3 px-4 py-5 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left"
         aria-label="Go to home"
       >

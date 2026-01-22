@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData, Booking } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { useToast } from '../../components/Toast';
 import { bookingEvents } from '../../lib/bookingEvents';
 import GlassRow from '../../components/GlassRow';
@@ -126,6 +127,7 @@ const Dashboard: React.FC = () => {
   // Check if admin is viewing as a member
   const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
   const { setPageReady } = usePageReady();
+  const { startNavigation } = useNavigationLoading();
   const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
   
@@ -850,13 +852,13 @@ const Dashboard: React.FC = () => {
                     if (bannerAnnouncement.linkType === 'external' && bannerAnnouncement.linkTarget) {
                       window.open(bannerAnnouncement.linkTarget, '_blank');
                     } else if (bannerAnnouncement.linkType === 'events') {
-                      navigate('/events');
+                      startNavigation(); navigate('/events');
                     } else if (bannerAnnouncement.linkType === 'wellness') {
-                      navigate('/wellness');
+                      startNavigation(); navigate('/wellness');
                     } else if (bannerAnnouncement.linkType === 'golf') {
-                      navigate('/book');
+                      startNavigation(); navigate('/book');
                     } else {
-                      navigate('/updates?tab=announcements');
+                      startNavigation(); navigate('/updates?tab=announcements');
                     }
                   }}
                   className={`text-xs font-semibold mt-2 flex items-center gap-1 ${isDark ? 'text-lavender' : 'text-primary'}`}
@@ -1085,7 +1087,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-between items-center mb-4 px-1">
               <h3 className={`text-sm font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Your Schedule</h3>
               <button
-                onClick={() => navigate('/book')}
+                onClick={() => { startNavigation(); navigate('/book'); }}
                 className={`text-xs font-semibold flex items-center gap-1 ${isDark ? 'text-accent' : 'text-brand-green'}`}
                 aria-label="Book new"
               >
@@ -1133,7 +1135,7 @@ const Dashboard: React.FC = () => {
                       }, `EvenHouse_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
                     }] : []),
                     ...(!isLinkedMember ? [
-                      { icon: 'event_repeat', label: 'Reschedule', onClick: () => navigate(`/book?reschedule=${item.dbId}&date=${item.rawDate}`) },
+                      { icon: 'event_repeat', label: 'Reschedule', onClick: () => { startNavigation(); navigate(`/book?reschedule=${item.dbId}&date=${item.rawDate}`); } },
                       { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(item.dbId, item.type) }
                     ] : []),
                     // Allow linked members (guests) to leave the booking

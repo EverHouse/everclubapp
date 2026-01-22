@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TabType, QuickLink } from '../types';
 import { EMPLOYEE_RESOURCES_LINKS, ADMIN_LINKS, ADMIN_ROUTE_LINKS } from '../helpers';
+import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 
 interface QuickActionsGridProps {
   onTabChange: (tab: TabType) => void;
@@ -13,6 +14,7 @@ interface QuickActionsGridProps {
 
 export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange, isAdmin, variant, onNewMember, onScanQr }) => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
 
   if (variant === 'desktop') {
     return (
@@ -62,7 +64,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
                 {ADMIN_ROUTE_LINKS.map(link => (
                   <button
                     key={link.route}
-                    onClick={() => navigate(link.route)}
+                    onClick={() => { startNavigation(); navigate(link.route); }}
                     className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
                   >
                     <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">{link.icon}</span>
@@ -123,7 +125,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
             {ADMIN_ROUTE_LINKS.map(link => (
               <button
                 key={link.route}
-                onClick={() => navigate(link.route)}
+                onClick={() => { startNavigation(); navigate(link.route); }}
                 className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 transition-colors"
               >
                 <span className="material-symbols-outlined text-xl text-primary dark:text-white mb-1">{link.icon}</span>

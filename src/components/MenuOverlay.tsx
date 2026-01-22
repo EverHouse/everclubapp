@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
+import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
 import { haptic } from '../utils/haptics';
 
 interface MenuOverlayProps {
@@ -13,6 +14,7 @@ interface MenuOverlayProps {
 const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { effectiveTheme } = useTheme();
+  const { startNavigation } = useNavigationLoading();
   const isDark = effectiveTheme === 'dark';
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -62,6 +64,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
 
   const handleNav = (path: string) => {
     haptic.light();
+    startNavigation();
     navigate(path);
     handleClose();
   };

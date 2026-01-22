@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { useToast } from '../../components/Toast';
 import { isFoundingMember, getBaseTier } from '../../utils/permissions';
 import { getTierColor } from '../../utils/tierUtils';
@@ -36,6 +37,7 @@ const Profile: React.FC = () => {
   const { user, logout, actualUser, isViewingAs } = useData();
   const { effectiveTheme } = useTheme();
   const { setPageReady } = usePageReady();
+  const { startNavigation } = useNavigationLoading();
   const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
   const [isCardOpen, setIsCardOpen] = useState(false);
@@ -348,7 +350,7 @@ const Profile: React.FC = () => {
          {isStaffOrAdminProfile && (
            <div className="lg:hidden">
              <button
-               onClick={() => navigate('/admin')}
+               onClick={() => { startNavigation(); navigate('/admin'); }}
                className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-colors ${
                  isDark 
                    ? 'bg-white/10 hover:bg-white/15 text-white' 
@@ -628,7 +630,7 @@ const Profile: React.FC = () => {
            </Section>
          )}
 
-         <button onClick={async () => { await logout(); navigate('/login'); }} className={`w-full py-4 rounded-xl text-red-400 font-bold text-sm transition-colors animate-pop-in ${isDark ? 'glass-button hover:bg-red-500/10' : 'bg-white border border-black/5 hover:bg-red-50'}`} style={{animationDelay: '0.2s'}}>
+         <button onClick={async () => { await logout(); startNavigation(); navigate('/login'); }} className={`w-full py-4 rounded-xl text-red-400 font-bold text-sm transition-colors animate-pop-in ${isDark ? 'glass-button hover:bg-red-500/10' : 'bg-white border border-black/5 hover:bg-red-50'}`} style={{animationDelay: '0.2s'}}>
             Sign Out
          </button>
 
