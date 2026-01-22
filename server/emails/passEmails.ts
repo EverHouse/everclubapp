@@ -209,16 +209,105 @@ interface RedemptionDetails {
   redeemedAt: Date;
 }
 
-function getRedemptionConfirmationHtml(details: RedemptionDetails): string {
-  const formattedType = formatPassType(details.passType);
-  const formattedTime = new Intl.DateTimeFormat('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'America/Los_Angeles'
-  }).format(details.redeemedAt);
-  
-  const content = `
+function isGolfPass(passType: string): boolean {
+  const normalized = passType.toLowerCase();
+  return normalized.includes('golf') || normalized.includes('simulator') || normalized.includes('bay');
+}
+
+function getGolfPassContent(details: RedemptionDetails, formattedType: string, formattedTime: string): string {
+  return `
+          <!-- Headline -->
+          <tr>
+            <td style="text-align: center; padding-bottom: 16px;">
+              <h1 style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 32px; font-weight: 400; color: ${CLUB_COLORS.deepGreen};">
+                Welcome to Ever House
+              </h1>
+            </td>
+          </tr>
+          
+          <!-- Greeting -->
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
+                Hi ${details.guestName}! Your ${formattedType} has been checked in at ${formattedTime}.
+                ${details.remainingUses > 0 ? `You have ${details.remainingUses} ${details.remainingUses === 1 ? 'use' : 'uses'} remaining.` : ''}
+              </p>
+            </td>
+          </tr>
+          
+          <!-- WiFi Info -->
+          <tr>
+            <td style="padding-bottom: 24px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone}; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: ${CLUB_COLORS.deepGreen};">WiFi Access</p>
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding-bottom: 8px;">
+                          <p style="margin: 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Network</p>
+                          <p style="margin: 4px 0 0 0; font-size: 16px; color: ${CLUB_COLORS.textDark}; font-weight: 500;">Even House Members</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <p style="margin: 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Password</p>
+                          <p style="margin: 4px 0 0 0; font-size: 16px; color: ${CLUB_COLORS.textDark}; font-family: monospace; font-weight: 500;">house18!</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Trackman Simulator Info -->
+          <tr>
+            <td style="padding-bottom: 24px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.lavender}20; border-radius: 12px; border: 1px solid ${CLUB_COLORS.lavender};">
+                <tr>
+                  <td style="padding: 24px;">
+                    <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: ${CLUB_COLORS.deepGreen};">Trackman Golf Simulators</p>
+                    <p style="margin: 0 0 16px 0; font-size: 14px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
+                      Our state-of-the-art Trackman simulators provide the most accurate ball and club tracking technology available. Play world-famous courses, practice your swing with detailed analytics, or enjoy a virtual round with friends.
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: ${CLUB_COLORS.textMuted}; line-height: 1.8;">
+                      <li>Access 150+ virtual courses including Pebble Beach, St. Andrews, and more</li>
+                      <li>Real-time shot analysis with spin, launch angle, and ball speed data</li>
+                      <li>Practice mode with driving range and target challenges</li>
+                    </ul>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <!-- Trackman App CTA -->
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <p style="margin: 0 0 16px 0; font-size: 14px; color: ${CLUB_COLORS.textMuted};">
+                Download the Trackman app to track your stats and get the most out of your session.
+              </p>
+              <a href="https://www.trackman.com/golf/performance-studio" style="display: inline-block; background-color: ${CLUB_COLORS.deepGreen}; color: #ffffff; font-size: 16px; font-weight: 500; text-decoration: none; padding: 14px 32px; border-radius: 12px;">
+                Get Trackman App
+              </a>
+            </td>
+          </tr>
+          
+          <!-- Enjoy Message -->
+          <tr>
+            <td style="text-align: center; padding-bottom: 24px;">
+              <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
+                Enjoy your golf session at Ever House! Our staff is here to help if you need anything.
+              </p>
+            </td>
+          </tr>
+  `;
+}
+
+function getWorkspacePassContent(details: RedemptionDetails, formattedType: string, formattedTime: string): string {
+  return `
           <!-- Headline -->
           <tr>
             <td style="text-align: center; padding-bottom: 16px;">
@@ -286,6 +375,20 @@ function getRedemptionConfirmationHtml(details: RedemptionDetails): string {
             </td>
           </tr>
   `;
+}
+
+function getRedemptionConfirmationHtml(details: RedemptionDetails): string {
+  const formattedType = formatPassType(details.passType);
+  const formattedTime = new Intl.DateTimeFormat('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/Los_Angeles'
+  }).format(details.redeemedAt);
+  
+  const content = isGolfPass(details.passType)
+    ? getGolfPassContent(details, formattedType, formattedTime)
+    : getWorkspacePassContent(details, formattedType, formattedTime);
   
   return getEmailWrapper(content);
 }
