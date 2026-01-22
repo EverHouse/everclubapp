@@ -240,8 +240,13 @@ const ScrollToTop = () => {
   const { pathname } = useLocation();
   
   useEffect(() => {
+    // Use double requestAnimationFrame to ensure DOM has painted before scrolling
     requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'auto' });
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
     });
   }, [pathname]);
   
