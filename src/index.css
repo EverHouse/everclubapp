@@ -1264,6 +1264,19 @@ html.dark .border-accessible {
   animation: modalSlideUp 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
+@keyframes modalBackdropEnter {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-modal-backdrop {
+  animation: modalBackdropEnter 0.2s ease-out forwards;
+}
+
 /* Hero Section Animations - Cinematic entrance for full-bleed hero sections */
 @keyframes heroBackgroundEnter {
   0% {
