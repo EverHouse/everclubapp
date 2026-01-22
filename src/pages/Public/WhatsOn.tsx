@@ -38,6 +38,8 @@ interface WellnessClass {
 
 type ListItem = Event | WellnessClass;
 
+const ITEMS_PER_PAGE = 10;
+
 const WhatsOn: React.FC = () => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
@@ -47,6 +49,7 @@ const WhatsOn: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'events' | 'wellness'>('all');
+  const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
 
   useEffect(() => {
     if (!loading) {
@@ -123,6 +126,20 @@ const WhatsOn: React.FC = () => {
 
   const getItemId = (item: ListItem) => `${item.type}-${item.id}`;
 
+  useEffect(() => {
+    setDisplayCount(ITEMS_PER_PAGE);
+  }, [filter]);
+
+  const displayedItems = useMemo(() => {
+    return combinedItems.slice(0, displayCount);
+  }, [combinedItems, displayCount]);
+
+  const hasMore = displayCount < combinedItems.length;
+
+  const loadMore = () => {
+    setDisplayCount(prev => prev + ITEMS_PER_PAGE);
+  };
+
   return (
     <AnimatedPage>
     <div 
@@ -162,7 +179,8 @@ const WhatsOn: React.FC = () => {
             <p className="text-primary/40 text-sm mt-2">Check back soon for new experiences.</p>
           </div>
         ) : (
-          combinedItems.map((item, index) => {
+          <>
+          {displayedItems.map((item, index) => {
             const isEvent = item.type === 'event';
             const dateStr = isEvent ? item.event_date : item.date;
             const date = formatDate(dateStr);
@@ -259,7 +277,18 @@ const WhatsOn: React.FC = () => {
                 </div>
               </div>
             );
-          })
+          })}
+          
+          {hasMore && (
+            <button
+              onClick={loadMore}
+              className="w-full bg-white hover:bg-[#F2F2EC] text-[#293515] py-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm transition-colors shadow-layered mt-4"
+            >
+              <span>Load More</span>
+              <span className="text-xs text-primary/50">({combinedItems.length - displayCount} remaining)</span>
+            </button>
+          )}
+          </>
         )}
       </div>
 
