@@ -65,6 +65,46 @@ function parseRecurringPeriod(period: string | null): { interval: 'month' | 'yea
   }
 }
 
+/**
+ * Search Stripe for existing products by name or metadata to prevent duplicates.
+ * Returns the existing product if found, null otherwise.
+ */
+async function findExistingStripeProduct(
+  stripe: any,
+  productName: string,
+  metadataKey?: string,
+  metadataValue?: string
+): Promise<{ id: string; default_price?: string | null } | null> {
+  try {
+    // First try to find by metadata if provided
+    if (metadataKey && metadataValue) {
+      const productsByMetadata = await stripe.products.search({
+        query: `metadata['${metadataKey}']:'${metadataValue}'`,
+        limit: 1,
+      });
+      if (productsByMetadata.data.length > 0) {
+        console.log(`[Stripe Products] Found existing product by metadata: ${productsByMetadata.data[0].id}`);
+        return productsByMetadata.data[0];
+      }
+    }
+    
+    // Fall back to searching by exact name
+    const productsByName = await stripe.products.search({
+      query: `name:'${productName.replace(/'/g, "\\'")}'`,
+      limit: 1,
+    });
+    if (productsByName.data.length > 0) {
+      console.log(`[Stripe Products] Found existing product by name "${productName}": ${productsByName.data[0].id}`);
+      return productsByName.data[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('[Stripe Products] Error searching for existing product:', error);
+    return null;
+  }
+}
+
 export async function fetchHubSpotProducts(): Promise<HubSpotProduct[]> {
   try {
     const { client: hubspot, source } = await getHubSpotClientWithFallback();
@@ -179,14 +219,36 @@ export async function syncHubSpotProductToStripe(hubspotProduct: HubSpotProduct)
       };
     }
     
-    const stripeProduct = await stripe.products.create({
-      name: hubspotProduct.name,
-      description: hubspotProduct.description || undefined,
-      metadata: {
-        hubspot_product_id: hubspotProduct.id,
-        hubspot_sku: hubspotProduct.sku || '',
-      },
-    });
+    // Check if product already exists in Stripe before creating
+    const existingStripeProduct = await findExistingStripeProduct(
+      stripe,
+      hubspotProduct.name,
+      'hubspot_product_id',
+      hubspotProduct.id
+    );
+    
+    let stripeProduct;
+    if (existingStripeProduct) {
+      // Use existing product, just update it
+      stripeProduct = await stripe.products.update(existingStripeProduct.id, {
+        name: hubspotProduct.name,
+        description: hubspotProduct.description || undefined,
+        metadata: {
+          hubspot_product_id: hubspotProduct.id,
+          hubspot_sku: hubspotProduct.sku || '',
+        },
+      });
+      console.log(`[Stripe Products] Reusing existing Stripe product ${stripeProduct.id} for ${hubspotProduct.name}`);
+    } else {
+      stripeProduct = await stripe.products.create({
+        name: hubspotProduct.name,
+        description: hubspotProduct.description || undefined,
+        metadata: {
+          hubspot_product_id: hubspotProduct.id,
+          hubspot_sku: hubspotProduct.sku || '',
+        },
+      });
+    }
     
     const priceCents = Math.round(hubspotProduct.price * 100);
     const isOneTimeNameCreate = /pass|pack|fee|merch/i.test(hubspotProduct.name);
@@ -496,7 +558,22 @@ export async function syncMembershipTiersToStripe(): Promise<{
           if (hasMarketingFeatures) {
             createParams.marketing_features = marketingFeatures;
           }
-          const stripeProduct = await stripe.products.create(createParams);
+          // Check if product already exists in Stripe before creating
+          const existingStripeProduct = await findExistingStripeProduct(
+            stripe,
+            productName,
+            'tier_id',
+            tier.id.toString()
+          );
+          
+          let stripeProduct;
+          if (existingStripeProduct) {
+            // Use existing product, just update it
+            stripeProduct = await stripe.products.update(existingStripeProduct.id, createParams);
+            console.log(`[Tier Sync] Reusing existing Stripe product ${stripeProduct.id} for ${tier.name}`);
+          } else {
+            stripeProduct = await stripe.products.create(createParams);
+          }
           stripeProductId = stripeProduct.id;
 
           const priceMetadata = { tier_id: tier.id.toString(), tier_slug: tier.slug, product_type: tier.productType || 'subscription' };
