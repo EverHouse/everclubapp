@@ -4,6 +4,7 @@ import { Footer } from '../../components/Footer';
 import { BookingCardSkeleton, SkeletonList } from '../../components/skeletons';
 import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 
 interface Event {
@@ -38,6 +39,7 @@ type ListItem = Event | WellnessClass;
 
 const WhatsOn: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
   const [events, setEvents] = useState<Event[]>([]);
   const [wellnessClasses, setWellnessClasses] = useState<WellnessClass[]>([]);
@@ -265,7 +267,7 @@ const WhatsOn: React.FC = () => {
           <h3 className="text-xl font-bold text-white mb-2">Want full access?</h3>
           <p className="text-white/70 text-sm mb-4">Join Ever House and unlock exclusive member-only events and wellness classes.</p>
           <button 
-            onClick={() => navigate('/membership')}
+            onClick={() => { startNavigation(); navigate('/membership'); }}
             className="bg-[#F2F2EC] text-[#293515] px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
           >
             Explore Membership

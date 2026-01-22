@@ -4,6 +4,7 @@ import { Footer } from '../../components/Footer';
 import HubSpotFormModal from '../../components/HubSpotFormModal';
 import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 
 const MEMBERSHIP_FIELDS = [
   { name: 'firstname', label: 'First Name', type: 'text' as const, required: true, placeholder: 'Jane' },
@@ -151,6 +152,7 @@ const Membership: React.FC = () => {
 
 const MembershipOverview: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
   const [selectedPass, setSelectedPass] = useState<'workspace' | 'sim' | null>(null);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
@@ -282,7 +284,7 @@ const MembershipOverview: React.FC = () => {
             suffix="/mo per employee"
             desc={corporateTier.description}
             features={corporateTier.highlighted_features}
-            onClick={() => navigate('corporate')}
+            onClick={() => { startNavigation(); navigate('corporate'); }}
             btnText="View Details"
           />
         )}

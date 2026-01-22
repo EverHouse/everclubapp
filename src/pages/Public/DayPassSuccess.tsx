@@ -2,9 +2,11 @@ import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 
 const DayPassSuccess: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
@@ -38,7 +40,7 @@ const DayPassSuccess: React.FC = () => {
 
           <div className="space-y-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => { startNavigation(); navigate('/'); }}
               className="w-full flex justify-center items-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">home</span>
@@ -46,7 +48,7 @@ const DayPassSuccess: React.FC = () => {
             </button>
             
             <button
-              onClick={() => navigate('/day-pass')}
+              onClick={() => { startNavigation(); navigate('/day-pass'); }}
               className="w-full flex justify-center items-center gap-2 rounded-xl bg-white border border-primary/20 px-4 py-3.5 text-sm font-bold text-primary hover:bg-primary/5 transition-all"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>

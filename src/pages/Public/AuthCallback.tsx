@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,6 +28,7 @@ const AuthCallback: React.FC = () => {
                 try {
                   const data = await res.json();
                   if (data.isStaffOrAdmin) {
+                    startNavigation();
                     navigate('/admin');
                     return;
                   }
@@ -37,8 +40,10 @@ const AuthCallback: React.FC = () => {
           } catch (err) {
             console.error('Failed to check staff/admin status');
           }
+          startNavigation();
           navigate('/member/dashboard');
         } else {
+          startNavigation();
           navigate('/login');
         }
       } catch (err: any) {
@@ -58,7 +63,7 @@ const AuthCallback: React.FC = () => {
             <h2 className="text-xl font-bold text-primary mb-2">Authentication Failed</h2>
             <p className="text-primary/60 mb-4">{error}</p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => { startNavigation(); navigate('/login'); }}
               className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all"
             >
               Back to Login

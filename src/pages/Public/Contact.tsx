@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import Input from '../../components/Input';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 
 const Contact: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -247,7 +249,7 @@ const Contact: React.FC = () => {
           <h3 className="text-xl font-bold text-white mb-2">Ready to become a member?</h3>
           <p className="text-white/70 text-sm mb-4">Join our community of golfers, creatives, and wellness enthusiasts.</p>
           <button 
-            onClick={() => navigate('/membership')}
+            onClick={() => { startNavigation(); navigate('/membership'); }}
             className="bg-[#F2F2EC] text-[#293515] px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
           >
             Apply for Membership

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { useData } from '../../contexts/DataContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
 const Spinner = () => (
@@ -11,6 +12,7 @@ const Spinner = () => (
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const { loginWithMember } = useData();
   const { setPageReady } = usePageReady();
   const [email, setEmail] = useState('');
@@ -97,6 +99,7 @@ const Login: React.FC = () => {
       
       const { member } = await res.json();
       loginWithMember(member);
+      startNavigation();
       navigate(member.role === 'admin' || member.role === 'staff' ? '/admin' : '/member/dashboard');
     } catch (err: any) {
       setError(err.message || 'Dev login failed');
@@ -126,6 +129,7 @@ const Login: React.FC = () => {
       }
       
       loginWithMember(data.member);
+      startNavigation();
       navigate(data.member.role === 'admin' || data.member.role === 'staff' ? '/admin' : '/member/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -262,6 +266,7 @@ const Login: React.FC = () => {
       const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
       const destination = isStaff ? '/admin' : '/member/dashboard';
       
+      startNavigation();
       if (data.shouldSetupPassword && isStaff) {
         navigate(destination, { state: { showPasswordSetup: true } });
       } else {
@@ -479,7 +484,7 @@ const Login: React.FC = () => {
 
             <p className="text-center text-sm text-primary/60 font-medium">
                 Not a member?{' '}
-                <button onClick={() => navigate('/membership')} className="font-bold text-primary hover:underline">
+                <button onClick={() => { startNavigation(); navigate('/membership'); }} className="font-bold text-primary hover:underline">
                     Apply today
                 </button>
             </p>

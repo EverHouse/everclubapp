@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import Input from '../../components/Input';
 import { usePageReady } from '../../contexts/PageReadyContext';
+import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 
 interface DayPassTier {
   id: number;
@@ -16,6 +17,7 @@ interface DayPassTier {
 
 const BuyDayPass: React.FC = () => {
   const navigate = useNavigate();
+  const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
   const [tiers, setTiers] = useState<DayPassTier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,7 +253,7 @@ const BuyDayPass: React.FC = () => {
           <h3 className="text-xl font-bold text-white mb-2">Want more than a day pass?</h3>
           <p className="text-white/70 text-sm mb-4">Become a member and enjoy unlimited access plus exclusive benefits.</p>
           <button 
-            onClick={() => navigate('/membership')}
+            onClick={() => { startNavigation(); navigate('/membership'); }}
             className="bg-[#F2F2EC] text-[#293515] px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
           >
             Explore Memberships
