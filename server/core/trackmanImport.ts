@@ -2615,7 +2615,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
               // Create the booking
               await pool.query(
                 `INSERT INTO booking_requests (
-                  user_email, user_name, booking_date, start_time, end_time,
+                  user_email, user_name, request_date, start_time, end_time,
                   duration_minutes, resource_id, status, trackman_booking_id,
                   notes, trackman_player_count, created_at, updated_at
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
