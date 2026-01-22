@@ -1282,7 +1282,7 @@ router.get('/api/members/add-options', isStaffOrAdmin, async (req, res) => {
        WHERE is_active = true 
          AND product_type = 'subscription'
          AND billing_interval IN ('month', 'year', 'week')
-       ORDER BY display_order ASC NULLS LAST, name ASC`
+       ORDER BY sort_order ASC NULLS LAST, name ASC`
     );
     
     res.json({

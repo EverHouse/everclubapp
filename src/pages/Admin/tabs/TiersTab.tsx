@@ -294,7 +294,21 @@ const TiersTab: React.FC = () => {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                alert(`Synced ${data.synced} products to Stripe`);
+                let message = `Synced ${data.synced} products to Stripe`;
+                if (data.failed > 0) {
+                    message += `\n\nFailed: ${data.failed}`;
+                    if (data.details) {
+                        const failedDetails = data.details.filter((d: any) => !d.success);
+                        if (failedDetails.length > 0) {
+                            message += '\n' + failedDetails.map((d: any) => `- ${d.tierName}: ${d.error}`).join('\n');
+                        }
+                    }
+                }
+                if (data.skipped > 0) {
+                    message += `\n\nSkipped: ${data.skipped} (no price configured)`;
+                }
+                alert(message);
+                await fetchTiers();
             } else {
                 const errorMsg = data.message || data.error || 'Unknown error';
                 if (errorMsg.includes('connection not found')) {
