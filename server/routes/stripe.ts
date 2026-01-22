@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { paymentRateLimiter } from '../middleware/rateLimiting';
 import { pool } from '../core/db';
+import { getSessionUser } from '../types/session';
+import { isExpandedProduct } from '../types/stripe-helpers';
 import { db } from '../db';
 import { billingAuditLog, membershipTiers, passRedemptionLogs, dayPassPurchases } from '../../shared/schema';
 import { ilike, eq, gte, desc } from 'drizzle-orm';
@@ -72,14 +74,14 @@ router.get('/api/stripe/prices/recurring', isStaffOrAdmin, async (req: Request, 
     });
     
     const formattedPrices = prices.data.map(price => {
-      const product = price.product as any;
-      const productName = typeof product === 'object' ? product.name : 'Unknown Product';
+      const product = price.product;
+      const productName = isExpandedProduct(product) ? product.name : 'Unknown Product';
       const amountDollars = (price.unit_amount || 0) / 100;
       const interval = price.recurring?.interval || 'month';
       
       return {
         id: price.id,
-        productId: typeof product === 'object' ? product.id : product,
+        productId: isExpandedProduct(product) ? product.id : (typeof product === 'string' ? product : 'unknown'),
         productName,
         nickname: price.nickname || null,
         amount: amountDollars,
@@ -253,7 +255,11 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
 router.post('/api/stripe/confirm-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
-    const staffUser = (req as any).staffUser;
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'staff';
+    const staffName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Missing paymentIntentId' });
@@ -261,8 +267,8 @@ router.post('/api/stripe/confirm-payment', isStaffOrAdmin, async (req: Request, 
 
     const result = await confirmPaymentSuccess(
       paymentIntentId,
-      staffUser?.email || 'staff',
-      staffUser?.name || 'Staff Member'
+      staffEmail,
+      staffName
     );
 
     if (!result.success) {
@@ -727,7 +733,8 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
 // Member-accessible endpoint to view their own invoices
 router.get('/api/my-invoices', async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -737,7 +744,7 @@ router.get('/api/my-invoices', async (req: Request, res: Response) => {
     let targetEmail = sessionEmail;
     
     if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
-      const userRole = (req as any).user?.role;
+      const userRole = sessionUser?.role;
       if (userRole === 'admin' || userRole === 'staff') {
         targetEmail = decodeURIComponent(requestedEmail);
       }
@@ -776,7 +783,8 @@ router.get('/api/my-invoices', async (req: Request, res: Response) => {
 
 router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -920,7 +928,8 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
 
 router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1007,7 +1016,8 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
 
 router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1098,7 +1108,8 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
 
 router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1155,7 +1166,8 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
 
 router.post('/api/member/guest-passes/purchase', async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1236,7 +1248,8 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
 
 router.post('/api/member/guest-passes/confirm', async (req: Request, res: Response) => {
   try {
-    const sessionEmail = (req as any).user?.email;
+    const sessionUser = getSessionUser(req);
+    const sessionEmail = sessionUser?.email;
     if (!sessionEmail) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1318,7 +1331,7 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
 
 router.get('/api/member/balance', async (req: Request, res: Response) => {
   try {
-    const sessionUser = (req.session as any)?.user;
+    const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1450,7 +1463,7 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
 
 router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
   try {
-    const sessionUser = (req.session as any)?.user;
+    const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1588,7 +1601,7 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
 
 router.post('/api/member/balance/confirm', async (req: Request, res: Response) => {
   try {
-    const sessionUser = (req.session as any)?.user;
+    const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1673,7 +1686,7 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
 router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { memberEmail, memberName, amountCents, description, productId } = req.body;
-    const staffUser = (req as any).user;
+    const sessionUser = getSessionUser(req);
 
     if (!memberEmail || !amountCents) {
       return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
@@ -1735,7 +1748,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
       productName: finalProductName,
       metadata: {
         staffInitiated: 'true',
-        staffEmail: staffUser?.email || 'unknown',
+        staffEmail: sessionUser?.email || 'unknown',
         chargeType: 'quick_charge',
         memberId: member.id.toString(),
         memberEmail: member.email,
@@ -1756,7 +1769,11 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
 router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
-    const staffUser = (req as any).user;
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'staff';
+    const staffName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Missing paymentIntentId' });
@@ -1764,15 +1781,15 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
 
     const result = await confirmPaymentSuccess(
       paymentIntentId,
-      staffUser?.email || 'staff',
-      staffUser?.name || 'Staff Member'
+      staffEmail,
+      staffName
     );
 
     if (!result.success) {
       return res.status(400).json({ error: result.error || 'Payment confirmation failed' });
     }
 
-    console.log(`[Stripe] Quick charge confirmed: ${paymentIntentId} by ${staffUser?.email}`);
+    console.log(`[Stripe] Quick charge confirmed: ${paymentIntentId} by ${staffEmail}`);
     res.json({ success: true });
   } catch (error: any) {
     console.error('[Stripe] Error confirming quick charge:', error);
@@ -1880,9 +1897,11 @@ router.post('/api/payments/record-offline', isStaffOrAdmin, async (req: Request,
       notes
     } = req.body;
     
-    const staffUser = (req as any).staffUser;
-    const performedBy = staffUser?.email || 'staff';
-    const performedByName = staffUser?.name || 'Staff Member';
+    const sessionUser = getSessionUser(req);
+    const performedBy = sessionUser?.email || 'staff';
+    const performedByName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!memberEmail || !amountCents || !paymentMethod || !category) {
       return res.status(400).json({ 
@@ -1943,10 +1962,12 @@ router.post('/api/payments/record-offline', isStaffOrAdmin, async (req: Request,
 
 router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const staffUser = (req as any).staffUser;
+    const sessionUser = getSessionUser(req);
     const { memberId, memberEmail, memberName, adjustment, reason } = req.body;
-    const performedBy = staffUser?.email || req.body.performedBy || 'staff';
-    const performedByName = staffUser?.name || req.body.performedByName || 'Staff Member';
+    const performedBy = sessionUser?.email || req.body.performedBy || 'staff';
+    const performedByName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || req.body.performedByName || 'Staff Member';
 
     if (!memberEmail || typeof adjustment !== 'number' || !reason) {
       return res.status(400).json({ 
@@ -2096,9 +2117,11 @@ router.post('/api/payments/add-note', isStaffOrAdmin, async (req: Request, res: 
       return res.status(400).json({ error: 'Missing required fields: transactionId, note' });
     }
 
-    const staffUser = (req as any).staffUser;
-    const finalPerformedBy = performedBy || staffUser?.email || 'staff';
-    const finalPerformedByName = performedByName || staffUser?.name || 'Staff Member';
+    const sessionUser = getSessionUser(req);
+    const finalPerformedBy = performedBy || sessionUser?.email || 'staff';
+    const finalPerformedByName = performedByName || (sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member');
 
     const piResult = await pool.query(
       `SELECT u.email as member_email 
@@ -2182,7 +2205,11 @@ const MAX_RETRY_ATTEMPTS = 3;
 router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.body;
-    const staffUser = (req as any).staffUser;
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'staff';
+    const staffName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
@@ -2263,8 +2290,8 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
           amount: payment.amount_cents
         },
         newValue: `Retry #${newRetryCount} succeeded: $${(payment.amount_cents / 100).toFixed(2)}`,
-        performedBy: staffUser?.email || 'staff',
-        performedByName: staffUser?.name || 'Staff Member'
+        performedBy: staffEmail,
+        performedByName: staffName
       });
 
       console.log(`[Payments] Retry #${newRetryCount} succeeded for ${paymentIntentId}`);
@@ -2276,7 +2303,7 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
         message: 'Payment retry successful'
       });
     } else {
-      const failureReason = (confirmedIntent as any).last_payment_error?.message || `Status: ${confirmedIntent.status}`;
+      const failureReason = confirmedIntent.last_payment_error?.message || `Status: ${confirmedIntent.status}`;
       
       await pool.query(
         `UPDATE stripe_payment_intents 
@@ -2301,8 +2328,8 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
           reachedLimit: nowReachesLimit
         },
         newValue: `Retry #${newRetryCount} failed: ${confirmedIntent.status}${nowReachesLimit ? ' (limit reached)' : ''}`,
-        performedBy: staffUser?.email || 'staff',
-        performedByName: staffUser?.name || 'Staff Member'
+        performedBy: staffEmail,
+        performedByName: staffName
       });
 
       console.log(`[Payments] Retry #${newRetryCount} failed for ${paymentIntentId}: ${confirmedIntent.status}`);
@@ -2326,7 +2353,11 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
 router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents, reason } = req.body;
-    const staffUser = (req as any).staffUser;
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'staff';
+    const staffName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
@@ -2373,8 +2404,8 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
         isPartialRefund
       },
       newValue: `Refunded $${(refundedAmount / 100).toFixed(2)} of $${(payment.amount_cents / 100).toFixed(2)}`,
-      performedBy: staffUser?.email || 'staff',
-      performedByName: staffUser?.name || 'Staff Member'
+      performedBy: staffEmail,
+      performedByName: staffName
     });
 
     console.log(`[Payments] Refund ${refund.id} created for ${paymentIntentId}: $${(refundedAmount / 100).toFixed(2)}`);
@@ -2404,7 +2435,11 @@ router.get('/api/payments/pending-authorizations', isStaffOrAdmin, async (req: R
 router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents } = req.body;
-    const staffUser = (req as any).staffUser;
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'staff';
+    const staffName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Missing paymentIntentId' });
@@ -2445,8 +2480,8 @@ router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: R
       },
       previousValue: `Pre-authorized: $${(payment.amount_cents / 100).toFixed(2)}`,
       newValue: `Captured: $${(capturedAmount / 100).toFixed(2)}`,
-      performedBy: staffUser?.email || 'staff',
-      performedByName: staffUser?.name || 'Staff Member'
+      performedBy: staffEmail,
+      performedByName: staffName
     });
 
     console.log(`[Payments] Captured ${paymentIntentId}: $${(capturedAmount / 100).toFixed(2)}`);
@@ -2465,7 +2500,11 @@ router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: R
 router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, reason } = req.body;
-    const staffUser = (req as any).staffUser;
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'staff';
+    const staffName = sessionUser?.firstName && sessionUser?.lastName 
+      ? `${sessionUser.firstName} ${sessionUser.lastName}` 
+      : sessionUser?.name || 'Staff Member';
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: 'Missing paymentIntentId' });
@@ -2498,8 +2537,8 @@ router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Requ
       },
       previousValue: `Pre-authorized: $${(payment.amount_cents / 100).toFixed(2)}`,
       newValue: 'Voided',
-      performedBy: staffUser?.email || 'staff',
-      performedByName: staffUser?.name || 'Staff Member'
+      performedBy: staffEmail,
+      performedByName: staffName
     });
 
     console.log(`[Payments] Voided authorization ${paymentIntentId}: $${(payment.amount_cents / 100).toFixed(2)} - ${reason || 'No reason'}`);
@@ -3090,7 +3129,8 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
 router.post('/api/stripe/overage/create-payment-intent', async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.body;
-    const userEmail = (req as any).session?.user?.email;
+    const sessionUser = getSessionUser(req);
+    const userEmail = sessionUser?.email;
     
     if (!bookingId) {
       return res.status(400).json({ error: 'Booking ID is required.' });
@@ -3114,7 +3154,7 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
     
     // Verify user is the booking owner or is staff
     const isOwner = booking.user_email.toLowerCase() === userEmail?.toLowerCase();
-    const isStaff = (req as any).session?.user?.isStaff === true;
+    const isStaff = sessionUser?.isStaff === true;
     
     if (!isOwner && !isStaff) {
       return res.status(403).json({ error: 'Not authorized to pay for this booking.' });
@@ -3202,8 +3242,9 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
 router.post('/api/stripe/overage/confirm-payment', async (req: Request, res: Response) => {
   try {
     const { bookingId, paymentIntentId } = req.body;
-    const userEmail = (req as any).session?.user?.email;
-    const isStaff = (req as any).session?.user?.isStaff === true;
+    const sessionUser = getSessionUser(req);
+    const userEmail = sessionUser?.email;
+    const isStaff = sessionUser?.isStaff === true;
     
     // Authorization: require logged in user
     if (!userEmail) {
@@ -3270,8 +3311,9 @@ router.post('/api/stripe/overage/confirm-payment', async (req: Request, res: Res
 router.get('/api/stripe/overage/check/:bookingId', async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
-    const userEmail = (req as any).session?.user?.email;
-    const isStaff = (req as any).session?.user?.isStaff === true;
+    const sessionUser = getSessionUser(req);
+    const userEmail = sessionUser?.email;
+    const isStaff = sessionUser?.isStaff === true;
     
     // Authorization: require logged in user
     if (!userEmail) {

@@ -16,6 +16,21 @@ export interface SessionUser {
   expires_at?: number;
   isTestUser?: boolean;
   dateOfBirth?: string | null;
+  isStaff?: boolean;
+}
+
+export interface StaffUser {
+  email: string;
+  name: string;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: SessionUser;
+      staffUser?: StaffUser;
+    }
+  }
 }
 
 declare module 'express-session' {

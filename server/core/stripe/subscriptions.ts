@@ -1,5 +1,6 @@
 import { getStripeClient } from './client';
 import Stripe from 'stripe';
+import { isExpandedProduct, SubscriptionPendingUpdate } from '../../types/stripe-helpers';
 
 export interface CreateSubscriptionParams {
   customerId: string;
@@ -121,9 +122,10 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
         const item = sub.items.data[0];
         const price = item?.price;
         const productRef = price?.product;
-        const product = typeof productRef === 'string' ? null : (productRef as Stripe.Product);
-        const productId = product?.id || (typeof productRef === 'string' ? productRef : '');
-        const productName = product?.name || '';
+        const productId = typeof productRef === 'string' 
+          ? productRef 
+          : (productRef && isExpandedProduct(productRef) ? productRef.id : '');
+        const productName = productRef && isExpandedProduct(productRef) ? productRef.name : '';
         
         let pendingUpdate: { newPriceId: string; newProductName: string; effectiveAt: Date } | null = null;
         if (sub.pending_update?.subscription_items && sub.pending_update.subscription_items.data.length > 0) {
@@ -132,17 +134,19 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           const pendingPriceId = typeof pendingPriceRef === 'string' 
             ? pendingPriceRef 
             : pendingPriceRef?.id || '';
-          const pendingProduct = typeof pendingPriceRef === 'string' 
-            ? null 
-            : (pendingPriceRef?.product as Stripe.Product | undefined);
-          const effectiveTimestamp = (sub.pending_update as any).billing_cycle_anchor 
-            || (sub.pending_update as any).expires_at 
+          const pendingProductRef = typeof pendingPriceRef === 'string' ? null : pendingPriceRef?.product;
+          const pendingProductName = pendingProductRef && isExpandedProduct(pendingProductRef) 
+            ? pendingProductRef.name 
+            : '';
+          const typedPendingUpdate = sub.pending_update as SubscriptionPendingUpdate | null;
+          const effectiveTimestamp = typedPendingUpdate?.billing_cycle_anchor 
+            || typedPendingUpdate?.expires_at 
             || sub.current_period_end;
             
           if (pendingPriceId && effectiveTimestamp) {
             pendingUpdate = {
               newPriceId: pendingPriceId,
-              newProductName: pendingProduct?.name || '',
+              newProductName: pendingProductName,
               effectiveAt: new Date(effectiveTimestamp * 1000),
             };
           }
@@ -198,7 +202,8 @@ export async function getSubscription(subscriptionId: string): Promise<{
     
     const item = subscription.items.data[0];
     const price = item?.price;
-    const product = price?.product as Stripe.Product;
+    const productRef = price?.product;
+    const product = productRef && isExpandedProduct(productRef) ? productRef : null;
     
     return {
       success: true,
@@ -254,7 +259,7 @@ export async function resumeSubscription(subscriptionId: string): Promise<{ succ
     const stripe = await getStripeClient();
     
     await stripe.subscriptions.update(subscriptionId, {
-      pause_collection: null as any,
+      pause_collection: null as unknown as Stripe.SubscriptionUpdateParams.PauseCollection,
     });
 
     console.log(`[Stripe Subscriptions] Resumed subscription ${subscriptionId}`);
