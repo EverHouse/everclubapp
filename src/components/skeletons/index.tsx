@@ -1,9 +1,55 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SkeletonCardProps {
   className?: string;
   isDark?: boolean;
 }
+
+interface SkeletonCrossfadeProps {
+  loading: boolean;
+  skeleton: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  duration?: number;
+}
+
+export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({ 
+  loading, 
+  skeleton, 
+  children, 
+  className = '',
+  duration = 250
+}) => {
+  const [showSkeleton, setShowSkeleton] = useState(loading);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    if (!loading && showSkeleton) {
+      setIsTransitioning(true);
+      const timer = setTimeout(() => {
+        setShowSkeleton(false);
+        setIsTransitioning(false);
+      }, duration);
+      return () => clearTimeout(timer);
+    } else if (loading) {
+      setShowSkeleton(true);
+    }
+  }, [loading, showSkeleton, duration]);
+
+  if (showSkeleton) {
+    return (
+      <div className={`${className} ${isTransitioning ? 'animate-skeleton-out' : ''}`}>
+        {skeleton}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`animate-content-in ${className}`}>
+      {children}
+    </div>
+  );
+};
 
 const shimmerClass = "relative overflow-hidden before:content-[''] before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.5s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent";
 const bgLight = "bg-gray-200";
