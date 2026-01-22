@@ -299,8 +299,7 @@ const Landing: React.FC = () => {
             className="absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform"
             loading="eager"
             style={{ 
-              transform: `translateY(${parallaxOffset}px) scale(1.05)`,
-              opacity: parallaxOpacity
+              transform: `translateY(${parallaxOffset}px) scale(1.05)`
             }}
           />
           <div 
