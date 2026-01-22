@@ -837,7 +837,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               });
             }
           } else if (p.participant_type === 'guest') {
-            if (!p.used_guest_pass && participantFee > 0) {
+            // Only count guest fees if the participant has no user_id (actual guest, not a linked member)
+            // Members who were incorrectly marked as guests should not incur guest fees
+            if (!p.user_id && !p.used_guest_pass && participantFee > 0) {
               guestFeesWithoutPass += participantFee;
             }
           }
