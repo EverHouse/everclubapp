@@ -501,7 +501,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         : '#F2F2EC';
     document.documentElement.style.backgroundColor = bgColor;
     document.body.style.backgroundColor = bgColor;
-  }, [isFullBleedHeroPage, isDarkTheme]);
+  }, [isFullBleedHeroPage, isDarkTheme, location.pathname]);
 
   const handleTopLeftClick = () => {
     setIsMenuOpen(true);

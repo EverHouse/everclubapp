@@ -34,11 +34,11 @@ const taglines = [
 
 const MascotLoader: React.FC<{ isVisible: boolean; onFadeComplete?: () => void }> = ({ isVisible, onFadeComplete }) => {
   const [isExiting, setIsExiting] = useState(false);
-  const [shouldRender, setShouldRender] = useState(true);
+  const [shouldRender, setShouldRender] = useState(isVisible);
   const [tagline] = useState(() => taglines[Math.floor(Math.random() * taglines.length)]);
 
   useEffect(() => {
-    if (!isVisible && !isExiting) {
+    if (!isVisible && shouldRender && !isExiting) {
       setIsExiting(true);
       const timer = setTimeout(() => {
         setShouldRender(false);
@@ -46,7 +46,7 @@ const MascotLoader: React.FC<{ isVisible: boolean; onFadeComplete?: () => void }
       }, 700);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, isExiting, onFadeComplete]);
+  }, [isVisible, shouldRender, isExiting, onFadeComplete]);
 
   if (!shouldRender) return null;
 
