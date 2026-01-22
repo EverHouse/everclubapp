@@ -3,6 +3,7 @@ process.env.TZ = 'America/Los_Angeles';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getSession, registerAuthRoutes } from './replit_integrations/auth';
@@ -288,6 +289,21 @@ if (isProduction) {
     }
   });
 }
+
+// Rate limiting for login endpoint (strict - protects against brute-force attacks)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per IP
+  message: { error: 'Too many login attempts, please try again later' }
+});
+app.use('/api/auth/login', loginLimiter);
+
+// Rate limiting for general API (broader protection)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300 // 300 requests per 15 min
+});
+app.use('/api/', apiLimiter);
 
 app.use(resourcesRouter);
 app.use(calendarRouter);
