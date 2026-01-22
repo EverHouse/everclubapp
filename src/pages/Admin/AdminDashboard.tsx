@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
-import { BottomFadeOverlay } from '../../components/layout/BottomFadeOverlay';
 import BackToTop from '../../components/BackToTop';
 import Toggle from '../../components/Toggle';
 import Avatar from '../../components/Avatar';
@@ -214,7 +213,6 @@ const AdminDashboard: React.FC = () => {
       </main>
 
       <div className="lg:hidden">
-        <BottomFadeOverlay isDark={effectiveTheme === 'dark'} variant="colored" />
         <StaffBottomNav 
           activeTab={activeTab} 
           onTabChange={handleTabChange} 
