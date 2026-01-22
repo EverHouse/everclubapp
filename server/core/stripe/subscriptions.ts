@@ -112,7 +112,6 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
       expand: [
         'data.items.data.price.product', 
         'data.schedule',
-        'data.pending_update.subscription_items.data.price.product'
       ],
     });
     
