@@ -12,9 +12,11 @@ export const SafeAreaBottomOverlay: React.FC<SafeAreaBottomOverlayProps> = ({ ch
   
   if (!overlayRoot) return null;
   
+  const isHidden = isAtBottom || drawerOpen;
+  
   const overlayContent = (
     <div 
-      className={`fixed inset-x-0 bottom-0 pointer-events-none transition-transform duration-300 ease-out lg:hidden ${isAtBottom || drawerOpen ? 'translate-y-[calc(100%+env(safe-area-inset-bottom,0px))]' : 'translate-y-0'}`}
+      className={`fixed inset-x-0 bottom-0 pointer-events-none transition-all duration-300 ease-out lg:hidden ${isHidden ? 'translate-y-[calc(100%+env(safe-area-inset-bottom,0px))] opacity-0' : 'translate-y-0 opacity-100'}`}
       style={{ zIndex: 'var(--z-nav)' }}
     >
       {children}
