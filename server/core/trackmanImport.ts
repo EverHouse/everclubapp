@@ -718,6 +718,14 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
             // Check if this matched member is the owner (prevent duplicates)
             if (matchedMember.id === ownerUserId) {
               process.stderr.write(`[Trackman Import] Name match "${member.name}" resolved to owner - skipping\n`);
+              // Still auto-link the alternate email for future imports
+              if (member.email && member.email.toLowerCase() !== matchedMember.email.toLowerCase()) {
+                await autoLinkEmailToOwner(
+                  member.email, 
+                  matchedMember.email,
+                  `Owner name-match auto-link: "${member.name}" is owner, linking Trackman email ${member.email}`
+                );
+              }
               continue;
             }
             
@@ -1695,23 +1703,45 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               // For multi-player bookings: try name-based matching to identify unmatched M: entries
               // If we find a unique name match, auto-link the Trackman email to that member
               let resolvedMemberEmail = memberExists;
+              let skipAsDuplicateOwner = false;
+              
               if (!memberExists && memberName) {
                 const nameMatch = await findMembersByName(memberName);
                 if (nameMatch.match === 'unique') {
                   const matchedMember = nameMatch.members[0];
                   
-                  // Auto-link the Trackman email to this member for future imports
-                  if (memberEmail !== matchedMember.email.toLowerCase()) {
-                    await autoLinkEmailToOwner(
-                      memberEmail,
-                      matchedMember.email,
-                      `Multi-player name-match: "${memberName}" matched to ${matchedMember.email}`
-                    );
+                  // Check if this name-matched member is the same as the booking owner
+                  // This prevents adding the owner as a guest under their own booking
+                  if (matchedMember.email.toLowerCase() === matchedEmail.toLowerCase()) {
+                    process.stderr.write(`[Trackman Import] Name-match "${memberName}" resolved to owner ${matchedEmail} - skipping duplicate\n`);
+                    // Still auto-link the alternate email for future imports
+                    if (memberEmail !== matchedEmail.toLowerCase()) {
+                      await autoLinkEmailToOwner(
+                        memberEmail,
+                        matchedEmail,
+                        `Owner name-match auto-link: "${memberName}" is owner, linking ${memberEmail}`
+                      );
+                    }
+                    skipAsDuplicateOwner = true;
+                  } else {
+                    // Auto-link the Trackman email to this member for future imports
+                    if (memberEmail !== matchedMember.email.toLowerCase()) {
+                      await autoLinkEmailToOwner(
+                        memberEmail,
+                        matchedMember.email,
+                        `Multi-player name-match: "${memberName}" matched to ${matchedMember.email}`
+                      );
+                    }
+                    
+                    resolvedMemberEmail = matchedMember.email;
+                    process.stderr.write(`[Trackman Import] Name-matched "${memberName}" to ${matchedMember.email} for booking_members\n`);
                   }
-                  
-                  resolvedMemberEmail = matchedMember.email;
-                  process.stderr.write(`[Trackman Import] Name-matched "${memberName}" to ${matchedMember.email} for booking_members\n`);
                 }
+              }
+              
+              // Skip this M: entry if it resolved to the booking owner
+              if (skipAsDuplicateOwner) {
+                continue;
               }
               
               if (memberSlot <= row.playerCount) {
