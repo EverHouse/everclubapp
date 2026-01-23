@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.1",
+    date: "2026-01-23",
+    title: "Staff Activity Tracking",
+    changes: [
+      "New Staff Activity log tracks all staff actions including booking approvals, billing changes, and member updates",
+      "Activity log is accessible from the Changelog page with a dedicated tab for admins",
+      "Filter activity by category (Bookings, Billing, Members) or by staff member",
+      "Each action shows who did it, when, and relevant details like amounts or member names",
+      "Improved audit trail for better accountability and operational visibility"
+    ]
+  },
+  {
     version: "9.0",
     date: "2026-01-21",
     title: "Relative Times & Bug Fixes",
