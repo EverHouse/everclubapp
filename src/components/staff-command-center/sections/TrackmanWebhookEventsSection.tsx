@@ -4,10 +4,15 @@ import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 const ITEMS_PER_PAGE = 10;
 
 const formatDateTimePacific = (dateStr: string): string => {
-  // Ensure the timestamp is treated as UTC if no timezone indicator present
+  // Normalize PostgreSQL timestamp format (space to T) and ensure UTC
   let normalizedDateStr = dateStr;
-  if (dateStr && !dateStr.includes('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
-    normalizedDateStr = dateStr + 'Z';
+  if (dateStr) {
+    // Replace space with T for ISO format compatibility
+    normalizedDateStr = dateStr.replace(' ', 'T');
+    // Add Z if no timezone indicator present
+    if (!normalizedDateStr.includes('Z') && !normalizedDateStr.includes('+') && !/T[\d:]+[-+]/.test(normalizedDateStr)) {
+      normalizedDateStr = normalizedDateStr + 'Z';
+    }
   }
   const date = new Date(normalizedDateStr);
   return date.toLocaleDateString('en-US', {
@@ -21,6 +26,30 @@ const formatDateTimePacific = (dateStr: string): string => {
     hour12: true,
     timeZone: 'America/Los_Angeles'
   });
+};
+
+const getEventTypeFromPayload = (payload: any, storedEventType: string): string => {
+  // If we have a stored event type that's not unknown, use it
+  if (storedEventType && storedEventType !== 'unknown') {
+    return storedEventType;
+  }
+  
+  // Try to determine event type from payload structure
+  const booking = payload?.booking || payload?.data;
+  if (booking) {
+    // Check for cancellation indicators
+    if (booking.cancelled || booking.canceled || booking.status === 'cancelled' || booking.status === 'canceled') {
+      return 'cancelled';
+    }
+    // Check for update indicators (has updatedAt that differs from createdAt)
+    if (booking.updatedAt && booking.createdAt && booking.updatedAt !== booking.createdAt) {
+      return 'updated';
+    }
+    // Default to created for new bookings
+    return 'created';
+  }
+  
+  return storedEventType || 'webhook';
 };
 
 interface TrackmanWebhookEventsSectionProps {
@@ -165,11 +194,11 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
             <div className="space-y-2">
               <div className={`space-y-2 ${compact ? 'max-h-[300px]' : 'max-h-[500px]'} overflow-y-auto`}>
                 {webhookEvents.map((event: any) => {
-                  const eventType = event.event_type || 'unknown';
                   const hasError = !!event.processing_error;
                   const isExpanded = expandedEventId === event.id;
                   
                   const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+                  const eventType = getEventTypeFromPayload(payload, event.event_type);
                   const bookingData = payload?.data || payload?.booking || {};
                   const bayName = bookingData?.bay_name || bookingData?.bayName || (bookingData?.bay?.ref ? `Bay ${bookingData.bay.ref}` : undefined);
 
