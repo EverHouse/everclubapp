@@ -2112,6 +2112,11 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     </div>
                 </div>
             )}
+            
+            {/* Trackman Webhook Events - Full width below both panels */}
+            <div className="p-4 lg:p-5">
+              <TrackmanWebhookEventsSection compact={false} />
+            </div>
 
             <ModalShell isOpen={!!actionModal && !!selectedRequest} onClose={() => { setActionModal(null); setSelectedRequest(null); setError(null); setShowTrackmanConfirm(false); }} title={actionModal === 'approve' ? 'Approve Request' : 'Decline Request'} showCloseButton={false}>
                 <div className="p-6 space-y-4">
@@ -2966,12 +2971,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
               </div>
             </ModalShell>
                 </div>
-                
-                {/* Trackman Webhook Events Section */}
-                <div className="mt-6">
-                  <TrackmanWebhookEventsSection compact={false} />
-                </div>
-                
                 <FloatingActionButton onClick={() => setShowManualBooking(true)} color="brand" label="Create manual booking" />
             </AnimatedPage>
     );
