@@ -904,18 +904,19 @@ async function handleSubscriptionCreated(subscription: any): Promise<void> {
       }
       
       await pool.query(
-        `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, join_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'active', $5, $6, NOW(), NOW(), NOW())
+        `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, join_date, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'active', $5, $6, 'stripe', NOW(), NOW(), NOW())
          ON CONFLICT (email) DO UPDATE SET 
            stripe_customer_id = EXCLUDED.stripe_customer_id,
            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
            membership_status = 'active',
+           billing_provider = 'stripe',
            tier = COALESCE(EXCLUDED.tier, users.tier),
            updated_at = NOW()`,
-        [customerEmail, firstName, lastName, tierSlug, customerId, subscription.id]
+        [customerEmail, firstName, lastName, tierName, customerId, subscription.id]
       );
       
-      console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierSlug || 'none'}, subscription ${subscription.id}`);
+      console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, subscription ${subscription.id}`);
       
       try {
         const { findOrCreateHubSpotContact } = await import('../hubspot/members');
@@ -1107,17 +1108,16 @@ async function handleSubscriptionUpdated(subscription: any, previousAttributes?:
       );
       
       if (tierResult.rows.length > 0) {
-        const newTierSlug = tierResult.rows[0].slug;
         const newTierName = tierResult.rows[0].name;
         
-        // Compare slugs for consistency (users.tier stores slug, not name)
-        if (newTierSlug && newTierSlug !== currentTier) {
+        // Compare names (users.tier stores the display name like 'Social', not slug)
+        if (newTierName && newTierName !== currentTier) {
           await pool.query(
-            'UPDATE users SET tier = $1, updated_at = NOW() WHERE id = $2',
-            [newTierSlug, userId]
+            'UPDATE users SET tier = $1, billing_provider = $3, updated_at = NOW() WHERE id = $2',
+            [newTierName, userId, 'stripe']
           );
           
-          console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierSlug}`);
+          console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName}`);
           
           await notifyMember({
             userEmail: email,
