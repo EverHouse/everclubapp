@@ -285,16 +285,17 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
     if (globalSubscriptions.data.length === 0) {
       console.log('[Financials] No subscriptions in global list - scanning database customers (for test clock support)...');
       
-      // Get all customers with stripe_customer_id from our database
+      // Get only Stripe-billed customers (not MindBody) to minimize API calls
       const dbResult = await pool.query(`
         SELECT DISTINCT email, stripe_customer_id, first_name, last_name 
         FROM users 
         WHERE stripe_customer_id IS NOT NULL 
         AND stripe_customer_id != ''
-        LIMIT 500
+        AND billing_provider = 'stripe'
+        LIMIT 100
       `);
       
-      console.log(`[Financials] Found ${dbResult.rows.length} customers with Stripe IDs in database`);
+      console.log(`[Financials] Found ${dbResult.rows.length} Stripe-billed customers in database`);
       
       // Deduplicate by stripe_customer_id
       const uniqueCustomers = new Map<string, typeof dbResult.rows[0]>();
