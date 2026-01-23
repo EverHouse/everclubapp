@@ -650,6 +650,139 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
   }
 });
 
+router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { trackman_booking_id, member_email, member_name, member_id } = req.body;
+    
+    if (!trackman_booking_id) {
+      return res.status(400).json({ error: 'Missing required field: trackman_booking_id' });
+    }
+    
+    if (!member_email || !member_name) {
+      return res.status(400).json({ error: 'Missing required fields: member_email, member_name' });
+    }
+    
+    const result = await db.transaction(async (tx) => {
+      const [existingBooking] = await tx.select()
+        .from(bookingRequests)
+        .where(eq(bookingRequests.trackmanExternalId, trackman_booking_id));
+      
+      if (existingBooking) {
+        const [updated] = await tx.update(bookingRequests)
+          .set({
+            userEmail: member_email.toLowerCase(),
+            userName: member_name,
+            userId: member_id || null,
+            isUnmatched: false,
+            staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Linked to member via Trackman webhook: ' || ${member_name} || ']'`,
+            updatedAt: new Date()
+          })
+          .where(eq(bookingRequests.id, existingBooking.id))
+          .returning();
+        
+        return { booking: updated, created: false };
+      }
+      
+      const [webhookLog] = await tx.execute(sql`
+        SELECT payload, trackman_booking_id 
+        FROM trackman_webhook_log 
+        WHERE trackman_booking_id = ${trackman_booking_id}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      
+      if (!webhookLog) {
+        throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
+      }
+      
+      const payload = typeof webhookLog.payload === 'string' 
+        ? JSON.parse(webhookLog.payload) 
+        : webhookLog.payload;
+      const bookingData = payload?.data || payload?.booking || {};
+      
+      const startStr = bookingData?.start;
+      const endStr = bookingData?.end;
+      const bayRef = bookingData?.bay?.ref;
+      
+      if (!startStr || !endStr) {
+        throw { statusCode: 400, error: 'Cannot extract booking time from webhook data' };
+      }
+      
+      const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
+      const endDate = new Date(endStr.includes('T') ? endStr : endStr.replace(' ', 'T') + 'Z');
+      
+      const requestDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      const startTime = startDate.toLocaleTimeString('en-US', { 
+        hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+      }) + ':00';
+      const endTime = endDate.toLocaleTimeString('en-US', { 
+        hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+      }) + ':00';
+      
+      let resourceId = 1;
+      if (bayRef) {
+        const bayNum = parseInt(bayRef);
+        if (bayNum >= 1 && bayNum <= 4) {
+          resourceId = bayNum;
+        }
+      }
+      
+      const [newBooking] = await tx.insert(bookingRequests)
+        .values({
+          userEmail: member_email.toLowerCase(),
+          userName: member_name,
+          userId: member_id || null,
+          resourceId,
+          requestDate,
+          startTime,
+          endTime,
+          status: 'approved',
+          trackmanExternalId: trackman_booking_id,
+          isUnmatched: false,
+          staffNotes: `[Linked from Trackman webhook by staff: ${member_name}]`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      await tx.execute(sql`
+        UPDATE trackman_webhook_log 
+        SET matched_booking_id = ${newBooking.id}
+        WHERE trackman_booking_id = ${trackman_booking_id}
+      `);
+      
+      return { booking: newBooking, created: true };
+    });
+    
+    const { broadcastToStaff } = await import('../core/websocket');
+    broadcastToStaff({
+      type: 'booking_updated',
+      bookingId: result.booking.id,
+      action: 'trackman_linked',
+      memberEmail: member_email,
+      memberName: member_name
+    });
+    
+    logFromRequest(req, 'link_trackman_to_member', 'booking', result.booking.id.toString(), {
+      trackman_booking_id,
+      member_email,
+      member_name,
+      was_created: result.created
+    });
+    
+    res.json({ 
+      success: true, 
+      booking: result.booking, 
+      created: result.created 
+    });
+  } catch (error: any) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.error });
+    }
+    logAndRespond(req, res, 500, 'Failed to link Trackman booking to member', error, 'LINK_TRACKMAN_ERROR');
+  }
+});
+
 router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);

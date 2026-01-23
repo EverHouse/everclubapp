@@ -9,16 +9,6 @@ import PullToRefresh from '../../../components/PullToRefresh';
 import ManagePlayersModal from '../../../components/admin/ManagePlayersModal';
 import RosterManager from '../../../components/booking/RosterManager';
 
-function getCsrfToken(): string | null {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : null;
-}
-
-function getCsrfHeaders(): Record<string, string> {
-  const token = getCsrfToken();
-  return token ? { 'x-csrf-token': token } : {};
-}
-
 const formatTime12Hour = (time: string | null | undefined): string => {
   if (!time) return '';
   const [hours, minutes] = time.split(':').map(Number);
@@ -171,7 +161,7 @@ const TrackmanTab: React.FC = () => {
     try {
       const res = await fetch('/api/admin/mindbody/link', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           mindbodyClientId: mindbodyLinkModal.record.mindbodyClientId,
@@ -327,7 +317,7 @@ const TrackmanTab: React.FC = () => {
     try {
       const res = await fetch(`/api/admin/trackman/unmatched/${fuzzyMatchModal.booking.id}/resolve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ memberEmail: fuzzyMatchModal.selectedEmail })
       });
@@ -341,7 +331,7 @@ const TrackmanTab: React.FC = () => {
           try {
             await fetch('/api/admin/linked-emails', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+              headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({
                 primaryEmail: fuzzyMatchModal.selectedEmail,
@@ -508,7 +498,6 @@ const TrackmanTab: React.FC = () => {
       
       const res = await fetch('/api/admin/trackman/upload', {
         method: 'POST',
-        headers: { ...getCsrfHeaders() },
         credentials: 'include',
         body: formData,
         signal: controller.signal
@@ -558,7 +547,7 @@ const TrackmanTab: React.FC = () => {
       const res = await fetch('/api/admin/trackman/rescan', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() }
+        headers: { 'Content-Type': 'application/json' }
       });
       const data = await res.json();
       setRescanResult(data);
@@ -584,7 +573,7 @@ const TrackmanTab: React.FC = () => {
     try {
       const res = await fetch(`/api/admin/trackman/unmatched/${resolveModal.booking.id}/resolve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ memberEmail: resolveModal.memberEmail })
       });
@@ -598,7 +587,7 @@ const TrackmanTab: React.FC = () => {
           try {
             await fetch('/api/admin/linked-emails', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+              headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({
                 primaryEmail: resolveModal.memberEmail,
@@ -632,7 +621,7 @@ const TrackmanTab: React.FC = () => {
     try {
       const res = await fetch(`/api/admin/trackman/matched/${editMatchedModal.booking.id}/reassign`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ newMemberEmail: editMatchedModal.newMemberEmail })
       });
@@ -658,7 +647,7 @@ const TrackmanTab: React.FC = () => {
     try {
       const res = await fetch(`/api/admin/trackman/unmatched/${unmatchedId}/resolve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ memberEmail })
       });

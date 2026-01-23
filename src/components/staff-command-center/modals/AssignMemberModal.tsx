@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import BottomSheet from '../../ui/BottomSheet';
+import { ModalShell } from '../../ModalShell';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import type { BookingRequest } from '../types';
 import { formatDateShort } from '../../../utils/dateUtils';
@@ -97,12 +97,13 @@ export default function AssignMemberModal({ isOpen, onClose, booking, onAssign }
   const endTime = booking.end_time.substring(0, 5);
 
   return (
-    <BottomSheet
+    <ModalShell
       isOpen={isOpen}
       onClose={onClose}
       title="Assign Member to Booking"
+      size="lg"
     >
-      <div className="px-5 pb-8 pt-4 space-y-5">
+      <div className="space-y-5">
         <div className="p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
@@ -234,6 +235,6 @@ export default function AssignMemberModal({ isOpen, onClose, booking, onAssign }
           </button>
         </div>
       </div>
-    </BottomSheet>
+    </ModalShell>
   );
 }

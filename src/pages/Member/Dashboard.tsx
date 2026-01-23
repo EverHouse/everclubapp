@@ -580,15 +580,13 @@ const Dashboard: React.FC = () => {
 
         try {
           let res;
-          const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
-          const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (csrfToken) baseHeaders['x-csrf-token'] = csrfToken;
+          const headers = { 'Content-Type': 'application/json' };
           
           if (bookingType === 'booking') {
             // Pass acting_as_email for admin "View As" mode
             res = await fetch(`/api/bookings/${bookingId}/member-cancel`, {
               method: 'PUT',
-              headers: baseHeaders,
+              headers,
               credentials: 'include',
               body: JSON.stringify(isAdminViewingAs ? { acting_as_email: user?.email } : {})
             });
@@ -596,7 +594,7 @@ const Dashboard: React.FC = () => {
             // Pass acting_as_email for admin "View As" mode
             res = await fetch(`/api/booking-requests/${bookingId}/member-cancel`, {
               method: 'PUT',
-              headers: baseHeaders,
+              headers,
               credentials: 'include',
               body: JSON.stringify(isAdminViewingAs ? { acting_as_email: user?.email } : {})
             });

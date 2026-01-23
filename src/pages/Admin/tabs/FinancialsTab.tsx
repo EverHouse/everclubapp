@@ -1520,11 +1520,9 @@ const SubscriptionsSubTab: React.FC = () => {
     setSyncResult(null);
     setError(null);
     try {
-      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
       const res = await fetch('/api/stripe/sync-subscriptions', {
         method: 'POST',
         credentials: 'include',
-        headers: csrfToken ? { 'x-csrf-token': csrfToken } : {},
       });
       if (!res.ok) {
         const errData = await res.json();

@@ -15,6 +15,9 @@ import BookingMembersEditor from '../../../components/admin/BookingMembersEditor
 import { RosterManager } from '../../../components/booking';
 import { CheckinBillingModal } from '../../../components/staff-command-center/modals/CheckinBillingModal';
 import { CompleteRosterModal } from '../../../components/staff-command-center/modals/CompleteRosterModal';
+import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
+import AssignMemberModal from '../../../components/staff-command-center/modals/AssignMemberModal';
+import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 import { AnimatedPage } from '../../../components/motion';
 import { TrackmanWebhookEventsSection } from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
 
@@ -720,6 +723,15 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [savingTrackmanId, setSavingTrackmanId] = useState(false);
     const [billingModal, setBillingModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
     const [rosterModal, setRosterModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
+    const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
+    const [assignMemberModal, setAssignMemberModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
+    const [trackmanLinkModal, setTrackmanLinkModal] = useState<{ 
+        isOpen: boolean; 
+        trackmanBookingId: string | null;
+        bayName?: string;
+        bookingDate?: string;
+        timeSlot?: string;
+    }>({ isOpen: false, trackmanBookingId: null });
     const [cancelConfirmModal, setCancelConfirmModal] = useState<{
         isOpen: boolean;
         booking: BookingRequest | null;
@@ -962,6 +974,79 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         return () => window.removeEventListener('booking-update', handleBookingUpdate);
     }, [handleRefresh]);
 
+    const handleTrackmanConfirm = useCallback(async (bookingId: number | string, trackmanExternalId: string) => {
+        const apiId = typeof bookingId === 'string' ? parseInt(String(bookingId).replace('cal_', '')) : bookingId;
+        const booking = requests.find(r => r.id === bookingId);
+        
+        const previousRequests = [...requests];
+        setRequests(prev => prev.filter(r => r.id !== bookingId));
+
+        try {
+            const res = await fetch(`/api/booking-requests/${apiId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    status: 'approved',
+                    trackman_external_id: trackmanExternalId
+                })
+            });
+            if (res.ok) {
+                showToast('Booking confirmed with Trackman', 'success');
+                window.dispatchEvent(new CustomEvent('booking-action-completed'));
+                handleRefresh();
+            } else {
+                const error = await res.json().catch(() => ({}));
+                setRequests(previousRequests);
+                throw new Error(error.error || 'Failed to confirm booking');
+            }
+        } catch (err: any) {
+            setRequests(previousRequests);
+            throw err;
+        }
+    }, [requests, showToast, handleRefresh]);
+
+    const handleAssignMember = useCallback((bookingId: number, memberEmail: string, memberName: string) => {
+        setApprovedBookings(prev => prev.map(b => 
+            b.id === bookingId 
+                ? { ...b, user_email: memberEmail, user_name: memberName, is_unmatched: false }
+                : b
+        ));
+        
+        showToast(`Member ${memberName} assigned to booking`, 'success');
+        window.dispatchEvent(new CustomEvent('booking-action-completed'));
+        handleRefresh();
+    }, [showToast, handleRefresh]);
+
+    const handleLinkTrackmanToMember = useCallback((event: {
+        trackmanBookingId: string;
+        bayName?: string;
+        bookingDate?: string;
+        timeSlot?: string;
+    }) => {
+        setTrackmanLinkModal({
+            isOpen: true,
+            trackmanBookingId: event.trackmanBookingId,
+            bayName: event.bayName,
+            bookingDate: event.bookingDate,
+            timeSlot: event.timeSlot
+        });
+    }, []);
+
+    const unmatchedBookings = useMemo(() => {
+        const today = getTodayPacific();
+        return approvedBookings.filter(b => 
+            (b as any).is_unmatched === true && 
+            b.request_date >= today &&
+            (b.status === 'approved' || b.status === 'confirmed')
+        ).sort((a, b) => {
+            if (a.request_date !== b.request_date) {
+                return a.request_date.localeCompare(b.request_date);
+            }
+            return a.start_time.localeCompare(b.start_time);
+        });
+    }, [approvedBookings]);
+
     const updateBookingStatusOptimistic = useCallback(async (
         booking: BookingRequest,
         newStatus: 'attended' | 'no_show' | 'cancelled'
@@ -981,13 +1066,9 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         ));
         
         try {
-            const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
             const res = await fetch(`/api/bookings/${booking.id}/checkin`, {
                 method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
-                },
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ status: newStatus, source: booking.source })
             });
@@ -1614,11 +1695,11 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         </p>
                                         <div className="flex gap-2">
                                             <button
-                                                onClick={() => window.open('https://login.trackmangolf.com/Account/Login', '_blank')}
-                                                className="flex-1 py-2 px-3 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                                onClick={() => setTrackmanModal({ isOpen: true, booking: req })}
+                                                className="flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
                                             >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">open_in_new</span>
-                                                Open Trackman
+                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
+                                                Book on Trackman
                                             </button>
                                             <button
                                                 onClick={() => { setSelectedRequest(req); setActionModal('decline'); }}
@@ -1631,13 +1712,10 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         {import.meta.env.DEV && (
                                             <button
                                                 onClick={async () => {
-                                                    const csrfToken = getCsrfToken();
-                                                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                                                    if (csrfToken) headers['x-csrf-token'] = csrfToken;
                                                     try {
                                                         const res = await fetch(`/api/admin/bookings/${req.id}/simulate-confirm`, {
                                                             method: 'POST',
-                                                            headers,
+                                                            headers: { 'Content-Type': 'application/json' },
                                                             credentials: 'include'
                                                         });
                                                         const data = await res.json();
@@ -1662,6 +1740,64 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                             </div>
                         )}
                     </div>
+
+                    {unmatchedBookings.length > 0 && (
+                        <div className="animate-pop-in" style={{animationDelay: '0.1s'}}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                                    <span aria-hidden="true" className="material-symbols-outlined text-amber-500">link_off</span>
+                                    Unmatched Bookings ({unmatchedBookings.length})
+                                </h3>
+                            </div>
+                            <div className="space-y-3">
+                                {unmatchedBookings.map((booking, index) => {
+                                    const bookingResource = resources.find(r => r.id === booking.resource_id);
+                                    return (
+                                        <div 
+                                            key={`unmatched-${booking.id}`} 
+                                            className="bg-amber-50 dark:bg-amber-500/10 p-4 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/40 animate-pop-in" 
+                                            style={{animationDelay: `${0.1 + index * 0.05}s`}}
+                                        >
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <p className="font-bold text-amber-800 dark:text-amber-300">
+                                                            {booking.user_name || 'Unknown (Trackman)'}
+                                                        </p>
+                                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-200 dark:bg-amber-500/30 text-amber-700 dark:text-amber-300">
+                                                            Needs Assignment
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-amber-700/70 dark:text-amber-400/70">
+                                                        {formatDateShortAdmin(booking.request_date)} • {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
+                                                    </p>
+                                                    {bookingResource && (
+                                                        <p className="text-sm text-amber-600/70 dark:text-amber-400/60 mt-0.5">
+                                                            {bookingResource.type === 'conference_room' ? 'Conference Room' : bookingResource.name}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            {booking.trackman_booking_id && (
+                                                <p className="text-xs text-amber-600/60 dark:text-amber-400/50 mb-3 font-mono">
+                                                    Trackman ID: {booking.trackman_booking_id}
+                                                </p>
+                                            )}
+                                            
+                                            <button
+                                                onClick={() => setAssignMemberModal({ isOpen: true, booking })}
+                                                className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                            >
+                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
+                                                Assign Member
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="animate-pop-in" style={{animationDelay: '0.15s'}}>
                         <h3 className="font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
@@ -1893,12 +2029,9 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     if (isSyncing) return;
                                     setIsSyncing(true);
                                     try {
-                                        const csrfToken = getCsrfToken();
-                                        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                                        if (csrfToken) headers['x-csrf-token'] = csrfToken;
                                         const res = await fetch('/api/admin/bookings/sync-calendar', {
                                             method: 'POST',
-                                            headers,
+                                            headers: { 'Content-Type': 'application/json' },
                                             credentials: 'include'
                                         });
                                         const data = await res.json();
@@ -1908,8 +2041,9 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         } else {
                                             showToast(data.error || 'Sync failed', 'error');
                                         }
-                                    } catch (err) {
-                                        showToast('Failed to sync', 'error');
+                                    } catch (err: any) {
+                                        const errorMsg = err?.message || 'Network error - please check your connection';
+                                        showToast(`Sync failed: ${errorMsg}`, 'error');
                                     } finally {
                                         setIsSyncing(false);
                                     }
@@ -2860,6 +2994,33 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
               }}
             />
 
+            <TrackmanBookingModal
+              isOpen={trackmanModal.isOpen}
+              onClose={() => setTrackmanModal({ isOpen: false, booking: null })}
+              booking={trackmanModal.booking}
+              onConfirm={handleTrackmanConfirm}
+            />
+
+            <AssignMemberModal
+              isOpen={assignMemberModal.isOpen}
+              onClose={() => setAssignMemberModal({ isOpen: false, booking: null })}
+              booking={assignMemberModal.booking}
+              onAssign={handleAssignMember}
+            />
+
+            <TrackmanLinkModal
+              isOpen={trackmanLinkModal.isOpen}
+              onClose={() => setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null })}
+              trackmanBookingId={trackmanLinkModal.trackmanBookingId}
+              bayName={trackmanLinkModal.bayName}
+              bookingDate={trackmanLinkModal.bookingDate}
+              timeSlot={trackmanLinkModal.timeSlot}
+              onSuccess={() => {
+                showToast('Trackman booking linked to member', 'success');
+                handleRefresh();
+              }}
+            />
+
             <ModalShell 
               isOpen={cancelConfirmModal.isOpen} 
               onClose={() => !cancelConfirmModal.isCancelling && setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false })} 
@@ -2974,7 +3135,10 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 
                 {/* Trackman Webhook Events - Separate full-width card below main content */}
                 <div className="w-full mt-4">
-                  <TrackmanWebhookEventsSection compact={false} />
+                  <TrackmanWebhookEventsSection 
+                    compact={false} 
+                    onLinkToMember={handleLinkTrackmanToMember}
+                  />
                 </div>
                 
                 <FloatingActionButton onClick={() => setShowManualBooking(true)} color="brand" label="Create manual booking" />

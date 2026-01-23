@@ -112,9 +112,16 @@ const getEventTypeFromPayload = (payload: any, storedEventType: string): string 
 
 interface TrackmanWebhookEventsSectionProps {
   compact?: boolean;
+  onLinkToMember?: (event: {
+    trackmanBookingId: string;
+    bayName?: string;
+    bookingDate?: string;
+    timeSlot?: string;
+    duration?: string;
+  }) => void;
 }
 
-export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSectionProps> = ({ compact = true }) => {
+export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSectionProps> = ({ compact = true, onLinkToMember }) => {
   const [showSection, setShowSection] = useState(false);
   const [webhookEvents, setWebhookEvents] = useState<any[]>([]);
   const [webhookStats, setWebhookStats] = useState<any>(null);
@@ -342,15 +349,33 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                             </p>
                           )}
                         </div>
-                        <button
-                          onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
-                          className="p-1.5 md:p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 transition-colors shrink-0"
-                          title={isExpanded ? 'Hide payload' : 'Show payload'}
-                        >
-                          <span className={`material-symbols-outlined text-primary/60 dark:text-white/60 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                            expand_more
-                          </span>
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {onLinkToMember && event.trackman_booking_id && !event.matched_booking_id && (
+                            <button
+                              onClick={() => onLinkToMember({
+                                trackmanBookingId: event.trackman_booking_id,
+                                bayName,
+                                bookingDate,
+                                timeSlot,
+                                duration
+                              })}
+                              className="px-2 py-1.5 rounded-lg text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-400 transition-colors flex items-center gap-1"
+                              title="Link this Trackman booking to a member"
+                            >
+                              <span className="material-symbols-outlined text-sm">person_add</span>
+                              <span className="hidden sm:inline">Link to Member</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
+                            className="p-1.5 md:p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 transition-colors shrink-0"
+                            title={isExpanded ? 'Hide payload' : 'Show payload'}
+                          >
+                            <span className={`material-symbols-outlined text-primary/60 dark:text-white/60 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                              expand_more
+                            </span>
+                          </button>
+                        </div>
                       </div>
                       
                       {isExpanded && (
