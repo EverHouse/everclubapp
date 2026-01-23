@@ -51,7 +51,7 @@ export function TrackmanLinkModal({
     
     setSearching(true);
     try {
-      const res = await fetch(`/api/members/search?q=${encodeURIComponent(query)}&limit=10`);
+      const res = await fetch(`/api/members/search?query=${encodeURIComponent(query)}&limit=10`);
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data.map((m: any) => ({

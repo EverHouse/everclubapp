@@ -1532,6 +1532,24 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
         normalized.playerCount,
         'bay_unmapped'
       );
+      
+      // ALSO create a booking_request to block the time slot on the calendar
+      const unmatchedResult = await createUnmatchedBookingRequest(
+        normalized.trackmanBookingId,
+        normalized.externalBookingId,
+        startParsed.date,
+        startParsed.time,
+        endParsed?.time || startParsed.time,
+        null, // no resource_id since bay couldn't be mapped
+        normalized.customerEmail,
+        normalized.customerName,
+        normalized.playerCount
+      );
+      
+      if (unmatchedResult.created) {
+        matchedBookingId = unmatchedResult.bookingId;
+      }
+      
       return { success: true, matchedBookingId };
     }
     
@@ -1593,6 +1611,23 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
     normalized.customerName,
     normalized.playerCount
   );
+  
+  // ALSO create a booking_request to block the time slot on the calendar
+  const unmatchedResult = await createUnmatchedBookingRequest(
+    normalized.trackmanBookingId,
+    normalized.externalBookingId,
+    startParsed.date,
+    startParsed.time,
+    endParsed?.time || startParsed.time,
+    resourceId,
+    normalized.customerEmail,
+    normalized.customerName,
+    normalized.playerCount
+  );
+  
+  if (unmatchedResult.created) {
+    matchedBookingId = unmatchedResult.bookingId;
+  }
   
   // Notify staff about the unmatched booking that needs review
   await notifyStaffBookingCreated(
