@@ -87,9 +87,14 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
       .where(whereConditions)
       .limit(maxResults);
     
+    // Check if requester is staff - if so, include full email for linking functionality
+    const sessionUser = (req as any).session?.user;
+    const isStaff = sessionUser?.isStaff || sessionUser?.role === 'admin' || sessionUser?.role === 'staff';
+    
     const formattedResults = results.map(user => ({
       id: user.id,
       name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown',
+      email: isStaff ? user.email : undefined,
       emailRedacted: redactEmail(user.email || ''),
       tier: user.tier || undefined,
     }));

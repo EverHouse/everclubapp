@@ -64,8 +64,8 @@ export function TrackmanLinkModal({
         const data = await res.json();
         setSearchResults(data.map((m: any) => ({
           id: m.id,
-          email: m.email,
-          name: `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.email,
+          email: m.email || m.emailRedacted || '',
+          name: m.name || m.firstName ? `${m.firstName || ''} ${m.lastName || ''}`.trim() : 'Unknown',
           tier: m.tier
         })));
       }
@@ -225,9 +225,9 @@ export function TrackmanLinkModal({
                     : 'hover:bg-gray-50 dark:hover:bg-white/5'
                 }`}
               >
-                <div>
-                  <p className="font-medium text-primary dark:text-white">{member.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-white/60">{member.email}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{member.email}</p>
                 </div>
                 {member.tier && (
                   <span className="text-xs px-2 py-0.5 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-full">
