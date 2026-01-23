@@ -1727,4 +1727,117 @@ router.post('/api/admin/trackman-webhook/cleanup', isStaffOrAdmin, async (req: R
   }
 });
 
+// Dev-only: Manual booking confirmation (simulates Trackman webhook)
+router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const bookingId = parseInt(req.params.id, 10);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+
+    // Get the pending booking
+    const bookingResult = await pool.query(
+      `SELECT br.*, u.stripe_customer_id, u.tier
+       FROM booking_requests br
+       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+       WHERE br.id = $1`,
+      [bookingId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+    
+    if (booking.status !== 'pending' && booking.status !== 'pending_approval') {
+      return res.status(400).json({ error: `Booking is already ${booking.status}` });
+    }
+
+    // Generate a fake Trackman booking ID
+    const fakeTrackmanId = `SIM-${Date.now()}`;
+
+    // Update the booking to approved status
+    await pool.query(
+      `UPDATE booking_requests 
+       SET status = 'approved', 
+           trackman_booking_id = $1,
+           notes = COALESCE(notes, '') || E'\n[Simulated confirmation for testing]',
+           updated_at = NOW()
+       WHERE id = $2`,
+      [fakeTrackmanId, bookingId]
+    );
+
+    // Create payment intent for overage fee if applicable
+    if (booking.overage_fee_cents > 0 && booking.stripe_customer_id) {
+      try {
+        const { createPaymentIntent } = await import('../core/stripe/payments');
+        const paymentResult = await createPaymentIntent({
+          userId: booking.user_id || booking.user_email,
+          email: booking.user_email,
+          memberName: booking.user_name,
+          amountCents: booking.overage_fee_cents,
+          purpose: 'overage_fee',
+          bookingId: bookingId,
+          description: `Simulator overage fee for ${booking.request_date}`,
+          metadata: {
+            bookingId: bookingId.toString(),
+            bayId: booking.resource_id?.toString(),
+            overageMinutes: booking.overage_minutes?.toString(),
+          }
+        });
+        
+        if (paymentResult.success) {
+          await pool.query(
+            `UPDATE booking_requests SET overage_paid = false WHERE id = $1`,
+            [bookingId]
+          );
+          logger.info('[Simulate Confirm] Created overage payment intent', {
+            bookingId,
+            paymentIntentId: paymentResult.paymentIntentId,
+            amount: booking.overage_fee_cents
+          });
+        }
+      } catch (paymentError: any) {
+        logger.error('[Simulate Confirm] Failed to create payment intent', { error: paymentError });
+      }
+    }
+
+    // Send notifications
+    try {
+      await notifyMember(booking.user_email, {
+        title: 'Booking Confirmed',
+        body: `Your simulator booking for ${formatDatePacific(booking.request_date)} at ${formatTimePacific(booking.start_time)} has been confirmed.`,
+        type: 'booking_confirmed',
+        metadata: { bookingId: bookingId.toString() }
+      });
+
+      sendNotificationToUser(booking.user_email, {
+        type: 'booking_approved',
+        message: 'Your booking has been confirmed',
+        bookingId: bookingId,
+        timestamp: new Date().toISOString()
+      });
+    } catch (notifyError) {
+      logger.error('[Simulate Confirm] Notification error (non-blocking)', { error: notifyError });
+    }
+
+    logger.info('[Simulate Confirm] Booking manually confirmed', {
+      bookingId,
+      userEmail: booking.user_email,
+      trackmanId: fakeTrackmanId
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Booking confirmed (simulated)',
+      trackmanId: fakeTrackmanId,
+      overageFeeCents: booking.overage_fee_cents
+    });
+  } catch (error: any) {
+    logger.error('[Simulate Confirm] Error', { error });
+    res.status(500).json({ error: 'Failed to confirm booking' });
+  }
+});
+
 export default router;

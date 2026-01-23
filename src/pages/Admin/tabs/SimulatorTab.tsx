@@ -747,13 +747,22 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         setSavingTrackmanId(false);
     }, [selectedCalendarBooking]);
 
+    const getCsrfToken = (): string | null => {
+        const match = document.cookie.match(/csrf_token=([^;]+)/);
+        return match ? match[1] : null;
+    };
+
     const handleSyncHistory = useCallback(async () => {
         if (isSyncingHistory) return;
         setIsSyncingHistory(true);
         try {
+            const csrfToken = getCsrfToken();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['x-csrf-token'] = csrfToken;
+            
             const res = await fetch('/api/admin/bookings/sync-history', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ monthsBack: 12 }),
                 credentials: 'include'
             });
@@ -1777,6 +1786,35 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                 Deny
                                             </button>
                                         </div>
+                                        {import.meta.env.DEV && (
+                                            <button
+                                                onClick={async () => {
+                                                    const csrfToken = getCsrfToken();
+                                                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                                                    if (csrfToken) headers['x-csrf-token'] = csrfToken;
+                                                    try {
+                                                        const res = await fetch(`/api/admin/bookings/${req.id}/simulate-confirm`, {
+                                                            method: 'POST',
+                                                            headers,
+                                                            credentials: 'include'
+                                                        });
+                                                        const data = await res.json();
+                                                        if (res.ok) {
+                                                            showToast(`Confirmed! Overage: $${(data.overageFeeCents / 100).toFixed(2)}`, 'success');
+                                                            setRequests(prev => prev.filter(r => r.id !== req.id));
+                                                        } else {
+                                                            showToast(data.error || 'Failed to confirm', 'error');
+                                                        }
+                                                    } catch (err) {
+                                                        showToast('Failed to simulate confirm', 'error');
+                                                    }
+                                                }}
+                                                className="w-full mt-2 py-1.5 px-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors border border-dashed border-green-400 dark:border-green-500/50"
+                                            >
+                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">science</span>
+                                                DEV: Simulate Confirm
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
