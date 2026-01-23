@@ -21,6 +21,7 @@ import { refundGuestPass } from './guestPasses';
 import { updateHubSpotContactVisitCount } from '../core/memberSync';
 import { createSessionWithUsageTracking } from '../core/bookingService/sessionManager';
 import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
+import { cancelPaymentIntent } from '../core/stripe';
 
 const router = Router();
 
@@ -1741,7 +1742,9 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       status: bookingRequests.status,
       calendarEventId: bookingRequests.calendarEventId,
       resourceId: bookingRequests.resourceId,
-      trackmanBookingId: bookingRequests.trackmanBookingId
+      trackmanBookingId: bookingRequests.trackmanBookingId,
+      overagePaymentIntentId: bookingRequests.overagePaymentIntentId,
+      overagePaid: bookingRequests.overagePaid
     })
       .from(bookingRequests)
       .where(eq(bookingRequests.id, bookingId));
@@ -1803,6 +1806,20 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       })
       .where(eq(bookingRequests.id, bookingId))
       .returning();
+    
+    // Cancel any pending overage payment intent
+    if (existing.overagePaymentIntentId && !existing.overagePaid) {
+      try {
+        await cancelPaymentIntent(existing.overagePaymentIntentId);
+        // Clear the payment intent from the booking
+        await db.update(bookingRequests)
+          .set({ overagePaymentIntentId: null, overageFeeCents: 0, overageMinutes: 0 })
+          .where(eq(bookingRequests.id, bookingId));
+        console.log(`[Member Cancel] Cancelled overage payment intent ${existing.overagePaymentIntentId} for booking ${bookingId}`);
+      } catch (paymentErr) {
+        console.error('[Member Cancel] Failed to cancel overage payment intent (non-blocking):', paymentErr);
+      }
+    }
     
     if (wasApproved) {
       const memberName = existing.userName || existing.userEmail;

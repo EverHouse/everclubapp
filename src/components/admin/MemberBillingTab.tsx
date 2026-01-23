@@ -496,9 +496,11 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     setIsCanceling(true);
     setError(null);
     try {
+      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/cancel`, {
         method: 'POST',
         credentials: 'include',
+        headers: csrfToken ? { 'x-csrf-token': csrfToken } : {},
       });
       if (res.ok) {
         await fetchBillingInfo();
@@ -519,9 +521,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     setIsApplyingCredit(true);
     setError(null);
     try {
+      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/credit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify({ amountCents, description }),
       });
@@ -544,9 +549,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     setIsApplyingDiscount(true);
     setError(null);
     try {
+      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/discount`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify({ percentOff, duration }),
       });
