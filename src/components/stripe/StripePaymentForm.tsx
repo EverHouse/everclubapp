@@ -7,6 +7,8 @@ import {
 } from '@stripe/react-stripe-js';
 import { loadStripe, Stripe, StripeElementsOptions } from '@stripe/stripe-js';
 
+const getCsrfToken = () => document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+
 let stripePromise: Promise<Stripe | null> | null = null;
 
 async function getStripePromise(): Promise<Stripe | null> {
@@ -160,7 +162,7 @@ export function StripePaymentForm({
 
         const res = await fetch('/api/stripe/create-payment-intent', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
           credentials: 'include',
           body: JSON.stringify({
             userId,
