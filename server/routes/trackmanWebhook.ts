@@ -4,10 +4,11 @@ import { pool } from '../core/db';
 import { logger } from '../core/logger';
 import { isStaffOrAdmin } from '../core/middleware';
 import { sendNotificationToUser, broadcastToStaff } from '../core/websocket';
-import { sendBookingConfirmationEmail } from '../emails/bookingEmails';
+// Removed sendBookingConfirmationEmail import - email notifications disabled per user preference, push only for now
 import { notifyAllStaff } from '../core/staffNotifications';
 import { notifyMember } from '../core/notificationService';
 import { formatDatePacific, formatTimePacific } from '../utils/dateUtils';
+import { refundGuestPass } from './guestPasses';
 
 const router = Router();
 
@@ -463,48 +464,127 @@ async function createBookingForMember(
     
     // AUTO-LINK CHECK: Look for pending Trackman sync bookings that match by member/date/time
     // These are bookings created via "Create in Trackman" button, waiting for webhook to link
+    // Use ±15 minute time tolerance (900 seconds) to handle staff booking at slightly different times
+    // Also check for 'pending' status bookings that can be auto-approved and linked
     const pendingSync = await pool.query(
-      `SELECT id, staff_notes FROM booking_requests 
+      `SELECT id, staff_notes, start_time, end_time, status FROM booking_requests 
        WHERE LOWER(user_email) = LOWER($1)
        AND request_date = $2
-       AND start_time = $3
-       AND status = 'approved'
+       AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 900
+       AND status IN ('approved', 'pending')
        AND trackman_booking_id IS NULL
-       AND staff_notes LIKE '%[PENDING_TRACKMAN_SYNC]%'
-       ORDER BY created_at DESC
+       AND (staff_notes LIKE '%[PENDING_TRACKMAN_SYNC]%' OR status = 'pending')
+       ORDER BY 
+         CASE WHEN staff_notes LIKE '%[PENDING_TRACKMAN_SYNC]%' THEN 0 ELSE 1 END,
+         ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))),
+         created_at DESC
        LIMIT 1`,
       [member.email, slotDate, startTime]
     );
     
     if (pendingSync.rows.length > 0) {
       const pendingBookingId = pendingSync.rows[0].id;
+      const originalStartTime = pendingSync.rows[0].start_time;
+      const originalEndTime = pendingSync.rows[0].end_time;
+      const originalStatus = pendingSync.rows[0].status;
+      const wasTimeTolerance = originalStartTime !== startTime;
+      const wasPending = originalStatus === 'pending';
+      
+      // Log time tolerance match details
+      if (wasTimeTolerance) {
+        logger.info('[Trackman Webhook] Time tolerance match - updating booking times to match Trackman', {
+          extra: {
+            bookingId: pendingBookingId,
+            originalStartTime,
+            trackmanStartTime: startTime,
+            originalEndTime,
+            trackmanEndTime: endTime,
+            timeDifferenceSeconds: Math.abs(
+              (parseInt(originalStartTime.split(':')[0]) * 60 + parseInt(originalStartTime.split(':')[1])) -
+              (parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]))
+            ) * 60
+          }
+        });
+      }
+      
       // Remove the pending sync marker and link the Trackman booking ID
-      const updatedNotes = (pendingSync.rows[0].staff_notes || '')
+      let updatedNotes = (pendingSync.rows[0].staff_notes || '')
         .replace('[PENDING_TRACKMAN_SYNC]', '[Linked via Trackman webhook]')
         .trim();
       
+      // Add note about time adjustment if times were different
+      if (wasTimeTolerance) {
+        updatedNotes += ` [Time adjusted: ${originalStartTime} → ${startTime}]`;
+      }
+      
+      // Add note about auto-approval if was pending
+      if (wasPending) {
+        updatedNotes += ' [Auto-approved via Trackman webhook]';
+      }
+      
+      // Calculate new duration based on Trackman times
+      const startParts = startTime.split(':').map(Number);
+      const endParts = endTime.split(':').map(Number);
+      const startMinutesCalc = startParts[0] * 60 + startParts[1];
+      const endMinutesCalc = endParts[0] * 60 + endParts[1];
+      const newDurationMinutes = endMinutesCalc > startMinutesCalc ? endMinutesCalc - startMinutesCalc : 60;
+      
+      // Update booking with Trackman times, link the ID, and auto-approve if pending
       await pool.query(
         `UPDATE booking_requests 
          SET trackman_booking_id = $1, 
              trackman_player_count = $2,
              staff_notes = $3,
+             start_time = $4,
+             end_time = $5,
+             duration_minutes = $6,
+             status = 'approved',
+             reviewed_by = COALESCE(reviewed_by, 'trackman_webhook'),
+             reviewed_at = COALESCE(reviewed_at, NOW()),
              updated_at = NOW()
-         WHERE id = $4`,
-        [trackmanBookingId, playerCount, updatedNotes, pendingBookingId]
+         WHERE id = $7`,
+        [trackmanBookingId, playerCount, updatedNotes, startTime, endTime, newDurationMinutes, pendingBookingId]
       );
       
-      logger.info('[Trackman Webhook] Auto-linked existing pending booking', {
+      const memberName = customerName || 
+        [member.firstName, member.lastName].filter(Boolean).join(' ') || 
+        member.email;
+      
+      logger.info('[Trackman Webhook] Auto-linked existing booking', {
         extra: { 
           bookingId: pendingBookingId, 
           trackmanBookingId, 
           email: member.email, 
           date: slotDate, 
-          time: startTime 
+          originalTime: originalStartTime,
+          trackmanTime: startTime,
+          wasTimeTolerance,
+          wasPending,
+          wasAutoApproved: wasPending
+        }
+      });
+      
+      const bayNameForNotification = `Bay ${resourceId}`;
+      broadcastToStaff({
+        type: 'booking_auto_confirmed',
+        title: 'Booking Auto-Confirmed',
+        message: `${memberName}'s booking for ${slotDate} at ${startTime} (${bayNameForNotification}) was auto-linked via Trackman.`,
+        data: {
+          bookingId: pendingBookingId,
+          memberName,
+          memberEmail: member.email,
+          date: slotDate,
+          time: startTime,
+          bay: bayNameForNotification,
+          wasAutoApproved: wasPending
         }
       });
       
       return { success: true, bookingId: pendingBookingId };
     }
+    
+    // Note: Cancelled booking check is handled in handleBookingUpdate before calling this function
+    // The main flow checks for cancelled bookings after tryAutoApproveBooking fails
     
     const startParts = startTime.split(':').map(Number);
     const endParts = endTime.split(':').map(Number);
@@ -679,6 +759,145 @@ async function cancelBookingByTrackmanId(trackmanBookingId: string): Promise<{ c
   }
 }
 
+async function refundGuestPassesForCancelledBooking(bookingId: number, memberEmail: string): Promise<number> {
+  try {
+    const sessionResult = await pool.query(
+      `SELECT session_id FROM booking_requests WHERE id = $1`,
+      [bookingId]
+    );
+    
+    if (!sessionResult.rows[0]?.session_id) {
+      return 0;
+    }
+    
+    const sessionId = sessionResult.rows[0].session_id;
+    
+    const guestParticipants = await pool.query(
+      `SELECT id, display_name FROM booking_participants 
+       WHERE session_id = $1 AND participant_type = 'guest'`,
+      [sessionId]
+    );
+    
+    let refundedCount = 0;
+    for (const guest of guestParticipants.rows) {
+      const result = await refundGuestPass(memberEmail, guest.display_name || undefined, false);
+      if (result.success) {
+        refundedCount++;
+      }
+    }
+    
+    if (refundedCount > 0) {
+      logger.info('[Trackman Webhook] Refunded guest passes for cancelled booking', {
+        extra: { bookingId, memberEmail, refundedCount }
+      });
+    }
+    
+    return refundedCount;
+  } catch (e) {
+    logger.error('[Trackman Webhook] Failed to refund guest passes for cancelled booking', { error: e as Error });
+    return 0;
+  }
+}
+
+async function tryLinkCancelledBooking(
+  customerEmail: string,
+  slotDate: string,
+  startTime: string,
+  trackmanBookingId: string
+): Promise<{ matched: boolean; bookingId?: number; refundedPasses?: number }> {
+  try {
+    const result = await pool.query(
+      `SELECT id, user_email, staff_notes, session_id FROM booking_requests 
+       WHERE LOWER(user_email) = LOWER($1)
+         AND request_date = $2
+         AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 900
+         AND status = 'cancelled'
+         AND updated_at >= NOW() - INTERVAL '24 hours'
+         AND trackman_booking_id IS NULL
+       ORDER BY ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))), updated_at DESC
+       LIMIT 1`,
+      [customerEmail, slotDate, startTime]
+    );
+    
+    if (result.rows.length === 0) {
+      return { matched: false };
+    }
+    
+    const cancelledBooking = result.rows[0];
+    const bookingId = cancelledBooking.id;
+    const memberEmail = cancelledBooking.user_email;
+    
+    const updatedNotes = (cancelledBooking.staff_notes || '') + 
+      ' [Trackman booking linked - request was cancelled, manual Trackman cancellation may be needed]';
+    
+    await pool.query(
+      `UPDATE booking_requests 
+       SET trackman_booking_id = $1, 
+           staff_notes = $2,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [trackmanBookingId, updatedNotes, bookingId]
+    );
+    
+    logger.info('[Trackman Webhook] Linked Trackman booking to cancelled request', {
+      extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
+    });
+    
+    const refundedPasses = await refundGuestPassesForCancelledBooking(bookingId, memberEmail);
+    
+    return { matched: true, bookingId, refundedPasses };
+  } catch (e) {
+    logger.error('[Trackman Webhook] Failed to link cancelled booking', { error: e as Error });
+    return { matched: false };
+  }
+}
+
+async function notifyStaffCancelledBookingLinked(
+  memberName: string,
+  memberEmail: string,
+  slotDate: string,
+  startTime: string,
+  bayName?: string,
+  bookingId?: number,
+  refundedPasses?: number
+): Promise<void> {
+  try {
+    const passInfo = refundedPasses && refundedPasses > 0 
+      ? ` (${refundedPasses} guest pass${refundedPasses > 1 ? 'es' : ''} refunded)` 
+      : '';
+    
+    const title = 'Trackman Booking Linked to Cancelled Request';
+    const message = `A Trackman booking for ${memberName} (${memberEmail || 'no email'}) on ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} was linked to a cancelled request.${passInfo} Manual Trackman cancellation may be needed.`;
+    
+    broadcastToStaff({
+      type: 'trackman_cancelled_link',
+      title,
+      message,
+      data: { 
+        bookingId, 
+        memberEmail, 
+        date: slotDate,
+        time: startTime,
+        refundedPasses
+      }
+    });
+    
+    await notifyAllStaff(
+      title,
+      message,
+      'trackman_cancelled_link',
+      bookingId,
+      'trackman_booking'
+    );
+    
+    logger.info('[Trackman Webhook] Notified staff about cancelled booking link', { 
+      extra: { memberName, memberEmail, date: slotDate, bookingId, refundedPasses } 
+    });
+  } catch (e) {
+    logger.error('[Trackman Webhook] Failed to notify staff about cancelled booking', { error: e as Error });
+  }
+}
+
 async function notifyMemberBookingConfirmed(
   customerEmail: string,
   bookingId: number,
@@ -711,14 +930,8 @@ async function notifyMemberBookingConfirmed(
         {
           sendPush: true,
           sendWebSocket: true,
-          sendEmail: true,
-          emailSubject: 'Your Booking is Confirmed - Ever House',
-          emailHtml: `
-            <h2>Booking Confirmed</h2>
-            <p>Hi ${memberName},</p>
-            <p>${message}</p>
-            <p>We look forward to seeing you!</p>
-          `
+          // Email notifications disabled per user preference - push only for now
+          sendEmail: false
         }
       );
       
@@ -930,6 +1143,40 @@ async function handleBookingUpdate(payload: TrackmanWebhookPayload): Promise<{ s
     logger.info('[Trackman Webhook] Auto-approved pending booking request', {
       extra: { bookingId: matchedBookingId, email: emailForLookup }
     });
+    return { success: true, matchedBookingId };
+  }
+  
+  // Check for cancelled bookings that match by email, date, and time (±15 min tolerance)
+  // This handles the edge case where a booking was cancelled after it was created
+  const cancelledLinkResult = await tryLinkCancelledBooking(
+    emailForLookup,
+    startParsed.date,
+    startParsed.time,
+    normalized.trackmanBookingId
+  );
+  
+  if (cancelledLinkResult.matched && cancelledLinkResult.bookingId) {
+    matchedBookingId = cancelledLinkResult.bookingId;
+    
+    // Notify staff about this edge case - Trackman booking was created for a cancelled request
+    await notifyStaffCancelledBookingLinked(
+      normalized.customerName || emailForLookup,
+      emailForLookup,
+      startParsed.date,
+      startParsed.time,
+      normalized.bayName,
+      cancelledLinkResult.bookingId,
+      cancelledLinkResult.refundedPasses
+    );
+    
+    logger.info('[Trackman Webhook] Linked Trackman booking to cancelled request (main flow)', {
+      extra: { 
+        bookingId: matchedBookingId, 
+        email: emailForLookup,
+        refundedPasses: cancelledLinkResult.refundedPasses
+      }
+    });
+    
     return { success: true, matchedBookingId };
   }
   

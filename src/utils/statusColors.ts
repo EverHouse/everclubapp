@@ -6,6 +6,7 @@ export type BookingStatus =
   | 'attended' 
   | 'declined' 
   | 'cancelled' 
+  | 'expired'
   | 'no_show';
 
 export type InquiryStatus = 
@@ -39,6 +40,8 @@ export function getStatusColor(status: string, isDark: boolean): string {
       return isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-500/20 text-orange-700';
     case 'cancelled':
       return isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-500/20 text-gray-500';
+    case 'expired':
+      return isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-500/20 text-gray-500';
     default:
       return isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-500/20 text-gray-500';
   }
@@ -57,6 +60,8 @@ export function getStatusBadge(status: string): string {
     case 'declined':
     case 'cancelled':
       return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+    case 'expired':
+      return 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400';
     default:
       return 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400';
   }

@@ -11,7 +11,7 @@ interface BookingQueuesSectionProps {
   today: string;
   actionInProgress: string | null;
   onTabChange: (tab: TabType) => void;
-  onApprove: (request: BookingRequest) => void;
+  onOpenTrackman: () => void;
   onDeny: (request: BookingRequest) => void;
   onCheckIn: (booking: BookingRequest) => void;
   onPaymentClick?: (bookingId: number) => void;
@@ -24,24 +24,13 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   today,
   actionInProgress,
   onTabChange,
-  onApprove,
+  onOpenTrackman,
   onDeny,
   onCheckIn,
   onPaymentClick,
   variant
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-
-  const { execute: executeApprove } = useAsyncAction(
-    async (request: BookingRequest) => {
-      setLoadingAction(`approve-${request.id}`);
-      try {
-        await onApprove(request);
-      } finally {
-        setLoadingAction(null);
-      }
-    }
-  );
 
   const { execute: executeDeny } = useAsyncAction(
     async (request: BookingRequest) => {
@@ -110,9 +99,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       ) : (
         <div className="space-y-2">
           {pendingRequests.map((request, index) => {
-            const isApproving = isActionLoading(`approve-${request.id}`);
             const isDenying = isActionLoading(`deny-${request.id}`);
-            const isAnyActionLoading = isApproving || isDenying;
             
             return (
               <GlassListRow 
@@ -137,22 +124,28 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                     </p>
                   </div>
                 </div>
+                {request.has_conflict && (
+                  <div className="flex items-center gap-1.5 ml-[56px] px-2 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                    <span className="material-symbols-outlined text-sm text-orange-600 dark:text-orange-400">warning</span>
+                    <span className="text-[10px] font-medium text-orange-700 dark:text-orange-400">
+                      Conflicts with existing booking{request.conflicting_booking_name ? ` (${request.conflicting_booking_name})` : ''}
+                    </span>
+                  </div>
+                )}
+                <p className="text-[10px] text-primary/60 dark:text-white/60 ml-[56px] mb-1">
+                  Book in Trackman to confirm - it will auto-link
+                </p>
                 <div className="flex gap-2 ml-[56px]">
                   <button
-                    onClick={(e) => { e.stopPropagation(); executeApprove(request); }}
-                    disabled={isAnyActionLoading}
-                    className="flex-1 py-1.5 px-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    onClick={(e) => { e.stopPropagation(); onOpenTrackman(); }}
+                    className="flex-1 py-1.5 px-3 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center justify-center gap-1.5"
                   >
-                    {isApproving ? (
-                      <>
-                        <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-                        Approving...
-                      </>
-                    ) : 'Approve'}
+                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    Open Trackman
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); executeDeny(request); }}
-                    disabled={isAnyActionLoading}
+                    disabled={isDenying}
                     className="flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     {isDenying ? (

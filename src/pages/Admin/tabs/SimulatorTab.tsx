@@ -733,6 +733,13 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [savingTrackmanId, setSavingTrackmanId] = useState(false);
     const [billingModal, setBillingModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
     const [rosterModal, setRosterModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
+    const [cancelConfirmModal, setCancelConfirmModal] = useState<{
+        isOpen: boolean;
+        booking: BookingRequest | null;
+        hasTrackman: boolean;
+        isCancelling: boolean;
+        showSuccess: boolean;
+    }>({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
 
     useEffect(() => {
         setEditingTrackmanId(false);
@@ -1153,12 +1160,23 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         }
     }, [requests, approvedBookings, showToast]);
 
-    const cancelBookingOptimistic = useCallback(async (
-        booking: BookingRequest
-    ): Promise<boolean> => {
-        if (!confirm(`Cancel booking for ${booking.user_name || booking.user_email}?`)) {
-            return false;
-        }
+    const showCancelConfirmation = useCallback((booking: BookingRequest) => {
+        const hasTrackman = !!(booking.trackman_booking_id) || 
+            (booking.notes && booking.notes.includes('[Trackman Import ID:'));
+        setCancelConfirmModal({
+            isOpen: true,
+            booking,
+            hasTrackman,
+            isCancelling: false,
+            showSuccess: false
+        });
+    }, []);
+
+    const performCancellation = useCallback(async () => {
+        const booking = cancelConfirmModal.booking;
+        if (!booking) return;
+        
+        setCancelConfirmModal(prev => ({ ...prev, isCancelling: true }));
         
         const previousRequests = [...requests];
         const previousApproved = [...approvedBookings];
@@ -1190,14 +1208,26 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
             }
             
             showToast('Booking cancelled', 'success');
-            return true;
+            
+            if (cancelConfirmModal.hasTrackman) {
+                setCancelConfirmModal(prev => ({ ...prev, isCancelling: false, showSuccess: true }));
+            } else {
+                setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
+            }
         } catch (err: any) {
             setRequests(previousRequests);
             setApprovedBookings(previousApproved);
             showToast(err.message || 'Failed to cancel booking', 'error');
-            return false;
+            setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
         }
-    }, [requests, approvedBookings, actualUser?.email, showToast]);
+    }, [cancelConfirmModal.booking, cancelConfirmModal.hasTrackman, requests, approvedBookings, actualUser?.email, showToast]);
+
+    const cancelBookingOptimistic = useCallback(async (
+        booking: BookingRequest
+    ): Promise<boolean> => {
+        showCancelConfirmation(booking);
+        return true;
+    }, [showCancelConfirmation]);
 
     useEffect(() => {
         const checkAvailability = async () => {
@@ -3029,6 +3059,117 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 handleRefresh();
               }}
             />
+
+            <ModalShell 
+              isOpen={cancelConfirmModal.isOpen} 
+              onClose={() => !cancelConfirmModal.isCancelling && setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false })} 
+              showCloseButton={!cancelConfirmModal.isCancelling}
+            >
+              <div className="p-6">
+                {!cancelConfirmModal.showSuccess ? (
+                  <>
+                    <div className="flex items-center justify-center mb-4">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center ${cancelConfirmModal.hasTrackman ? 'bg-amber-100 dark:bg-amber-500/20' : 'bg-red-100 dark:bg-red-500/20'}`}>
+                        <span className={`material-symbols-outlined text-3xl ${cancelConfirmModal.hasTrackman ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {cancelConfirmModal.hasTrackman ? 'warning' : 'event_busy'}
+                        </span>
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-center text-primary dark:text-white mb-2">
+                      Cancel Booking?
+                    </h3>
+                    <p className="text-sm text-center text-gray-600 dark:text-gray-300 mb-4">
+                      Cancel booking for {cancelConfirmModal.booking?.user_name || cancelConfirmModal.booking?.user_email}?
+                    </p>
+                    
+                    {cancelConfirmModal.hasTrackman && (
+                      <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-4 mb-4">
+                        <div className="flex gap-3">
+                          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl flex-shrink-0">info</span>
+                          <div>
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                              This booking is linked to Trackman
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                              After cancelling here, you'll need to also cancel it in Trackman.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false })}
+                        disabled={cancelConfirmModal.isCancelling}
+                        className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50"
+                      >
+                        Keep Booking
+                      </button>
+                      <button
+                        onClick={performCancellation}
+                        disabled={cancelConfirmModal.isCancelling}
+                        className="flex-1 py-3 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {cancelConfirmModal.isCancelling ? (
+                          <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-sm">check</span>
+                        )}
+                        {cancelConfirmModal.isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-500/20">
+                        <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">check_circle</span>
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-center text-primary dark:text-white mb-2">
+                      Booking Cancelled
+                    </h3>
+                    <p className="text-sm text-center text-gray-600 dark:text-gray-300 mb-4">
+                      The booking has been cancelled in the app.
+                    </p>
+                    
+                    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-4 mb-4">
+                      <div className="flex gap-3">
+                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl flex-shrink-0">task_alt</span>
+                        <div>
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            Action Required: Cancel in Trackman
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                            Please also cancel this booking in the Trackman system to keep both systems in sync.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false })}
+                        className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-white/5"
+                      >
+                        Done
+                      </button>
+                      <button
+                        onClick={() => {
+                          window.open('https://booking.indoorgolf.io', '_blank');
+                          setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
+                        }}
+                        className="flex-1 py-3 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white font-medium flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        Open Trackman
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </ModalShell>
                 </div>
                 <FloatingActionButton onClick={() => setShowManualBooking(true)} color="brand" label="Create manual booking" />
             </AnimatedPage>

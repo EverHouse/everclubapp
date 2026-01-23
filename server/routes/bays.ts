@@ -393,6 +393,61 @@ router.get('/api/booking-requests', async (req, res) => {
     const memberCountsMap = new Map(memberSlotsCounts.map(m => [m.bookingId, { total: m.totalSlots, filled: m.filledSlots }]));
     const guestCountsMap = new Map(guestCounts.map(g => [g.bookingId, g.count]));
     
+    // Batch query: Check for conflicts between pending requests and confirmed bookings
+    // Only check for pending requests to avoid unnecessary queries
+    const pendingBookings = result.filter(b => b.status === 'pending' || b.status === 'pending_approval');
+    const conflictMap = new Map<number, { hasConflict: boolean; conflictingName: string | null }>();
+    
+    if (pendingBookings.length > 0) {
+      // Get unique (resource_id, date) pairs from pending bookings
+      const pendingPairs = pendingBookings
+        .filter(b => b.resource_id)
+        .map(b => ({ resourceId: b.resource_id!, date: b.request_date, startTime: b.start_time, endTime: b.end_time, id: b.id }));
+      
+      if (pendingPairs.length > 0) {
+        // Get all confirmed bookings for the same resources and dates
+        const uniqueDates = [...new Set(pendingPairs.map(p => p.date))];
+        const uniqueResourceIds = [...new Set(pendingPairs.map(p => p.resourceId))];
+        
+        const confirmedBookings = await db.select({
+          id: bookingRequests.id,
+          resourceId: bookingRequests.resourceId,
+          requestDate: bookingRequests.requestDate,
+          startTime: bookingRequests.startTime,
+          endTime: bookingRequests.endTime,
+          userName: bookingRequests.userName
+        })
+        .from(bookingRequests)
+        .where(and(
+          sql`${bookingRequests.resourceId} IN (${sql.join(uniqueResourceIds.map(id => sql`${id}`), sql`, `)})`,
+          sql`${bookingRequests.requestDate} IN (${sql.join(uniqueDates.map(d => sql`${d}`), sql`, `)})`,
+          or(
+            eq(bookingRequests.status, 'approved'),
+            eq(bookingRequests.status, 'confirmed'),
+            eq(bookingRequests.status, 'attended')
+          )
+        ));
+        
+        // Check each pending booking for overlaps with confirmed bookings
+        for (const pending of pendingPairs) {
+          const conflicts = confirmedBookings.filter(confirmed => 
+            confirmed.resourceId === pending.resourceId &&
+            confirmed.requestDate === pending.date &&
+            confirmed.id !== pending.id &&
+            pending.startTime < confirmed.endTime &&
+            pending.endTime > confirmed.startTime
+          );
+          
+          if (conflicts.length > 0) {
+            conflictMap.set(pending.id, { 
+              hasConflict: true, 
+              conflictingName: conflicts[0].userName || null 
+            });
+          }
+        }
+      }
+    }
+    
     // Build participant lookup maps
     const memberDetailsMap = new Map<number, Array<{ name: string; type: 'member'; isPrimary: boolean }>>();
     for (const m of memberDetails) {
@@ -454,6 +509,9 @@ router.get('/api/booking-requests', async (req, res) => {
         ...guests.map(g => ({ name: g.name, type: 'guest' as const }))
       ];
       
+      // Add conflict info for pending bookings
+      const conflictInfo = conflictMap.get(booking.id);
+      
       return {
         ...booking,
         linked_member_count: memberCounts.filled,
@@ -462,7 +520,9 @@ router.get('/api/booking-requests', async (req, res) => {
         is_linked_member: isLinkedMember || false,
         primary_booker_name: primaryBookerName,
         invite_status: inviteStatus,
-        participants
+        participants,
+        has_conflict: conflictInfo?.hasConflict || false,
+        conflicting_booking_name: conflictInfo?.conflictingName || null
       };
     });
     
@@ -1341,7 +1401,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           requestDate: bookingRequests.requestDate,
           startTime: bookingRequests.startTime,
           status: bookingRequests.status,
-          resourceId: bookingRequests.resourceId
+          resourceId: bookingRequests.resourceId,
+          trackmanBookingId: bookingRequests.trackmanBookingId
         })
           .from(bookingRequests)
           .where(eq(bookingRequests.id, bookingId));
@@ -1350,10 +1411,19 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           throw { statusCode: 404, error: 'Booking request not found' };
         }
         
+        // Build staff_notes - append Trackman cancellation reminder if booking has trackman ID
+        let updatedStaffNotes = staff_notes || '';
+        if (existing.trackmanBookingId) {
+          const trackmanNote = '[Cancelled in app - needs Trackman cancellation]';
+          updatedStaffNotes = updatedStaffNotes 
+            ? `${updatedStaffNotes}\n${trackmanNote}` 
+            : trackmanNote;
+        }
+        
         const [updatedRow] = await tx.update(bookingRequests)
           .set({
             status: status,
-            staffNotes: staff_notes || undefined,
+            staffNotes: updatedStaffNotes || undefined,
             updatedAt: new Date()
           })
           .where(eq(bookingRequests.id, bookingId))
@@ -1439,6 +1509,28 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             eq(notifications.relatedType, 'booking_request'),
             eq(notifications.type, 'booking')
           ));
+        
+        // Send Trackman cancellation reminder notification to staff if booking has Trackman ID
+        if (existing.trackmanBookingId) {
+          let bayName = 'Bay';
+          if (existing.resourceId) {
+            const [resource] = await tx.select({ name: resources.name }).from(resources).where(eq(resources.id, existing.resourceId));
+            if (resource?.name) {
+              bayName = resource.name;
+            }
+          }
+          
+          const trackmanReminderMessage = `Reminder: ${memberName}'s booking on ${friendlyDateTime} (${bayName}) was cancelled - please also cancel in Trackman`;
+          
+          await tx.insert(notifications).values({
+            userEmail: 'staff@evenhouse.app',
+            title: 'Trackman Cancellation Required',
+            message: trackmanReminderMessage,
+            type: 'booking_cancelled',
+            relatedId: bookingId,
+            relatedType: 'booking_request'
+          });
+        }
         
         return { updated: updatedRow, bookingData: existing, pushInfo };
       });
@@ -1573,7 +1665,8 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       startTime: bookingRequests.startTime,
       status: bookingRequests.status,
       calendarEventId: bookingRequests.calendarEventId,
-      resourceId: bookingRequests.resourceId
+      resourceId: bookingRequests.resourceId,
+      trackmanBookingId: bookingRequests.trackmanBookingId
     })
       .from(bookingRequests)
       .where(eq(bookingRequests.id, bookingId));
@@ -1621,9 +1714,16 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     
     const wasApproved = existing.status === 'approved';
     
+    // Build staff_notes - append Trackman cancellation reminder if booking has trackman ID
+    let staffNotes = '';
+    if (existing.trackmanBookingId) {
+      staffNotes = '[Cancelled in app - needs Trackman cancellation]';
+    }
+    
     const [updated] = await db.update(bookingRequests)
       .set({
         status: 'cancelled',
+        staffNotes: staffNotes || undefined,
         updatedAt: new Date()
       })
       .where(eq(bookingRequests.id, bookingId))
@@ -1643,6 +1743,28 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
         relatedId: bookingId,
         relatedType: 'booking_request'
       });
+      
+      // Send Trackman cancellation reminder notification to staff if booking has Trackman ID
+      if (existing.trackmanBookingId) {
+        let bayName = 'Bay';
+        if (existing.resourceId) {
+          const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, existing.resourceId));
+          if (resource?.name) {
+            bayName = resource.name;
+          }
+        }
+        
+        const trackmanReminderMessage = `Reminder: ${memberName}'s booking on ${bookingDate} at ${bookingTime} (${bayName}) was cancelled - please also cancel in Trackman`;
+        
+        await db.insert(notifications).values({
+          userEmail: 'staff@evenhouse.app',
+          title: 'Trackman Cancellation Required',
+          message: trackmanReminderMessage,
+          type: 'booking_cancelled',
+          relatedId: bookingId,
+          relatedType: 'booking_request'
+        });
+      }
       
       sendPushNotificationToStaff({
         title: 'Booking Cancelled',

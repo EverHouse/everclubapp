@@ -15,6 +15,8 @@ export interface BookingRequest {
   has_unpaid_fees?: boolean;
   total_owed?: number;
   created_at?: string;
+  has_conflict?: boolean;
+  conflicting_booking_name?: string | null;
 }
 
 export interface Tour {

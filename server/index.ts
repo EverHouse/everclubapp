@@ -73,6 +73,7 @@ import { startIntegrityScheduler } from './schedulers/integrityScheduler';
 import { startWaiverReviewScheduler } from './schedulers/waiverReviewScheduler';
 import { startStripeReconciliationScheduler } from './schedulers/stripeReconciliationScheduler';
 import { startGracePeriodScheduler } from './schedulers/gracePeriodScheduler';
+import { startBookingExpiryScheduler } from './schedulers/bookingExpiryScheduler';
 import { processStripeWebhook, getStripeSync } from './core/stripe';
 import { runMigrations } from 'stripe-replit-sync';
 import { enableRealtimeForTable } from './core/supabase/client';
@@ -905,6 +906,9 @@ async function startServer() {
   
   // Grace period scheduler - runs at 10am Pacific daily to send dunning emails
   startGracePeriodScheduler();
+  
+  // Booking expiry scheduler - runs every hour to expire stale pending booking requests
+  startBookingExpiryScheduler();
   
   // Communication logs sync scheduler - runs every 30 minutes
   // Syncs calls and SMS from HubSpot Engagements API

@@ -238,6 +238,22 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             console.log('[StaffWebSocket] Received member_stats_updated for:', message.memberEmail);
             window.dispatchEvent(new CustomEvent('member-stats-updated', { detail: message }));
           }
+
+          // Handle Trackman booking auto-confirmed events
+          if (message.type === 'booking_auto_confirmed') {
+            console.log('[StaffWebSocket] Received booking_auto_confirmed:', message.data?.memberName);
+            window.dispatchEvent(new CustomEvent('booking-auto-confirmed', { detail: message }));
+            handleBookingEvent({
+              eventType: 'booking_auto_confirmed',
+              bookingId: message.data?.bookingId || 0,
+              memberEmail: message.data?.memberEmail || '',
+              memberName: message.data?.memberName,
+              bookingDate: message.data?.date || '',
+              startTime: message.data?.time || '',
+              status: 'approved',
+              timestamp: new Date().toISOString()
+            });
+          }
         } catch (e) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }

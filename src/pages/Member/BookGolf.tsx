@@ -1244,49 +1244,78 @@ const BookGolf: React.FC = () => {
           
           <ModalShell isOpen={showCancelConfirm} onClose={() => setShowCancelConfirm(false)} showCloseButton={false}>
             <div className="p-6 text-center">
-              <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
-                <span className={`material-symbols-outlined text-3xl ${isDark ? 'text-red-400' : 'text-red-600'}`}>event_busy</span>
-              </div>
-              <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Cancel Booking?</h3>
-              <p className={`text-sm mb-6 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                Are you sure you want to cancel your booking for {existingDayBooking ? formatDateShort(existingDayBooking.request_date) : ''} at {existingDayBooking ? `${formatTime12Hour(existingDayBooking.start_time)} - ${formatTime12Hour(existingDayBooking.end_time)}` : ''}?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowCancelConfirm(false)}
-                  disabled={isCancelling}
-                  className={`flex-1 py-3 rounded-xl font-bold text-sm border transition-colors ${
-                    isDark 
-                      ? 'border-white/20 text-white hover:bg-white/5' 
-                      : 'border-primary/20 text-primary hover:bg-primary/5'
-                  }`}
-                >
-                  Keep Booking
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!existingDayBooking) return;
-                    setIsCancelling(true);
-                    setExistingDayBooking(null);
-                    setShowCancelConfirm(false);
-                    await handleCancelRequest(existingDayBooking.id);
-                    setIsCancelling(false);
-                  }}
-                  disabled={isCancelling}
-                  className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                    isCancelling ? 'opacity-50 cursor-not-allowed' : ''
-                  } ${isDark ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-red-600 text-white hover:bg-red-700'}`}
-                >
-                  {isCancelling ? (
-                    <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-lg">check</span>
-                      Yes, Cancel
-                    </>
-                  )}
-                </button>
-              </div>
+              {(() => {
+                const hasTrackman = existingDayBooking && (
+                  !!(existingDayBooking.trackman_booking_id) || 
+                  (existingDayBooking.notes && existingDayBooking.notes.includes('[Trackman Import ID:'))
+                );
+                return (
+                  <>
+                    <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${hasTrackman ? (isDark ? 'bg-amber-500/20' : 'bg-amber-100') : (isDark ? 'bg-red-500/20' : 'bg-red-100')}`}>
+                      <span className={`material-symbols-outlined text-3xl ${hasTrackman ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+                        {hasTrackman ? 'warning' : 'event_busy'}
+                      </span>
+                    </div>
+                    <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Cancel Booking?</h3>
+                    <p className={`text-sm mb-4 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                      Are you sure you want to cancel your booking for {existingDayBooking ? formatDateShort(existingDayBooking.request_date) : ''} at {existingDayBooking ? `${formatTime12Hour(existingDayBooking.start_time)} - ${formatTime12Hour(existingDayBooking.end_time)}` : ''}?
+                    </p>
+                    
+                    {hasTrackman && (
+                      <div className={`rounded-lg p-4 mb-4 text-left ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+                        <div className="flex gap-3">
+                          <span className={`material-symbols-outlined text-xl flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+                          <div>
+                            <p className={`text-sm font-medium ${isDark ? 'text-amber-300' : 'text-amber-800'}`}>
+                              This booking is linked to Trackman
+                            </p>
+                            <p className={`text-xs mt-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                              After cancelling, the staff will be notified to also cancel it in Trackman.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowCancelConfirm(false)}
+                        disabled={isCancelling}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm border transition-colors ${
+                          isDark 
+                            ? 'border-white/20 text-white hover:bg-white/5' 
+                            : 'border-primary/20 text-primary hover:bg-primary/5'
+                        }`}
+                      >
+                        Keep Booking
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!existingDayBooking) return;
+                          setIsCancelling(true);
+                          setExistingDayBooking(null);
+                          setShowCancelConfirm(false);
+                          await handleCancelRequest(existingDayBooking.id);
+                          setIsCancelling(false);
+                        }}
+                        disabled={isCancelling}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                          isCancelling ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${isDark ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                      >
+                        {isCancelling ? (
+                          <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-lg">check</span>
+                            Yes, Cancel
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </ModalShell>
 
