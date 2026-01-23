@@ -271,62 +271,93 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
     }
     
     console.log(`[Financials] Fetching subscriptions with params:`, listParams);
-    let subscriptions = await stripe.subscriptions.list(listParams);
-    console.log(`[Financials] Found ${subscriptions.data.length} subscriptions from global list`);
+    const globalSubscriptions = await stripe.subscriptions.list(listParams);
+    console.log(`[Financials] Found ${globalSubscriptions.data.length} subscriptions from global list`);
     
-    // If no subscriptions found globally, fetch per-customer (needed for test clock subscriptions)
-    // Test clock subscriptions don't appear in global list() calls
-    if (subscriptions.data.length === 0) {
-      console.log('[Financials] Fetching subscriptions per-customer (for test clock support)...');
-      const allSubs: Stripe.Subscription[] = [];
+    // Collect subscription IDs from global list to avoid duplicates
+    const seenSubIds = new Set<string>(globalSubscriptions.data.map(s => s.id));
+    const allSubs: Stripe.Subscription[] = [...globalSubscriptions.data];
+    
+    // Only scan per-customer when global list returns 0 (test clock scenario)
+    // This avoids expensive API calls in production where subscriptions appear in global list
+    const additionalSubs: Stripe.Subscription[] = [];
+    
+    if (globalSubscriptions.data.length === 0) {
+      console.log('[Financials] No subscriptions in global list - scanning database customers (for test clock support)...');
       
-      // Paginate through ALL customers to find test clock subscriptions
-      let hasMoreCustomers = true;
-      let customerStartingAfter: string | undefined;
-      let customerCount = 0;
+      // Get all customers with stripe_customer_id from our database
+      const dbResult = await pool.query(`
+        SELECT DISTINCT email, stripe_customer_id, first_name, last_name 
+        FROM users 
+        WHERE stripe_customer_id IS NOT NULL 
+        AND stripe_customer_id != ''
+        LIMIT 500
+      `);
       
-      while (hasMoreCustomers) {
-        const customerParams: Stripe.CustomerListParams = { limit: 100 };
-        if (customerStartingAfter) {
-          customerParams.starting_after = customerStartingAfter;
-        }
-        
-        const customersPage = await stripe.customers.list(customerParams);
-        customerCount += customersPage.data.length;
-        
-        for (const cust of customersPage.data) {
-          try {
-            const custSubs = await stripe.subscriptions.list({ 
-              customer: cust.id, 
-              status: statusFilter,
-              limit: 100,
-              expand: ['data.items.data.price']
-            });
-            // Add customer data to each subscription
-            for (const sub of custSubs.data) {
-              (sub as any).customer = cust;
-              allSubs.push(sub);
-            }
-          } catch (e: any) {
-            console.log(`[Financials] Error fetching subs for ${cust.email}: ${e.message}`);
-          }
-        }
-        
-        hasMoreCustomers = customersPage.has_more;
-        if (customersPage.data.length > 0) {
-          customerStartingAfter = customersPage.data[customersPage.data.length - 1].id;
-        }
-        
-        // Safety limit to avoid infinite loops - max 1000 customers
-        if (customerCount >= 1000) {
-          console.log('[Financials] Reached customer limit (1000) for test clock subscription search');
-          break;
+      console.log(`[Financials] Found ${dbResult.rows.length} customers with Stripe IDs in database`);
+      
+      // Deduplicate by stripe_customer_id
+      const uniqueCustomers = new Map<string, typeof dbResult.rows[0]>();
+      for (const row of dbResult.rows) {
+        if (!uniqueCustomers.has(row.stripe_customer_id)) {
+          uniqueCustomers.set(row.stripe_customer_id, row);
         }
       }
       
-      console.log(`[Financials] Scanned ${customerCount} customers, found ${allSubs.length} subscriptions via per-customer fetch`);
-      subscriptions = { data: allSubs, has_more: false, object: 'list', url: '' };
+      // Parallel fetch with concurrency limit of 5 to avoid Stripe rate limits (25/sec in test mode)
+      const CONCURRENCY_LIMIT = 5;
+      const customerArray = Array.from(uniqueCustomers.values());
+      
+      for (let i = 0; i < customerArray.length; i += CONCURRENCY_LIMIT) {
+        const batch = customerArray.slice(i, i + CONCURRENCY_LIMIT);
+        const batchResults = await Promise.allSettled(
+          batch.map(async (row) => {
+            const custSubs = await stripe.subscriptions.list({ 
+              customer: row.stripe_customer_id, 
+              status: statusFilter,
+              limit: 100,
+              expand: ['data.items.data.price', 'data.customer']
+            });
+            return { subs: custSubs.data, row };
+          })
+        );
+        
+        for (const result of batchResults) {
+          if (result.status === 'fulfilled') {
+            for (const sub of result.value.subs) {
+              // Skip if already in global list
+              if (seenSubIds.has(sub.id)) continue;
+              seenSubIds.add(sub.id);
+              
+              // If customer wasn't expanded, create a minimal customer object
+              const row = result.value.row;
+              if (typeof sub.customer === 'string') {
+                (sub as any).customer = {
+                  id: row.stripe_customer_id,
+                  email: row.email,
+                  name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email,
+                };
+              }
+              additionalSubs.push(sub);
+            }
+          } else {
+            // Log errors but continue processing
+            const error = result.reason as Error;
+            console.log(`[Financials] Error fetching subs: ${error.message}`);
+          }
+        }
+        
+        // Small delay between batches to stay under Stripe rate limits (25/sec in test mode)
+        if (i + CONCURRENCY_LIMIT < customerArray.length) {
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+      }
+      
+      console.log(`[Financials] Scanned ${uniqueCustomers.size} database customers, found ${additionalSubs.length} additional subscriptions`);
     }
+    
+    allSubs.push(...additionalSubs);
+    const subscriptions = { data: allSubs, has_more: globalSubscriptions.has_more, object: 'list' as const, url: '' };
 
     const subscriptionItems: SubscriptionListItem[] = subscriptions.data.map(sub => {
       const customer = sub.customer as Stripe.Customer;
