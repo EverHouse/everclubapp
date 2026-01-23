@@ -4,6 +4,7 @@ import Toggle from '../../../components/Toggle';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import ProductsSubTab from './ProductsSubTab';
 import DiscountsSubTab from './DiscountsSubTab';
+import { apiRequest } from '../../../lib/apiRequest';
 
 type SubTab = 'tiers' | 'products' | 'fees' | 'discounts';
 
@@ -288,12 +289,11 @@ const TiersTab: React.FC = () => {
     const handleSyncStripe = async () => {
         setSyncing(true);
         try {
-            const res = await fetch('/api/admin/stripe/sync-products', { 
-                method: 'POST',
-                credentials: 'include'
+            const res = await apiRequest('/api/admin/stripe/sync-products', { 
+                method: 'POST'
             });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            if (res.ok && res.data?.success) {
+                const data = res.data;
                 let message = `Synced ${data.synced} products to Stripe`;
                 if (data.failed > 0) {
                     message += `\n\nFailed: ${data.failed}`;
@@ -310,7 +310,7 @@ const TiersTab: React.FC = () => {
                 alert(message);
                 await fetchTiers();
             } else {
-                const errorMsg = data.message || data.error || 'Unknown error';
+                const errorMsg = res.data?.message || res.error || 'Unknown error';
                 if (errorMsg.includes('connection not found')) {
                     alert('Stripe sync failed: Stripe is not configured for this environment. Please set up Stripe live keys in Replit\'s Integrations panel before publishing.');
                 } else {

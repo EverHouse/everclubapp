@@ -12,6 +12,7 @@ import { DirectoryTabSkeleton } from '../../../components/skeletons';
 import { formatPhoneNumber } from '../../../utils/formatting';
 import { getTierColor, getTagColor } from '../../../utils/tierUtils';
 import { AnimatedPage } from '../../../components/motion';
+import { apiRequest } from '../../../lib/apiRequest';
 
 const TIER_OPTIONS = ['All', 'Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const ASSIGNABLE_TIERS = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
@@ -309,13 +310,11 @@ const DirectoryTab: React.FC = () => {
         let errors: string[] = [];
         
         try {
-            const stripeRes = await fetch('/api/stripe/sync-subscriptions', { 
-                method: 'POST',
-                credentials: 'include'
+            const stripeRes = await apiRequest('/api/stripe/sync-subscriptions', { 
+                method: 'POST'
             });
-            if (stripeRes.ok) {
-                const stripeData = await stripeRes.json();
-                stripeCount = (stripeData.created || 0) + (stripeData.updated || 0);
+            if (stripeRes.ok && stripeRes.data) {
+                stripeCount = (stripeRes.data.created || 0) + (stripeRes.data.updated || 0);
             } else {
                 errors.push('Stripe');
             }
@@ -324,13 +323,11 @@ const DirectoryTab: React.FC = () => {
         }
         
         try {
-            const hubspotRes = await fetch('/api/hubspot/sync-all-members', { 
-                method: 'POST',
-                credentials: 'include'
+            const hubspotRes = await apiRequest('/api/hubspot/sync-all-members', { 
+                method: 'POST'
             });
-            if (hubspotRes.ok) {
-                const hubspotData = await hubspotRes.json();
-                hubspotCount = hubspotData.synced || 0;
+            if (hubspotRes.ok && hubspotRes.data) {
+                hubspotCount = hubspotRes.data.synced || 0;
             } else {
                 errors.push('HubSpot');
             }
