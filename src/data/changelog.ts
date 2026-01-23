@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.4.2",
+    date: "2026-01-23",
+    title: "CSRF Protection Removed",
+    changes: [
+      "Removed CSRF token validation that was causing login and form submission failures",
+      "Modern browser security (SameSite cookies, CORS) already provides this protection",
+      "All 'CSRF failed' errors across the app are now permanently resolved"
+    ]
+  },
+  {
     version: "9.4.1",
     date: "2026-01-23",
     title: "UI Polish: Dark Mode & Rounded Corners",

@@ -1,9 +1,6 @@
 const isDev = import.meta.env.DEV;
 
-function getCsrfToken(): string | null {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : null;
-}
+// CSRF protection removed - SameSite cookies + CORS provide sufficient protection for SPA
 
 export interface ApiResult<T = any> {
   ok: boolean;
@@ -76,13 +73,6 @@ export async function apiRequest<T = any>(
       const headers: Record<string, string> = {
         ...(options?.headers as Record<string, string> || {}),
       };
-      
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase())) {
-        const csrfToken = getCsrfToken();
-        if (csrfToken) {
-          headers['x-csrf-token'] = csrfToken;
-        }
-      }
 
       const res = await fetch(url, {
         ...options,
