@@ -29,6 +29,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
   const { actualUser, sessionChecked, sessionVersion } = useData();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptRef = useRef(0);
   const initTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isConnectingRef = useRef(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,6 +124,8 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         activeConnectionUserRef.current = currentEmail || null;
         // Reset intentional disconnect flag on successful connect
         intentionalDisconnectRef.current = false;
+        // Reset reconnection attempt counter on successful connect
+        reconnectAttemptRef.current = 0;
         ws.send(JSON.stringify({ 
           type: 'auth', 
           email: currentEmail,
@@ -272,7 +275,12 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
           const currentEmail = userEmailRef.current;
           const currentRole = userRoleRef.current;
           if (currentEmail && (currentRole === 'staff' || currentRole === 'admin')) {
-            console.log('[StaffWebSocket] Scheduling reconnect in 5 seconds');
+            // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+            const baseDelay = 2000;
+            const maxDelay = 30000;
+            const delay = Math.min(baseDelay * Math.pow(2, reconnectAttemptRef.current), maxDelay);
+            reconnectAttemptRef.current++;
+            console.log(`[StaffWebSocket] Scheduling reconnect in ${delay / 1000}s (attempt ${reconnectAttemptRef.current})`);
             reconnectTimeoutRef.current = setTimeout(() => {
               // Re-check session readiness before reconnecting
               if (!sessionCheckedRef.current) {
@@ -284,7 +292,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
                 return;
               }
               connect();
-            }, 5000);
+            }, delay);
           }
         }
       };
