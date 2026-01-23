@@ -1795,7 +1795,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         )}
                     </div>
                         </div>
-                        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
                     </div>
                     
                     <div className={`flex-1 lg:flex lg:flex-col lg:h-full lg:overflow-hidden ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
@@ -2027,7 +2026,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                             </div>
                             </div>
                         </div>
-                        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
                     </div>
                     </div>
                 </div>
