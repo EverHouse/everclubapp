@@ -99,6 +99,7 @@ const EXEMPT_PATHS = [
   '/api/webhooks/trackman',
   '/api/public/',
   '/api/auth/otp',
+  '/api/auth/request-otp',
   '/api/auth/magic-link',
   '/api/auth/verify-otp',
   '/api/checkout/',

@@ -138,6 +138,8 @@ export async function processStripeWebhook(
       await handlePaymentIntentSucceeded(event.data.object);
     } else if (event.type === 'payment_intent.payment_failed') {
       await handlePaymentIntentFailed(event.data.object);
+    } else if (event.type === 'charge.refunded') {
+      await handleChargeRefunded(event.data.object);
     } else if (event.type === 'invoice.payment_succeeded') {
       await handleInvoicePaymentSucceeded(event.data.object);
     } else if (event.type === 'invoice.payment_failed') {
@@ -158,6 +160,49 @@ export async function processStripeWebhook(
     console.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}):`, handlerError);
     throw handlerError;
   }
+}
+
+async function handleChargeRefunded(charge: any): Promise<void> {
+  const { id, amount, amount_refunded, currency, customer, payment_intent, created, refunded } = charge;
+  
+  console.log(`[Stripe Webhook] Charge refunded: ${id}, refunded amount: $${(amount_refunded / 100).toFixed(2)}`);
+  
+  const status = refunded ? 'refunded' : 'partially_refunded';
+  const customerId = typeof customer === 'string' ? customer : customer?.id;
+  const paymentIntentId = typeof payment_intent === 'string' ? payment_intent : payment_intent?.id;
+  
+  upsertTransactionCache({
+    stripeId: id,
+    objectType: 'charge',
+    amountCents: amount,
+    currency: currency || 'usd',
+    status,
+    createdAt: new Date(created * 1000),
+    customerId,
+    paymentIntentId,
+    source: 'webhook',
+  }).catch(err => console.error('[Stripe Webhook] Cache update failed for refund:', err));
+  
+  if (paymentIntentId) {
+    await pool.query(
+      `UPDATE stripe_payment_intents SET status = $1, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,
+      [status, paymentIntentId]
+    );
+    
+    upsertTransactionCache({
+      stripeId: paymentIntentId,
+      objectType: 'payment_intent',
+      amountCents: amount,
+      currency: currency || 'usd',
+      status,
+      createdAt: new Date(created * 1000),
+      customerId,
+      paymentIntentId,
+      source: 'webhook',
+    }).catch(err => console.error('[Stripe Webhook] Cache update failed for PI refund:', err));
+  }
+  
+  broadcastBillingUpdate({ type: 'refund', chargeId: id, status });
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
