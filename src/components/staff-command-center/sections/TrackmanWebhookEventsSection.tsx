@@ -4,17 +4,17 @@ import TrackmanIcon from '../../icons/TrackmanIcon';
 
 const ITEMS_PER_PAGE = 10;
 
-const formatDateTimePacific = (dateStr: string): string => {
-  // Normalize PostgreSQL timestamp format (space to T) and ensure UTC
-  let normalizedDateStr = dateStr;
-  if (dateStr) {
-    // Replace space with T for ISO format compatibility
-    normalizedDateStr = dateStr.replace(' ', 'T');
-    // Add Z if no timezone indicator present
-    if (!normalizedDateStr.includes('Z') && !normalizedDateStr.includes('+') && !/T[\d:]+[-+]/.test(normalizedDateStr)) {
-      normalizedDateStr = normalizedDateStr + 'Z';
-    }
+const normalizeTimestamp = (dateStr: string): string => {
+  if (!dateStr) return dateStr;
+  let normalized = dateStr.replace(' ', 'T');
+  if (!normalized.includes('Z') && !normalized.includes('+') && !/T[\d:]+[-+]/.test(normalized)) {
+    normalized = normalized + 'Z';
   }
+  return normalized;
+};
+
+const formatDateTimePacific = (dateStr: string): string => {
+  const normalizedDateStr = normalizeTimestamp(dateStr);
   const date = new Date(normalizedDateStr);
   return date.toLocaleDateString('en-US', {
     month: 'short',
@@ -27,6 +27,63 @@ const formatDateTimePacific = (dateStr: string): string => {
     hour12: true,
     timeZone: 'America/Los_Angeles'
   });
+};
+
+const formatBookingDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(normalizeTimestamp(dateStr));
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'America/Los_Angeles'
+  });
+};
+
+const formatTimePacific = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(normalizeTimestamp(dateStr));
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'America/Los_Angeles'
+  });
+};
+
+const formatTimeSlot = (startStr: string, endStr: string): string => {
+  if (!startStr || !endStr) return '';
+  return `${formatTimePacific(startStr)} - ${formatTimePacific(endStr)}`;
+};
+
+const calculateDuration = (startStr: string, endStr: string): string => {
+  if (!startStr || !endStr) return '';
+  const start = new Date(normalizeTimestamp(startStr));
+  const end = new Date(normalizeTimestamp(endStr));
+  const diffMs = end.getTime() - start.getTime();
+  const diffMins = Math.round(diffMs / 60000);
+  
+  if (diffMins < 60) {
+    return `${diffMins} min`;
+  }
+  const hours = diffMins / 60;
+  if (hours === Math.floor(hours)) {
+    return `${hours} hr${hours > 1 ? 's' : ''}`;
+  }
+  return `${hours.toFixed(1)} hrs`;
+};
+
+const getPlayerCount = (bookingData: any): number | null => {
+  if (bookingData?.players && Array.isArray(bookingData.players)) {
+    return bookingData.players.length;
+  }
+  if (typeof bookingData?.playerCount === 'number') {
+    return bookingData.playerCount;
+  }
+  if (typeof bookingData?.player_count === 'number') {
+    return bookingData.player_count;
+  }
+  return null;
 };
 
 const getEventTypeFromPayload = (payload: any, storedEventType: string): string => {
@@ -202,6 +259,13 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                   const eventType = getEventTypeFromPayload(payload, event.event_type);
                   const bookingData = payload?.data || payload?.booking || {};
                   const bayName = bookingData?.bay_name || bookingData?.bayName || (bookingData?.bay?.ref ? `Bay ${bookingData.bay.ref}` : undefined);
+                  
+                  const bookingStart = bookingData?.start;
+                  const bookingEnd = bookingData?.end;
+                  const bookingDate = formatBookingDate(bookingStart);
+                  const timeSlot = formatTimeSlot(bookingStart, bookingEnd);
+                  const duration = calculateDuration(bookingStart, bookingEnd);
+                  const playerCount = getPlayerCount(bookingData);
 
                   return (
                     <div key={event.id} className="p-3 md:p-4 bg-white/50 dark:bg-white/5 rounded-xl">
@@ -211,6 +275,12 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                             <span className={`px-1.5 md:px-2 py-0.5 rounded-full text-xs font-medium ${getEventBadgeColor(eventType)}`}>
                               {eventType}
                             </span>
+                            {bayName && (
+                              <span className="flex items-center gap-1 text-xs font-medium text-primary/80 dark:text-white/80">
+                                <span className="material-symbols-outlined text-sm">sports_golf</span>
+                                {bayName}
+                              </span>
+                            )}
                             {hasError && (
                               <span className="px-1.5 md:px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400 flex items-center gap-0.5 md:gap-1">
                                 <span className="material-symbols-outlined text-xs">error</span>
@@ -224,23 +294,48 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                               </span>
                             )}
                           </div>
-                          <div className="mt-1.5 md:mt-2 flex items-center gap-2 md:gap-3 text-xs text-primary/70 dark:text-white/70 flex-wrap">
-                            <span className="flex items-center gap-0.5 md:gap-1">
-                              <span className="material-symbols-outlined text-sm">schedule</span>
-                              {event.created_at ? formatDateTimePacific(event.created_at) : 'Unknown time'}
-                            </span>
-                            {bayName && (
-                              <span className="flex items-center gap-0.5 md:gap-1">
-                                <span className="material-symbols-outlined text-sm">sports_golf</span>
-                                {bayName}
+                          
+                          {(bookingDate || timeSlot) && (
+                            <div className="mt-2 flex items-center gap-2 md:gap-3 flex-wrap">
+                              {bookingDate && (
+                                <span className="flex items-center gap-1 text-sm font-semibold text-primary dark:text-white">
+                                  <span className="material-symbols-outlined text-base">calendar_today</span>
+                                  {bookingDate}
+                                </span>
+                              )}
+                              {timeSlot && (
+                                <span className="flex items-center gap-1 text-sm font-semibold text-primary dark:text-white">
+                                  <span className="material-symbols-outlined text-base">schedule</span>
+                                  {timeSlot}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="mt-1.5 flex items-center gap-2 md:gap-3 text-xs text-primary/60 dark:text-white/60 flex-wrap">
+                            {duration && (
+                              <span className="flex items-center gap-0.5">
+                                <span className="material-symbols-outlined text-sm">timer</span>
+                                {duration}
                               </span>
                             )}
+                            {playerCount !== null && (
+                              <span className="flex items-center gap-0.5">
+                                <span className="material-symbols-outlined text-sm">group</span>
+                                {playerCount} player{playerCount !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-0.5" title="Synced at">
+                              <span className="material-symbols-outlined text-sm">sync</span>
+                              {event.created_at ? formatDateTimePacific(event.created_at) : 'Unknown'}
+                            </span>
                             {event.trackman_booking_id && (
-                              <span className="text-primary/50 dark:text-white/50">
-                                ID: {event.trackman_booking_id}
+                              <span className="text-primary/40 dark:text-white/40">
+                                #{event.trackman_booking_id}
                               </span>
                             )}
                           </div>
+                          
                           {hasError && (
                             <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                               {event.processing_error}
