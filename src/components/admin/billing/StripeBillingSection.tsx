@@ -56,6 +56,8 @@ interface StripeBillingSectionProps {
   onShowDiscountModal: () => void;
   onShowTierChangeModal: () => void;
   onGetPaymentLink: () => void;
+  onOpenBillingPortal?: () => void;
+  isOpeningBillingPortal?: boolean;
   isDark: boolean;
 }
 
@@ -102,6 +104,8 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
   onShowDiscountModal,
   onShowTierChangeModal,
   onGetPaymentLink,
+  onOpenBillingPortal,
+  isOpeningBillingPortal,
   isDark,
 }) => {
   const getStatusBadge = (status: string) => {
@@ -293,6 +297,23 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
           </div>
         ) : (
           <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No payment methods on file</p>
+        )}
+        
+        {onOpenBillingPortal && (
+          <button
+            onClick={onOpenBillingPortal}
+            disabled={isOpeningBillingPortal}
+            className={`w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              isDark ? 'bg-accent/20 text-accent hover:bg-accent/30' : 'bg-primary/10 text-primary hover:bg-primary/20'
+            } disabled:opacity-50`}
+          >
+            {isOpeningBillingPortal ? (
+              <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+            ) : (
+              <span className="material-symbols-outlined text-base">account_balance</span>
+            )}
+            Manage Billing in Stripe
+          </button>
         )}
       </div>
 

@@ -335,6 +335,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   const [isApplyingCredit, setIsApplyingCredit] = useState(false);
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const [isGettingPaymentLink, setIsGettingPaymentLink] = useState(false);
+  const [isOpeningBillingPortal, setIsOpeningBillingPortal] = useState(false);
 
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
@@ -588,6 +589,32 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     }
   };
 
+  const handleOpenBillingPortal = async () => {
+    setIsOpeningBillingPortal(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/my/billing/portal', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: memberEmail }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          window.open(data.url, '_blank');
+        }
+      } else {
+        const errData = await res.json();
+        setError(errData.error || 'Failed to open billing portal');
+      }
+    } catch (err) {
+      setError('Failed to open billing portal');
+    } finally {
+      setIsOpeningBillingPortal(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
@@ -733,6 +760,8 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           onShowDiscountModal={() => setShowDiscountModal(true)}
           onShowTierChangeModal={() => setShowTierChangeModal(true)}
           onGetPaymentLink={handleGetPaymentLink}
+          onOpenBillingPortal={handleOpenBillingPortal}
+          isOpeningBillingPortal={isOpeningBillingPortal}
           isDark={isDark}
         />
       )}
