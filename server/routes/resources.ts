@@ -590,6 +590,66 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
   }
 });
 
+router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bookingId = parseInt(id);
+    const { member_email, member_name, member_id } = req.body;
+    
+    if (!member_email || !member_name) {
+      return res.status(400).json({ error: 'Missing required fields: member_email, member_name' });
+    }
+    
+    const result = await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
+      
+      if (!existing) {
+        throw { statusCode: 404, error: 'Booking not found' };
+      }
+      
+      if (!existing.isUnmatched) {
+        throw { statusCode: 400, error: 'Booking is not an unmatched booking' };
+      }
+      
+      const [updated] = await tx.update(bookingRequests)
+        .set({
+          userEmail: member_email.toLowerCase(),
+          userName: member_name,
+          userId: member_id || null,
+          isUnmatched: false,
+          staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Member assigned by staff: ' || ${member_name} || ']'`,
+          updatedAt: new Date()
+        })
+        .where(eq(bookingRequests.id, bookingId))
+        .returning();
+      
+      return updated;
+    });
+    
+    const { broadcastToStaff } = await import('../core/websocket');
+    broadcastToStaff({
+      type: 'booking_updated',
+      bookingId,
+      action: 'member_assigned',
+      memberEmail: member_email,
+      memberName: member_name
+    });
+    
+    logFromRequest(req, 'assign_member_to_booking', 'booking', id, {
+      member_email,
+      member_name,
+      was_unmatched: true
+    });
+    
+    res.json(result);
+  } catch (error: any) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.error });
+    }
+    logAndRespond(req, res, 500, 'Failed to assign member to booking', error, 'ASSIGN_MEMBER_ERROR');
+  }
+});
+
 router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);

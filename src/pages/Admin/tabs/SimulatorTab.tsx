@@ -1989,6 +1989,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                             const isTrackmanMatched = !!(booking as any)?.trackman_booking_id || (booking?.notes && booking.notes.includes('[Trackman Import ID:'));
                                             const hasKnownInactiveStatus = bookingMemberStatus && bookingMemberStatus.toLowerCase() !== 'active' && bookingMemberStatus.toLowerCase() !== 'unknown';
                                             const isInactiveMember = booking && bookingEmail && isTrackmanMatched && hasKnownInactiveStatus;
+                                            const isUnmatched = !!(booking as any)?.is_unmatched;
                                             const handleEmptyCellClick = () => {
                                                 window.dispatchEvent(new CustomEvent('open-manual-booking', {
                                                     detail: { resourceId: resource.id, date: calendarDate, startTime: slot }
@@ -2000,7 +2001,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                             return (
                                                 <div
                                                     key={`${resource.id}-${slot}`}
-                                                    title={closure ? `CLOSED: ${closure.title}` : eventBlock ? `EVENT BLOCK: ${eventBlock.closureTitle || eventBlock.blockType || 'Blocked'}` : booking ? `${bookingDisplayName}${isInactiveMember ? ' (Inactive Member)' : ''} - Click for details` : pendingRequest ? `PENDING: ${pendingRequest.user_name || 'Request'} - Awaiting Trackman sync` : `Click to book ${resource.type === 'conference_room' ? 'Conference Room' : resource.name} at ${formatTime12Hour(slot)}`}
+                                                    title={closure ? `CLOSED: ${closure.title}` : eventBlock ? `EVENT BLOCK: ${eventBlock.closureTitle || eventBlock.blockType || 'Blocked'}` : booking ? `${bookingDisplayName}${isUnmatched ? ' (UNMATCHED - Needs member assignment)' : isInactiveMember ? ' (Inactive Member)' : ''} - Click for details` : pendingRequest ? `PENDING: ${pendingRequest.user_name || 'Request'} - Awaiting Trackman sync` : `Click to book ${resource.type === 'conference_room' ? 'Conference Room' : resource.name} at ${formatTime12Hour(slot)}`}
                                                     onClick={closure || eventBlock ? undefined : booking ? () => setSelectedCalendarBooking(booking) : pendingRequest ? () => { setSelectedRequest(pendingRequest); setActionModal('decline'); } : handleEmptyCellClick}
                                                     className={`h-7 sm:h-8 rounded ${
                                                         closure
@@ -2010,6 +2011,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                             : booking 
                                                                 ? isConference
                                                                     ? 'bg-purple-100 dark:bg-purple-500/20 border border-purple-300 dark:border-purple-500/30 cursor-pointer hover:bg-purple-200 dark:hover:bg-purple-500/30'
+                                                                    : isUnmatched
+                                                                        ? 'bg-amber-100 dark:bg-amber-500/20 border-2 border-dashed border-amber-400 dark:border-amber-400/50 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
                                                                     : isInactiveMember
                                                                         ? 'bg-green-100/50 dark:bg-green-500/10 border border-dashed border-orange-300 dark:border-orange-500/40 cursor-pointer hover:bg-green-200/50 dark:hover:bg-green-500/20'
                                                                         : 'bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/30 cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30' 
@@ -2045,6 +2048,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                 const totalOwed = (booking as any)?.total_owed ?? 0;
                                                                 const textColor = isConference 
                                                                     ? 'text-purple-700 dark:text-purple-300' 
+                                                                    : isUnmatched
+                                                                        ? 'text-amber-700 dark:text-amber-300'
                                                                     : isInactiveMember 
                                                                         ? 'text-green-600/70 dark:text-green-400/70' 
                                                                         : 'text-green-700 dark:text-green-300';
@@ -2067,7 +2072,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                                 {filledSlots}/{declaredPlayers}
                                                                             </span>
                                                                         ) : (
-                                                                            <span className={`sm:hidden w-3 h-3 rounded-full ${isConference ? 'bg-purple-500 dark:bg-purple-400' : 'bg-green-500 dark:bg-green-400'}`} title={bookingDisplayName}></span>
+                                                                            <span className={`sm:hidden w-3 h-3 rounded-full ${isConference ? 'bg-purple-500 dark:bg-purple-400' : isUnmatched ? 'bg-amber-500 dark:bg-amber-400' : 'bg-green-500 dark:bg-green-400'}`} title={bookingDisplayName}></span>
                                                                         )}
                                                                         
                                                                         {/* Desktop: Red badge for unpaid fees - top right */}

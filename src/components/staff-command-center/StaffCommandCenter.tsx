@@ -21,6 +21,7 @@ import { CompleteRosterModal } from './modals/CompleteRosterModal';
 import { AddMemberModal } from './modals/AddMemberModal';
 import QrScannerModal from './modals/QrScannerModal';
 import { TrackmanBookingModal } from './modals/TrackmanBookingModal';
+import AssignMemberModal from './modals/AssignMemberModal';
 import type { StaffCommandCenterProps, BookingRequest, RecentActivity } from './types';
 
 interface OptimisticUpdateRef {
@@ -43,6 +44,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
   const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
+  const [assignMemberModal, setAssignMemberModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
   
   const optimisticUpdateRef = useRef<OptimisticUpdateRef | null>(null);
 
@@ -123,6 +125,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
 
   const today = getTodayPacific();
   const pendingCount = data.pendingRequests.length;
+  const unmatchedBookings = data.todaysBookings.filter(b => (b as any).is_unmatched === true);
 
   const handleOpenTrackman = (booking?: BookingRequest) => {
     if (booking) {
@@ -175,6 +178,28 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
       throw err;
     }
   };
+
+  const handleAssignMember = useCallback((bookingId: number, memberEmail: string, memberName: string) => {
+    updateTodaysBookings(prev => prev.map(b => 
+      b.id === bookingId 
+        ? { ...b, user_email: memberEmail, user_name: memberName, is_unmatched: false }
+        : b
+    ));
+    
+    const newActivity: RecentActivity = {
+      id: `assign-${bookingId}-${Date.now()}`,
+      type: 'member_assigned',
+      timestamp: new Date().toISOString(),
+      primary_text: memberName,
+      secondary_text: 'Assigned to Trackman booking',
+      icon: 'link'
+    };
+    updateRecentActivity(prev => [newActivity, ...prev]);
+    
+    showToast(`Member ${memberName} assigned to booking`, 'success');
+    window.dispatchEvent(new CustomEvent('booking-action-completed'));
+    refresh();
+  }, [updateTodaysBookings, updateRecentActivity, showToast, refresh]);
 
   const handleApprove = async (request: BookingRequest) => {
     const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', '')) : request.id;
@@ -406,6 +431,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             <BookingQueuesSection
               pendingRequests={data.pendingRequests}
               todaysBookings={data.todaysBookings}
+              unmatchedBookings={unmatchedBookings}
               today={today}
               actionInProgress={actionInProgress}
               onTabChange={onTabChange}
@@ -414,6 +440,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
+              onAssignMember={(booking) => setAssignMemberModal({ isOpen: true, booking })}
               variant="desktop-top"
             />
             <TodayScheduleSection
@@ -441,6 +468,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             <BookingQueuesSection
               pendingRequests={data.pendingRequests}
               todaysBookings={data.todaysBookings}
+              unmatchedBookings={unmatchedBookings}
               today={today}
               actionInProgress={actionInProgress}
               onTabChange={onTabChange}
@@ -449,6 +477,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
+              onAssignMember={(booking) => setAssignMemberModal({ isOpen: true, booking })}
               variant="desktop-bottom"
             />
             <TodayScheduleSection
@@ -521,6 +550,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
           <BookingQueuesSection
             pendingRequests={data.pendingRequests}
             todaysBookings={data.todaysBookings}
+            unmatchedBookings={unmatchedBookings}
             today={today}
             actionInProgress={actionInProgress}
             onTabChange={onTabChange}
@@ -529,6 +559,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             onDeny={handleDeny}
             onCheckIn={handleCheckIn}
             onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
+            onAssignMember={(booking) => setAssignMemberModal({ isOpen: true, booking })}
             variant="mobile"
           />
           {/* Upcoming Events & Wellness */}
@@ -565,6 +596,13 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         onClose={() => setTrackmanModal({ isOpen: false, booking: null })}
         booking={trackmanModal.booking}
         onConfirm={handleTrackmanConfirm}
+      />
+
+      <AssignMemberModal
+        isOpen={assignMemberModal.isOpen}
+        onClose={() => setAssignMemberModal({ isOpen: false, booking: null })}
+        booking={assignMemberModal.booking}
+        onAssign={handleAssignMember}
       />
 
       {createPortal(

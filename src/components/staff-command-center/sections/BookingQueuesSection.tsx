@@ -8,6 +8,7 @@ import type { BookingRequest, TabType } from '../types';
 interface BookingQueuesSectionProps {
   pendingRequests: BookingRequest[];
   todaysBookings: BookingRequest[];
+  unmatchedBookings?: BookingRequest[];
   today: string;
   actionInProgress: string | null;
   onTabChange: (tab: TabType) => void;
@@ -16,12 +17,14 @@ interface BookingQueuesSectionProps {
   onDeny: (request: BookingRequest) => void;
   onCheckIn: (booking: BookingRequest) => void;
   onPaymentClick?: (bookingId: number) => void;
+  onAssignMember?: (booking: BookingRequest) => void;
   variant: 'desktop' | 'desktop-top' | 'desktop-bottom' | 'mobile';
 }
 
 export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   pendingRequests,
   todaysBookings,
+  unmatchedBookings = [],
   today,
   actionInProgress,
   onTabChange,
@@ -30,6 +33,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   onDeny,
   onCheckIn,
   onPaymentClick,
+  onAssignMember,
   variant
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -263,6 +267,49 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     </div>
   );
 
+  const UnmatchedBookingsCard = () => (
+    unmatchedBookings.length > 0 ? (
+      <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-amber-50/80 dark:bg-amber-500/10 backdrop-blur-lg border border-amber-300 dark:border-amber-500/30 rounded-2xl p-4`}>
+        <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">link_off</span>
+            <h3 className="font-bold text-amber-700 dark:text-amber-400">Unmatched Trackman Bookings</h3>
+          </div>
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20 px-2 py-1 rounded-full">
+            {unmatchedBookings.length} need attention
+          </span>
+        </div>
+        <div className="space-y-2 overflow-y-auto flex-1">
+          {unmatchedBookings.map((booking, index) => (
+            <GlassListRow 
+              key={booking.id}
+              onClick={() => onAssignMember?.(booking)}
+              className="animate-slide-in-up border-amber-200 dark:border-amber-500/30"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <DateBlock dateStr={booking.request_date || booking.slot_date || ''} today={today} />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-amber-700 dark:text-amber-400 truncate">
+                  {booking.user_name || 'Unknown Customer'}
+                </p>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
+                  {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)} • {booking.bay_name || `Bay ${booking.resource_id}`}
+                </p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onAssignMember?.(booking); }}
+                className="py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">link</span>
+                Assign Member
+              </button>
+            </GlassListRow>
+          ))}
+        </div>
+      </div>
+    ) : null
+  );
+
   if (variant === 'desktop-top') {
     return <PendingRequestsCard />;
   }
@@ -275,6 +322,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     return (
       <>
         <PendingRequestsCard />
+        <UnmatchedBookingsCard />
         <UpcomingBookingsCard />
       </>
     );
@@ -283,6 +331,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   return (
     <>
       <PendingRequestsCard />
+      <UnmatchedBookingsCard />
       <UpcomingBookingsCard />
     </>
   );
