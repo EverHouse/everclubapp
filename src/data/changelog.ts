@@ -13,6 +13,29 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.4.10",
+    date: "2026-01-23",
+    title: "Member Notifications & Improved Search",
+    changes: [
+      "Members now receive notifications when their booking is confirmed via Trackman",
+      "Members notified when staff manually assigns them to a booking",
+      "Fixed member search in 'Assign Member' modal - now shows names and tiers like Record Purchase",
+      "Stats and event lists auto-refresh when a booking is linked (no page reload needed)",
+      "Staff dashboard updates instantly after assigning members to bookings"
+    ]
+  },
+  {
+    version: "9.4.9",
+    date: "2026-01-23",
+    title: "Detailed Booking Stats Breakdown",
+    changes: [
+      "Stats widget now shows 4 categories: Auto Confirmed (blue), Manually Linked (green), Needs Linking (amber), Cancelled (red)",
+      "Auto Confirmed: Bookings automatically matched to members via email",
+      "Manually Linked: Bookings assigned by staff after initial webhook",
+      "Clear visual distinction helps track staff workload for unmatched bookings"
+    ]
+  },
+  {
     version: "9.4.8",
     date: "2026-01-23",
     title: "Accurate Trackman Booking Stats",
