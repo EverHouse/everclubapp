@@ -269,7 +269,8 @@ router.get('/api/booking-requests', async (req, res) => {
       guardian_consent_at: bookingRequests.guardianConsentAt,
       overage_minutes: bookingRequests.overageMinutes,
       overage_fee_cents: bookingRequests.overageFeeCents,
-      overage_paid: bookingRequests.overagePaid
+      overage_paid: bookingRequests.overagePaid,
+      is_unmatched: bookingRequests.isUnmatched
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
@@ -2268,7 +2269,8 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       trackman_booking_id: bookingRequests.trackmanBookingId,
       declared_player_count: bookingRequests.declaredPlayerCount,
       member_notes: bookingRequests.memberNotes,
-      guest_count: bookingRequests.guestCount
+      guest_count: bookingRequests.guestCount,
+      is_unmatched: bookingRequests.isUnmatched
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))

@@ -1928,19 +1928,23 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
     
     const result = await pool.query(
       `SELECT 
-        id,
-        event_type,
-        trackman_booking_id,
-        trackman_user_id,
-        matched_booking_id,
-        matched_user_id,
-        processing_error,
-        processed_at,
-        created_at AT TIME ZONE 'UTC' AS created_at,
-        payload
-       FROM trackman_webhook_events
-       ${whereClause}
-       ORDER BY created_at DESC
+        twe.id,
+        twe.event_type,
+        twe.trackman_booking_id,
+        twe.trackman_user_id,
+        twe.matched_booking_id,
+        twe.matched_user_id,
+        twe.processing_error,
+        twe.processed_at,
+        twe.created_at AT TIME ZONE 'UTC' AS created_at,
+        twe.payload,
+        br.user_name as linked_member_name,
+        br.user_email as linked_member_email,
+        br.is_unmatched as linked_booking_unmatched
+       FROM trackman_webhook_events twe
+       LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id
+       ${whereClause.replace('WHERE 1=1', 'WHERE twe.id IS NOT NULL')}
+       ORDER BY twe.created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );

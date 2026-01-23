@@ -10,6 +10,10 @@ interface TrackmanLinkModalProps {
   bayName?: string;
   bookingDate?: string;
   timeSlot?: string;
+  matchedBookingId?: number;
+  currentMemberName?: string;
+  currentMemberEmail?: string;
+  isRelink?: boolean;
   onSuccess?: () => void;
 }
 
@@ -27,6 +31,10 @@ export function TrackmanLinkModal({
   bayName,
   bookingDate,
   timeSlot,
+  matchedBookingId,
+  currentMemberName,
+  currentMemberEmail,
+  isRelink,
   onSuccess
 }: TrackmanLinkModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,24 +84,43 @@ export function TrackmanLinkModal({
   }, [searchQuery, searchMembers]);
 
   const handleLink = async () => {
-    if (!trackmanBookingId || !selectedMember) return;
+    if (!selectedMember) return;
     
     await linkToMember(async () => {
-      const res = await fetch('/api/bookings/link-trackman-to-member', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          trackman_booking_id: trackmanBookingId,
-          member_email: selectedMember.email,
-          member_name: selectedMember.name,
-          member_id: selectedMember.id
-        })
-      });
-      
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || data.message || 'Failed to link booking to member');
+      // If re-linking an existing booking, use the change-owner endpoint
+      if (isRelink && matchedBookingId) {
+        const res = await fetch(`/api/bookings/${matchedBookingId}/change-owner`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            new_email: selectedMember.email,
+            new_name: selectedMember.name,
+            member_id: selectedMember.id
+          })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || data.message || 'Failed to change booking owner');
+        }
+      } else if (trackmanBookingId) {
+        const res = await fetch('/api/bookings/link-trackman-to-member', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            trackman_booking_id: trackmanBookingId,
+            member_email: selectedMember.email,
+            member_name: selectedMember.name,
+            member_id: selectedMember.id
+          })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || data.message || 'Failed to link booking to member');
+        }
       }
       
       onSuccess?.();
@@ -101,7 +128,7 @@ export function TrackmanLinkModal({
     });
   };
 
-  if (!trackmanBookingId) return null;
+  if (!trackmanBookingId && !matchedBookingId) return null;
 
   return (
     <ModalShell
@@ -110,12 +137,29 @@ export function TrackmanLinkModal({
       title={
         <div className="flex items-center gap-2">
           <TrackmanIcon size={20} />
-          <span>Link Trackman Booking to Member</span>
+          <span>{isRelink ? 'Change Booking Owner' : 'Link Trackman Booking to Member'}</span>
         </div>
       }
       size="md"
     >
       <div className="p-4 space-y-4">
+        {isRelink && currentMemberName && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
+              Currently Linked To
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">person</span>
+              <div>
+                <p className="font-medium text-blue-800 dark:text-blue-200">{currentMemberName}</p>
+                {currentMemberEmail && (
+                  <p className="text-sm text-blue-600 dark:text-blue-400">{currentMemberEmail}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
             Trackman Booking Details
@@ -218,17 +262,21 @@ export function TrackmanLinkModal({
           <button
             onClick={handleLink}
             disabled={!selectedMember || linking}
-            className="flex-1 py-2.5 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 ${
+              isRelink 
+                ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                : 'bg-amber-500 hover:bg-amber-600 text-white'
+            }`}
           >
             {linking ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                Linking...
+                {isRelink ? 'Changing...' : 'Linking...'}
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-sm">link</span>
-                Link to Member
+                <span className="material-symbols-outlined text-sm">{isRelink ? 'swap_horiz' : 'link'}</span>
+                {isRelink ? 'Change Owner' : 'Link to Member'}
               </>
             )}
           </button>

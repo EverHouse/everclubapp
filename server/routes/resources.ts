@@ -784,6 +784,66 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
   }
 });
 
+router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const { new_email, new_name, member_id } = req.body;
+    
+    if (!bookingId || isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+    
+    if (!new_email || !new_name) {
+      return res.status(400).json({ error: 'Missing required fields: new_email, new_name' });
+    }
+    
+    const [existingBooking] = await db.select()
+      .from(bookingRequests)
+      .where(eq(bookingRequests.id, bookingId));
+    
+    if (!existingBooking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    const previousOwner = existingBooking.userName || existingBooking.userEmail;
+    
+    const [updated] = await db.update(bookingRequests)
+      .set({
+        userEmail: new_email.toLowerCase(),
+        userName: new_name,
+        userId: member_id || null,
+        isUnmatched: false,
+        staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Owner changed from ' || ${previousOwner} || ' to ' || ${new_name} || ' by staff]'`,
+        updatedAt: new Date()
+      })
+      .where(eq(bookingRequests.id, bookingId))
+      .returning();
+    
+    const { broadcastToStaff } = await import('../core/websocket');
+    broadcastToStaff({
+      type: 'booking_updated',
+      bookingId: updated.id,
+      action: 'owner_changed',
+      previousOwner,
+      newOwnerEmail: new_email,
+      newOwnerName: new_name
+    });
+    
+    logFromRequest(req, 'change_booking_owner', 'booking', bookingId.toString(), {
+      previous_owner: previousOwner,
+      new_email,
+      new_name
+    });
+    
+    res.json({ 
+      success: true, 
+      booking: updated
+    });
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to change booking owner', error, 'CHANGE_OWNER_ERROR');
+  }
+});
+
 router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);

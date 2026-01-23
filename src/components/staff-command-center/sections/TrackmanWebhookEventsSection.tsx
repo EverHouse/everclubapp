@@ -118,6 +118,10 @@ interface TrackmanWebhookEventsSectionProps {
     bookingDate?: string;
     timeSlot?: string;
     duration?: string;
+    matchedBookingId?: number;
+    currentMemberName?: string;
+    currentMemberEmail?: string;
+    isRelink?: boolean;
   }) => void;
 }
 
@@ -350,21 +354,74 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                           )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          {onLinkToMember && event.trackman_booking_id && !event.matched_booking_id && (
-                            <button
-                              onClick={() => onLinkToMember({
-                                trackmanBookingId: event.trackman_booking_id,
-                                bayName,
-                                bookingDate,
-                                timeSlot,
-                                duration
-                              })}
-                              className="px-2 py-1.5 rounded-lg text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-400 transition-colors flex items-center gap-1"
-                              title="Link this Trackman booking to a member"
-                            >
-                              <span className="material-symbols-outlined text-sm">person_add</span>
-                              <span className="hidden sm:inline">Link to Member</span>
-                            </button>
+                          {onLinkToMember && event.trackman_booking_id && (
+                            (() => {
+                              const isLinkedToMember = event.matched_booking_id && !event.linked_booking_unmatched;
+                              const isLinkedButUnmatched = event.matched_booking_id && event.linked_booking_unmatched;
+                              const memberDisplayName = event.linked_member_name && event.linked_member_name !== 'Unknown (Trackman)' 
+                                ? event.linked_member_name 
+                                : null;
+                              
+                              if (isLinkedToMember && memberDisplayName) {
+                                return (
+                                  <button
+                                    onClick={() => onLinkToMember({
+                                      trackmanBookingId: event.trackman_booking_id,
+                                      bayName,
+                                      bookingDate,
+                                      timeSlot,
+                                      duration,
+                                      matchedBookingId: event.matched_booking_id,
+                                      currentMemberName: event.linked_member_name,
+                                      currentMemberEmail: event.linked_member_email,
+                                      isRelink: true
+                                    })}
+                                    className="px-2 py-1.5 rounded-lg text-xs font-medium bg-green-100 hover:bg-green-200 text-green-800 dark:bg-green-500/20 dark:hover:bg-green-500/30 dark:text-green-400 transition-colors flex items-center gap-1"
+                                    title="Click to change linked member"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">person</span>
+                                    <span className="hidden sm:inline truncate max-w-[100px]">{memberDisplayName}</span>
+                                  </button>
+                                );
+                              } else if (isLinkedButUnmatched) {
+                                return (
+                                  <button
+                                    onClick={() => onLinkToMember({
+                                      trackmanBookingId: event.trackman_booking_id,
+                                      bayName,
+                                      bookingDate,
+                                      timeSlot,
+                                      duration,
+                                      matchedBookingId: event.matched_booking_id,
+                                      isRelink: true
+                                    })}
+                                    className="px-2 py-1.5 rounded-lg text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-400 transition-colors flex items-center gap-1"
+                                    title="Link this Trackman booking to a member"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">person_add</span>
+                                    <span className="hidden sm:inline">Link to Member</span>
+                                  </button>
+                                );
+                              } else if (!event.matched_booking_id) {
+                                return (
+                                  <button
+                                    onClick={() => onLinkToMember({
+                                      trackmanBookingId: event.trackman_booking_id,
+                                      bayName,
+                                      bookingDate,
+                                      timeSlot,
+                                      duration
+                                    })}
+                                    className="px-2 py-1.5 rounded-lg text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-400 transition-colors flex items-center gap-1"
+                                    title="Link this Trackman booking to a member"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">person_add</span>
+                                    <span className="hidden sm:inline">Link to Member</span>
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()
                           )}
                           <button
                             onClick={() => setExpandedEventId(isExpanded ? null : event.id)}

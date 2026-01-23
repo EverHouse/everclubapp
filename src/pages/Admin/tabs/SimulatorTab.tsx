@@ -731,6 +731,10 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         bayName?: string;
         bookingDate?: string;
         timeSlot?: string;
+        matchedBookingId?: number;
+        currentMemberName?: string;
+        currentMemberEmail?: string;
+        isRelink?: boolean;
     }>({ isOpen: false, trackmanBookingId: null });
     const [cancelConfirmModal, setCancelConfirmModal] = useState<{
         isOpen: boolean;
@@ -1023,13 +1027,21 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         bayName?: string;
         bookingDate?: string;
         timeSlot?: string;
+        matchedBookingId?: number;
+        currentMemberName?: string;
+        currentMemberEmail?: string;
+        isRelink?: boolean;
     }) => {
         setTrackmanLinkModal({
             isOpen: true,
             trackmanBookingId: event.trackmanBookingId,
             bayName: event.bayName,
             bookingDate: event.bookingDate,
-            timeSlot: event.timeSlot
+            timeSlot: event.timeSlot,
+            matchedBookingId: event.matchedBookingId,
+            currentMemberName: event.currentMemberName,
+            currentMemberEmail: event.currentMemberEmail,
+            isRelink: event.isRelink
         });
     }, []);
 
@@ -2503,15 +2515,45 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         ) : null;
                     })()}
                     <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-lg">person</span>
-                            <div>
-                                <p className="font-bold text-primary dark:text-white">{(() => {
-                                    const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
-                                    return email && memberNameMap[email] ? memberNameMap[email] : selectedCalendarBooking?.user_name || 'Unknown';
-                                })()}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCalendarBooking?.user_email}</p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-lg">person</span>
+                                <div>
+                                    <p className="font-bold text-primary dark:text-white">{(() => {
+                                        const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                        return email && memberNameMap[email] ? memberNameMap[email] : selectedCalendarBooking?.user_name || 'Unknown';
+                                    })()}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCalendarBooking?.user_email}</p>
+                                </div>
                             </div>
+                            <button
+                                onClick={() => {
+                                    if (!selectedCalendarBooking) return;
+                                    const bookingId = typeof selectedCalendarBooking.id === 'string' 
+                                        ? parseInt(String(selectedCalendarBooking.id).replace('cal_', '')) 
+                                        : selectedCalendarBooking.id as number;
+                                    const currentName = (() => {
+                                        const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                        return email && memberNameMap[email] ? memberNameMap[email] : selectedCalendarBooking?.user_name || 'Unknown';
+                                    })();
+                                    setTrackmanLinkModal({
+                                        isOpen: true,
+                                        trackmanBookingId: (selectedCalendarBooking as any)?.trackman_booking_id || null,
+                                        bayName: selectedCalendarBooking.bay_name || selectedCalendarBooking.resource_name,
+                                        bookingDate: formatDateShortAdmin(selectedCalendarBooking.request_date),
+                                        timeSlot: `${formatTime12Hour(selectedCalendarBooking.start_time)} - ${formatTime12Hour(selectedCalendarBooking.end_time)}`,
+                                        matchedBookingId: bookingId,
+                                        currentMemberName: currentName,
+                                        currentMemberEmail: selectedCalendarBooking.user_email,
+                                        isRelink: true
+                                    });
+                                    setSelectedCalendarBooking(null);
+                                }}
+                                className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+                                title="Change booking owner"
+                            >
+                                <span className="material-symbols-outlined text-sm">edit</span>
+                            </button>
                         </div>
                     </div>
 
@@ -3015,8 +3057,12 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
               bayName={trackmanLinkModal.bayName}
               bookingDate={trackmanLinkModal.bookingDate}
               timeSlot={trackmanLinkModal.timeSlot}
+              matchedBookingId={trackmanLinkModal.matchedBookingId}
+              currentMemberName={trackmanLinkModal.currentMemberName}
+              currentMemberEmail={trackmanLinkModal.currentMemberEmail}
+              isRelink={trackmanLinkModal.isRelink}
               onSuccess={() => {
-                showToast('Trackman booking linked to member', 'success');
+                showToast(trackmanLinkModal.isRelink ? 'Booking owner changed' : 'Trackman booking linked to member', 'success');
                 handleRefresh();
               }}
             />
