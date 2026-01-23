@@ -10,7 +10,8 @@ interface Subscription {
   currentPeriodStart?: number;
   currentPeriodEnd?: number;
   cancelAtPeriodEnd?: boolean;
-  pauseCollection?: { behavior: string } | null;
+  isPaused?: boolean;
+  pausedUntil?: string | null;
   discount?: {
     id: string;
     coupon: {
@@ -123,7 +124,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
     return styles[status] || (isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600');
   };
 
-  const isPaused = activeSubscription?.pauseCollection !== null && activeSubscription?.pauseCollection !== undefined;
+  const isPaused = activeSubscription?.isPaused === true;
 
   return (
     <>
