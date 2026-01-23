@@ -2082,6 +2082,16 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                 return slotStart < ubEnd && slotEnd > ubStart;
                                             }) : null;
                                             
+                                            // Check for pending requests (awaiting Trackman webhook sync)
+                                            const pendingRequest = !booking && !unmatchedBooking ? pendingRequests.find(pr => {
+                                                if (pr.resource_id !== resource.id || pr.request_date !== calendarDate) return false;
+                                                const [prh, prm] = pr.start_time.split(':').map(Number);
+                                                const [preh, prem] = pr.end_time.split(':').map(Number);
+                                                const prStart = prh * 60 + prm;
+                                                const prEnd = preh * 60 + prem;
+                                                return slotStart < prEnd && slotEnd > prStart;
+                                            }) : null;
+                                            
                                             const isConference = resource.type === 'conference_room';
                                             const bookingEmail = booking?.user_email?.toLowerCase() || '';
                                             const bookingMemberStatus = bookingEmail ? memberStatusMap[bookingEmail] : null;
@@ -2106,31 +2116,33 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                 }));
                                             };
                                             
-                                            const isEmptyCell = !closure && !eventBlock && !booking && !unmatchedBooking;
+                                            const isEmptyCell = !closure && !eventBlock && !booking && !unmatchedBooking && !pendingRequest;
                                             
                                             return (
                                                 <div
                                                     key={`${resource.id}-${slot}`}
-                                                    title={closure ? `CLOSED: ${closure.title}` : eventBlock ? `EVENT BLOCK: ${eventBlock.closureTitle || eventBlock.blockType || 'Blocked'}` : isUnmatchedPlaceholder ? `UNMATCHED: ${booking?.user_name || 'Unknown'} - Click to resolve` : booking ? `${bookingDisplayName}${isInactiveMember ? ' (Inactive Member)' : ''} - Click for details` : unmatchedBooking ? `UNMATCHED: ${unmatchedBooking.userName || unmatchedBooking.originalEmail || 'Unknown'} - Click to resolve` : `Click to book ${resource.type === 'conference_room' ? 'Conference Room' : resource.name} at ${formatTime12Hour(slot)}`}
-                                                    onClick={closure || eventBlock ? undefined : booking ? () => setSelectedCalendarBooking(booking) : unmatchedBooking ? () => { setResolveSearchQuery(''); setResolveUnmatchedModal({ booking: unmatchedBooking, memberEmail: '', rememberEmail: true }); } : handleEmptyCellClick}
-                                                    className={`h-7 sm:h-8 rounded border ${
+                                                    title={closure ? `CLOSED: ${closure.title}` : eventBlock ? `EVENT BLOCK: ${eventBlock.closureTitle || eventBlock.blockType || 'Blocked'}` : isUnmatchedPlaceholder ? `UNMATCHED: ${booking?.user_name || 'Unknown'} - Click to resolve` : booking ? `${bookingDisplayName}${isInactiveMember ? ' (Inactive Member)' : ''} - Click for details` : unmatchedBooking ? `UNMATCHED: ${unmatchedBooking.userName || unmatchedBooking.originalEmail || 'Unknown'} - Click to resolve` : pendingRequest ? `PENDING: ${pendingRequest.user_name || 'Request'} - Awaiting Trackman sync` : `Click to book ${resource.type === 'conference_room' ? 'Conference Room' : resource.name} at ${formatTime12Hour(slot)}`}
+                                                    onClick={closure || eventBlock ? undefined : booking ? () => setSelectedCalendarBooking(booking) : unmatchedBooking ? () => { setResolveSearchQuery(''); setResolveUnmatchedModal({ booking: unmatchedBooking, memberEmail: '', rememberEmail: true }); } : pendingRequest ? () => { setSelectedRequest(pendingRequest); setActionModal('decline'); } : handleEmptyCellClick}
+                                                    className={`h-7 sm:h-8 rounded ${
                                                         closure
-                                                            ? 'bg-red-100 dark:bg-red-500/20 border-red-300 dark:border-red-500/30'
+                                                            ? 'bg-red-100 dark:bg-red-500/20 border border-red-300 dark:border-red-500/30'
                                                             : eventBlock
-                                                                ? 'bg-orange-100 dark:bg-orange-500/20 border-orange-300 dark:border-orange-500/30'
+                                                                ? 'bg-orange-100 dark:bg-orange-500/20 border border-orange-300 dark:border-orange-500/30'
                                                             : isUnmatchedPlaceholder
-                                                                ? 'bg-amber-100 dark:bg-amber-500/20 border-amber-300 dark:border-amber-500/30 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
+                                                                ? 'bg-amber-100 dark:bg-amber-500/20 border border-amber-300 dark:border-amber-500/30 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
                                                             : booking 
                                                                 ? isConference
-                                                                    ? 'bg-purple-100 dark:bg-purple-500/20 border-purple-300 dark:border-purple-500/30 cursor-pointer hover:bg-purple-200 dark:hover:bg-purple-500/30'
+                                                                    ? 'bg-purple-100 dark:bg-purple-500/20 border border-purple-300 dark:border-purple-500/30 cursor-pointer hover:bg-purple-200 dark:hover:bg-purple-500/30'
                                                                     : isInactiveMember
-                                                                        ? 'bg-green-100/50 dark:bg-green-500/10 border-dashed border-orange-300 dark:border-orange-500/40 cursor-pointer hover:bg-green-200/50 dark:hover:bg-green-500/20'
-                                                                        : 'bg-green-100 dark:bg-green-500/20 border-green-300 dark:border-green-500/30 cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30' 
+                                                                        ? 'bg-green-100/50 dark:bg-green-500/10 border border-dashed border-orange-300 dark:border-orange-500/40 cursor-pointer hover:bg-green-200/50 dark:hover:bg-green-500/20'
+                                                                        : 'bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/30 cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30' 
                                                                 : unmatchedBooking
-                                                                    ? 'bg-amber-100 dark:bg-amber-500/20 border-amber-300 dark:border-amber-500/30 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
-                                                                    : isConference
-                                                                        ? 'bg-purple-50/50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20 cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-500/15'
-                                                                        : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/15 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/10'
+                                                                    ? 'bg-amber-100 dark:bg-amber-500/20 border border-amber-300 dark:border-amber-500/30 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
+                                                                    : pendingRequest
+                                                                        ? 'bg-blue-50 dark:bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20'
+                                                                        : isConference
+                                                                            ? 'bg-purple-50/50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-500/15'
+                                                                            : 'bg-white dark:bg-white/5 border border-gray-200 dark:border-white/15 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/10'
                                                     } transition-colors`}
                                                 >
                                                     {closure ? (
@@ -2169,12 +2181,19 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                 </span>
                                                             )}
                                                         </div>
-                                                    ) : unmatchedBooking && (
+                                                    ) : unmatchedBooking ? (
                                                         <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start">
                                                             <span className="hidden sm:block text-[9px] sm:text-[10px] font-medium truncate text-amber-700 dark:text-amber-300">
                                                                 {unmatchedBooking.userName || 'Unmatched'}
                                                             </span>
                                                             <span className="sm:hidden w-3 h-3 rounded-full bg-amber-500 dark:bg-amber-400" title={unmatchedBooking.userName || 'Unmatched'}></span>
+                                                        </div>
+                                                    ) : pendingRequest && (
+                                                        <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start">
+                                                            <span className="hidden sm:block text-[9px] sm:text-[10px] font-medium truncate text-blue-600 dark:text-blue-400">
+                                                                {pendingRequest.user_name || 'Pending'}
+                                                            </span>
+                                                            <span className="sm:hidden w-3 h-3 rounded-full border-2 border-dashed border-blue-400 dark:border-blue-400" title={pendingRequest.user_name || 'Pending'}></span>
                                                         </div>
                                                     )}
                                                 </div>
