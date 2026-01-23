@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom';
 import { useToast } from '../../Toast';
 import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 
+// Helper to get CSRF token from cookies
+const getCsrfToken = () => document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+
 interface ParticipantFee {
   participantId: number;
   displayName: string;
@@ -110,7 +113,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ participantId, action: 'confirm' })
       });
@@ -136,7 +139,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ 
           participantId: participantId === 'all' ? undefined : participantId,
@@ -165,7 +168,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ participantId, action: 'use_guest_pass' })
       });
@@ -190,7 +193,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ action: 'confirm_all' })
       });
@@ -213,7 +216,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ status: 'attended', confirmPayment: true })
       });
@@ -236,7 +239,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ status: 'attended', skipPaymentCheck: true })
       });
@@ -259,7 +262,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/mark-all-waivers-reviewed`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include'
       });
       if (res.ok) {
@@ -285,7 +288,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch('/api/stripe/overage/create-payment-intent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ bookingId })
       });
@@ -320,7 +323,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     try {
       const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
         credentials: 'include',
         body: JSON.stringify({ status: 'attended', skipPaymentCheck: true })
       });
