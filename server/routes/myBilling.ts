@@ -97,6 +97,34 @@ router.get('/api/my/billing', requireAuth, async (req, res) => {
         console.error('[MyBilling] Stripe error:', stripeError.message);
         billingInfo.stripeError = 'Unable to load billing details';
       }
+    } else if (member.billing_provider === 'mindbody' && member.stripe_customer_id) {
+      // MindBody members with Stripe customer - show payment methods and balance for one-off charges
+      try {
+        const stripe = await getStripeClient();
+        
+        // Get payment methods on file
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: member.stripe_customer_id,
+          type: 'card',
+        });
+        if (paymentMethods.data.length > 0) {
+          billingInfo.paymentMethods = paymentMethods.data.map(pm => ({
+            id: pm.id,
+            brand: pm.card?.brand,
+            last4: pm.card?.last4,
+            expMonth: pm.card?.exp_month,
+            expYear: pm.card?.exp_year,
+          }));
+        }
+        
+        // Get customer balance
+        const customer = await stripe.customers.retrieve(member.stripe_customer_id);
+        if (customer && !customer.deleted) {
+          billingInfo.customerBalanceDollars = ((customer as any).balance || 0) / 100;
+        }
+      } catch (e) {
+        // Don't fail if Stripe lookup fails for MindBody member
+      }
     } else if (member.billing_provider === 'family_addon') {
       try {
         const familyGroup = await getBillingGroupByMemberEmail(email);
@@ -132,7 +160,9 @@ router.get('/api/my/billing/invoices', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Member not found' });
     }
     
-    if (member.billing_provider !== 'stripe' || !member.stripe_customer_id) {
+    // Return invoices if member has a Stripe customer ID (regardless of billing_provider)
+    // This allows MindBody members to see their one-off Stripe purchases (overage fees, guest passes)
+    if (!member.stripe_customer_id) {
       return res.json({ invoices: [] });
     }
     

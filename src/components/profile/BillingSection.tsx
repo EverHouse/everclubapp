@@ -367,7 +367,7 @@ export default function BillingSection({ isDark }: Props) {
             <div>
               <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Billing</span>
               <p className={`text-xs mt-0.5 ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
-                Managed through Mindbody
+                Subscription through Mindbody
               </p>
             </div>
           </div>
@@ -406,6 +406,57 @@ export default function BillingSection({ isDark }: Props) {
             )}
             {migratingPayment ? 'Opening...' : hasMigrationPending ? 'Update Payment Method' : 'Update Payment Method'}
           </button>
+          
+          {/* Show Stripe payments for overage fees, guest passes, etc. */}
+          {invoices.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <button
+                className={`w-full flex items-center justify-between py-2 text-sm font-medium ${isDark ? 'opacity-80 hover:opacity-100' : 'text-primary/80 hover:text-primary'}`}
+                onClick={() => setShowInvoices(!showInvoices)}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-lg">receipt_long</span>
+                  Club Purchases
+                </span>
+                <span className="material-symbols-outlined text-sm">
+                  {showInvoices ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+              
+              {showInvoices && (
+                <div className="space-y-2 mt-2">
+                  {invoices.map(inv => (
+                    <a
+                      key={inv.id}
+                      href={inv.hostedInvoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center justify-between p-2.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-primary/5'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                          inv.status === 'paid'
+                            ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                            : isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {inv.status}
+                        </span>
+                        <span className={`text-xs ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                          {new Date(inv.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-medium ${isDark ? '' : 'text-primary'}`}>
+                          ${(inv.amountPaid / 100).toFixed(2)}
+                        </span>
+                        <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>open_in_new</span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
