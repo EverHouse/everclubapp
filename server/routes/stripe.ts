@@ -1688,12 +1688,21 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
     const { memberEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone } = req.body;
     const sessionUser = getSessionUser(req);
 
-    if (!memberEmail || !amountCents) {
+    if (!memberEmail || amountCents === undefined || amountCents === null) {
       return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
     }
 
-    if (amountCents < 50) {
+    const numericAmount = Number(amountCents);
+    if (isNaN(numericAmount) || !Number.isFinite(numericAmount)) {
+      return res.status(400).json({ error: 'amountCents must be a valid number' });
+    }
+
+    if (numericAmount < 50) {
       return res.status(400).json({ error: 'Minimum charge amount is $0.50' });
+    }
+
+    if (numericAmount > 99999999) {
+      return res.status(400).json({ error: 'Amount exceeds maximum allowed' });
     }
 
     let member: { id: string; email: string; first_name?: string; last_name?: string; stripe_customer_id?: string } | null = null;
@@ -1709,17 +1718,28 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
       
       const { getStripeClient } = await import('../core/stripe/client');
       const stripe = await getStripeClient();
-      const customer = await stripe.customers.create({
+      
+      const existingCustomers = await stripe.customers.list({
         email: memberEmail,
-        name: resolvedName,
-        phone: phone || undefined,
-        metadata: {
-          source: 'staff_quick_charge',
-          createdBy: sessionUser?.email || 'staff'
-        }
+        limit: 1
       });
-      stripeCustomerId = customer.id;
-      console.log(`[Stripe] Created new customer ${customer.id} for quick charge: ${memberEmail}`);
+      
+      if (existingCustomers.data.length > 0) {
+        stripeCustomerId = existingCustomers.data[0].id;
+        console.log(`[Stripe] Found existing customer ${stripeCustomerId} for quick charge: ${memberEmail}`);
+      } else {
+        const customer = await stripe.customers.create({
+          email: memberEmail,
+          name: resolvedName,
+          phone: phone || undefined,
+          metadata: {
+            source: 'staff_quick_charge',
+            createdBy: sessionUser?.email || 'staff'
+          }
+        });
+        stripeCustomerId = customer.id;
+        console.log(`[Stripe] Created new customer ${customer.id} for quick charge: ${memberEmail}`);
+      }
     } else {
       const memberResult = await pool.query(
         `SELECT id, email, first_name, last_name, stripe_customer_id 
@@ -1770,7 +1790,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
       userId: member?.id?.toString() || 'guest',
       email: customerEmail,
       memberName: resolvedName,
-      amountCents: Math.round(amountCents),
+      amountCents: Math.round(numericAmount),
       purpose: 'one_time_purchase',
       description: finalDescription,
       productId,
