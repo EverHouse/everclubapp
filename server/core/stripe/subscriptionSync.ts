@@ -76,7 +76,56 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
       }
     }
 
-    console.log(`[Stripe Sync] Found ${subscriptions.length} active subscriptions`);
+    console.log(`[Stripe Sync] Found ${subscriptions.length} active subscriptions from global list`);
+    
+    // If no subscriptions found globally, try per-customer fetch (for test clock subscriptions)
+    if (subscriptions.length === 0) {
+      console.log('[Stripe Sync] No subscriptions from global list - checking per-customer for test clock support...');
+      
+      let hasMoreCustomers = true;
+      let customerStartingAfter: string | undefined;
+      let customerCount = 0;
+      
+      while (hasMoreCustomers) {
+        const customerParams: Stripe.CustomerListParams = { limit: 100 };
+        if (customerStartingAfter) {
+          customerParams.starting_after = customerStartingAfter;
+        }
+        
+        const customersPage = await stripe.customers.list(customerParams);
+        customerCount += customersPage.data.length;
+        
+        for (const cust of customersPage.data) {
+          try {
+            const custSubs = await stripe.subscriptions.list({ 
+              customer: cust.id, 
+              status: 'active',
+              limit: 100,
+              expand: ['data.items.data.price']
+            });
+            for (const sub of custSubs.data) {
+              (sub as any).customer = cust;
+              subscriptions.push(sub);
+            }
+          } catch (e: any) {
+            console.log(`[Stripe Sync] Error fetching subs for ${cust.email}: ${e.message}`);
+          }
+        }
+        
+        hasMoreCustomers = customersPage.has_more;
+        if (customersPage.data.length > 0) {
+          customerStartingAfter = customersPage.data[customersPage.data.length - 1].id;
+        }
+        
+        // Safety limit
+        if (customerCount >= 1000) {
+          console.log('[Stripe Sync] Reached customer limit (1000)');
+          break;
+        }
+      }
+      
+      console.log(`[Stripe Sync] Scanned ${customerCount} customers, found ${subscriptions.length} subscriptions via per-customer fetch`);
+    }
 
     // Collect all product IDs that need fetching (products not expanded)
     const productIdsToFetch = new Set<string>();

@@ -8,6 +8,7 @@ import { db } from '../db';
 import { billingAuditLog, membershipTiers, passRedemptionLogs, dayPassPurchases } from '../../shared/schema';
 import { ilike, eq, gte, desc } from 'drizzle-orm';
 import { getTodayPacific, getPacificMidnightUTC } from '../utils/dateUtils';
+import { getStripeClient } from '../core/stripe/client';
 import {
   getStripePublishableKey,
   createPaymentIntent,
@@ -2607,29 +2608,49 @@ router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Requ
 router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const today = getTodayPacific();
+    const stripe = await getStripeClient();
     
-    const stripeResult = await pool.query(
-      `SELECT 
-        purpose,
-        SUM(amount_cents) as total_cents,
-        COUNT(*) as count
-       FROM stripe_payment_intents
-       WHERE status = 'succeeded'
-         AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $1
-       GROUP BY purpose`,
-      [today]
-    );
-
-    const offlineResult = await pool.query(
-      `SELECT 
-        action_details->>'paymentMethod' as payment_method,
-        action_details->>'category' as category,
-        (action_details->>'amountCents')::int as amount_cents
-       FROM billing_audit_log
-       WHERE action_type = 'offline_payment'
-         AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $1`,
-      [today]
-    );
+    // Calculate start and end of today in Pacific time as Unix timestamps
+    const startOfDay = Math.floor(getPacificMidnightUTC().getTime() / 1000);
+    const endOfDay = startOfDay + 86400;
+    
+    // Fetch all PaymentIntents with pagination
+    const allPaymentIntents: Stripe.PaymentIntent[] = [];
+    let piHasMore = true;
+    let piStartingAfter: string | undefined;
+    
+    while (piHasMore && allPaymentIntents.length < 500) {
+      const page = await stripe.paymentIntents.list({
+        created: { gte: startOfDay, lt: endOfDay },
+        limit: 100,
+        ...(piStartingAfter && { starting_after: piStartingAfter })
+      });
+      allPaymentIntents.push(...page.data);
+      piHasMore = page.has_more;
+      if (page.data.length > 0) {
+        piStartingAfter = page.data[page.data.length - 1].id;
+      }
+    }
+    
+    // Fetch all Charges with pagination
+    const allCharges: Stripe.Charge[] = [];
+    let chHasMore = true;
+    let chStartingAfter: string | undefined;
+    
+    while (chHasMore && allCharges.length < 500) {
+      const page = await stripe.charges.list({
+        created: { gte: startOfDay, lt: endOfDay },
+        limit: 100,
+        ...(chStartingAfter && { starting_after: chStartingAfter })
+      });
+      allCharges.push(...page.data);
+      chHasMore = page.has_more;
+      if (page.data.length > 0) {
+        chStartingAfter = page.data[page.data.length - 1].id;
+      }
+    }
+    
+    console.log(`[Daily Summary] Fetched ${allPaymentIntents.length} PaymentIntents and ${allCharges.length} Charges for ${today}`);
 
     const breakdown: Record<string, number> = {
       guest_fee: 0,
@@ -2642,13 +2663,17 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
     };
 
     let transactionCount = 0;
+    const processedIds = new Set<string>();
 
-    for (const row of stripeResult.rows) {
-      const purpose = row.purpose || 'other';
-      const cents = parseInt(row.total_cents) || 0;
-      const count = parseInt(row.count) || 0;
+    // Process PaymentIntents
+    for (const pi of allPaymentIntents) {
+      if (pi.status !== 'succeeded') continue;
+      processedIds.add(pi.id);
       
-      transactionCount += count;
+      const purpose = pi.metadata?.purpose || 'other';
+      const cents = pi.amount || 0;
+      
+      transactionCount += 1;
       
       if (purpose === 'guest_fee') {
         breakdown.guest_fee += cents;
@@ -2656,10 +2681,42 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
         breakdown.overage += cents;
       } else if (purpose === 'one_time_purchase') {
         breakdown.merchandise += cents;
+      } else if (pi.description?.toLowerCase().includes('subscription') || pi.description?.toLowerCase().includes('membership')) {
+        breakdown.membership += cents;
       } else {
         breakdown.other += cents;
       }
     }
+    
+    // Process Charges that aren't already counted via PaymentIntents
+    for (const ch of allCharges) {
+      if (!ch.paid || ch.refunded) continue;
+      if (ch.payment_intent && processedIds.has(ch.payment_intent as string)) continue;
+      
+      processedIds.add(ch.id);
+      const cents = ch.amount || 0;
+      
+      transactionCount += 1;
+      
+      // Check if this is an invoice payment (subscription)
+      if (ch.invoice) {
+        breakdown.membership += cents;
+      } else {
+        breakdown.other += cents;
+      }
+    }
+
+    // Also fetch local offline payments for cash/check
+    const offlineResult = await pool.query(
+      `SELECT 
+        action_details->>'paymentMethod' as payment_method,
+        action_details->>'category' as category,
+        (action_details->>'amountCents')::int as amount_cents
+       FROM billing_audit_log
+       WHERE action_type = 'offline_payment'
+         AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $1`,
+      [today]
+    );
 
     for (const row of offlineResult.rows) {
       const method = row.payment_method || 'other';
