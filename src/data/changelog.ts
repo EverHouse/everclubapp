@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.4.1",
+    date: "2026-01-23",
+    title: "UI Polish: Dark Mode & Rounded Corners",
+    changes: [
+      "Fixed skeleton loaders showing light gray in dark mode - now properly shows dark colors",
+      "Added rounded corners to Directory page search bar and table header for consistent look",
+      "All loading states now automatically adapt to light and dark themes"
+    ]
+  },
+  {
     version: "9.4",
     date: "2026-01-23",
     title: "Audit Fixes: Payments & Login",
