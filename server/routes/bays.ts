@@ -949,7 +949,7 @@ router.get('/api/booking-requests/:id', async (req, res) => {
 router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, pending_trackman_sync } = req.body;
+    const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = req.body;
     
     // If only updating trackman_booking_id (no status change)
     if (trackman_booking_id !== undefined && !status) {
@@ -1117,6 +1117,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             resourceId: assignedBayId,
             calendarEventId: calendarEventId,
             ...(trackman_booking_id !== undefined ? { trackmanBookingId: trackman_booking_id || null } : {}),
+            ...(trackman_external_id !== undefined ? { trackmanExternalId: trackman_external_id || null } : {}),
             updatedAt: new Date()
           })
           .where(eq(bookingRequests.id, bookingId))

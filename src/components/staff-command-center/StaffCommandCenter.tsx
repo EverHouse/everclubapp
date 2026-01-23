@@ -20,6 +20,7 @@ import { CheckinBillingModal } from './modals/CheckinBillingModal';
 import { CompleteRosterModal } from './modals/CompleteRosterModal';
 import { AddMemberModal } from './modals/AddMemberModal';
 import QrScannerModal from './modals/QrScannerModal';
+import { TrackmanBookingModal } from './modals/TrackmanBookingModal';
 import type { StaffCommandCenterProps, BookingRequest, RecentActivity } from './types';
 
 interface OptimisticUpdateRef {
@@ -41,6 +42,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
   const [rosterModal, setRosterModal] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
   const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
   
   const optimisticUpdateRef = useRef<OptimisticUpdateRef | null>(null);
 
@@ -122,8 +124,56 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
   const today = getTodayPacific();
   const pendingCount = data.pendingRequests.length;
 
-  const handleOpenTrackman = () => {
-    window.open('https://login.trackmangolf.com/Account/Login', '_blank');
+  const handleOpenTrackman = (booking?: BookingRequest) => {
+    if (booking) {
+      setTrackmanModal({ isOpen: true, booking });
+    } else {
+      window.open('https://portal.trackmangolf.com/facility/RmFjaWxpdHkKZGI4YWMyN2FhLTM2YWQtNDM4ZC04MjUzLWVmOWU5NzMwMjkxZg==', '_blank');
+    }
+  };
+
+  const handleTrackmanConfirm = async (bookingId: number | string, trackmanExternalId: string) => {
+    const apiId = typeof bookingId === 'string' ? parseInt(String(bookingId).replace('cal_', '')) : bookingId;
+    const booking = data.pendingRequests.find(r => r.id === bookingId);
+    
+    const previousPendingRequests = [...data.pendingRequests];
+    updatePendingRequests(prev => prev.filter(r => r.id !== bookingId));
+    
+    if (booking) {
+      const newActivity: RecentActivity = {
+        id: `approve-${apiId}-${Date.now()}`,
+        type: 'booking_approved',
+        timestamp: new Date().toISOString(),
+        primary_text: booking.user_name || 'Member',
+        secondary_text: booking.bay_name || 'Bay',
+        icon: 'check_circle'
+      };
+      updateRecentActivity(prev => [newActivity, ...prev]);
+    }
+
+    try {
+      const res = await fetch(`/api/booking-requests/${apiId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          status: 'approved',
+          trackman_external_id: trackmanExternalId
+        })
+      });
+      if (res.ok) {
+        showToast('Booking confirmed with Trackman', 'success');
+        window.dispatchEvent(new CustomEvent('booking-action-completed'));
+        refresh();
+      } else {
+        const error = await res.json().catch(() => ({}));
+        updatePendingRequests(() => previousPendingRequests);
+        throw new Error(error.error || 'Failed to confirm booking');
+      }
+    } catch (err: any) {
+      updatePendingRequests(() => previousPendingRequests);
+      throw err;
+    }
   };
 
   const handleApprove = async (request: BookingRequest) => {
@@ -508,6 +558,13 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         isOpen={qrScannerOpen}
         onClose={() => setQrScannerOpen(false)}
         onScanSuccess={handleScanSuccess}
+      />
+
+      <TrackmanBookingModal
+        isOpen={trackmanModal.isOpen}
+        onClose={() => setTrackmanModal({ isOpen: false, booking: null })}
+        booking={trackmanModal.booking}
+        onConfirm={handleTrackmanConfirm}
       />
 
       {createPortal(

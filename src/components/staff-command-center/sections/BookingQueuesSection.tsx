@@ -11,7 +11,7 @@ interface BookingQueuesSectionProps {
   today: string;
   actionInProgress: string | null;
   onTabChange: (tab: TabType) => void;
-  onOpenTrackman: () => void;
+  onOpenTrackman: (booking?: BookingRequest) => void;
   onApprove: (request: BookingRequest) => void;
   onDeny: (request: BookingRequest) => void;
   onCheckIn: (booking: BookingRequest) => void;
@@ -178,11 +178,11 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                   </button>
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onOpenTrackman(); }}
-                  className="ml-[56px] py-1 px-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors flex items-center justify-center gap-1"
+                  onClick={(e) => { e.stopPropagation(); onOpenTrackman(request); }}
+                  className="ml-[56px] py-1 px-3 bg-[#E55A22]/10 text-[#E55A22] dark:bg-[#E55A22]/20 dark:text-[#FF7A44] text-[10px] font-medium rounded-lg hover:bg-[#E55A22]/20 dark:hover:bg-[#E55A22]/30 transition-colors flex items-center justify-center gap-1"
                 >
-                  <span className="material-symbols-outlined text-xs">open_in_new</span>
-                  Open Trackman
+                  <span className="material-symbols-outlined text-xs">sports_golf</span>
+                  Book on Trackman
                 </button>
               </GlassListRow>
             );
