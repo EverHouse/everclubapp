@@ -125,6 +125,49 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
     window.open('https://login.trackmangolf.com/Account/Login', '_blank');
   };
 
+  const handleApprove = async (request: BookingRequest) => {
+    const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', '')) : request.id;
+    setActionInProgress(`approve-${request.id}`);
+    
+    const previousPendingRequests = [...data.pendingRequests];
+    
+    updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
+    
+    const newActivity: RecentActivity = {
+      id: `approve-${apiId}-${Date.now()}`,
+      type: 'booking_approved',
+      timestamp: new Date().toISOString(),
+      primary_text: request.user_name || 'Member',
+      secondary_text: request.bay_name || 'Bay',
+      icon: 'check_circle'
+    };
+    updateRecentActivity(prev => [newActivity, ...prev]);
+    
+    try {
+      const res = await fetch(`/api/booking-requests/${apiId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'approved' })
+      });
+      if (res.ok) {
+        showToast('Booking approved', 'success');
+        window.dispatchEvent(new CustomEvent('booking-action-completed'));
+        refresh();
+      } else {
+        updatePendingRequests(() => previousPendingRequests);
+        updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
+        showToast('Failed to approve booking', 'error');
+      }
+    } catch (err) {
+      updatePendingRequests(() => previousPendingRequests);
+      updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
+      showToast('Failed to approve booking', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const handleDeny = async (request: BookingRequest) => {
     const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', '')) : request.id;
     setActionInProgress(`deny-${request.id}`);
@@ -316,6 +359,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               actionInProgress={actionInProgress}
               onTabChange={onTabChange}
               onOpenTrackman={handleOpenTrackman}
+              onApprove={handleApprove}
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
@@ -350,6 +394,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               actionInProgress={actionInProgress}
               onTabChange={onTabChange}
               onOpenTrackman={handleOpenTrackman}
+              onApprove={handleApprove}
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
@@ -428,6 +473,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             actionInProgress={actionInProgress}
             onTabChange={onTabChange}
             onOpenTrackman={handleOpenTrackman}
+            onApprove={handleApprove}
             onDeny={handleDeny}
             onCheckIn={handleCheckIn}
             onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}

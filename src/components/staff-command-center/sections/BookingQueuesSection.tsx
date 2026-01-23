@@ -12,6 +12,7 @@ interface BookingQueuesSectionProps {
   actionInProgress: string | null;
   onTabChange: (tab: TabType) => void;
   onOpenTrackman: () => void;
+  onApprove: (request: BookingRequest) => void;
   onDeny: (request: BookingRequest) => void;
   onCheckIn: (booking: BookingRequest) => void;
   onPaymentClick?: (bookingId: number) => void;
@@ -25,12 +26,24 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   actionInProgress,
   onTabChange,
   onOpenTrackman,
+  onApprove,
   onDeny,
   onCheckIn,
   onPaymentClick,
   variant
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+
+  const { execute: executeApprove } = useAsyncAction(
+    async (request: BookingRequest) => {
+      setLoadingAction(`approve-${request.id}`);
+      try {
+        await onApprove(request);
+      } finally {
+        setLoadingAction(null);
+      }
+    }
+  );
 
   const { execute: executeDeny } = useAsyncAction(
     async (request: BookingRequest) => {
@@ -99,6 +112,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       ) : (
         <div className="space-y-2">
           {pendingRequests.map((request, index) => {
+            const isApproving = isActionLoading(`approve-${request.id}`);
             const isDenying = isActionLoading(`deny-${request.id}`);
             
             return (
@@ -132,20 +146,27 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                     </span>
                   </div>
                 )}
-                <p className="text-[10px] text-primary/60 dark:text-white/60 ml-[56px] mb-1">
-                  Book in Trackman to confirm - it will auto-link
-                </p>
                 <div className="flex gap-2 ml-[56px]">
                   <button
-                    onClick={(e) => { e.stopPropagation(); onOpenTrackman(); }}
-                    className="flex-1 py-1.5 px-3 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center justify-center gap-1.5"
+                    onClick={(e) => { e.stopPropagation(); executeApprove(request); }}
+                    disabled={isApproving || isDenying}
+                    className="flex-1 py-1.5 px-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
-                    <span className="material-symbols-outlined text-sm">open_in_new</span>
-                    Open Trackman
+                    {isApproving ? (
+                      <>
+                        <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                        Approving...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-sm">check_circle</span>
+                        Approve
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); executeDeny(request); }}
-                    disabled={isDenying}
+                    disabled={isDenying || isApproving}
                     className="flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     {isDenying ? (
@@ -156,6 +177,13 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                     ) : 'Deny'}
                   </button>
                 </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpenTrackman(); }}
+                  className="ml-[56px] py-1 px-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors flex items-center justify-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-xs">open_in_new</span>
+                  Open Trackman
+                </button>
               </GlassListRow>
             );
           })}
