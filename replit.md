@@ -43,7 +43,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **Action Management**: `useAsyncAction` hook for preventing double-tap submissions, loading states, and error handling.
 - **Performance Optimizations**: List virtualization (`react-window`), skeleton loaders, optimized CSS, lazy-loaded admin tabs, and optimistic updates.
 - **Admin Tools**: Admin-configurable features, data integrity dashboard, and data migration tools.
-- **Privacy Compliance**: Privacy modal, CCPA/CPRA compliance features, and account deletion.
+- **Privacy Compliance**: Privacy modal, CCPA/CPRA compliance features, account deletion, and member data export (Right to Know). Admin audit log tracks staff access to member data with IP/user-agent logging.
 - **Waiver Management**: Tracks waiver versions and requires signing on login.
 - **Member Lookup**: Centralized `MemberService` with caching.
 - **Billing Management**: Staff Payments Dashboard for POS, unified payment history, member billing management, self-service portal, tier change wizard with proration, dunning for failed payments, and refund processing.
@@ -62,6 +62,7 @@ The application features a React 19 frontend with Vite, styled using Tailwind CS
 - **PWA Gesture Handling**: Edge swipe gestures are disabled in standalone PWA mode.
 - **Corporate Membership**: Supports unified billing groups, volume pricing, corporate checkout, HubSpot company sync, and individual tracking within groups.
 - **Data Integrity Architecture**: Stripe as the source of truth for billing, transaction rollback for group member operations, fail-fast on Stripe errors, webhook idempotency, and automatic status sync between Stripe and database. Dual-source active tracking using HubSpot and Stripe. Tier sync utility for consistency. Database pool client management ensures proper release.
+- **Scheduled Maintenance**: Daily session cleanup (2am Pacific), webhook log cleanup (4am Pacific, 30-day retention), Stripe reconciliation (5am Pacific), and grace period checks (10am Pacific).
 
 ## External Dependencies
 - **Stripe Payments**: For in-app payment collection, subscription management, and webhook processing.
