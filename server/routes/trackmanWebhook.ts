@@ -50,14 +50,61 @@ interface TrackmanBookingPayload {
   updated_at?: string;
 }
 
+// V2 Trackman webhook format - nested venue/booking structure
+interface TrackmanV2BayOption {
+  id: number;
+  name: string;
+  duration?: number;
+  subtitle?: string | null;
+}
+
+interface TrackmanV2PlayerOption {
+  id: number;
+  name: string;
+  quantity: number;
+  subtitle?: string | null;
+}
+
+interface TrackmanV2Booking {
+  id: number;
+  bay?: {
+    id: number;
+    ref: string;
+  };
+  start: string;  // ISO 8601 UTC format: "2026-01-23T17:15:00.000Z"
+  end: string;    // ISO 8601 UTC format: "2026-01-23T18:45:00.000Z"
+  type?: string;
+  range?: {
+    id: number;
+  };
+  status: string;  // "attended", "confirmed", "cancelled", etc.
+  bayOption?: TrackmanV2BayOption;
+  created_at?: string;
+  playerOptions?: TrackmanV2PlayerOption[];
+  externalBookingId?: string;  // Our system's booking UUID sent to Trackman
+  externalBookingProvider?: string;
+}
+
+interface TrackmanV2Venue {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface TrackmanV2WebhookPayload {
+  venue?: TrackmanV2Venue;
+  booking?: TrackmanV2Booking;
+}
+
 interface TrackmanWebhookPayload {
   event_type?: string;
   eventType?: string;
   data?: TrackmanBookingPayload;
-  booking?: TrackmanBookingPayload;
+  booking?: TrackmanBookingPayload | TrackmanV2Booking;
   user?: any;
   purchase?: any;
   timestamp?: string;
+  venue?: TrackmanV2Venue;  // V2 format includes venue
 }
 
 function validateTrackmanWebhookSignature(req: Request): boolean {
@@ -114,7 +161,84 @@ function validateTrackmanWebhookSignature(req: Request): boolean {
 }
 
 function extractBookingData(payload: TrackmanWebhookPayload): TrackmanBookingPayload | null {
-  return payload.data || payload.booking || null;
+  return payload.data || payload.booking as TrackmanBookingPayload || null;
+}
+
+// Detect if webhook is in V2 format (nested venue/booking with ISO timestamps)
+function isTrackmanV2Payload(payload: any): payload is TrackmanV2WebhookPayload {
+  return payload?.booking?.start && 
+         payload?.booking?.end && 
+         typeof payload?.booking?.id === 'number' &&
+         (payload?.venue || payload?.booking?.bay?.ref);
+}
+
+// Convert ISO 8601 UTC timestamp to Pacific timezone date/time
+function parseISOToPacific(isoStr: string): { date: string; time: string } {
+  const dt = new Date(isoStr);
+  if (isNaN(dt.getTime())) {
+    throw new Error(`Invalid ISO date: ${isoStr}`);
+  }
+  return {
+    date: formatDatePacific(dt),
+    time: formatTimePacific(dt).substring(0, 5), // HH:MM from HH:MM:SS
+  };
+}
+
+// Infer event type from V2 booking status
+function inferEventTypeFromStatus(status: string): string {
+  const s = status.toLowerCase();
+  if (s === 'cancelled' || s === 'canceled' || s === 'deleted') {
+    return 'booking.cancelled';
+  }
+  if (s === 'attended' || s === 'confirmed' || s === 'booked') {
+    return 'booking.created';
+  }
+  return 'booking_update';
+}
+
+// Parse V2 payload and return normalized booking data
+function parseTrackmanV2Payload(payload: TrackmanV2WebhookPayload): {
+  normalized: ReturnType<typeof normalizeBookingFields>;
+  eventType: string;
+  externalBookingId: string | undefined;
+  bayRef: string | undefined;
+} {
+  const booking = payload.booking!;
+  
+  // Parse start/end times from ISO 8601 UTC to Pacific
+  const startParsed = parseISOToPacific(booking.start);
+  const endParsed = parseISOToPacific(booking.end);
+  
+  // Calculate player count from playerOptions
+  const playerCount = booking.playerOptions?.reduce((sum, opt) => sum + opt.quantity, 0) || 1;
+  
+  // Create normalized structure
+  const normalized = {
+    trackmanBookingId: String(booking.id),
+    bayId: booking.bay?.ref,
+    bayName: booking.bay?.ref ? `Bay ${booking.bay.ref}` : undefined,
+    baySerial: undefined,
+    startTime: `${startParsed.date}T${startParsed.time}:00`,
+    endTime: `${endParsed.date}T${endParsed.time}:00`,
+    date: startParsed.date,
+    customerEmail: undefined, // V2 doesn't include customer email
+    customerName: undefined,  // V2 doesn't include customer name
+    customerPhone: undefined,
+    customerId: undefined,
+    playerCount,
+    status: booking.status,
+    // Parsed Pacific times for direct use
+    parsedDate: startParsed.date,
+    parsedStartTime: startParsed.time,
+    parsedEndTime: endParsed.time,
+  };
+  
+  return {
+    normalized,
+    eventType: inferEventTypeFromStatus(booking.status),
+    externalBookingId: booking.externalBookingId,
+    bayRef: booking.bay?.ref,
+  };
 }
 
 function normalizeBookingFields(booking: TrackmanBookingPayload) {
@@ -132,6 +256,10 @@ function normalizeBookingFields(booking: TrackmanBookingPayload) {
     customerId: booking.customer?.id || booking.user?.id,
     playerCount: booking.player_count || booking.playerCount || 1,
     status: booking.status,
+    // For V1 format, parsed times come from parseDateTime
+    parsedDate: undefined as string | undefined,
+    parsedStartTime: undefined as string | undefined,
+    parsedEndTime: undefined as string | undefined,
   };
 }
 
@@ -146,9 +274,21 @@ const BAY_SERIAL_TO_RESOURCE: Record<string, number> = {
 function mapBayNameToResourceId(
   bayName: string | undefined, 
   bayId: string | undefined,
-  baySerial?: string
+  baySerial?: string,
+  bayRef?: string  // V2 format bay.ref field
 ): number | null {
-  // Check serial number first - most reliable mapping
+  // Check bay.ref first (V2 format) - most direct mapping
+  if (bayRef) {
+    const refNum = parseInt(bayRef.trim(), 10);
+    if (refNum >= 1 && refNum <= 4) {
+      logger.info('[Trackman Webhook] Matched bay by ref', {
+        extra: { bayRef, resourceId: refNum }
+      });
+      return refNum;
+    }
+  }
+  
+  // Check serial number - reliable for V1 format
   if (baySerial) {
     const serialMatch = BAY_SERIAL_TO_RESOURCE[baySerial.trim()];
     if (serialMatch) {
@@ -197,6 +337,118 @@ function mapBayNameToResourceId(
   if (name.includes('four') || name.includes('fourth')) return 4;
   
   return null;
+}
+
+// Link booking by external booking ID (UUID sent to Trackman when booking was created)
+async function linkByExternalBookingId(
+  externalBookingId: string,
+  trackmanBookingId: string,
+  slotDate: string,
+  startTime: string,
+  endTime: string,
+  resourceId: number | null,
+  status: string,
+  playerCount: number
+): Promise<{ matched: boolean; bookingId?: number; memberEmail?: string; memberName?: string }> {
+  try {
+    // Find booking request by external booking ID (stored as UUID in calendar_event_id or similar)
+    // The externalBookingId is our system's UUID that was sent to Trackman
+    const result = await pool.query(
+      `SELECT id, user_email, user_name, user_id, status as current_status, resource_id
+       FROM booking_requests 
+       WHERE calendar_event_id = $1
+         OR id::text = $1
+       LIMIT 1`,
+      [externalBookingId]
+    );
+    
+    if (result.rows.length === 0) {
+      // Try matching by UUID pattern in staff_notes (for pending trackman sync)
+      const pendingResult = await pool.query(
+        `SELECT id, user_email, user_name, user_id, status as current_status, resource_id
+         FROM booking_requests 
+         WHERE staff_notes LIKE $1
+           AND trackman_booking_id IS NULL
+         LIMIT 1`,
+        [`%${externalBookingId}%`]
+      );
+      
+      if (pendingResult.rows.length === 0) {
+        logger.info('[Trackman Webhook] No booking found for externalBookingId', {
+          extra: { externalBookingId }
+        });
+        return { matched: false };
+      }
+      
+      result.rows = pendingResult.rows;
+    }
+    
+    const booking = result.rows[0];
+    const bookingId = booking.id;
+    const memberEmail = booking.user_email;
+    const memberName = booking.user_name;
+    
+    // Determine new status based on Trackman status
+    const normalizedStatus = status.toLowerCase();
+    let newStatus = booking.current_status;
+    if (normalizedStatus === 'attended') {
+      newStatus = 'attended';
+    } else if (normalizedStatus === 'confirmed' || normalizedStatus === 'booked') {
+      newStatus = 'approved';
+    } else if (normalizedStatus === 'cancelled' || normalizedStatus === 'canceled') {
+      newStatus = 'cancelled';
+    }
+    
+    // Calculate duration
+    const startParts = startTime.split(':').map(Number);
+    const endParts = endTime.split(':').map(Number);
+    const startMinutes = startParts[0] * 60 + startParts[1];
+    const endMinutes = endParts[0] * 60 + endParts[1];
+    const durationMinutes = endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+    
+    // Update booking with Trackman info
+    await pool.query(
+      `UPDATE booking_requests 
+       SET trackman_booking_id = $1,
+           trackman_player_count = $2,
+           status = $3,
+           start_time = $4,
+           end_time = $5,
+           duration_minutes = $6,
+           resource_id = COALESCE($7, resource_id),
+           reviewed_by = COALESCE(reviewed_by, 'trackman_webhook'),
+           reviewed_at = COALESCE(reviewed_at, NOW()),
+           staff_notes = COALESCE(staff_notes, '') || ' [Linked via Trackman webhook - externalBookingId match]',
+           updated_at = NOW()
+       WHERE id = $8`,
+      [
+        trackmanBookingId,
+        playerCount,
+        newStatus,
+        startTime,
+        endTime,
+        durationMinutes,
+        resourceId,
+        bookingId
+      ]
+    );
+    
+    logger.info('[Trackman Webhook] Linked booking via externalBookingId', {
+      extra: { 
+        bookingId, 
+        trackmanBookingId, 
+        externalBookingId, 
+        memberEmail,
+        oldStatus: booking.current_status,
+        newStatus
+      }
+    });
+    
+    return { matched: true, bookingId, memberEmail, memberName };
+  } catch (e) {
+    logger.error('[Trackman Webhook] Failed to link by externalBookingId', { error: e as Error });
+    return { matched: false };
+  }
 }
 
 function parseDateTime(dateTimeStr: string | undefined, dateStr: string | undefined): { date: string; time: string } | null {
@@ -1284,7 +1536,10 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   logger.info('[Trackman Webhook] Received webhook', {
     extra: { 
       headers: Object.keys(req.headers).filter(h => h.startsWith('x-')),
-      bodyKeys: Object.keys(req.body || {})
+      bodyKeys: Object.keys(req.body || {}),
+      hasVenue: !!req.body?.venue,
+      hasBookingStart: !!req.body?.booking?.start,
+      isV2Format: isTrackmanV2Payload(req.body)
     }
   });
   
@@ -1293,8 +1548,8 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   }
   
   const payload: TrackmanWebhookPayload = req.body;
-  const eventType = payload.event_type || payload.eventType || 'unknown';
   
+  // Respond immediately - process asynchronously
   res.status(200).json({ received: true });
   
   try {
@@ -1303,6 +1558,179 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     let matchedBookingId: number | undefined;
     let matchedUserId: string | undefined;
     let processingError: string | undefined;
+    let eventType: string;
+    
+    // Check if this is V2 format (nested venue/booking with ISO timestamps)
+    if (isTrackmanV2Payload(payload)) {
+      logger.info('[Trackman Webhook] Processing V2 format payload', {
+        extra: { 
+          venue: payload.venue?.name,
+          bookingId: (payload.booking as TrackmanV2Booking)?.id,
+          status: (payload.booking as TrackmanV2Booking)?.status,
+          externalBookingId: (payload.booking as TrackmanV2Booking)?.externalBookingId
+        }
+      });
+      
+      const v2Result = parseTrackmanV2Payload(payload as TrackmanV2WebhookPayload);
+      trackmanBookingId = v2Result.normalized.trackmanBookingId;
+      eventType = v2Result.eventType;
+      
+      // Map bay.ref to resource_id
+      const resourceId = mapBayNameToResourceId(
+        v2Result.normalized.bayName,
+        v2Result.normalized.bayId,
+        v2Result.normalized.baySerial,
+        v2Result.bayRef
+      );
+      
+      // Try to link by externalBookingId first (our UUID sent to Trackman)
+      if (v2Result.externalBookingId) {
+        const linkResult = await linkByExternalBookingId(
+          v2Result.externalBookingId,
+          v2Result.normalized.trackmanBookingId!,
+          v2Result.normalized.parsedDate!,
+          v2Result.normalized.parsedStartTime!,
+          v2Result.normalized.parsedEndTime!,
+          resourceId,
+          v2Result.normalized.status || 'confirmed',
+          v2Result.normalized.playerCount
+        );
+        
+        if (linkResult.matched && linkResult.bookingId) {
+          matchedBookingId = linkResult.bookingId;
+          matchedUserId = linkResult.memberEmail;
+          
+          // Update bay slot cache for availability blocking
+          if (resourceId) {
+            const slotStatus: 'booked' | 'cancelled' | 'completed' = 
+              v2Result.normalized.status?.toLowerCase() === 'cancelled' ? 'cancelled' :
+              v2Result.normalized.status?.toLowerCase() === 'attended' ? 'completed' : 'booked';
+            
+            await updateBaySlotCache(
+              v2Result.normalized.trackmanBookingId!,
+              resourceId,
+              v2Result.normalized.parsedDate!,
+              v2Result.normalized.parsedStartTime!,
+              v2Result.normalized.parsedEndTime!,
+              slotStatus,
+              linkResult.memberEmail,
+              linkResult.memberName,
+              v2Result.normalized.playerCount
+            );
+          }
+          
+          // Send real-time notifications to both staff and member
+          const bayName = resourceId ? `Bay ${resourceId}` : undefined;
+          
+          // Notify member their booking is confirmed
+          if (linkResult.memberEmail) {
+            await notifyMemberBookingConfirmed(
+              linkResult.memberEmail,
+              linkResult.bookingId,
+              v2Result.normalized.parsedDate!,
+              v2Result.normalized.parsedStartTime!,
+              bayName
+            );
+          }
+          
+          // Notify staff about the confirmed booking via WebSocket
+          broadcastToStaff({
+            type: 'trackman_booking_confirmed',
+            title: 'Trackman Booking Confirmed',
+            message: `${linkResult.memberName || linkResult.memberEmail}'s booking for ${v2Result.normalized.parsedDate} at ${v2Result.normalized.parsedStartTime}${bayName ? ` (${bayName})` : ''} has been confirmed via Trackman.`,
+            data: {
+              bookingId: linkResult.bookingId,
+              memberEmail: linkResult.memberEmail,
+              memberName: linkResult.memberName,
+              date: v2Result.normalized.parsedDate,
+              time: v2Result.normalized.parsedStartTime,
+              bay: bayName,
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              status: v2Result.normalized.status
+            }
+          });
+          
+          logger.info('[Trackman Webhook V2] Successfully linked booking via externalBookingId', {
+            extra: { 
+              bookingId: linkResult.bookingId, 
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              externalBookingId: v2Result.externalBookingId,
+              memberEmail: linkResult.memberEmail,
+              date: v2Result.normalized.parsedDate,
+              time: v2Result.normalized.parsedStartTime
+            }
+          });
+        } else {
+          // externalBookingId didn't match - log for debugging
+          logger.warn('[Trackman Webhook V2] externalBookingId did not match any booking', {
+            extra: { 
+              externalBookingId: v2Result.externalBookingId,
+              trackmanBookingId: v2Result.normalized.trackmanBookingId
+            }
+          });
+          
+          // Save to unmatched bookings for staff review
+          await saveToUnmatchedBookings(
+            v2Result.normalized.trackmanBookingId!,
+            v2Result.normalized.parsedDate!,
+            v2Result.normalized.parsedStartTime!,
+            v2Result.normalized.parsedEndTime!,
+            resourceId,
+            undefined, // No email in V2 format
+            undefined, // No name in V2 format  
+            v2Result.normalized.playerCount,
+            `V2 webhook - externalBookingId ${v2Result.externalBookingId} not found`
+          );
+          
+          // Notify staff about unmatched V2 booking
+          broadcastToStaff({
+            type: 'trackman_unmatched',
+            title: 'Trackman Booking Needs Review',
+            message: `A Trackman booking (ID: ${v2Result.normalized.trackmanBookingId}) for ${v2Result.normalized.parsedDate} at ${v2Result.normalized.parsedStartTime} could not be automatically matched and needs staff review.`,
+            data: {
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              externalBookingId: v2Result.externalBookingId,
+              date: v2Result.normalized.parsedDate,
+              time: v2Result.normalized.parsedStartTime,
+              resourceId,
+              status: v2Result.normalized.status
+            }
+          });
+        }
+      } else {
+        // No externalBookingId - save to unmatched
+        logger.warn('[Trackman Webhook V2] No externalBookingId in payload', {
+          extra: { trackmanBookingId: v2Result.normalized.trackmanBookingId }
+        });
+        
+        await saveToUnmatchedBookings(
+          v2Result.normalized.trackmanBookingId!,
+          v2Result.normalized.parsedDate!,
+          v2Result.normalized.parsedStartTime!,
+          v2Result.normalized.parsedEndTime!,
+          resourceId,
+          undefined,
+          undefined,
+          v2Result.normalized.playerCount,
+          'V2 webhook - no externalBookingId provided'
+        );
+      }
+      
+      await logWebhookEvent(
+        eventType,
+        payload,
+        trackmanBookingId,
+        trackmanUserId,
+        matchedBookingId,
+        matchedUserId,
+        processingError
+      );
+      
+      return; // V2 processing complete
+    }
+    
+    // V1 format processing (original logic)
+    eventType = payload.event_type || payload.eventType || 'unknown';
     
     const bookingData = extractBookingData(payload);
     if (bookingData) {
@@ -1347,7 +1775,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         break;
         
       default:
-        logger.info('[Trackman Webhook] Unknown event type', { extra: { eventType, payload } });
+        logger.info('[Trackman Webhook] Unknown event type (V1)', { extra: { eventType, payload } });
     }
     
     await logWebhookEvent(
