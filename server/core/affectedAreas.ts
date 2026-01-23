@@ -1,7 +1,5 @@
 import { pool } from './db';
 
-const CONFERENCE_ROOM_BAY_ID = 11;
-
 export async function getAllActiveBayIds(): Promise<number[]> {
   const result = await pool.query("SELECT id FROM resources WHERE type = 'simulator'");
   return result.rows.map((r: any) => r.id);
@@ -14,7 +12,7 @@ export async function getAllResourceIds(): Promise<number[]> {
 
 export async function getConferenceRoomId(): Promise<number | null> {
   const result = await pool.query("SELECT id FROM resources WHERE LOWER(name) LIKE '%conference%' LIMIT 1");
-  return result.rows.length > 0 ? result.rows[0].id : CONFERENCE_ROOM_BAY_ID;
+  return result.rows.length > 0 ? result.rows[0].id : null;
 }
 
 export async function parseAffectedAreas(affectedAreas: string): Promise<number[]> {
@@ -34,7 +32,7 @@ export async function parseAffectedAreas(affectedAreas: string): Promise<number[
   
   if (normalized === 'conference_room' || normalized === 'conference room') {
     const confId = await getConferenceRoomId();
-    return confId ? [confId] : [CONFERENCE_ROOM_BAY_ID];
+    return confId ? [confId] : [];
   }
   
   const idSet = new Set<number>();

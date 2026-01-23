@@ -11,7 +11,7 @@ import { checkDailyBookingLimit } from '../core/tierService';
 import { notifyAllStaff } from '../core/notificationService';
 import { isStaffOrAdmin } from '../core/middleware';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour, createPacificDate } from '../utils/dateUtils';
-import { parseAffectedAreas } from '../core/affectedAreas';
+import { parseAffectedAreas, getConferenceRoomId } from '../core/affectedAreas';
 import { logAndRespond } from '../core/logger';
 import { checkClosureConflict, checkAvailabilityBlockConflict, parseTimeToMinutes } from '../core/bookingValidation';
 import { bookingEvents } from '../core/bookingEvents';
@@ -23,9 +23,6 @@ import { createSessionWithUsageTracking } from '../core/bookingService/sessionMa
 import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
 
 const router = Router();
-
-// Conference room bay ID constant
-const CONFERENCE_ROOM_BAY_ID = 11;
 
 // Helper to get the correct calendar name based on bay ID
 // ONLY returns calendar name for conference rooms - golf/simulators no longer sync to calendar
@@ -41,21 +38,16 @@ async function getCalendarNameForBayAsync(bayId: number | null): Promise<string 
       return CALENDAR_CONFIG.conference.name;
     }
   } catch (e) {
-    // Fallback to ID check if DB lookup fails
+    // DB lookup failed - return null (no calendar sync)
   }
   
-  // Fallback: check by known conference room ID, otherwise return null (no calendar sync for golf)
-  return bayId === CONFERENCE_ROOM_BAY_ID 
-    ? CALENDAR_CONFIG.conference.name 
-    : null;
+  return null;
 }
 
-// Sync version for simple cases (uses ID check only)
-// Returns null for golf/simulators - only conference rooms sync to calendar
+// Sync version for simple cases - returns null since we can't do async DB lookup
+// The async version should be preferred when possible
 function getCalendarNameForBay(bayId: number | null): string | null {
-  return bayId === CONFERENCE_ROOM_BAY_ID 
-    ? CALENDAR_CONFIG.conference.name 
-    : null;
+  return null;
 }
 
 // Helper to dismiss all staff notifications for a booking request when it's processed

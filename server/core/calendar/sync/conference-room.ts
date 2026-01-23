@@ -5,6 +5,7 @@ import { eq, and, ilike, or, sql } from 'drizzle-orm';
 import { getTodayPacific } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG, ConferenceRoomBooking, MemberMatchResult, CalendarEventData } from '../config';
 import { getCalendarIdByName } from '../cache';
+import { getConferenceRoomId } from '../../affectedAreas';
 
 export async function getConferenceRoomBookingsFromCalendar(
   memberName?: string,
@@ -313,12 +314,16 @@ export async function findMemberByCalendarEvent(eventData: CalendarEventData): P
 }
 
 export async function syncConferenceRoomCalendarToBookings(options?: { monthsBack?: number }): Promise<{ synced: number; linked: number; created: number; skipped: number; error?: string; warning?: string }> {
-  const CONFERENCE_ROOM_BAY_ID = 11;
   let linked = 0;
   let created = 0;
   let skipped = 0;
 
   try {
+    const conferenceRoomId = await getConferenceRoomId();
+    if (!conferenceRoomId) {
+      return { synced: 0, linked: 0, created: 0, skipped: 0, warning: 'No conference room resource found in database' };
+    }
+
     const calendar = await getGoogleCalendarClient();
     const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.conference.name);
 
@@ -426,7 +431,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           .from(bookingRequests)
           .where(
             and(
-              eq(bookingRequests.resourceId, CONFERENCE_ROOM_BAY_ID),
+              eq(bookingRequests.resourceId, conferenceRoomId),
               eq(bookingRequests.requestDate, eventDate)
             )
           );
@@ -462,7 +467,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           await db.insert(bookingRequests).values({
             userEmail: memberEmail || 'unknown@mindbody.com',
             userName: memberName,
-            resourceId: CONFERENCE_ROOM_BAY_ID,
+            resourceId: conferenceRoomId,
             requestDate: eventDate,
             startTime: startTime,
             endTime: endTime,
