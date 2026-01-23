@@ -34,7 +34,6 @@ const SimulatorTab = lazy(() => import('./tabs/SimulatorTab'));
 const DataIntegrityTab = lazy(() => import('./tabs/DataIntegrityTab'));
 const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
 const FinancialsTab = lazy(() => import('./tabs/FinancialsTab'));
-const StaffActivityTab = lazy(() => import('./tabs/StaffActivityTab'));
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
@@ -66,7 +65,7 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType | null;
-    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings', 'financials', 'staff-activity'];
+    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings', 'financials'];
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (!tabParam) {
@@ -209,7 +208,6 @@ const AdminDashboard: React.FC = () => {
               {activeTab === 'data-integrity' && actualUser?.role === 'admin' && <DataIntegrityTab />}
               {activeTab === 'settings' && actualUser?.role === 'admin' && <SettingsTab />}
               {activeTab === 'financials' && <FinancialsTab />}
-              {activeTab === 'staff-activity' && actualUser?.role === 'admin' && <StaffActivityTab />}
             </Suspense>
           </PageErrorBoundary>
         </div>
