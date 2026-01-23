@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { pool } from '../core/db';
 import { logger } from '../core/logger';
-import { isStaffOrAdmin } from '../core/middleware';
+import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { sendNotificationToUser, broadcastToStaff } from '../core/websocket';
 // Removed sendBookingConfirmationEmail import - email notifications disabled per user preference, push only for now
 import { notifyAllStaff } from '../core/staffNotifications';
@@ -984,7 +984,7 @@ async function createUnmatchedBookingRequest(
         endTime,
         durationMinutes,
         resourceId,
-        customerEmail || null,
+        customerEmail || 'unmatched@trackman.import',
         customerName || 'Unknown (Trackman)',
         trackmanBookingId,
         externalBookingId || null,
@@ -2368,6 +2368,228 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
   } catch (error: any) {
     logger.error('[Simulate Confirm] Error', { error });
     res.status(500).json({ error: 'Failed to confirm booking' });
+  }
+});
+
+// Backfill endpoint: Create booking_requests from past trackman_webhook_events
+router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) => {
+  try {
+    logger.info('[Trackman Backfill] Starting backfill of past webhook events');
+    
+    // Get all webhook events that don't have a matched_booking_id
+    const unmatchedEvents = await pool.query(`
+      SELECT 
+        id, trackman_booking_id, payload, created_at
+      FROM trackman_webhook_events 
+      WHERE matched_booking_id IS NULL 
+        AND payload IS NOT NULL
+      ORDER BY created_at DESC
+    `);
+    
+    const results = {
+      total: unmatchedEvents.rows.length,
+      linked: 0,
+      created: 0,
+      skipped: 0,
+      errors: 0,
+      details: [] as any[]
+    };
+    
+    for (const event of unmatchedEvents.rows) {
+      try {
+        const payload = typeof event.payload === 'string' 
+          ? JSON.parse(event.payload) 
+          : event.payload;
+        
+        // Extract booking data from payload (V2 format)
+        const bookingData = payload?.booking || payload?.data || {};
+        const startStr = bookingData?.start;
+        const endStr = bookingData?.end;
+        const bayRef = bookingData?.bay?.ref;
+        const customerEmail = bookingData?.customer?.email || payload?.customer?.email;
+        const customerName = bookingData?.customer?.name || payload?.customer?.name || 'Unknown (Trackman)';
+        const playerCount = bookingData?.playerOptions?.[0]?.quantity || 1;
+        const externalBookingId = bookingData?.externalBookingId;
+        
+        if (!startStr || !endStr) {
+          results.skipped++;
+          results.details.push({ 
+            trackmanId: event.trackman_booking_id, 
+            status: 'skipped', 
+            reason: 'Missing start/end time in payload' 
+          });
+          continue;
+        }
+        
+        // Parse times - handle both ISO and other formats
+        const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
+        const endDate = new Date(endStr.includes('T') ? endStr : endStr.replace(' ', 'T') + 'Z');
+        
+        // Convert to Pacific time for date/time strings
+        const requestDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        const startTime = startDate.toLocaleTimeString('en-US', { 
+          hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+        }) + ':00';
+        const endTime = endDate.toLocaleTimeString('en-US', { 
+          hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+        }) + ':00';
+        
+        // Calculate resource_id from bay ref
+        let resourceId: number | null = null;
+        if (bayRef) {
+          const bayNum = parseInt(bayRef);
+          if (bayNum >= 1 && bayNum <= 4) {
+            resourceId = bayNum;
+          }
+        }
+        
+        // Calculate duration
+        const startParts = startTime.split(':').map(Number);
+        const endParts = endTime.split(':').map(Number);
+        const startMinutes = startParts[0] * 60 + startParts[1];
+        const endMinutes = endParts[0] * 60 + endParts[1];
+        const durationMinutes = endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+        
+        // First, check if a booking_request already exists with this trackman_booking_id
+        const existingByTrackman = await pool.query(
+          `SELECT id FROM booking_requests WHERE trackman_booking_id = $1`,
+          [event.trackman_booking_id]
+        );
+        
+        if (existingByTrackman.rows.length > 0) {
+          // Already linked
+          await pool.query(
+            `UPDATE trackman_webhook_events SET matched_booking_id = $1 WHERE id = $2`,
+            [existingByTrackman.rows[0].id, event.id]
+          );
+          results.skipped++;
+          results.details.push({ 
+            trackmanId: event.trackman_booking_id, 
+            status: 'skipped', 
+            reason: 'Already has linked booking_request' 
+          });
+          continue;
+        }
+        
+        // Try to find an existing booking by matching date, time, and bay
+        const matchingBooking = await pool.query(`
+          SELECT id, user_email, user_name, trackman_booking_id
+          FROM booking_requests 
+          WHERE request_date = $1 
+            AND start_time = $2
+            AND (resource_id = $3 OR $3 IS NULL)
+            AND trackman_booking_id IS NULL
+            AND status NOT IN ('cancelled', 'declined')
+          LIMIT 1
+        `, [requestDate, startTime, resourceId]);
+        
+        if (matchingBooking.rows.length > 0) {
+          // Found a match - link them together
+          const existingBooking = matchingBooking.rows[0];
+          
+          await pool.query(`
+            UPDATE booking_requests 
+            SET trackman_booking_id = $1,
+                trackman_player_count = $2,
+                trackman_external_id = $3,
+                is_unmatched = false,
+                staff_notes = COALESCE(staff_notes, '') || ' [Linked via backfill]',
+                updated_at = NOW()
+            WHERE id = $4
+          `, [event.trackman_booking_id, playerCount, externalBookingId, existingBooking.id]);
+          
+          // Update the webhook event with matched_booking_id
+          await pool.query(
+            `UPDATE trackman_webhook_events SET matched_booking_id = $1 WHERE id = $2`,
+            [existingBooking.id, event.id]
+          );
+          
+          results.linked++;
+          results.details.push({ 
+            trackmanId: event.trackman_booking_id, 
+            status: 'linked', 
+            bookingId: existingBooking.id,
+            member: existingBooking.user_email || existingBooking.user_name
+          });
+        } else {
+          // No match found - create an unmatched booking_request
+          const newBooking = await pool.query(`
+            INSERT INTO booking_requests 
+            (request_date, start_time, end_time, duration_minutes, resource_id,
+             user_email, user_name, status, trackman_booking_id, trackman_external_id,
+             trackman_player_count, is_unmatched, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $9, $10, true, NOW(), NOW())
+            RETURNING id
+          `, [
+            requestDate,
+            startTime,
+            endTime,
+            durationMinutes,
+            resourceId,
+            customerEmail || 'unmatched@trackman.import',
+            customerName,
+            event.trackman_booking_id,
+            externalBookingId || null,
+            playerCount
+          ]);
+          
+          if (newBooking.rows.length > 0) {
+            // Update the webhook event with matched_booking_id
+            await pool.query(
+              `UPDATE trackman_webhook_events SET matched_booking_id = $1 WHERE id = $2`,
+              [newBooking.rows[0].id, event.id]
+            );
+            
+            results.created++;
+            results.details.push({ 
+              trackmanId: event.trackman_booking_id, 
+              status: 'created', 
+              bookingId: newBooking.rows[0].id,
+              date: requestDate,
+              time: startTime,
+              bay: resourceId ? `Bay ${resourceId}` : 'Unknown'
+            });
+          }
+        }
+      } catch (eventError: any) {
+        results.errors++;
+        results.details.push({ 
+          trackmanId: event.trackman_booking_id, 
+          status: 'error', 
+          reason: eventError.message 
+        });
+        logger.error('[Trackman Backfill] Error processing event', { 
+          error: eventError, 
+          trackmanBookingId: event.trackman_booking_id 
+        });
+      }
+    }
+    
+    logger.info('[Trackman Backfill] Backfill complete', { 
+      extra: { 
+        total: results.total, 
+        linked: results.linked, 
+        created: results.created, 
+        skipped: results.skipped, 
+        errors: results.errors 
+      }
+    });
+    
+    // Broadcast to staff that bookings may have been updated
+    broadcastToStaff({
+      type: 'bookings_updated',
+      action: 'trackman_backfill',
+      message: `Backfill complete: ${results.linked} linked, ${results.created} created`
+    });
+    
+    res.json({
+      success: true,
+      message: `Processed ${results.total} webhook events`,
+      results
+    });
+  } catch (error: any) {
+    logger.error('[Trackman Backfill] Error', { error });
+    res.status(500).json({ error: 'Failed to run backfill', details: error.message });
   }
 });
 
