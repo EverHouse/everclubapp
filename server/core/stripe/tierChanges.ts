@@ -143,7 +143,7 @@ export async function commitTierChange(
     if (immediate) {
       await pool.query(
         'UPDATE users SET tier = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2)',
-        [tier.slug, memberEmail]
+        [tier.name, memberEmail]
       );
     }
     

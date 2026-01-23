@@ -1077,15 +1077,11 @@ async function handleSubscriptionUpdated(subscription: any, previousAttributes?:
         metadata: i.metadata,
       }));
       
-      const itemChanges = await handleSubscriptionItemsChanged({
-        subscriptionId: subscription.id,
+      await handleSubscriptionItemsChanged(
+        subscription.id,
         currentItems,
         previousItems,
-      });
-      
-      if (itemChanges.deactivated.length > 0) {
-        console.log(`[Stripe Webhook] Family members deactivated via subscription item removal: ${itemChanges.deactivated.join(', ')}`);
-      }
+      );
     }
 
     const userResult = await pool.query(
