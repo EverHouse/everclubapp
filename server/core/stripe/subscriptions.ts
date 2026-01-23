@@ -309,12 +309,14 @@ export async function changeSubscriptionTier(
       await stripe.subscriptions.update(subscriptionId, {
         items: [{ id: itemId, price: newPriceId }],
         proration_behavior: 'always_invoice',
+        cancel_at_period_end: false,
       });
       console.log(`[Stripe Subscriptions] Immediately upgraded subscription ${subscriptionId} to price ${newPriceId}`);
     } else {
       await stripe.subscriptions.update(subscriptionId, {
         items: [{ id: itemId, price: newPriceId }],
         proration_behavior: 'none',
+        cancel_at_period_end: false,
       });
       console.log(`[Stripe Subscriptions] Changed subscription ${subscriptionId} to price ${newPriceId} (next cycle)`);
     }
