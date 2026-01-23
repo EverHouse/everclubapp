@@ -807,6 +807,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           )}
           <MindbodyBillingSection
             mindbodyClientId={billingInfo.mindbodyClientId}
+            stripeCustomerId={billingInfo.stripeCustomerId}
+            paymentMethods={billingInfo.paymentMethods}
+            recentInvoices={billingInfo.recentInvoices}
+            customerBalance={billingInfo.customerBalance}
             isDark={isDark}
           />
         </>

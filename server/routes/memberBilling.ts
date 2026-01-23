@@ -141,6 +141,46 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       }
     } else if (member.billing_provider === 'mindbody') {
       billingInfo.mindbodyClientId = member.mindbody_client_id;
+      
+      // Also fetch Stripe data for MindBody members who have a Stripe customer ID
+      // This allows staff to view/charge one-off purchases through Stripe
+      if (member.stripe_customer_id) {
+        try {
+          const stripe = await getStripeClient();
+          
+          // Get recent invoices (for one-off charges like overage fees)
+          const invoicesResult = await listCustomerInvoices(member.stripe_customer_id);
+          if (invoicesResult.success && invoicesResult.invoices && invoicesResult.invoices.length > 0) {
+            billingInfo.recentInvoices = invoicesResult.invoices.slice(0, 10);
+          }
+          
+          // Get customer balance (credits)
+          const customer = await stripe.customers.retrieve(member.stripe_customer_id);
+          if (customer && !customer.deleted) {
+            const balanceCents = (customer as any).balance || 0;
+            billingInfo.customerBalance = balanceCents;
+            billingInfo.customerBalanceDollars = balanceCents / 100;
+          }
+          
+          // Get payment methods on file
+          const paymentMethods = await stripe.paymentMethods.list({
+            customer: member.stripe_customer_id,
+            type: 'card',
+          });
+          if (paymentMethods.data.length > 0) {
+            billingInfo.paymentMethods = paymentMethods.data.map(pm => ({
+              id: pm.id,
+              brand: pm.card?.brand,
+              last4: pm.card?.last4,
+              expMonth: pm.card?.exp_month,
+              expYear: pm.card?.exp_year,
+            }));
+          }
+        } catch (stripeError: any) {
+          // Don't fail the whole request if Stripe lookup fails
+          console.error('[MemberBilling] Stripe lookup for MindBody member failed:', stripeError.message);
+        }
+      }
     } else if (member.billing_provider === 'family_addon') {
       try {
         const familyGroup = await getBillingGroupByMemberEmail(email);
