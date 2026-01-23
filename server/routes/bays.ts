@@ -650,42 +650,125 @@ router.post('/api/booking-requests', async (req, res) => {
       originalBooking = origBooking;
     }
     
-    if (!reschedule_booking_id) {
-      const limitCheck = await checkDailyBookingLimit(user_email, request_date, duration_minutes, user_tier);
-      if (!limitCheck.allowed) {
-        return res.status(403).json({ 
-          error: limitCheck.reason,
-          remainingMinutes: limitCheck.remainingMinutes
-        });
-      }
-    }
-    
+    // Calculate end_time before transaction
     const [hours, mins] = start_time.split(':').map(Number);
     const totalMins = hours * 60 + mins + duration_minutes;
     const endHours = Math.floor(totalMins / 60);
     const endMins = totalMins % 60;
     const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
     
-    const result = await db.insert(bookingRequests).values({
-      userEmail: user_email.toLowerCase(),
-      userName: user_name,
-      resourceId: resource_id || null,
-      resourcePreference: resource_preference,
-      requestDate: request_date,
-      startTime: start_time,
-      durationMinutes: duration_minutes,
-      endTime: end_time,
-      notes: notes,
-      rescheduleBookingId: reschedule_booking_id || null,
-      declaredPlayerCount: declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null,
-      memberNotes: member_notes ? String(member_notes).slice(0, 280) : null,
-      guardianName: guardian_consent && guardian_name ? guardian_name : null,
-      guardianRelationship: guardian_consent && guardian_relationship ? guardian_relationship : null,
-      guardianPhone: guardian_consent && guardian_phone ? guardian_phone : null,
-      guardianConsentAt: guardian_consent ? new Date() : null
-    }).returning();
-    
-    const row = result[0];
+    // Use transaction to prevent race condition between limit check and insert
+    const client = await pool.connect();
+    let row: any;
+    try {
+      await client.query('BEGIN');
+      
+      // Lock existing bookings for this user/date to prevent concurrent booking race
+      await client.query(
+        `SELECT id FROM booking_requests 
+         WHERE LOWER(user_email) = LOWER($1) 
+         AND request_date = $2 
+         AND status IN ('pending', 'approved', 'confirmed')
+         FOR UPDATE`,
+        [user_email, request_date]
+      );
+      
+      // If resource_id is specified, lock and check for time overlap
+      if (resource_id) {
+        const overlapCheck = await client.query(
+          `SELECT id FROM booking_requests 
+           WHERE resource_id = $1 
+           AND request_date = $2 
+           AND status IN ('pending', 'approved', 'confirmed', 'attended')
+           AND (
+             (start_time < $4 AND end_time > $3)
+           )
+           FOR UPDATE`,
+          [resource_id, request_date, start_time, end_time]
+        );
+        
+        if (overlapCheck.rows.length > 0) {
+          await client.query('ROLLBACK');
+          client.release();
+          return res.status(409).json({ error: 'This time slot is already booked' });
+        }
+      }
+      
+      // Re-check daily booking limit inside transaction to prevent race condition
+      if (!reschedule_booking_id) {
+        const limitCheck = await checkDailyBookingLimit(user_email, request_date, duration_minutes, user_tier);
+        if (!limitCheck.allowed) {
+          await client.query('ROLLBACK');
+          client.release();
+          return res.status(403).json({ 
+            error: limitCheck.reason,
+            remainingMinutes: limitCheck.remainingMinutes
+          });
+        }
+      }
+      
+      // Insert the booking within the transaction
+      const insertResult = await client.query(
+        `INSERT INTO booking_requests (
+          user_email, user_name, resource_id, resource_preference, 
+          request_date, start_time, duration_minutes, end_time, notes,
+          reschedule_booking_id, declared_player_count, member_notes,
+          guardian_name, guardian_relationship, guardian_phone, guardian_consent_at,
+          status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'pending', NOW(), NOW())
+        RETURNING *`,
+        [
+          user_email.toLowerCase(),
+          user_name,
+          resource_id || null,
+          resource_preference || null,
+          request_date,
+          start_time,
+          duration_minutes,
+          end_time,
+          notes || null,
+          reschedule_booking_id || null,
+          declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null,
+          member_notes ? String(member_notes).slice(0, 280) : null,
+          guardian_consent && guardian_name ? guardian_name : null,
+          guardian_consent && guardian_relationship ? guardian_relationship : null,
+          guardian_consent && guardian_phone ? guardian_phone : null,
+          guardian_consent ? new Date() : null
+        ]
+      );
+      
+      await client.query('COMMIT');
+      
+      // Map snake_case DB columns to camelCase for compatibility with rest of code
+      const dbRow = insertResult.rows[0];
+      row = {
+        id: dbRow.id,
+        userEmail: dbRow.user_email,
+        userName: dbRow.user_name,
+        resourceId: dbRow.resource_id,
+        resourcePreference: dbRow.resource_preference,
+        requestDate: dbRow.request_date,
+        startTime: dbRow.start_time,
+        durationMinutes: dbRow.duration_minutes,
+        endTime: dbRow.end_time,
+        notes: dbRow.notes,
+        status: dbRow.status,
+        rescheduleBookingId: dbRow.reschedule_booking_id,
+        declaredPlayerCount: dbRow.declared_player_count,
+        memberNotes: dbRow.member_notes,
+        guardianName: dbRow.guardian_name,
+        guardianRelationship: dbRow.guardian_relationship,
+        guardianPhone: dbRow.guardian_phone,
+        guardianConsentAt: dbRow.guardian_consent_at,
+        createdAt: dbRow.created_at,
+        updatedAt: dbRow.updated_at
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
     
     // Fetch resource name if resource_id is provided
     let resourceName = 'Bay';
