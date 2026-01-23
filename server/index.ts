@@ -14,10 +14,6 @@ import { setupSupabaseAuthRoutes } from './supabase/auth';
 import { isProduction, pool } from './core/db';
 import { requestIdMiddleware, logRequest } from './core/logger';
 import { db } from './db';
-import { systemSettings } from '../shared/schema';
-import { eq, sql } from 'drizzle-orm';
-import { syncGoogleCalendarEvents, syncWellnessCalendarEvents, syncInternalCalendarToClosures, syncConferenceRoomCalendarToBookings } from './core/calendar/index';
-import { syncAllMembersFromHubSpot, triggerCommunicationLogsSync } from './core/memberSync';
 
 import resourcesRouter from './routes/resources';
 import calendarRouter from './routes/calendar';
@@ -32,7 +28,7 @@ import guestPassesRouter from './routes/guestPasses';
 import passesRouter from './routes/passes';
 import baysRouter from './routes/bays';
 import notificationsRouter from './routes/notifications';
-import pushRouter, { sendDailyReminders, sendMorningClosureNotifications } from './routes/push';
+import pushRouter from './routes/push';
 import availabilityRouter from './routes/availability';
 import cafeRouter from './routes/cafe';
 import galleryRouter from './routes/gallery';
@@ -43,7 +39,7 @@ import imageUploadRouter from './routes/imageUpload';
 import closuresRouter from './routes/closures';
 import membershipTiersRouter from './routes/membershipTiers';
 import trainingRouter from './routes/training';
-import toursRouter, { syncToursFromCalendar, sendTodayTourReminders } from './routes/tours';
+import toursRouter from './routes/tours';
 import bugReportsRouter from './routes/bugReports';
 import trackmanRouter from './routes/trackman';
 import trackmanWebhookRouter from './routes/trackmanWebhook';
@@ -74,6 +70,14 @@ import { startWaiverReviewScheduler } from './schedulers/waiverReviewScheduler';
 import { startStripeReconciliationScheduler } from './schedulers/stripeReconciliationScheduler';
 import { startGracePeriodScheduler } from './schedulers/gracePeriodScheduler';
 import { startBookingExpiryScheduler } from './schedulers/bookingExpiryScheduler';
+import { startBackgroundSyncScheduler } from './schedulers/backgroundSyncScheduler';
+import { startDailyReminderScheduler } from './schedulers/dailyReminderScheduler';
+import { startMorningClosureScheduler } from './schedulers/morningClosureScheduler';
+import { startWeeklyCleanupScheduler } from './schedulers/weeklyCleanupScheduler';
+import { startInviteExpiryScheduler } from './schedulers/inviteExpiryScheduler';
+import { startCommunicationLogsScheduler } from './schedulers/communicationLogsScheduler';
+import { startWebhookLogCleanupScheduler } from './schedulers/webhookLogCleanupScheduler';
+import { startSessionCleanupScheduler } from './schedulers/sessionCleanupScheduler';
 import { processStripeWebhook, getStripeSync } from './core/stripe';
 import { runMigrations } from 'stripe-replit-sync';
 import { enableRealtimeForTable } from './core/supabase/client';
@@ -598,379 +602,20 @@ async function startServer() {
     }, 30000);
   }
 
-  // 2. Background sync using recursive setTimeout - prevents overlapping syncs
-  // All calendar/tours/wellness syncs run ONLY via this background scheduler
-  // This ensures health checks pass before any expensive sync operations
-  const SYNC_INTERVAL_MS = 5 * 60 * 1000;
-  
-  // Recursive setTimeout pattern: only schedules next run after current one finishes
-  // This prevents race conditions if a sync takes longer than the interval
-  const runBackgroundSync = async () => {
-    try {
-      const eventsResult = await syncGoogleCalendarEvents().catch(() => ({ synced: 0, created: 0, updated: 0, deleted: 0, error: 'Events sync failed' }));
-      const wellnessResult = await syncWellnessCalendarEvents().catch(() => ({ synced: 0, created: 0, updated: 0, deleted: 0, error: 'Wellness sync failed' }));
-      const toursResult = await syncToursFromCalendar().catch(() => ({ synced: 0, created: 0, updated: 0, cancelled: 0, error: 'Tours sync failed' }));
-      const closuresResult = await syncInternalCalendarToClosures().catch(() => ({ synced: 0, created: 0, updated: 0, deleted: 0, error: 'Closures sync failed' }));
-      const confRoomResult = await syncConferenceRoomCalendarToBookings().catch(() => ({ synced: 0, linked: 0, created: 0, skipped: 0, error: 'Conference room sync failed' })) as { synced: number; linked: number; created: number; skipped: number; error?: string; warning?: string };
-      const memberResult = await syncAllMembersFromHubSpot().catch(() => ({ synced: 0, errors: 0, error: 'Member sync failed' })) as { synced: number; errors: number; error?: string };
-      const eventsMsg = eventsResult.error ? eventsResult.error : `${eventsResult.synced} synced`;
-      const wellnessMsg = wellnessResult.error ? wellnessResult.error : `${wellnessResult.synced} synced`;
-      const toursMsg = toursResult.error ? toursResult.error : `${toursResult.synced} synced`;
-      const closuresMsg = closuresResult.error ? closuresResult.error : `${closuresResult.synced} synced`;
-      const confRoomMsg = confRoomResult.error ? confRoomResult.error : (confRoomResult.warning ? 'not configured' : `${confRoomResult.synced} synced`);
-      const memberMsg = memberResult.error ? memberResult.error : `${memberResult.synced} synced`;
-      console.log(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Tours: ${toursMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}, Members: ${memberMsg}`);
-    } catch (err) {
-      console.error('[Auto-sync] Calendar sync failed:', err);
-    } finally {
-      // Schedule next sync only after current one completes (prevents overlapping syncs)
-      setTimeout(runBackgroundSync, SYNC_INTERVAL_MS);
-    }
-  };
-  
-  // First sync runs after initial delay, then chains via setTimeout
-  setTimeout(runBackgroundSync, SYNC_INTERVAL_MS);
-  console.log('[Startup] Background calendar sync enabled (every 5 minutes, first sync in 5 minutes)');
-  
-  // Daily reminder scheduler - runs at 6pm local time
-  const REMINDER_HOUR = 18; // 6pm
-  const REMINDER_SETTING_KEY = 'last_daily_reminder_date';
-  
-  // Atomic check-and-set: only returns true if this instance claimed today's reminder slot
-  const tryClaimReminderSlot = async (todayStr: string): Promise<boolean> => {
-    try {
-      // Atomic upsert that only succeeds if value is different from today
-      // Uses Drizzle's onConflictDoUpdate with a WHERE clause to ensure atomicity
-      const result = await db
-        .insert(systemSettings)
-        .values({
-          key: REMINDER_SETTING_KEY,
-          value: todayStr,
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: systemSettings.key,
-          set: {
-            value: todayStr,
-            updatedAt: new Date(),
-          },
-          where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
-        })
-        .returning({ key: systemSettings.key });
-      
-      return result.length > 0;
-    } catch (err) {
-      console.error('[Daily Reminders] Database error:', err);
-      return false;
-    }
-  };
-  
-  const checkAndSendReminders = async () => {
-    try {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const todayStr = now.toISOString().split('T')[0];
-      
-      // Only run at 6pm and only once per day (atomic claim)
-      if (currentHour === REMINDER_HOUR) {
-        const claimed = await tryClaimReminderSlot(todayStr);
-        
-        if (claimed) {
-          console.log('[Daily Reminders] Starting scheduled reminder job...');
-          
-          try {
-            const result = await sendDailyReminders();
-            console.log(`[Daily Reminders] Completed: ${result.message}`);
-          } catch (err) {
-            console.error('[Daily Reminders] Send failed:', err);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('[Daily Reminders] Scheduler error:', err);
-    }
-  };
-  
-  // Check every 30 minutes
-  setInterval(checkAndSendReminders, 30 * 60 * 1000);
-  console.log('[Startup] Daily reminder scheduler enabled (runs at 6pm)');
-  
-  // Morning closure notification scheduler - runs at 8am local time
-  const MORNING_HOUR = 8; // 8am
-  const MORNING_SETTING_KEY = 'last_morning_closure_notification_date';
-  
-  const tryClaimMorningSlot = async (todayStr: string): Promise<boolean> => {
-    try {
-      const result = await db
-        .insert(systemSettings)
-        .values({
-          key: MORNING_SETTING_KEY,
-          value: todayStr,
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: systemSettings.key,
-          set: {
-            value: todayStr,
-            updatedAt: new Date(),
-          },
-          where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
-        })
-        .returning({ key: systemSettings.key });
-      
-      return result.length > 0;
-    } catch (err) {
-      console.error('[Morning Closures] Database error:', err);
-      return false;
-    }
-  };
-  
-  const checkAndSendMorningNotifications = async () => {
-    try {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const todayStr = now.toISOString().split('T')[0];
-      
-      // Only run at 8am and only once per day (atomic claim)
-      if (currentHour === MORNING_HOUR) {
-        const claimed = await tryClaimMorningSlot(todayStr);
-        
-        if (claimed) {
-          console.log('[Morning Closures] Starting morning closure notifications...');
-          
-          try {
-            const result = await sendMorningClosureNotifications();
-            console.log(`[Morning Closures] Completed: ${result.message}`);
-          } catch (err) {
-            console.error('[Morning Closures] Send failed:', err);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('[Morning Closures] Scheduler error:', err);
-    }
-  };
-  
-  // Check every 30 minutes for morning closure notifications
-  setInterval(checkAndSendMorningNotifications, 30 * 60 * 1000);
-  console.log('[Startup] Morning closure notification scheduler enabled (runs at 8am)');
-  
-  // Weekly cleanup scheduler - runs at 3am on Sundays
-  const CLEANUP_DAY = 0; // Sunday
-  const CLEANUP_HOUR = 3; // 3am
-  let lastCleanupWeek = -1;
-  
-  const checkAndRunCleanup = async () => {
-    try {
-      const now = new Date();
-      const currentDay = now.getDay();
-      const currentHour = now.getHours();
-      const currentWeek = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
-      
-      if (currentDay === CLEANUP_DAY && currentHour === CLEANUP_HOUR && currentWeek !== lastCleanupWeek) {
-        lastCleanupWeek = currentWeek;
-        console.log('[Cleanup] Starting weekly cleanup...');
-        
-        const { runScheduledCleanup } = await import('./core/databaseCleanup');
-        await runScheduledCleanup();
-        
-        const { runSessionCleanup } = await import('./core/sessionCleanup');
-        await runSessionCleanup();
-        
-        console.log('[Cleanup] Weekly cleanup completed');
-      }
-    } catch (err) {
-      console.error('[Cleanup] Scheduler error:', err);
-    }
-  };
-  
-  // Check every hour
-  setInterval(checkAndRunCleanup, 60 * 60 * 1000);
-  console.log('[Startup] Weekly cleanup scheduler enabled (runs Sundays at 3am)');
-  
-  // Invite auto-expiry scheduler - runs every 5 minutes
-  const INVITE_EXPIRY_INTERVAL_MS = 5 * 60 * 1000;
-  
-  const expireUnacceptedInvites = async () => {
-    try {
-      const { notifyMember } = await import('./core/notificationService');
-      const { logger } = await import('./core/logger');
-      const { formatDateDisplayWithDay, formatTime12Hour } = await import('./utils/dateUtils');
-      
-      const expiredInvites = await pool.query(`
-        SELECT 
-          bp.id as participant_id,
-          bp.user_id,
-          bp.display_name,
-          bp.session_id,
-          bs.session_date,
-          bs.start_time,
-          br.id as booking_id,
-          br.user_email as owner_email,
-          br.user_name as owner_name
-        FROM booking_participants bp
-        JOIN booking_sessions bs ON bp.session_id = bs.id
-        JOIN booking_requests br ON br.session_id = bs.id
-        WHERE bp.invite_status = 'pending'
-          AND bp.invite_expires_at IS NOT NULL
-          AND bp.invite_expires_at < NOW()
-          AND bp.participant_type = 'member'
-      `);
-      
-      if (expiredInvites.rows.length === 0) {
-        return;
-      }
-      
-      console.log(`[Invite Expiry] Processing ${expiredInvites.rows.length} expired invites`);
-      
-      for (const invite of expiredInvites.rows) {
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          
-          await client.query(`
-            UPDATE booking_participants 
-            SET invite_status = 'expired', 
-                expired_reason = 'auto_expired',
-                responded_at = $2
-            WHERE id = $1
-          `, [invite.participant_id, new Date().toISOString()]);
-          
-          let memberEmail: string | null = null;
-          if (invite.user_id) {
-            const userResult = await client.query(
-              `SELECT email FROM users WHERE id = $1 OR LOWER(email) = LOWER($1) LIMIT 1`,
-              [invite.user_id]
-            );
-            memberEmail = userResult.rows[0]?.email?.toLowerCase() || null;
-          }
-          
-          if (memberEmail) {
-            await client.query(
-              `DELETE FROM booking_members WHERE booking_id = $1 AND LOWER(user_email) = LOWER($2)`,
-              [invite.booking_id, memberEmail]
-            );
-          }
-          
-          await client.query('COMMIT');
-          
-          if (invite.owner_email) {
-            const dateDisplay = invite.session_date ? formatDateDisplayWithDay(invite.session_date) : 'your booking';
-            const timeDisplay = invite.start_time ? ` at ${formatTime12Hour(invite.start_time)}` : '';
-            
-            await notifyMember({
-              userEmail: invite.owner_email.toLowerCase(),
-              type: 'booking',
-              title: 'Invite expired',
-              message: `${invite.display_name}'s invite to your booking on ${dateDisplay}${timeDisplay} has expired as they did not respond in time.`,
-              relatedId: invite.booking_id
-            });
-          }
-          
-          logger.info('[Invite Expiry] Invite expired and owner notified', {
-            extra: {
-              participantId: invite.participant_id,
-              bookingId: invite.booking_id,
-              invitedMember: invite.display_name,
-              ownerEmail: invite.owner_email
-            }
-          });
-        } catch (inviteError) {
-          await client.query('ROLLBACK');
-          logger.error('[Invite Expiry] Error processing individual invite', {
-            error: inviteError as Error,
-            extra: { participantId: invite.participant_id }
-          });
-        } finally {
-          client.release();
-        }
-      }
-      
-      console.log(`[Invite Expiry] Completed processing ${expiredInvites.rows.length} expired invites`);
-    } catch (err) {
-      console.error('[Invite Expiry] Scheduler error:', err);
-    }
-  };
-  
-  setInterval(expireUnacceptedInvites, INVITE_EXPIRY_INTERVAL_MS);
-  console.log('[Startup] Invite auto-expiry scheduler enabled (runs every 5 minutes)');
-
-  // Daily integrity check scheduler - runs at midnight Pacific
+  // Start all schedulers
+  startBackgroundSyncScheduler();
+  startDailyReminderScheduler();
+  startMorningClosureScheduler();
+  startWeeklyCleanupScheduler();
+  startInviteExpiryScheduler();
   startIntegrityScheduler();
-
-  // Waiver review scheduler - checks for stale waivers every 4 hours
   startWaiverReviewScheduler();
-  
-  // Stripe reconciliation scheduler - runs at 5am Pacific daily
   startStripeReconciliationScheduler();
-  
-  // Grace period scheduler - runs at 10am Pacific daily to send dunning emails
   startGracePeriodScheduler();
-  
-  // Booking expiry scheduler - runs every hour to expire stale pending booking requests
   startBookingExpiryScheduler();
-  
-  // Communication logs sync scheduler - runs every 30 minutes
-  // Syncs calls and SMS from HubSpot Engagements API
-  const COMM_LOGS_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-  
-  // First sync after a delay to avoid startup congestion
-  setTimeout(() => {
-    triggerCommunicationLogsSync();
-    // Then run every 30 minutes
-    setInterval(triggerCommunicationLogsSync, COMM_LOGS_SYNC_INTERVAL_MS);
-  }, 10 * 60 * 1000); // Start 10 minutes after server startup
-  
-  console.log('[Startup] Communication logs sync scheduler enabled (runs every 30 minutes)');
-  
-  // Trackman webhook log cleanup scheduler - runs daily at 4am Pacific
-  const scheduleWebhookLogCleanup = async () => {
-    try {
-      const { cleanupOldWebhookLogs } = await import('./routes/trackmanWebhook');
-      await cleanupOldWebhookLogs();
-    } catch (err) {
-      console.error('[Webhook Cleanup] Scheduler error:', err);
-    }
-  };
-  
-  // Check every hour if it's 4am Pacific
-  setInterval(async () => {
-    try {
-      const pacificTime = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Los_Angeles',
-        hour: 'numeric',
-        hour12: false
-      }).format(new Date());
-      
-      if (parseInt(pacificTime) === 4) {
-        await scheduleWebhookLogCleanup();
-      }
-    } catch (err) {
-      console.error('[Webhook Cleanup] Check error:', err);
-    }
-  }, 60 * 60 * 1000);
-  
-  console.log('[Startup] Webhook log cleanup scheduler enabled (runs daily at 4am Pacific, deletes logs older than 30 days)');
-  
-  // Session cleanup scheduler - runs daily at 2am Pacific
-  setInterval(async () => {
-    try {
-      const pacificTime = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Los_Angeles',
-        hour: 'numeric',
-        hour12: false
-      }).format(new Date());
-      
-      if (parseInt(pacificTime) === 2) {
-        const { runSessionCleanup } = await import('./core/sessionCleanup');
-        await runSessionCleanup();
-      }
-    } catch (err) {
-      console.error('[Session Cleanup] Scheduler error:', err);
-    }
-  }, 60 * 60 * 1000);
-  
-  console.log('[Startup] Session cleanup scheduler enabled (runs daily at 2am Pacific)');
+  startCommunicationLogsScheduler();
+  startWebhookLogCleanupScheduler();
+  startSessionCleanupScheduler();
 }
 
 startServer().catch((err) => {

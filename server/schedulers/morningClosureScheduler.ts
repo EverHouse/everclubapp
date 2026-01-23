@@ -1,0 +1,63 @@
+import { db } from '../db';
+import { systemSettings } from '../../shared/schema';
+import { sql } from 'drizzle-orm';
+import { sendMorningClosureNotifications } from '../routes/push';
+
+const MORNING_HOUR = 8;
+const MORNING_SETTING_KEY = 'last_morning_closure_notification_date';
+
+async function tryClaimMorningSlot(todayStr: string): Promise<boolean> {
+  try {
+    const result = await db
+      .insert(systemSettings)
+      .values({
+        key: MORNING_SETTING_KEY,
+        value: todayStr,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: {
+          value: todayStr,
+          updatedAt: new Date(),
+        },
+        where: sql`${systemSettings.value} IS DISTINCT FROM ${todayStr}`,
+      })
+      .returning({ key: systemSettings.key });
+    
+    return result.length > 0;
+  } catch (err) {
+    console.error('[Morning Closures] Database error:', err);
+    return false;
+  }
+}
+
+async function checkAndSendMorningNotifications(): Promise<void> {
+  try {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    if (currentHour === MORNING_HOUR) {
+      const claimed = await tryClaimMorningSlot(todayStr);
+      
+      if (claimed) {
+        console.log('[Morning Closures] Starting morning closure notifications...');
+        
+        try {
+          const result = await sendMorningClosureNotifications();
+          console.log(`[Morning Closures] Completed: ${result.message}`);
+        } catch (err) {
+          console.error('[Morning Closures] Send failed:', err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Morning Closures] Scheduler error:', err);
+  }
+}
+
+export function startMorningClosureScheduler(): void {
+  setInterval(checkAndSendMorningNotifications, 30 * 60 * 1000);
+  console.log('[Startup] Morning closure notification scheduler enabled (runs at 8am)');
+}
