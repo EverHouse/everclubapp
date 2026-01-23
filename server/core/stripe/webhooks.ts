@@ -704,10 +704,10 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
       );
       
       if (existingUser.rows.length > 0) {
-        // User exists - just update their Stripe customer ID and status
-        console.log(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID`);
+        // User exists - update their Stripe customer ID, status, and billing provider
+        console.log(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID and billing provider`);
         await pool.query(
-          `UPDATE users SET stripe_customer_id = $1, status = 'active', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+          `UPDATE users SET stripe_customer_id = $1, status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
           [customerId, email]
         );
       } else {
@@ -727,10 +727,11 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
         }
         
         await pool.query(
-          `INSERT INTO users (email, first_name, last_name, tier, status, stripe_customer_id, join_date, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, 'active', $5, NOW(), NOW(), NOW())
+          `INSERT INTO users (email, first_name, last_name, tier, status, stripe_customer_id, billing_provider, join_date, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, 'active', $5, 'stripe', NOW(), NOW(), NOW())
            ON CONFLICT (email) DO UPDATE SET 
              stripe_customer_id = EXCLUDED.stripe_customer_id,
+             billing_provider = 'stripe',
              status = 'active',
              tier = COALESCE(EXCLUDED.tier, users.tier),
              updated_at = NOW()`,
