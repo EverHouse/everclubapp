@@ -833,7 +833,11 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             </span>
             {(currentTier || billingInfo?.tier) && (
                <span className={`px-2 py-0.5 rounded text-[10px] ${isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
-                 {billingInfo?.billingProvider === 'mindbody' ? 'Synced from Mindbody' : 'Database Record'}
+                 {billingInfo?.billingProvider === 'stripe' && billingInfo?.activeSubscription 
+                   ? 'Billed through Stripe' 
+                   : billingInfo?.billingProvider === 'mindbody' 
+                     ? 'Synced from Mindbody' 
+                     : 'Database Record'}
                </span>
             )}
           </div>
