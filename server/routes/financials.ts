@@ -102,20 +102,19 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       console.log('[Financials] Could not get account info:', e.message);
     }
     
+    // Use 'all' to fetch ALL subscriptions regardless of status (includes incomplete, canceled, etc.)
+    // Without this, Stripe only returns active/trialing/past_due/unpaid by default
     const statusFilter = status && typeof status === 'string' && status !== 'all' 
       ? status as Stripe.Subscription.Status
-      : undefined;
+      : 'all';
     
     const pageLimit = Math.min(Math.max(parseInt(limit as string) || 50, 1), 100);
     
     const listParams: Stripe.SubscriptionListParams = {
       limit: pageLimit,
       expand: ['data.customer', 'data.items.data.price'],
+      status: statusFilter,
     };
-    
-    if (statusFilter) {
-      listParams.status = statusFilter;
-    }
     
     if (starting_after && typeof starting_after === 'string') {
       listParams.starting_after = starting_after;
@@ -124,6 +123,17 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
     console.log(`[Financials] Fetching subscriptions with params:`, listParams);
     const subscriptions = await stripe.subscriptions.list(listParams);
     console.log(`[Financials] Found ${subscriptions.data.length} subscriptions`);
+    
+    // Debug: If no subscriptions found, also check customers and their subscriptions directly
+    if (subscriptions.data.length === 0) {
+      console.log('[Financials] DEBUG: Checking customers for subscriptions...');
+      const customers = await stripe.customers.list({ limit: 10 });
+      console.log(`[Financials] DEBUG: Found ${customers.data.length} customers`);
+      for (const cust of customers.data) {
+        const custSubs = await stripe.subscriptions.list({ customer: cust.id, status: 'all', limit: 10 });
+        console.log(`[Financials] DEBUG: Customer ${cust.email} (${cust.id}) has ${custSubs.data.length} subscriptions: ${custSubs.data.map(s => `${s.id}:${s.status}`).join(', ') || 'none'}`);
+      }
+    }
 
     const subscriptionItems: SubscriptionListItem[] = subscriptions.data.map(sub => {
       const customer = sub.customer as Stripe.Customer;
