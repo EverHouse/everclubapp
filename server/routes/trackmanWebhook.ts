@@ -834,6 +834,25 @@ async function createBookingForMember(
         }
       });
       
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [
+          member.id,
+          'Booking Confirmed',
+          `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.`,
+          'booking',
+          '/bookings'
+        ]
+      );
+      
+      sendNotificationToUser(member.email, {
+        type: 'booking_confirmed',
+        title: 'Booking Confirmed',
+        message: `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.`,
+        data: { bookingId: pendingBookingId },
+      });
+      
       return { success: true, bookingId: pendingBookingId };
     }
     
@@ -873,11 +892,13 @@ async function createBookingForMember(
     );
     
     if (result.rows.length > 0) {
+      const bookingId = result.rows[0].id;
+      const bayNameForNotification = `Bay ${resourceId}`;
       const logLevel = resourceId ? 'info' : 'warn';
       const logMethod = resourceId ? logger.info.bind(logger) : logger.warn.bind(logger);
       logMethod(`[Trackman Webhook] Auto-created booking for member${resourceId ? '' : ' (no resource_id - bay unmapped)'}`, {
         extra: { 
-          bookingId: result.rows[0].id, 
+          bookingId, 
           email: member.email, 
           date: slotDate, 
           time: startTime,
@@ -885,7 +906,41 @@ async function createBookingForMember(
           trackmanBookingId 
         }
       });
-      return { success: true, bookingId: result.rows[0].id };
+      
+      broadcastToStaff({
+        type: 'booking_auto_confirmed',
+        title: 'Booking Auto-Confirmed',
+        message: `${memberName}'s booking for ${slotDate} at ${startTime} (${bayNameForNotification}) was auto-created via Trackman.`,
+        data: {
+          bookingId,
+          memberName,
+          memberEmail: member.email,
+          date: slotDate,
+          time: startTime,
+          bay: bayNameForNotification
+        }
+      });
+      
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [
+          member.id,
+          'Booking Confirmed',
+          `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.`,
+          'booking',
+          '/bookings'
+        ]
+      );
+      
+      sendNotificationToUser(member.email, {
+        type: 'booking_confirmed',
+        title: 'Booking Confirmed',
+        message: `Your simulator booking for ${slotDate} at ${startTime} (${bayNameForNotification}) has been confirmed.`,
+        data: { bookingId },
+      });
+      
+      return { success: true, bookingId };
     }
     
     return { success: false };

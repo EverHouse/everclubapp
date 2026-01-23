@@ -635,6 +635,30 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
       memberName: member_name
     });
     
+    const formattedDate = result.requestDate ? new Date(result.requestDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+    const formattedTime = result.startTime || '';
+    
+    if (member_id) {
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, link, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [
+          member_id,
+          'Booking Confirmed',
+          `Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`,
+          'booking',
+          '/bookings'
+        ]
+      );
+    }
+    
+    sendNotificationToUser(member_email, {
+      type: 'booking_confirmed',
+      title: 'Booking Confirmed',
+      message: `Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`,
+      data: { bookingId },
+    });
+    
     logFromRequest(req, 'assign_member_to_booking', 'booking', id, {
       member_email,
       member_name,
