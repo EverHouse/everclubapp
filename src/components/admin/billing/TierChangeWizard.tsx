@@ -187,7 +187,9 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
                 Next invoice: {formatCents(preview.nextInvoiceAmountCents)}
               </p>
               <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                Effective: {new Date(preview.effectiveDate).toLocaleDateString()}
+                Effective: {preview.effectiveDate && new Date(preview.effectiveDate).getFullYear() > 1970 
+                  ? new Date(preview.effectiveDate).toLocaleDateString() 
+                  : immediate ? 'Today' : 'Next billing cycle'}
               </p>
             </div>
           </div>

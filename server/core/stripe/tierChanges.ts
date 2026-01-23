@@ -40,17 +40,19 @@ export async function previewTierChange(
     const newProduct = newPrice.product as any;
     
     if (immediate) {
-      // Use upcoming invoice to preview proration
-      const upcomingInvoice = await stripe.invoices.retrieveUpcoming({
+      // Use createPreview to preview proration (replaces deprecated retrieveUpcoming)
+      const previewInvoice = await stripe.invoices.createPreview({
         customer: sub.customer as string,
         subscription: subscriptionId,
-        subscription_items: [{ id: currentItem.id, price: newPriceId }],
-        subscription_proration_behavior: 'always_invoice',
+        subscription_details: {
+          items: [{ id: currentItem.id, price: newPriceId }],
+          proration_behavior: 'always_invoice',
+        },
       });
       
       // Calculate proration from invoice line items
       let prorationAmount = 0;
-      for (const line of upcomingInvoice.lines.data) {
+      for (const line of previewInvoice.lines.data) {
         if (line.proration) {
           prorationAmount += line.amount;
         }
@@ -66,7 +68,7 @@ export async function previewTierChange(
           newPriceId: newPriceId,
           newAmountCents: newPrice.unit_amount || 0,
           prorationAmountCents: prorationAmount,
-          nextInvoiceAmountCents: upcomingInvoice.amount_due,
+          nextInvoiceAmountCents: previewInvoice.amount_due,
           effectiveDate: new Date(),
           isImmediate: true,
         }
