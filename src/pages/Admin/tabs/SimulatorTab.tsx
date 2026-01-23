@@ -1314,6 +1314,12 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
             });
     }, [approvedBookings, scheduledFilter]);
 
+    const isBookingUnmatched = useCallback((booking: BookingRequest): boolean => {
+        return (booking as any).is_unmatched === true ||
+            booking.user_email === 'unmatched@trackman.import' ||
+            (booking.user_name || '').includes('Unknown (Trackman)');
+    }, []);
+
     const initiateApproval = () => {
         if (!selectedRequest) return;
         
@@ -1739,72 +1745,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         )}
                     </div>
 
-                    {unmatchedBookings.length > 0 && (
-                        <div className="animate-pop-in" style={{animationDelay: '0.1s'}}>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-amber-500">link_off</span>
-                                    Unmatched Bookings ({unmatchedBookings.length})
-                                </h3>
-                            </div>
-                            <div className="space-y-3">
-                                {unmatchedBookings.map((booking, index) => {
-                                    const bookingResource = resources.find(r => r.id === booking.resource_id);
-                                    return (
-                                        <div 
-                                            key={`unmatched-${booking.id}`} 
-                                            className="bg-amber-50 dark:bg-amber-500/10 p-4 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/40 animate-pop-in" 
-                                            style={{animationDelay: `${0.1 + index * 0.05}s`}}
-                                        >
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-0.5">
-                                                        <p className="font-bold text-amber-800 dark:text-amber-300">
-                                                            {booking.user_name || 'Unknown (Trackman)'}
-                                                        </p>
-                                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-200 dark:bg-amber-500/30 text-amber-700 dark:text-amber-300">
-                                                            Needs Assignment
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-sm text-amber-700/70 dark:text-amber-400/70">
-                                                        {formatDateShortAdmin(booking.request_date)} • {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
-                                                    </p>
-                                                    {bookingResource && (
-                                                        <p className="text-sm text-amber-600/70 dark:text-amber-400/60 mt-0.5">
-                                                            {bookingResource.type === 'conference_room' ? 'Conference Room' : bookingResource.name}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            
-                                            {booking.trackman_booking_id && (
-                                                <p className="text-xs text-amber-600/60 dark:text-amber-400/50 mb-3 font-mono">
-                                                    Trackman ID: {booking.trackman_booking_id}
-                                                </p>
-                                            )}
-                                            
-                                            <button
-                                                onClick={() => setTrackmanLinkModal({
-                                                    isOpen: true,
-                                                    trackmanBookingId: booking.trackman_booking_id || null,
-                                                    bayName: bookingResource ? (bookingResource.type === 'conference_room' ? 'Conference Room' : bookingResource.name) : `Bay ${booking.resource_id}`,
-                                                    bookingDate: formatDateShortAdmin(booking.request_date),
-                                                    timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
-                                                    matchedBookingId: Number(booking.id),
-                                                    isRelink: false
-                                                })}
-                                                className="w-full py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
-                                            >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
-                                                Assign Member
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
                     <div className="animate-pop-in" style={{animationDelay: '0.15s'}}>
                         <h3 className="font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
                             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-accent">calendar_today</span>
@@ -1852,6 +1792,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                     : booking.user_name || booking.user_email;
                                                 const bookingResource = resources.find(r => r.id === booking.resource_id);
                                                 const isConferenceRoom = bookingResource?.type === 'conference_room';
+                                                const isUnmatched = isBookingUnmatched(booking);
                                                 return (
                                                     <SwipeableListItem
                                                         key={`upcoming-${booking.id}`}
@@ -1878,28 +1819,53 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                             }
                                                         ]}
                                                     >
-                                                        <div className="glass-card p-3 border border-primary/10 dark:border-white/25 flex justify-between items-center animate-pop-in" style={{animationDelay: `${0.2 + index * 0.03}s`}}>
+                                                        <div className={`p-3 rounded-xl flex justify-between items-center animate-pop-in ${
+                                                            isUnmatched 
+                                                                ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30' 
+                                                                : 'glass-card border border-primary/10 dark:border-white/25'
+                                                        }`} style={{animationDelay: `${0.2 + index * 0.03}s`}}>
                                                             <div className="flex items-center gap-3">
                                                                 <div>
                                                                     <div className="flex items-center gap-2">
-                                                                        <p className="font-medium text-primary dark:text-white text-sm">{displayName}</p>
+                                                                        <p className={`font-medium text-sm ${isUnmatched ? 'text-amber-800 dark:text-amber-300' : 'text-primary dark:text-white'}`}>{displayName}</p>
                                                                         {(booking as any).tier && <TierBadge tier={(booking as any).tier} size="sm" />}
+                                                                        {isUnmatched && (
+                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-200 dark:bg-amber-500/30 text-amber-700 dark:text-amber-400">
+                                                                                Needs Assignment
+                                                                            </span>
+                                                                        )}
                                                                         {isConferenceRoom && (
                                                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
                                                                                 Conf
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-xs text-primary/80 dark:text-white/80">
+                                                                    <p className={`text-xs ${isUnmatched ? 'text-amber-700/70 dark:text-amber-400/70' : 'text-primary/80 dark:text-white/80'}`}>
                                                                         {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
                                                                     </p>
                                                                     {booking.bay_name && (
-                                                                        <p className="text-xs text-primary/80 dark:text-white/80">{booking.bay_name}</p>
+                                                                        <p className={`text-xs ${isUnmatched ? 'text-amber-600/70 dark:text-amber-400/60' : 'text-primary/80 dark:text-white/80'}`}>{booking.bay_name}</p>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                {!isConferenceRoom && isToday && booking.status === 'attended' ? (
+                                                                {isUnmatched ? (
+                                                                    <button
+                                                                        onClick={() => setTrackmanLinkModal({
+                                                                            isOpen: true,
+                                                                            trackmanBookingId: booking.trackman_booking_id || null,
+                                                                            bayName: bookingResource ? (bookingResource.type === 'conference_room' ? 'Conference Room' : bookingResource.name) : (booking.bay_name || `Bay ${booking.resource_id}`),
+                                                                            bookingDate: formatDateShortAdmin(booking.request_date),
+                                                                            timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
+                                                                            matchedBookingId: Number(booking.id),
+                                                                            isRelink: false
+                                                                        })}
+                                                                        className="py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-medium flex items-center gap-1 transition-colors"
+                                                                    >
+                                                                        <span aria-hidden="true" className="material-symbols-outlined text-xs">link</span>
+                                                                        Assign Member
+                                                                    </button>
+                                                                ) : !isConferenceRoom && isToday && booking.status === 'attended' ? (
                                                                     <span className="py-1.5 px-3 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium flex items-center gap-1">
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-xs">check_circle</span>
                                                                         Checked In
