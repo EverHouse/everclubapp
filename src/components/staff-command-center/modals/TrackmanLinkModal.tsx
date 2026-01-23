@@ -137,7 +137,7 @@ export function TrackmanLinkModal({
       title={
         <div className="flex items-center gap-2">
           <TrackmanIcon size={20} />
-          <span>{isRelink ? 'Change Booking Owner' : 'Link Trackman Booking to Member'}</span>
+          <span>{isRelink && currentMemberName ? 'Change Booking Owner' : 'Assign Member to Booking'}</span>
         </div>
       }
       size="md"
@@ -263,7 +263,7 @@ export function TrackmanLinkModal({
             onClick={handleLink}
             disabled={!selectedMember || linking}
             className={`flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 ${
-              isRelink 
+              isRelink && currentMemberName
                 ? 'bg-blue-500 hover:bg-blue-600 text-white' 
                 : 'bg-amber-500 hover:bg-amber-600 text-white'
             }`}
@@ -271,12 +271,12 @@ export function TrackmanLinkModal({
             {linking ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                {isRelink ? 'Changing...' : 'Linking...'}
+                {isRelink && currentMemberName ? 'Changing...' : 'Assigning...'}
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-sm">{isRelink ? 'swap_horiz' : 'link'}</span>
-                {isRelink ? 'Change Owner' : 'Link to Member'}
+                <span className="material-symbols-outlined text-sm">{isRelink && currentMemberName ? 'swap_horiz' : 'person_add'}</span>
+                {isRelink && currentMemberName ? 'Change Owner' : 'Assign Member'}
               </>
             )}
           </button>

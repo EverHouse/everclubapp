@@ -2516,24 +2516,49 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     })()}
                     <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-lg">person</span>
-                                <div>
-                                    <p className="font-bold text-primary dark:text-white">{(() => {
-                                        const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
-                                        return email && memberNameMap[email] ? memberNameMap[email] : selectedCalendarBooking?.user_name || 'Unknown';
-                                    })()}</p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCalendarBooking?.user_email}</p>
-                                </div>
-                            </div>
+                            {(() => {
+                                const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                const isUnmatched = (selectedCalendarBooking as any)?.is_unmatched || 
+                                    email.includes('unmatched@') || 
+                                    email.includes('@trackman.import') ||
+                                    selectedCalendarBooking?.user_name === 'Unknown (Trackman)';
+                                const displayName = isUnmatched 
+                                    ? null 
+                                    : (email && memberNameMap[email] ? memberNameMap[email] : selectedCalendarBooking?.user_name);
+                                
+                                if (isUnmatched) {
+                                    return (
+                                        <div className="flex items-center gap-2">
+                                            <span aria-hidden="true" className="material-symbols-outlined text-amber-500 dark:text-amber-400 text-lg">person_off</span>
+                                            <div>
+                                                <p className="font-bold text-amber-600 dark:text-amber-400">Unassigned</p>
+                                                <p className="text-sm text-amber-500/70 dark:text-amber-500/60">Needs member assignment</p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="flex items-center gap-2">
+                                        <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white text-lg">person</span>
+                                        <div>
+                                            <p className="font-bold text-primary dark:text-white">{displayName || 'Unknown'}</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">{selectedCalendarBooking?.user_email}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             <button
                                 onClick={() => {
                                     if (!selectedCalendarBooking) return;
                                     const bookingId = typeof selectedCalendarBooking.id === 'string' 
                                         ? parseInt(String(selectedCalendarBooking.id).replace('cal_', '')) 
                                         : selectedCalendarBooking.id as number;
-                                    const currentName = (() => {
-                                        const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                    const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                    const isUnmatched = (selectedCalendarBooking as any)?.is_unmatched || 
+                                        email.includes('unmatched@') || 
+                                        email.includes('@trackman.import') ||
+                                        selectedCalendarBooking?.user_name === 'Unknown (Trackman)';
+                                    const currentName = isUnmatched ? undefined : (() => {
                                         return email && memberNameMap[email] ? memberNameMap[email] : selectedCalendarBooking?.user_name || 'Unknown';
                                     })();
                                     setTrackmanLinkModal({
@@ -2543,16 +2568,30 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         bookingDate: formatDateShortAdmin(selectedCalendarBooking.request_date),
                                         timeSlot: `${formatTime12Hour(selectedCalendarBooking.start_time)} - ${formatTime12Hour(selectedCalendarBooking.end_time)}`,
                                         matchedBookingId: bookingId,
-                                        currentMemberName: currentName,
-                                        currentMemberEmail: selectedCalendarBooking.user_email,
+                                        currentMemberName: isUnmatched ? undefined : currentName,
+                                        currentMemberEmail: isUnmatched ? undefined : selectedCalendarBooking.user_email,
                                         isRelink: true
                                     });
                                     setSelectedCalendarBooking(null);
                                 }}
                                 className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
-                                title="Change booking owner"
+                                title={(() => {
+                                    const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                    const isUnmatched = (selectedCalendarBooking as any)?.is_unmatched || 
+                                        email.includes('unmatched@') || 
+                                        email.includes('@trackman.import') ||
+                                        selectedCalendarBooking?.user_name === 'Unknown (Trackman)';
+                                    return isUnmatched ? "Assign member to booking" : "Change booking owner";
+                                })()}
                             >
-                                <span className="material-symbols-outlined text-sm">edit</span>
+                                <span className="material-symbols-outlined text-sm">{(() => {
+                                    const email = selectedCalendarBooking?.user_email?.toLowerCase() || '';
+                                    const isUnmatched = (selectedCalendarBooking as any)?.is_unmatched || 
+                                        email.includes('unmatched@') || 
+                                        email.includes('@trackman.import') ||
+                                        selectedCalendarBooking?.user_name === 'Unknown (Trackman)';
+                                    return isUnmatched ? "person_add" : "edit";
+                                })()}</span>
                             </button>
                         </div>
                     </div>

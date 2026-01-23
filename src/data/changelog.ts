@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.4.5",
+    date: "2026-01-23",
+    title: "Improved Trackman Booking Visibility",
+    changes: [
+      "Unassigned bookings now clearly show 'Unassigned' instead of confusing 'Unknown (Trackman)' placeholder",
+      "Webhook events distinguish auto-linked (blue) vs manually-linked (green) bookings",
+      "'Linked' badge only appears for bookings with actual members assigned, not placeholder accounts",
+      "Fixed member search showing names and emails correctly in dark mode",
+      "Staff-only: full member emails now shown in search results for accurate linking"
+    ]
+  },
+  {
     version: "9.4.4",
     date: "2026-01-23",
     title: "Change Booking Owner Feature",
