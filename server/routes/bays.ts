@@ -2427,11 +2427,42 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
       const bayName = booking.resourceName || 'Simulator';
       const timeStr = booking.startTime ? formatTime12Hour(booking.startTime) : '';
       
+      // Calculate the actual booking datetime for chronological sorting
+      // For past bookings (imports, syncs), use the booking time instead of record timestamp
+      let bookingDateTime: Date | null = null;
+      if (booking.requestDate && booking.startTime) {
+        // Parse booking date and time - use Pacific timezone offset based on date
+        // This accounts for DST by checking the date
+        const [year, month, day] = booking.requestDate.split('-').map(Number);
+        const [hour, minute] = booking.startTime.split(':').map(Number);
+        // Create date in local time zone first, then adjust
+        const localDate = new Date(year, month - 1, day, hour, minute, 0);
+        // Get Pacific offset for that date (accounts for DST)
+        const pacificOffset = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Los_Angeles',
+          timeZoneName: 'shortOffset'
+        }).formatToParts(localDate).find(p => p.type === 'timeZoneName')?.value || 'GMT-8';
+        const offsetHours = parseInt(pacificOffset.replace('GMT', '')) || -8;
+        // Construct date string with proper offset
+        const offsetStr = offsetHours >= 0 ? `+${String(offsetHours).padStart(2, '0')}:00` : `${String(offsetHours).padStart(3, '0')}:00`;
+        bookingDateTime = new Date(`${booking.requestDate}T${booking.startTime}:00${offsetStr}`);
+      }
+      const now = new Date();
+      const isBookingInPast = bookingDateTime && bookingDateTime < now;
+      
+      // Use booking time for past bookings, record timestamp for future bookings
+      const getActivityTimestamp = (recordTimestamp: Date | null): string => {
+        if (isBookingInPast && bookingDateTime) {
+          return bookingDateTime.toISOString();
+        }
+        return recordTimestamp?.toISOString() || new Date().toISOString();
+      };
+      
       if (booking.status === 'pending' || booking.status === 'pending_approval') {
         activities.push({
           id: `booking_created_${booking.id}`,
           type: 'booking_created',
-          timestamp: booking.createdAt?.toISOString() || new Date().toISOString(),
+          timestamp: getActivityTimestamp(booking.createdAt),
           primary_text: name,
           secondary_text: `${bayName} at ${timeStr}`,
           icon: 'calendar_add_on'
@@ -2441,7 +2472,7 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
           activities.push({
             id: `booking_approved_${booking.id}`,
             type: 'booking_approved',
-            timestamp: booking.updatedAt?.toISOString() || new Date().toISOString(),
+            timestamp: getActivityTimestamp(booking.updatedAt),
             primary_text: name,
             secondary_text: `${bayName} at ${timeStr}`,
             icon: 'check_circle'
@@ -2452,7 +2483,7 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
           activities.push({
             id: `check_in_${booking.id}`,
             type: 'check_in',
-            timestamp: booking.updatedAt?.toISOString() || new Date().toISOString(),
+            timestamp: getActivityTimestamp(booking.updatedAt),
             primary_text: name,
             secondary_text: bayName,
             icon: 'login'
@@ -2463,7 +2494,7 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
           activities.push({
             id: `cancellation_${booking.id}`,
             type: 'cancellation',
-            timestamp: booking.updatedAt?.toISOString() || new Date().toISOString(),
+            timestamp: getActivityTimestamp(booking.updatedAt),
             primary_text: name,
             secondary_text: `${bayName} at ${timeStr}`,
             icon: 'event_busy'
