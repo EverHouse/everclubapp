@@ -1819,35 +1819,73 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                             }
                                                         ]}
                                                     >
-                                                        <div className={`p-3 rounded-xl flex justify-between items-center animate-pop-in ${
+                                                        <div className={`p-3 rounded-xl animate-pop-in ${
                                                             isUnmatched 
-                                                                ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30' 
+                                                                ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-dashed border-amber-300 dark:border-amber-500/30' 
                                                                 : 'glass-card border border-primary/10 dark:border-white/25'
                                                         }`} style={{animationDelay: `${0.2 + index * 0.03}s`}}>
-                                                            <div className="flex items-center gap-3">
-                                                                <div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <p className={`font-medium text-sm ${isUnmatched ? 'text-amber-800 dark:text-amber-300' : 'text-primary dark:text-white'}`}>{displayName}</p>
-                                                                        {(booking as any).tier && <TierBadge tier={(booking as any).tier} size="sm" />}
-                                                                        {isUnmatched && (
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-200 dark:bg-amber-500/30 text-amber-700 dark:text-amber-400">
-                                                                                Needs Assignment
+                                                            <div className="flex items-start gap-3">
+                                                                {/* Date Block */}
+                                                                <div className={`flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
+                                                                    isToday 
+                                                                        ? 'bg-primary dark:bg-primary/80 text-white' 
+                                                                        : isUnmatched
+                                                                            ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
+                                                                            : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'
+                                                                }`}>
+                                                                    {isToday ? (
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider">Today</span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className="text-[10px] font-medium uppercase tracking-wide opacity-80">
+                                                                                {new Date(booking.request_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                                                                             </span>
-                                                                        )}
-                                                                        {isConferenceRoom && (
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
-                                                                                Conf
+                                                                            <span className="text-lg font-bold leading-none">
+                                                                                {new Date(booking.request_date + 'T12:00:00').getDate()}
                                                                             </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className={`text-xs ${isUnmatched ? 'text-amber-700/70 dark:text-amber-400/70' : 'text-primary/80 dark:text-white/80'}`}>
-                                                                        {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
-                                                                    </p>
-                                                                    {booking.bay_name && (
-                                                                        <p className={`text-xs ${isUnmatched ? 'text-amber-600/70 dark:text-amber-400/60' : 'text-primary/80 dark:text-white/80'}`}>{booking.bay_name}</p>
+                                                                        </>
                                                                     )}
                                                                 </div>
-                                                            </div>
+                                                                {/* Booking Details */}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                                        {isUnmatched ? (
+                                                                            <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
+                                                                                Needs Assignment
+                                                                            </span>
+                                                                        ) : (
+                                                                            <>
+                                                                                <p className="font-semibold text-sm truncate text-primary dark:text-white">
+                                                                                    {displayName}
+                                                                                </p>
+                                                                                {(booking as any).tier && <TierBadge tier={(booking as any).tier} size="sm" />}
+                                                                                {booking.status === 'attended' && (
+                                                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400">
+                                                                                        Checked In
+                                                                                    </span>
+                                                                                )}
+                                                                                {isConferenceRoom && (
+                                                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                                                                                        Conf
+                                                                                    </span>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className={`text-xs ${isUnmatched ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-primary/80 dark:text-white/80'}`}>
+                                                                        {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
+                                                                    </p>
+                                                                    <p className={`text-xs ${isUnmatched ? 'text-amber-600/70 dark:text-amber-400/70' : 'text-primary/70 dark:text-white/70'}`}>
+                                                                        {booking.bay_name || `Bay ${booking.resource_id}`}
+                                                                        {booking.trackman_booking_id && (
+                                                                            <span className="ml-2 text-[10px] text-orange-600 dark:text-orange-400">
+                                                                                TM: {booking.trackman_booking_id}
+                                                                            </span>
+                                                                        )}
+                                                                    </p>
+                                                                </div>
+                                                                {/* Action Buttons */}
+                                                                <div className="flex items-center gap-2 flex-shrink-0">
                                                             <div className="flex items-center gap-2">
                                                                 {isUnmatched ? (
                                                                     <button
