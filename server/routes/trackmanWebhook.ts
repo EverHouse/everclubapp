@@ -3374,4 +3374,88 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
   }
 });
 
+// Replay all stored webhook events to dev environment
+router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) => {
+  try {
+    const { dev_url, limit = 100 } = req.body;
+    
+    if (!dev_url) {
+      return res.status(400).json({ error: 'dev_url is required' });
+    }
+    
+    // Validate URL format
+    try {
+      new URL(dev_url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid dev_url format' });
+    }
+    
+    logger.info('[Trackman Replay] Starting replay to dev', { dev_url, limit });
+    
+    // Fetch all stored webhook events
+    const events = await pool.query(`
+      SELECT id, trackman_booking_id, raw_payload, received_at
+      FROM trackman_webhook_events
+      WHERE raw_payload IS NOT NULL
+      ORDER BY received_at ASC
+      LIMIT $1
+    `, [limit]);
+    
+    if (events.rows.length === 0) {
+      return res.json({ success: true, message: 'No webhook events to replay', sent: 0 });
+    }
+    
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    
+    // Send each webhook event to dev with a small delay to avoid overwhelming
+    for (const event of events.rows) {
+      try {
+        const payload = typeof event.raw_payload === 'string' 
+          ? JSON.parse(event.raw_payload) 
+          : event.raw_payload;
+        
+        const response = await fetch(dev_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Forwarded-From': 'production',
+            'X-Replay-Event-Id': String(event.id),
+            'X-Original-Received-At': event.received_at?.toISOString() || ''
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+          sent++;
+        } else {
+          failed++;
+          errors.push(`Event ${event.id}: ${response.status} ${response.statusText}`);
+        }
+        
+        // Small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (err: any) {
+        failed++;
+        errors.push(`Event ${event.id}: ${err.message}`);
+      }
+    }
+    
+    logger.info('[Trackman Replay] Completed', { sent, failed, total: events.rows.length });
+    
+    res.json({
+      success: true,
+      message: `Replayed ${sent} of ${events.rows.length} webhook events to dev`,
+      sent,
+      failed,
+      total: events.rows.length,
+      errors: errors.slice(0, 10) // Only return first 10 errors
+    });
+  } catch (error: any) {
+    logger.error('[Trackman Replay] Error', { error });
+    res.status(500).json({ error: 'Failed to replay webhooks', details: error.message });
+  }
+});
+
 export default router;
