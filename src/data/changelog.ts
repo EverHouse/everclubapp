@@ -17,9 +17,10 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-01-24",
     title: "Streamlined Walk-In Visitor Flow",
     changes: [
-      "New: After creating a visitor and assigning them to an unmatched Trackman booking, the check-in modal automatically opens",
-      "Staff can immediately charge, waive, or confirm payment in one continuous flow",
-      "Complete walk-in flow: Trackman booking → assign visitor → check-in → charge/waive → booking ready",
+      "New: Proactive visitor creation - staff can create visitors before they arrive",
+      "After assigning a visitor to a Trackman booking, a 'Charge $X' button appears on the booking card",
+      "Staff clicks 'Charge $X' when visitor actually arrives to open the billing modal",
+      "Complete walk-in flow: Trackman booking → assign visitor → visitor arrives → charge/waive → booking ready",
       "UI: Removed card background from Directory search/filters for cleaner appearance"
     ]
   },
