@@ -66,6 +66,13 @@ export interface MemberProfile {
   dateOfBirth?: string | null;
   billingGroupId?: number | null;
   billingProvider?: string | null;
+  streetAddress?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  companyName?: string | null;
+  emailOptIn?: boolean | null;
+  smsOptIn?: boolean | null;
 }
 
 export interface Booking {

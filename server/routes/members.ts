@@ -132,7 +132,15 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
       tags: users.tags,
       role: users.role,
       phone: users.phone,
-      mindbodyClientId: users.mindbodyClientId
+      mindbodyClientId: users.mindbodyClientId,
+      dateOfBirth: users.dateOfBirth,
+      streetAddress: users.streetAddress,
+      city: users.city,
+      state: users.state,
+      zipCode: users.zipCode,
+      companyName: users.companyName,
+      emailOptIn: users.emailOptIn,
+      smsOptIn: users.smsOptIn,
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -254,7 +262,15 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
       phone: user.phone,
       mindbodyClientId: user.mindbodyClientId,
       lifetimeVisits: totalLifetimeVisits,
-      lastBookingDate
+      lastBookingDate,
+      dateOfBirth: user.dateOfBirth,
+      streetAddress: user.streetAddress,
+      city: user.city,
+      state: user.state,
+      zipCode: user.zipCode,
+      companyName: user.companyName,
+      emailOptIn: user.emailOptIn,
+      smsOptIn: user.smsOptIn,
     });
   } catch (error: any) {
     if (!isProduction) console.error('API error:', error);

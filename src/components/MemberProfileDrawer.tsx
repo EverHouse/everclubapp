@@ -433,6 +433,14 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
     switch (activeTab) {
       case 'overview':
+        const hasAddress = member?.streetAddress || member?.city || member?.state || member?.zipCode;
+        const addressParts = [member?.streetAddress, member?.city, member?.state, member?.zipCode].filter(Boolean);
+        const formattedAddress = addressParts.length > 0 
+          ? (member?.streetAddress ? member.streetAddress + ', ' : '') + 
+            [member?.city, member?.state].filter(Boolean).join(', ') + 
+            (member?.zipCode ? ' ' + member.zipCode : '')
+          : null;
+        
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -465,6 +473,61 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Attended Visits</p>
               </div>
             </div>
+
+            {(member?.dateOfBirth || member?.companyName || hasAddress || member?.emailOptIn !== null || member?.smsOptIn !== null) && (
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span className="material-symbols-outlined text-[18px]">info</span>
+                  Personal Information
+                </h4>
+                <div className="space-y-2">
+                  {member?.dateOfBirth && (
+                    <div className="flex items-center gap-2">
+                      <span className={`material-symbols-outlined text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>cake</span>
+                      <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {formatDatePacific(member.dateOfBirth)}
+                      </span>
+                    </div>
+                  )}
+                  {member?.companyName && (
+                    <div className="flex items-center gap-2">
+                      <span className={`material-symbols-outlined text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>business</span>
+                      <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {member.companyName}
+                      </span>
+                    </div>
+                  )}
+                  {formattedAddress && (
+                    <div className="flex items-start gap-2">
+                      <span className={`material-symbols-outlined text-[16px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>location_on</span>
+                      <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {formattedAddress}
+                      </span>
+                    </div>
+                  )}
+                  {(member?.emailOptIn !== null || member?.smsOptIn !== null) && (
+                    <div className="flex items-center gap-4 pt-1">
+                      {member?.emailOptIn !== null && (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`material-symbols-outlined text-[14px] ${member.emailOptIn ? 'text-green-500' : 'text-gray-400'}`}>
+                            {member.emailOptIn ? 'check_circle' : 'cancel'}
+                          </span>
+                          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Email</span>
+                        </div>
+                      )}
+                      {member?.smsOptIn !== null && (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`material-symbols-outlined text-[14px] ${member.smsOptIn ? 'text-green-500' : 'text-gray-400'}`}>
+                            {member.smsOptIn ? 'check_circle' : 'cancel'}
+                          </span>
+                          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>SMS</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             {isAdmin && linkedEmails.length > 0 && (
               <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
