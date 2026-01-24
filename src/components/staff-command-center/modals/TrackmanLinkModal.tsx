@@ -16,7 +16,6 @@ interface TrackmanLinkModalProps {
   currentMemberEmail?: string;
   isRelink?: boolean;
   onSuccess?: () => void;
-  onVisitorAssigned?: (bookingId: number) => void;
 }
 
 interface VisitorSearchResult {
@@ -38,8 +37,7 @@ export function TrackmanLinkModal({
   currentMemberName,
   currentMemberEmail,
   isRelink,
-  onSuccess,
-  onVisitorAssigned
+  onSuccess
 }: TrackmanLinkModalProps) {
   const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
   const [linking, setLinking] = useState(false);
@@ -227,11 +225,6 @@ export function TrackmanLinkModal({
       showToast('Visitor created and booking assigned', 'success');
       onSuccess?.();
       onClose();
-      
-      // Open check-in modal for visitor fee handling
-      if (assignedBookingId && onVisitorAssigned) {
-        onVisitorAssigned(assignedBookingId);
-      }
     } catch (err: any) {
       showToast(err.message || 'Failed to create visitor', 'error');
     } finally {

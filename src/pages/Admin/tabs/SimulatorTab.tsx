@@ -3129,11 +3129,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 showToast(trackmanLinkModal.isRelink ? 'Booking owner changed' : 'Trackman booking linked to member', 'success');
                 handleRefresh();
               }}
-              onVisitorAssigned={(bookingId) => {
-                setTimeout(() => {
-                  setBillingModal({ isOpen: true, bookingId });
-                }, 300);
-              }}
             />
 
             <ModalShell 
