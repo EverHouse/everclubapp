@@ -414,4 +414,101 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
   }
 });
 
+router.get('/api/my/balance', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user.email;
+    
+    const result = await pool.query(
+      `SELECT stripe_customer_id FROM users WHERE LOWER(email) = $1`,
+      [email.toLowerCase()]
+    );
+    
+    if (!result.rows[0]?.stripe_customer_id) {
+      return res.json({ balanceCents: 0, balanceDollars: 0 });
+    }
+    
+    const stripe = await getStripeClient();
+    const customer = await stripe.customers.retrieve(result.rows[0].stripe_customer_id);
+    
+    if (customer.deleted) {
+      return res.json({ balanceCents: 0, balanceDollars: 0 });
+    }
+    
+    const balanceCents = (customer as any).balance || 0;
+    res.json({
+      balanceCents: Math.abs(balanceCents),
+      balanceDollars: Math.abs(balanceCents) / 100,
+      isCredit: balanceCents < 0
+    });
+  } catch (error: any) {
+    console.error('[MyBilling] Balance fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch balance' });
+  }
+});
+
+router.post('/api/my/add-funds', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user.email;
+    const { amountCents } = req.body;
+    
+    if (!amountCents || amountCents < 500 || amountCents > 50000) {
+      return res.status(400).json({ error: 'Amount must be between $5 and $500' });
+    }
+    
+    const result = await pool.query(
+      `SELECT id, stripe_customer_id, first_name, last_name FROM users WHERE LOWER(email) = $1`,
+      [email.toLowerCase()]
+    );
+    
+    const member = result.rows[0];
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const stripe = await getStripeClient();
+    
+    let customerId = member.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email,
+        name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || undefined,
+        metadata: { userId: member.id.toString() }
+      });
+      customerId = customer.id;
+      await pool.query(`UPDATE users SET stripe_customer_id = $1 WHERE id = $2`, [customerId, member.id]);
+    }
+    
+    const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
+    const baseUrl = replitDomains ? `https://${replitDomains}` : 'http://localhost:5000';
+    
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'payment',
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          unit_amount: amountCents,
+          product_data: {
+            name: 'Account Balance Top-Up',
+            description: `Add $${(amountCents / 100).toFixed(2)} to your Ever House account balance`
+          }
+        },
+        quantity: 1
+      }],
+      metadata: {
+        purpose: 'add_funds',
+        memberEmail: email,
+        amountCents: amountCents.toString()
+      },
+      success_url: `${baseUrl}/#/member/profile?funds_added=true`,
+      cancel_url: `${baseUrl}/#/member/profile`
+    });
+    
+    res.json({ checkoutUrl: session.url });
+  } catch (error: any) {
+    console.error('[MyBilling] Add funds error:', error);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
 export default router;

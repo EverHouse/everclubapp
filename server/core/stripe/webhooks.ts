@@ -1022,6 +1022,40 @@ async function handleInvoiceVoided(invoice: any, eventType: string): Promise<voi
 
 async function handleCheckoutSessionCompleted(session: any): Promise<void> {
   try {
+    // Handle add_funds checkout - credit customer balance
+    if (session.metadata?.purpose === 'add_funds') {
+      const customerId = session.customer as string;
+      const amountCents = parseInt(session.metadata.amountCents || '0', 10);
+      const memberEmail = session.metadata.memberEmail;
+      
+      if (customerId && amountCents > 0) {
+        console.log(`[Stripe Webhook] Processing add_funds checkout: ${amountCents} cents for ${memberEmail}`);
+        
+        const stripe = await getStripeClient();
+        
+        // Credit the customer's balance (negative amount = credit)
+        const transaction = await stripe.customers.createBalanceTransaction(
+          customerId,
+          {
+            amount: -amountCents,
+            currency: 'usd',
+            description: `Account balance top-up via checkout`
+          }
+        );
+        
+        console.log(`[Stripe Webhook] Added ${amountCents} cents to balance for ${memberEmail}. New balance: ${transaction.ending_balance}`);
+        
+        // Broadcast update
+        broadcastBillingUpdate({
+          action: 'balance_updated',
+          email: memberEmail,
+          amountCents,
+          newBalance: transaction.ending_balance
+        });
+      }
+      return;
+    }
+    
     // Handle corporate membership company sync if company_name is present
     const companyName = session.metadata?.company_name;
     const userEmail = session.metadata?.purchaser_email || session.customer_email;
