@@ -13,10 +13,11 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.5.3",
+    version: "9.5.4",
     date: "2026-01-24",
-    title: "Member Search Includes Former Members",
+    title: "Trackman Rescan & Member Search Fix",
     changes: [
+      "Fixed Rescan button in Trackman tab - now properly attempts to auto-match unmatched bookings",
       "Fixed member search when resolving unmatched bookings - now finds both current and former members",
       "Search now queries the database in real-time for more accurate results"
     ]
