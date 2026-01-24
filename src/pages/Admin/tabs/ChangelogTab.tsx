@@ -152,8 +152,11 @@ const ChangelogTab: React.FC = () => {
             if (!res.ok) throw new Error('Failed to fetch activity log');
             
             const data = await res.json();
-            setEntries(data.logs || []);
-            setHasMore(data.logs?.length >= (reset ? 50 : limit));
+            // Filter out view-only actions (noise) - only show actual changes
+            const viewOnlyActions = ['view_member', 'view_member_profile', 'view_member_billing', 'view_booking', 'view_payment', 'view_directory', 'view_report'];
+            const filteredLogs = (data.logs || []).filter((log: AuditLogEntry) => !viewOnlyActions.includes(log.action));
+            setEntries(filteredLogs);
+            setHasMore(filteredLogs.length >= (reset ? 50 : limit));
             
             const staffList = [...new Set(data.logs?.map((e: AuditLogEntry) => e.staffEmail) || [])].filter(Boolean) as string[];
             if (staffList.length > uniqueStaff.length) {
