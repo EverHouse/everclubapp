@@ -2202,6 +2202,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
         mindbodyClientId: member.mindbodyClientId,
         manuallyLinkedEmails: member.manuallyLinkedEmails || [],
         dataSource: member.dataSource,
+        billingProvider: member.billingProvider,
       };
     });
     
