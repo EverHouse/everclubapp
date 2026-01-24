@@ -17,10 +17,11 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-01-24",
     title: "Visitor Day Pass Billing & Payment Sync",
     changes: [
-      "New: Day pass visitors are now automatically charged when linked to Trackman bookings",
-      "Checks for existing day pass purchases to avoid double-charging",
-      "New: Manual payment sync endpoint for staff to refresh a member's Stripe history",
-      "Creates billing session and records usage when visitors are assigned to bookings"
+      "New: Day pass visitors ($50) are now automatically charged when linked to Trackman bookings",
+      "Visitors with saved payment method are charged immediately; otherwise an invoice is sent",
+      "Added booking_date tracking to prevent duplicate day pass charges for the same date",
+      "New: Manual payment sync endpoint for staff to refresh a member's complete Stripe history",
+      "Payment sync now supports full pagination for customers with 100+ transactions"
     ]
   },
   {
