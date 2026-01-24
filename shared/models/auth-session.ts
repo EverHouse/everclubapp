@@ -56,6 +56,9 @@ export const users = pgTable("users", {
   lastTier: varchar("last_tier"),
   gracePeriodStart: timestamp("grace_period_start"),
   gracePeriodEmailCount: integer("grace_period_email_count").default(0),
+  visitorType: varchar("visitor_type"),
+  lastActivityAt: timestamp("last_activity_at"),
+  lastActivitySource: varchar("last_activity_source"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
@@ -64,6 +67,7 @@ export const users = pgTable("users", {
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
   index("users_membership_status_idx").on(table.membershipStatus),
   index("users_billing_group_id_idx").on(table.billingGroupId),
+  index("users_visitor_type_idx").on(table.visitorType),
 ]);
 
 // Staff users table - emails that get staff or admin access
