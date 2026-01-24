@@ -33,6 +33,7 @@ import { previewTierChange, commitTierChange, getAvailableTiersForChange } from 
 import { fetchAllHubSpotContacts } from './hubspot';
 import { cascadeEmailChange, previewEmailChangeImpact } from '../core/memberService/emailChangeService';
 import { logFromRequest } from '../core/auditLog';
+import { getOrCreateStripeCustomer } from '../core/stripe/customers';
 
 const router = Router();
 
@@ -2229,6 +2230,135 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
   } catch (error: any) {
     console.error('[Members Directory] Error:', error);
     res.status(500).json({ error: 'Failed to fetch members directory' });
+  }
+});
+
+router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email, firstName, lastName, phone, createStripeCustomer = true } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    const existingUser = await pool.query(
+      'SELECT id, email, role, membership_status, first_name, last_name FROM users WHERE LOWER(email) = $1',
+      [normalizedEmail]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      const user = existingUser.rows[0];
+      return res.status(409).json({ 
+        error: 'A user with this email already exists',
+        existingUser: {
+          id: user.id,
+          email: user.email,
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+          role: user.role,
+          membershipStatus: user.membership_status
+        }
+      });
+    }
+    
+    const userId = crypto.randomUUID();
+    
+    const insertResult = await pool.query(`
+      INSERT INTO users (id, email, first_name, last_name, phone, role, membership_status, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 'visitor', 'visitor', NOW(), NOW())
+      RETURNING id, email, first_name, last_name, phone, role, membership_status
+    `, [userId, normalizedEmail, firstName || null, lastName || null, phone || null]);
+    
+    const newUser = insertResult.rows[0];
+    let stripeCustomerId: string | null = null;
+    
+    if (createStripeCustomer) {
+      try {
+        const fullName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
+        const result = await getOrCreateStripeCustomer(userId, normalizedEmail, fullName, 'visitor');
+        stripeCustomerId = result.customerId;
+        console.log(`[Visitors] Created Stripe customer ${stripeCustomerId} for visitor ${normalizedEmail}`);
+      } catch (stripeError: any) {
+        console.error('[Visitors] Failed to create Stripe customer:', stripeError);
+        // Continue but mark as failed - visitor is created but without Stripe
+        // We don't fail the whole request as the visitor can still be used
+      }
+    }
+    
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    await logFromRequest(req, {
+      action: 'visitor_created',
+      resourceType: 'user',
+      resourceId: userId,
+      resourceName: `${firstName || ''} ${lastName || ''}`.trim() || normalizedEmail,
+      details: { 
+        email: normalizedEmail, 
+        stripeCustomerId,
+        createdBy: staffEmail
+      }
+    });
+    
+    res.status(201).json({
+      success: true,
+      stripeCreated: !!stripeCustomerId,
+      visitor: {
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+        phone: newUser.phone,
+        role: newUser.role,
+        membershipStatus: newUser.membership_status,
+        stripeCustomerId
+      }
+    });
+  } catch (error: any) {
+    console.error('[Visitors] Create visitor error:', error);
+    res.status(500).json({ error: error.message || 'Failed to create visitor' });
+  }
+});
+
+router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { query, limit = '10' } = req.query;
+    
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+      return res.json([]);
+    }
+    
+    const searchTerm = `%${query.trim().toLowerCase()}%`;
+    const maxResults = Math.min(parseInt(limit as string) || 10, 50);
+    
+    const results = await pool.query(`
+      SELECT id, email, first_name, last_name, phone, stripe_customer_id
+      FROM users
+      WHERE (role = 'visitor' OR membership_status = 'visitor')
+      AND archived_at IS NULL
+      AND (
+        LOWER(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) LIKE $1
+        OR LOWER(COALESCE(first_name, '')) LIKE $1
+        OR LOWER(COALESCE(last_name, '')) LIKE $1
+        OR LOWER(COALESCE(email, '')) LIKE $1
+      )
+      ORDER BY first_name, last_name
+      LIMIT $2
+    `, [searchTerm, maxResults]);
+    
+    const visitors = results.rows.map((row: any) => ({
+      id: row.id,
+      email: row.email,
+      firstName: row.first_name || '',
+      lastName: row.last_name || '',
+      name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+      phone: row.phone,
+      hasStripeCustomer: !!row.stripe_customer_id
+    }));
+    
+    res.json(visitors);
+  } catch (error: any) {
+    console.error('[Visitors] Search error:', error);
+    res.status(500).json({ error: 'Failed to search visitors' });
   }
 });
 

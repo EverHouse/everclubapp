@@ -104,6 +104,9 @@ const TrackmanTab: React.FC = () => {
   const [viewDetailBooking, setViewDetailBooking] = useState<any>(null);
   const [isRescanning, setIsRescanning] = useState(false);
   const [rescanResult, setRescanResult] = useState<any>(null);
+  const [showCreateVisitor, setShowCreateVisitor] = useState(false);
+  const [newVisitorData, setNewVisitorData] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [isCreatingVisitor, setIsCreatingVisitor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unmatchedSectionRef = useRef<HTMLDivElement>(null);
   const matchedSectionRef = useRef<HTMLDivElement>(null);
@@ -617,6 +620,63 @@ const TrackmanTab: React.FC = () => {
     } catch (err) {
       console.error('Failed to resolve booking:', err);
       showToast('Failed to resolve booking', 'error');
+    }
+  };
+
+  const handleCreateVisitorAndResolve = async () => {
+    if (!resolveModal || !newVisitorData.email) return;
+    setIsCreatingVisitor(true);
+    try {
+      const createRes = await fetch('/api/visitors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: newVisitorData.email,
+          firstName: newVisitorData.firstName,
+          lastName: newVisitorData.lastName,
+          phone: newVisitorData.phone || undefined,
+          createStripeCustomer: true
+        })
+      });
+      
+      if (!createRes.ok) {
+        const errorData = await createRes.json();
+        if (createRes.status === 409 && errorData.existingUser) {
+          showToast(`User already exists: ${errorData.existingUser.name || errorData.existingUser.email}`, 'error');
+        } else {
+          showToast(errorData.error || 'Failed to create visitor', 'error');
+        }
+        setIsCreatingVisitor(false);
+        return;
+      }
+      
+      const visitorData = await createRes.json();
+      showToast(`Created visitor: ${visitorData.visitor.firstName || ''} ${visitorData.visitor.lastName || ''} with Stripe account`, 'success');
+      
+      const resolveRes = await fetch(`/api/admin/trackman/unmatched/${resolveModal.booking.id}/resolve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ memberEmail: visitorData.visitor.email })
+      });
+      
+      if (resolveRes.ok) {
+        setResolveModal(null);
+        setSearchQuery('');
+        setShowCreateVisitor(false);
+        setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' });
+        showToast('Booking assigned to new visitor', 'success');
+        await new Promise(resolve => setTimeout(resolve, 300));
+        fetchData();
+      } else {
+        showToast('Visitor created but failed to assign booking', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to create visitor:', err);
+      showToast('Failed to create visitor', 'error');
+    } finally {
+      setIsCreatingVisitor(false);
     }
   };
 
@@ -1764,7 +1824,7 @@ const TrackmanTab: React.FC = () => {
         </div>
       </ModalShell>
 
-      <ModalShell isOpen={!!resolveModal} onClose={() => setResolveModal(null)} title="Resolve Booking" showCloseButton={false}>
+      <ModalShell isOpen={!!resolveModal} onClose={() => { setResolveModal(null); setShowCreateVisitor(false); setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' }); }} title="Resolve Booking" showCloseButton={false}>
         <div className="space-y-4">
           <div className="p-4 border-b border-primary/10 dark:border-white/25 bg-primary/5 dark:bg-white/5">
             <div className="p-3 rounded-xl bg-white/80 dark:bg-white/10">
@@ -1809,8 +1869,100 @@ const TrackmanTab: React.FC = () => {
                   <p className="text-sm text-primary/80 dark:text-white/80 mt-0.5">{member.email}</p>
                 </button>
               ))}
-              {filteredMembers.length === 0 && searchQuery && (
-                <p className="text-center py-4 text-primary/70 dark:text-white/70">No members found</p>
+              {filteredMembers.length === 0 && searchQuery && !isSearching && (
+                <div className="py-4 text-center">
+                  <p className="text-primary/70 dark:text-white/70 mb-3">No members found</p>
+                  {!showCreateVisitor ? (
+                    <button
+                      onClick={() => {
+                        const originalEmail = resolveModal?.booking?.originalEmail || resolveModal?.booking?.original_email || '';
+                        const originalName = resolveModal?.booking?.userName || resolveModal?.booking?.user_name || '';
+                        const nameParts = originalName.split(' ');
+                        setNewVisitorData({
+                          firstName: nameParts[0] || '',
+                          lastName: nameParts.slice(1).join(' ') || '',
+                          email: originalEmail,
+                          phone: ''
+                        });
+                        setShowCreateVisitor(true);
+                      }}
+                      className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors inline-flex items-center gap-2"
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-base">person_add</span>
+                      Create as Visitor
+                    </button>
+                  ) : (
+                    <div className="text-left p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-500/30 space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-primary dark:text-white text-sm">Create New Visitor</h4>
+                        <button
+                          onClick={() => {
+                            setShowCreateVisitor(false);
+                            setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' });
+                          }}
+                          className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
+                        >
+                          <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="First Name"
+                          value={newVisitorData.firstName}
+                          onChange={(e) => setNewVisitorData({ ...newVisitorData, firstName: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Last Name"
+                          value={newVisitorData.lastName}
+                          onChange={(e) => setNewVisitorData({ ...newVisitorData, lastName: e.target.value })}
+                          className="px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
+                        />
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="Email (required)"
+                        value={newVisitorData.email}
+                        onChange={(e) => setNewVisitorData({ ...newVisitorData, email: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Phone (optional)"
+                        value={newVisitorData.phone}
+                        onChange={(e) => setNewVisitorData({ ...newVisitorData, phone: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
+                      />
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        This will create a Stripe account for billing and add them to the Visitors directory.
+                      </p>
+                      <button
+                        onClick={handleCreateVisitorAndResolve}
+                        disabled={!newVisitorData.email || isCreatingVisitor}
+                        className="w-full px-4 py-2.5 rounded-full bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                      >
+                        {isCreatingVisitor ? (
+                          <>
+                            <span className="animate-spin" aria-hidden="true">
+                              <span className="material-symbols-outlined text-base">sync</span>
+                            </span>
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <span aria-hidden="true" className="material-symbols-outlined text-base">add_circle</span>
+                            Create Visitor & Assign Booking
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {filteredMembers.length === 0 && searchQuery && isSearching && (
+                <p className="text-center py-4 text-primary/50 dark:text-white/50">Searching...</p>
               )}
             </div>
             {resolveModal?.memberEmail && (resolveModal.booking?.originalEmail || resolveModal.booking?.original_email) && 
@@ -1834,7 +1986,7 @@ const TrackmanTab: React.FC = () => {
             )}
             <div className="flex justify-end gap-3 pt-4 border-t border-primary/10 dark:border-white/25">
               <button
-                onClick={() => setResolveModal(null)}
+                onClick={() => { setResolveModal(null); setShowCreateVisitor(false); setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' }); }}
                 className="px-5 py-2.5 rounded-full text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
               >
                 Cancel

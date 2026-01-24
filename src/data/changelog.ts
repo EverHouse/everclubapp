@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.6.0",
+    date: "2026-01-24",
+    title: "Create Visitor from Trackman Bookings",
+    isMajor: true,
+    changes: [
+      "New: Add Visitor button in Assign Member modal - replaces Cancel button",
+      "Can search for existing visitors in the directory before creating new ones",
+      "Create new visitors with first name, last name, email - automatically creates Stripe account",
+      "New visitors appear in the Visitors directory and can be tracked for bookings and purchase history"
+    ]
+  },
+  {
     version: "9.5.4",
     date: "2026-01-24",
     title: "Trackman Rescan & Member Search Fix",
