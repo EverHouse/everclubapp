@@ -2107,6 +2107,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
       stripeCustomerId: users.stripeCustomerId,
       manuallyLinkedEmails: users.manuallyLinkedEmails,
       dataSource: users.dataSource,
+      billingProvider: users.billingProvider,
     })
       .from(users)
       .where(whereClause)
