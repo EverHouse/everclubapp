@@ -2021,17 +2021,33 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     }
     
     // Build source filter condition
-    // Matches the getSource() priority logic: mindbody > stripe > hubspot > app
+    // Matches the getSource() priority logic:
+    // MINDBODY: legacy markers OR (mindbody_client_id with purchases) OR (mindbody_client_id only, no other source)
+    // STRIPE: has stripe_customer_id (unless mindbody takes priority)
+    // HUBSPOT: has hubspot_id (unless stripe/mindbody takes priority)
     let sourceCondition = '';
     if (sourceFilter === 'mindbody') {
-      // Match any record that would show as "MindBody" source
-      sourceCondition = "AND (u.mindbody_client_id IS NOT NULL OR u.legacy_source = 'mindbody_import' OR u.billing_provider = 'mindbody')";
+      // Match records that would show as "MindBody" source:
+      // 1. Legacy mindbody markers (legacy_source or billing_provider)
+      // 2. Has mindbody_client_id AND has purchases
+      // 3. Has mindbody_client_id but no hubspot_id and no stripe_customer_id
+      sourceCondition = `AND (
+        u.legacy_source = 'mindbody_import' 
+        OR u.billing_provider = 'mindbody'
+        OR (u.mindbody_client_id IS NOT NULL AND u.hubspot_id IS NULL AND u.stripe_customer_id IS NULL)
+      )`;
     } else if (sourceFilter === 'hubspot') {
-      // HubSpot: has hubspot_id but NOT mindbody or stripe (those take priority in display)
-      sourceCondition = "AND u.hubspot_id IS NOT NULL AND u.mindbody_client_id IS NULL AND u.legacy_source IS DISTINCT FROM 'mindbody_import' AND u.billing_provider IS DISTINCT FROM 'mindbody' AND u.stripe_customer_id IS NULL";
+      // HubSpot: has hubspot_id but NOT stripe, and NOT legacy mindbody markers
+      // Note: Can have mindbody_client_id if no purchases (they still show as HubSpot)
+      sourceCondition = `AND u.hubspot_id IS NOT NULL 
+        AND u.stripe_customer_id IS NULL 
+        AND u.legacy_source IS DISTINCT FROM 'mindbody_import' 
+        AND u.billing_provider IS DISTINCT FROM 'mindbody'`;
     } else if (sourceFilter === 'stripe') {
-      // Stripe: has stripe_customer_id but NOT mindbody (which takes priority)
-      sourceCondition = "AND u.stripe_customer_id IS NOT NULL AND u.mindbody_client_id IS NULL AND u.legacy_source IS DISTINCT FROM 'mindbody_import' AND u.billing_provider IS DISTINCT FROM 'mindbody'";
+      // Stripe: has stripe_customer_id but NOT legacy mindbody markers
+      sourceCondition = `AND u.stripe_customer_id IS NOT NULL 
+        AND u.legacy_source IS DISTINCT FROM 'mindbody_import' 
+        AND u.billing_provider IS DISTINCT FROM 'mindbody'`;
     }
     
     // Build type filter - filter by stored visitor_type or computed from activity
@@ -2110,16 +2126,21 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     `);
     
     // Determine source based on database fields
-    // Priority: MINDBODY > STRIPE > HUBSPOT > APP
+    // Priority: MINDBODY (with activity) > STRIPE > HUBSPOT > MINDBODY (linked only) > APP
     const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
-      // MINDBODY: has mindbody_client_id OR legacy mindbody indicators (highest priority)
-      if (row.mindbody_client_id || row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') {
+      // Check for legacy mindbody import markers first (explicit mindbody source)
+      if (row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') {
         return 'mindbody';
       }
+      // If they have mindbody_client_id with purchases, show as MindBody
+      const hasMindBodyPurchases = row.mindbody_client_id && parseInt(row.purchase_count) > 0;
+      if (hasMindBodyPurchases) return 'mindbody';
       // STRIPE: has a Stripe customer record
       if (row.stripe_customer_id) return 'stripe';
       // HUBSPOT: has HubSpot ID
       if (row.hubspot_id) return 'hubspot';
+      // Only mindbody_client_id (linked but no other source) - show as mindbody
+      if (row.mindbody_client_id) return 'mindbody';
       return 'app';
     };
     
