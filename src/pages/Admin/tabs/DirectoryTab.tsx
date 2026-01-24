@@ -710,7 +710,7 @@ const DirectoryTab: React.FC = () => {
                 </div>
             )}
 
-            <div className="mb-6 space-y-3 animate-content-enter-delay-1 sticky top-0 z-10 bg-white dark:bg-surface-dark pt-2 pb-3 rounded-xl">
+            <div className="mb-6 space-y-3 animate-content-enter-delay-1 sticky top-0 z-10 bg-transparent pt-2 pb-3">
                 {/* Search - only show for active/former tabs */}
                 {memberTab !== 'visitors' && (
                 <div className="relative">
