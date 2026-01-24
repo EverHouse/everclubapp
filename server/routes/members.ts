@@ -2041,21 +2041,22 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         AND u.legacy_source IS DISTINCT FROM 'mindbody_import'`;
     }
     
-    // Build type filter - filter by stored visitor_type or computed from activity
-    // Supports new types: classpass, sim_walkin, private_lesson in addition to day_pass, guest, lead
+    // Build type filter - filter by computed effective_type (not stored visitor_type)
+    // The effective_type is computed dynamically from legacy_purchases and booking_participants
+    // We need to use a subquery/CTE to filter on computed values
     let typeCondition = '';
     if (typeFilter === 'day_pass') {
-      typeCondition = "AND (u.visitor_type = 'day_pass' OR u.visitor_type = 'day_pass_buyer')";
+      typeCondition = "AND computed_type = 'day_pass'";
     } else if (typeFilter === 'guest') {
-      typeCondition = "AND u.visitor_type = 'guest'";
+      typeCondition = "AND computed_type = 'guest'";
     } else if (typeFilter === 'lead') {
-      typeCondition = "AND (u.visitor_type = 'lead' OR u.visitor_type IS NULL)";
+      typeCondition = "AND computed_type = 'lead'";
     } else if (typeFilter === 'classpass') {
-      typeCondition = "AND u.visitor_type = 'classpass'";
+      typeCondition = "AND computed_type = 'classpass'";
     } else if (typeFilter === 'sim_walkin') {
-      typeCondition = "AND u.visitor_type = 'sim_walkin'";
+      typeCondition = "AND computed_type = 'sim_walkin'";
     } else if (typeFilter === 'private_lesson') {
-      typeCondition = "AND u.visitor_type = 'private_lesson'";
+      typeCondition = "AND computed_type = 'private_lesson'";
     }
     
     // Build search condition
@@ -2069,107 +2070,120 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       )`;
     }
     
-    // Get total count first for pagination
+    // Helper SQL for computing effective_type - used in both count and main query
+    const effectiveTypeSql = `
+      COALESCE(
+        u.visitor_type,
+        (SELECT 
+          CASE 
+            WHEN lp_sub.lp_type IS NOT NULL AND bp_sub.bp_date IS NOT NULL THEN
+              CASE WHEN lp_sub.lp_date >= bp_sub.bp_date THEN lp_sub.lp_type ELSE 'guest' END
+            WHEN lp_sub.lp_type IS NOT NULL THEN lp_sub.lp_type
+            WHEN bp_sub.bp_date IS NOT NULL THEN 'guest'
+            ELSE 'lead'
+          END
+        FROM (SELECT 1) dummy
+        LEFT JOIN LATERAL (
+          SELECT 
+            CASE 
+              WHEN lp.item_name ILIKE '%classpass%' THEN 'classpass'
+              WHEN lp.item_name ILIKE '%sim%walk%' OR lp.item_name ILIKE '%simulator walk%' THEN 'sim_walkin'
+              WHEN lp.item_name ILIKE '%private lesson%' THEN 'private_lesson'
+              WHEN lp.item_name ILIKE '%day pass%' THEN 'day_pass'
+              ELSE NULL
+            END as lp_type,
+            lp.sale_date as lp_date
+          FROM legacy_purchases lp 
+          WHERE LOWER(lp.member_email) = LOWER(u.email)
+          ORDER BY lp.sale_date DESC NULLS LAST
+          LIMIT 1
+        ) lp_sub ON true
+        LEFT JOIN LATERAL (
+          SELECT bs.session_date::timestamp as bp_date
+          FROM booking_participants bp
+          JOIN guests g ON bp.guest_id = g.id
+          JOIN booking_sessions bs ON bp.session_id = bs.id
+          WHERE LOWER(g.email) = LOWER(u.email)
+            AND bp.participant_type = 'guest'
+          ORDER BY bs.session_date DESC
+          LIMIT 1
+        ) bp_sub ON true
+        )
+      )
+    `;
+    
+    // Get total count first for pagination using CTE with computed type
     const countResult = await db.execute(sql`
-      SELECT COUNT(DISTINCT u.id)::int as total
-      FROM users u
-      WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
-      AND u.role NOT IN ('admin', 'staff')
-      AND u.archived_at IS NULL
-      ${sql.raw(sourceCondition)}
-      ${sql.raw(typeCondition)}
-      ${sql.raw(searchCondition)}
+      WITH visitor_data AS (
+        SELECT u.id, ${sql.raw(effectiveTypeSql)} as computed_type
+        FROM users u
+        WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
+        AND u.role NOT IN ('admin', 'staff')
+        AND u.archived_at IS NULL
+        ${sql.raw(sourceCondition)}
+        ${sql.raw(searchCondition)}
+      )
+      SELECT COUNT(*)::int as total
+      FROM visitor_data
+      WHERE 1=1 ${sql.raw(typeCondition)}
     `);
     const totalCount = (countResult.rows[0] as any)?.total || 0;
     
     // Get all non-member contacts (visitors, non-members, leads) with aggregated purchase stats
     // Combines purchases from both day_pass_purchases (Stripe) and legacy_purchases (MindBody)
-    // Uses subqueries to pre-aggregate per table to avoid cartesian multiplication issues
+    // Uses CTE to compute effective_type first, then filter on it
     // Also get guest count and latest activity
     const visitorsWithPurchases = await db.execute(sql`
-      SELECT 
-        u.id,
-        u.email,
-        u.first_name,
-        u.last_name,
-        u.phone,
-        (COALESCE(dpp_agg.purchase_count, 0) + COALESCE(lp_agg.purchase_count, 0))::int as purchase_count,
-        (COALESCE(dpp_agg.total_spent_cents, 0) + COALESCE(lp_agg.total_spent_cents, 0))::bigint as total_spent_cents,
-        GREATEST(dpp_agg.last_purchase_date, lp_agg.last_purchase_date) as last_purchase_date,
-        u.membership_status,
-        u.role,
-        u.stripe_customer_id,
-        u.hubspot_id,
-        u.mindbody_client_id,
-        u.legacy_source,
-        u.billing_provider,
-        u.visitor_type,
-        u.last_activity_at,
-        u.last_activity_source,
-        u.created_at,
-        COALESCE(guest_agg.guest_count, 0)::int as guest_count,
-        guest_agg.last_guest_date,
-        COALESCE(
+      WITH visitor_base AS (
+        SELECT 
+          u.id,
+          u.email,
+          u.first_name,
+          u.last_name,
+          u.phone,
+          (COALESCE(dpp_agg.purchase_count, 0) + COALESCE(lp_agg.purchase_count, 0))::int as purchase_count,
+          (COALESCE(dpp_agg.total_spent_cents, 0) + COALESCE(lp_agg.total_spent_cents, 0))::bigint as total_spent_cents,
+          GREATEST(dpp_agg.last_purchase_date, lp_agg.last_purchase_date) as last_purchase_date,
+          u.membership_status,
+          u.role,
+          u.stripe_customer_id,
+          u.hubspot_id,
+          u.mindbody_client_id,
+          u.legacy_source,
+          u.billing_provider,
           u.visitor_type,
-          (SELECT 
-            CASE 
-              WHEN lp_sub.lp_type IS NOT NULL AND bp_sub.bp_date IS NOT NULL THEN
-                CASE WHEN lp_sub.lp_date >= bp_sub.bp_date THEN lp_sub.lp_type ELSE 'guest' END
-              WHEN lp_sub.lp_type IS NOT NULL THEN lp_sub.lp_type
-              WHEN bp_sub.bp_date IS NOT NULL THEN 'guest'
-              ELSE 'lead'
-            END
-          FROM (SELECT 1) dummy
-          LEFT JOIN LATERAL (
-            SELECT 
-              CASE 
-                WHEN lp.item_name ILIKE '%classpass%' THEN 'classpass'
-                WHEN lp.item_name ILIKE '%sim%walk%' OR lp.item_name ILIKE '%simulator walk%' THEN 'sim_walkin'
-                WHEN lp.item_name ILIKE '%private lesson%' THEN 'private_lesson'
-                WHEN lp.item_name ILIKE '%day pass%' THEN 'day_pass'
-                ELSE NULL
-              END as lp_type,
-              lp.sale_date as lp_date
-            FROM legacy_purchases lp 
-            WHERE LOWER(lp.member_email) = LOWER(u.email)
-            ORDER BY lp.sale_date DESC NULLS LAST
-            LIMIT 1
-          ) lp_sub ON true
-          LEFT JOIN LATERAL (
-            SELECT bs.session_date::timestamp as bp_date
-            FROM booking_participants bp
-            JOIN guests g ON bp.guest_id = g.id
-            JOIN booking_sessions bs ON bp.session_id = bs.id
-            WHERE LOWER(g.email) = LOWER(u.email)
-              AND bp.participant_type = 'guest'
-            ORDER BY bs.session_date DESC
-            LIMIT 1
-          ) bp_sub ON true
-          )
-        ) as effective_type
-      FROM users u
-      LEFT JOIN (
-        SELECT LOWER(purchaser_email) as email, COUNT(*)::int as purchase_count, SUM(amount_cents) as total_spent_cents, MAX(purchased_at) as last_purchase_date
-        FROM day_pass_purchases
-        GROUP BY LOWER(purchaser_email)
-      ) dpp_agg ON LOWER(u.email) = dpp_agg.email
-      LEFT JOIN (
-        SELECT LOWER(member_email) as email, COUNT(*)::int as purchase_count, SUM(item_total_cents) as total_spent_cents, MAX(sale_date) as last_purchase_date
-        FROM legacy_purchases
-        GROUP BY LOWER(member_email)
-      ) lp_agg ON LOWER(u.email) = lp_agg.email
-      LEFT JOIN (
-        SELECT LOWER(bg.guest_email) as email, COUNT(DISTINCT bg.id)::int as guest_count, MAX(br.start_time) as last_guest_date
-        FROM booking_guests bg
-        LEFT JOIN booking_requests br ON bg.booking_id = br.id
-        GROUP BY LOWER(bg.guest_email)
-      ) guest_agg ON LOWER(u.email) = guest_agg.email
-      WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
-      AND u.role NOT IN ('admin', 'staff')
-      AND u.archived_at IS NULL
-      ${sql.raw(sourceCondition)}
-      ${sql.raw(typeCondition)}
-      ${sql.raw(searchCondition)}
+          u.last_activity_at,
+          u.last_activity_source,
+          u.created_at,
+          COALESCE(guest_agg.guest_count, 0)::int as guest_count,
+          guest_agg.last_guest_date,
+          ${sql.raw(effectiveTypeSql)} as effective_type
+        FROM users u
+        LEFT JOIN (
+          SELECT LOWER(purchaser_email) as email, COUNT(*)::int as purchase_count, SUM(amount_cents) as total_spent_cents, MAX(purchased_at) as last_purchase_date
+          FROM day_pass_purchases
+          GROUP BY LOWER(purchaser_email)
+        ) dpp_agg ON LOWER(u.email) = dpp_agg.email
+        LEFT JOIN (
+          SELECT LOWER(member_email) as email, COUNT(*)::int as purchase_count, SUM(item_total_cents) as total_spent_cents, MAX(sale_date) as last_purchase_date
+          FROM legacy_purchases
+          GROUP BY LOWER(member_email)
+        ) lp_agg ON LOWER(u.email) = lp_agg.email
+        LEFT JOIN (
+          SELECT LOWER(bg.guest_email) as email, COUNT(DISTINCT bg.id)::int as guest_count, MAX(br.start_time) as last_guest_date
+          FROM booking_guests bg
+          LEFT JOIN booking_requests br ON bg.booking_id = br.id
+          GROUP BY LOWER(bg.guest_email)
+        ) guest_agg ON LOWER(u.email) = guest_agg.email
+        WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
+        AND u.role NOT IN ('admin', 'staff')
+        AND u.archived_at IS NULL
+        ${sql.raw(sourceCondition)}
+        ${sql.raw(searchCondition)}
+      )
+      SELECT *, effective_type as computed_type
+      FROM visitor_base
+      WHERE 1=1 ${sql.raw(typeCondition)}
       ORDER BY ${sql.raw(orderByClause)}
       LIMIT ${pageLimit}
       OFFSET ${pageOffset}
