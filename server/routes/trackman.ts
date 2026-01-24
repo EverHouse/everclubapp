@@ -19,6 +19,7 @@ import { logFromRequest } from '../core/auditLog';
 import { getStripeClient } from '../core/stripe/client';
 import { getOrCreateStripeCustomer } from '../core/stripe/customers';
 import { recordUsage } from '../core/bookingService/sessionManager';
+import { updateVisitorType, updateVisitorTypeByUserId } from '../core/visitors';
 
 const router = Router();
 
@@ -338,6 +339,9 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                VALUES ($1, 'day-pass-golf-sim', 1, $2, $3, $4, $5, $6, NOW())`,
               [member.id, amountCents, paymentIntentId, bookingDateStr, paymentStatus, booking.trackman_booking_id]
             );
+            
+            // Update visitor type to day_pass in real-time
+            await updateVisitorTypeByUserId(member.id, 'day_pass', 'day_pass_purchase', new Date());
           }
         } else {
           billingMessage = ' (Day pass already purchased for this date)';
@@ -1600,6 +1604,16 @@ router.post('/api/admin/booking/:bookingId/guests', isStaffOrAdmin, async (req, 
       throw txError;
     } finally {
       client.release();
+    }
+    
+    // Update visitor type to guest in real-time (if they have a user record)
+    if (guestEmail) {
+      await updateVisitorType({ 
+        email: guestEmail, 
+        type: 'guest', 
+        activitySource: 'guest_booking',
+        activityDate: new Date(booking.request_date + 'T' + booking.start_time)
+      });
     }
     
     const feeMessage = usedGuestPass 

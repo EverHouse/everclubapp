@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.10.1",
+    date: "2026-01-24",
+    title: "Real-Time Visitor Type Updates",
+    changes: [
+      "New: Visitor TYPE is now updated automatically when a day pass is purchased",
+      "New: Visitor TYPE is now updated automatically when someone is added as a guest to a booking",
+      "Technical: Created reusable updateVisitorType utility with proper type hierarchy (day_pass > guest > lead)"
+    ]
+  },
+  {
     version: "9.10.0",
     date: "2026-01-24",
     title: "Visitor Directory Enhancements",
