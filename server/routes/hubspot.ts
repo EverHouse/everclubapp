@@ -1047,7 +1047,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
  * Update a contact's membership tier in HubSpot
  * Staff/admin only with audit logging
  */
-router.put('/contacts/:id/tier', isStaffOrAdmin, async (req, res) => {
+router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) => {
   const { id } = req.params;
   const { tier } = req.body;
   const staffUser = (req as any).staffUser;
