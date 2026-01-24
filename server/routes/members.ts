@@ -191,7 +191,7 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
     
     if (isStaffViewing) {
       logFromRequest(req, 'view_member_profile', 'member', normalizedEmail, 
-        `${user.firstName} ${user.lastName}`.trim() || undefined);
+        `${user.firstName} ${user.lastName}`.trim() || undefined, { section: 'Profile drawer' });
     }
     
     res.json({
@@ -217,6 +217,13 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
   try {
     const { email } = req.params;
     const normalizedEmail = decodeURIComponent(email).toLowerCase();
+    
+    // Fetch member name for audit logging
+    const memberForLog = await db.select({ firstName: users.firstName, lastName: users.lastName })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`)
+      .limit(1);
+    const memberName = memberForLog[0] ? `${memberForLog[0].firstName || ''} ${memberForLog[0].lastName || ''}`.trim() : normalizedEmail;
     
     // Get bookings where member is primary booker OR linked via booking_members
     const bookingHistory = await db.select({
@@ -436,8 +443,8 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
     // Total attended visits = sum of all past activities
     const attendedVisitsCount = pastBookingsCount + pastEventsCount + pastWellnessCount;
     
-    logFromRequest(req, 'view_member', 'member', normalizedEmail, undefined, { 
-      section: 'history',
+    logFromRequest(req, 'view_member', 'member', normalizedEmail, memberName, { 
+      section: 'History tab',
       bookingsCount: enrichedBookingHistory.length,
       eventsCount: eventRsvpHistory.length
     });

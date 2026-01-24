@@ -216,6 +216,11 @@ const ChangelogTab: React.FC = () => {
         
         // Action-specific details
         switch (entry.action) {
+            case 'view_member':
+            case 'view_member_profile':
+            case 'view_member_billing':
+                if (d.section) parts.push(d.section);
+                break;
             case 'tour_checkin':
             case 'tour_completed':
             case 'tour_no_show':

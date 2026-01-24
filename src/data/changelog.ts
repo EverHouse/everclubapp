@@ -19,6 +19,7 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed staff activity filters - Bookings, Billing, Members and other category filters now work correctly",
       "Added missing audit actions: Change Booking Owner, Assign Member to Booking, Link Trackman to Member",
+      "Staff activity now always shows member name and context (e.g., 'Aaron Flewellen - Profile drawer')",
       "X/Y Players button now shows for all future bookings, not just today - staff can prep rosters in advance"
     ]
   },
