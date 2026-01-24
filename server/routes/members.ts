@@ -2043,20 +2043,20 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     
     // Build type filter - filter by computed effective_type (not stored visitor_type)
     // The effective_type is computed dynamically from legacy_purchases and booking_participants
-    // We need to use a subquery/CTE to filter on computed values
+    // We filter on effective_type (the CTE column name)
     let typeCondition = '';
     if (typeFilter === 'day_pass') {
-      typeCondition = "AND computed_type = 'day_pass'";
+      typeCondition = "AND effective_type = 'day_pass'";
     } else if (typeFilter === 'guest') {
-      typeCondition = "AND computed_type = 'guest'";
+      typeCondition = "AND effective_type = 'guest'";
     } else if (typeFilter === 'lead') {
-      typeCondition = "AND computed_type = 'lead'";
+      typeCondition = "AND effective_type = 'lead'";
     } else if (typeFilter === 'classpass') {
-      typeCondition = "AND computed_type = 'classpass'";
+      typeCondition = "AND effective_type = 'classpass'";
     } else if (typeFilter === 'sim_walkin') {
-      typeCondition = "AND computed_type = 'sim_walkin'";
+      typeCondition = "AND effective_type = 'sim_walkin'";
     } else if (typeFilter === 'private_lesson') {
-      typeCondition = "AND computed_type = 'private_lesson'";
+      typeCondition = "AND effective_type = 'private_lesson'";
     }
     
     // Build search condition
