@@ -49,7 +49,7 @@ function getTierRank(tier: string): number {
 
 router.get('/api/members/search', isAuthenticated, async (req, res) => {
   try {
-    const { query, limit = '10', excludeId } = req.query;
+    const { query, limit = '10', excludeId, includeFormer = 'false' } = req.query;
     
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return res.json([]);
@@ -57,9 +57,10 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
     
     const searchTerm = `%${query.trim().toLowerCase()}%`;
     const maxResults = Math.min(parseInt(limit as string) || 10, 50);
+    const shouldIncludeFormer = includeFormer === 'true';
     
+    // Build base conditions - always require non-archived
     let whereConditions = and(
-      sql`${users.membershipStatus} = 'active'`,
       sql`${users.archivedAt} IS NULL`,
       sql`(
         LOWER(COALESCE(${users.firstName}, '') || ' ' || COALESCE(${users.lastName}, '')) LIKE ${searchTerm}
@@ -68,6 +69,14 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
         OR LOWER(COALESCE(${users.email}, '')) LIKE ${searchTerm}
       )`
     );
+    
+    // Only filter to active members unless includeFormer is true
+    if (!shouldIncludeFormer) {
+      whereConditions = and(
+        whereConditions,
+        sql`${users.membershipStatus} = 'active'`
+      );
+    }
     
     if (excludeId && typeof excludeId === 'string') {
       whereConditions = and(
@@ -82,6 +91,7 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
       firstName: users.firstName,
       lastName: users.lastName,
       tier: users.tier,
+      membershipStatus: users.membershipStatus,
     })
       .from(users)
       .where(whereConditions)
@@ -97,6 +107,7 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
       email: isStaff ? user.email : undefined,
       emailRedacted: redactEmail(user.email || ''),
       tier: user.tier || undefined,
+      membershipStatus: user.membershipStatus || undefined,
     }));
     
     res.json(formattedResults);

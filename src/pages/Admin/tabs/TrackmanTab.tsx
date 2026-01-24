@@ -91,7 +91,11 @@ const TrackmanTab: React.FC = () => {
   const [managePlayersModal, setManagePlayersModal] = useState<{ booking: any } | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [editSearchQuery, setEditSearchQuery] = useState('');
+  const [editSearchResults, setEditSearchResults] = useState<any[]>([]);
+  const [isEditSearching, setIsEditSearching] = useState(false);
   const [unmatchedSearchQuery, setUnmatchedSearchQuery] = useState('');
   const [matchedSearchQuery, setMatchedSearchQuery] = useState('');
   const [fuzzySearchQuery, setFuzzySearchQuery] = useState('');
@@ -667,14 +671,79 @@ const TrackmanTab: React.FC = () => {
     }
   };
 
-  const filteredMembers = members.filter(m => {
+  // Live search for members (includes former members for booking resolution)
+  useEffect(() => {
+    const searchMembers = async () => {
+      if (!searchQuery || searchQuery.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/members/search?query=${encodeURIComponent(searchQuery)}&limit=20&includeFormer=true`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          // API returns { name, email, tier, id } - map to expected format
+          setSearchResults(data.map((m: any) => {
+            const nameParts = (m.name || '').split(' ');
+            return {
+              ...m,
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
+            };
+          }));
+        }
+      } catch (err) {
+        console.error('Member search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+    const timeoutId = setTimeout(searchMembers, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Live search for edit modal
+  useEffect(() => {
+    const searchMembers = async () => {
+      if (!editSearchQuery || editSearchQuery.length < 2) {
+        setEditSearchResults([]);
+        return;
+      }
+      setIsEditSearching(true);
+      try {
+        const res = await fetch(`/api/members/search?query=${encodeURIComponent(editSearchQuery)}&limit=20&includeFormer=true`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          // API returns { name, email, tier, id } - map to expected format
+          setEditSearchResults(data.map((m: any) => {
+            const nameParts = (m.name || '').split(' ');
+            return {
+              ...m,
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
+            };
+          }));
+        }
+      } catch (err) {
+        console.error('Member search error:', err);
+      } finally {
+        setIsEditSearching(false);
+      }
+    };
+    const timeoutId = setTimeout(searchMembers, 300);
+    return () => clearTimeout(timeoutId);
+  }, [editSearchQuery]);
+
+  // Use live search results if available, otherwise fall back to pre-loaded members
+  const filteredMembers = searchQuery.length >= 2 ? searchResults : members.filter(m => {
     const query = searchQuery.toLowerCase();
     const name = `${m.firstName || m.firstname || ''} ${m.lastName || m.lastname || ''}`.toLowerCase();
     const email = (m.email || '').toLowerCase();
     return name.includes(query) || email.includes(query);
   });
 
-  const editFilteredMembers = members.filter(m => {
+  const editFilteredMembers = editSearchQuery.length >= 2 ? editSearchResults : members.filter(m => {
     const query = editSearchQuery.toLowerCase();
     const name = `${m.firstName || m.firstname || ''} ${m.lastName || m.lastname || ''}`.toLowerCase();
     const email = (m.email || '').toLowerCase();

@@ -13,12 +13,22 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.5.3",
+    date: "2026-01-24",
+    title: "Member Search Includes Former Members",
+    changes: [
+      "Fixed member search when resolving unmatched bookings - now finds both current and former members",
+      "Search now queries the database in real-time for more accurate results"
+    ]
+  },
+  {
     version: "9.5.2",
     date: "2026-01-24",
     title: "Unmatched Bookings List Restored",
     changes: [
       "Fixed unmatched bookings list showing 0 - now correctly displays CSV import bookings needing member assignment",
-      "Unmatched bookings can be resolved directly from the import screen"
+      "Unmatched bookings can be resolved directly from the import screen",
+      "Original name and email from CSV now displayed for easier identification"
     ]
   },
   {
