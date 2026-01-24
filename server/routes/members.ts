@@ -2002,10 +2002,11 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
 
 router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
   try {
-    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all' } = req.query;
+    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all', search = '' } = req.query;
     const pageLimit = Math.min(parseInt(limit as string) || 100, 500);
     const pageOffset = Math.max(parseInt(offset as string) || 0, 0);
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+    const searchTerm = (search as string || '').trim().toLowerCase();
     
     // Determine sort column based on sortBy parameter
     let orderByClause = `MAX(dpp.purchased_at) ${sortOrder} NULLS LAST`;
@@ -2020,13 +2021,17 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     }
     
     // Build source filter condition
+    // Matches the getSource() priority logic: mindbody > stripe > hubspot > app
     let sourceCondition = '';
     if (sourceFilter === 'mindbody') {
-      sourceCondition = "AND (u.legacy_source = 'mindbody_import' OR u.billing_provider = 'mindbody')";
+      // Match any record that would show as "MindBody" source
+      sourceCondition = "AND (u.mindbody_client_id IS NOT NULL OR u.legacy_source = 'mindbody_import' OR u.billing_provider = 'mindbody')";
     } else if (sourceFilter === 'hubspot') {
-      sourceCondition = "AND u.hubspot_id IS NOT NULL AND u.legacy_source IS NULL AND u.stripe_customer_id IS NULL";
+      // HubSpot: has hubspot_id but NOT mindbody or stripe (those take priority in display)
+      sourceCondition = "AND u.hubspot_id IS NOT NULL AND u.mindbody_client_id IS NULL AND u.legacy_source IS DISTINCT FROM 'mindbody_import' AND u.billing_provider IS DISTINCT FROM 'mindbody' AND u.stripe_customer_id IS NULL";
     } else if (sourceFilter === 'stripe') {
-      sourceCondition = "AND u.stripe_customer_id IS NOT NULL";
+      // Stripe: has stripe_customer_id but NOT mindbody (which takes priority)
+      sourceCondition = "AND u.stripe_customer_id IS NOT NULL AND u.mindbody_client_id IS NULL AND u.legacy_source IS DISTINCT FROM 'mindbody_import' AND u.billing_provider IS DISTINCT FROM 'mindbody'";
     }
     
     // Build type filter - filter by stored visitor_type or computed from activity
@@ -2039,6 +2044,17 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       typeCondition = "AND (u.visitor_type = 'lead' OR u.visitor_type IS NULL)";
     }
     
+    // Build search condition
+    let searchCondition = '';
+    if (searchTerm) {
+      const escapedSearch = searchTerm.replace(/'/g, "''");
+      searchCondition = `AND (
+        LOWER(u.first_name || ' ' || u.last_name) LIKE '%${escapedSearch}%'
+        OR LOWER(u.email) LIKE '%${escapedSearch}%'
+        OR LOWER(u.phone) LIKE '%${escapedSearch}%'
+      )`;
+    }
+    
     // Get total count first for pagination
     const countResult = await db.execute(sql`
       SELECT COUNT(DISTINCT u.id)::int as total
@@ -2048,6 +2064,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       AND u.archived_at IS NULL
       ${sql.raw(sourceCondition)}
       ${sql.raw(typeCondition)}
+      ${sql.raw(searchCondition)}
     `);
     const totalCount = (countResult.rows[0] as any)?.total || 0;
     
@@ -2085,6 +2102,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       AND u.archived_at IS NULL
       ${sql.raw(sourceCondition)}
       ${sql.raw(typeCondition)}
+      ${sql.raw(searchCondition)}
       GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role, u.stripe_customer_id, u.hubspot_id, u.mindbody_client_id, u.legacy_source, u.billing_provider, u.visitor_type, u.last_activity_at, u.last_activity_source, u.created_at
       ORDER BY ${sql.raw(orderByClause)}
       LIMIT ${pageLimit}

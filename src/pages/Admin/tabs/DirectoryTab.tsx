@@ -267,6 +267,7 @@ const DirectoryTab: React.FC = () => {
     const [visitorDetailsOpen, setVisitorDetailsOpen] = useState(false);
     const [visitorTypeFilter, setVisitorTypeFilter] = useState<VisitorType>('all');
     const [visitorSourceFilter, setVisitorSourceFilter] = useState<VisitorSource>('all');
+    const [visitorSearchQuery, setVisitorSearchQuery] = useState('');
     const [visitorSortField, setVisitorSortField] = useState<VisitorSortField>('lastActivity');
     const [visitorSortDirection, setVisitorSortDirection] = useState<SortDirection>('desc');
     const [visitorsTotal, setVisitorsTotal] = useState(0);
@@ -402,7 +403,7 @@ const DirectoryTab: React.FC = () => {
     }, [isViewingDetails, selectedMember]);
 
     // Fetch visitors - defined before handleTabChange to avoid circular reference
-    const fetchVisitors = useCallback(async (typeFilter?: VisitorType, sourceFilter?: VisitorSource, loadMore = false) => {
+    const fetchVisitors = useCallback(async (typeFilter?: VisitorType, sourceFilter?: VisitorSource, searchQuery?: string, loadMore = false) => {
         if (loadMore) {
             setVisitorsLoadingMore(true);
         } else {
@@ -416,6 +417,7 @@ const DirectoryTab: React.FC = () => {
             params.set('offset', loadMore ? (visitorsOffset + VISITORS_PAGE_SIZE).toString() : '0');
             if (typeFilter && typeFilter !== 'all') params.set('typeFilter', typeFilter);
             if (sourceFilter && sourceFilter !== 'all') params.set('sourceFilter', sourceFilter);
+            if (searchQuery && searchQuery.trim()) params.set('search', searchQuery.trim());
             
             const res = await fetch(`/api/visitors?${params.toString()}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Failed to fetch visitors');
@@ -455,16 +457,21 @@ const DirectoryTab: React.FC = () => {
                 setFormerLoading(false);
             }
         } else if (tab === 'visitors') {
-            await fetchVisitors(visitorTypeFilter, visitorSourceFilter);
+            await fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery);
         }
-    }, [fetchFormerMembers, fetchVisitors, visitorTypeFilter, visitorSourceFilter]);
+    }, [fetchFormerMembers, fetchVisitors, visitorTypeFilter, visitorSourceFilter, visitorSearchQuery]);
     
-    // Refetch visitors when filters change
+    // Refetch visitors when filters change (immediate) or search changes (debounced)
     useEffect(() => {
-        if (memberTab === 'visitors') {
-            fetchVisitors(visitorTypeFilter, visitorSourceFilter);
-        }
-    }, [visitorTypeFilter, visitorSourceFilter, memberTab, fetchVisitors]);
+        if (memberTab !== 'visitors') return;
+        
+        // Debounce search to avoid too many requests while typing
+        const timeoutId = setTimeout(() => {
+            fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery);
+        }, visitorSearchQuery ? 300 : 0); // Immediate for filter changes, 300ms delay for search
+        
+        return () => clearTimeout(timeoutId);
+    }, [visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, memberTab, fetchVisitors]);
 
     // Retry loading former members
     const handleRetryFormer = useCallback(async () => {
@@ -1078,32 +1085,54 @@ const DirectoryTab: React.FC = () => {
 
                 {/* Visitors tab filters */}
                 {memberTab === 'visitors' && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        <select
-                            value={visitorTypeFilter}
-                            onChange={(e) => setVisitorTypeFilter(e.target.value as VisitorType)}
-                            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                            aria-label="Filter by type"
-                        >
-                            <option value="all">All Types</option>
-                            <option value="day_pass">Day Pass Buyers</option>
-                            <option value="guest">Guests</option>
-                            <option value="lead">Leads</option>
-                        </select>
-                        <select
-                            value={visitorSourceFilter}
-                            onChange={(e) => setVisitorSourceFilter(e.target.value as VisitorSource)}
-                            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                            aria-label="Filter by source"
-                        >
-                            <option value="all">All Sources</option>
-                            <option value="hubspot">HubSpot</option>
-                            <option value="mindbody">MindBody</option>
-                            <option value="stripe">Stripe</option>
-                        </select>
-                        <span className="ml-auto text-sm text-gray-500 dark:text-white/60 self-center">
-                            {visitors.length.toLocaleString()} contacts
-                        </span>
+                    <div className="space-y-3 mb-4">
+                        <div className="relative">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 text-[20px]">search</span>
+                            <input
+                                type="text"
+                                value={visitorSearchQuery}
+                                onChange={(e) => setVisitorSearchQuery(e.target.value)}
+                                placeholder="Search by name, email, or phone..."
+                                className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                aria-label="Search visitors"
+                            />
+                            {visitorSearchQuery && (
+                                <button
+                                    onClick={() => setVisitorSearchQuery('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/70"
+                                    aria-label="Clear search"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">close</span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <select
+                                value={visitorTypeFilter}
+                                onChange={(e) => setVisitorTypeFilter(e.target.value as VisitorType)}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                aria-label="Filter by type"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="day_pass">Day Pass Buyers</option>
+                                <option value="guest">Guests</option>
+                                <option value="lead">Leads</option>
+                            </select>
+                            <select
+                                value={visitorSourceFilter}
+                                onChange={(e) => setVisitorSourceFilter(e.target.value as VisitorSource)}
+                                className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                aria-label="Filter by source"
+                            >
+                                <option value="all">All Sources</option>
+                                <option value="hubspot">HubSpot</option>
+                                <option value="mindbody">MindBody</option>
+                                <option value="stripe">Stripe</option>
+                            </select>
+                            <span className="ml-auto text-sm text-gray-500 dark:text-white/60 self-center">
+                                {visitorsTotal.toLocaleString()} contacts
+                            </span>
+                        </div>
                     </div>
                 )}
 
@@ -1123,7 +1152,7 @@ const DirectoryTab: React.FC = () => {
                             There was a problem connecting to the server. Please try again.
                         </p>
                         <button
-                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter)}
+                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery)}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
@@ -1205,7 +1234,7 @@ const DirectoryTab: React.FC = () => {
                                 {visitorsHasMore && (
                                     <div className="py-4 text-center">
                                         <button
-                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, true)}
+                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, true)}
                                             disabled={visitorsLoadingMore}
                                             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-bold transition-colors disabled:opacity-50"
                                         >
@@ -1363,7 +1392,7 @@ const DirectoryTab: React.FC = () => {
                                 {visitorsHasMore && (
                                     <div className="p-4 text-center">
                                         <button
-                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, true)}
+                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, true)}
                                             disabled={visitorsLoadingMore}
                                             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-bold transition-colors disabled:opacity-50"
                                         >
