@@ -2009,16 +2009,16 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     const searchTerm = (search as string || '').trim().toLowerCase();
     
     // Determine sort column based on sortBy parameter
-    // Uses pre-aggregated subquery aliases (dpp_agg, lp_agg)
-    let orderByClause = `GREATEST(dpp_agg.last_purchase_date, lp_agg.last_purchase_date) ${sortOrder} NULLS LAST`;
+    // Uses column names from the CTE output (not table aliases)
+    let orderByClause = `last_purchase_date ${sortOrder} NULLS LAST`;
     if (sortBy === 'name') {
-      orderByClause = `u.first_name || ' ' || u.last_name ${sortOrder}`;
+      orderByClause = `first_name || ' ' || last_name ${sortOrder}`;
     } else if (sortBy === 'totalSpent') {
-      orderByClause = `(COALESCE(dpp_agg.total_spent_cents, 0) + COALESCE(lp_agg.total_spent_cents, 0)) ${sortOrder}`;
+      orderByClause = `total_spent_cents ${sortOrder}`;
     } else if (sortBy === 'purchaseCount') {
-      orderByClause = `(COALESCE(dpp_agg.purchase_count, 0) + COALESCE(lp_agg.purchase_count, 0)) ${sortOrder}`;
+      orderByClause = `purchase_count ${sortOrder}`;
     } else if (sortBy === 'createdAt') {
-      orderByClause = `u.created_at ${sortOrder} NULLS LAST`;
+      orderByClause = `created_at ${sortOrder} NULLS LAST`;
     }
     
     // Build source filter condition
