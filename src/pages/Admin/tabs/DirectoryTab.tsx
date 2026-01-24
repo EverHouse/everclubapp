@@ -414,7 +414,8 @@ const DirectoryTab: React.FC = () => {
         try {
             const params = new URLSearchParams();
             params.set('limit', VISITORS_PAGE_SIZE.toString());
-            params.set('offset', loadMore ? (visitorsOffset + VISITORS_PAGE_SIZE).toString() : '0');
+            // visitorsOffset tracks total items loaded, so use it directly as the next offset
+            params.set('offset', loadMore ? visitorsOffset.toString() : '0');
             if (typeFilter && typeFilter !== 'all') params.set('typeFilter', typeFilter);
             if (sourceFilter && sourceFilter !== 'all') params.set('sourceFilter', sourceFilter);
             if (searchQuery && searchQuery.trim()) params.set('search', searchQuery.trim());
@@ -425,10 +426,12 @@ const DirectoryTab: React.FC = () => {
             
             if (loadMore) {
                 setVisitors(prev => [...prev, ...(data.visitors || [])]);
-                setVisitorsOffset(data.offset);
+                // Track cumulative offset: previous offset + items just loaded
+                setVisitorsOffset(prev => prev + (data.visitors?.length || 0));
             } else {
                 setVisitors(data.visitors || []);
-                setVisitorsOffset(0);
+                // Reset offset and track initial batch size
+                setVisitorsOffset(data.visitors?.length || 0);
             }
             setVisitorsTotal(data.total || 0);
             setVisitorsHasMore(data.hasMore || false);
