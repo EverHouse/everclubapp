@@ -1716,15 +1716,18 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       sourceCondition = "AND u.stripe_customer_id IS NOT NULL";
     }
     
-    // Build type filter - applied after query via HAVING clause
-    let havingClause = '';
-    if (typeFilter === 'day_pass_buyer') {
-      havingClause = 'HAVING COUNT(dpp.id) > 0';
+    // Build type filter - filter by stored visitor_type or computed from activity
+    let typeCondition = '';
+    if (typeFilter === 'day_pass') {
+      typeCondition = "AND (u.visitor_type = 'day_pass' OR u.visitor_type = 'day_pass_buyer')";
+    } else if (typeFilter === 'guest') {
+      typeCondition = "AND u.visitor_type = 'guest'";
     } else if (typeFilter === 'lead') {
-      havingClause = 'HAVING COUNT(dpp.id) = 0';
+      typeCondition = "AND (u.visitor_type = 'lead' OR u.visitor_type IS NULL)";
     }
     
     // Get all non-member contacts (visitors, non-members, leads) with aggregated purchase stats
+    // Also get guest count and latest activity
     const visitorsWithPurchases = await db.execute(sql`
       SELECT 
         u.id,
@@ -1732,39 +1735,69 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         u.first_name,
         u.last_name,
         u.phone,
-        COUNT(dpp.id)::int as purchase_count,
+        COUNT(DISTINCT dpp.id)::int as purchase_count,
         COALESCE(SUM(dpp.amount_cents), 0)::bigint as total_spent_cents,
         MAX(dpp.purchased_at) as last_purchase_date,
         u.membership_status,
         u.role,
         u.stripe_customer_id,
         u.hubspot_id,
+        u.mindbody_client_id,
         u.legacy_source,
         u.billing_provider,
-        u.created_at
+        u.visitor_type,
+        u.last_activity_at,
+        u.last_activity_source,
+        u.created_at,
+        COUNT(DISTINCT bg.id)::int as guest_count,
+        MAX(br.start_time) as last_guest_date
       FROM users u
       LEFT JOIN day_pass_purchases dpp ON LOWER(u.email) = LOWER(dpp.purchaser_email)
+      LEFT JOIN booking_guests bg ON LOWER(u.email) = LOWER(bg.guest_email)
+      LEFT JOIN booking_requests br ON bg.booking_id = br.id
       WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
       AND u.role NOT IN ('admin', 'staff')
       AND u.archived_at IS NULL
       ${sql.raw(sourceCondition)}
-      GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role, u.stripe_customer_id, u.hubspot_id, u.legacy_source, u.billing_provider, u.created_at
-      ${sql.raw(havingClause)}
+      ${sql.raw(typeCondition)}
+      GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role, u.stripe_customer_id, u.hubspot_id, u.mindbody_client_id, u.legacy_source, u.billing_provider, u.visitor_type, u.last_activity_at, u.last_activity_source, u.created_at
       ORDER BY ${sql.raw(orderByClause)}
       LIMIT ${maxResults}
     `);
     
-    // Determine source based on database fields (priority: hubspot > stripe > mindbody > app)
+    // Determine source based on database fields
+    // Priority: MINDBODY (non-member with mindbody_client_id) > STRIPE > HUBSPOT > APP
     const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
-      if (row.hubspot_id) return 'hubspot';
+      // MINDBODY: non-member with mindbody_client_id
+      const isNonMember = row.membership_status?.toLowerCase() === 'non-member';
+      if (isNonMember && row.mindbody_client_id) return 'mindbody';
+      // STRIPE: has a Stripe customer record
       if (row.stripe_customer_id) return 'stripe';
+      // HUBSPOT: has HubSpot ID
+      if (row.hubspot_id) return 'hubspot';
+      // Legacy mindbody imports
       if (row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') return 'mindbody';
       return 'app';
     };
     
-    // Determine type based on purchase count
-    const getType = (purchaseCount: number): 'day_pass_buyer' | 'lead' => {
-      return purchaseCount > 0 ? 'day_pass_buyer' : 'lead';
+    // Determine type based on stored visitor_type or compute from activity
+    // Types: day_pass, guest, lead
+    const getType = (row: any): 'day_pass' | 'guest' | 'lead' => {
+      // If we have a stored visitor_type, use it (normalize old values)
+      if (row.visitor_type) {
+        if (row.visitor_type === 'day_pass_buyer' || row.visitor_type === 'day_pass') return 'day_pass';
+        if (row.visitor_type === 'guest') return 'guest';
+        if (row.visitor_type === 'lead') return 'lead';
+      }
+      // Otherwise compute from activity data
+      const purchaseCount = parseInt(row.purchase_count) || 0;
+      const guestCount = parseInt(row.guest_count) || 0;
+      // Day pass buyer takes precedence (paid activity)
+      if (purchaseCount > 0) return 'day_pass';
+      // Guest (was brought by a member)
+      if (guestCount > 0) return 'guest';
+      // Lead (no app activity)
+      return 'lead';
     };
     
     const visitors = (visitorsWithPurchases.rows as any[]).map((row: any) => ({
@@ -1773,16 +1806,21 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       firstName: row.first_name,
       lastName: row.last_name,
       phone: row.phone,
-      purchaseCount: row.purchase_count,
-      totalSpentCents: row.total_spent_cents,
+      purchaseCount: parseInt(row.purchase_count) || 0,
+      totalSpentCents: parseInt(row.total_spent_cents) || 0,
       lastPurchaseDate: row.last_purchase_date,
+      guestCount: parseInt(row.guest_count) || 0,
+      lastGuestDate: row.last_guest_date,
       membershipStatus: row.membership_status,
       role: row.role,
       stripeCustomerId: row.stripe_customer_id,
       hubspotId: row.hubspot_id,
+      mindbodyClientId: row.mindbody_client_id,
+      lastActivityAt: row.last_activity_at,
+      lastActivitySource: row.last_activity_source,
       createdAt: row.created_at,
       source: getSource(row),
-      type: getType(row.purchase_count)
+      type: getType(row)
     }));
     
     res.json({
@@ -2404,6 +2442,96 @@ router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
   } catch (error: any) {
     console.error('[Visitors] Search error:', error);
     res.status(500).json({ error: 'Failed to search visitors' });
+  }
+});
+
+// Backfill visitor types from activity data
+router.post('/api/visitors/backfill-types', isAdmin, async (req, res) => {
+  try {
+    // First, backfill day_pass types from day_pass_purchases
+    const dayPassResult = await pool.query(`
+      UPDATE users u
+      SET 
+        visitor_type = 'day_pass',
+        last_activity_at = COALESCE(
+          (SELECT MAX(purchased_at) FROM day_pass_purchases dpp WHERE LOWER(dpp.purchaser_email) = LOWER(u.email)),
+          u.last_activity_at
+        ),
+        last_activity_source = 'day_pass_purchase',
+        updated_at = NOW()
+      FROM (
+        SELECT DISTINCT LOWER(purchaser_email) as email
+        FROM day_pass_purchases
+      ) dpp
+      WHERE LOWER(u.email) = dpp.email
+      AND (u.role = 'visitor' OR u.membership_status IN ('visitor', 'non-member'))
+      AND u.role NOT IN ('admin', 'staff')
+      AND (u.visitor_type IS NULL OR u.visitor_type = 'lead')
+      RETURNING u.id
+    `);
+    
+    // Then, backfill guest types from booking_guests (only if not already day_pass)
+    const guestResult = await pool.query(`
+      UPDATE users u
+      SET 
+        visitor_type = 'guest',
+        last_activity_at = COALESCE(
+          (SELECT MAX(br.start_time) FROM booking_guests bg 
+           JOIN booking_requests br ON bg.booking_id = br.id 
+           WHERE LOWER(bg.guest_email) = LOWER(u.email)),
+          u.last_activity_at
+        ),
+        last_activity_source = 'guest_pass',
+        updated_at = NOW()
+      FROM (
+        SELECT DISTINCT LOWER(guest_email) as email
+        FROM booking_guests
+        WHERE guest_email IS NOT NULL
+      ) bg
+      WHERE LOWER(u.email) = bg.email
+      AND (u.role = 'visitor' OR u.membership_status IN ('visitor', 'non-member'))
+      AND u.role NOT IN ('admin', 'staff')
+      AND u.visitor_type IS NULL
+      RETURNING u.id
+    `);
+    
+    // Finally, set remaining as 'lead'
+    const leadResult = await pool.query(`
+      UPDATE users
+      SET 
+        visitor_type = 'lead',
+        updated_at = NOW()
+      WHERE (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
+      AND role NOT IN ('admin', 'staff')
+      AND visitor_type IS NULL
+      RETURNING id
+    `);
+    
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    await logFromRequest(req, {
+      action: 'data_migration',
+      resourceType: 'system',
+      resourceId: 'visitor_types_backfill',
+      resourceName: 'Visitor Types Backfill',
+      details: { 
+        dayPassCount: dayPassResult.rowCount,
+        guestCount: guestResult.rowCount,
+        leadCount: leadResult.rowCount,
+        triggeredBy: staffEmail
+      }
+    });
+    
+    res.json({
+      success: true,
+      updated: {
+        dayPass: dayPassResult.rowCount,
+        guest: guestResult.rowCount,
+        lead: leadResult.rowCount
+      }
+    });
+  } catch (error: any) {
+    console.error('[Visitors] Backfill types error:', error);
+    res.status(500).json({ error: error.message || 'Failed to backfill visitor types' });
   }
 });
 

@@ -165,8 +165,9 @@ type SortField = 'name' | 'tier' | 'visits' | 'joinDate' | 'lastVisit';
 type SortDirection = 'asc' | 'desc';
 type MemberTab = 'active' | 'former' | 'visitors';
 
-type VisitorType = 'all' | 'day_pass_buyer' | 'lead';
+type VisitorType = 'all' | 'day_pass' | 'guest' | 'lead';
 type VisitorSource = 'all' | 'mindbody' | 'hubspot' | 'stripe';
+type VisitorSortField = 'name' | 'type' | 'source' | 'lastActivity' | 'createdAt';
 
 interface Visitor {
     id: string;
@@ -177,13 +178,18 @@ interface Visitor {
     purchaseCount: number;
     totalSpentCents: number;
     lastPurchaseDate: string | null;
+    guestCount: number;
+    lastGuestDate: string | null;
     membershipStatus: string | null;
     role: string | null;
     stripeCustomerId: string | null;
     hubspotId: string | null;
+    mindbodyClientId: string | null;
+    lastActivityAt: string | null;
+    lastActivitySource: string | null;
     createdAt: string | null;
     source: 'mindbody' | 'hubspot' | 'stripe' | 'app';
-    type: 'day_pass_buyer' | 'lead';
+    type: 'day_pass' | 'guest' | 'lead';
 }
 
 interface VisitorPurchase {
@@ -261,6 +267,8 @@ const DirectoryTab: React.FC = () => {
     const [visitorDetailsOpen, setVisitorDetailsOpen] = useState(false);
     const [visitorTypeFilter, setVisitorTypeFilter] = useState<VisitorType>('all');
     const [visitorSourceFilter, setVisitorSourceFilter] = useState<VisitorSource>('all');
+    const [visitorSortField, setVisitorSortField] = useState<VisitorSortField>('lastActivity');
+    const [visitorSortDirection, setVisitorSortDirection] = useState<SortDirection>('desc');
     
     const isAdmin = actualUser?.role === 'admin';
     
@@ -527,6 +535,37 @@ const DirectoryTab: React.FC = () => {
         }
         return Array.from(statusSet).sort();
     }, [formerMembers]);
+
+    // Sort visitors based on current sort field and direction
+    const sortedVisitors = useMemo(() => {
+        const sorted = [...visitors];
+        sorted.sort((a, b) => {
+            let comparison = 0;
+            switch (visitorSortField) {
+                case 'name':
+                    const nameA = [a.firstName, a.lastName].filter(Boolean).join(' ').toLowerCase();
+                    const nameB = [b.firstName, b.lastName].filter(Boolean).join(' ').toLowerCase();
+                    comparison = nameA.localeCompare(nameB);
+                    break;
+                case 'type':
+                    comparison = (a.type || '').localeCompare(b.type || '');
+                    break;
+                case 'source':
+                    comparison = (a.source || '').localeCompare(b.source || '');
+                    break;
+                case 'lastActivity':
+                    const dateA = a.lastActivityAt || a.lastPurchaseDate || a.lastGuestDate || '';
+                    const dateB = b.lastActivityAt || b.lastPurchaseDate || b.lastGuestDate || '';
+                    comparison = dateA.localeCompare(dateB);
+                    break;
+                case 'createdAt':
+                    comparison = (a.createdAt || '').localeCompare(b.createdAt || '');
+                    break;
+            }
+            return visitorSortDirection === 'asc' ? comparison : -comparison;
+        });
+        return sorted;
+    }, [visitors, visitorSortField, visitorSortDirection]);
 
     // Handle sorting
     const handleSort = (field: SortField) => {
@@ -999,7 +1038,8 @@ const DirectoryTab: React.FC = () => {
                             aria-label="Filter by type"
                         >
                             <option value="all">All Types</option>
-                            <option value="day_pass_buyer">Day Pass Buyers</option>
+                            <option value="day_pass">Day Pass Buyers</option>
+                            <option value="guest">Guests</option>
                             <option value="lead">Leads</option>
                         </select>
                         <select
@@ -1064,7 +1104,7 @@ const DirectoryTab: React.FC = () => {
                     <div className="md:hidden flex-1 min-h-0 relative">
                         <div className="h-full overflow-y-auto pt-2 pb-24">
                             <div className="space-y-3 px-1">
-                                {visitors.map((v, index) => (
+                                {sortedVisitors.map((v, index) => (
                                     <div 
                                         key={v.id}
                                         onClick={() => openVisitorDetails(v)}
@@ -1081,17 +1121,19 @@ const DirectoryTab: React.FC = () => {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">{v.purchaseCount || 0} purchase{v.purchaseCount !== 1 ? 's' : ''}</p>
-                                                {v.lastPurchaseDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(v.lastPurchaseDate)}</p>}
+                                                {(v.lastActivityAt || v.lastPurchaseDate) && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</p>}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                    v.type === 'day_pass_buyer' 
+                                                    v.type === 'day_pass' 
                                                         ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
+                                                        : v.type === 'guest'
+                                                        ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                                         : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
                                                 }`}>
-                                                    {v.type === 'day_pass_buyer' ? 'Day Pass' : 'Lead'}
+                                                    {v.type === 'day_pass' ? 'Day Pass' : v.type === 'guest' ? 'Guest' : 'Lead'}
                                                 </span>
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                     v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
@@ -1120,17 +1162,89 @@ const DirectoryTab: React.FC = () => {
                 {!visitorsLoading && !visitorsError && memberTab === 'visitors' && visitors.length > 0 && (
                     <div className="hidden md:flex flex-col flex-1 min-h-0 overflow-hidden">
                         <div className="flex bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20 shrink-0">
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '18%' }}>Name</div>
+                            <button 
+                                onClick={() => {
+                                    if (visitorSortField === 'name') {
+                                        setVisitorSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                                    } else {
+                                        setVisitorSortField('name');
+                                        setVisitorSortDirection('asc');
+                                    }
+                                }}
+                                className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center gap-1" 
+                                style={{ width: '18%' }}
+                            >
+                                Name
+                                {visitorSortField === 'name' && (
+                                    <span className="material-symbols-outlined text-[14px]">
+                                        {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                    </span>
+                                )}
+                            </button>
                             <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '22%' }}>Email</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '12%' }}>Type</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '12%' }}>Source</div>
+                            <button 
+                                onClick={() => {
+                                    if (visitorSortField === 'type') {
+                                        setVisitorSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                                    } else {
+                                        setVisitorSortField('type');
+                                        setVisitorSortDirection('asc');
+                                    }
+                                }}
+                                className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center gap-1" 
+                                style={{ width: '12%' }}
+                            >
+                                Type
+                                {visitorSortField === 'type' && (
+                                    <span className="material-symbols-outlined text-[14px]">
+                                        {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                    </span>
+                                )}
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    if (visitorSortField === 'source') {
+                                        setVisitorSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                                    } else {
+                                        setVisitorSortField('source');
+                                        setVisitorSortDirection('asc');
+                                    }
+                                }}
+                                className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center gap-1" 
+                                style={{ width: '12%' }}
+                            >
+                                Source
+                                {visitorSortField === 'source' && (
+                                    <span className="material-symbols-outlined text-[14px]">
+                                        {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                    </span>
+                                )}
+                            </button>
                             <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-center" style={{ width: '10%' }}>Purchases</div>
                             <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-center" style={{ width: '12%' }}>Total Spent</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '14%' }}>Last Visit</div>
+                            <button 
+                                onClick={() => {
+                                    if (visitorSortField === 'lastActivity') {
+                                        setVisitorSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                                    } else {
+                                        setVisitorSortField('lastActivity');
+                                        setVisitorSortDirection('desc');
+                                    }
+                                }}
+                                className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-left hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center gap-1" 
+                                style={{ width: '14%' }}
+                            >
+                                Last Activity
+                                {visitorSortField === 'lastActivity' && (
+                                    <span className="material-symbols-outlined text-[14px]">
+                                        {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                    </span>
+                                )}
+                            </button>
                         </div>
                         <div className="relative flex-1 min-h-0">
                             <div className="h-full overflow-y-auto pt-2">
-                                {visitors.map((v, index) => (
+                                {sortedVisitors.map((v, index) => (
                                     <div 
                                         key={v.id}
                                         onClick={() => openVisitorDetails(v)}
@@ -1145,11 +1259,13 @@ const DirectoryTab: React.FC = () => {
                                         </div>
                                         <div style={{ width: '12%' }} className="p-4">
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                v.type === 'day_pass_buyer' 
+                                                v.type === 'day_pass' 
                                                     ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
+                                                    : v.type === 'guest'
+                                                    ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                                     : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
                                             }`}>
-                                                {v.type === 'day_pass_buyer' ? 'Day Pass' : 'Lead'}
+                                                {v.type === 'day_pass' ? 'Day Pass' : v.type === 'guest' ? 'Guest' : 'Lead'}
                                             </span>
                                         </div>
                                         <div style={{ width: '12%' }} className="p-4">
@@ -1169,7 +1285,7 @@ const DirectoryTab: React.FC = () => {
                                             ${((v.totalSpentCents || 0) / 100).toFixed(2)}
                                         </div>
                                         <div style={{ width: '14%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                            {formatJoinDate(v.lastPurchaseDate)}
+                                            {formatJoinDate(v.lastActivityAt || v.lastPurchaseDate || v.lastGuestDate)}
                                         </div>
                                     </div>
                                 ))}
