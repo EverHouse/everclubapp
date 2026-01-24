@@ -22,6 +22,7 @@ export const changelog: ChangelogEntry[] = [
       "Balance is credited instantly upon successful payment",
       "Staff can view member account balance and apply credits in the Billing tab (e.g., for service recovery)",
       "All staff credit applications are now logged in the Staff Activity feed",
+      "Fixed: Staff/admin logins no longer create Stripe customer accounts",
       "Future: Account balance can be used for guest fees, day passes, and service overages",
       "Removed: Guest Passes section (balance-based system replaces per-pass tracking)"
     ]

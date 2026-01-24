@@ -234,13 +234,20 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
     const targetEmail = (req.body.email && isStaff) ? String(req.body.email) : sessionUser.email;
     
     const result = await pool.query(
-      `SELECT stripe_customer_id, billing_provider, email FROM users WHERE LOWER(email) = $1`,
+      `SELECT stripe_customer_id, billing_provider, email, role FROM users WHERE LOWER(email) = $1`,
       [targetEmail.toLowerCase()]
     );
     
     const member = result.rows[0];
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Don't create Stripe customers for staff/admin accessing their own portal
+    // (Staff can still view member billing portals when passing a member email)
+    const targetIsStaff = member.role === 'staff' || member.role === 'admin';
+    if (targetIsStaff) {
+      return res.status(400).json({ error: 'Staff accounts do not have billing portals' });
     }
     
     const stripe = await getStripeClient();
@@ -285,6 +292,12 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
 router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) => {
   try {
     const email = req.session.user.email;
+    
+    // Staff/admin don't need billing migration
+    const sessionRole = req.session.user.role;
+    if (sessionRole === 'staff' || sessionRole === 'admin') {
+      return res.status(400).json({ error: 'Staff accounts do not use billing' });
+    }
     
     const result = await pool.query(
       `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id
@@ -419,9 +432,14 @@ router.get('/api/my/balance', requireAuth, async (req, res) => {
     const email = req.session.user.email;
     
     const result = await pool.query(
-      `SELECT stripe_customer_id FROM users WHERE LOWER(email) = $1`,
+      `SELECT stripe_customer_id, role FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
+    
+    // Staff/admin don't have account balances
+    if (result.rows[0]?.role === 'staff' || result.rows[0]?.role === 'admin') {
+      return res.json({ balanceCents: 0, balanceDollars: 0, isStaff: true });
+    }
     
     if (!result.rows[0]?.stripe_customer_id) {
       return res.json({ balanceCents: 0, balanceDollars: 0 });
@@ -456,13 +474,18 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
     }
     
     const result = await pool.query(
-      `SELECT id, stripe_customer_id, first_name, last_name FROM users WHERE LOWER(email) = $1`,
+      `SELECT id, stripe_customer_id, first_name, last_name, role FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
     
     const member = result.rows[0];
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Staff/admin don't need account balance functionality - don't create Stripe customers for them
+    if (member.role === 'staff' || member.role === 'admin') {
+      return res.status(400).json({ error: 'Staff accounts do not use account balance' });
     }
     
     const stripe = await getStripeClient();
@@ -508,6 +531,44 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
   } catch (error: any) {
     console.error('[MyBilling] Add funds error:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Route alias for account-balance endpoint
+router.get('/api/my-billing/account-balance', requireAuth, async (req, res) => {
+  try {
+    const email = req.session.user.email;
+    
+    const result = await pool.query(
+      `SELECT stripe_customer_id, role FROM users WHERE LOWER(email) = $1`,
+      [email.toLowerCase()]
+    );
+    
+    // Staff/admin don't have account balances
+    if (result.rows[0]?.role === 'staff' || result.rows[0]?.role === 'admin') {
+      return res.json({ balanceCents: 0, balanceDollars: 0, isStaff: true });
+    }
+    
+    if (!result.rows[0]?.stripe_customer_id) {
+      return res.json({ balanceCents: 0, balanceDollars: 0 });
+    }
+    
+    const stripe = await getStripeClient();
+    const customer = await stripe.customers.retrieve(result.rows[0].stripe_customer_id);
+    
+    if (customer.deleted) {
+      return res.json({ balanceCents: 0, balanceDollars: 0 });
+    }
+    
+    const balanceCents = (customer as any).balance || 0;
+    res.json({
+      balanceCents: Math.abs(balanceCents),
+      balanceDollars: Math.abs(balanceCents) / 100,
+      isCredit: balanceCents < 0
+    });
+  } catch (error: any) {
+    console.error('[MyBilling] Account balance fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch balance' });
   }
 });
 
