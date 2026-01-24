@@ -19,7 +19,6 @@ import MemberBottomNav from '../../components/MemberBottomNav';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import BugReportModal from '../../components/BugReportModal';
 import ModalShell from '../../components/ModalShell';
-import GuestPassPurchaseModal from '../../components/billing/GuestPassPurchaseModal';
 import WaiverModal from '../../components/WaiverModal';
 import BillingSection from '../../components/profile/BillingSection';
 import { AnimatedPage } from '../../components/motion';
@@ -63,7 +62,9 @@ const Profile: React.FC = () => {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [showBugReport, setShowBugReport] = useState(false);
   const [staffDetails, setStaffDetails] = useState<{phone?: string; job_title?: string} | null>(null);
-  const [showGuestPassPurchase, setShowGuestPassPurchase] = useState(false);
+  const [accountBalance, setAccountBalance] = useState<{ balanceDollars: number; isCredit: boolean } | null>(null);
+  const [showAddFunds, setShowAddFunds] = useState(false);
+  const [addFundsLoading, setAddFundsLoading] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -101,6 +102,15 @@ const Profile: React.FC = () => {
       setIsProfileLoading(false);
     }
   }, [user?.email, user?.tier]);
+
+  useEffect(() => {
+    if (user?.email && !isStaffOrAdminProfile) {
+      fetch('/api/my/balance', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => data && setAccountBalance({ balanceDollars: data.balanceDollars || 0, isCredit: data.isCredit || false }))
+        .catch(err => console.error('Error fetching balance:', err));
+    }
+  }, [user?.email, isStaffOrAdminProfile]);
 
   useEffect(() => {
     if (isStaffOrAdminProfile && user?.email) {
@@ -285,6 +295,30 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleAddFunds = async (amountCents: number) => {
+    if (addFundsLoading) return;
+    setAddFundsLoading(true);
+    try {
+      const res = await fetch('/api/my/add-funds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amountCents })
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        showToast(data.error || 'Failed to create checkout', 'error');
+      }
+    } catch {
+      showToast('Failed to add funds', 'error');
+    } finally {
+      setAddFundsLoading(false);
+      setShowAddFunds(false);
+    }
+  };
+
   const handleDoNotSellToggle = async (newValue: boolean) => {
     if (!user?.email || privacyLoading) return;
     
@@ -393,6 +427,66 @@ const Profile: React.FC = () => {
            </Section>
          )}
 
+         {/* Account Balance Section - only for members, not staff/admin */}
+         {!isStaffOrAdminProfile && (
+           <Section title="Account Balance" isDark={isDark} delay="0.06s">
+             <div className={`p-4 ${isDark ? '' : ''}`}>
+               <div className="flex items-center justify-between mb-4">
+                 <div className="flex items-center gap-4">
+                   <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>account_balance_wallet</span>
+                   <div>
+                     <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Available Credit</span>
+                     <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                       Applied to guest fees & overages
+                     </p>
+                   </div>
+                 </div>
+                 <div className="text-right">
+                   <span className={`text-2xl font-bold font-serif ${accountBalance && accountBalance.balanceDollars > 0 ? (isDark ? 'text-accent' : 'text-green-600') : (isDark ? 'text-white' : 'text-primary')}`}>
+                     ${(accountBalance?.balanceDollars || 0).toFixed(2)}
+                   </span>
+                 </div>
+               </div>
+               
+               {showAddFunds ? (
+                 <div className="space-y-3">
+                   <p className={`text-sm ${isDark ? 'opacity-70' : 'text-primary/70'}`}>Select amount to add:</p>
+                   <div className="grid grid-cols-3 gap-2">
+                     {[2500, 5000, 10000].map(cents => (
+                       <button
+                         key={cents}
+                         onClick={() => handleAddFunds(cents)}
+                         disabled={addFundsLoading}
+                         className={`py-3 rounded-xl font-semibold text-sm transition-colors ${
+                           isDark 
+                             ? 'bg-white/10 hover:bg-white/20 text-white' 
+                             : 'bg-primary/10 hover:bg-primary/20 text-primary'
+                         } ${addFundsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                       >
+                         ${cents / 100}
+                       </button>
+                     ))}
+                   </div>
+                   <button
+                     onClick={() => setShowAddFunds(false)}
+                     className={`w-full py-2 text-sm ${isDark ? 'text-white/60' : 'text-primary/60'}`}
+                   >
+                     Cancel
+                   </button>
+                 </div>
+               ) : (
+                 <button
+                   onClick={() => setShowAddFunds(true)}
+                   className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                 >
+                   <span className="material-symbols-outlined text-lg">add</span>
+                   Add Funds
+                 </button>
+               )}
+             </div>
+           </Section>
+         )}
+
          <Section title="Account" isDark={isDark} delay="0.07s">
             <Row icon="person" label="Name" value={user.name} isDark={isDark} />
             <Row icon="mail" label="Email" value={user.email} isDark={isDark} />
@@ -472,41 +566,6 @@ const Profile: React.FC = () => {
          {!isStaffOrAdminProfile && (
            <Section title="Billing & Invoices" isDark={isDark} delay="0.12s">
              <BillingSection isDark={isDark} />
-           </Section>
-         )}
-
-         {/* Guest Passes Section - only for members, not staff/admin */}
-         {!isStaffOrAdminProfile && guestPasses && (
-           <Section title="Guest Passes" isDark={isDark} delay="0.15s">
-             <div className={`p-4 ${isDark ? '' : ''}`}>
-               <div className="flex items-center justify-between mb-4">
-                 <div className="flex items-center gap-4">
-                   <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>group_add</span>
-                   <div>
-                     <span className={`font-medium text-sm ${isDark ? '' : 'text-primary'}`}>Monthly Balance</span>
-                     <p className={`text-xs mt-0.5 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
-                       Passes remaining this month
-                     </p>
-                   </div>
-                 </div>
-                 <div className="text-right">
-                   <span className={`text-2xl font-bold font-serif ${isDark ? 'text-white' : 'text-primary'}`}>
-                     {guestPasses.passes_remaining}
-                   </span>
-                   <span className={`text-sm ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
-                     {' '}/ {guestPasses.passes_total}
-                   </span>
-                 </div>
-               </div>
-               
-               <button
-                 onClick={() => setShowGuestPassPurchase(true)}
-                 className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-               >
-                 <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
-                 Buy More Passes
-               </button>
-             </div>
            </Section>
          )}
 
@@ -650,28 +709,6 @@ const Profile: React.FC = () => {
         isOpen={showBugReport}
         onClose={() => setShowBugReport(false)}
       />
-
-      {/* Guest Pass Purchase Modal */}
-      {showGuestPassPurchase && user && (
-        <GuestPassPurchaseModal
-          userEmail={user.email}
-          userName={user.name}
-          onSuccess={async () => {
-            setShowGuestPassPurchase(false);
-            showToast('Guest passes purchased successfully!', 'success');
-            try {
-              const res = await fetch(`/api/guest-passes/${encodeURIComponent(user.email)}?tier=${encodeURIComponent(user.tier || 'Social')}`, { credentials: 'include' });
-              if (res.ok) {
-                const data = await res.json();
-                setGuestPasses(data);
-              }
-            } catch (err) {
-              console.error('Error refreshing guest passes:', err);
-            }
-          }}
-          onClose={() => setShowGuestPassPurchase(false)}
-        />
-      )}
 
       {/* Guest Check-In Modal */}
       <HubSpotFormModal
