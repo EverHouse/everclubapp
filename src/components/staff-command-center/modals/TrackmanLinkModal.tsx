@@ -44,8 +44,8 @@ export function TrackmanLinkModal({
     if (!selectedMember) return;
     
     await linkToMember(async () => {
-      // If re-linking an existing booking, use the change-owner endpoint
-      if (isRelink && matchedBookingId) {
+      // If re-linking an existing booking OR assigning an unmatched booking with a matchedBookingId
+      if (matchedBookingId) {
         const res = await fetch(`/api/bookings/${matchedBookingId}/change-owner`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -59,7 +59,7 @@ export function TrackmanLinkModal({
         
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.error || data.message || 'Failed to change booking owner');
+          throw new Error(data.error || data.message || 'Failed to assign member to booking');
         }
       } else if (trackmanBookingId) {
         const res = await fetch('/api/bookings/link-trackman-to-member', {
@@ -98,6 +98,7 @@ export function TrackmanLinkModal({
         </div>
       }
       size="md"
+      overflowVisible={true}
     >
       <div className="p-4 space-y-4">
         {isRelink && currentMemberName && (

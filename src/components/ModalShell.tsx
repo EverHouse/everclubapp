@@ -16,6 +16,7 @@ interface ModalShellProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   className?: string;
   hideTitleBorder?: boolean;
+  overflowVisible?: boolean;
 }
 
 const sizeClasses = {
@@ -35,7 +36,8 @@ export function ModalShell({
   dismissible = true,
   size = 'md',
   className = '',
-  hideTitleBorder = false
+  hideTitleBorder = false,
+  overflowVisible = false
 }: ModalShellProps) {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
@@ -143,7 +145,7 @@ export function ModalShell({
             )}
             
             <div 
-              className={`modal-keyboard-aware overflow-y-auto overflow-x-hidden ${title || showCloseButton ? 'max-h-[calc(100dvh-180px)]' : 'max-h-[calc(100dvh-100px)]'}`}
+              className={`modal-keyboard-aware ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'} ${title || showCloseButton ? 'max-h-[calc(100dvh-180px)]' : 'max-h-[calc(100dvh-100px)]'}`}
               style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
             >
               {children}
