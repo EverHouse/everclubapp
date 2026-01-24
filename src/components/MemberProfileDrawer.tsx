@@ -90,7 +90,9 @@ const TABS: { id: TabType; label: string; icon: string }[] = [
 const formatDatePacific = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
+    // For date-only strings (YYYY-MM-DD), append noon time to avoid UTC midnight timezone shift
+    const normalizedDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
+    const d = new Date(normalizedDate);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
   } catch {
     return dateStr;

@@ -23,7 +23,10 @@ export const changelog: ChangelogEntry[] = [
       "Partial roster bookings now show 'X/Y Players' button on queue list instead of 'Check In'",
       "Calendar shows blue styling for bookings that need more players (dotted blue outline, blue background, blue text) to match Add Player button",
       "Conference rooms now display lavender 'Conf' badge correctly in all views",
-      "Fixed Trackman webhook stats cards and event count not displaying due to database query error"
+      "Fixed Trackman webhook stats cards and event count not displaying due to database query error",
+      "Fixed booking dates showing one day off in member profile (timezone display issue)",
+      "Trackman bookings now auto-create billing sessions for seamless check-in",
+      "Check-in now works even when billing session is pending sync"
     ]
   },
   {

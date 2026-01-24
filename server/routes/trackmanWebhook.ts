@@ -893,6 +893,22 @@ async function createBookingForMember(
     
     if (result.rows.length > 0) {
       const bookingId = result.rows[0].id;
+      
+      // Create billing session for this Trackman booking
+      try {
+        const sessionResult = await pool.query(`
+          INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+          VALUES ($1, $2, $3, $4, $5, 'trackman', 'trackman_webhook')
+          RETURNING id
+        `, [resourceId, slotDate, startTime, endTime, trackmanBookingId]);
+        
+        if (sessionResult.rows.length > 0) {
+          await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [sessionResult.rows[0].id, bookingId]);
+        }
+      } catch (sessionErr) {
+        logger.warn('[Trackman Webhook] Failed to create billing session', { extra: { bookingId, error: sessionErr } });
+      }
+      
       const bayNameForNotification = `Bay ${resourceId}`;
       const logLevel = resourceId ? 'info' : 'warn';
       const logMethod = resourceId ? logger.info.bind(logger) : logger.warn.bind(logger);
@@ -1051,6 +1067,21 @@ async function createUnmatchedBookingRequest(
     
     if (result.rows.length > 0) {
       const bookingId = result.rows[0].id;
+      
+      // Create billing session for this unmatched Trackman booking
+      try {
+        const sessionResult = await pool.query(`
+          INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+          VALUES ($1, $2, $3, $4, $5, 'trackman', 'trackman_webhook')
+          RETURNING id
+        `, [resourceId, slotDate, startTime, endTime, trackmanBookingId]);
+        
+        if (sessionResult.rows.length > 0) {
+          await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [sessionResult.rows[0].id, bookingId]);
+        }
+      } catch (sessionErr) {
+        logger.warn('[Trackman Webhook] Failed to create billing session for unmatched booking', { extra: { bookingId, error: sessionErr } });
+      }
       
       logger.info('[Trackman Webhook] Created unmatched booking request', {
         extra: { bookingId, trackmanBookingId, date: slotDate, resourceId }
@@ -2598,17 +2629,34 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           ]);
           
           if (newBooking.rows.length > 0) {
+            const bookingId = newBooking.rows[0].id;
+            
             // Update the webhook event with matched_booking_id
             await pool.query(
               `UPDATE trackman_webhook_events SET matched_booking_id = $1 WHERE id = $2`,
-              [newBooking.rows[0].id, event.id]
+              [bookingId, event.id]
             );
+            
+            // Create billing session for this reprocessed Trackman booking
+            try {
+              const sessionResult = await pool.query(`
+                INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+                VALUES ($1, $2, $3, $4, $5, 'trackman', 'trackman_reprocess')
+                RETURNING id
+              `, [resourceId, requestDate, startTime, endTime, event.trackman_booking_id]);
+              
+              if (sessionResult.rows.length > 0) {
+                await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [sessionResult.rows[0].id, bookingId]);
+              }
+            } catch (sessionErr) {
+              // Non-fatal: continue even if billing session creation fails
+            }
             
             results.created++;
             results.details.push({ 
               trackmanId: event.trackman_booking_id, 
               status: 'created', 
-              bookingId: newBooking.rows[0].id,
+              bookingId,
               date: requestDate,
               time: startTime,
               bay: resourceId ? `Bay ${resourceId}` : 'Unknown'
