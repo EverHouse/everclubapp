@@ -144,6 +144,10 @@ export async function processStripeWebhook(
       await handleInvoicePaymentSucceeded(event.data.object);
     } else if (event.type === 'invoice.payment_failed') {
       await handleInvoicePaymentFailed(event.data.object);
+    } else if (event.type === 'invoice.created' || event.type === 'invoice.finalized' || event.type === 'invoice.updated') {
+      await handleInvoiceLifecycle(event.data.object, event.type);
+    } else if (event.type === 'invoice.voided' || event.type === 'invoice.marked_uncollectible') {
+      await handleInvoiceVoided(event.data.object, event.type);
     } else if (event.type === 'checkout.session.completed') {
       await handleCheckoutSessionCompleted(event.data.object);
     } else if (event.type === 'customer.subscription.created') {
@@ -804,6 +808,87 @@ async function handleInvoicePaymentFailed(invoice: any): Promise<void> {
     console.log(`[Stripe Webhook] Membership payment failure processed for ${email}, amount: $${(amountDue / 100).toFixed(2)}`);
   } catch (error) {
     console.error('[Stripe Webhook] Error handling invoice payment failed:', error);
+  }
+}
+
+async function handleInvoiceLifecycle(invoice: any, eventType: string): Promise<void> {
+  try {
+    const invoiceEmail = invoice.customer_email;
+    const amountDue = invoice.amount_due || 0;
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+    const customerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
+    
+    console.log(`[Stripe Webhook] Invoice ${eventType}: ${invoice.id}, status: ${invoice.status}, amount: $${(amountDue / 100).toFixed(2)}`);
+    
+    await upsertTransactionCache({
+      stripeId: invoice.id,
+      objectType: 'invoice',
+      amountCents: amountDue,
+      currency: invoice.currency || 'usd',
+      status: invoice.status,
+      createdAt: new Date(invoice.created * 1000),
+      customerId,
+      customerEmail: invoiceEmail,
+      customerName,
+      description: invoice.lines?.data?.[0]?.description || `Invoice ${invoice.number || invoice.id}`,
+      metadata: invoice.metadata,
+      source: 'webhook',
+      invoiceId: invoice.id,
+      paymentIntentId: invoice.payment_intent,
+    });
+    
+    if (invoice.status === 'open' && invoice.due_date) {
+      const dueDate = new Date(invoice.due_date * 1000);
+      const now = new Date();
+      if (dueDate < now) {
+        broadcastBillingUpdate({
+          action: 'invoice_overdue',
+          invoiceId: invoice.id,
+          memberEmail: invoiceEmail,
+          amount: amountDue / 100,
+          dueDate: dueDate.toISOString()
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`[Stripe Webhook] Error handling ${eventType}:`, error);
+    throw error;
+  }
+}
+
+async function handleInvoiceVoided(invoice: any, eventType: string): Promise<void> {
+  try {
+    const invoiceEmail = invoice.customer_email;
+    const amountDue = invoice.amount_due || 0;
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+    
+    const status = eventType === 'invoice.voided' ? 'void' : 'uncollectible';
+    console.log(`[Stripe Webhook] Invoice ${status}: ${invoice.id}, removing from active invoices`);
+    
+    await upsertTransactionCache({
+      stripeId: invoice.id,
+      objectType: 'invoice',
+      amountCents: amountDue,
+      currency: invoice.currency || 'usd',
+      status,
+      createdAt: new Date(invoice.created * 1000),
+      customerId,
+      customerEmail: invoiceEmail,
+      description: invoice.lines?.data?.[0]?.description || `Invoice ${invoice.number || invoice.id}`,
+      metadata: invoice.metadata,
+      source: 'webhook',
+      invoiceId: invoice.id,
+    });
+    
+    broadcastBillingUpdate({
+      action: 'invoice_removed',
+      invoiceId: invoice.id,
+      memberEmail: invoiceEmail,
+      reason: status
+    });
+  } catch (error) {
+    console.error(`[Stripe Webhook] Error handling ${eventType}:`, error);
+    throw error;
   }
 }
 

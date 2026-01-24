@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.6.3",
+    date: "2026-01-24",
+    title: "Invoice Lifecycle Sync",
+    changes: [
+      "New: Invoice created/finalized/updated events now sync to transaction cache",
+      "New: Voided and uncollectible invoices are properly tracked",
+      "Overdue invoices broadcast real-time updates to staff dashboard",
+      "Foundation for showing invoices before they're paid"
+    ]
+  },
+  {
     version: "9.6.2",
     date: "2026-01-24",
     title: "Stripe Webhook Reliability Fixes",
