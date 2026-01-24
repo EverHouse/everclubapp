@@ -1,4 +1,5 @@
 import { getStripeClient } from './client';
+import { pool } from '../db';
 import Stripe from 'stripe';
 
 export interface InvoiceItem {
@@ -274,4 +275,57 @@ function mapInvoice(invoice: Stripe.Invoice): InvoiceResult {
       quantity: line.quantity,
     })) || [],
   };
+}
+
+export interface CachedTransaction {
+  id: string;
+  type: string;
+  amountCents: number;
+  currency: string;
+  status: string;
+  description: string;
+  createdAt: Date;
+}
+
+export async function getCustomerPaymentHistory(customerId: string, limit = 50): Promise<{
+  success: boolean;
+  transactions?: CachedTransaction[];
+  error?: string;
+}> {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        stripe_id as id,
+        object_type as type,
+        amount_cents,
+        currency,
+        status,
+        COALESCE(description, 'Payment') as description,
+        created_at
+      FROM stripe_transaction_cache
+      WHERE customer_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2`,
+      [customerId, limit]
+    );
+    
+    return {
+      success: true,
+      transactions: result.rows.map(row => ({
+        id: row.id,
+        type: row.type,
+        amountCents: parseInt(row.amount_cents),
+        currency: row.currency,
+        status: row.status,
+        description: row.description,
+        createdAt: new Date(row.created_at),
+      })),
+    };
+  } catch (error: any) {
+    console.error('[Stripe Invoices] Error getting cached payment history:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
 }

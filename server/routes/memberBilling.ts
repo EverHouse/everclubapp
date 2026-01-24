@@ -4,7 +4,7 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
 import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
-import { listCustomerInvoices } from '../core/stripe/invoices';
+import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/invoices';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { logFromRequest } from '../core/auditLog';
 
@@ -516,6 +516,36 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
     res.json({ invoices: result.invoices });
   } catch (error: any) {
     console.error('[MemberBilling] Error getting invoices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { limit = '50' } = req.query;
+    const member = await getMemberByEmail(email);
+
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    if (!member.stripe_customer_id) {
+      return res.status(400).json({ error: 'No Stripe customer ID found' });
+    }
+
+    const result = await getCustomerPaymentHistory(
+      member.stripe_customer_id, 
+      Math.min(parseInt(limit as string) || 50, 200)
+    );
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    res.json({ transactions: result.transactions });
+  } catch (error: any) {
+    console.error('[MemberBilling] Error getting payment history:', error);
     res.status(500).json({ error: error.message });
   }
 });
