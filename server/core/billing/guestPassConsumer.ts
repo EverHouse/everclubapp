@@ -248,14 +248,22 @@ export async function refundGuestPassForParticipant(
       [ownerEmailLower]
     );
     
-    const tierFeeResult = await client.query(
-      `SELECT mt.guest_fee_cents 
-       FROM users u 
-       JOIN membership_tiers mt ON LOWER(u.tier) = LOWER(mt.name)
-       WHERE LOWER(u.email) = $1`,
-      [ownerEmailLower]
-    );
-    const guestFeeCents = tierFeeResult.rows[0]?.guest_fee_cents ?? 2500;
+    // Look up guest fee from the Guest Pass Stripe product price
+    let guestFeeCents = 2500; // Default fallback
+    try {
+      const priceResult = await client.query(
+        `SELECT stripe_price_id FROM membership_tiers WHERE LOWER(name) = 'guest pass' AND stripe_price_id IS NOT NULL`
+      );
+      if (priceResult.rows[0]?.stripe_price_id) {
+        const stripe = (await import('../stripe/client')).default;
+        const price = await stripe.prices.retrieve(priceResult.rows[0].stripe_price_id);
+        if (price.unit_amount) {
+          guestFeeCents = price.unit_amount;
+        }
+      }
+    } catch (err) {
+      console.warn('[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $25:', err);
+    }
     
     await client.query(
       `UPDATE booking_participants 
