@@ -1745,6 +1745,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       FROM users u
       LEFT JOIN day_pass_purchases dpp ON LOWER(u.email) = LOWER(dpp.purchaser_email)
       WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
+      AND u.role NOT IN ('admin', 'staff')
       AND u.archived_at IS NULL
       ${sql.raw(sourceCondition)}
       GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role, u.stripe_customer_id, u.hubspot_id, u.legacy_source, u.billing_provider, u.created_at
@@ -1753,11 +1754,11 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       LIMIT ${maxResults}
     `);
     
-    // Determine source based on database fields
+    // Determine source based on database fields (priority: hubspot > stripe > mindbody > app)
     const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
-      if (row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') return 'mindbody';
-      if (row.stripe_customer_id && !row.hubspot_id) return 'stripe';
       if (row.hubspot_id) return 'hubspot';
+      if (row.stripe_customer_id) return 'stripe';
+      if (row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') return 'mindbody';
       return 'app';
     };
     
@@ -1817,8 +1818,11 @@ router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
     
     const visitor = visitorResult[0];
     
-    // Verify the user is actually a visitor
-    if (visitor.role !== 'visitor' && visitor.membershipStatus !== 'visitor') {
+    // Verify the user is a visitor or non-member (allow broader access for billing lookup)
+    const isVisitorLike = visitor.role === 'visitor' || 
+                          visitor.membershipStatus === 'visitor' || 
+                          visitor.membershipStatus === 'non-member';
+    if (!isVisitorLike) {
       return res.status(403).json({ error: 'User is not a visitor' });
     }
     

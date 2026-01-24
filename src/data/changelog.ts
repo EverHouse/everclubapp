@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.8.1",
+    date: "2026-01-24",
+    title: "Unified Visitor Profile Drawer",
+    changes: [
+      "New: Visitors now open in the full profile drawer (same as members) with Billing, Purchases, Visits tabs",
+      "New: 'Send Membership Invite' button on visitor profiles to quickly convert visitors to members",
+      "Fixed: Source priority now correctly shows HubSpot for contacts synced from HubSpot (was incorrectly showing MindBody)",
+      "Fixed: Admin and Staff accounts no longer appear in the Visitors tab",
+      "Fixed: Purchase history now displays correctly for all visitor profiles",
+      "Improved: Visitor drawer shows only relevant tabs (Bookings, Visits, Billing, Purchases, Comms, Notes)"
+    ]
+  },
+  {
     version: "9.8.0",
     date: "2026-01-24",
     title: "Expanded Visitors Tab & Smart Contact Management",

@@ -20,6 +20,7 @@ interface MemberProfileDrawerProps {
   onClose: () => void;
   onViewAs: (member: MemberProfile) => void;
   onMemberDeleted?: () => void;
+  visitorMode?: boolean;
 }
 
 interface MemberHistory {
@@ -117,7 +118,9 @@ const formatTime12Hour = (timeStr: string): string => {
   return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 };
 
-const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs, onMemberDeleted }) => {
+const VISITOR_TABS: TabType[] = ['bookings', 'visits', 'billing', 'purchases', 'communications', 'notes'];
+
+const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs, onMemberDeleted, visitorMode = false }) => {
   const { effectiveTheme } = useTheme();
   const { setDrawerOpen } = useBottomNav();
   const isDark = effectiveTheme === 'dark';
@@ -126,7 +129,18 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     setDrawerOpen(isOpen);
     return () => setDrawerOpen(false);
   }, [isOpen, setDrawerOpen]);
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  
+  const [activeTab, setActiveTab] = useState<TabType>(visitorMode ? 'billing' : 'overview');
+  
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(visitorMode ? 'billing' : 'overview');
+    }
+  }, [isOpen, visitorMode]);
+  
+  const visibleTabs = visitorMode 
+    ? TABS.filter(tab => VISITOR_TABS.includes(tab.id))
+    : TABS;
   const [isLoading, setIsLoading] = useState(false);
   const [history, setHistory] = useState<MemberHistory | null>(null);
   const [notes, setNotes] = useState<MemberNote[]>([]);
@@ -1105,7 +1119,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             </div>
           </div>
 
-          {isAdmin && (
+          {isAdmin && !visitorMode && (
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => onViewAs(member)}
@@ -1124,7 +1138,40 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             </div>
           )}
 
-          {isAdmin && member.membershipStatus && ['terminated', 'cancelled', 'canceled', 'frozen', 'inactive', 'past_due', 'suspended'].includes(member.membershipStatus.toLowerCase()) && (
+          {isAdmin && visitorMode && member.email && (
+            <div className="mt-4">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/stripe/staff/send-membership-invite', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ 
+                        email: member.email,
+                        firstName: member.firstName || member.name?.split(' ')[0] || '',
+                        lastName: member.lastName || member.name?.split(' ').slice(1).join(' ') || ''
+                      })
+                    });
+                    if (res.ok) {
+                      alert(`Membership invitation sent to ${member.email}`);
+                    } else {
+                      const data = await res.json();
+                      alert(data.error || 'Failed to send invitation');
+                    }
+                  } catch (err) {
+                    alert('Failed to send invitation');
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined text-lg">card_membership</span>
+                Send Membership Invite
+              </button>
+            </div>
+          )}
+
+          {isAdmin && !visitorMode && member.membershipStatus && ['terminated', 'cancelled', 'canceled', 'frozen', 'inactive', 'past_due', 'suspended'].includes(member.membershipStatus.toLowerCase()) && (
             <div className="mt-3">
               <button
                 onClick={async () => {
@@ -1231,7 +1278,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
         <div className={`flex-shrink-0 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
           <div className="flex overflow-x-auto scrollbar-hide">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}

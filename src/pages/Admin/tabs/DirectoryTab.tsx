@@ -467,12 +467,36 @@ const DirectoryTab: React.FC = () => {
         }
     }, []);
 
-    // Open visitor details modal
+    // Convert visitor to MemberProfile format for drawer
+    const visitorToMemberProfile = useCallback((visitor: Visitor): MemberProfile => ({
+        email: visitor.email || '',
+        name: [visitor.firstName, visitor.lastName].filter(Boolean).join(' ') || 'Unknown',
+        tier: null,
+        rawTier: null,
+        role: visitor.role || 'visitor',
+        joinDate: visitor.createdAt || null,
+        phone: visitor.phone || '',
+        mindbodyId: null,
+        accountBalance: 0,
+        tags: [],
+        lifetimeVisits: 0,
+        lastVisit: visitor.lastPurchaseDate || null,
+        membershipStatus: visitor.membershipStatus || 'visitor',
+        stripeCustomerId: visitor.stripeCustomerId || null,
+        status: 'active',
+        billingProvider: null,
+        legacySource: null,
+        firstName: visitor.firstName || null,
+        lastName: visitor.lastName || null,
+        userId: visitor.id,
+        hubspotId: visitor.hubspotId || null,
+    }), []);
+
+    // Open visitor details drawer
     const openVisitorDetails = useCallback((visitor: Visitor) => {
         setSelectedVisitor(visitor);
         setVisitorDetailsOpen(true);
-        fetchVisitorPurchases(visitor.id);
-    }, [fetchVisitorPurchases]);
+    }, []);
 
     // Get current member list based on tab - ensure arrays are always defined
     const currentMembers = memberTab === 'active' ? (members || []) : (formerMembers || []);
@@ -1458,120 +1482,15 @@ const DirectoryTab: React.FC = () => {
                 document.body
             )}
 
-            {/* Visitor Details Modal */}
-            {visitorDetailsOpen && selectedVisitor && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-                    <div 
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => { setVisitorDetailsOpen(false); setSelectedVisitor(null); setVisitorPurchases([]); }}
-                    />
-                    <div className="relative bg-white dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-lg p-6 animate-pop-in max-h-[90vh] overflow-hidden flex flex-col">
-                        <button
-                            onClick={() => { setVisitorDetailsOpen(false); setSelectedVisitor(null); setVisitorPurchases([]); }}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                            <span className="material-symbols-outlined">close</span>
-                        </button>
-                        
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-2xl">badge</span>
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                                    {[selectedVisitor.firstName, selectedVisitor.lastName].filter(Boolean).join(' ') || 'Unknown Visitor'}
-                                </h3>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
-                                    Day Pass Visitor
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 mb-6">
-                            {selectedVisitor.email && (
-                                <div className="flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-gray-400 text-lg">mail</span>
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">{selectedVisitor.email}</span>
-                                </div>
-                            )}
-                            {selectedVisitor.phone && (
-                                <div className="flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-gray-400 text-lg">phone</span>
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">{formatPhoneNumber(selectedVisitor.phone)}</span>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-gray-400 text-lg">confirmation_number</span>
-                                <span className="text-sm text-gray-700 dark:text-gray-300">{selectedVisitor.purchaseCount} purchase{selectedVisitor.purchaseCount !== 1 ? 's' : ''}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-gray-400 text-lg">payments</span>
-                                <span className="text-sm text-gray-700 dark:text-gray-300">${((selectedVisitor.totalSpentCents || 0) / 100).toFixed(2)} total spent</span>
-                            </div>
-                            {selectedVisitor.lastPurchaseDate && (
-                                <div className="flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-gray-400 text-lg">schedule</span>
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">Last visit: {formatJoinDate(selectedVisitor.lastPurchaseDate)}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="border-t border-gray-200 dark:border-white/20 pt-4 flex-1 overflow-hidden flex flex-col">
-                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Purchase History</h4>
-                            
-                            {purchasesLoading ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <span className="material-symbols-outlined text-2xl animate-spin text-gray-400">progress_activity</span>
-                                </div>
-                            ) : visitorPurchases.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <span className="material-symbols-outlined text-4xl text-gray-300 dark:text-gray-600 mb-2">receipt_long</span>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">No purchases found</p>
-                                </div>
-                            ) : (
-                                <div className="overflow-y-auto flex-1 space-y-2">
-                                    {visitorPurchases.map(purchase => (
-                                        <div 
-                                            key={purchase.id}
-                                            className="p-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10"
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                                        {purchase.quantity} Day Pass{purchase.quantity !== 1 ? 'es' : ''}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                        {new Date(purchase.purchasedAt).toLocaleDateString('en-US', { 
-                                                            month: 'short', 
-                                                            day: 'numeric', 
-                                                            year: 'numeric',
-                                                            hour: 'numeric',
-                                                            minute: '2-digit'
-                                                        })}
-                                                    </p>
-                                                </div>
-                                                <span className="text-sm font-bold text-gray-900 dark:text-white">
-                                                    ${(purchase.amountCents / 100).toFixed(2)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/20">
-                            <button
-                                onClick={() => { setVisitorDetailsOpen(false); setSelectedVisitor(null); setVisitorPurchases([]); }}
-                                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+            {/* Visitor Profile Drawer */}
+            <MemberProfileDrawer
+                isOpen={visitorDetailsOpen && !!selectedVisitor}
+                member={selectedVisitor ? visitorToMemberProfile(selectedVisitor) : null}
+                isAdmin={isAdmin}
+                onClose={() => { setVisitorDetailsOpen(false); setSelectedVisitor(null); }}
+                onViewAs={() => {}}
+                visitorMode={true}
+            />
         </AnimatedPage>
     );
 };
