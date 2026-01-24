@@ -1690,21 +1690,41 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
 
 router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
   try {
-    const { sortBy = 'lastPurchase', order = 'desc', limit = '100' } = req.query;
-    const maxResults = Math.min(parseInt(limit as string) || 100, 500);
+    const { sortBy = 'lastPurchase', order = 'desc', limit = '500', typeFilter = 'all', sourceFilter = 'all' } = req.query;
+    const maxResults = Math.min(parseInt(limit as string) || 500, 2000);
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
     
     // Determine sort column based on sortBy parameter
-    let orderByClause = `MAX(dpp.purchased_at) ${sortOrder}`;
+    let orderByClause = `MAX(dpp.purchased_at) ${sortOrder} NULLS LAST`;
     if (sortBy === 'name') {
       orderByClause = `u.first_name || ' ' || u.last_name ${sortOrder}`;
     } else if (sortBy === 'totalSpent') {
       orderByClause = `COALESCE(SUM(dpp.amount_cents), 0) ${sortOrder}`;
     } else if (sortBy === 'purchaseCount') {
       orderByClause = `COUNT(dpp.id) ${sortOrder}`;
+    } else if (sortBy === 'createdAt') {
+      orderByClause = `u.created_at ${sortOrder} NULLS LAST`;
     }
     
-    // Get visitors with aggregated purchase stats using raw SQL
+    // Build source filter condition
+    let sourceCondition = '';
+    if (sourceFilter === 'mindbody') {
+      sourceCondition = "AND (u.legacy_source = 'mindbody_import' OR u.billing_provider = 'mindbody')";
+    } else if (sourceFilter === 'hubspot') {
+      sourceCondition = "AND u.hubspot_id IS NOT NULL AND u.legacy_source IS NULL AND u.stripe_customer_id IS NULL";
+    } else if (sourceFilter === 'stripe') {
+      sourceCondition = "AND u.stripe_customer_id IS NOT NULL";
+    }
+    
+    // Build type filter - applied after query via HAVING clause
+    let havingClause = '';
+    if (typeFilter === 'day_pass_buyer') {
+      havingClause = 'HAVING COUNT(dpp.id) > 0';
+    } else if (typeFilter === 'lead') {
+      havingClause = 'HAVING COUNT(dpp.id) = 0';
+    }
+    
+    // Get all non-member contacts (visitors, non-members, leads) with aggregated purchase stats
     const visitorsWithPurchases = await db.execute(sql`
       SELECT 
         u.id,
@@ -1716,17 +1736,37 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         COALESCE(SUM(dpp.amount_cents), 0)::bigint as total_spent_cents,
         MAX(dpp.purchased_at) as last_purchase_date,
         u.membership_status,
-        u.role
+        u.role,
+        u.stripe_customer_id,
+        u.hubspot_id,
+        u.legacy_source,
+        u.billing_provider,
+        u.created_at
       FROM users u
       LEFT JOIN day_pass_purchases dpp ON LOWER(u.email) = LOWER(dpp.purchaser_email)
-      WHERE (u.role = 'visitor' OR u.membership_status = 'visitor')
+      WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
       AND u.archived_at IS NULL
-      GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role
+      ${sql.raw(sourceCondition)}
+      GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role, u.stripe_customer_id, u.hubspot_id, u.legacy_source, u.billing_provider, u.created_at
+      ${sql.raw(havingClause)}
       ORDER BY ${sql.raw(orderByClause)}
       LIMIT ${maxResults}
     `);
     
-    const dbVisitors = (visitorsWithPurchases.rows as any[]).map((row: any) => ({
+    // Determine source based on database fields
+    const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
+      if (row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') return 'mindbody';
+      if (row.stripe_customer_id && !row.hubspot_id) return 'stripe';
+      if (row.hubspot_id) return 'hubspot';
+      return 'app';
+    };
+    
+    // Determine type based on purchase count
+    const getType = (purchaseCount: number): 'day_pass_buyer' | 'lead' => {
+      return purchaseCount > 0 ? 'day_pass_buyer' : 'lead';
+    };
+    
+    const visitors = (visitorsWithPurchases.rows as any[]).map((row: any) => ({
       id: row.id,
       email: row.email,
       firstName: row.first_name,
@@ -1737,75 +1777,17 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       lastPurchaseDate: row.last_purchase_date,
       membershipStatus: row.membership_status,
       role: row.role,
-      source: 'database' as const
+      stripeCustomerId: row.stripe_customer_id,
+      hubspotId: row.hubspot_id,
+      createdAt: row.created_at,
+      source: getSource(row),
+      type: getType(row.purchase_count)
     }));
-    
-    // Also fetch HubSpot non-member leads (contacts who were never actual members)
-    let hubspotLeads: any[] = [];
-    try {
-      // Directly call the HubSpot contact fetching function instead of HTTP self-fetch
-      const contacts = await fetchAllHubSpotContacts();
-      
-      // Filter for non-member leads (never were actual members)
-      const nonMemberLeads = contacts.filter((c: any) => c.isNonMemberLead === true);
-      
-      // Get emails of existing db visitors to avoid duplicates
-      const dbVisitorEmails = new Set(dbVisitors.map(v => v.email?.toLowerCase()).filter(Boolean));
-      
-      // Transform and add non-member leads that aren't already in db visitors
-      hubspotLeads = nonMemberLeads
-        .filter((c: any) => c.email && !dbVisitorEmails.has(c.email.toLowerCase()))
-        .map((c: any) => ({
-          id: `hubspot_${c.id}`,
-          email: c.email,
-          firstName: c.firstName,
-          lastName: c.lastName,
-          phone: c.phone,
-          purchaseCount: 0,
-          totalSpentCents: 0,
-          lastPurchaseDate: null,
-          membershipStatus: c.status || 'lead',
-          role: 'lead',
-          source: 'hubspot' as const,
-          hubspotId: c.id,
-          company: c.company
-        }));
-    } catch (hubspotError: any) {
-      if (!isProduction) console.warn('Failed to fetch HubSpot leads for visitors:', hubspotError.message);
-    }
-    
-    // Merge db visitors and hubspot leads
-    const allVisitors = [...dbVisitors, ...hubspotLeads];
-    
-    // Sort the merged list
-    allVisitors.sort((a, b) => {
-      if (sortBy === 'name') {
-        const nameA = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
-        const nameB = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
-        return order === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-      } else if (sortBy === 'totalSpent') {
-        return order === 'asc' 
-          ? (a.totalSpentCents || 0) - (b.totalSpentCents || 0)
-          : (b.totalSpentCents || 0) - (a.totalSpentCents || 0);
-      } else if (sortBy === 'purchaseCount') {
-        return order === 'asc'
-          ? (a.purchaseCount || 0) - (b.purchaseCount || 0)
-          : (b.purchaseCount || 0) - (a.purchaseCount || 0);
-      } else {
-        // Default: sort by lastPurchaseDate
-        const dateA = a.lastPurchaseDate ? new Date(a.lastPurchaseDate).getTime() : 0;
-        const dateB = b.lastPurchaseDate ? new Date(b.lastPurchaseDate).getTime() : 0;
-        return order === 'asc' ? dateA - dateB : dateB - dateA;
-      }
-    });
-    
-    // Apply limit after merge and sort
-    const limitedVisitors = allVisitors.slice(0, maxResults);
     
     res.json({
       success: true,
-      total: limitedVisitors.length,
-      visitors: limitedVisitors
+      total: visitors.length,
+      visitors
     });
   } catch (error: any) {
     if (!isProduction) console.error('Visitors list error:', error);
@@ -2062,7 +2044,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
         OR (${users.stripeSubscriptionId} IS NOT NULL AND (${users.membershipStatus} = 'non-member' OR ${users.membershipStatus} = 'pending'))
       )`;
     } else if (statusFilter === 'former') {
-      statusCondition = sql`${users.membershipStatus} IN ('inactive', 'cancelled', 'expired', 'terminated', 'former_member', 'churned', 'suspended', 'frozen', 'past_due')`;
+      statusCondition = sql`${users.membershipStatus} IN ('inactive', 'cancelled', 'expired', 'terminated', 'former_member', 'churned', 'suspended', 'frozen', 'past_due', 'declined')`;
     }
     
     let searchCondition = sql`1=1`;
@@ -2250,8 +2232,66 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
       [normalizedEmail]
     );
     
+    // If user exists, check if we should link Stripe customer instead of erroring
     if (existingUser.rows.length > 0) {
       const user = existingUser.rows[0];
+      
+      // Check if this is a non-member/lead that needs Stripe linking
+      const isNonMemberOrLead = ['non-member', 'visitor', 'lead'].includes(user.membership_status) || 
+                                ['visitor', 'lead'].includes(user.role);
+      
+      if (isNonMemberOrLead && createStripeCustomer) {
+        // Link Stripe customer to existing non-member record
+        let stripeCustomerId: string | null = null;
+        try {
+          const fullName = [firstName || user.first_name, lastName || user.last_name].filter(Boolean).join(' ') || undefined;
+          const result = await getOrCreateStripeCustomer(user.id, normalizedEmail, fullName, 'visitor');
+          stripeCustomerId = result.customerId;
+          console.log(`[Visitors] Linked Stripe customer ${stripeCustomerId} to existing non-member ${normalizedEmail}`);
+          
+          // Update user's role to visitor if they were just a lead
+          if (user.membership_status === 'non-member') {
+            await pool.query(
+              'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2',
+              ['visitor', user.id]
+            );
+          }
+        } catch (stripeError: any) {
+          console.error('[Visitors] Failed to link Stripe customer:', stripeError);
+        }
+        
+        const staffEmail = (req as any).session?.user?.email || 'admin';
+        await logFromRequest(req, {
+          action: 'visitor_stripe_linked',
+          resourceType: 'user',
+          resourceId: user.id,
+          resourceName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || normalizedEmail,
+          details: { 
+            email: normalizedEmail, 
+            stripeCustomerId,
+            linkedBy: staffEmail,
+            wasNonMember: true
+          }
+        });
+        
+        return res.status(200).json({
+          success: true,
+          linked: true,
+          stripeCreated: !!stripeCustomerId,
+          visitor: {
+            id: user.id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            phone: user.phone,
+            role: 'visitor',
+            membershipStatus: user.membership_status,
+            stripeCustomerId
+          }
+        });
+      }
+      
+      // For actual members or other roles, return conflict error
       return res.status(409).json({ 
         error: 'A user with this email already exists',
         existingUser: {
@@ -2280,11 +2320,9 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         const fullName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
         const result = await getOrCreateStripeCustomer(userId, normalizedEmail, fullName, 'visitor');
         stripeCustomerId = result.customerId;
-        console.log(`[Visitors] Created Stripe customer ${stripeCustomerId} for visitor ${normalizedEmail}`);
+        console.log(`[Visitors] Created Stripe customer ${stripeCustomerId} for new visitor ${normalizedEmail}`);
       } catch (stripeError: any) {
         console.error('[Visitors] Failed to create Stripe customer:', stripeError);
-        // Continue but mark as failed - visitor is created but without Stripe
-        // We don't fail the whole request as the visitor can still be used
       }
     }
     
@@ -2303,6 +2341,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     
     res.status(201).json({
       success: true,
+      linked: false,
       stripeCreated: !!stripeCustomerId,
       visitor: {
         id: newUser.id,

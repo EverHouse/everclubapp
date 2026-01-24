@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.8.0",
+    date: "2026-01-24",
+    title: "Expanded Visitors Tab & Smart Contact Management",
+    isMajor: true,
+    changes: [
+      "New: Visitors tab now shows all 2,375+ non-member contacts from HubSpot sync",
+      "New: Type filter - filter contacts by 'Day Pass Buyers' or 'Leads'",
+      "New: Source filter - filter by HubSpot, MindBody, or Stripe origin",
+      "New: Smart visitor creation - when creating a visitor, system checks for existing email and links Stripe customer instead of duplicating",
+      "Fixed: Former Members tab now includes 'declined' status (14 members were missing)",
+      "Improved: Visitor cards now show type badge (Day Pass/Lead) and source badge (HubSpot/Stripe/MindBody)",
+      "Foundation laid for guest pass checkout flow with Stripe product line items"
+    ]
+  },
+  {
     version: "9.7.8",
     date: "2026-01-24",
     title: "Directory List Cleanup",

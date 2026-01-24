@@ -165,6 +165,9 @@ type SortField = 'name' | 'tier' | 'visits' | 'joinDate' | 'lastVisit';
 type SortDirection = 'asc' | 'desc';
 type MemberTab = 'active' | 'former' | 'visitors';
 
+type VisitorType = 'all' | 'day_pass_buyer' | 'lead';
+type VisitorSource = 'all' | 'mindbody' | 'hubspot' | 'stripe';
+
 interface Visitor {
     id: string;
     email: string | null;
@@ -176,6 +179,11 @@ interface Visitor {
     lastPurchaseDate: string | null;
     membershipStatus: string | null;
     role: string | null;
+    stripeCustomerId: string | null;
+    hubspotId: string | null;
+    createdAt: string | null;
+    source: 'mindbody' | 'hubspot' | 'stripe' | 'app';
+    type: 'day_pass_buyer' | 'lead';
 }
 
 interface VisitorPurchase {
@@ -251,6 +259,8 @@ const DirectoryTab: React.FC = () => {
     const [visitorPurchases, setVisitorPurchases] = useState<VisitorPurchase[]>([]);
     const [purchasesLoading, setPurchasesLoading] = useState(false);
     const [visitorDetailsOpen, setVisitorDetailsOpen] = useState(false);
+    const [visitorTypeFilter, setVisitorTypeFilter] = useState<VisitorType>('all');
+    const [visitorSourceFilter, setVisitorSourceFilter] = useState<VisitorSource>('all');
     
     const isAdmin = actualUser?.role === 'admin';
     
@@ -379,11 +389,16 @@ const DirectoryTab: React.FC = () => {
     }, [isViewingDetails, selectedMember]);
 
     // Fetch visitors - defined before handleTabChange to avoid circular reference
-    const fetchVisitors = useCallback(async () => {
+    const fetchVisitors = useCallback(async (typeFilter?: VisitorType, sourceFilter?: VisitorSource) => {
         setVisitorsLoading(true);
         setVisitorsError(false);
         try {
-            const res = await fetch('/api/visitors', { credentials: 'include' });
+            const params = new URLSearchParams();
+            params.set('limit', '1000');
+            if (typeFilter && typeFilter !== 'all') params.set('typeFilter', typeFilter);
+            if (sourceFilter && sourceFilter !== 'all') params.set('sourceFilter', sourceFilter);
+            
+            const res = await fetch(`/api/visitors?${params.toString()}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Failed to fetch visitors');
             const data = await res.json();
             setVisitors(data.visitors || []);
@@ -411,9 +426,16 @@ const DirectoryTab: React.FC = () => {
                 setFormerLoading(false);
             }
         } else if (tab === 'visitors') {
-            await fetchVisitors();
+            await fetchVisitors(visitorTypeFilter, visitorSourceFilter);
         }
-    }, [fetchFormerMembers, fetchVisitors]);
+    }, [fetchFormerMembers, fetchVisitors, visitorTypeFilter, visitorSourceFilter]);
+    
+    // Refetch visitors when filters change
+    useEffect(() => {
+        if (memberTab === 'visitors') {
+            fetchVisitors(visitorTypeFilter, visitorSourceFilter);
+        }
+    }, [visitorTypeFilter, visitorSourceFilter, memberTab, fetchVisitors]);
 
     // Retry loading former members
     const handleRetryFormer = useCallback(async () => {
@@ -943,6 +965,36 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
+                {/* Visitors tab filters */}
+                {memberTab === 'visitors' && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        <select
+                            value={visitorTypeFilter}
+                            onChange={(e) => setVisitorTypeFilter(e.target.value as VisitorType)}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            aria-label="Filter by type"
+                        >
+                            <option value="all">All Types</option>
+                            <option value="day_pass_buyer">Day Pass Buyers</option>
+                            <option value="lead">Leads</option>
+                        </select>
+                        <select
+                            value={visitorSourceFilter}
+                            onChange={(e) => setVisitorSourceFilter(e.target.value as VisitorSource)}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            aria-label="Filter by source"
+                        >
+                            <option value="all">All Sources</option>
+                            <option value="hubspot">HubSpot</option>
+                            <option value="mindbody">MindBody</option>
+                            <option value="stripe">Stripe</option>
+                        </select>
+                        <span className="ml-auto text-sm text-gray-500 dark:text-white/60 self-center">
+                            {visitors.length.toLocaleString()} contacts
+                        </span>
+                    </div>
+                )}
+
                 {/* Loading state for visitors */}
                 {visitorsLoading && memberTab === 'visitors' && (
                     <DirectoryTabSkeleton />
@@ -959,7 +1011,7 @@ const DirectoryTab: React.FC = () => {
                             There was a problem connecting to the server. Please try again.
                         </p>
                         <button
-                            onClick={fetchVisitors}
+                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter)}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
@@ -973,10 +1025,12 @@ const DirectoryTab: React.FC = () => {
                     <div className="flex flex-col items-center justify-center py-16 px-6 rounded-2xl border-2 border-dashed border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-white/5">
                         <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 text-gray-400 dark:text-white/30">badge</span>
                         <h3 className="text-lg font-bold mb-2 text-gray-600 dark:text-white/70">
-                            No visitors found
+                            No contacts found
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-white/60 max-w-sm mx-auto text-center">
-                            Non-members who purchase day passes will appear here.
+                            {visitorTypeFilter !== 'all' || visitorSourceFilter !== 'all'
+                                ? 'Try adjusting your filters to find contacts.'
+                                : 'Non-member contacts, day pass buyers, and leads will appear here.'}
                         </p>
                     </div>
                 )}
@@ -1007,9 +1061,21 @@ const DirectoryTab: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
-                                                    Day Pass
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                    v.type === 'day_pass_buyer' 
+                                                        ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
+                                                        : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
+                                                }`}>
+                                                    {v.type === 'day_pass_buyer' ? 'Day Pass' : 'Lead'}
+                                                </span>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                    v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
+                                                    v.source === 'stripe' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400' :
+                                                    v.source === 'mindbody' ? 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400' :
+                                                    'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                                                }`}>
+                                                    {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : v.source === 'mindbody' ? 'MindBody' : 'App'}
                                                 </span>
                                                 {v.totalSpentCents > 0 && (
                                                     <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -1030,12 +1096,13 @@ const DirectoryTab: React.FC = () => {
                 {!visitorsLoading && !visitorsError && memberTab === 'visitors' && visitors.length > 0 && (
                     <div className="hidden md:flex flex-col flex-1 min-h-0 overflow-hidden">
                         <div className="flex bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20 shrink-0">
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '20%' }}>Name</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '25%' }}>Email</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>Phone</div>
+                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '18%' }}>Name</div>
+                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '22%' }}>Email</div>
+                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '12%' }}>Type</div>
+                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '12%' }}>Source</div>
                             <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-center" style={{ width: '10%' }}>Purchases</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-center" style={{ width: '15%' }}>Total Spent</div>
-                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>Last Visit</div>
+                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm text-center" style={{ width: '12%' }}>Total Spent</div>
+                            <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '14%' }}>Last Visit</div>
                         </div>
                         <div className="relative flex-1 min-h-0">
                             <div className="h-full overflow-y-auto pt-2">
@@ -1046,22 +1113,38 @@ const DirectoryTab: React.FC = () => {
                                         className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer animate-slide-in-up"
                                         style={{ animationDelay: `${index * 25}ms` }}
                                     >
-                                        <div style={{ width: '20%' }} className="p-4 font-medium text-primary dark:text-white truncate">
+                                        <div style={{ width: '18%' }} className="p-4 font-medium text-primary dark:text-white truncate">
                                             {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
                                         </div>
-                                        <div style={{ width: '25%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={v.email || ''}>
+                                        <div style={{ width: '22%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={v.email || ''}>
                                             {v.email || '-'}
                                         </div>
-                                        <div style={{ width: '15%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm">
-                                            {v.phone ? formatPhoneNumber(v.phone) : '-'}
+                                        <div style={{ width: '12%' }} className="p-4">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                v.type === 'day_pass_buyer' 
+                                                    ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
+                                                    : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
+                                            }`}>
+                                                {v.type === 'day_pass_buyer' ? 'Day Pass' : 'Lead'}
+                                            </span>
+                                        </div>
+                                        <div style={{ width: '12%' }} className="p-4">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
+                                                v.source === 'stripe' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400' :
+                                                v.source === 'mindbody' ? 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400' :
+                                                'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                                            }`}>
+                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : v.source === 'mindbody' ? 'MindBody' : 'App'}
+                                            </span>
                                         </div>
                                         <div style={{ width: '10%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                                             {v.purchaseCount || 0}
                                         </div>
-                                        <div style={{ width: '15%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                                        <div style={{ width: '12%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                                             ${((v.totalSpentCents || 0) / 100).toFixed(2)}
                                         </div>
-                                        <div style={{ width: '15%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                        <div style={{ width: '14%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(v.lastPurchaseDate)}
                                         </div>
                                     </div>
