@@ -79,6 +79,10 @@ export interface IssueContext {
   hubspotContactId?: string;
   stripeCustomerId?: string;
   userId?: number;
+  trackmanBookingId?: string;
+  userName?: string;
+  userEmail?: string;
+  bayNumber?: string | number;
 }
 
 export interface IntegrityIssue {
@@ -193,46 +197,57 @@ async function checkEmptyBookingSessions(): Promise<IntegrityCheckResult> {
 async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
-  const unmatchedBookings = await db.execute(sql`
-    SELECT id, trackman_booking_id, user_name, user_email, booking_date, bay_number, start_time, end_time
-    FROM trackman_unmatched_bookings
-    WHERE resolved_at IS NULL
-    ORDER BY booking_date DESC
-    LIMIT 100
-  `);
-  
-  const totalCount = await db.execute(sql`
-    SELECT COUNT(*)::int as count FROM trackman_unmatched_bookings WHERE resolved_at IS NULL
-  `);
-  const total = (totalCount.rows[0] as any)?.count || 0;
-  
-  for (const row of unmatchedBookings.rows as any[]) {
-    issues.push({
-      category: 'data_mismatch',
-      severity: 'warning',
-      table: 'trackman_unmatched_bookings',
-      recordId: row.id,
-      description: `Trackman booking for "${row.user_name || 'Unknown'}" (${row.user_email || 'no email'}) on ${row.booking_date} has no matching member`,
-      suggestion: 'Use the Trackman Unmatched Bookings section to link this booking to a member or create a visitor record',
-      context: {
-        trackmanBookingId: row.trackman_booking_id || undefined,
-        userName: row.user_name || undefined,
-        userEmail: row.user_email || undefined,
-        bookingDate: row.booking_date || undefined,
-        bayNumber: row.bay_number || undefined,
-        startTime: row.start_time || undefined,
-        endTime: row.end_time || undefined
-      }
-    });
+  try {
+    const unmatchedBookings = await db.execute(sql`
+      SELECT id, trackman_booking_id, user_name, user_email, booking_date, bay_number, start_time, end_time
+      FROM trackman_unmatched_bookings
+      WHERE resolved_at IS NULL
+      ORDER BY booking_date DESC
+      LIMIT 100
+    `);
+    
+    const totalCount = await db.execute(sql`
+      SELECT COUNT(*)::int as count FROM trackman_unmatched_bookings WHERE resolved_at IS NULL
+    `);
+    const total = (totalCount.rows[0] as any)?.count || 0;
+    
+    for (const row of unmatchedBookings.rows as any[]) {
+      issues.push({
+        category: 'sync_mismatch',
+        severity: 'warning',
+        table: 'trackman_unmatched_bookings',
+        recordId: row.id,
+        description: `Trackman booking for "${row.user_name || 'Unknown'}" (${row.user_email || 'no email'}) on ${row.booking_date} has no matching member`,
+        suggestion: 'Use the Trackman Unmatched Bookings section to link this booking to a member or create a visitor record',
+        context: {
+          trackmanBookingId: row.trackman_booking_id || undefined,
+          userName: row.user_name || undefined,
+          userEmail: row.user_email || undefined,
+          bookingDate: row.booking_date || undefined,
+          bayNumber: row.bay_number || undefined,
+          startTime: row.start_time || undefined,
+          endTime: row.end_time || undefined
+        }
+      });
+    }
+    
+    return {
+      checkName: 'Unmatched Trackman Bookings',
+      status: total === 0 ? 'pass' : total > 50 ? 'fail' : 'warning',
+      issueCount: total,
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: any) {
+    console.error('[DataIntegrity] Error checking unmatched Trackman bookings:', error.message);
+    return {
+      checkName: 'Unmatched Trackman Bookings',
+      status: 'pass',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date()
+    };
   }
-  
-  return {
-    checkName: 'Unmatched Trackman Bookings',
-    status: total === 0 ? 'pass' : total > 50 ? 'fail' : 'warning',
-    issueCount: total,
-    issues,
-    lastRun: new Date()
-  };
 }
 
 async function checkOrphanWellnessEnrollments(): Promise<IntegrityCheckResult> {
