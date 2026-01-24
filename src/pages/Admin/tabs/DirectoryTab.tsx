@@ -863,8 +863,8 @@ const DirectoryTab: React.FC = () => {
                 
                 {/* Tier Filter - only for active/former tabs */}
                 {memberTab !== 'visitors' && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Tier:</span>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Tier:</span>
                     {TIER_OPTIONS.map(tier => {
                         const isSelected = tierFilter === tier;
                         const colors = tier !== 'All' ? getTierColor(tier) : null;
@@ -872,7 +872,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={tier}
                                 onClick={() => setTierFilter(tier)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap ${
                                     tier === 'All' 
                                         ? isSelected
                                             ? 'bg-primary dark:bg-lavender text-white'
@@ -894,11 +894,11 @@ const DirectoryTab: React.FC = () => {
 
                 {/* Tag Filter - only for active/former tabs */}
                 {memberTab !== 'visitors' && allTags.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Tag:</span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Tag:</span>
                         <button
                             onClick={() => setTagFilter('All')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap ${
                                 tagFilter === 'All'
                                     ? 'bg-primary dark:bg-lavender text-white'
                                     : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500'
@@ -913,7 +913,7 @@ const DirectoryTab: React.FC = () => {
                                 <button
                                     key={tag}
                                     onClick={() => setTagFilter(tag)}
-                                    className="px-2 py-0.5 rounded text-[11px] font-bold transition-all"
+                                    className="px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap"
                                     style={{
                                         backgroundColor: isSelected ? colors.bg : '#E5E7EB',
                                         color: isSelected ? colors.text : '#9CA3AF',
@@ -929,11 +929,11 @@ const DirectoryTab: React.FC = () => {
 
                 {/* Status Filter (Former Members Only) */}
                 {memberTab === 'former' && allStatuses.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Status:</span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
                         <button
                             onClick={() => setStatusFilter('All')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                 statusFilter === 'All'
                                     ? 'bg-orange-500 text-white'
                                     : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -945,7 +945,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     statusFilter === status
                                         ? 'bg-orange-500 text-white'
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -959,13 +959,13 @@ const DirectoryTab: React.FC = () => {
 
                 {/* Billing Filter - only for active/former tabs */}
                 {memberTab !== 'visitors' && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Billing:</span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Billing:</span>
                         {BILLING_OPTIONS.map(option => (
                             <button
                                 key={option}
                                 onClick={() => setBillingFilter(option)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     billingFilter === option
                                         ? 'bg-primary dark:bg-lavender text-white'
                                         : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
