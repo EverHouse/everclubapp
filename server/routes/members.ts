@@ -2111,22 +2111,41 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         guest_agg.last_guest_date,
         COALESCE(
           u.visitor_type,
-          (SELECT CASE 
-            WHEN lp.item_name ILIKE '%classpass%' THEN 'classpass'
-            WHEN lp.item_name ILIKE '%sim%walk%' OR lp.item_name ILIKE '%simulator walk%' THEN 'sim_walkin'
-            WHEN lp.item_name ILIKE '%private lesson%' THEN 'private_lesson'
-            WHEN lp.item_name ILIKE '%day pass%' THEN 'day_pass'
-            ELSE NULL
-          END
-          FROM legacy_purchases lp 
-          WHERE LOWER(lp.member_email) = LOWER(u.email)
-          ORDER BY lp.sale_date DESC NULLS LAST
-          LIMIT 1),
-          (SELECT 'guest' FROM booking_participants bp
-           JOIN guests g ON bp.guest_id = g.id
-           WHERE LOWER(g.email) = LOWER(u.email)
-           LIMIT 1),
-          'lead'
+          (SELECT 
+            CASE 
+              WHEN lp_sub.lp_type IS NOT NULL AND bp_sub.bp_date IS NOT NULL THEN
+                CASE WHEN lp_sub.lp_date >= bp_sub.bp_date THEN lp_sub.lp_type ELSE 'guest' END
+              WHEN lp_sub.lp_type IS NOT NULL THEN lp_sub.lp_type
+              WHEN bp_sub.bp_date IS NOT NULL THEN 'guest'
+              ELSE 'lead'
+            END
+          FROM (SELECT 1) dummy
+          LEFT JOIN LATERAL (
+            SELECT 
+              CASE 
+                WHEN lp.item_name ILIKE '%classpass%' THEN 'classpass'
+                WHEN lp.item_name ILIKE '%sim%walk%' OR lp.item_name ILIKE '%simulator walk%' THEN 'sim_walkin'
+                WHEN lp.item_name ILIKE '%private lesson%' THEN 'private_lesson'
+                WHEN lp.item_name ILIKE '%day pass%' THEN 'day_pass'
+                ELSE NULL
+              END as lp_type,
+              lp.sale_date as lp_date
+            FROM legacy_purchases lp 
+            WHERE LOWER(lp.member_email) = LOWER(u.email)
+            ORDER BY lp.sale_date DESC NULLS LAST
+            LIMIT 1
+          ) lp_sub ON true
+          LEFT JOIN LATERAL (
+            SELECT bs.session_date::timestamp as bp_date
+            FROM booking_participants bp
+            JOIN guests g ON bp.guest_id = g.id
+            JOIN booking_sessions bs ON bp.session_id = bs.id
+            WHERE LOWER(g.email) = LOWER(u.email)
+              AND bp.participant_type = 'guest'
+            ORDER BY bs.session_date DESC
+            LIMIT 1
+          ) bp_sub ON true
+          )
         ) as effective_type
       FROM users u
       LEFT JOIN (

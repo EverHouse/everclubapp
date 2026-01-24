@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.15.0",
+    date: "2026-01-24",
+    title: "Enhanced Visitor Types",
+    changes: [
+      "New: Visitors tab now shows specific visitor types based on activity",
+      "New: ClassPass visitors identified by their ClassPass purchases",
+      "New: Sim Walk-In visitors identified by simulator walk-in purchases",
+      "New: Private Lesson visitors identified by lesson purchases",
+      "New: Guest visitors identified when they appear on member bookings",
+      "Improved: Type detection is automatic based on most recent activity",
+      "Improved: Filter dropdown includes all new visitor types"
+    ]
+  },
+  {
     version: "9.14.0",
     date: "2026-01-24",
     title: "HubSpot → App Sync Improvements",
