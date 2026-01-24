@@ -18,6 +18,7 @@ export const changelog: ChangelogEntry[] = [
     title: "HubSpot → App Sync Improvements",
     isMajor: true,
     changes: [
+      "New: Member birthdays now sync from HubSpot - useful for birthday celebrations!",
       "New: Member addresses now sync from HubSpot (street, city, state, zip) - populated from Mindbody",
       "New: Notes from Mindbody now create dated entries when changed - preserves history instead of overwriting",
       "Improved: Billing source now respects billing_provider field first - fixes incorrect 'Stripe' labels for Mindbody members",

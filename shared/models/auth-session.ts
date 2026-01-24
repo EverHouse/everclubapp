@@ -56,6 +56,8 @@ export const users = pgTable("users", {
   city: text("city"),
   state: text("state"),
   zipCode: varchar("zip_code", { length: 20 }),
+  // Date of birth (synced from HubSpot/Mindbody) - useful for birthday celebrations
+  dateOfBirth: date("date_of_birth"),
   // Track last HubSpot notes hash to detect changes
   lastHubspotNotesHash: varchar("last_hubspot_notes_hash", { length: 64 }),
   billingGroupId: integer("billing_group_id"),

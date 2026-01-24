@@ -115,6 +115,8 @@ interface HubSpotContact {
     city?: string;
     state?: string;
     zip?: string;
+    // Date of birth (synced from Mindbody via HubSpot)
+    date_of_birth?: string;
   };
 }
 
@@ -177,7 +179,9 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
       'address',
       'city',
       'state',
-      'zip'
+      'zip',
+      // Date of birth (synced from Mindbody via HubSpot)
+      'date_of_birth'
     ];
     
     let allContacts: HubSpotContact[] = [];
@@ -297,6 +301,16 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           const state = contact.properties.state?.trim() || null;
           const zipCode = contact.properties.zip?.trim() || null;
           
+          // Extract date of birth from HubSpot (synced from Mindbody)
+          // HubSpot stores dates as YYYY-MM-DD strings
+          let dateOfBirth: string | null = null;
+          if (contact.properties.date_of_birth) {
+            const dobStr = contact.properties.date_of_birth.trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(dobStr)) {
+              dateOfBirth = dobStr.split('T')[0]; // Extract just the date part
+            }
+          }
+          
           await db.insert(users)
             .values({
               id: sql`gen_random_uuid()`,
@@ -317,6 +331,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               city,
               state,
               zipCode,
+              dateOfBirth,
               lastSyncedAt: new Date(),
               role: 'member'
             })
@@ -339,6 +354,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 city: sql`COALESCE(${city}, ${users.city})`,
                 state: sql`COALESCE(${state}, ${users.state})`,
                 zipCode: sql`COALESCE(${zipCode}, ${users.zipCode})`,
+                dateOfBirth: sql`COALESCE(${dateOfBirth}, ${users.dateOfBirth})`,
                 lastSyncedAt: new Date(),
                 updatedAt: new Date()
               }
