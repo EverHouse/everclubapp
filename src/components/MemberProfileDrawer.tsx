@@ -1169,8 +1169,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         style={{ 
           animation: 'slideInRight 0.3s ease-out',
           top: 0,
-          bottom: 0,
-          height: '100dvh',
+          bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)'
         }}
