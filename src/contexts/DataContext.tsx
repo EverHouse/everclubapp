@@ -363,7 +363,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             joinDate: contact.joinDate || null,
             mindbodyClientId: contact.mindbodyClientId || null,
             manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-            billingProvider: contact.billingProvider || null
+            billingProvider: contact.billingProvider || contact.billing_provider || null
           }));
           setMembers(formatted);
           
@@ -422,7 +422,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           joinDate: contact.joinDate || null,
           mindbodyClientId: contact.mindbodyClientId || null,
           manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-          billingProvider: contact.billingProvider || null
+          billingProvider: contact.billingProvider || contact.billing_provider || null
         }));
         setFormerMembers(formatted);
         formerMembersFetched.current = true;
@@ -460,7 +460,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           joinDate: contact.joinDate || null,
           mindbodyClientId: contact.mindbodyClientId || null,
           manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-          billingProvider: contact.billingProvider || null
+          billingProvider: contact.billingProvider || contact.billing_provider || null
         }));
         setMembers(formatted);
         formerMembersFetched.current = false;
@@ -515,7 +515,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           joinDate: contact.joinDate || null,
           mindbodyClientId: contact.mindbodyClientId || null,
           manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-          billingProvider: contact.billingProvider || null
+          billingProvider: contact.billingProvider || contact.billing_provider || null
         }));
         
         // Update pagination info
