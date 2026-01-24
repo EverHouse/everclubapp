@@ -2021,31 +2021,23 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     }
     
     // Build source filter condition
-    // Matches the getSource() priority logic:
-    // MINDBODY: legacy markers OR (mindbody_client_id with purchases) OR (mindbody_client_id only, no other source)
-    // STRIPE: has stripe_customer_id (unless mindbody takes priority)
-    // HUBSPOT: has hubspot_id (unless stripe/mindbody takes priority)
+    // Priority: STRIPE > MINDBODY > HUBSPOT > APP
+    // Stripe always takes precedence as the main billing engine
     let sourceCondition = '';
-    if (sourceFilter === 'mindbody') {
-      // Match records that would show as "MindBody" source:
-      // 1. Legacy mindbody markers (legacy_source or billing_provider)
-      // 2. Has mindbody_client_id AND has purchases
-      // 3. Has mindbody_client_id but no hubspot_id and no stripe_customer_id
-      sourceCondition = `AND (
-        u.legacy_source = 'mindbody_import' 
-        OR u.billing_provider = 'mindbody'
-        OR (u.mindbody_client_id IS NOT NULL AND u.hubspot_id IS NULL AND u.stripe_customer_id IS NULL)
-      )`;
+    if (sourceFilter === 'stripe') {
+      // Stripe: has stripe_customer_id (always takes priority)
+      sourceCondition = `AND u.stripe_customer_id IS NOT NULL`;
+    } else if (sourceFilter === 'mindbody') {
+      // MindBody: has mindbody indicators but NO stripe_customer_id
+      sourceCondition = `AND u.stripe_customer_id IS NULL 
+        AND (u.mindbody_client_id IS NOT NULL 
+          OR u.legacy_source = 'mindbody_import' 
+          OR u.billing_provider = 'mindbody')`;
     } else if (sourceFilter === 'hubspot') {
-      // HubSpot: has hubspot_id but NOT stripe, and NOT legacy mindbody markers
-      // Note: Can have mindbody_client_id if no purchases (they still show as HubSpot)
+      // HubSpot: has hubspot_id but NOT stripe, and NOT mindbody
       sourceCondition = `AND u.hubspot_id IS NOT NULL 
         AND u.stripe_customer_id IS NULL 
-        AND u.legacy_source IS DISTINCT FROM 'mindbody_import' 
-        AND u.billing_provider IS DISTINCT FROM 'mindbody'`;
-    } else if (sourceFilter === 'stripe') {
-      // Stripe: has stripe_customer_id but NOT legacy mindbody markers
-      sourceCondition = `AND u.stripe_customer_id IS NOT NULL 
+        AND u.mindbody_client_id IS NULL
         AND u.legacy_source IS DISTINCT FROM 'mindbody_import' 
         AND u.billing_provider IS DISTINCT FROM 'mindbody'`;
     }
@@ -2085,6 +2077,8 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     const totalCount = (countResult.rows[0] as any)?.total || 0;
     
     // Get all non-member contacts (visitors, non-members, leads) with aggregated purchase stats
+    // Combines purchases from both day_pass_purchases (Stripe) and legacy_purchases (MindBody)
+    // Uses subqueries to pre-aggregate per table to avoid cartesian multiplication issues
     // Also get guest count and latest activity
     const visitorsWithPurchases = await db.execute(sql`
       SELECT 
@@ -2093,9 +2087,9 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         u.first_name,
         u.last_name,
         u.phone,
-        COUNT(DISTINCT dpp.id)::int as purchase_count,
-        COALESCE(SUM(dpp.amount_cents), 0)::bigint as total_spent_cents,
-        MAX(dpp.purchased_at) as last_purchase_date,
+        (COALESCE(dpp_agg.purchase_count, 0) + COALESCE(lp_agg.purchase_count, 0))::int as purchase_count,
+        (COALESCE(dpp_agg.total_spent_cents, 0) + COALESCE(lp_agg.total_spent_cents, 0))::bigint as total_spent_cents,
+        GREATEST(dpp_agg.last_purchase_date, lp_agg.last_purchase_date) as last_purchase_date,
         u.membership_status,
         u.role,
         u.stripe_customer_id,
@@ -2107,40 +2101,48 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         u.last_activity_at,
         u.last_activity_source,
         u.created_at,
-        COUNT(DISTINCT bg.id)::int as guest_count,
-        MAX(br.start_time) as last_guest_date
+        COALESCE(guest_agg.guest_count, 0)::int as guest_count,
+        guest_agg.last_guest_date
       FROM users u
-      LEFT JOIN day_pass_purchases dpp ON LOWER(u.email) = LOWER(dpp.purchaser_email)
-      LEFT JOIN booking_guests bg ON LOWER(u.email) = LOWER(bg.guest_email)
-      LEFT JOIN booking_requests br ON bg.booking_id = br.id
+      LEFT JOIN (
+        SELECT LOWER(purchaser_email) as email, COUNT(*)::int as purchase_count, SUM(amount_cents) as total_spent_cents, MAX(purchased_at) as last_purchase_date
+        FROM day_pass_purchases
+        GROUP BY LOWER(purchaser_email)
+      ) dpp_agg ON LOWER(u.email) = dpp_agg.email
+      LEFT JOIN (
+        SELECT LOWER(member_email) as email, COUNT(*)::int as purchase_count, SUM(item_total_cents) as total_spent_cents, MAX(sale_date) as last_purchase_date
+        FROM legacy_purchases
+        GROUP BY LOWER(member_email)
+      ) lp_agg ON LOWER(u.email) = lp_agg.email
+      LEFT JOIN (
+        SELECT LOWER(bg.guest_email) as email, COUNT(DISTINCT bg.id)::int as guest_count, MAX(br.start_time) as last_guest_date
+        FROM booking_guests bg
+        LEFT JOIN booking_requests br ON bg.booking_id = br.id
+        GROUP BY LOWER(bg.guest_email)
+      ) guest_agg ON LOWER(u.email) = guest_agg.email
       WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
       AND u.role NOT IN ('admin', 'staff')
       AND u.archived_at IS NULL
       ${sql.raw(sourceCondition)}
       ${sql.raw(typeCondition)}
       ${sql.raw(searchCondition)}
-      GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.membership_status, u.role, u.stripe_customer_id, u.hubspot_id, u.mindbody_client_id, u.legacy_source, u.billing_provider, u.visitor_type, u.last_activity_at, u.last_activity_source, u.created_at
       ORDER BY ${sql.raw(orderByClause)}
       LIMIT ${pageLimit}
       OFFSET ${pageOffset}
     `);
     
     // Determine source based on database fields
-    // Priority: MINDBODY (with activity) > STRIPE > HUBSPOT > MINDBODY (linked only) > APP
+    // Priority: STRIPE > MINDBODY > HUBSPOT > APP
+    // Stripe always takes precedence as the main billing engine
     const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
-      // Check for legacy mindbody import markers first (explicit mindbody source)
-      if (row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') {
+      // STRIPE: has a Stripe customer record (always takes priority)
+      if (row.stripe_customer_id) return 'stripe';
+      // MINDBODY: has mindbody_client_id or legacy mindbody markers
+      if (row.mindbody_client_id || row.legacy_source === 'mindbody_import' || row.billing_provider === 'mindbody') {
         return 'mindbody';
       }
-      // If they have mindbody_client_id with purchases, show as MindBody
-      const hasMindBodyPurchases = row.mindbody_client_id && parseInt(row.purchase_count) > 0;
-      if (hasMindBodyPurchases) return 'mindbody';
-      // STRIPE: has a Stripe customer record
-      if (row.stripe_customer_id) return 'stripe';
       // HUBSPOT: has HubSpot ID
       if (row.hubspot_id) return 'hubspot';
-      // Only mindbody_client_id (linked but no other source) - show as mindbody
-      if (row.mindbody_client_id) return 'mindbody';
       return 'app';
     };
     

@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.13.1",
+    date: "2026-01-24",
+    title: "Visitors Directory Improvements",
+    changes: [
+      "New: Search bar in Visitors tab - search by name, email, or phone",
+      "Improved: Stripe now takes priority as billing source - visitors with Stripe accounts always show as 'Stripe' source",
+      "Improved: Purchase counts and totals now combine data from both Stripe and Mindbody imports",
+      "Fixed: Source filter now works correctly for MindBody, Stripe, and HubSpot contacts"
+    ]
+  },
+  {
     version: "9.13.0",
     date: "2026-01-24",
     title: "Mindbody CSV Import",
