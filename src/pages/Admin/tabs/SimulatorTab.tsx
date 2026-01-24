@@ -1087,6 +1087,28 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 return false;
             }
             
+            if (res.status === 400) {
+                const errorData = await res.json();
+                // If billing session not generated, allow user to proceed anyway
+                if (errorData.requiresSync) {
+                    // Retry with skipPaymentCheck to bypass the billing session check
+                    const retryRes = await fetch(`/api/bookings/${booking.id}/checkin`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ status: newStatus, skipPaymentCheck: true })
+                    });
+                    if (retryRes.ok) {
+                        showToast('Booking checked in (billing session pending)', 'success');
+                        return true;
+                    } else {
+                        const retryErr = await retryRes.json();
+                        throw new Error(retryErr.error || 'Failed to check in');
+                    }
+                }
+                throw new Error(errorData.error || 'Failed to update status');
+            }
+            
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.error || 'Failed to update status');
