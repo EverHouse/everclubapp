@@ -271,9 +271,8 @@ const DirectoryTab: React.FC = () => {
     const [visitorSortField, setVisitorSortField] = useState<VisitorSortField>('lastActivity');
     const [visitorSortDirection, setVisitorSortDirection] = useState<SortDirection>('desc');
     const [visitorsTotal, setVisitorsTotal] = useState(0);
-    const [visitorsOffset, setVisitorsOffset] = useState(0);
-    const [visitorsHasMore, setVisitorsHasMore] = useState(false);
-    const [visitorsLoadingMore, setVisitorsLoadingMore] = useState(false);
+    const [visitorsPage, setVisitorsPage] = useState(1);
+    const [visitorsTotalPages, setVisitorsTotalPages] = useState(1);
     const VISITORS_PAGE_SIZE = 100;
     
     const isAdmin = actualUser?.role === 'admin';
@@ -403,19 +402,13 @@ const DirectoryTab: React.FC = () => {
     }, [isViewingDetails, selectedMember]);
 
     // Fetch visitors - defined before handleTabChange to avoid circular reference
-    const fetchVisitors = useCallback(async (typeFilter?: VisitorType, sourceFilter?: VisitorSource, searchQuery?: string, loadMore = false) => {
-        if (loadMore) {
-            setVisitorsLoadingMore(true);
-        } else {
-            setVisitorsLoading(true);
-            setVisitorsOffset(0);
-        }
+    const fetchVisitors = useCallback(async (typeFilter?: VisitorType, sourceFilter?: VisitorSource, searchQuery?: string, page = 1) => {
+        setVisitorsLoading(true);
         setVisitorsError(false);
         try {
             const params = new URLSearchParams();
             params.set('limit', VISITORS_PAGE_SIZE.toString());
-            // visitorsOffset tracks total items loaded, so use it directly as the next offset
-            params.set('offset', loadMore ? visitorsOffset.toString() : '0');
+            params.set('offset', ((page - 1) * VISITORS_PAGE_SIZE).toString());
             if (typeFilter && typeFilter !== 'all') params.set('typeFilter', typeFilter);
             if (sourceFilter && sourceFilter !== 'all') params.set('sourceFilter', sourceFilter);
             if (searchQuery && searchQuery.trim()) params.set('search', searchQuery.trim());
@@ -424,25 +417,17 @@ const DirectoryTab: React.FC = () => {
             if (!res.ok) throw new Error('Failed to fetch visitors');
             const data = await res.json();
             
-            if (loadMore) {
-                setVisitors(prev => [...prev, ...(data.visitors || [])]);
-                // Track cumulative offset: previous offset + items just loaded
-                setVisitorsOffset(prev => prev + (data.visitors?.length || 0));
-            } else {
-                setVisitors(data.visitors || []);
-                // Reset offset and track initial batch size
-                setVisitorsOffset(data.visitors?.length || 0);
-            }
+            setVisitors(data.visitors || []);
             setVisitorsTotal(data.total || 0);
-            setVisitorsHasMore(data.hasMore || false);
+            setVisitorsPage(page);
+            setVisitorsTotalPages(Math.ceil((data.total || 0) / VISITORS_PAGE_SIZE));
         } catch (err) {
             console.error('Error loading visitors:', err);
             setVisitorsError(true);
         } finally {
             setVisitorsLoading(false);
-            setVisitorsLoadingMore(false);
         }
-    }, [visitorsOffset]);
+    }, []);
 
     // Fetch former members or visitors when switching to that tab
     const handleTabChange = useCallback(async (tab: MemberTab) => {
@@ -1233,25 +1218,27 @@ const DirectoryTab: React.FC = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {/* Load More button for mobile */}
-                                {visitorsHasMore && (
-                                    <div className="py-4 text-center">
+                                {/* Pagination controls for mobile */}
+                                {visitorsTotalPages > 1 && (
+                                    <div className="py-4 flex items-center justify-center gap-4">
                                         <button
-                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, true)}
-                                            disabled={visitorsLoadingMore}
-                                            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-bold transition-colors disabled:opacity-50"
+                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, visitorsPage - 1)}
+                                            disabled={visitorsPage <= 1 || visitorsLoading}
+                                            className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {visitorsLoadingMore ? (
-                                                <>
-                                                    <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                                                    Loading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="material-symbols-outlined text-[18px]">expand_more</span>
-                                                    Load More ({visitorsTotal - visitors.length} remaining)
-                                                </>
-                                            )}
+                                            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                                            Previous
+                                        </button>
+                                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                                            Page {visitorsPage} of {visitorsTotalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, visitorsPage + 1)}
+                                            disabled={visitorsPage >= visitorsTotalPages || visitorsLoading}
+                                            className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Next
+                                            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                                         </button>
                                     </div>
                                 )}
@@ -1391,25 +1378,27 @@ const DirectoryTab: React.FC = () => {
                                         </div>
                                     </div>
                                 ))}
-                                {/* Load More button for desktop */}
-                                {visitorsHasMore && (
-                                    <div className="p-4 text-center">
+                                {/* Pagination controls for desktop */}
+                                {visitorsTotalPages > 1 && (
+                                    <div className="p-4 flex items-center justify-center gap-4 border-t border-gray-200 dark:border-white/10">
                                         <button
-                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, true)}
-                                            disabled={visitorsLoadingMore}
-                                            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-bold transition-colors disabled:opacity-50"
+                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, visitorsPage - 1)}
+                                            disabled={visitorsPage <= 1 || visitorsLoading}
+                                            className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {visitorsLoadingMore ? (
-                                                <>
-                                                    <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                                                    Loading...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="material-symbols-outlined text-[18px]">expand_more</span>
-                                                    Load More ({visitorsTotal - visitors.length} remaining)
-                                                </>
-                                            )}
+                                            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                                            Previous
+                                        </button>
+                                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                                            Page {visitorsPage} of {visitorsTotalPages} ({visitorsTotal} total)
+                                        </span>
+                                        <button
+                                            onClick={() => fetchVisitors(visitorTypeFilter, visitorSourceFilter, visitorSearchQuery, visitorsPage + 1)}
+                                            disabled={visitorsPage >= visitorsTotalPages || visitorsLoading}
+                                            className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 dark:bg-white/10 dark:hover:bg-white/20 text-primary dark:text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Next
+                                            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                                         </button>
                                     </div>
                                 )}
