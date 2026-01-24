@@ -564,6 +564,52 @@ async function logWebhookEvent(
     // Redact PII before storing in logs
     const redactedPayload = redactPII(payload);
     
+    // DEDUPLICATION: Check for duplicate events within 2 minutes
+    // Trackman sometimes sends the same webhook multiple times in quick succession
+    // Use a shorter window (2 min) to avoid blocking legitimate updates
+    // Compare key fields from both V1 (start_time/end_time) and V2 (start/end) payloads
+    if (trackmanBookingId) {
+      // Extract key fields from payload for comparison (support both V1 and V2 formats)
+      const bookingData = payload?.data || payload?.booking || {};
+      // V2 uses 'start'/'end', V1 uses 'start_time'/'end_time'
+      const startTime = bookingData?.start || bookingData?.start_time || payload?.start_time || '';
+      const endTime = bookingData?.end || bookingData?.end_time || payload?.end_time || '';
+      const status = bookingData?.status || payload?.status || eventType;
+      
+      const recentDupe = await pool.query(
+        `SELECT id, payload FROM trackman_webhook_events 
+         WHERE trackman_booking_id = $1 
+           AND event_type = $2
+           AND created_at >= NOW() - INTERVAL '2 minutes'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [trackmanBookingId, eventType]
+      );
+      
+      if (recentDupe.rows.length > 0) {
+        // Compare key fields to determine if truly duplicate
+        const existingPayload = typeof recentDupe.rows[0].payload === 'string' 
+          ? JSON.parse(recentDupe.rows[0].payload) 
+          : recentDupe.rows[0].payload;
+        const existingBookingData = existingPayload?.data || existingPayload?.booking || {};
+        // Support both V1 and V2 formats for existing payload too
+        const existingStart = existingBookingData?.start || existingBookingData?.start_time || existingPayload?.start_time || '';
+        const existingEnd = existingBookingData?.end || existingBookingData?.end_time || existingPayload?.end_time || '';
+        const existingStatus = existingBookingData?.status || existingPayload?.status || '';
+        
+        // Only skip if start, end, and status are identical (both non-empty)
+        const fieldsMatch = startTime === existingStart && endTime === existingEnd && status === existingStatus;
+        const hasValidFields = startTime !== '' || endTime !== ''; // At least one time field must exist
+        
+        if (fieldsMatch && hasValidFields) {
+          logger.info('[Trackman Webhook] Skipping duplicate event', {
+            extra: { trackmanBookingId, eventType, existingId: recentDupe.rows[0].id }
+          });
+          return recentDupe.rows[0].id; // Return existing event ID
+        }
+      }
+    }
+    
     const result = await pool.query(
       `INSERT INTO trackman_webhook_events 
        (event_type, payload, trackman_booking_id, trackman_user_id, matched_booking_id, matched_user_id, processed_at, processing_error)
@@ -2394,7 +2440,7 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
         COUNT(*) as total_events,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.was_auto_linked = true AND (br.is_unmatched IS NULL OR br.is_unmatched = false)) as auto_confirmed,
         COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND (br.was_auto_linked IS NULL OR br.was_auto_linked = false) AND (br.is_unmatched IS NULL OR br.is_unmatched = false)) as manually_linked,
-        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as unmatched,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NULL OR (twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true)) as needs_linking,
         COUNT(*) FILTER (WHERE br.status = 'cancelled') as cancelled,
         MAX(twe.created_at) as last_event_at
       FROM trackman_webhook_events twe
