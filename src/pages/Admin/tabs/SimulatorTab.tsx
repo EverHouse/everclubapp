@@ -1912,8 +1912,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                             timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
                                                                             matchedBookingId: Number(booking.id),
                                                                             isRelink: false,
-                                                                            importedName: (booking as any).user_name,
-                                                                            notes: (booking as any).notes
+                                                                            importedName: (booking as any).user_name || (booking as any).userName,
+                                                                            notes: (booking as any).notes || (booking as any).note
                                                                         })}
                                                                         className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
                                                                     >
@@ -2179,8 +2179,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                         timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
                                                         matchedBookingId: Number(booking.id),
                                                         isRelink: false,
-                                                        importedName: (booking as any).user_name,
-                                                        notes: (booking as any).notes
+                                                        importedName: (booking as any).user_name || (booking as any).userName,
+                                                        notes: (booking as any).notes || (booking as any).note
                                                     }) : () => setSelectedCalendarBooking(booking)) : pendingRequest ? () => { setSelectedRequest(pendingRequest); setActionModal('decline'); } : handleEmptyCellClick}
                                                     className={`h-7 sm:h-8 rounded ${
                                                         closure
@@ -2609,8 +2609,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         currentMemberName: isUnmatched ? undefined : currentName,
                                         currentMemberEmail: isUnmatched ? undefined : selectedCalendarBooking.user_email,
                                         isRelink: true,
-                                        importedName: (selectedCalendarBooking as any)?.user_name,
-                                        notes: (selectedCalendarBooking as any)?.notes
+                                        importedName: (selectedCalendarBooking as any)?.user_name || (selectedCalendarBooking as any)?.userName,
+                                        notes: (selectedCalendarBooking as any)?.notes || (selectedCalendarBooking as any)?.note
                                     });
                                     setSelectedCalendarBooking(null);
                                 }}

@@ -437,8 +437,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
                 timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
                 matchedBookingId: Number(booking.id),
                 isRelink: false,
-                importedName: (booking as any).user_name,
-                notes: (booking as any).notes
+                importedName: (booking as any).user_name || (booking as any).userName,
+                notes: (booking as any).notes || (booking as any).note
               })}
               variant="desktop-top"
             />
@@ -485,8 +485,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
                 timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
                 matchedBookingId: Number(booking.id),
                 isRelink: false,
-                importedName: (booking as any).user_name,
-                notes: (booking as any).notes
+                importedName: (booking as any).user_name || (booking as any).userName,
+                notes: (booking as any).notes || (booking as any).note
               })}
               variant="desktop-bottom"
             />
@@ -578,8 +578,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
                 timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
                 matchedBookingId: Number(booking.id),
                 isRelink: false,
-                importedName: (booking as any).user_name,
-                notes: (booking as any).notes
+                importedName: (booking as any).user_name || (booking as any).userName,
+                notes: (booking as any).notes || (booking as any).note
               })}
             variant="mobile"
           />
