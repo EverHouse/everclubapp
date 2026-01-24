@@ -221,16 +221,20 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         const bookingDateStr = typeof bookingDate === 'string' ? bookingDate : 
           new Date(bookingDate).toISOString().split('T')[0];
         
-        // Check if visitor already has a day pass purchase for the BOOKING date
+        // Check if visitor already has a day pass purchase for the BOOKING date or this specific Trackman booking
         // Use booking_date column for reliable duplicate detection
         // Fallback: also check created_at for legacy rows without booking_date
+        // Also check trackman_booking_id to prevent re-billing the same booking
         const existingDayPass = await pool.query(
           `SELECT id, stripe_payment_intent_id FROM day_pass_purchases 
            WHERE user_id = $1 
            AND product_type = 'day-pass-golf-sim'
-           AND (booking_date = $2::date OR (booking_date IS NULL AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $2::date))
+           AND (
+             (booking_date = $2::date OR (booking_date IS NULL AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = $2::date))
+             OR trackman_booking_id = $3
+           )
            AND (status IS NULL OR status != 'cancelled')`,
-          [member.id, bookingDateStr]
+          [member.id, bookingDateStr, booking.trackman_booking_id]
         );
         
         if (existingDayPass.rows.length === 0) {
@@ -327,12 +331,12 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
               console.log(`[Trackman Resolve] Day pass invoice sent for visitor ${member.email}: $${(amountCents / 100).toFixed(2)}`);
             }
             
-            // Record the day pass purchase with booking_date for reliable duplicate detection
+            // Record the day pass purchase with booking_date and trackman_booking_id for reliable duplicate detection
             await pool.query(
               `INSERT INTO day_pass_purchases 
-               (user_id, product_type, quantity, amount_cents, stripe_payment_intent_id, booking_date, status, created_at)
-               VALUES ($1, 'day-pass-golf-sim', 1, $2, $3, $4, $5, NOW())`,
-              [member.id, amountCents, paymentIntentId, bookingDateStr, paymentStatus]
+               (user_id, product_type, quantity, amount_cents, stripe_payment_intent_id, booking_date, status, trackman_booking_id, created_at)
+               VALUES ($1, 'day-pass-golf-sim', 1, $2, $3, $4, $5, $6, NOW())`,
+              [member.id, amountCents, paymentIntentId, bookingDateStr, paymentStatus, booking.trackman_booking_id]
             );
           }
         } else {
