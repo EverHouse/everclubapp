@@ -204,11 +204,12 @@ export const TRAINING_SEED_DATA = [
       { title: 'Activity Tab', content: 'The Activity tab shows your staff notifications - new booking requests, check-in reminders, system alerts, and other activity relevant to your role.' },
       { title: 'Mark as Read', content: 'Click "Mark all as read" to clear unread notifications, or tap individual notifications to mark them read. Use "Dismiss all" to permanently remove all notifications.' },
       { title: 'Announcements Tab', content: 'Switch to the Announcements tab to create and manage announcements that members will see in their feed.' },
-      { title: 'Announcement Types', content: 'Two types available: "Announcement" for general club news that appears in the member feed, and "Update" for app updates and feature announcements.' },
-      { title: 'Priority Levels', content: 'Set announcements as Normal or High priority. High priority announcements are shown more prominently with a highlighted badge.' },
+      { title: 'Create an Announcement', content: 'Click the + button to create a new announcement. Enter a title and description for your message.' },
+      { title: 'Push Notification Toggle', content: 'Toggle "Send push notification to all members" to send an instant alert to everyone. Use sparingly for important club-wide announcements.' },
+      { title: 'Homepage Banner', content: 'Toggle "Show as Homepage Banner" to display the announcement prominently on the member dashboard. Great for promotions or urgent notices.' },
       { title: 'Scheduled Visibility', content: 'Set start and end dates to control when announcements are visible. Use this to pre-schedule announcements for future events or promotions.' },
-      { title: 'Include Links', content: 'Add links to specific pages within the app or external URLs. This helps direct members to take action.' },
-      { title: 'Edit or Delete', content: 'Use the edit and delete buttons on existing announcements to update content or remove outdated notices.' },
+      { title: 'Link Destination', content: 'Add a link to direct members to a specific page: Events, Wellness, Book Golf, or an External URL. This helps drive member action.' },
+      { title: 'Edit or Delete', content: 'Tap any existing announcement to edit it. Use the trash icon to delete outdated notices.' },
     ]
   },
   {
