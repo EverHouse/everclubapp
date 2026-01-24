@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.10.0",
+    date: "2026-01-24",
+    title: "Visitor Directory Enhancements",
+    changes: [
+      "New: Visitors now have stored TYPE (Day Pass, Guest, Lead) and SOURCE (HubSpot, Stripe, MindBody, App) fields",
+      "New: Click any column header (Name, Type, Source, Last Activity) to sort the visitors list",
+      "New: Last Activity column shows the most recent action date (day pass purchase or guest visit)",
+      "New: Backfill endpoint populates visitor types from historical purchase and guest data",
+      "Improved: Source priority logic: MindBody (for non-members with client ID) → Stripe → HubSpot → App",
+      "Improved: Type priority: Day Pass (highest) → Guest → Lead (no activity)"
+    ]
+  },
+  {
     version: "9.9.0",
     date: "2026-01-24",
     title: "Guest Pass Checkout Flow",
