@@ -1165,12 +1165,18 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       />
       
       <div 
-        className={`fixed inset-y-0 right-0 w-full max-w-xl ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} shadow-2xl transform transition-transform duration-300 ease-out flex flex-col`}
-        style={{ animation: 'slideInRight 0.3s ease-out' }}
+        className={`fixed right-0 w-full max-w-xl ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} shadow-2xl transform transition-transform duration-300 ease-out flex flex-col`}
+        style={{ 
+          animation: 'slideInRight 0.3s ease-out',
+          top: 0,
+          bottom: 0,
+          height: '100dvh',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+        }}
       >
         <div 
-          className={`flex-shrink-0 px-4 pb-4 sm:px-6 sm:pb-6 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}
-          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+          className={`flex-shrink-0 px-4 pb-4 sm:px-6 sm:pb-6 border-b ${isDark ? 'border-white/10' : 'border-gray-200'} pt-4`}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -1414,10 +1420,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           </div>
         </div>
 
-        <div 
-          className="flex-1 overflow-y-auto p-4 sm:p-6"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
-        >
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-6">
           {renderContent()}
         </div>
       </div>
