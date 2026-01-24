@@ -2137,7 +2137,30 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     }
   });
   
-  if (!validateTrackmanWebhookSignature(req)) {
+  // Forward webhook to dev environment if configured (non-blocking)
+  const devWebhookUrl = process.env.DEV_WEBHOOK_FORWARD_URL;
+  if (devWebhookUrl && isProduction) {
+    // Fire and forget - don't await, don't block production processing
+    fetch(devWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Forwarded-From': 'production',
+        'X-Original-Signature': req.headers['x-trackman-signature'] as string || ''
+      },
+      body: JSON.stringify(req.body)
+    }).then(() => {
+      logger.info('[Trackman Webhook] Forwarded to dev environment');
+    }).catch(err => {
+      logger.warn('[Trackman Webhook] Failed to forward to dev', { error: err });
+    });
+  }
+  
+  // Check if this is a forwarded webhook from production (skip signature validation in dev)
+  const isForwardedFromProduction = req.headers['x-forwarded-from'] === 'production';
+  if (isForwardedFromProduction && !isProduction) {
+    logger.info('[Trackman Webhook] Processing forwarded webhook from production');
+  } else if (!validateTrackmanWebhookSignature(req)) {
     return res.status(401).json({ error: 'Invalid signature' });
   }
   
