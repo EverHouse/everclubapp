@@ -2023,33 +2023,19 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     
     // Build source filter condition
     // Must match the getSource() logic exactly to avoid filter/display mismatch
-    // Priority order in getSource: billing_provider > mindbody_client_id/legacy_source > stripe_customer_id > hubspot_id
+    // Priority: actual data indicators (mindbody > stripe > hubspot) > billing_provider
     let sourceCondition = '';
     if (sourceFilter === 'stripe') {
-      // Stripe: billing_provider is 'stripe' OR (has stripe_customer_id AND no mindbody indicators)
-      sourceCondition = `AND (
-        u.billing_provider = 'stripe'
-        OR (
-          u.billing_provider IS DISTINCT FROM 'mindbody'
-          AND u.stripe_customer_id IS NOT NULL 
-          AND u.mindbody_client_id IS NULL 
-          AND u.legacy_source IS DISTINCT FROM 'mindbody_import'
-        )
-      )`;
+      // Stripe: has stripe_customer_id AND no mindbody data
+      sourceCondition = `AND u.stripe_customer_id IS NOT NULL 
+        AND u.mindbody_client_id IS NULL 
+        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'`;
     } else if (sourceFilter === 'mindbody') {
-      // MindBody: billing_provider is 'mindbody' OR has mindbody_client_id/legacy_source (regardless of stripe_customer_id)
-      sourceCondition = `AND (
-        u.billing_provider = 'mindbody'
-        OR (
-          u.billing_provider IS DISTINCT FROM 'stripe'
-          AND (u.mindbody_client_id IS NOT NULL OR u.legacy_source = 'mindbody_import')
-        )
-      )`;
+      // MindBody: has mindbody_client_id OR legacy_source = 'mindbody_import'
+      sourceCondition = `AND (u.mindbody_client_id IS NOT NULL OR u.legacy_source = 'mindbody_import')`;
     } else if (sourceFilter === 'hubspot') {
-      // HubSpot: has hubspot_id but NOT stripe and NOT mindbody
+      // HubSpot: has hubspot_id but no stripe_customer_id and no mindbody data
       sourceCondition = `AND u.hubspot_id IS NOT NULL 
-        AND u.billing_provider IS DISTINCT FROM 'stripe'
-        AND u.billing_provider IS DISTINCT FROM 'mindbody'
         AND u.stripe_customer_id IS NULL 
         AND u.mindbody_client_id IS NULL
         AND u.legacy_source IS DISTINCT FROM 'mindbody_import'`;
@@ -2145,22 +2131,29 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     `);
     
     // Determine source based on database fields
-    // Priority: billing_provider takes precedence when explicitly set
-    // Then: STRIPE > MINDBODY > HUBSPOT > APP
+    // Priority: actual data indicators > billing_provider
+    // For visitors, "source" indicates where the contact data came from
     const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
-      // If billing_provider is explicitly set, respect it
+      const hasMindbodyData = row.mindbody_client_id || row.legacy_source === 'mindbody_import';
+      const hasStripeData = !!row.stripe_customer_id;
+      const hasHubspotData = !!row.hubspot_id;
+      
+      // STRIPE billing_provider with actual stripe data
+      if (row.billing_provider === 'stripe' && hasStripeData) return 'stripe';
+      
+      // MINDBODY: has actual mindbody data (client_id or legacy import)
+      if (hasMindbodyData) return 'mindbody';
+      
+      // STRIPE: has stripe_customer_id and no mindbody data
+      if (hasStripeData && !hasMindbodyData) return 'stripe';
+      
+      // HUBSPOT: has hubspot_id but no stripe or mindbody data
+      if (hasHubspotData) return 'hubspot';
+      
+      // Fallback to billing_provider if set
       if (row.billing_provider === 'mindbody') return 'mindbody';
       if (row.billing_provider === 'stripe') return 'stripe';
       
-      // STRIPE: has a Stripe customer record AND no mindbody indicators
-      // (some records have stale stripe_customer_id that don't exist in Stripe)
-      if (row.stripe_customer_id && !row.mindbody_client_id && row.legacy_source !== 'mindbody_import') {
-        return 'stripe';
-      }
-      // MINDBODY: has mindbody_client_id or legacy mindbody markers
-      if (row.mindbody_client_id || row.legacy_source === 'mindbody_import') {
-        return 'mindbody';
-      }
       // STRIPE: has stripe_customer_id (fallback)
       if (row.stripe_customer_id) return 'stripe';
       // HUBSPOT: has HubSpot ID
