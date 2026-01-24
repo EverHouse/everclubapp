@@ -16,8 +16,8 @@ import { apiRequest } from '../../../lib/apiRequest';
 
 const TIER_OPTIONS = ['All', 'Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const ASSIGNABLE_TIERS = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
-const BILLING_OPTIONS = ['All', 'Individual', 'Group', 'Stripe', 'Mindbody'] as const;
-type BillingFilter = 'All' | 'Individual' | 'Group' | 'Stripe' | 'Mindbody';
+const BILLING_OPTIONS = ['All', 'Individual', 'Group', 'Stripe', 'Mindbody', 'Family Add-on', 'Comped'] as const;
+type BillingFilter = 'All' | 'Individual' | 'Group' | 'Stripe' | 'Mindbody' | 'Family Add-on' | 'Comped';
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
     { value: 'name', label: 'Name A-Z' },
@@ -530,6 +530,10 @@ const DirectoryTab: React.FC = () => {
                 filtered = filtered.filter(m => m.billingProvider === 'stripe');
             } else if (billingFilter === 'Mindbody') {
                 filtered = filtered.filter(m => m.billingProvider === 'mindbody');
+            } else if (billingFilter === 'Family Add-on') {
+                filtered = filtered.filter(m => m.billingProvider === 'family_addon');
+            } else if (billingFilter === 'Comped') {
+                filtered = filtered.filter(m => m.billingProvider === 'comped');
             }
         }
         
