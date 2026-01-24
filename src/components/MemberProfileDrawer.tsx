@@ -293,31 +293,38 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   };
 
   const handlePermanentDelete = async () => {
-    if (!member?.email) return;
+    if (!member?.email && !member?.id) return;
     setIsDeleting(true);
     try {
       const params = new URLSearchParams();
       if (deleteOptions.hubspot) params.append('deleteFromHubSpot', 'true');
       if (deleteOptions.stripe) params.append('deleteFromStripe', 'true');
       
-      const res = await fetch(`/api/members/${encodeURIComponent(member.email)}/permanent?${params}`, {
+      // Use visitor API for visitors, member API for members
+      const url = visitorMode && member.id
+        ? `/api/visitors/${member.id}?${params}`
+        : `/api/members/${encodeURIComponent(member.email)}/permanent?${params}`;
+      
+      const res = await fetch(url, {
         method: 'DELETE',
         credentials: 'include'
       });
       
+      const entityType = visitorMode ? 'Visitor' : 'Member';
+      
       if (res.ok) {
         const result = await res.json();
-        alert(`Member deleted successfully.\n\nDeleted records: ${result.deletedRecords?.join(', ') || 'user'}\nStripe deleted: ${result.stripeDeleted ? 'Yes' : 'No'}\nHubSpot archived: ${result.hubspotArchived ? 'Yes' : 'No'}`);
+        alert(`${entityType} deleted successfully.\n\nDeleted records: ${result.deletedRecords?.join(', ') || 'user'}\nStripe deleted: ${result.stripeDeleted ? 'Yes' : 'No'}\nHubSpot archived: ${result.hubspotArchived ? 'Yes' : 'No'}`);
         setShowDeleteModal(false);
         onClose();
         onMemberDeleted?.();
       } else {
         const error = await res.json();
-        alert(`Failed to delete member: ${error.error || 'Unknown error'}`);
+        alert(`Failed to delete ${entityType.toLowerCase()}: ${error.error || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error('Failed to delete member:', err);
-      alert('Failed to delete member. Please try again.');
+      console.error('Failed to delete:', err);
+      alert('Failed to delete. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -1139,7 +1146,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           )}
 
           {isAdmin && visitorMode && member.email && (
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <button
                 onClick={async () => {
                   try {
@@ -1163,10 +1170,17 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     alert('Failed to send invitation');
                   }
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
               >
                 <span className="material-symbols-outlined text-lg">card_membership</span>
                 Send Membership Invite
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors"
+                title="Permanently delete visitor"
+              >
+                <span className="material-symbols-outlined text-lg">delete_forever</span>
               </button>
             </div>
           )}
@@ -1211,7 +1225,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               <div className="flex items-center gap-3 mb-4">
                 <span className="material-symbols-outlined text-3xl text-red-500">warning</span>
                 <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Delete Member Permanently
+                  Delete {visitorMode ? 'Visitor' : 'Member'} Permanently
                 </h3>
               </div>
               
@@ -1236,7 +1250,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     onChange={(e) => setDeleteOptions(prev => ({ ...prev, stripe: e.target.checked }))}
                     className="w-4 h-4 rounded"
                   />
-                  <span>Also delete from Stripe (cancels subscriptions)</span>
+                  <span>Also delete from Stripe{visitorMode ? '' : ' (cancels subscriptions)'}</span>
                 </label>
               </div>
               

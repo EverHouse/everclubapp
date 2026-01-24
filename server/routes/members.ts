@@ -2535,4 +2535,129 @@ router.post('/api/visitors/backfill-types', isAdmin, async (req, res) => {
   }
 });
 
+// Delete a visitor permanently with optional Stripe/HubSpot data removal
+router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deleteFromHubSpot, deleteFromStripe } = req.query;
+    const sessionUser = getSessionUser(req);
+    const userId = parseInt(id, 10);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid visitor ID' });
+    }
+    
+    // Get visitor details
+    const userResult = await db.select({ 
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      role: users.role,
+      tier: users.tier,
+      stripeCustomerId: users.stripeCustomerId,
+      hubspotId: users.hubspotId
+    })
+      .from(users)
+      .where(eq(users.id, userId));
+    
+    if (userResult.length === 0) {
+      return res.status(404).json({ error: 'Visitor not found' });
+    }
+    
+    const visitor = userResult[0];
+    
+    // Verify this is actually a visitor (not a member)
+    if (visitor.tier || (visitor.role && visitor.role !== 'visitor')) {
+      return res.status(400).json({ 
+        error: 'Cannot delete: This is a member, not a visitor. Use the member deletion flow instead.' 
+      });
+    }
+    
+    const visitorName = `${visitor.firstName || ''} ${visitor.lastName || ''}`.trim() || visitor.email;
+    const deletionLog: string[] = [];
+    
+    // Delete related records first (before deleting user due to foreign keys)
+    await pool.query('DELETE FROM day_pass_purchases WHERE user_id = $1', [userId]);
+    deletionLog.push('day_pass_purchases');
+    
+    await pool.query('DELETE FROM booking_guests WHERE LOWER(guest_email) = LOWER($1)', [visitor.email]);
+    deletionLog.push('booking_guests');
+    
+    await pool.query('DELETE FROM member_notes WHERE member_email = $1', [visitor.email]);
+    deletionLog.push('member_notes');
+    
+    await pool.query('DELETE FROM communication_logs WHERE member_email = $1', [visitor.email]);
+    deletionLog.push('communication_logs');
+    
+    await pool.query('DELETE FROM legacy_purchases WHERE LOWER(member_email) = LOWER($1)', [visitor.email]);
+    deletionLog.push('legacy_purchases');
+    
+    await pool.query('DELETE FROM booking_participants WHERE user_id = $1', [userId]);
+    deletionLog.push('booking_participants');
+    
+    // Delete from Stripe if requested
+    let stripeDeleted = false;
+    if (deleteFromStripe === 'true' && visitor.stripeCustomerId) {
+      try {
+        const { getStripe } = await import('../core/stripe');
+        const stripe = getStripe();
+        await stripe.customers.del(visitor.stripeCustomerId);
+        stripeDeleted = true;
+        deletionLog.push('stripe_customer');
+      } catch (stripeError: any) {
+        console.error(`[Visitors] Failed to delete Stripe customer ${visitor.stripeCustomerId}:`, stripeError.message);
+      }
+    }
+    
+    // Archive from HubSpot if requested (HubSpot only supports archive, not permanent delete)
+    let hubspotArchived = false;
+    if (deleteFromHubSpot === 'true' && visitor.hubspotId) {
+      try {
+        const { getHubSpotClient } = await import('../core/integrations');
+        const hubspot = await getHubSpotClient();
+        await hubspot.crm.contacts.basicApi.archive(visitor.hubspotId);
+        hubspotArchived = true;
+        deletionLog.push('hubspot_contact (archived)');
+      } catch (hubspotError: any) {
+        console.error(`[Visitors] Failed to archive HubSpot contact ${visitor.hubspotId}:`, hubspotError.message);
+      }
+    }
+    
+    // Finally delete the user record
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    deletionLog.push('users');
+    
+    // Log the deletion action
+    await logFromRequest(req, {
+      action: 'delete_visitor',
+      resourceType: 'user',
+      resourceId: id,
+      resourceName: visitorName,
+      details: {
+        email: visitor.email,
+        deletedRecords: deletionLog,
+        stripeDeleted,
+        hubspotArchived,
+        deletedBy: sessionUser?.email
+      }
+    });
+    
+    console.log(`[Visitors] Visitor permanently deleted: ${visitor.email} (${visitorName}) by ${sessionUser?.email}. Records: ${deletionLog.join(', ')}`);
+    
+    res.json({ 
+      success: true, 
+      deleted: true,
+      deletedBy: sessionUser?.email,
+      deletedRecords: deletionLog,
+      stripeDeleted,
+      hubspotArchived,
+      message: `Visitor ${visitorName || visitor.email} permanently deleted`
+    });
+  } catch (error: any) {
+    console.error('[Visitors] Delete error:', error);
+    res.status(500).json({ error: 'Failed to delete visitor' });
+  }
+});
+
 export default router;

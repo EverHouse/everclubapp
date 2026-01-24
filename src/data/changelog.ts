@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.10.2",
+    date: "2026-01-24",
+    title: "Visitor Deletion with External Data Cleanup",
+    changes: [
+      "New: Staff can now permanently delete visitors from the visitor profile drawer",
+      "New: Optional Stripe customer deletion when removing a visitor",
+      "New: Optional HubSpot contact archival when removing a visitor",
+      "Improved: Delete modal shows checkboxes to choose which external systems to clean up",
+      "Safety: Members cannot be accidentally deleted through the visitor deletion flow"
+    ]
+  },
+  {
     version: "9.10.1",
     date: "2026-01-24",
     title: "Real-Time Visitor Type Updates",
