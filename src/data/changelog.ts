@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.7.3",
+    date: "2026-01-24",
+    title: "Billing Integrity & Payment Protection",
+    isMajor: true,
+    changes: [
+      "Critical: Webhook deduplication window extended from 24 hours to 7 days - prevents late duplicate processing",
+      "Critical: Payment confirmation now uses database transactions with row-level locking - prevents race conditions",
+      "Critical: Refunds now sync to booking participants - refunded bookings correctly marked as 'refunded'",
+      "New: Guest pass consumption has idempotency protection - prevents double-deduction on retries",
+      "New: Guest pass refunds now use tier-specific fees instead of hardcoded $25",
+      "New: Trackman booking ID added to day pass duplicate checks - prevents re-billing the same booking",
+      "New: Tier change verification confirms database matches Stripe after changes",
+      "New: Daily alert for unresolved Trackman bookings older than 24 hours",
+      "Fixed: All refunds on a charge are now cached (was only caching the latest refund)"
+    ]
+  },
+  {
     version: "9.7.2",
     date: "2026-01-24",
     title: "Facility Status Display Fix",

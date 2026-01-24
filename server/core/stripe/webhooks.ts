@@ -244,29 +244,23 @@ async function handleChargeRefunded(charge: any): Promise<void> {
       if (participantUpdate.rowCount && participantUpdate.rowCount > 0) {
         console.log(`[Stripe Webhook] Marked ${participantUpdate.rowCount} participant(s) as refunded for PI ${paymentIntentId}`);
         
-        // Also update usage_ledger payment_method to 'refunded' for tracking
-        const sessionIds = [...new Set(participantUpdate.rows.map(r => r.session_id).filter(Boolean))];
-        const memberIds = [...new Set(participantUpdate.rows.map(r => r.user_email).filter(Boolean))];
-        
-        for (const sessionId of sessionIds) {
-          // Get user IDs from the participants
-          for (const memberEmail of memberIds) {
-            const userResult = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [memberEmail]);
-            const userId = userResult.rows[0]?.id;
-            if (userId) {
-              await pool.query(
-                `UPDATE usage_ledger 
-                 SET payment_method = 'refunded'
-                 WHERE session_id = $1 AND member_id = $2`,
-                [sessionId, userId]
-              );
-            }
+        // Create audit records for the refund
+        for (const row of participantUpdate.rows) {
+          try {
+            await pool.query(
+              `INSERT INTO booking_payment_audit 
+               (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
+               SELECT bs.booking_id, $1, $2, 'refund_processed', 'system', 'Stripe Webhook', 0, 'stripe', $3
+               FROM booking_sessions bs WHERE bs.id = $1`,
+              [row.session_id, row.id, JSON.stringify({ stripePaymentIntentId: paymentIntentId })]
+            );
+          } catch (auditErr) {
+            console.warn(`[Stripe Webhook] Failed to create refund audit for participant ${row.id}:`, auditErr);
           }
         }
-        console.log(`[Stripe Webhook] Updated usage_ledger for ${sessionIds.length} session(s)`);
       }
     } catch (err) {
-      console.error('[Stripe Webhook] Error updating booking participants/usage for refund:', err);
+      console.error('[Stripe Webhook] Error updating booking participants for refund:', err);
     }
   }
   
@@ -372,8 +366,46 @@ async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
         [feeSnapshotId]
       );
       
+      // Update participants within the same transaction to prevent race conditions
+      if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
+        await client.query(
+          `UPDATE booking_participants bp
+           SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $3, cached_fee_cents = 0
+           FROM booking_sessions bs
+           WHERE bp.session_id = bs.id 
+             AND bs.booking_id = $1 
+             AND bp.id = ANY($2::int[])`,
+          [bookingId, validatedParticipantIds, id]
+        );
+        console.log(`[Stripe Webhook] Updated ${validatedParticipantIds.length} participant(s) to paid within transaction`);
+        
+        // Create audit records within transaction
+        for (const pf of participantFees) {
+          await client.query(
+            `INSERT INTO booking_payment_audit 
+             (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
+             VALUES ($1, $2, $3, 'payment_confirmed', 'system', 'Stripe Webhook', $4, $5, $6)`,
+            [bookingId, isNaN(sessionId) ? null : sessionId, pf.id, pf.amountCents / 100, 'stripe', JSON.stringify({ stripePaymentIntentId: id })]
+          );
+        }
+      }
+      
       await client.query('COMMIT');
-      console.log(`[Stripe Webhook] Validated ${validatedParticipantIds.length} participants from snapshot ${feeSnapshotId} (transaction committed)`);
+      console.log(`[Stripe Webhook] Snapshot ${feeSnapshotId} transaction committed (validation + payment update + audit)`);
+      
+      // Broadcast after commit (non-critical)
+      if (validatedParticipantIds.length > 0 && !isNaN(bookingId)) {
+        broadcastBillingUpdate({
+          action: 'booking_payment_updated',
+          bookingId,
+          sessionId: isNaN(sessionId) ? undefined : sessionId,
+          amount
+        });
+      }
+      
+      // Skip the later participant update section since we handled it in the transaction
+      validatedParticipantIds = [];
+      participantFees = [];
     } catch (err) {
       await client.query('ROLLBACK');
       console.error('[Stripe Webhook] Failed to validate from snapshot:', err);
