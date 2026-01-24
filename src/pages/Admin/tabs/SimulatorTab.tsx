@@ -1906,6 +1906,17 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
                                                                         ${(booking.total_owed || 0).toFixed(0)} Due
                                                                     </button>
+                                                                ) : !isConferenceRoom && isToday && ((booking as any).declared_player_count || 1) > ((booking as any).filled_player_count || 0) ? (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+                                                                            setRosterModal({ isOpen: true, bookingId });
+                                                                        }}
+                                                                        className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors"
+                                                                    >
+                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">group</span>
+                                                                        {(booking as any).filled_player_count || 0}/{(booking as any).declared_player_count || 1} Players
+                                                                    </button>
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         onClick={() => updateBookingStatusOptimistic(booking, 'attended')}
@@ -2121,6 +2132,10 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                             const hasKnownInactiveStatus = bookingMemberStatus && bookingMemberStatus.toLowerCase() !== 'active' && bookingMemberStatus.toLowerCase() !== 'unknown';
                                             const isInactiveMember = booking && bookingEmail && isTrackmanMatched && hasKnownInactiveStatus;
                                             const isUnmatched = !!(booking as any)?.is_unmatched;
+                                            const declaredPlayers = (booking as any)?.declared_player_count ?? 1;
+                                            const unfilledSlots = (booking as any)?.unfilled_slots ?? 0;
+                                            const filledSlots = Math.max(0, declaredPlayers - unfilledSlots);
+                                            const hasPartialRoster = !isConference && booking && declaredPlayers > 1 && filledSlots < declaredPlayers;
                                             const handleEmptyCellClick = () => {
                                                 window.dispatchEvent(new CustomEvent('open-manual-booking', {
                                                     detail: { resourceId: resource.id, date: calendarDate, startTime: slot }
@@ -2154,7 +2169,9 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                         ? 'bg-amber-100 dark:bg-amber-500/20 border-2 border-dashed border-amber-400 dark:border-amber-400/50 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
                                                                     : isInactiveMember
                                                                         ? 'bg-green-100/50 dark:bg-green-500/10 border border-dashed border-orange-300 dark:border-orange-500/40 cursor-pointer hover:bg-green-200/50 dark:hover:bg-green-500/20'
-                                                                        : 'bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/30 cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30' 
+                                                                        : hasPartialRoster
+                                                                            ? 'bg-green-200 dark:bg-green-600/30 border-2 border-dashed border-green-500 dark:border-green-400/60 cursor-pointer hover:bg-green-300 dark:hover:bg-green-600/40'
+                                                                            : 'bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/30 cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30' 
                                                                 : pendingRequest
                                                                         ? 'bg-blue-50 dark:bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20'
                                                                         : isConference

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ModalShell } from '../../ModalShell';
-import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
+import { useToast } from '../../Toast';
 
 interface TrackmanLinkModalProps {
   isOpen: boolean;
@@ -32,18 +32,21 @@ export function TrackmanLinkModal({
   onSuccess
 }: TrackmanLinkModalProps) {
   const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
-  const { execute: linkToMember, isLoading: linking } = useAsyncAction<void>();
+  const [linking, setLinking] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!isOpen) {
       setSelectedMember(null);
+      setLinking(false);
     }
   }, [isOpen]);
 
   const handleLink = async () => {
-    if (!selectedMember) return;
+    if (!selectedMember || linking) return;
     
-    await linkToMember(async () => {
+    setLinking(true);
+    try {
       // If re-linking an existing booking OR assigning an unmatched booking with a matchedBookingId
       if (matchedBookingId) {
         const res = await fetch(`/api/bookings/${matchedBookingId}/change-owner`, {
@@ -80,9 +83,14 @@ export function TrackmanLinkModal({
         }
       }
       
+      showToast('Member assigned to booking successfully', 'success');
       onSuccess?.();
       onClose();
-    });
+    } catch (err: any) {
+      showToast(err.message || 'Failed to assign member', 'error');
+    } finally {
+      setLinking(false);
+    }
   };
 
   if (!trackmanBookingId && !matchedBookingId) return null;

@@ -257,6 +257,7 @@ router.get('/api/booking-requests', async (req, res) => {
       calendar_event_id: bookingRequests.calendarEventId,
       reschedule_booking_id: bookingRequests.rescheduleBookingId,
       resource_name: resources.name,
+      resource_type: resources.type,
       tier: users.tier,
       guest_count: bookingRequests.guestCount,
       trackman_player_count: bookingRequests.trackmanPlayerCount,
@@ -2266,6 +2267,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       updated_at: bookingRequests.updatedAt,
       calendar_event_id: bookingRequests.calendarEventId,
       resource_name: resources.name,
+      resource_type: resources.type,
       trackman_booking_id: bookingRequests.trackmanBookingId,
       declared_player_count: bookingRequests.declaredPlayerCount,
       member_notes: bookingRequests.memberNotes,
@@ -2322,6 +2324,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
           updated_at: null,
           calendar_event_id: event.id,
           resource_name: 'Conference Room',
+          resource_type: 'conference_room',
           source: 'calendar'
         }));
     } catch (calError) {

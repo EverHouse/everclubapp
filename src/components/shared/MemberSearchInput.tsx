@@ -160,8 +160,12 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         </label>
       )}
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 dark:text-white/40 text-lg">
-          search
+        <span className={`absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-lg ${
+          selectedMember 
+            ? 'text-green-600 dark:text-green-400' 
+            : 'text-primary/40 dark:text-white/40'
+        }`}>
+          {selectedMember ? 'check_circle' : 'search'}
         </span>
         <input
           id="member-search-input"
@@ -174,7 +178,11 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           autoFocus={autoFocus}
-          className="w-full pl-10 pr-10 py-2.5 border border-primary/20 dark:border-white/20 rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 dark:focus:ring-lavender/30 disabled:opacity-50"
+          className={`w-full pl-10 pr-10 py-2.5 border rounded-xl text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 disabled:opacity-50 ${
+            selectedMember 
+              ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20 ring-2 ring-green-500/30 dark:ring-green-400/30' 
+              : 'border-primary/20 dark:border-white/20 bg-white dark:bg-black/20 focus:ring-primary/30 dark:focus:ring-lavender/30'
+          }`}
         />
         {query && (
           <button
