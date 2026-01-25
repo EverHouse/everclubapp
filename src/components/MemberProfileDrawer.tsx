@@ -163,6 +163,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteOptions, setDeleteOptions] = useState({ hubspot: true, stripe: true });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [membershipTiers, setMembershipTiers] = useState<{id: number; name: string; priceCents: number; billingInterval: string; hasStripePrice: boolean}[]>([]);
+  const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
+  const [sendingPaymentLink, setSendingPaymentLink] = useState(false);
   const [removingEmail, setRemovingEmail] = useState<string | null>(null);
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNotePinned, setNewNotePinned] = useState(false);
@@ -181,6 +184,22 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   useEffect(() => {
     setDisplayedTier(member?.rawTier || member?.tier || '');
   }, [member?.rawTier, member?.tier]);
+
+  useEffect(() => {
+    if (isOpen && visitorMode && isAdmin) {
+      fetch('/api/members/add-options', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.tiersWithIds) {
+            setMembershipTiers(data.tiersWithIds);
+            if (data.tiersWithIds.length > 0 && !selectedTierId) {
+              setSelectedTierId(data.tiersWithIds[0].id);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, visitorMode, isAdmin, selectedTierId]);
 
   const fetchMemberData = useCallback(async () => {
     if (!member?.email) return;
@@ -1301,41 +1320,75 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           )}
 
           {isAdmin && visitorMode && member.email && (
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/stripe/staff/send-membership-invite', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({ 
-                        email: member.email,
-                        firstName: member.firstName || member.name?.split(' ')[0] || '',
-                        lastName: member.lastName || member.name?.split(' ').slice(1).join(' ') || ''
-                      })
-                    });
-                    if (res.ok) {
-                      alert(`Membership invitation sent to ${member.email}`);
-                    } else {
-                      const data = await res.json();
-                      alert(data.error || 'Failed to send invitation');
-                    }
-                  } catch (err) {
-                    alert('Failed to send invitation');
-                  }
-                }}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                <span className="material-symbols-outlined text-lg">card_membership</span>
-                Send Membership Invite
-              </button>
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-col gap-2">
+                <label className={`text-sm font-medium ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                  Send Payment Link
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedTierId || ''}
+                    onChange={(e) => setSelectedTierId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                    className={`flex-1 px-3 py-2.5 rounded-xl border ${isDark ? 'bg-[#1a1d12] border-white/20 text-white' : 'bg-white border-gray-200 text-gray-800'}`}
+                  >
+                    <option value="">Select a tier...</option>
+                    {membershipTiers.map(t => (
+                      <option key={t.id} value={t.id} disabled={!t.hasStripePrice}>
+                        {t.name} - ${(t.priceCents / 100).toFixed(0)}/{t.billingInterval}
+                        {!t.hasStripePrice && ' (not synced)'}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      if (!selectedTierId) {
+                        alert('Please select a tier first');
+                        return;
+                      }
+                      setSendingPaymentLink(true);
+                      try {
+                        const res = await fetch('/api/stripe/staff/send-membership-link', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ 
+                            email: member.email,
+                            firstName: member.firstName || member.name?.split(' ')[0] || '',
+                            lastName: member.lastName || member.name?.split(' ').slice(1).join(' ') || '',
+                            tierId: selectedTierId
+                          })
+                        });
+                        if (res.ok) {
+                          alert(`Payment link sent to ${member.email}`);
+                        } else {
+                          const data = await res.json();
+                          alert(data.error || 'Failed to send payment link');
+                        }
+                      } catch (err) {
+                        alert('Failed to send payment link');
+                      } finally {
+                        setSendingPaymentLink(false);
+                      }
+                    }}
+                    disabled={sendingPaymentLink || !selectedTierId}
+                    className="py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+                    title="Send payment link for selected tier"
+                  >
+                    {sendingPaymentLink ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <span className="material-symbols-outlined text-lg">link</span>
+                    )}
+                  </button>
+                </div>
+              </div>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors"
+                className="w-full py-2.5 px-4 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors"
                 title="Permanently delete visitor"
               >
                 <span className="material-symbols-outlined text-lg">delete_forever</span>
+                Delete Visitor
               </button>
             </div>
           )}

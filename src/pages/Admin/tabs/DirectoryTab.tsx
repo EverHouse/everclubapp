@@ -165,8 +165,8 @@ type SortField = 'name' | 'tier' | 'visits' | 'joinDate' | 'lastVisit';
 type SortDirection = 'asc' | 'desc';
 type MemberTab = 'active' | 'former' | 'visitors';
 
-type VisitorType = 'all' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
-type VisitorSource = 'all' | 'mindbody' | 'hubspot' | 'stripe';
+type VisitorType = 'all' | 'NEW' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
+type VisitorSource = 'all' | 'mindbody' | 'hubspot' | 'stripe' | 'APP';
 type VisitorSortField = 'name' | 'type' | 'source' | 'lastActivity' | 'createdAt';
 
 interface Visitor {
@@ -1102,6 +1102,7 @@ const DirectoryTab: React.FC = () => {
                                 aria-label="Filter by type"
                             >
                                 <option value="all">All Types</option>
+                                <option value="NEW">New (Staff Added)</option>
                                 <option value="classpass">ClassPass</option>
                                 <option value="sim_walkin">Sim Walk-In</option>
                                 <option value="private_lesson">Private Lesson</option>
@@ -1116,6 +1117,7 @@ const DirectoryTab: React.FC = () => {
                                 aria-label="Filter by source"
                             >
                                 <option value="all">All Sources</option>
+                                <option value="APP">App (Staff Added)</option>
                                 <option value="hubspot">HubSpot</option>
                                 <option value="mindbody">MindBody</option>
                                 <option value="stripe">Stripe</option>

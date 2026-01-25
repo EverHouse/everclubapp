@@ -663,7 +663,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               className="flex items-center gap-2 px-4 py-2 bg-green-600/90 text-white rounded-full shadow-lg whitespace-nowrap backdrop-blur-sm"
             >
               <span className="material-symbols-outlined text-lg" aria-hidden="true">person_add</span>
-              <span className="text-sm font-medium">New Member</span>
+              <span className="text-sm font-medium">New User</span>
             </button>
             <button
               role="menuitem"
@@ -703,7 +703,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
                 ? 'bg-red-500/80 text-white backdrop-blur-xl rotate-45' 
                 : 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl'
             } border border-white/30`}
-            title="Quick Actions: New Member, Announcement, or Notice"
+            title="Quick Actions: New User, Announcement, or Notice"
           >
             <span className="material-symbols-outlined text-2xl" aria-hidden="true">add</span>
           </button>

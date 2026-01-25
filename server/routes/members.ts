@@ -2045,7 +2045,8 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       // Stripe: has stripe_customer_id AND no mindbody data
       sourceCondition = `AND u.stripe_customer_id IS NOT NULL 
         AND u.mindbody_client_id IS NULL 
-        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'`;
+        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'
+        AND u.data_source IS DISTINCT FROM 'APP'`;
     } else if (sourceFilter === 'mindbody') {
       // MindBody: has mindbody_client_id OR legacy_source = 'mindbody_import'
       sourceCondition = `AND (u.mindbody_client_id IS NOT NULL OR u.legacy_source = 'mindbody_import')`;
@@ -2054,7 +2055,11 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       sourceCondition = `AND u.hubspot_id IS NOT NULL 
         AND u.stripe_customer_id IS NULL 
         AND u.mindbody_client_id IS NULL
-        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'`;
+        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'
+        AND u.data_source IS DISTINCT FROM 'APP'`;
+    } else if (sourceFilter === 'APP') {
+      // APP: Staff added via the app
+      sourceCondition = `AND u.data_source = 'APP'`;
     }
     
     // Build type filter - filter by computed type
@@ -2081,6 +2086,9 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     } else if (typeFilter === 'private_lesson') {
       typeConditionCount = "AND computed_type = 'private_lesson'";
       typeConditionMain = "AND effective_type = 'private_lesson'";
+    } else if (typeFilter === 'NEW') {
+      typeConditionCount = "AND computed_type = 'NEW'";
+      typeConditionMain = "AND effective_type = 'NEW'";
     }
     
     // Build search condition
@@ -2255,6 +2263,9 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     // Priority: actual data indicators > billing_provider
     // For visitors, "source" indicates where the contact data came from
     const getSource = (row: any): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
+      // APP: explicitly set data_source = 'APP' from staff adding via app
+      if (row.data_source === 'APP') return 'app';
+      
       const hasMindbodyData = row.mindbody_client_id || row.legacy_source === 'mindbody_import';
       const hasStripeData = !!row.stripe_customer_id;
       const hasHubspotData = !!row.hubspot_id;
@@ -2283,12 +2294,13 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     };
     
     // Determine type based on effective_type computed in SQL (includes classpass, sim_walkin, private_lesson)
-    // Types: classpass, sim_walkin, private_lesson, day_pass, guest, lead
-    type VisitorTypeValue = 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
+    // Types: NEW, classpass, sim_walkin, private_lesson, day_pass, guest, lead
+    type VisitorTypeValue = 'NEW' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
     const getType = (row: any): VisitorTypeValue => {
       // Use the computed effective_type from SQL which handles all logic including legacy purchase detection
       if (row.effective_type) {
         const et = row.effective_type as string;
+        if (et === 'NEW') return 'NEW';
         if (et === 'classpass') return 'classpass';
         if (et === 'sim_walkin') return 'sim_walkin';
         if (et === 'private_lesson') return 'private_lesson';
@@ -2298,6 +2310,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       }
       // Fallback to stored visitor_type (normalize old values)
       if (row.visitor_type) {
+        if (row.visitor_type === 'NEW') return 'NEW';
         if (row.visitor_type === 'classpass') return 'classpass';
         if (row.visitor_type === 'sim_walkin') return 'sim_walkin';
         if (row.visitor_type === 'private_lesson') return 'private_lesson';
@@ -2855,7 +2868,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
 
 router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email, firstName, lastName, phone, createStripeCustomer = true } = req.body;
+    const { email, firstName, lastName, phone, createStripeCustomer = true, visitorType, dataSource } = req.body;
     
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -2943,10 +2956,10 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     const userId = crypto.randomUUID();
     
     const insertResult = await pool.query(`
-      INSERT INTO users (id, email, first_name, last_name, phone, role, membership_status, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, 'visitor', 'visitor', NOW(), NOW())
-      RETURNING id, email, first_name, last_name, phone, role, membership_status
-    `, [userId, normalizedEmail, firstName || null, lastName || null, phone || null]);
+      INSERT INTO users (id, email, first_name, last_name, phone, role, membership_status, visitor_type, data_source, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 'visitor', 'visitor', $6, $7, NOW(), NOW())
+      RETURNING id, email, first_name, last_name, phone, role, membership_status, visitor_type, data_source
+    `, [userId, normalizedEmail, firstName || null, lastName || null, phone || null, visitorType || null, dataSource || null]);
     
     const newUser = insertResult.rows[0];
     let stripeCustomerId: string | null = null;
@@ -2987,6 +3000,8 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         phone: newUser.phone,
         role: newUser.role,
         membershipStatus: newUser.membership_status,
+        visitorType: newUser.visitor_type,
+        dataSource: newUser.data_source,
         stripeCustomerId
       }
     });

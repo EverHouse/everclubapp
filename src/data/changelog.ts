@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.20.0",
+    date: "2026-01-25",
+    title: "New User Flow & Visitor Payment Links",
+    isMajor: true,
+    changes: [
+      "New: 'New User' modal replaces 'Invite New Member' - now creates visitor records without requiring immediate payment",
+      "New: Staff can add users with just name, email, and optional phone - no tier selection required upfront",
+      "New: Newly added users appear in Directory's Visitors tab with type 'New (Staff Added)'",
+      "New: Visitor profile drawer now includes tier selection dropdown for sending payment links",
+      "New: When visitors pay via payment link, they automatically become active members with Stripe billing",
+      "New: Membership status syncs to HubSpot when subscription is activated",
+      "Improved: Removed 'New Booking' from staff quick actions menu - all simulator bookings go through Trackman"
+    ]
+  },
+  {
     version: "9.19.0",
     date: "2026-01-25",
     title: "Pre-Declare Players & Participant Notifications",
