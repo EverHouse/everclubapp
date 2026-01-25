@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.22.0",
+    date: "2026-01-25",
+    title: "Stripe Tier Synchronization",
+    changes: [
+      "New: 'Sync Tier from Stripe' button in member billing section for manual tier updates",
+      "New: Tier sync endpoint matches Stripe subscription product names to membership tiers",
+      "Improved: Webhook handlers now fallback to product name matching when price ID lookup fails",
+      "Improved: Tier sync supports VIP, Premium, Corporate, Core, and Social tier keywords"
+    ]
+  },
+  {
     version: "9.21.0",
     date: "2026-01-25",
     title: "Day Pass Management & UI Improvements",
