@@ -535,13 +535,25 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
 });
 
 // Route alias for account-balance endpoint
+// Supports ?user_email param for "View As" feature when staff views as another member
 router.get('/api/my-billing/account-balance', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user.email;
+    const sessionEmail = req.session.user.email;
+    const sessionRole = req.session.user.role;
+    
+    // Support "View As" feature: staff can pass user_email param to view as another member
+    const requestedEmail = req.query.user_email as string | undefined;
+    let targetEmail = sessionEmail;
+    
+    if (requestedEmail && requestedEmail.toLowerCase() !== sessionEmail.toLowerCase()) {
+      if (sessionRole === 'admin' || sessionRole === 'staff') {
+        targetEmail = decodeURIComponent(requestedEmail);
+      }
+    }
     
     const result = await pool.query(
       `SELECT stripe_customer_id, role FROM users WHERE LOWER(email) = $1`,
-      [email.toLowerCase()]
+      [targetEmail.toLowerCase()]
     );
     
     // Staff/admin don't have account balances

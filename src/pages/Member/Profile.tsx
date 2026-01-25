@@ -93,7 +93,8 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     if (user?.email && !isStaffOrAdminProfile) {
-      fetch('/api/my-billing/account-balance', { credentials: 'include' })
+      // Pass user_email param to support "View As" feature
+      fetch(`/api/my-billing/account-balance?user_email=${encodeURIComponent(user.email)}`, { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => data && setAccountBalance({ balanceDollars: data.balanceDollars || 0, isCredit: data.isCredit || false }))
         .catch(err => console.error('Error fetching balance:', err));

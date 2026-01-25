@@ -9,6 +9,7 @@ import { createDealForLegacyMember } from "../core/hubspotDeals";
 import { getHubSpotClient } from "../core/integrations";
 import { retryableHubSpotRequest } from "../core/hubspot/request";
 import { listCustomerInvoices } from "../core/stripe/invoices";
+import { getStripeClient } from "../core/stripe/client";
 import { getSessionUser } from "../types/session";
 import path from "path";
 import { normalizeTierName as normalizeTierNameUtil, normalizeTierSlug } from '../utils/tierUtils';
@@ -245,8 +246,37 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
     };
   });
   
+  // Get Stripe Balance Transactions (credits from add_funds, etc.)
+  let unifiedBalanceTransactions: UnifiedPurchase[] = [];
+  
+  if (userInfo?.stripeCustomerId) {
+    try {
+      const stripe = await getStripeClient();
+      const balanceTransactions = await stripe.customers.listBalanceTransactions(
+        userInfo.stripeCustomerId,
+        { limit: 50 }
+      );
+      
+      // Only show credit transactions (negative amounts = credits in Stripe)
+      unifiedBalanceTransactions = balanceTransactions.data
+        .filter(txn => txn.amount < 0) // Credits have negative amounts
+        .map(txn => ({
+          id: `balance-${txn.id}`,
+          type: 'stripe' as const,
+          itemName: txn.description || 'Account Balance Top-Up',
+          itemCategory: 'add_funds',
+          amountCents: Math.abs(txn.amount), // Convert to positive for display
+          date: new Date(txn.created * 1000).toISOString(),
+          status: 'paid',
+          source: 'Stripe',
+        }));
+    } catch (balanceError) {
+      console.error('[UnifiedPurchases] Error fetching balance transactions:', balanceError);
+    }
+  }
+  
   // Combine and sort by date descending (items with invalid/empty dates go to end)
-  const combined = [...unifiedLegacy, ...unifiedStripeInvoices, ...unifiedPaymentIntents, ...unifiedCashCheckPayments];
+  const combined = [...unifiedLegacy, ...unifiedStripeInvoices, ...unifiedPaymentIntents, ...unifiedCashCheckPayments, ...unifiedBalanceTransactions];
   combined.sort((a, b) => {
     const dateA = a.date ? new Date(a.date).getTime() : 0;
     const dateB = b.date ? new Date(b.date).getTime() : 0;
