@@ -42,6 +42,11 @@ interface Invoice {
   invoicePdf?: string;
 }
 
+interface BillingProvider {
+  value: string;
+  label: string;
+}
+
 interface StripeBillingSectionProps {
   activeSubscription: Subscription | null;
   paymentMethods?: PaymentMethod[];
@@ -63,6 +68,10 @@ interface StripeBillingSectionProps {
   isWalletOnly?: boolean;
   onSyncStripeData?: () => void;
   isSyncingStripeData?: boolean;
+  billingProvider?: string | null;
+  billingProviders?: BillingProvider[];
+  onUpdateBillingSource?: (source: string) => void;
+  isUpdatingSource?: boolean;
 }
 
 function formatCurrency(cents: number): string {
@@ -114,6 +123,10 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
   isWalletOnly = false,
   onSyncStripeData,
   isSyncingStripeData = false,
+  billingProvider,
+  billingProviders = [],
+  onUpdateBillingSource,
+  isUpdatingSource = false,
 }) => {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -210,6 +223,34 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                     {activeSubscription.discount.coupon.name || activeSubscription.discount.coupon.id}
                     {activeSubscription.discount.coupon.percentOff && ` (${activeSubscription.discount.coupon.percentOff}% off)`}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {onUpdateBillingSource && billingProviders.length > 0 && (
+              <div>
+                <p className={`text-xs mb-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Billing Source</p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={billingProvider || ''}
+                    onChange={(e) => onUpdateBillingSource(e.target.value)}
+                    disabled={isUpdatingSource}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
+                      isDark
+                        ? 'bg-black/30 border-white/20 text-white'
+                        : 'bg-white border-gray-200 text-primary'
+                    } disabled:opacity-50`}
+                  >
+                    <option value="">None</option>
+                    {billingProviders.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                  {isUpdatingSource && (
+                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  )}
                 </div>
               </div>
             )}

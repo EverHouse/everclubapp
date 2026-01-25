@@ -924,35 +924,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         </p>
       </div>
 
-      <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-        <div className="flex items-center gap-2 mb-4">
-          <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>payments</span>
-          <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Billing Source</h3>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={billingInfo?.billingProvider || ''}
-            onChange={(e) => handleUpdateBillingSource(e.target.value)}
-            disabled={isUpdatingSource}
-            className={`flex-1 px-3 py-2 rounded-lg border text-sm ${
-              isDark
-                ? 'bg-black/30 border-white/20 text-white'
-                : 'bg-white border-gray-200 text-primary'
-            } disabled:opacity-50`}
-          >
-            <option value="">None</option>
-            {BILLING_PROVIDERS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-          {isUpdatingSource && (
-            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-          )}
-        </div>
-      </div>
-
       {/* Stripe Sync Actions - Only show separate section when no Stripe customer yet */}
       {!billingInfo?.stripeCustomerId && (
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
@@ -1005,6 +976,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           isWalletOnly={billingInfo.billingProvider !== 'stripe'}
           onSyncStripeData={handleSyncStripeData}
           isSyncingStripeData={isSyncingStripeData}
+          billingProvider={billingInfo.billingProvider}
+          billingProviders={BILLING_PROVIDERS}
+          onUpdateBillingSource={handleUpdateBillingSource}
+          isUpdatingSource={isUpdatingSource}
         />
       )}
 

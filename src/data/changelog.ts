@@ -15,14 +15,15 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "9.22.0",
     date: "2026-01-25",
-    title: "Stripe Data Sync Improvements",
+    title: "Billing UI Consolidation",
     changes: [
+      "New: Billing Source dropdown now inside Subscription card for cleaner layout",
       "New: 'Sync' button moved into Subscription section next to 'Change Tier' button",
       "New: Status badge now appears inline with Subscription section title",
       "New: Single sync button performs metadata, tier, and transaction cache sync in one click",
       "Fixed: Stripe Customer ID and HubSpot ID now display in member profile header",
       "Fixed: Tier sync now correctly returns tier data for already-matching tiers",
-      "Improved: Cleaner billing UI with Stripe setup section only showing when needed"
+      "Improved: Cleaner billing UI with fewer separate sections"
     ]
   },
   {
