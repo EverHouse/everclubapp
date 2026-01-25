@@ -239,6 +239,83 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const result = await pool.query(`
+      SELECT 
+        twe.id,
+        twe.event_type,
+        twe.trackman_booking_id,
+        twe.matched_booking_id,
+        twe.matched_user_id,
+        twe.processing_error,
+        twe.processed_at,
+        twe.created_at,
+        twe.retry_count,
+        twe.last_retry_at,
+        br.user_email as matched_user_email,
+        br.request_date,
+        br.start_time,
+        br.end_time,
+        br.resource_id
+      FROM trackman_webhook_events twe
+      LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id
+      ORDER BY twe.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    
+    const countResult = await pool.query(`SELECT COUNT(*) as total FROM trackman_webhook_events`);
+    
+    res.json({
+      events: result.rows,
+      total: parseInt(countResult.rows[0].total),
+      limit,
+      offset
+    });
+  } catch (error: any) {
+    logger.error('[Trackman Webhook] Failed to fetch webhook events', { error });
+    res.status(500).json({ error: 'Failed to fetch webhook events' });
+  }
+});
+
+router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const stats = await pool.query(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE matched_booking_id IS NOT NULL) as matched,
+        COUNT(*) FILTER (WHERE matched_booking_id IS NULL AND processing_error IS NULL) as unmatched,
+        COUNT(*) FILTER (WHERE processing_error IS NOT NULL) as errors,
+        COUNT(*) FILTER (WHERE event_type = 'booking.created') as created,
+        COUNT(*) FILTER (WHERE event_type = 'booking.cancelled') as cancelled,
+        COUNT(*) FILTER (WHERE twe.matched_booking_id IS NOT NULL AND br.is_unmatched = true) as matched_but_unlinked
+      FROM trackman_webhook_events twe
+      LEFT JOIN booking_requests br ON twe.matched_booking_id = br.id
+      WHERE twe.created_at >= NOW() - INTERVAL '30 days'
+    `);
+    
+    const slotStats = await pool.query(`
+      SELECT 
+        COUNT(*) as total_slots,
+        COUNT(*) FILTER (WHERE status = 'booked') as booked,
+        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled,
+        COUNT(*) FILTER (WHERE slot_date >= CURRENT_DATE) as upcoming
+      FROM trackman_bay_slots
+    `);
+    
+    res.json({
+      webhookStats: stats.rows[0],
+      slotStats: slotStats.rows[0],
+    });
+  } catch (error: any) {
+    logger.error('[Trackman Webhook] Failed to fetch stats', { error });
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 router.get('/api/admin/trackman-webhook/stats', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const stats = await pool.query(`
