@@ -3052,15 +3052,63 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     // Generate a fake Trackman booking ID
     const fakeTrackmanId = `SIM-${Date.now()}`;
 
+    // Create billing session if it doesn't exist
+    let sessionId = booking.session_id;
+    if (!sessionId && booking.resource_id) {
+      try {
+        const sessionResult = await pool.query(`
+          INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+          VALUES ($1, $2, $3, $4, $5, 'staff_manual', 'simulate_confirm')
+          RETURNING id
+        `, [booking.resource_id, booking.request_date, booking.start_time, booking.end_time, fakeTrackmanId]);
+        
+        if (sessionResult.rows.length > 0) {
+          sessionId = sessionResult.rows[0].id;
+          
+          // Create participants - owner first
+          const playerCount = booking.declared_player_count || 1;
+          
+          // Create owner participant
+          const userResult = await pool.query(
+            `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`,
+            [booking.user_email]
+          );
+          const userId = userResult.rows[0]?.id || null;
+          
+          await pool.query(`
+            INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+            VALUES ($1, $2, 'owner', $3, 'pending')
+          `, [sessionId, userId, booking.user_name || 'Member']);
+          
+          // Create guest participant slots
+          for (let i = 1; i < playerCount; i++) {
+            await pool.query(`
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+              VALUES ($1, NULL, 'guest', $2, 'pending')
+            `, [sessionId, `Guest ${i + 1}`]);
+          }
+          
+          logger.info('[Simulate Confirm] Created session and participants', {
+            bookingId,
+            sessionId,
+            playerCount
+          });
+        }
+      } catch (sessionError) {
+        logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { error: sessionError });
+      }
+    }
+
     // Update the booking to approved status
     await pool.query(
       `UPDATE booking_requests 
        SET status = 'approved', 
            trackman_booking_id = $1,
+           session_id = COALESCE(session_id, $3),
            notes = COALESCE(notes, '') || E'\n[Simulated confirmation for testing]',
            updated_at = NOW()
        WHERE id = $2`,
-      [fakeTrackmanId, bookingId]
+      [fakeTrackmanId, bookingId, sessionId]
     );
 
     // Charge overage fee using invoice (applies customer balance automatically)
