@@ -29,6 +29,13 @@ The application uses a React 19 frontend with Vite, styled with Tailwind CSS, an
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling, and entry/exit animations.
 - **Drawer UX**: MemberProfileDrawer hides bottom navigation and floating action button on mobile.
 
+### Backend Route Organization (v9.25.0+)
+The backend routes are organized into modular directories for maintainability:
+- **server/routes/stripe/** - Payment processing (config, payments, subscriptions, invoices, coupons, overage, member-payments, admin)
+- **server/routes/members/** - Member management (search, profile, admin-actions, communications, notes, visitors)
+- **server/routes/bays/** - Booking system (resources, bookings, approval, calendar, notifications)
+- **server/routes/trackman/** - Trackman integration (webhook handling, validation, billing, imports, admin, reconciliation)
+
 ### Technical Implementations
 - **Core Stack**: React 19 (Vite), React Router DOM, Express.js (REST API), PostgreSQL, Tailwind CSS.
 - **Timezone Handling**: All date/time operations prioritize the 'America/Los_Angeles' timezone.
