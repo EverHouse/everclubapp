@@ -1276,7 +1276,7 @@ const BookGolf: React.FC = () => {
                           }`}
                         />
                         {activeSearchIndex === index && playerSearchResults[index]?.length > 0 && (
-                          <div className={`absolute z-20 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden max-h-48 overflow-y-auto ${
+                          <div className={`absolute z-50 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden max-h-48 overflow-y-auto ${
                             isDark ? 'bg-[#1a1f0e] border-white/20' : 'bg-white border-black/10'
                           }`}>
                             {playerSearchResults[index].map((result) => (
@@ -1305,7 +1305,7 @@ const BookGolf: React.FC = () => {
                           </div>
                         )}
                         {slot.searchQuery.length >= 2 && (playerSearchResults[index]?.length ?? 0) === 0 && activeSearchIndex === index && (
-                          <div className={`absolute z-20 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden ${
+                          <div className={`absolute z-50 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden ${
                             isDark ? 'bg-[#1a1f0e] border-white/20' : 'bg-white border-black/10'
                           }`}>
                             <div className={`px-3 py-2.5 text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
