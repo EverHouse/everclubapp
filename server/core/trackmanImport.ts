@@ -1342,21 +1342,31 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
 
       const parsedBayId = parseInt(row.bayNumber) || null;
 
+      // Match ONLY by trackman_booking_id to prevent notes-based cross-updates that could affect wrong bookings
       const existingBooking = await db.select({ 
         id: bookingRequests.id,
         resourceId: bookingRequests.resourceId,
         startTime: bookingRequests.startTime,
         endTime: bookingRequests.endTime,
         durationMinutes: bookingRequests.durationMinutes,
-        notes: bookingRequests.notes
+        notes: bookingRequests.notes,
+        trackmanPlayerCount: bookingRequests.trackmanPlayerCount,
+        declaredPlayerCount: bookingRequests.declaredPlayerCount,
+        trackmanCustomerNotes: bookingRequests.trackmanCustomerNotes,
+        sessionId: bookingRequests.sessionId,
+        userEmail: bookingRequests.userEmail,
+        userName: bookingRequests.userName,
+        origin: bookingRequests.origin,
+        isUnmatched: bookingRequests.isUnmatched
       })
         .from(bookingRequests)
-        .where(sql`trackman_booking_id = ${row.bookingId} OR notes LIKE ${'%[Trackman Import ID:' + row.bookingId + ']%'}`)
+        .where(eq(bookingRequests.trackmanBookingId, row.bookingId))
         .limit(1);
       
       if (existingBooking.length > 0) {
-        // Booking already exists - update with latest data from CSV
+        // Booking already exists - update with latest data from CSV (backfill webhook-created bookings)
         const existing = existingBooking[0];
+        const isWebhookCreated = existing.origin === 'trackman_webhook';
         
         // Build update object with changed fields
         const updateFields: Record<string, any> = {};
@@ -1396,6 +1406,31 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           changes.push('notes: added from Trackman');
         }
         
+        // BACKFILL: Update player counts if import has better data
+        // Webhook bookings often have playerCount=1 by default or missing player count
+        if (row.playerCount >= 1) {
+          const existingPlayerCount = existing.trackmanPlayerCount ?? existing.declaredPlayerCount ?? 0;
+          if (existingPlayerCount === 0 || (row.playerCount > existingPlayerCount)) {
+            updateFields.trackmanPlayerCount = row.playerCount;
+            updateFields.declaredPlayerCount = row.playerCount;
+            changes.push(`playerCount: ${existingPlayerCount} -> ${row.playerCount}`);
+          }
+        }
+        
+        // BACKFILL: Add notes from import if existing booking has no customer notes
+        if (!existing.trackmanCustomerNotes && row.notes) {
+          updateFields.trackmanCustomerNotes = row.notes;
+          changes.push('trackmanNotes: added from import');
+        }
+        
+        // BACKFILL: If this was an unmatched webhook booking, update member info from import
+        if (existing.isUnmatched && matchedEmail) {
+          updateFields.userEmail = matchedEmail;
+          updateFields.userName = row.userName;
+          updateFields.isUnmatched = false;
+          changes.push(`member: linked ${matchedEmail}`);
+        }
+        
         // Always update sync tracking fields
         updateFields.lastSyncSource = 'trackman_import';
         updateFields.lastTrackmanSyncAt = new Date();
@@ -1407,7 +1442,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             .set(updateFields)
             .where(eq(bookingRequests.id, existing.id));
           
-          process.stderr.write(`[Trackman Import] Updated booking #${existing.id} (Trackman ID: ${row.bookingId}): ${changes.join(', ')}\n`);
+          process.stderr.write(`[Trackman Import] Updated booking #${existing.id} (Trackman ID: ${row.bookingId}): ${changes.join(', ')}${isWebhookCreated ? ' [webhook backfill]' : ''}\n`);
           updatedRows++;
         } else {
           // No field changes, but still update sync tracking
@@ -1416,6 +1451,77 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             .where(eq(bookingRequests.id, existing.id));
           matchedRows++;
         }
+        
+        // BACKFILL: Create missing booking_members slots for WEBHOOK-ORIGINATED bookings only
+        // This prevents inflation of player slots when re-importing CSV files for non-webhook bookings
+        if (isWebhookCreated && row.playerCount >= 1) {
+          const targetPlayerCount = row.playerCount;
+          const existingMembers = await db.select({ id: bookingMembers.id, slotNumber: bookingMembers.slotNumber })
+            .from(bookingMembers)
+            .where(eq(bookingMembers.bookingId, existing.id));
+          
+          // Build set of existing slot numbers to find truly missing slots (handles non-contiguous slots)
+          const existingSlotNumbers = new Set(existingMembers.map(m => m.slotNumber));
+          const slotsToCreate: number[] = [];
+          for (let slot = 1; slot <= targetPlayerCount; slot++) {
+            if (!existingSlotNumbers.has(slot)) {
+              slotsToCreate.push(slot);
+            }
+          }
+          
+          if (slotsToCreate.length > 0) {
+            // Parse players from notes to try to fill slots with actual player info
+            const parsedPlayers = parseNotesForPlayers(row.notes);
+            
+            // Create only the missing slots
+            for (const slot of slotsToCreate) {
+              const playerInfo = parsedPlayers.find(p => p.slotNumber === slot);
+              const slotEmail = playerInfo?.email || null;
+              const isPrimary = slot === 1;
+              
+              await db.insert(bookingMembers).values({
+                bookingId: existing.id,
+                userEmail: isPrimary && matchedEmail ? matchedEmail : slotEmail,
+                slotNumber: slot,
+                isPrimary: isPrimary,
+                trackmanBookingId: row.bookingId,
+                linkedAt: slotEmail || (isPrimary && matchedEmail) ? new Date() : null,
+                linkedBy: slotEmail || (isPrimary && matchedEmail) ? 'trackman_import' : null
+              });
+            }
+            
+            process.stderr.write(`[Trackman Import] Created ${slotsToCreate.length} player slots (${slotsToCreate.join(',')}) for webhook booking #${existing.id}\n`);
+          }
+        }
+        
+        // BACKFILL: Create session and participants for WEBHOOK-ORIGINATED bookings if missing
+        // Only backfill if we have confirmed ownership and required fields
+        if (isWebhookCreated && !existing.sessionId && parsedBayId && bookingDate && startTime) {
+          const ownerEmail = matchedEmail || existing.userEmail;
+          const ownerName = row.userName || existing.userName;
+          
+          // Only create session if we have a confirmed owner email
+          if (ownerEmail && ownerEmail !== 'unmatched@trackman.import') {
+            const backfillParsedPlayers = parseNotesForPlayers(row.notes);
+            await createTrackmanSessionAndParticipants({
+              bookingId: existing.id,
+              trackmanBookingId: row.bookingId,
+              resourceId: parsedBayId,
+              sessionDate: bookingDate,
+              startTime: startTime,
+              endTime: endTime,
+              durationMinutes: row.durationMins,
+              ownerEmail: ownerEmail,
+              ownerName: ownerName || 'Unknown',
+              parsedPlayers: backfillParsedPlayers,
+              membersByEmail: membersByEmail,
+              trackmanEmailMapping: trackmanEmailMapping,
+              isPast: !isUpcoming
+            });
+            process.stderr.write(`[Trackman Import] Backfilled session for webhook booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
+          }
+        }
+        
         continue;
       }
       if (!parsedBayId && row.bayNumber) {
