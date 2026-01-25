@@ -6,6 +6,7 @@ import { and, isNotNull, eq } from 'drizzle-orm';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { alertOnSyncFailure } from '../../dataAlerts';
+import { getPacificMidnightUTC } from '../../../utils/dateUtils';
 
 export async function syncGoogleCalendarEvents(): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
   try {
@@ -16,9 +17,9 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
       return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: `Calendar "${CALENDAR_CONFIG.events.name}" not found` };
     }
     
-    const oneYearAgo = new Date();
+    // Use Pacific midnight for consistent timezone handling
+    const oneYearAgo = getPacificMidnightUTC();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    oneYearAgo.setHours(0, 0, 0, 0);
     
     const response = await calendar.events.list({
       calendarId,

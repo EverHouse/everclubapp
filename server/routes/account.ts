@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../core/db';
 import { notifyAllStaff } from '../core/notificationService';
 import { getResendClient } from '../utils/resend';
+import { logAndRespond } from '../core/logger';
 
 const router = Router();
 
@@ -69,7 +70,7 @@ router.post('/api/account/delete-request', async (req: Request, res: Response) =
         `
       });
     } catch (emailError) {
-      console.warn('[Account] Failed to send deletion confirmation email:', emailError);
+      console.warn('[Account] Failed to send deletion confirmation email (non-blocking):', emailError);
     }
 
     console.log(`[Account] Deletion request submitted for ${user.email}`);
@@ -79,8 +80,7 @@ router.post('/api/account/delete-request', async (req: Request, res: Response) =
       message: 'Your deletion request has been submitted. Our team will process it within 7 business days.'
     });
   } catch (error) {
-    console.error('[Account] Error processing deletion request:', error);
-    return res.status(500).json({ error: 'Failed to submit deletion request' });
+    return logAndRespond(req, res, 500, 'Failed to submit deletion request', error);
   }
 });
 

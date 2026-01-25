@@ -2,6 +2,7 @@ import { pool } from '../../db';
 import { getGoogleCalendarClient } from '../../integrations';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
+import { getPacificMidnightUTC } from '../../../utils/dateUtils';
 
 export function parseClosureMetadata(description: string): { affectedAreas?: string; notifyMembers?: boolean } {
   const result: { affectedAreas?: string; notifyMembers?: boolean } = {};
@@ -213,12 +214,12 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       return { synced: 0, created: 0, updated: 0, deleted: 0, error: `Calendar "${CALENDAR_CONFIG.internal.name}" not found` };
     }
     
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    // Use Pacific midnight for consistent timezone handling
+    const pacificMidnight = getPacificMidnightUTC();
     
     const response = await calendar.events.list({
       calendarId,
-      timeMin: now.toISOString(),
+      timeMin: pacificMidnight.toISOString(),
       maxResults: 100,
       singleEvents: true,
       orderBy: 'startTime',

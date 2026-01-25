@@ -2,7 +2,7 @@ import { getGoogleCalendarClient } from '../../integrations';
 import { db } from '../../../db';
 import { bookingRequests, users } from '../../../../shared/models/auth';
 import { eq, and, ilike, or, sql } from 'drizzle-orm';
-import { getTodayPacific } from '../../../utils/dateUtils';
+import { getTodayPacific, getPacificMidnightUTC } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG, ConferenceRoomBooking, MemberMatchResult, CalendarEventData } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { getConferenceRoomId } from '../../affectedAreas';
@@ -19,12 +19,12 @@ export async function getConferenceRoomBookingsFromCalendar(
       return [];
     }
     
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    // Use Pacific midnight for consistent timezone handling
+    const pacificMidnight = getPacificMidnightUTC();
     
     const response = await calendar.events.list({
       calendarId,
-      timeMin: now.toISOString(),
+      timeMin: pacificMidnight.toISOString(),
       maxResults: 100,
       singleEvents: true,
       orderBy: 'startTime',
@@ -333,14 +333,14 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
     const todayPacific = getTodayPacific();
     
+    // Use Pacific midnight for consistent timezone handling
     let timeMin: Date;
     if (options?.monthsBack !== undefined) {
-      timeMin = new Date();
+      // Get Pacific midnight and subtract months
+      timeMin = getPacificMidnightUTC();
       timeMin.setMonth(timeMin.getMonth() - options.monthsBack);
-      timeMin.setHours(0, 0, 0, 0);
     } else {
-      timeMin = new Date();
-      timeMin.setHours(0, 0, 0, 0);
+      timeMin = getPacificMidnightUTC();
     }
 
     let pageToken: string | undefined = undefined;

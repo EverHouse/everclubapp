@@ -5,6 +5,7 @@ import {
   bookingParticipants, 
   usageLedger,
   guests,
+  users,
   InsertBookingSession,
   InsertBookingParticipant,
   InsertUsageLedger,
@@ -14,6 +15,9 @@ import {
 import { eq } from 'drizzle-orm';
 import { logger } from '../logger';
 import { getMemberTierByEmail } from '../tierService';
+
+// Transaction context type - allows functions to participate in an outer transaction
+export type TransactionContext = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type BookingSource = 'member_request' | 'staff_manual' | 'trackman_import';
 export type ParticipantType = 'owner' | 'member' | 'guest';
@@ -51,8 +55,10 @@ export interface RecordUsageInput {
 export async function createSession(
   request: CreateSessionRequest,
   participants: ParticipantInput[],
-  source: BookingSource = 'member_request'
+  source: BookingSource = 'member_request',
+  tx?: TransactionContext
 ): Promise<{ session: BookingSession; participants: BookingParticipant[] }> {
+  const dbCtx = tx || db;
   try {
     const sessionData: InsertBookingSession = {
       resourceId: request.resourceId,
@@ -64,12 +70,12 @@ export async function createSession(
       createdBy: request.createdBy
     };
     
-    const [session] = await db
+    const [session] = await dbCtx
       .insert(bookingSessions)
       .values(sessionData)
       .returning();
     
-    const linkedParticipants = await linkParticipants(session.id, participants);
+    const linkedParticipants = await linkParticipants(session.id, participants, tx);
     
     logger.info('[createSession] Session created', {
       extra: { 
@@ -88,8 +94,10 @@ export async function createSession(
 
 export async function linkParticipants(
   sessionId: number,
-  participants: ParticipantInput[]
+  participants: ParticipantInput[],
+  tx?: TransactionContext
 ): Promise<BookingParticipant[]> {
+  const dbCtx = tx || db;
   if (!participants || participants.length === 0) {
     return [];
   }
@@ -141,7 +149,7 @@ export async function linkParticipants(
       inviteExpiresAt: p.inviteExpiresAt
     }));
     
-    const inserted = await db
+    const inserted = await dbCtx
       .insert(bookingParticipants)
       .values(participantRecords)
       .returning();
@@ -156,18 +164,23 @@ export async function linkParticipants(
 export async function recordUsage(
   sessionId: number,
   input: RecordUsageInput,
-  source: BookingSource = 'member_request'
+  source: BookingSource = 'member_request',
+  tx?: TransactionContext
 ): Promise<void> {
+  const dbCtx = tx || db;
   try {
     let tierAtBooking = input.tierAtBooking;
     
+    // If tier not provided, look it up - use transaction context for consistency
     if (!tierAtBooking && input.memberId) {
-      const result = await pool.query(
-        `SELECT email FROM users WHERE id = $1 LIMIT 1`,
-        [input.memberId]
-      );
-      if (result.rows[0]?.email) {
-        tierAtBooking = await getMemberTierByEmail(result.rows[0].email) || undefined;
+      const userResult = await dbCtx
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, input.memberId))
+        .limit(1);
+      
+      if (userResult[0]?.email) {
+        tierAtBooking = await getMemberTierByEmail(userResult[0].email) || undefined;
       }
     }
     
@@ -182,7 +195,7 @@ export async function recordUsage(
       source
     };
     
-    await db.insert(usageLedger).values(usageData);
+    await dbCtx.insert(usageLedger).values(usageData);
     
     logger.info('[recordUsage] Usage recorded', {
       extra: { 
@@ -455,7 +468,6 @@ import {
   calculateFullSessionBilling,
   type Participant as UsageParticipant 
 } from './usageCalculator';
-import { users } from '../../../shared/schema';
 
 /**
  * Resolves a user ID (UUID) to their email address.
@@ -518,10 +530,11 @@ export interface OrchestratedSessionResult {
  */
 export async function createSessionWithUsageTracking(
   request: OrchestratedSessionRequest,
-  source: BookingSource = 'member_request'
+  source: BookingSource = 'member_request',
+  externalTx?: TransactionContext
 ): Promise<OrchestratedSessionResult> {
   try {
-    // Step 1: Get owner's tier and enforce Social tier rules
+    // Step 1: Get owner's tier and enforce Social tier rules (pre-transaction validation)
     const ownerTier = await getMemberTier(request.ownerEmail);
     
     if (ownerTier) {
@@ -541,8 +554,7 @@ export async function createSessionWithUsageTracking(
       }
     }
     
-    // Step 2: Resolve all participant user IDs to emails for tier lookups
-    // Build a map of userId -> email for quick lookup
+    // Step 2: Resolve all participant user IDs to emails for tier lookups (pre-transaction)
     const userIdToEmail = new Map<string, string>();
     for (const p of request.participants) {
       if (p.userId) {
@@ -553,21 +565,7 @@ export async function createSessionWithUsageTracking(
       }
     }
     
-    // Step 3: Create session and link participants
-    const { session, participants: linkedParticipants } = await createSession(
-      {
-        resourceId: request.resourceId,
-        sessionDate: request.sessionDate,
-        startTime: request.startTime,
-        endTime: request.endTime,
-        trackmanBookingId: request.trackmanBookingId,
-        createdBy: request.ownerEmail
-      },
-      request.participants,
-      source
-    );
-    
-    // Step 4: Build participants for billing calculation
+    // Step 3: Build participants for billing calculation (pre-transaction)
     const billingParticipants: UsageParticipant[] = request.participants.map(p => ({
       userId: p.userId,
       email: p.userId ? userIdToEmail.get(p.userId) : undefined,
@@ -576,7 +574,7 @@ export async function createSessionWithUsageTracking(
       displayName: p.displayName
     }));
     
-    // Step 5: Calculate billing using the new centralized billing calculator
+    // Step 4: Calculate billing using the centralized billing calculator (pre-transaction)
     const billingResult = await calculateFullSessionBilling(
       request.sessionDate,
       request.durationMinutes,
@@ -584,49 +582,75 @@ export async function createSessionWithUsageTracking(
       request.ownerEmail
     );
     
-    // Step 6: Record usage ledger entries based on billing breakdown
-    let ledgerEntriesCreated = 0;
-    
-    for (const billing of billingResult.billingBreakdown) {
-      if (billing.participantType === 'guest') {
-        // Guest fees are assigned to the host, but with minutesCharged=0 
-        // to avoid double-counting in host's daily usage
-        if (billing.guestFee > 0) {
+    // Step 5: Execute database writes - either within external transaction or our own
+    // This ensures all-or-nothing: if any step fails, everything rolls back
+    const executeDbWrites = async (tx: TransactionContext) => {
+      // Create session and link participants within transaction
+      const { session, participants: linkedParticipants } = await createSession(
+        {
+          resourceId: request.resourceId,
+          sessionDate: request.sessionDate,
+          startTime: request.startTime,
+          endTime: request.endTime,
+          trackmanBookingId: request.trackmanBookingId,
+          createdBy: request.ownerEmail
+        },
+        request.participants,
+        source,
+        tx
+      );
+      
+      // Record usage ledger entries within the same transaction
+      let ledgerEntriesCreated = 0;
+      
+      for (const billing of billingResult.billingBreakdown) {
+        if (billing.participantType === 'guest') {
+          // Guest fees are assigned to the host, but with minutesCharged=0 
+          // to avoid double-counting in host's daily usage
+          if (billing.guestFee > 0) {
+            await recordUsage(session.id, {
+              memberId: request.ownerEmail,
+              minutesCharged: 0,
+              overageFee: 0,
+              guestFee: billing.guestFee,
+              tierAtBooking: ownerTier || undefined,
+              paymentMethod: 'unpaid'
+            }, source, tx);
+            ledgerEntriesCreated++;
+          }
+        } else {
+          // Record member/owner usage with their calculated overage fee
+          const memberEmail = billing.email || billing.userId || '';
           await recordUsage(session.id, {
-            memberId: request.ownerEmail,
-            minutesCharged: 0,  // Don't add to host's usage minutes
-            overageFee: 0,
-            guestFee: billing.guestFee,
-            tierAtBooking: ownerTier || undefined,
+            memberId: memberEmail,
+            minutesCharged: billing.minutesAllocated,
+            overageFee: billing.overageFee,
+            guestFee: 0,
+            tierAtBooking: billing.tierName || undefined,
             paymentMethod: 'unpaid'
-          }, source);
+          }, source, tx);
           ledgerEntriesCreated++;
         }
-      } else {
-        // Record member/owner usage with their calculated overage fee
-        const memberEmail = billing.email || billing.userId || '';
-        await recordUsage(session.id, {
-          memberId: memberEmail,
-          minutesCharged: billing.minutesAllocated,
-          overageFee: billing.overageFee,
-          guestFee: 0,
-          tierAtBooking: billing.tierName || undefined,
-          paymentMethod: 'unpaid'
-        }, source);
-        ledgerEntriesCreated++;
       }
-    }
+      
+      return { session, linkedParticipants, ledgerEntriesCreated };
+    };
+    
+    // Use external transaction if provided, otherwise create our own
+    const txResult = externalTx 
+      ? await executeDbWrites(externalTx)
+      : await db.transaction(executeDbWrites);
     
     logger.info('[createSessionWithUsageTracking] Session created with new billing', {
       extra: {
-        sessionId: session.id,
+        sessionId: txResult.session.id,
         totalOverageFees: billingResult.totalOverageFees,
         totalGuestFees: billingResult.totalGuestFees,
         guestPassesUsed: billingResult.guestPassesUsed
       }
     });
     
-    // Deduct guest passes from host's allocation if any were used
+    // Step 6: Deduct guest passes (outside transaction - separate concern)
     if (billingResult.guestPassesUsed > 0) {
       const deductResult = await deductGuestPasses(
         request.ownerEmail, 
@@ -643,18 +667,18 @@ export async function createSessionWithUsageTracking(
     
     logger.info('[createSessionWithUsageTracking] Session created with usage tracking', {
       extra: {
-        sessionId: session.id,
-        participantCount: linkedParticipants.length,
-        ledgerEntries: ledgerEntriesCreated,
+        sessionId: txResult.session.id,
+        participantCount: txResult.linkedParticipants.length,
+        ledgerEntries: txResult.ledgerEntriesCreated,
         source
       }
     });
     
     return {
       success: true,
-      session,
-      participants: linkedParticipants,
-      usageLedgerEntries: ledgerEntriesCreated
+      session: txResult.session,
+      participants: txResult.linkedParticipants,
+      usageLedgerEntries: txResult.ledgerEntriesCreated
     };
   } catch (error) {
     logger.error('[createSessionWithUsageTracking] Error:', { error: error as Error });

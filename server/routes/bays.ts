@@ -1164,6 +1164,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             
             // Use createSessionWithUsageTracking for full billing calculation
             // This creates session, participants, usage_ledger entries, and calculates fees
+            // Pass tx to ensure session creation is atomic with the booking approval
             const sessionResult = await createSessionWithUsageTracking(
               {
                 ownerEmail: updatedRow.userEmail,
@@ -1179,7 +1180,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 }],
                 trackmanBookingId: updatedRow.trackmanBookingId || undefined
               },
-              'member_request'
+              'member_request',
+              tx
             );
             
             if (sessionResult.success && sessionResult.session) {
