@@ -1195,6 +1195,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               memberId={member.id} 
               currentTier={displayedTier}
               onTierUpdate={(newTier) => setDisplayedTier(newTier)}
+              guestPassInfo={history?.guestPassInfo}
+              guestHistory={guestHistory}
+              guestCheckInsHistory={history?.guestCheckInsHistory}
+              purchases={purchases}
             />
           </div>
         );

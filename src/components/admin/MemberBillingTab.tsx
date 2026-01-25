@@ -7,12 +7,32 @@ import { FamilyAddonBillingSection } from './billing/FamilyAddonBillingSection';
 import { CompedBillingSection } from './billing/CompedBillingSection';
 import { TierChangeWizard } from './billing/TierChangeWizard';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
+import GroupBillingManager from './GroupBillingManager';
+
+interface GuestHistoryItem {
+  id: number;
+  guestName: string | null;
+  guestEmail: string | null;
+  visitDate: string;
+  startTime: string;
+  resourceName: string | null;
+}
+
+interface GuestCheckInItem {
+  id: number;
+  guestName: string | null;
+  checkInDate: string;
+}
 
 interface MemberBillingTabProps {
   memberEmail: string;
   memberId?: number;
   currentTier?: string;
   onTierUpdate?: (tier: string) => void;
+  guestPassInfo?: { remainingPasses: number; totalUsed: number } | null;
+  guestHistory?: GuestHistoryItem[];
+  guestCheckInsHistory?: GuestCheckInItem[];
+  purchases?: Array<any>;
 }
 
 interface Subscription {
@@ -424,11 +444,34 @@ function PauseDurationModal({
   );
 }
 
+const formatDatePacific = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  try {
+    const normalizedDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
+    const d = new Date(normalizedDate);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
+  } catch {
+    return dateStr || '';
+  }
+};
+
+const formatTime12Hour = (timeStr: string): string => {
+  if (!timeStr) return '';
+  const [hours, minutes] = timeStr.substring(0, 5).split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
+};
+
 const MemberBillingTab: React.FC<MemberBillingTabProps> = ({ 
   memberEmail, 
   memberId, 
   currentTier, 
-  onTierUpdate 
+  onTierUpdate,
+  guestPassInfo,
+  guestHistory = [],
+  guestCheckInsHistory = [],
+  purchases = []
 }) => {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
@@ -1053,6 +1096,226 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Guest Passes Section */}
+      <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+        <div className="flex items-center gap-2 mb-4">
+          <span className={`material-symbols-outlined ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>badge</span>
+          <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Guest Passes</h3>
+        </div>
+        
+        {guestPassInfo ? (
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-lg text-green-500">confirmation_number</span>
+                <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {guestPassInfo.remainingPasses}
+                </span>
+              </div>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Remaining Passes</p>
+            </div>
+            <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-lg text-blue-500">history</span>
+                <span className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {guestPassInfo.totalUsed}
+                </span>
+              </div>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Used Passes</p>
+            </div>
+          </div>
+        ) : (
+          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'} mb-4`}>
+            No guest pass information available
+          </p>
+        )}
+
+        {guestHistory.length > 0 && (
+          <div className="mb-4">
+            <h4 className={`text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Guests Brought to Bookings ({guestHistory.length})
+            </h4>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {guestHistory.map((guest) => (
+                <div key={guest.id} className={`p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'} flex items-center justify-between`}>
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {guest.guestName || guest.guestEmail || 'Unknown Guest'}
+                    </p>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      {guest.resourceName} · {formatDatePacific(guest.visitDate)} at {formatTime12Hour(guest.startTime)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {guestCheckInsHistory.length > 0 && (
+          <div>
+            <h4 className={`text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Guest Check-In History ({guestCheckInsHistory.length})
+            </h4>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {guestCheckInsHistory.map((checkIn) => (
+                <div key={checkIn.id} className={`p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'} flex items-center justify-between`}>
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {checkIn.guestName || 'Unknown Guest'}
+                    </p>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      Checked in on {formatDatePacific(checkIn.checkInDate)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {guestHistory.length === 0 && guestCheckInsHistory.length === 0 && !guestPassInfo && (
+          <div className={`text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            <span className="material-symbols-outlined text-3xl mb-2">group_off</span>
+            <p className="text-sm">No guest activity recorded</p>
+          </div>
+        )}
+      </div>
+
+      {/* Group Billing Section */}
+      <GroupBillingManager memberEmail={memberEmail} />
+
+      {/* Purchase History Section */}
+      {purchases.length > 0 && (
+        <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <div className="flex items-center gap-2 mb-4">
+            <span className={`material-symbols-outlined ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>receipt_long</span>
+            <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Purchase History</h3>
+          </div>
+          
+          {(() => {
+            const categoryLabels: Record<string, string> = {
+              sim_walk_in: 'Sim Walk-In',
+              guest_pass: 'Guest Pass',
+              membership: 'Membership',
+              cafe: 'Cafe',
+              retail: 'Retail',
+              add_funds: 'Account Top-Up',
+              subscription: 'Subscription',
+              payment: 'Payment',
+              invoice: 'Invoice',
+              other: 'Other',
+            };
+            
+            const categoryColors: Record<string, string> = {
+              sim_walk_in: isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700',
+              guest_pass: isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700',
+              membership: isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700',
+              cafe: isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-100 text-orange-700',
+              retail: isDark ? 'bg-pink-500/20 text-pink-300' : 'bg-pink-100 text-pink-700',
+              add_funds: isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700',
+              subscription: isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700',
+              payment: isDark ? 'bg-cyan-500/20 text-cyan-300' : 'bg-cyan-100 text-cyan-700',
+              invoice: isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700',
+              other: isDark ? 'bg-gray-500/20 text-gray-300' : 'bg-gray-100 text-gray-700',
+            };
+            
+            const categoryIcons: Record<string, string> = {
+              sim_walk_in: 'golf_course',
+              guest_pass: 'badge',
+              membership: 'card_membership',
+              cafe: 'local_cafe',
+              retail: 'shopping_bag',
+              add_funds: 'account_balance_wallet',
+              subscription: 'autorenew',
+              payment: 'payments',
+              invoice: 'receipt_long',
+              other: 'receipt',
+            };
+            
+            const categoryOrder = ['add_funds', 'subscription', 'membership', 'sim_walk_in', 'guest_pass', 'payment', 'invoice', 'cafe', 'retail', 'other'];
+            const groupedPurchases = purchases.reduce((acc: Record<string, any[]>, purchase: any) => {
+              const category = purchase.itemCategory || 'other';
+              if (!acc[category]) {
+                acc[category] = [];
+              }
+              acc[category].push(purchase);
+              return acc;
+            }, {});
+            
+            const formatCurrency = (cents: number | undefined | null): string => {
+              if (cents == null || isNaN(cents)) return '$0.00';
+              return `$${(cents / 100).toFixed(2)}`;
+            };
+            
+            return (
+              <div className="space-y-6">
+                {categoryOrder.map(category => {
+                  const categoryPurchases = groupedPurchases[category];
+                  if (!categoryPurchases || categoryPurchases.length === 0) return null;
+                  
+                  return (
+                    <div key={category}>
+                      <h4 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 ${categoryColors[category] || categoryColors.other}`}>
+                          <span className="material-symbols-outlined text-xs">{categoryIcons[category] || 'receipt'}</span>
+                          {categoryLabels[category] || category}
+                        </span>
+                        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          ({categoryPurchases.length})
+                        </span>
+                      </h4>
+                      <div className="space-y-3">
+                        {categoryPurchases.slice(0, 5).map((purchase: any) => {
+                          const displayDate = purchase.saleDate || purchase.date;
+                          const displayAmount = purchase.salePriceCents || purchase.amountCents || 0;
+                          const displaySource = purchase.source || (purchase.type === 'stripe' ? 'Stripe' : '');
+                          
+                          return (
+                            <div key={purchase.id} className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                      {purchase.itemName}
+                                    </span>
+                                    {purchase.quantity > 1 && (
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
+                                        x{purchase.quantity}
+                                      </span>
+                                    )}
+                                    {displaySource && (
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>
+                                        {displaySource}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                    {formatDatePacific(displayDate)}
+                                  </p>
+                                </div>
+                                <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                  {formatCurrency(displayAmount)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {categoryPurchases.length > 5 && (
+                          <p className={`text-xs text-center ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                            +{categoryPurchases.length - 5} more {categoryLabels[category] || category} purchases
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
