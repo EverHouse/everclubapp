@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.25.1",
+    date: "2026-01-25",
+    title: "Improved Player Selection for Booking Requests",
+    changes: [
+      "New: Search for club members when adding players to your booking - type a name to find them quickly",
+      "New: Search the guest directory to add previous visitors without re-entering their information",
+      "New: Guest fee now only applies when adding a non-member guest - adding club members is free",
+      "Improved: Clear messaging when no matches found - for members, you'll see a helpful note; for guests, you can add them by email",
+      "Fixed: Player information is now properly linked to member/visitor records for better tracking"
+    ]
+  },
+  {
     version: "9.25.0",
     date: "2026-01-25",
     title: "Codebase Modernization & Maintainability",
