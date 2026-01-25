@@ -1087,6 +1087,10 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             isSocialTier
           };
         }
+      } else {
+        // Empty slot - treat as pending guest with $25 fee until member is assigned
+        fee = 25;
+        feeNote = 'Pending assignment - $25';
       }
       
       return {
@@ -1253,7 +1257,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       // Fallback to calculated fees for legacy bookings without session_id
       const ownerMember = membersWithFees.find(m => m.isPrimary);
       const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);
-      guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0);
+      const emptySlots = membersWithFees.filter(m => !m.userEmail);
+      const emptySlotFees = emptySlots.length * 25;
+      guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0) + emptySlotFees;
       ownerOverageFee = ownerMember?.fee || 0;
       totalPlayersOwe = nonOwnerMembers.reduce((sum, m) => sum + m.fee, 0);
       playerBreakdownFromSession = nonOwnerMembers.map(m => ({
