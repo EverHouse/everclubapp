@@ -105,6 +105,10 @@ export const bookingRequests = pgTable("booking_requests", {
   lastSyncSource: varchar("last_sync_source"), // 'trackman_webhook' | 'trackman_import' | 'staff' | 'member'
   // Timestamp of last Trackman data sync (from webhook or import)
   lastTrackmanSyncAt: timestamp("last_trackman_sync_at"),
+  // Flag for private event bookings (removes from unmatched queue without member assignment)
+  isEvent: boolean("is_event").default(false),
+  // Flag indicating Trackman player count is higher than app request's declared player count
+  playerCountMismatch: boolean("player_count_mismatch").default(false),
 }, (table) => [
   index("idx_booking_requests_trackman_booking_id").on(table.trackmanBookingId),
   uniqueIndex("booking_requests_trackman_external_id_idx").on(table.trackmanExternalId),

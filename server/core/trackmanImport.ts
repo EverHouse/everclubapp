@@ -1352,7 +1352,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         notes: bookingRequests.notes,
         trackmanPlayerCount: bookingRequests.trackmanPlayerCount,
         declaredPlayerCount: bookingRequests.declaredPlayerCount,
+        guestCount: bookingRequests.guestCount,
         trackmanCustomerNotes: bookingRequests.trackmanCustomerNotes,
+        staffNotes: bookingRequests.staffNotes,
         sessionId: bookingRequests.sessionId,
         userEmail: bookingRequests.userEmail,
         userName: bookingRequests.userName,
@@ -1406,14 +1408,32 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           changes.push('notes: added from Trackman');
         }
         
-        // BACKFILL: Update player counts if import has better data
-        // Webhook bookings often have playerCount=1 by default or missing player count
+        // PLAYER COUNT HANDLING: Preserve app request's declared_player_count as source of truth
+        // Only update trackmanPlayerCount (Trackman's report), NEVER override declaredPlayerCount
         if (row.playerCount >= 1) {
-          const existingPlayerCount = existing.trackmanPlayerCount ?? existing.declaredPlayerCount ?? 0;
-          if (existingPlayerCount === 0 || (row.playerCount > existingPlayerCount)) {
+          // Always record what Trackman reports
+          if (existing.trackmanPlayerCount !== row.playerCount) {
             updateFields.trackmanPlayerCount = row.playerCount;
+            changes.push(`trackmanPlayerCount: ${existing.trackmanPlayerCount ?? 0} -> ${row.playerCount}`);
+          }
+          
+          // ONLY set declaredPlayerCount if the request never had one (webhook-only booking)
+          // App request's declared_player_count is the source of truth
+          const requestDeclaredCount = existing.declaredPlayerCount;
+          if (requestDeclaredCount === null || requestDeclaredCount === undefined || requestDeclaredCount === 0) {
+            // No app request declaration - use Trackman's count
             updateFields.declaredPlayerCount = row.playerCount;
-            changes.push(`playerCount: ${existingPlayerCount} -> ${row.playerCount}`);
+            changes.push(`declaredPlayerCount (backfill): 0 -> ${row.playerCount}`);
+          } else if (row.playerCount > requestDeclaredCount) {
+            // MISMATCH DETECTION: Trackman reports MORE players than app request declared
+            updateFields.playerCountMismatch = true;
+            const warningNote = `[Warning: Trackman reports ${row.playerCount} players but app request only declared ${requestDeclaredCount}]`;
+            const existingStaffNotes = existing.staffNotes || '';
+            if (!existingStaffNotes.includes('[Warning: Trackman reports')) {
+              updateFields.staffNotes = existingStaffNotes ? `${warningNote} ${existingStaffNotes}` : warningNote;
+              changes.push(`mismatch: Trackman ${row.playerCount} > request ${requestDeclaredCount}`);
+            }
+            process.stderr.write(`[Trackman Import] MISMATCH: Booking #${existing.id} - Trackman reports ${row.playerCount} players but app request declared ${requestDeclaredCount}\n`);
           }
         }
         
@@ -1454,9 +1474,17 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         
         // BACKFILL: Create missing booking_members slots for WEBHOOK-ORIGINATED bookings only
         // This prevents inflation of player slots when re-importing CSV files for non-webhook bookings
+        // Use request's declared_player_count as source of truth; only fall back to Trackman count if no request exists
         if (isWebhookCreated && row.playerCount >= 1) {
-          const targetPlayerCount = row.playerCount;
-          const existingMembers = await db.select({ id: bookingMembers.id, slotNumber: bookingMembers.slotNumber })
+          // Use request's declared player count if available, otherwise use Trackman's count
+          const requestPlayerCount = existing.declaredPlayerCount || 0;
+          const targetPlayerCount = requestPlayerCount > 0 ? requestPlayerCount : row.playerCount;
+          
+          const existingMembers = await db.select({ 
+            id: bookingMembers.id, 
+            slotNumber: bookingMembers.slotNumber,
+            userEmail: bookingMembers.userEmail 
+          })
             .from(bookingMembers)
             .where(eq(bookingMembers.bookingId, existing.id));
           
@@ -1473,7 +1501,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             // Parse players from notes to try to fill slots with actual player info
             const parsedPlayers = parseNotesForPlayers(row.notes);
             
-            // Create only the missing slots
+            // Create only the missing slots (preserves existing participants from request)
             for (const slot of slotsToCreate) {
               const playerInfo = parsedPlayers.find(p => p.slotNumber === slot);
               const slotEmail = playerInfo?.email || null;
@@ -1490,7 +1518,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               });
             }
             
-            process.stderr.write(`[Trackman Import] Created ${slotsToCreate.length} player slots (${slotsToCreate.join(',')}) for webhook booking #${existing.id}\n`);
+            process.stderr.write(`[Trackman Import] Created ${slotsToCreate.length} player slots (${slotsToCreate.join(',')}) for webhook booking #${existing.id} (target: ${targetPlayerCount}, source: ${requestPlayerCount > 0 ? 'request' : 'trackman'})\n`);
           }
         }
         
@@ -1539,7 +1567,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               id: bookingRequests.id,
               trackmanBookingId: bookingRequests.trackmanBookingId,
               status: bookingRequests.status,
-              sessionId: bookingRequests.sessionId
+              sessionId: bookingRequests.sessionId,
+              declaredPlayerCount: bookingRequests.declaredPlayerCount,
+              guestCount: bookingRequests.guestCount,
+              staffNotes: bookingRequests.staffNotes
             })
               .from(bookingRequests)
               .where(sql`
@@ -1555,44 +1586,66 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               const existing = existingAppBooking[0];
               if (!existing.trackmanBookingId) {
                 // Link Trackman ID to existing app booking with sync tracking
+                // Preserve request's player count - only update trackmanPlayerCount, not declaredPlayerCount
+                const updateFields: Record<string, any> = { 
+                  trackmanBookingId: row.bookingId,
+                  trackmanPlayerCount: row.playerCount,
+                  lastSyncSource: 'trackman_import',
+                  lastTrackmanSyncAt: new Date(),
+                  updatedAt: new Date()
+                };
+                
+                // Check for player count mismatch (Trackman > request)
+                const requestPlayerCount = existing.declaredPlayerCount || 0;
+                if (requestPlayerCount > 0 && row.playerCount > requestPlayerCount) {
+                  updateFields.playerCountMismatch = true;
+                  const warningNote = `[Warning: Trackman reports ${row.playerCount} players but app request only declared ${requestPlayerCount}]`;
+                  const existingStaffNotes = existing.staffNotes || '';
+                  if (!existingStaffNotes.includes('[Warning: Trackman reports')) {
+                    updateFields.staffNotes = existingStaffNotes ? `${warningNote} ${existingStaffNotes}` : warningNote;
+                  }
+                  process.stderr.write(`[Trackman Import] MISMATCH: Linking booking #${existing.id} - Trackman reports ${row.playerCount} players but app request declared ${requestPlayerCount}\n`);
+                }
+                
                 await db.update(bookingRequests)
-                  .set({ 
-                    trackmanBookingId: row.bookingId,
-                    lastSyncSource: 'trackman_import',
-                    lastTrackmanSyncAt: new Date(),
-                    updatedAt: new Date()
-                  })
+                  .set(updateFields)
                   .where(eq(bookingRequests.id, existing.id));
                 
                 // Create player slots for this linked booking
-                if (row.playerCount >= 1) {
-                  // Check if booking_members already exist
-                  const existingMembers = await db.select({ id: bookingMembers.id })
+                // Use request's declared player count as source of truth
+                const targetPlayerCount = requestPlayerCount > 0 ? requestPlayerCount : row.playerCount;
+                
+                if (targetPlayerCount >= 1) {
+                  // Check if booking_members already exist (preserve existing participants)
+                  const existingMembers = await db.select({ 
+                    id: bookingMembers.id,
+                    slotNumber: bookingMembers.slotNumber,
+                    userEmail: bookingMembers.userEmail
+                  })
                     .from(bookingMembers)
                     .where(eq(bookingMembers.bookingId, existing.id));
                   
-                  if (existingMembers.length === 0) {
-                    // Create primary member slot
-                    await db.insert(bookingMembers).values({
-                      bookingId: existing.id,
-                      userEmail: matchedEmail,
-                      slotNumber: 1,
-                      isPrimary: true,
-                      trackmanBookingId: row.bookingId,
-                      linkedAt: new Date(),
-                      linkedBy: 'trackman_import'
-                    });
-                    
-                    // Create additional empty slots for remaining players
-                    for (let slot = 2; slot <= row.playerCount; slot++) {
+                  // Build set of existing slot numbers to preserve them
+                  const existingSlotNumbers = new Set(existingMembers.map(m => m.slotNumber));
+                  
+                  // Only create missing slots (don't duplicate)
+                  for (let slot = 1; slot <= targetPlayerCount; slot++) {
+                    if (!existingSlotNumbers.has(slot)) {
+                      const isPrimary = slot === 1;
                       await db.insert(bookingMembers).values({
                         bookingId: existing.id,
-                        userEmail: null,
+                        userEmail: isPrimary ? matchedEmail : null,
                         slotNumber: slot,
-                        isPrimary: false,
-                        trackmanBookingId: row.bookingId
+                        isPrimary: isPrimary,
+                        trackmanBookingId: row.bookingId,
+                        linkedAt: isPrimary ? new Date() : null,
+                        linkedBy: isPrimary ? 'trackman_import' : null
                       });
                     }
+                  }
+                  
+                  if (existingMembers.length > 0) {
+                    process.stderr.write(`[Trackman Import] Preserved ${existingMembers.length} existing booking_members for booking #${existing.id}\n`);
                   }
                 }
                 
@@ -1637,11 +1690,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     isPast: !isUpcoming
                   });
                   
-                  // Also update player counts if missing
+                  // Update only trackmanPlayerCount (preserve declaredPlayerCount from app request)
                   await db.update(bookingRequests)
                     .set({ 
-                      trackmanPlayerCount: row.playerCount,
-                      declaredPlayerCount: row.playerCount
+                      trackmanPlayerCount: row.playerCount
                     })
                     .where(eq(bookingRequests.id, existing.id));
                   
@@ -1661,7 +1713,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               id: bookingRequests.id,
               trackmanBookingId: bookingRequests.trackmanBookingId,
               status: bookingRequests.status,
-              startTime: bookingRequests.startTime
+              startTime: bookingRequests.startTime,
+              declaredPlayerCount: bookingRequests.declaredPlayerCount,
+              staffNotes: bookingRequests.staffNotes
             })
               .from(bookingRequests)
               .where(sql`
@@ -1680,41 +1734,65 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             if (matchesWithinTolerance.length === 1) {
               // Exactly one match within tolerance - auto-link with sync tracking
               const existing = matchesWithinTolerance[0];
+              
+              // Preserve request's player count - only update trackmanPlayerCount
+              const updateFields: Record<string, any> = { 
+                trackmanBookingId: row.bookingId,
+                trackmanPlayerCount: row.playerCount,
+                lastSyncSource: 'trackman_import',
+                lastTrackmanSyncAt: new Date(),
+                updatedAt: new Date()
+              };
+              
+              // Check for player count mismatch (Trackman > request)
+              const requestPlayerCount = existing.declaredPlayerCount || 0;
+              if (requestPlayerCount > 0 && row.playerCount > requestPlayerCount) {
+                updateFields.playerCountMismatch = true;
+                const warningNote = `[Warning: Trackman reports ${row.playerCount} players but app request only declared ${requestPlayerCount}]`;
+                const existingStaffNotes = existing.staffNotes || '';
+                if (!existingStaffNotes.includes('[Warning: Trackman reports')) {
+                  updateFields.staffNotes = existingStaffNotes ? `${warningNote} ${existingStaffNotes}` : warningNote;
+                }
+                process.stderr.write(`[Trackman Import] MISMATCH: Tolerance linking booking #${existing.id} - Trackman reports ${row.playerCount} players but app request declared ${requestPlayerCount}\n`);
+              }
+              
               await db.update(bookingRequests)
-                .set({ 
-                  trackmanBookingId: row.bookingId,
-                  lastSyncSource: 'trackman_import',
-                  lastTrackmanSyncAt: new Date(),
-                  updatedAt: new Date()
-                })
+                .set(updateFields)
                 .where(eq(bookingRequests.id, existing.id));
               
               // Create player slots for this linked booking
-              if (row.playerCount >= 1) {
-                const existingMembers = await db.select({ id: bookingMembers.id })
+              // Use request's declared player count as source of truth
+              const targetPlayerCount = requestPlayerCount > 0 ? requestPlayerCount : row.playerCount;
+              
+              if (targetPlayerCount >= 1) {
+                const existingMembers = await db.select({ 
+                  id: bookingMembers.id,
+                  slotNumber: bookingMembers.slotNumber
+                })
                   .from(bookingMembers)
                   .where(eq(bookingMembers.bookingId, existing.id));
                 
-                if (existingMembers.length === 0) {
-                  await db.insert(bookingMembers).values({
-                    bookingId: existing.id,
-                    userEmail: matchedEmail,
-                    slotNumber: 1,
-                    isPrimary: true,
-                    trackmanBookingId: row.bookingId,
-                    linkedAt: new Date(),
-                    linkedBy: 'trackman_import'
-                  });
-                  
-                  for (let slot = 2; slot <= row.playerCount; slot++) {
+                // Build set of existing slot numbers to preserve them
+                const existingSlotNumbers = new Set(existingMembers.map(m => m.slotNumber));
+                
+                // Only create missing slots (don't duplicate)
+                for (let slot = 1; slot <= targetPlayerCount; slot++) {
+                  if (!existingSlotNumbers.has(slot)) {
+                    const isPrimary = slot === 1;
                     await db.insert(bookingMembers).values({
                       bookingId: existing.id,
-                      userEmail: null,
+                      userEmail: isPrimary ? matchedEmail : null,
                       slotNumber: slot,
-                      isPrimary: false,
-                      trackmanBookingId: row.bookingId
+                      isPrimary: isPrimary,
+                      trackmanBookingId: row.bookingId,
+                      linkedAt: isPrimary ? new Date() : null,
+                      linkedBy: isPrimary ? 'trackman_import' : null
                     });
                   }
+                }
+                
+                if (existingMembers.length > 0) {
+                  process.stderr.write(`[Trackman Import] Preserved ${existingMembers.length} existing booking_members for booking #${existing.id} (tolerance match)\n`);
                 }
               }
               

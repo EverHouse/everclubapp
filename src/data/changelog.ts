@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.24.0",
+    date: "2026-01-25",
+    title: "Trackman Booking Assignment Overhaul",
+    isMajor: true,
+    changes: [
+      "New: Redesigned 'Assign Member to Booking' modal with 4 player slots for unmatched Trackman bookings",
+      "New: Staff can add guest placeholders that count toward $25 fees immediately, with details added later",
+      "New: 'Mark as Private Event' option removes event blocks from unmatched queue without requiring member assignment",
+      "New: Member search in each slot with support for members, visitors, and guest placeholders",
+      "Improved: Player count from member requests is now preserved when Trackman imports match bookings",
+      "Improved: Trackman is source of truth for times/bay, app is source of truth for player count when request exists",
+      "Improved: Player count mismatch detection flags when Trackman reports more players than the app request",
+      "Improved: Merge logic preserves existing participants when webhook bookings link to member requests",
+      "Fixed: Guest fee calculation now works correctly for guest placeholder slots ($25 per guest)"
+    ]
+  },
+  {
     version: "9.23.1",
     date: "2026-01-25",
     title: "Membership Payment Labels",

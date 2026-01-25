@@ -3,7 +3,7 @@ import { eq, and, or, sql, desc, asc, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { pool } from '../core/db';
 import { bookingRateLimiter } from '../middleware/rateLimiting';
-import { resources, users, facilityClosures, notifications, bookingRequests, bookingParticipants, bookingMembers } from '../../shared/schema';
+import { resources, users, facilityClosures, notifications, bookingRequests, bookingParticipants, bookingMembers, bookingGuests } from '../../shared/schema';
 import { isAuthorizedForMemberBooking } from '../core/bookingAuth';
 import { isStaffOrAdmin } from '../core/middleware';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../core/calendar/index';
@@ -676,107 +676,158 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
 
 router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req, res) => {
   try {
-    const { trackman_booking_id, member_email, member_name, member_id } = req.body;
+    const { trackman_booking_id, owner, additional_players, member_email, member_name, member_id } = req.body;
     
     if (!trackman_booking_id) {
       return res.status(400).json({ error: 'Missing required field: trackman_booking_id' });
     }
     
-    if (!member_email || !member_name) {
-      return res.status(400).json({ error: 'Missing required fields: member_email, member_name' });
+    const ownerEmail = owner?.email || member_email;
+    const ownerName = owner?.name || member_name;
+    const ownerId = owner?.member_id || member_id;
+    
+    if (!ownerEmail || !ownerName) {
+      return res.status(400).json({ error: 'Missing required owner fields: email, name' });
     }
     
+    const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }> = additional_players || [];
+    const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
+    const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
+    
     const result = await db.transaction(async (tx) => {
-      // Check for existing booking by Trackman's booking ID (stored in trackmanBookingId column)
       const [existingBooking] = await tx.select()
         .from(bookingRequests)
         .where(eq(bookingRequests.trackmanBookingId, trackman_booking_id));
       
+      let booking;
+      let created = false;
+      
       if (existingBooking) {
         const [updated] = await tx.update(bookingRequests)
           .set({
-            userEmail: member_email.toLowerCase(),
-            userName: member_name,
-            userId: member_id || null,
+            userEmail: ownerEmail.toLowerCase(),
+            userName: ownerName,
+            userId: ownerId || null,
             isUnmatched: false,
-            staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Linked to member via Trackman webhook: ' || ${member_name} || ']'`,
+            declaredPlayerCount: totalPlayerCount,
+            guestCount: guestCount,
+            staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Linked to member via staff: ' || ${ownerName} || ' with ' || ${totalPlayerCount.toString()} || ' players]'`,
             updatedAt: new Date()
           })
           .where(eq(bookingRequests.id, existingBooking.id))
           .returning();
+        booking = updated;
+      } else {
+        const [webhookLog] = await tx.execute(sql`
+          SELECT payload, trackman_booking_id 
+          FROM trackman_webhook_events 
+          WHERE trackman_booking_id = ${trackman_booking_id}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `);
         
-        return { booking: updated, created: false };
-      }
-      
-      const [webhookLog] = await tx.execute(sql`
-        SELECT payload, trackman_booking_id 
-        FROM trackman_webhook_events 
-        WHERE trackman_booking_id = ${trackman_booking_id}
-        ORDER BY created_at DESC
-        LIMIT 1
-      `);
-      
-      if (!webhookLog) {
-        throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
-      }
-      
-      const payload = typeof webhookLog.payload === 'string' 
-        ? JSON.parse(webhookLog.payload) 
-        : webhookLog.payload;
-      const bookingData = payload?.data || payload?.booking || {};
-      
-      const startStr = bookingData?.start;
-      const endStr = bookingData?.end;
-      const bayRef = bookingData?.bay?.ref;
-      
-      if (!startStr || !endStr) {
-        throw { statusCode: 400, error: 'Cannot extract booking time from webhook data' };
-      }
-      
-      const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
-      const endDate = new Date(endStr.includes('T') ? endStr : endStr.replace(' ', 'T') + 'Z');
-      
-      const requestDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-      const startTime = startDate.toLocaleTimeString('en-US', { 
-        hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
-      }) + ':00';
-      const endTime = endDate.toLocaleTimeString('en-US', { 
-        hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
-      }) + ':00';
-      
-      let resourceId = 1;
-      if (bayRef) {
-        const bayNum = parseInt(bayRef);
-        if (bayNum >= 1 && bayNum <= 4) {
-          resourceId = bayNum;
+        if (!webhookLog) {
+          throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
         }
+        
+        const payload = typeof webhookLog.payload === 'string' 
+          ? JSON.parse(webhookLog.payload) 
+          : webhookLog.payload;
+        const bookingData = payload?.data || payload?.booking || {};
+        
+        const startStr = bookingData?.start;
+        const endStr = bookingData?.end;
+        const bayRef = bookingData?.bay?.ref;
+        
+        if (!startStr || !endStr) {
+          throw { statusCode: 400, error: 'Cannot extract booking time from webhook data' };
+        }
+        
+        const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
+        const endDate = new Date(endStr.includes('T') ? endStr : endStr.replace(' ', 'T') + 'Z');
+        
+        const requestDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+        const startTime = startDate.toLocaleTimeString('en-US', { 
+          hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+        }) + ':00';
+        const endTime = endDate.toLocaleTimeString('en-US', { 
+          hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+        }) + ':00';
+        
+        let resourceId = 1;
+        if (bayRef) {
+          const bayNum = parseInt(bayRef);
+          if (bayNum >= 1 && bayNum <= 4) {
+            resourceId = bayNum;
+          }
+        }
+        
+        const [newBooking] = await tx.insert(bookingRequests)
+          .values({
+            userEmail: ownerEmail.toLowerCase(),
+            userName: ownerName,
+            userId: ownerId || null,
+            resourceId,
+            requestDate,
+            startTime,
+            endTime,
+            status: 'approved',
+            trackmanBookingId: trackman_booking_id,
+            isUnmatched: false,
+            declaredPlayerCount: totalPlayerCount,
+            guestCount: guestCount,
+            staffNotes: `[Linked from Trackman webhook by staff: ${ownerName} with ${totalPlayerCount} players]`,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        booking = newBooking;
+        created = true;
+        
+        await tx.execute(sql`
+          UPDATE trackman_webhook_events 
+          SET matched_booking_id = ${booking.id}
+          WHERE trackman_booking_id = ${trackman_booking_id}
+        `);
       }
       
-      const [newBooking] = await tx.insert(bookingRequests)
-        .values({
-          userEmail: member_email.toLowerCase(),
-          userName: member_name,
-          userId: member_id || null,
-          resourceId,
-          requestDate,
-          startTime,
-          endTime,
-          status: 'approved',
-          trackmanBookingId: trackman_booking_id,
-          isUnmatched: false,
-          staffNotes: `[Linked from Trackman webhook by staff: ${member_name}]`,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning();
+      await tx.delete(bookingMembers).where(eq(bookingMembers.bookingId, booking.id));
+      await tx.delete(bookingGuests).where(eq(bookingGuests.bookingId, booking.id));
       
-      await tx.execute(sql`
-        UPDATE trackman_webhook_events 
-        SET matched_booking_id = ${newBooking.id}
-        WHERE trackman_booking_id = ${trackman_booking_id}
-      `);
+      await tx.insert(bookingMembers).values({
+        bookingId: booking.id,
+        userEmail: ownerEmail.toLowerCase(),
+        slotNumber: 1,
+        isPrimary: true,
+        trackmanBookingId: trackman_booking_id,
+        linkedAt: new Date(),
+        linkedBy: (req as any).user?.email || 'staff'
+      });
       
-      return { booking: newBooking, created: true };
+      let slotNumber = 2;
+      for (const player of additionalPlayers) {
+        if (player.type === 'member') {
+          await tx.insert(bookingMembers).values({
+            bookingId: booking.id,
+            userEmail: player.email?.toLowerCase(),
+            slotNumber,
+            isPrimary: false,
+            trackmanBookingId: trackman_booking_id,
+            linkedAt: new Date(),
+            linkedBy: (req as any).user?.email || 'staff'
+          });
+        } else if (player.type === 'guest_placeholder') {
+          await tx.insert(bookingGuests).values({
+            bookingId: booking.id,
+            guestName: player.guest_name || 'Guest (info pending)',
+            slotNumber,
+            trackmanBookingId: trackman_booking_id
+          });
+        }
+        slotNumber++;
+      }
+      
+      return { booking, created };
     });
     
     const { broadcastToStaff } = await import('../core/websocket');
@@ -784,27 +835,195 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       type: 'booking_updated',
       bookingId: result.booking.id,
       action: 'trackman_linked',
-      memberEmail: member_email,
-      memberName: member_name
+      memberEmail: ownerEmail,
+      memberName: ownerName,
+      totalPlayers: totalPlayerCount
     });
     
     logFromRequest(req, 'link_trackman_to_member', 'booking', result.booking.id.toString(), {
       trackman_booking_id,
-      member_email,
-      member_name,
+      owner_email: ownerEmail,
+      owner_name: ownerName,
+      total_players: totalPlayerCount,
+      guest_count: guestCount,
       was_created: result.created
     });
     
     res.json({ 
       success: true, 
       booking: result.booking, 
-      created: result.created 
+      created: result.created,
+      totalPlayers: totalPlayerCount,
+      guestCount 
     });
   } catch (error: any) {
     if (error.statusCode) {
       return res.status(error.statusCode).json({ error: error.error });
     }
     logAndRespond(req, res, 500, 'Failed to link Trackman booking to member', error, 'LINK_TRACKMAN_ERROR');
+  }
+});
+
+router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { booking_id, trackman_booking_id } = req.body;
+    
+    if (!booking_id && !trackman_booking_id) {
+      return res.status(400).json({ error: 'Missing required field: booking_id or trackman_booking_id' });
+    }
+    
+    let bookingId = booking_id;
+    
+    if (!bookingId && trackman_booking_id) {
+      const [existingBooking] = await db.select()
+        .from(bookingRequests)
+        .where(eq(bookingRequests.trackmanBookingId, trackman_booking_id));
+      
+      if (!existingBooking) {
+        return res.status(404).json({ error: 'Booking not found for trackman_booking_id' });
+      }
+      bookingId = existingBooking.id;
+    }
+    
+    const [updated] = await db.update(bookingRequests)
+      .set({
+        isEvent: true,
+        isUnmatched: false,
+        staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Marked as private event by staff]'`,
+        updatedAt: new Date()
+      })
+      .where(eq(bookingRequests.id, bookingId))
+      .returning();
+    
+    if (!updated) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    const { broadcastToStaff } = await import('../core/websocket');
+    broadcastToStaff({
+      type: 'booking_updated',
+      bookingId: updated.id,
+      action: 'marked_as_event'
+    });
+    
+    logFromRequest(req, 'mark_booking_as_event', 'booking', updated.id.toString(), {
+      booking_id: bookingId,
+      trackman_booking_id
+    });
+    
+    res.json({ success: true, booking: updated });
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to mark booking as event', error, 'MARK_EVENT_ERROR');
+  }
+});
+
+router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const { owner, additional_players } = req.body;
+    
+    if (!bookingId || isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+    
+    if (!owner?.email || !owner?.name) {
+      return res.status(400).json({ error: 'Missing required owner fields: email, name' });
+    }
+    
+    const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }> = additional_players || [];
+    const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
+    const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
+    
+    const result = await db.transaction(async (tx) => {
+      const [existingBooking] = await tx.select()
+        .from(bookingRequests)
+        .where(eq(bookingRequests.id, bookingId));
+      
+      if (!existingBooking) {
+        throw { statusCode: 404, error: 'Booking not found' };
+      }
+      
+      const [updated] = await tx.update(bookingRequests)
+        .set({
+          userEmail: owner.email.toLowerCase(),
+          userName: owner.name,
+          userId: owner.member_id || null,
+          isUnmatched: false,
+          declaredPlayerCount: totalPlayerCount,
+          guestCount: guestCount,
+          staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Assigned by staff: ' || ${owner.name} || ' with ' || ${totalPlayerCount.toString()} || ' players]'`,
+          updatedAt: new Date()
+        })
+        .where(eq(bookingRequests.id, bookingId))
+        .returning();
+      
+      await tx.delete(bookingMembers).where(eq(bookingMembers.bookingId, bookingId));
+      await tx.delete(bookingGuests).where(eq(bookingGuests.bookingId, bookingId));
+      
+      await tx.insert(bookingMembers).values({
+        bookingId: bookingId,
+        userEmail: owner.email.toLowerCase(),
+        slotNumber: 1,
+        isPrimary: true,
+        trackmanBookingId: existingBooking.trackmanBookingId,
+        linkedAt: new Date(),
+        linkedBy: (req as any).user?.email || 'staff'
+      });
+      
+      let slotNumber = 2;
+      for (const player of additionalPlayers) {
+        if (player.type === 'member') {
+          await tx.insert(bookingMembers).values({
+            bookingId: bookingId,
+            userEmail: player.email?.toLowerCase(),
+            slotNumber,
+            isPrimary: false,
+            trackmanBookingId: existingBooking.trackmanBookingId,
+            linkedAt: new Date(),
+            linkedBy: (req as any).user?.email || 'staff'
+          });
+        } else if (player.type === 'guest_placeholder') {
+          await tx.insert(bookingGuests).values({
+            bookingId: bookingId,
+            guestName: player.guest_name || 'Guest (info pending)',
+            slotNumber,
+            trackmanBookingId: existingBooking.trackmanBookingId
+          });
+        }
+        slotNumber++;
+      }
+      
+      return { booking: updated };
+    });
+    
+    const { broadcastToStaff } = await import('../core/websocket');
+    broadcastToStaff({
+      type: 'booking_updated',
+      bookingId: result.booking.id,
+      action: 'players_assigned',
+      memberEmail: owner.email,
+      memberName: owner.name,
+      totalPlayers: totalPlayerCount
+    });
+    
+    logFromRequest(req, 'assign_booking_with_players', 'booking', bookingId.toString(), {
+      owner_email: owner.email,
+      owner_name: owner.name,
+      total_players: totalPlayerCount,
+      guest_count: guestCount
+    });
+    
+    res.json({ 
+      success: true, 
+      booking: result.booking,
+      totalPlayers: totalPlayerCount,
+      guestCount 
+    });
+  } catch (error: any) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.error });
+    }
+    logAndRespond(req, res, 500, 'Failed to assign players to booking', error, 'ASSIGN_PLAYERS_ERROR');
   }
 });
 
