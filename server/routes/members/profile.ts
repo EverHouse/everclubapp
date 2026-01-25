@@ -353,14 +353,17 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       .where(sql`LOWER(${bookingGuests.guestEmail}) = ${normalizedEmail}`)
       .orderBy(desc(bookingRequests.requestDate));
     
+    // Return with field names that match frontend MemberHistory interface
     res.json({
-      bookings: enrichedBookingHistory,
-      eventRsvps: eventRsvpHistory,
-      wellness: wellnessHistory,
-      guestPass: guestPassInfo,
-      guestCheckIns: guestCheckInsHistory,
-      visits: visitHistory,
-      guestAppearances
+      bookingHistory: enrichedBookingHistory,
+      bookingRequestsHistory: [], // Legacy field - requests are now included in bookingHistory
+      eventRsvpHistory: eventRsvpHistory,
+      wellnessHistory: wellnessHistory,
+      guestPassInfo: guestPassInfo,
+      guestCheckInsHistory: guestCheckInsHistory,
+      visitHistory: visitHistory,
+      guestAppearances,
+      attendedVisitsCount: visitHistory.length
     });
   } catch (error: any) {
     if (!isProduction) console.error('Member history error:', error);

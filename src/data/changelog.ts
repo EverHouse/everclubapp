@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.25.2",
+    date: "2026-01-25",
+    title: "Staff Directory Activity Tab Fix",
+    changes: [
+      "Fixed: Member activity history now displays correctly in staff directory profile drawer",
+      "Fixed: Visit counts, booking history, event RSVPs, and wellness classes now show properly when viewing a member's profile",
+      "Note: Previously the Activity tab showed 'No activity history found' due to a data formatting issue"
+    ]
+  },
+  {
     version: "9.25.1",
     date: "2026-01-25",
     title: "Improved Player Selection for Booking Requests",
