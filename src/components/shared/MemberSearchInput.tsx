@@ -314,7 +314,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
         </div>
       )}
 
-      {isOpen && isSearching && (
+      {isOpen && isSearching && filteredMembers.length === 0 && (
         <div 
           className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-lg p-4 text-center"
         >
