@@ -119,6 +119,54 @@ router.get("/api/legacy-purchases/my-purchases", async (req: Request, res: Respo
   }
 });
 
+// Helper to clean up Stripe descriptions and show user-friendly names
+function cleanStripeDescription(description: string | null | undefined, purpose?: string): string {
+  if (!description) {
+    // Default friendly names based on purpose
+    const purposeLabels: Record<string, string> = {
+      'guest_fee': 'Guest Fee',
+      'overage_fee': 'Simulator Overage Fee',
+      'one_time_purchase': 'Purchase',
+      'add_funds': 'Account Balance Top-Up',
+      'subscription': 'Membership Subscription',
+      'invoice': 'Invoice Payment',
+    };
+    return purposeLabels[purpose || ''] || 'Payment';
+  }
+  
+  // Check for raw Stripe IDs and replace with friendly names
+  if (description.startsWith('cs_') || description.startsWith('pi_') || 
+      description.startsWith('in_') || description.startsWith('sub_')) {
+    const purposeLabels: Record<string, string> = {
+      'guest_fee': 'Guest Fee',
+      'overage_fee': 'Simulator Overage Fee',
+      'one_time_purchase': 'Purchase',
+      'add_funds': 'Account Balance Top-Up',
+      'subscription': 'Membership Subscription',
+    };
+    return purposeLabels[purpose || ''] || 'Payment';
+  }
+  
+  // Clean up common patterns
+  const lowerDesc = description.toLowerCase();
+  if (lowerDesc.includes('top-up') || lowerDesc.includes('topup') || 
+      lowerDesc.includes('add funds') || lowerDesc.includes('account balance')) {
+    return 'Account Balance Top-Up';
+  }
+  if (lowerDesc.includes('guest fee') || lowerDesc.includes('guest pass')) {
+    return 'Guest Fee';
+  }
+  if (lowerDesc.includes('overage') || lowerDesc.includes('simulator')) {
+    return 'Simulator Overage Fee';
+  }
+  if (lowerDesc.includes('subscription') || lowerDesc.includes('membership')) {
+    return 'Membership Payment';
+  }
+  
+  // Return original if it looks like a real description
+  return description;
+}
+
 // Helper to safely format dates that may be Date objects or strings
 function safeToISOString(value: Date | string | null | undefined): string {
   if (!value) return '';
@@ -180,18 +228,23 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
     const invoiceResult = await listCustomerInvoices(userInfo.stripeCustomerId);
     
     if (invoiceResult.success && invoiceResult.invoices) {
-      unifiedStripeInvoices = invoiceResult.invoices.map(inv => ({
-        id: `stripe-${inv.id}`,
-        type: 'stripe' as const,
-        itemName: inv.description || inv.lines.map(l => l.description).filter(Boolean).join(', ') || 'Stripe Invoice',
-        itemCategory: 'invoice',
-        amountCents: inv.amountPaid || inv.amountDue,
-        date: safeToISOString(inv.paidAt) || safeToISOString(inv.created),
-        status: inv.status,
-        source: 'Stripe',
-        hostedInvoiceUrl: inv.hostedInvoiceUrl,
-        stripeInvoiceId: inv.id,
-      }));
+      unifiedStripeInvoices = invoiceResult.invoices.map(inv => {
+        // Get raw description from invoice or line items
+        const rawDescription = inv.description || inv.lines.map(l => l.description).filter(Boolean).join(', ');
+        
+        return {
+          id: `stripe-${inv.id}`,
+          type: 'stripe' as const,
+          itemName: cleanStripeDescription(rawDescription, 'invoice'),
+          itemCategory: 'invoice',
+          amountCents: inv.amountPaid || inv.amountDue,
+          date: safeToISOString(inv.paidAt) || safeToISOString(inv.created),
+          status: inv.status,
+          source: 'Stripe',
+          hostedInvoiceUrl: inv.hostedInvoiceUrl,
+          stripeInvoiceId: inv.id,
+        };
+      });
     }
   }
   
@@ -210,7 +263,7 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
     unifiedPaymentIntents = paymentIntentsResult.rows.map((record: any) => ({
       id: `payment-${record.id}`,
       type: 'stripe' as const,
-      itemName: record.description || `${record.purpose} payment`,
+      itemName: cleanStripeDescription(record.description, record.purpose),
       itemCategory: record.purpose,
       amountCents: record.amount_cents,
       date: safeToISOString(record.created_at),
@@ -260,33 +313,16 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
       // Only show credit transactions (negative amounts = credits in Stripe)
       unifiedBalanceTransactions = balanceTransactions.data
         .filter(txn => txn.amount < 0) // Credits have negative amounts
-        .map(txn => {
-          // Clean up the description - Stripe often includes checkout session IDs
-          let cleanName = 'Account Balance Top-Up';
-          if (txn.description) {
-            // Check for common patterns and clean them up
-            if (txn.description.toLowerCase().includes('top-up') || 
-                txn.description.toLowerCase().includes('topup') ||
-                txn.description.toLowerCase().includes('add funds') ||
-                txn.description.toLowerCase().includes('balance')) {
-              cleanName = 'Account Balance Top-Up';
-            } else if (!txn.description.startsWith('cs_') && !txn.description.startsWith('pi_')) {
-              // Only use description if it's not a raw Stripe ID
-              cleanName = txn.description;
-            }
-          }
-          
-          return {
-            id: `balance-${txn.id}`,
-            type: 'stripe' as const,
-            itemName: cleanName,
-            itemCategory: 'add_funds',
-            amountCents: Math.abs(txn.amount),
-            date: new Date(txn.created * 1000).toISOString(),
-            status: 'paid',
-            source: 'Stripe',
-          };
-        });
+        .map(txn => ({
+          id: `balance-${txn.id}`,
+          type: 'stripe' as const,
+          itemName: cleanStripeDescription(txn.description, 'add_funds'),
+          itemCategory: 'add_funds',
+          amountCents: Math.abs(txn.amount),
+          date: new Date(txn.created * 1000).toISOString(),
+          status: 'paid',
+          source: 'Stripe',
+        }));
     } catch (balanceError) {
       console.error('[UnifiedPurchases] Error fetching balance transactions:', balanceError);
     }
