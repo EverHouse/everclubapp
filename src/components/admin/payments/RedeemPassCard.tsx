@@ -68,6 +68,29 @@ export const formatPassType = (productType: string): string => {
     .replace('Day Pass', 'Day Pass -');
 };
 
+interface UnredeemedPass {
+  id: string;
+  productType: string;
+  quantity: number;
+  remainingUses: number;
+  purchaserEmail: string;
+  purchaserFirstName: string | null;
+  purchaserLastName: string | null;
+  purchasedAt: string;
+}
+
+interface DayPassUpdateEvent {
+  type: 'day_pass_update';
+  action: 'day_pass_purchased' | 'day_pass_redeemed' | 'day_pass_refunded';
+  passId: string;
+  purchaserEmail?: string;
+  purchaserName?: string;
+  productType?: string;
+  remainingUses?: number;
+  quantity?: number;
+  purchasedAt?: string;
+}
+
 const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'modal', onBookGuest, onRedemptionSuccess }) => {
   const [searchEmail, setSearchEmail] = useState('');
   const [passes, setPasses] = useState<DayPass[]>([]);
@@ -92,7 +115,73 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const hasScannedRef = useRef(false);
   
+  const [unredeemedPasses, setUnredeemedPasses] = useState<UnredeemedPass[]>([]);
+  const [isLoadingUnredeemed, setIsLoadingUnredeemed] = useState(false);
+  const [showUnredeemedSection, setShowUnredeemedSection] = useState(true);
+  const previousPassesRef = useRef<UnredeemedPass[]>([]);
+  const [confirmingRefundId, setConfirmingRefundId] = useState<string | null>(null);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  
   const scannerElementId = useMemo(() => `qr-pass-reader-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
+
+  const fetchUnredeemedPasses = useCallback(async () => {
+    setIsLoadingUnredeemed(true);
+    try {
+      const res = await fetch('/api/staff/passes/unredeemed', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setUnredeemedPasses(data.passes || []);
+        previousPassesRef.current = data.passes || [];
+      }
+    } catch (err) {
+      console.error('[RedeemPassCard] Error fetching unredeemed passes:', err);
+    } finally {
+      setIsLoadingUnredeemed(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnredeemedPasses();
+  }, [fetchUnredeemedPasses]);
+
+  useEffect(() => {
+    const handleDayPassUpdate = (event: CustomEvent<DayPassUpdateEvent>) => {
+      const { action, passId, purchaserEmail, purchaserName, productType, remainingUses, quantity, purchasedAt } = event.detail;
+      
+      if (action === 'day_pass_purchased') {
+        const nameParts = purchaserName?.split(' ') || [];
+        const newPass: UnredeemedPass = {
+          id: passId,
+          productType: productType || 'day-pass',
+          quantity: quantity || 1,
+          remainingUses: remainingUses ?? 1,
+          purchaserEmail: purchaserEmail || '',
+          purchaserFirstName: nameParts[0] || null,
+          purchaserLastName: nameParts.slice(1).join(' ') || null,
+          purchasedAt: purchasedAt || new Date().toISOString(),
+        };
+        setUnredeemedPasses(prev => [newPass, ...prev.filter(p => p.id !== passId)]);
+      } else if (action === 'day_pass_redeemed') {
+        setUnredeemedPasses(prev => {
+          const updated = prev.map(pass => {
+            if (pass.id === passId) {
+              const newRemaining = remainingUses ?? pass.remainingUses - 1;
+              return { ...pass, remainingUses: newRemaining };
+            }
+            return pass;
+          });
+          return updated.filter(pass => pass.remainingUses > 0);
+        });
+      } else if (action === 'day_pass_refunded') {
+        setUnredeemedPasses(prev => prev.filter(pass => pass.id !== passId));
+      }
+    };
+
+    window.addEventListener('day-pass-update', handleDayPassUpdate as EventListener);
+    return () => {
+      window.removeEventListener('day-pass-update', handleDayPassUpdate as EventListener);
+    };
+  }, []);
 
   const stopScanner = useCallback(async () => {
     if (qrScannerRef.current) {
@@ -241,6 +330,18 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     setLastAttemptedPassId(passId);
     if (force) setForceRedeeming(true);
     
+    // Optimistic UI: save previous state and decrement immediately
+    const previousUnredeemed = [...unredeemedPasses];
+    setUnredeemedPasses(prev => {
+      const updated = prev.map(pass => {
+        if (pass.id === passId) {
+          return { ...pass, remainingUses: pass.remainingUses - 1 };
+        }
+        return pass;
+      });
+      return updated.filter(pass => pass.remainingUses > 0);
+    });
+    
     try {
       const res = await fetch(`/api/staff/passes/${passId}/redeem`, {
         method: 'POST',
@@ -251,6 +352,8 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       
       if (!res.ok) {
         const data = await res.json();
+        // Rollback optimistic update on error
+        setUnredeemedPasses(previousUnredeemed);
         setErrorState({
           message: data.error || 'Failed to redeem pass',
           errorCode: data.errorCode || 'UNKNOWN_ERROR',
@@ -287,6 +390,8 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
         handleSearch();
       }
     } catch (err: any) {
+      // Rollback optimistic update on network error
+      setUnredeemedPasses(previousUnredeemed);
       setErrorState({
         message: err.message || 'Failed to redeem pass',
         errorCode: 'NETWORK_ERROR'
@@ -294,6 +399,44 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
     } finally {
       setRedeemingId(null);
       setForceRedeeming(false);
+    }
+  };
+
+  const handleRefund = async (passId: string) => {
+    setRefundingId(passId);
+    setErrorState(null);
+    
+    const previousUnredeemed = [...unredeemedPasses];
+    setUnredeemedPasses(prev => prev.filter(pass => pass.id !== passId));
+    setConfirmingRefundId(null);
+    
+    try {
+      const res = await fetch(`/api/staff/passes/${passId}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        setUnredeemedPasses(previousUnredeemed);
+        setErrorState({
+          message: data.error || 'Failed to refund pass',
+          errorCode: data.errorCode || 'REFUND_ERROR',
+        });
+        return;
+      }
+      
+      setSuccessMessage('Pass refunded successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setUnredeemedPasses(previousUnredeemed);
+      setErrorState({
+        message: err.message || 'Failed to refund pass',
+        errorCode: 'NETWORK_ERROR'
+      });
+    } finally {
+      setRefundingId(null);
     }
   };
 
@@ -913,6 +1056,124 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           ))}
         </div>
       ) : null}
+      
+      {/* Unredeemed Passes Section */}
+      {showUnredeemedSection && (
+        <div className="mt-6 pt-4 border-t border-primary/10 dark:border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">local_activity</span>
+              <h4 className="font-semibold text-primary dark:text-white">Recent Unredeemed Passes</h4>
+              {unredeemedPasses.length > 0 && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded-full">
+                  {unredeemedPasses.length}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowUnredeemedSection(false)}
+              className="p-1.5 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
+              title="Hide section"
+            >
+              <span className="material-symbols-outlined text-sm text-primary/40 dark:text-white/40">close</span>
+            </button>
+          </div>
+          
+          {isLoadingUnredeemed ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-teal-500 border-t-transparent" />
+            </div>
+          ) : unredeemedPasses.length === 0 ? (
+            <div className="text-center py-6">
+              <span className="material-symbols-outlined text-3xl text-primary/20 dark:text-white/20 mb-2">local_activity</span>
+              <p className="text-sm text-primary/50 dark:text-white/50">No unredeemed passes</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {unredeemedPasses.map(pass => {
+                const guestName = [pass.purchaserFirstName, pass.purchaserLastName].filter(Boolean).join(' ');
+                return (
+                  <div
+                    key={pass.id}
+                    className="p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm text-primary dark:text-white truncate">
+                          {guestName || pass.purchaserEmail}
+                        </p>
+                        <span className="px-2 py-0.5 text-xs font-medium bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 rounded-full flex-shrink-0">
+                          {pass.remainingUses} left
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                          {formatPassType(pass.productType)}
+                        </p>
+                        <span className="text-xs text-primary/40 dark:text-white/40">•</span>
+                        <p className="text-xs text-primary/40 dark:text-white/40 flex-shrink-0">
+                          {formatDate(pass.purchasedAt)}
+                        </p>
+                      </div>
+                      {guestName && (
+                        <p className="text-xs text-primary/40 dark:text-white/40 truncate">{pass.purchaserEmail}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {confirmingRefundId === pass.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleRefund(pass.id)}
+                            disabled={refundingId === pass.id}
+                            className="px-2 py-1.5 rounded-lg bg-red-500 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                          >
+                            {refundingId === pass.id ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                            ) : (
+                              <span className="material-symbols-outlined text-sm">check</span>
+                            )}
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmingRefundId(null)}
+                            className="px-2 py-1.5 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white text-xs font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setConfirmingRefundId(pass.id)}
+                            disabled={redeemingId === pass.id || refundingId === pass.id}
+                            className="px-2 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            title="Refund this pass"
+                          >
+                            <span className="material-symbols-outlined text-sm">undo</span>
+                            Refund
+                          </button>
+                          <button
+                            onClick={() => handleRedeem(pass.id)}
+                            disabled={redeemingId === pass.id}
+                            className="px-3 py-1.5 rounded-lg bg-teal-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                          >
+                            {redeemingId === pass.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                            ) : (
+                              <span className="material-symbols-outlined text-base">check</span>
+                            )}
+                            Redeem
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 

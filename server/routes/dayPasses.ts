@@ -266,7 +266,7 @@ export async function recordDayPassPurchaseFromWebhook(data: {
   amountCents: number;
   paymentIntentId: string;
   customerId: string;
-}): Promise<{ success: boolean; purchaseId?: string; userId?: string; error?: string }> {
+}): Promise<{ success: boolean; purchaseId?: string; userId?: string; quantity?: number; remainingUses?: number; error?: string }> {
   try {
     const existingPurchase = await db.select()
       .from(dayPassPurchases)
@@ -275,7 +275,13 @@ export async function recordDayPassPurchaseFromWebhook(data: {
 
     if (existingPurchase.length > 0) {
       console.log(`[DayPasses] Purchase already recorded for payment ${data.paymentIntentId}`);
-      return { success: true, purchaseId: existingPurchase[0].id, userId: existingPurchase[0].userId || undefined };
+      return { 
+        success: true, 
+        purchaseId: existingPurchase[0].id, 
+        userId: existingPurchase[0].userId || undefined,
+        quantity: existingPurchase[0].quantity ?? 1,
+        remainingUses: existingPurchase[0].remainingUses ?? 1
+      };
     }
 
     const user = await upsertVisitor({
@@ -309,7 +315,13 @@ export async function recordDayPassPurchaseFromWebhook(data: {
 
     console.log(`[DayPasses Webhook] Recorded purchase ${purchase.id} for ${data.productSlug}: $${(data.amountCents / 100).toFixed(2)} from ${data.email}`);
 
-    return { success: true, purchaseId: purchase.id, userId: user.id };
+    return { 
+      success: true, 
+      purchaseId: purchase.id, 
+      userId: user.id,
+      quantity: purchase.quantity ?? 1,
+      remainingUses: purchase.remainingUses ?? 1
+    };
   } catch (error: any) {
     console.error('[DayPasses Webhook] Error recording purchase:', error);
     return { success: false, error: error.message };

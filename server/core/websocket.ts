@@ -856,6 +856,37 @@ export function broadcastBillingUpdate(data: {
   return sent;
 }
 
+export function broadcastDayPassUpdate(data: {
+  action: 'day_pass_purchased' | 'day_pass_redeemed' | 'day_pass_refunded';
+  passId: string;
+  purchaserEmail?: string;
+  purchaserName?: string;
+  productType?: string;
+  remainingUses?: number;
+  quantity?: number;
+  purchasedAt?: string;
+}) {
+  const payload = JSON.stringify({
+    type: 'day_pass_update',
+    ...data
+  });
+
+  let sent = 0;
+  clients.forEach((connections) => {
+    connections.forEach(conn => {
+      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  });
+
+  if (sent > 0) {
+    console.log(`[WebSocket] Broadcast day pass ${data.action} to ${sent} staff connections`);
+  }
+  return sent;
+}
+
 export function getConnectedUsers(): string[] {
   return Array.from(clients.keys());
 }

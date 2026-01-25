@@ -342,6 +342,8 @@ const RecordPurchaseCard: React.FC<SectionProps> = ({ onClose, variant = 'modal'
                 selectedMember={selectedMember}
                 onSelect={(member) => setSelectedMember(member)}
                 onClear={() => setSelectedMember(null)}
+                includeVisitors={true}
+                includeFormer={true}
               />
               <button
                 type="button"

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useData } from '../../contexts/DataContext';
 
 export interface SelectedMember {
@@ -7,6 +7,7 @@ export interface SelectedMember {
   name: string;
   tier: string | null;
   stripeCustomerId?: string | null;
+  membershipStatus?: string;
 }
 
 // Helper to search by multiple words (e.g., "nick luu" matches "Nick Luu")
@@ -30,6 +31,8 @@ interface MemberSearchInputProps {
   autoFocus?: boolean;
   privacyMode?: boolean;
   excludeEmails?: string[];
+  includeVisitors?: boolean;
+  includeFormer?: boolean;
 }
 
 const redactEmail = (email: string): string => {
@@ -52,28 +55,98 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   showTier = true,
   autoFocus = false,
   privacyMode = false,
-  excludeEmails = []
+  excludeEmails = [],
+  includeVisitors = false,
+  includeFormer = false
 }) => {
   const { members } = useData();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [apiResults, setApiResults] = useState<SelectedMember[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const useApiSearch = includeVisitors || includeFormer;
 
   const excludeEmailsLower = useMemo(() => 
     excludeEmails.map(e => e.toLowerCase()), 
     [excludeEmails]
   );
 
+  const searchApi = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setApiResults([]);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const params = new URLSearchParams({
+        query: searchQuery,
+        limit: '10',
+        includeFormer: includeFormer.toString(),
+        includeVisitors: includeVisitors.toString()
+      });
+      
+      const res = await fetch(`/api/members/search?${params}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const results: SelectedMember[] = data
+          .filter((r: any) => !excludeEmailsLower.includes(r.email?.toLowerCase() || ''))
+          .map((r: any) => ({
+            id: r.id,
+            email: r.email || r.emailRedacted || '',
+            name: r.name || 'Unknown',
+            tier: r.tier || null,
+            membershipStatus: r.membershipStatus
+          }));
+        setApiResults(results);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [includeFormer, includeVisitors, excludeEmailsLower]);
+
+  useEffect(() => {
+    if (useApiSearch && query.trim()) {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      searchTimeoutRef.current = setTimeout(() => {
+        searchApi(query);
+      }, 250);
+    } else {
+      setApiResults([]);
+    }
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [query, useApiSearch, searchApi]);
+
   const filteredMembers = useMemo(() => {
+    if (useApiSearch) {
+      return apiResults;
+    }
     if (!query.trim()) return [];
     return members.filter(m => 
       (matchesMultiWordQuery(m.name, query) || matchesMultiWordQuery(m.email, query)) &&
       !excludeEmailsLower.includes(m.email.toLowerCase())
-    ).slice(0, 8);
-  }, [members, query, excludeEmailsLower]);
+    ).slice(0, 8).map(m => ({
+      id: m.id,
+      email: m.email,
+      name: m.name,
+      tier: m.tier || null,
+      stripeCustomerId: m.stripeCustomerId || null
+    }));
+  }, [useApiSearch, apiResults, members, query, excludeEmailsLower]);
 
   useEffect(() => {
     if (selectedMember) {
@@ -111,17 +184,10 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
     }
   };
 
-  const handleSelect = (member: typeof members[0]) => {
-    const selected: SelectedMember = {
-      id: member.id,
-      email: member.email,
-      name: member.name,
-      tier: member.tier || null,
-      stripeCustomerId: member.stripeCustomerId || null
-    };
+  const handleSelect = (member: SelectedMember) => {
     setQuery(member.name);
     setIsOpen(false);
-    onSelect(selected);
+    onSelect(member);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -202,37 +268,57 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
           ref={dropdownRef}
           className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto"
         >
-          {filteredMembers.map((member, index) => (
-            <button
-              key={member.email}
-              type="button"
-              onClick={() => handleSelect(member)}
-              onMouseEnter={() => setHighlightedIndex(index)}
-              className={`w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
-                index === highlightedIndex 
-                  ? 'bg-primary/10 dark:bg-white/10' 
-                  : 'hover:bg-primary/5 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="w-9 h-9 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-base text-primary dark:text-white">person</span>
-              </div>
-              <div className="text-left flex-1 min-w-0">
-                <p className="font-medium text-primary dark:text-white truncate">{member.name}</p>
-                <p className="text-xs text-primary/60 dark:text-white/60 truncate">
-                  {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? redactEmail(member.email) : member.email}
-                </p>
-              </div>
-            </button>
-          ))}
+          {filteredMembers.map((member, index) => {
+            const isVisitor = member.membershipStatus === 'visitor' || member.membershipStatus === 'non-member';
+            return (
+              <button
+                key={member.email}
+                type="button"
+                onClick={() => handleSelect(member)}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                className={`w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
+                  index === highlightedIndex 
+                    ? 'bg-primary/10 dark:bg-white/10' 
+                    : 'hover:bg-primary/5 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  isVisitor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10 dark:bg-white/10'
+                }`}>
+                  <span className={`material-symbols-outlined text-base ${
+                    isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white'
+                  }`}>{isVisitor ? 'person_outline' : 'person'}</span>
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-medium text-primary dark:text-white truncate">
+                    {member.name}
+                    {isVisitor && (
+                      <span className="ml-2 text-xs font-normal px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">Visitor</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                    {showTier && member.tier ? `${member.tier} • ` : ''}{privacyMode ? redactEmail(member.email) : member.email}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {isOpen && query.trim() && filteredMembers.length === 0 && (
+      {isOpen && query.trim() && filteredMembers.length === 0 && !isSearching && (
         <div 
           className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-lg p-4 text-center"
         >
-          <p className="text-sm text-primary/60 dark:text-white/60">No members found</p>
+          <p className="text-sm text-primary/60 dark:text-white/60">No {includeVisitors ? 'users' : 'members'} found</p>
+        </div>
+      )}
+
+      {isOpen && isSearching && (
+        <div 
+          className="absolute left-0 right-0 top-full mt-1 z-[9999] bg-white dark:bg-gray-900 border border-primary/10 dark:border-white/10 rounded-xl shadow-lg p-4 text-center"
+        >
+          <p className="text-sm text-primary/60 dark:text-white/60">Searching...</p>
         </div>
       )}
     </div>

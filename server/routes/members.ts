@@ -50,7 +50,7 @@ function getTierRank(tier: string): number {
 
 router.get('/api/members/search', isAuthenticated, async (req, res) => {
   try {
-    const { query, limit = '10', excludeId, includeFormer = 'false' } = req.query;
+    const { query, limit = '10', excludeId, includeFormer = 'false', includeVisitors = 'false' } = req.query;
     
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return res.json([]);
@@ -59,6 +59,7 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
     const searchTerm = `%${query.trim().toLowerCase()}%`;
     const maxResults = Math.min(parseInt(limit as string) || 10, 50);
     const shouldIncludeFormer = includeFormer === 'true';
+    const shouldIncludeVisitors = includeVisitors === 'true';
     
     // Build base conditions - always require non-archived
     let whereConditions = and(
@@ -71,8 +72,27 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
       )`
     );
     
-    // Only filter to active members unless includeFormer is true
-    if (!shouldIncludeFormer) {
+    // Build status filter based on flags
+    if (shouldIncludeFormer && shouldIncludeVisitors) {
+      // Include all: active, former, and visitors
+      whereConditions = and(
+        whereConditions,
+        sql`${users.membershipStatus} IN ('active', 'expired', 'inactive', 'visitor', 'non-member')`
+      );
+    } else if (shouldIncludeFormer) {
+      // Active and former (no visitors)
+      whereConditions = and(
+        whereConditions,
+        sql`${users.membershipStatus} IN ('active', 'expired', 'inactive')`
+      );
+    } else if (shouldIncludeVisitors) {
+      // Active and visitors (no former)
+      whereConditions = and(
+        whereConditions,
+        sql`${users.membershipStatus} IN ('active', 'visitor', 'non-member')`
+      );
+    } else {
+      // Only active members
       whereConditions = and(
         whereConditions,
         sql`${users.membershipStatus} = 'active'`
@@ -2657,7 +2677,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
       tags: users.tags,
       phone: users.phone,
       membershipStatus: users.membershipStatus,
-      joinDate: users.joinDate,
+      joinDate: sql<string>`COALESCE(${users.joinDate}::date, ${users.createdAt}::date)`.as('join_date'),
       hubspotId: users.hubspotId,
       mindbodyClientId: users.mindbodyClientId,
       stripeCustomerId: users.stripeCustomerId,

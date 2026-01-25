@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../../contexts/DataContext';
 import { useBottomNav } from '../../contexts/BottomNavContext';
+import { useIsMobile } from '../../hooks/useBreakpoint';
 import PullToRefresh from '../PullToRefresh';
 import { useToast } from '../Toast';
 import { getTodayPacific, formatTime12Hour, formatDateShort } from '../../utils/dateUtils';
@@ -34,6 +35,7 @@ interface OptimisticUpdateRef {
 const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, isAdmin, wsConnected = false }) => {
   const { showToast } = useToast();
   const { isAtBottom } = useBottomNav();
+  const isMobile = useIsMobile();
   const { actualUser } = useData();
   
   const { data, refresh, updatePendingRequests, updateBayStatuses, updateTodaysBookings, updateRecentActivity } = useCommandCenterData(actualUser?.email);
@@ -641,9 +643,11 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         <div 
           className="fixed right-5 z-[9998]" 
           style={{ 
-            bottom: isAtBottom 
-              ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
-              : 'calc(140px + env(safe-area-inset-bottom, 0px))',
+            bottom: isMobile 
+              ? (isAtBottom 
+                  ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
+                  : 'calc(140px + env(safe-area-inset-bottom, 0px))')
+              : '24px',
             transition: 'bottom 0.3s ease-out'
           }}
         >

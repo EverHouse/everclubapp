@@ -13,6 +13,24 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.21.0",
+    date: "2026-01-25",
+    title: "Day Pass Management & UI Improvements",
+    isMajor: true,
+    changes: [
+      "New: Financials page now shows 'Recent Unredeemed Passes' section with all active day passes",
+      "New: Each unredeemed pass displays holder name, pass type, remaining uses, and purchase date",
+      "New: Quick 'Redeem' button on each pass card for streamlined check-in flow",
+      "New: 'Refund' button with confirmation dialog for canceling unused day passes",
+      "New: Real-time updates via WebSocket when day passes are purchased or redeemed",
+      "New: Record Purchase search now includes visitors and former members alongside active members",
+      "New: Search results show 'Visitor' badge to distinguish non-members",
+      "Fixed: Join date now displays correctly for all users created via the app",
+      "Fixed: Quick actions button now positions correctly at the bottom corner on desktop",
+      "Improved: Optimistic UI for pass redemption provides instant visual feedback"
+    ]
+  },
+  {
     version: "9.20.0",
     date: "2026-01-25",
     title: "New User Flow & Visitor Payment Links",

@@ -257,6 +257,12 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
               timestamp: new Date().toISOString()
             });
           }
+
+          // Handle day pass updates
+          if (message.type === 'day_pass_update') {
+            console.log('[StaffWebSocket] Received day_pass_update:', message.action);
+            window.dispatchEvent(new CustomEvent('day-pass-update', { detail: message }));
+          }
         } catch (e) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }

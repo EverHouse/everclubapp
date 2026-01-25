@@ -4,8 +4,39 @@ import { dayPassPurchases, passRedemptionLogs } from '../../shared/schema';
 import { eq, and, gt, ilike, sql, desc } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { sendRedemptionConfirmationEmail } from '../emails/passEmails';
+import { broadcastDayPassUpdate } from '../core/websocket';
 
 const router = Router();
+
+router.get('/api/staff/passes/unredeemed', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const passes = await db
+      .select({
+        id: dayPassPurchases.id,
+        productType: dayPassPurchases.productType,
+        quantity: dayPassPurchases.quantity,
+        remainingUses: dayPassPurchases.remainingUses,
+        purchaserEmail: dayPassPurchases.purchaserEmail,
+        purchaserFirstName: dayPassPurchases.purchaserFirstName,
+        purchaserLastName: dayPassPurchases.purchaserLastName,
+        purchasedAt: dayPassPurchases.purchasedAt,
+      })
+      .from(dayPassPurchases)
+      .where(
+        and(
+          gt(dayPassPurchases.remainingUses, 0),
+          eq(dayPassPurchases.status, 'active')
+        )
+      )
+      .orderBy(desc(dayPassPurchases.purchasedAt))
+      .limit(50);
+
+    res.json({ passes });
+  } catch (error: any) {
+    console.error('[Passes] Error fetching unredeemed passes:', error);
+    res.status(500).json({ error: 'Failed to fetch unredeemed passes' });
+  }
+});
 
 router.get('/api/staff/passes/search', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
@@ -196,6 +227,16 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
       }).catch(err => console.error('[Passes] Email send failed:', err));
     }
 
+    broadcastDayPassUpdate({
+      action: 'day_pass_redeemed',
+      passId: id,
+      purchaserEmail: passDetails?.purchaserEmail,
+      purchaserName: guestName,
+      productType: passDetails?.productType,
+      remainingUses: remainingUses ?? 0,
+      quantity: passDetails?.quantity || 1,
+    });
+
     res.json({
       success: true,
       remainingUses,
@@ -235,6 +276,77 @@ router.get('/api/staff/passes/:passId/history', isStaffOrAdmin, async (req: Requ
   } catch (error: any) {
     console.error('[Passes] Error fetching pass history:', error);
     res.status(500).json({ error: 'Failed to fetch pass history' });
+  }
+});
+
+router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { passId } = req.params;
+    const staffEmail = req.session?.user?.email;
+
+    if (!staffEmail) {
+      return res.status(401).json({ error: 'Staff email not found in session' });
+    }
+
+    const [pass] = await db
+      .select({
+        id: dayPassPurchases.id,
+        status: dayPassPurchases.status,
+        remainingUses: dayPassPurchases.remainingUses,
+        purchaserEmail: dayPassPurchases.purchaserEmail,
+        purchaserFirstName: dayPassPurchases.purchaserFirstName,
+        purchaserLastName: dayPassPurchases.purchaserLastName,
+        productType: dayPassPurchases.productType,
+        quantity: dayPassPurchases.quantity,
+      })
+      .from(dayPassPurchases)
+      .where(eq(dayPassPurchases.id, passId))
+      .limit(1);
+
+    if (!pass) {
+      return res.status(404).json({ error: 'Pass not found', errorCode: 'PASS_NOT_FOUND' });
+    }
+
+    if (pass.status !== 'active') {
+      return res.status(400).json({ 
+        error: 'Pass is not active and cannot be refunded', 
+        errorCode: 'PASS_NOT_ACTIVE',
+        currentStatus: pass.status
+      });
+    }
+
+    await db
+      .update(dayPassPurchases)
+      .set({
+        status: 'refunded',
+        updatedAt: new Date(),
+      })
+      .where(eq(dayPassPurchases.id, passId));
+
+    const guestName = [pass.purchaserFirstName, pass.purchaserLastName]
+      .filter(Boolean)
+      .join(' ') || 'Guest';
+
+    console.log(`[Passes] Pass ${passId} refunded by ${staffEmail}. Previous remaining uses: ${pass.remainingUses}`);
+
+    broadcastDayPassUpdate({
+      action: 'day_pass_refunded',
+      passId: passId,
+      purchaserEmail: pass.purchaserEmail,
+      purchaserName: guestName,
+      productType: pass.productType,
+      remainingUses: 0,
+      quantity: pass.quantity || 1,
+    });
+
+    res.json({
+      success: true,
+      passId: passId,
+      refundedBy: staffEmail,
+    });
+  } catch (error: any) {
+    console.error('[Passes] Error refunding pass:', error);
+    res.status(500).json({ error: 'Failed to refund pass' });
   }
 });
 

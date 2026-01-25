@@ -9,7 +9,7 @@ import { notifyPaymentSuccess, notifyPaymentFailed, notifyStaffPaymentFailed, no
 import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../../emails/paymentEmails';
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../../emails/membershipEmails';
 import { sendPassWithQrEmail } from '../../emails/passEmails';
-import { broadcastBillingUpdate } from '../websocket';
+import { broadcastBillingUpdate, broadcastDayPassUpdate } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 import { handlePrimarySubscriptionCancelled } from './groupBilling';
 
@@ -1313,6 +1313,17 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
     }
 
     console.log(`[Stripe Webhook] Day pass purchase recorded: ${result.purchaseId}`);
+
+    broadcastDayPassUpdate({
+      action: 'day_pass_purchased',
+      passId: result.purchaseId!,
+      purchaserEmail: email,
+      purchaserName: [firstName, lastName].filter(Boolean).join(' ') || email,
+      productType: productSlug,
+      remainingUses: result.remainingUses ?? 1,
+      quantity: result.quantity ?? 1,
+      purchasedAt: new Date().toISOString(),
+    });
 
     // Send email with QR code
     try {
