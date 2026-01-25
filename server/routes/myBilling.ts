@@ -109,7 +109,8 @@ router.get('/api/my/billing', requireAuth, async (req, res) => {
         
         const customer = await stripe.customers.retrieve(member.stripe_customer_id);
         if (customer && !customer.deleted) {
-          billingInfo.customerBalanceDollars = ((customer as any).balance || 0) / 100;
+          // Return balance in cents (UI divides by 100 for display)
+          billingInfo.customerBalance = (customer as any).balance || 0;
         }
       } catch (stripeError: any) {
         console.error('[MyBilling] Stripe error:', stripeError.message);
