@@ -1748,11 +1748,11 @@ const BookGolf: React.FC = () => {
 
       {canBook && (
         <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-6 flex flex-col items-center w-full max-w-md mx-auto animate-in slide-in-from-bottom-4 duration-300 gap-2">
-          {/* Fee Breakdown */}
-          {estimatedFees.totalFee > 0 && activeTab === 'simulator' && (
+          {/* Fee Breakdown - always show for simulator bookings */}
+          {activeTab === 'simulator' && (
             <div className={`w-full px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <span className={`material-symbols-outlined text-lg ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>receipt_long</span>
+                <span className={`material-symbols-outlined text-lg ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>receipt_long</span>
                 <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Estimated Fees</span>
               </div>
               <div className="space-y-1">
@@ -1774,9 +1774,17 @@ const BookGolf: React.FC = () => {
                     <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
                   </div>
                 )}
+                {estimatedFees.totalFee === 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                      Included in your membership
+                    </span>
+                    <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>No charge</span>
+                  </div>
+                )}
                 <div className={`flex justify-between items-center pt-1 border-t ${isDark ? 'border-white/20' : 'border-black/10'}`}>
                   <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Total due at check-in</span>
-                  <span className={`text-base font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>${estimatedFees.totalFee}</span>
+                  <span className={`text-base font-bold ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>${estimatedFees.totalFee}</span>
                 </div>
               </div>
             </div>
