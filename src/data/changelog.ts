@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.29.6",
+    date: "2026-01-26",
+    title: "Trackman Assignment Fee Recalculation",
+    changes: [
+      "Fixed: Billing fees are now recalculated when staff assigns a Trackman booking to a member",
+      "Fixed: Member tier-based allowances now correctly applied after post-check-in assignment",
+      "Reliability: Both 'Link to Member' and 'Assign Players' actions trigger fee recalculation",
+      "Audit: Staff actions logged with fees_recalculated flag for tracking"
+    ]
+  },
+  {
     version: "9.29.5",
     date: "2026-01-26",
     title: "Check-In & Refund Notifications",

@@ -20,6 +20,7 @@ import { notifyMember, notifyAllStaff } from '../core/notificationService';
 import { refundGuestPass } from './guestPasses';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../utils/dateUtils';
 import { logFromRequest } from '../core/auditLog';
+import { recalculateSessionFees } from '../core/bookingService/usageCalculator';
 
 interface CancellationCascadeResult {
   participantsNotified: number;
@@ -827,8 +828,22 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
         slotNumber++;
       }
       
-      return { booking, created };
+      const sessionId = existingBooking?.sessionId || null;
+      return { booking, created, sessionId };
     });
+    
+    if (result.sessionId) {
+      try {
+        await recalculateSessionFees(result.sessionId);
+        logger.info('[link-trackman-to-member] Recalculated fees after member assignment', {
+          extra: { bookingId: result.booking.id, sessionId: result.sessionId, newOwner: ownerEmail }
+        });
+      } catch (recalcErr) {
+        logger.warn('[link-trackman-to-member] Failed to recalculate fees after assignment', {
+          extra: { bookingId: result.booking.id, sessionId: result.sessionId, error: recalcErr }
+        });
+      }
+    }
     
     const { broadcastToStaff } = await import('../core/websocket');
     broadcastToStaff({
@@ -846,7 +861,8 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       owner_name: ownerName,
       total_players: totalPlayerCount,
       guest_count: guestCount,
-      was_created: result.created
+      was_created: result.created,
+      fees_recalculated: !!result.sessionId
     });
     
     res.json({ 
@@ -854,7 +870,8 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       booking: result.booking, 
       created: result.created,
       totalPlayers: totalPlayerCount,
-      guestCount 
+      guestCount,
+      feesRecalculated: !!result.sessionId
     });
   } catch (error: any) {
     if (error.statusCode) {
@@ -993,8 +1010,21 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
         slotNumber++;
       }
       
-      return { booking: updated };
+      return { booking: updated, sessionId: existingBooking.sessionId };
     });
+    
+    if (result.sessionId) {
+      try {
+        await recalculateSessionFees(result.sessionId);
+        logger.info('[assign-with-players] Recalculated fees after member assignment', {
+          extra: { bookingId, sessionId: result.sessionId, newOwner: owner.email }
+        });
+      } catch (recalcErr) {
+        logger.warn('[assign-with-players] Failed to recalculate fees after assignment', {
+          extra: { bookingId, sessionId: result.sessionId, error: recalcErr }
+        });
+      }
+    }
     
     const { broadcastToStaff } = await import('../core/websocket');
     broadcastToStaff({
@@ -1010,14 +1040,16 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       owner_email: owner.email,
       owner_name: owner.name,
       total_players: totalPlayerCount,
-      guest_count: guestCount
+      guest_count: guestCount,
+      fees_recalculated: !!result.sessionId
     });
     
     res.json({ 
       success: true, 
       booking: result.booking,
       totalPlayers: totalPlayerCount,
-      guestCount 
+      guestCount,
+      feesRecalculated: !!result.sessionId
     });
   } catch (error: any) {
     if (error.statusCode) {
