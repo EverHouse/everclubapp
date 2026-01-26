@@ -1871,6 +1871,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         const sessionId = sessionResult.rows[0].id;
         
         // Create owner participant if we have user info
+        // Mark as 'paid' since these are historical bookings being backfilled
         const displayName = booking.user_name || booking.user_email || 'Unknown';
         const userId = booking.owner_user_id || booking.user_id;
         
@@ -1881,10 +1882,12 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
             participant_type,
             display_name,
             invite_status,
+            payment_status,
+            payment_method,
             invited_at,
             created_at
           )
-          VALUES ($1, $2, 'owner', $3, 'accepted', NOW(), NOW())
+          VALUES ($1, $2, 'owner', $3, 'accepted', 'paid', 'external', NOW(), NOW())
         `, [
           sessionId,
           userId,

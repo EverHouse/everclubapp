@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.29.8",
+    date: "2026-01-26",
+    title: "Session Backfill Payment Status Fix",
+    changes: [
+      "Fixed: Backfill tool now marks historical booking participants as 'paid' instead of 'pending'",
+      "Prevents: Backfilled historical bookings no longer appear in Overdue Payments section",
+      "Data: Uses 'external' payment method to indicate payment was handled outside the system"
+    ]
+  },
+  {
     version: "9.29.7",
     date: "2026-01-26",
     title: "Auto-Open Billing After Assignment",
