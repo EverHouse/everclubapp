@@ -346,7 +346,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/guests/search', isAuthenticated, async (req, res) => {
   try {
-    const { query, limit = '10' } = req.query;
+    const { query, limit = '10', includeFullEmail } = req.query;
     
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return res.json([]);
@@ -354,6 +354,10 @@ router.get('/api/guests/search', isAuthenticated, async (req, res) => {
     
     const searchTerm = `%${query.trim().toLowerCase()}%`;
     const maxResults = Math.min(parseInt(limit as string) || 10, 30);
+    
+    const sessionUser = getSessionUser(req);
+    const isStaff = sessionUser?.role === 'admin' || sessionUser?.role === 'staff';
+    const showFullEmail = isStaff && includeFullEmail === 'true';
     
     const results = await db.select({
       id: users.id,
@@ -378,6 +382,7 @@ router.get('/api/guests/search', isAuthenticated, async (req, res) => {
     const formattedResults = results.map(visitor => ({
       id: visitor.id,
       name: [visitor.firstName, visitor.lastName].filter(Boolean).join(' ') || 'Unknown',
+      email: showFullEmail ? (visitor.email || '') : undefined,
       emailRedacted: redactEmail(visitor.email || ''),
       visitorType: visitor.visitorType,
     }));

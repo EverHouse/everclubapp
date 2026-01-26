@@ -718,6 +718,22 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [editingTrackmanId, setEditingTrackmanId] = useState(false);
     const [trackmanIdDraft, setTrackmanIdDraft] = useState('');
     const [savingTrackmanId, setSavingTrackmanId] = useState(false);
+    const [feeEstimate, setFeeEstimate] = useState<{
+      totalFee: number;
+      ownerTier: string | null;
+      perPersonMins: number;
+      feeBreakdown: {
+        overageMinutes: number;
+        overageFee: number;
+        guestCount: number;
+        guestPassesRemaining: number;
+        guestsUsingPasses: number;
+        guestsCharged: number;
+        guestFees: number;
+      };
+      note: string;
+    } | null>(null);
+    const [isFetchingFeeEstimate, setIsFetchingFeeEstimate] = useState(false);
     const [billingModal, setBillingModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
     const [rosterModal, setRosterModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
     const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
@@ -1260,6 +1276,33 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         
         checkAvailability();
     }, [selectedBayId, selectedRequest, actionModal]);
+
+    useEffect(() => {
+        if (actionModal === 'approve' && selectedRequest?.id) {
+            const fetchFeeEstimate = async () => {
+                setIsFetchingFeeEstimate(true);
+                try {
+                    const res = await fetch(`/api/booking-requests/${selectedRequest.id}/fee-estimate`, {
+                        credentials: 'include'
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setFeeEstimate(data);
+                    } else {
+                        setFeeEstimate(null);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch fee estimate:', err);
+                    setFeeEstimate(null);
+                } finally {
+                    setIsFetchingFeeEstimate(false);
+                }
+            };
+            fetchFeeEstimate();
+        } else {
+            setFeeEstimate(null);
+        }
+    }, [actionModal, selectedRequest?.id]);
 
     useEffect(() => {
         const fetchDeclineSlots = async (bookingDate: string, resourceId: number) => {
@@ -2295,6 +2338,67 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                             </div>
                         )}
                     </div>
+                    
+                    {actionModal === 'approve' && (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">payments</span>
+                                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium uppercase tracking-wide">Fee Estimate</p>
+                            </div>
+                            {isFetchingFeeEstimate ? (
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                                    Calculating fees...
+                                </div>
+                            ) : feeEstimate ? (
+                                <div className="space-y-1.5">
+                                    {feeEstimate.ownerTier && (
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-600 dark:text-gray-400">Member tier</span>
+                                            <span className="text-gray-700 dark:text-gray-300 font-medium">{feeEstimate.ownerTier}</span>
+                                        </div>
+                                    )}
+                                    {feeEstimate.feeBreakdown.overageFee > 0 && (
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-600 dark:text-gray-400">Overage ({feeEstimate.feeBreakdown.overageMinutes} min)</span>
+                                            <span className="text-amber-700 dark:text-amber-300">${feeEstimate.feeBreakdown.overageFee}</span>
+                                        </div>
+                                    )}
+                                    {feeEstimate.feeBreakdown.guestCount > 0 && (
+                                        <>
+                                            {feeEstimate.feeBreakdown.guestsUsingPasses > 0 && (
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-gray-600 dark:text-gray-400">{feeEstimate.feeBreakdown.guestsUsingPasses} guest{feeEstimate.feeBreakdown.guestsUsingPasses > 1 ? 's' : ''} (using pass)</span>
+                                                    <span className="text-green-600 dark:text-green-400">$0</span>
+                                                </div>
+                                            )}
+                                            {feeEstimate.feeBreakdown.guestsCharged > 0 && (
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="text-gray-600 dark:text-gray-400">{feeEstimate.feeBreakdown.guestsCharged} guest{feeEstimate.feeBreakdown.guestsCharged > 1 ? 's' : ''} @ $25</span>
+                                                    <span className="text-amber-700 dark:text-amber-300">${feeEstimate.feeBreakdown.guestFees}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                    {feeEstimate.feeBreakdown.guestPassesRemaining > 0 && (
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-600 dark:text-gray-400">Guest passes remaining</span>
+                                            <span className="text-gray-500 dark:text-gray-400">{feeEstimate.feeBreakdown.guestPassesRemaining}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-amber-200 dark:border-amber-500/30">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Owner pays</span>
+                                        <span className={`text-sm font-bold ${feeEstimate.totalFee > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-green-600 dark:text-green-400'}`}>
+                                            {feeEstimate.totalFee > 0 ? `$${feeEstimate.totalFee}` : 'No fees'}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 italic">{feeEstimate.note}</p>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Unable to calculate fees</p>
+                            )}
+                        </div>
+                    )}
                     
                     {(selectedRequest as any)?.member_notes && (
                         <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">

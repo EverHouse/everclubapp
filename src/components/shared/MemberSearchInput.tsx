@@ -33,6 +33,7 @@ interface MemberSearchInputProps {
   excludeEmails?: string[];
   includeVisitors?: boolean;
   includeFormer?: boolean;
+  forceApiSearch?: boolean;
 }
 
 const redactEmail = (email: string): string => {
@@ -57,7 +58,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   privacyMode = false,
   excludeEmails = [],
   includeVisitors = false,
-  includeFormer = false
+  includeFormer = false,
+  forceApiSearch = false
 }) => {
   const { members } = useData();
   const [query, setQuery] = useState('');
@@ -70,7 +72,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const useApiSearch = includeVisitors || includeFormer;
+  const useApiSearch = forceApiSearch || includeVisitors || includeFormer;
 
   const excludeEmailsLower = useMemo(() => 
     excludeEmails.map(e => e.toLowerCase()), 

@@ -13,6 +13,29 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.26.6",
+    date: "2026-01-26",
+    title: "Unified Fee Calculations",
+    changes: [
+      "Unified: Members and staff now see identical fee estimates - same server calculation for both",
+      "Added: New /api/fee-estimate endpoint provides consistent fee previews across all booking flows",
+      "Improved: Fee estimates update in real-time as booking details change",
+      "Fixed: Eliminated calculation discrepancies between member booking and staff approval views"
+    ]
+  },
+  {
+    version: "9.26.5",
+    date: "2026-01-26",
+    title: "Booking Flow Audit Fixes",
+    changes: [
+      "Added: Fee estimate preview in staff approval modal - see estimated costs before approving",
+      "Added: Guest search in booking management - staff can now search existing guests instead of re-entering info",
+      "Added: Search/New toggle for guest entry with autocomplete and full email visibility",
+      "Fixed: Staff member search now uses fresh API data instead of potentially stale cached data",
+      "Improved: Staff see full email addresses in search results (not redacted)"
+    ]
+  },
+  {
     version: "9.26.4",
     date: "2026-01-26",
     title: "Simplified Billing Model",

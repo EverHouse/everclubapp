@@ -4,7 +4,7 @@ import { pool } from '../../core/db';
 import { bookingRequests, resources, users, bookingMembers, bookingGuests, bookingParticipants, notifications } from '../../../shared/schema';
 import { eq, and, or, ne, desc, sql } from 'drizzle-orm';
 import { sendPushNotification, sendPushNotificationToStaff } from '../push';
-import { checkDailyBookingLimit } from '../../core/tierService';
+import { checkDailyBookingLimit, getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } from '../../core/tierService';
 import { notifyAllStaff } from '../../core/notificationService';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour, createPacificDate } from '../../utils/dateUtils';
 import { logAndRespond } from '../../core/logger';
@@ -15,6 +15,7 @@ import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
 import { logFromRequest } from '../../core/auditLog';
 import { getCalendarNameForBayAsync, isStaffOrAdminCheck } from './helpers';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
+import { getGuestPassesRemaining } from '../guestPasses';
 
 const router = Router();
 
@@ -951,6 +952,182 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     res.json({ success: true, message: 'Booking cancelled successfully' });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to cancel booking', error);
+  }
+});
+
+// Shared fee calculation logic - used by both member preview and staff approval
+async function calculateFeeEstimate(params: {
+  ownerEmail: string;
+  durationMinutes: number;
+  guestCount: number;
+  requestDate: string;
+  playerCount: number;
+}) {
+  const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount } = params;
+  
+  const ownerTier = await getMemberTierByEmail(ownerEmail);
+  const tierLimits = ownerTier ? await getTierLimits(ownerTier) : null;
+  
+  const dailyAllowance = tierLimits?.daily_sim_minutes || 0;
+  const isSocialTier = ownerTier?.toLowerCase() === 'social';
+  const isUnlimitedTier = dailyAllowance >= 999;
+  
+  const usedMinutesToday = requestDate ? await getDailyBookedMinutes(ownerEmail, requestDate) : 0;
+  const perPersonMins = Math.floor(durationMinutes / playerCount);
+  
+  let overageMinutes = 0;
+  let overageFee = 0;
+  
+  if (isSocialTier) {
+    overageMinutes = durationMinutes;
+    overageFee = Math.ceil(overageMinutes / 30) * 25;
+  } else if (!isUnlimitedTier && dailyAllowance > 0) {
+    overageMinutes = Math.max(0, (usedMinutesToday + perPersonMins) - dailyAllowance);
+    overageFee = Math.ceil(overageMinutes / 30) * 25;
+  }
+  
+  const guestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
+  const guestsUsingPasses = Math.min(guestCount, guestPassesRemaining);
+  const guestsCharged = Math.max(0, guestCount - guestPassesRemaining);
+  const guestFees = guestsCharged * 25;
+  
+  const totalFee = overageFee + guestFees;
+  
+  return {
+    ownerEmail,
+    ownerTier,
+    durationMinutes,
+    playerCount,
+    perPersonMins,
+    tierInfo: {
+      dailyAllowance,
+      usedMinutesToday,
+      remainingMinutes: Math.max(0, dailyAllowance - usedMinutesToday),
+      isSocialTier,
+      isUnlimitedTier
+    },
+    feeBreakdown: {
+      overageMinutes,
+      overageFee,
+      guestCount,
+      guestPassesRemaining,
+      guestsUsingPasses,
+      guestsCharged,
+      guestFees
+    },
+    totalFee,
+    note: isSocialTier 
+      ? 'Social tier pays for all simulator time'
+      : isUnlimitedTier 
+        ? 'Unlimited access - no overage fees' 
+        : overageFee > 0 
+          ? `${overageMinutes} min over daily allowance`
+          : 'Within daily allowance'
+  };
+}
+
+// Unified fee estimate endpoint - works for both members (with params) and staff (with booking ID)
+router.get('/api/fee-estimate', async (req, res) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const sessionEmail = sessionUser.email?.toLowerCase() || '';
+    const isStaff = await isStaffOrAdminCheck(sessionEmail);
+    
+    // If bookingId is provided, look up the booking (staff only)
+    const bookingId = req.query.bookingId ? parseInt(req.query.bookingId as string) : null;
+    
+    if (bookingId) {
+      if (!isStaff) {
+        return res.status(403).json({ error: 'Staff access required' });
+      }
+      
+      const booking = await db.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId)).limit(1);
+      if (!booking.length) {
+        return res.status(404).json({ error: 'Booking request not found' });
+      }
+      
+      const request = booking[0];
+      const declaredPlayerCount = (request as any).declaredPlayerCount || 1;
+      const guestCount = Math.max(0, declaredPlayerCount - 1);
+      
+      const estimate = await calculateFeeEstimate({
+        ownerEmail: request.userEmail?.toLowerCase() || '',
+        durationMinutes: request.durationMinutes || 60,
+        guestCount,
+        requestDate: request.requestDate || '',
+        playerCount: declaredPlayerCount
+      });
+      
+      return res.json(estimate);
+    }
+    
+    // Otherwise, use query params (for member preview)
+    const durationMinutes = parseInt(req.query.durationMinutes as string) || 60;
+    const guestCount = parseInt(req.query.guestCount as string) || 0;
+    const playerCount = parseInt(req.query.playerCount as string) || 1;
+    const requestDate = (req.query.date as string) || '';
+    
+    // Members can only check their own fees
+    const ownerEmail = isStaff && req.query.email 
+      ? (req.query.email as string).toLowerCase() 
+      : sessionEmail;
+    
+    const estimate = await calculateFeeEstimate({
+      ownerEmail,
+      durationMinutes,
+      guestCount,
+      requestDate,
+      playerCount
+    });
+    
+    res.json(estimate);
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
+  }
+});
+
+// Staff-only endpoint to get fee estimate for existing booking request
+router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const isStaff = await isStaffOrAdminCheck(sessionUser.email?.toLowerCase() || '');
+    if (!isStaff) {
+      return res.status(403).json({ error: 'Staff access required' });
+    }
+    
+    const bookingId = parseInt(req.params.id);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+    
+    const booking = await db.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId)).limit(1);
+    if (!booking.length) {
+      return res.status(404).json({ error: 'Booking request not found' });
+    }
+    
+    const request = booking[0];
+    const declaredPlayerCount = (request as any).declaredPlayerCount || 1;
+    const guestCount = Math.max(0, declaredPlayerCount - 1);
+    
+    const estimate = await calculateFeeEstimate({
+      ownerEmail: request.userEmail?.toLowerCase() || '',
+      durationMinutes: request.durationMinutes || 60,
+      guestCount,
+      requestDate: request.requestDate || '',
+      playerCount: declaredPlayerCount
+    });
+    
+    res.json(estimate);
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
   }
 });
 

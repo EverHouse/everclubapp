@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useData } from '../../contexts/DataContext';
@@ -157,12 +157,17 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   const [unlinkingSlotId, setUnlinkingSlotId] = useState<number | null>(null);
   const [activeSearchSlot, setActiveSearchSlot] = useState<number | null>(null);
   const [guestAddSlot, setGuestAddSlot] = useState<number | null>(null);
+  const [guestMode, setGuestMode] = useState<'search' | 'new'>('search');
+  const [guestSearchQuery, setGuestSearchQuery] = useState('');
+  const [guestSearchResults, setGuestSearchResults] = useState<Array<{id: string; name: string; email: string; emailRedacted: string; visitorType?: string}>>([]);
+  const [isSearchingGuests, setIsSearchingGuests] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [isAddingGuest, setIsAddingGuest] = useState(false);
   const [guestPassesRemaining, setGuestPassesRemaining] = useState<number>(0);
   const [guestPassesTotal, setGuestPassesTotal] = useState<number>(0);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
+  const guestSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [memberMatchWarning, setMemberMatchWarning] = useState<{
     slotId: number;
     guestName: string;
@@ -333,6 +338,54 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
     } finally {
       setLinkingSlotId(null);
     }
+  };
+
+  const handleGuestSearch = useCallback((query: string) => {
+    setGuestSearchQuery(query);
+    
+    if (guestSearchTimeoutRef.current) {
+      clearTimeout(guestSearchTimeoutRef.current);
+    }
+    
+    if (query.length < 2) {
+      setGuestSearchResults([]);
+      return;
+    }
+    
+    guestSearchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingGuests(true);
+      try {
+        const res = await fetch(`/api/guests/search?query=${encodeURIComponent(query)}&limit=8&includeFullEmail=true`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setGuestSearchResults(data);
+        }
+      } catch (err) {
+        console.error('Guest search error:', err);
+      } finally {
+        setIsSearchingGuests(false);
+      }
+    }, 300);
+  }, []);
+
+  const handleSelectGuest = async (slotId: number, guest: {id: string; name: string; email: string}) => {
+    setGuestName(guest.name);
+    setGuestEmail(guest.email);
+    setGuestSearchQuery('');
+    setGuestSearchResults([]);
+    
+    await handleAddGuest(slotId, guest.name, guest.email);
+  };
+
+  const resetGuestForm = () => {
+    setGuestAddSlot(null);
+    setGuestName('');
+    setGuestEmail('');
+    setGuestSearchQuery('');
+    setGuestSearchResults([]);
+    setGuestMode('search');
   };
 
   const emptySlots = useMemo(() => 
@@ -633,60 +686,126 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
                       disabled={linkingSlotId === slot.id}
                       onSelect={(member: SelectedMember) => handleLinkMember(slot.id, member.email)}
                       onClear={() => setActiveSearchSlot(null)}
+                      forceApiSearch
                     />
                   </div>
                 ) : guestAddSlot === slot.id ? (
                   <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        placeholder="Guest name *"
-                        autoFocus
-                        className="flex-1 py-1.5 px-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="email"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        placeholder="Guest email (required)"
-                        className={`flex-1 py-1.5 px-2 text-sm rounded-lg border bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400 ${
-                          guestName.trim() && !guestEmail.trim() ? 'border-red-300 dark:border-red-500/50' : 'border-gray-200 dark:border-white/20'
-                        }`}
-                        required
-                      />
-                    </div>
-                    {guestName.trim() && !guestEmail.trim() && (
-                      <p className="text-[10px] text-red-600 dark:text-red-400">Email is required for guest tracking</p>
-                    )}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 mb-1">
                       <button
-                        onClick={() => handleAddGuest(slot.id)}
-                        disabled={isAddingGuest || !guestName.trim() || !guestEmail.trim()}
-                        className="flex-1 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-1"
+                        onClick={() => setGuestMode('search')}
+                        className={`px-2 py-1 text-[10px] font-medium rounded-l-lg transition-colors ${
+                          guestMode === 'search'
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20'
+                        }`}
                       >
-                        {isAddingGuest ? (
-                          <>
-                            <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-                            Adding...
-                          </>
-                        ) : (
-                          <>
-                            <span className="material-symbols-outlined text-sm">person_add</span>
-                            {guestPassesRemaining > 0 ? 'Add Guest (Free)' : 'Add Guest ($25)'}
-                          </>
-                        )}
+                        Search
                       </button>
                       <button
-                        onClick={() => { setGuestAddSlot(null); setGuestName(''); setGuestEmail(''); }}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+                        onClick={() => setGuestMode('new')}
+                        className={`px-2 py-1 text-[10px] font-medium rounded-r-lg transition-colors ${
+                          guestMode === 'new'
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/20'
+                        }`}
+                      >
+                        New
+                      </button>
+                      <button
+                        onClick={resetGuestForm}
+                        className="ml-auto p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
                       >
                         <span className="material-symbols-outlined text-sm">close</span>
                       </button>
                     </div>
+                    
+                    {guestMode === 'search' ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={guestSearchQuery}
+                          onChange={(e) => handleGuestSearch(e.target.value)}
+                          placeholder="Search existing guests by name or email..."
+                          autoFocus
+                          className="w-full py-1.5 px-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400"
+                        />
+                        {isSearchingGuests && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm animate-spin text-gray-400">progress_activity</span>
+                        )}
+                        {guestSearchResults.length > 0 && (
+                          <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden max-h-40 overflow-y-auto bg-white dark:bg-gray-900 border-gray-200 dark:border-white/20">
+                            {guestSearchResults.map((guest) => (
+                              <button
+                                key={guest.id}
+                                type="button"
+                                onClick={() => handleSelectGuest(slot.id, { id: guest.id, name: guest.name, email: guest.email || guest.emailRedacted })}
+                                className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/5 flex items-center gap-2 border-b border-gray-100 dark:border-white/5 last:border-b-0"
+                              >
+                                <span className="material-symbols-outlined text-amber-500 text-base">person</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-primary dark:text-white truncate">{guest.name}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{guest.email || guest.emailRedacted}</p>
+                                </div>
+                                {guest.visitorType && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 rounded">
+                                    {guest.visitorType}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {guestSearchQuery.length >= 2 && !isSearchingGuests && guestSearchResults.length === 0 && (
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">No guests found. Try "New" to add a new guest.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={guestName}
+                            onChange={(e) => setGuestName(e.target.value)}
+                            placeholder="Guest name *"
+                            autoFocus
+                            className="flex-1 py-1.5 px-2 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="email"
+                            value={guestEmail}
+                            onChange={(e) => setGuestEmail(e.target.value)}
+                            placeholder="Guest email (required)"
+                            className={`flex-1 py-1.5 px-2 text-sm rounded-lg border bg-white dark:bg-black/30 text-primary dark:text-white placeholder:text-gray-400 ${
+                              guestName.trim() && !guestEmail.trim() ? 'border-red-300 dark:border-red-500/50' : 'border-gray-200 dark:border-white/20'
+                            }`}
+                            required
+                          />
+                        </div>
+                        {guestName.trim() && !guestEmail.trim() && (
+                          <p className="text-[10px] text-red-600 dark:text-red-400">Email is required for guest tracking</p>
+                        )}
+                        <button
+                          onClick={() => handleAddGuest(slot.id)}
+                          disabled={isAddingGuest || !guestName.trim() || !guestEmail.trim()}
+                          className="w-full py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          {isAddingGuest ? (
+                            <>
+                              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-sm">person_add</span>
+                              {guestPassesRemaining > 0 ? 'Add Guest (Free)' : 'Add Guest ($25)'}
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
                     {guestPassesRemaining === 0 && (
                       <p className="text-[10px] text-amber-600 dark:text-amber-400">No guest passes remaining - $25 fee applies</p>
                     )}

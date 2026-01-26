@@ -978,45 +978,71 @@ const BookGolf: React.FC = () => {
     (activeTab !== 'simulator' || !isAtDailyLimit || rescheduleBookingId)
   );
 
-  // Calculate estimated fees for booking
-  const estimatedFees = useMemo(() => {
-    if (activeTab !== 'simulator' || !duration) {
-      return { 
-        overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0,
-        guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0
-      };
+  // Unified fee estimate from API - same calculation used by both members and staff
+  const [estimatedFees, setEstimatedFees] = useState<{
+    overageFee: number; guestFees: number; totalFee: number; guestCount: number; overageMinutes: number;
+    guestsUsingPasses: number; guestsCharged: number; passesRemainingAfter: number; isLoading: boolean;
+  }>({ overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0, guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0, isLoading: false });
+  const feeEstimateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch fee estimate from unified API when booking params change
+  useEffect(() => {
+    if (activeTab !== 'simulator' || !duration || !selectedDateObj?.date) {
+      setEstimatedFees(prev => ({ ...prev, overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0, guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0, isLoading: false }));
+      return;
     }
     
-    const isSocialTier = effectiveUser?.tier?.toLowerCase() === 'social';
-    const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
-    const perPersonMins = Math.floor(duration / playerCount);
-    
-    // Social tier pays for full booking duration (0 included minutes)
-    // Other tiers pay overage based on their share of time vs daily allowance
-    const overageMinutes = isSocialTier 
-      ? duration  // Social pays for the full booking duration
-      : Math.max(0, (usedMinutesForDay + perPersonMins) - dailyAllowance);
-    const overageBlocks = Math.ceil(overageMinutes / 30);
-    const overageFee = overageBlocks * 25;
-    
-    // Guest fees: Count ALL guest slots (fee applies as soon as Guest is selected)
     const guestCount = playerSlots.filter(slot => slot.type === 'guest').length;
     
-    // Apply guest passes to reduce fees
-    // Use conservative estimate (accounts for pending requests)
-    const passesAvailable = guestPassInfo?.passes_remaining_conservative ?? guestPassInfo?.passes_remaining ?? 0;
-    const guestsUsingPasses = Math.min(guestCount, passesAvailable);
-    const guestsCharged = Math.max(0, guestCount - passesAvailable);
-    const guestFees = guestsCharged * 25;
-    const passesRemainingAfter = Math.max(0, passesAvailable - guestCount);
+    if (feeEstimateTimeoutRef.current) {
+      clearTimeout(feeEstimateTimeoutRef.current);
+    }
     
-    const totalFee = overageFee + guestFees;
+    setEstimatedFees(prev => ({ ...prev, isLoading: true }));
     
-    return { 
-      overageFee, guestFees, totalFee, guestCount, overageMinutes,
-      guestsUsingPasses, guestsCharged, passesRemainingAfter
+    feeEstimateTimeoutRef.current = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          durationMinutes: duration.toString(),
+          guestCount: guestCount.toString(),
+          playerCount: playerCount.toString(),
+          date: selectedDateObj.date
+        });
+        
+        // When admin is viewing as a member, pass target email for accurate calculation
+        if (effectiveUser?.email && isAdminViewingAs) {
+          params.set('email', effectiveUser.email);
+        }
+        
+        const response = await apiRequest(`/api/fee-estimate?${params}`);
+        if (response.ok) {
+          const data = await response.json();
+          // Use ONLY server-calculated values for complete consistency
+          setEstimatedFees({
+            overageFee: data.feeBreakdown.overageFee,
+            guestFees: data.feeBreakdown.guestFees,
+            totalFee: data.totalFee,
+            guestCount: data.feeBreakdown.guestCount,
+            overageMinutes: data.feeBreakdown.overageMinutes,
+            guestsUsingPasses: data.feeBreakdown.guestsUsingPasses,
+            guestsCharged: data.feeBreakdown.guestsCharged,
+            // Use server-calculated passes remaining for consistency
+            passesRemainingAfter: Math.max(0, data.feeBreakdown.guestPassesRemaining - data.feeBreakdown.guestCount),
+            isLoading: false
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch fee estimate:', error);
+        setEstimatedFees(prev => ({ ...prev, isLoading: false }));
+      }
+    }, 300);
+    
+    return () => {
+      if (feeEstimateTimeoutRef.current) {
+        clearTimeout(feeEstimateTimeoutRef.current);
+      }
     };
-  }, [activeTab, duration, playerCount, playerSlots, effectiveUser?.tier, tierPermissions.dailySimulatorMinutes, usedMinutesForDay, guestPassInfo]);
+  }, [activeTab, duration, playerCount, playerSlots, selectedDateObj?.date, guestPassInfo, effectiveUser?.email, isAdminViewingAs]);
 
   const activeClosures = useMemo(() => {
     if (!selectedDateObj?.date) return [];
