@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.26.7",
+    date: "2026-01-26",
+    title: "Roster Sync & Payment UX Improvements",
+    changes: [
+      "Fixed: Staff edits to booking roster now update fee estimates shown to members - adding/removing players recalculates time allocation correctly",
+      "Improved: Pay Now option only appears after staff confirms booking - pending bookings show 'Pay online once confirmed, or at check-in'",
+      "Added: Payment status badges on booking cards - shows 'Paid' (green) or amount due (amber) for confirmed bookings",
+      "Added: Payment timing message on booking page - 'Pay online once booking is confirmed, or at check-in'",
+      "Fixed: Time allocation now uses actual participant count when it exceeds declared count (e.g., 240min ÷ 5 players = 48min each)"
+    ]
+  },
+  {
     version: "9.26.6",
     date: "2026-01-26",
     title: "Unified Fee Calculations",

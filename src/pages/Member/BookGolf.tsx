@@ -1873,6 +1873,11 @@ const BookGolf: React.FC = () => {
                   <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Total due at check-in</span>
                   <span className={`text-base font-bold ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>${estimatedFees.totalFee}</span>
                 </div>
+                {estimatedFees.totalFee > 0 && (
+                  <p className={`text-xs text-center mt-2 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                    Pay online once booking is confirmed, or at check-in
+                  </p>
+                )}
               </div>
             </div>
           )}

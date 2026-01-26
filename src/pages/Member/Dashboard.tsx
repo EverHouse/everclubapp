@@ -1179,6 +1179,7 @@ const Dashboard: React.FC = () => {
                   if (item.type !== 'booking' && item.type !== 'booking_request') return null;
                   const status = (item as any).status;
                   const isLinked = (item as any).isLinkedMember || false;
+                  const rawBooking = item.raw as DBBookingRequest;
                   
                   const badges: React.ReactNode[] = [];
                   
@@ -1196,6 +1197,30 @@ const Dashboard: React.FC = () => {
                         {formatStatusLabel(status)}
                       </span>
                     );
+                  }
+                  
+                  // Add payment status badge for confirmed bookings with fees
+                  if ((status === 'confirmed' || status === 'attended') && !isLinked) {
+                    const hasOverage = rawBooking.overage_fee_cents && rawBooking.overage_fee_cents > 0;
+                    const overagePaid = rawBooking.overage_paid;
+                    
+                    if (hasOverage) {
+                      if (overagePaid) {
+                        badges.push(
+                          <span key="payment" className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">check_circle</span>
+                            Paid
+                          </span>
+                        );
+                      } else {
+                        badges.push(
+                          <span key="payment" className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">schedule</span>
+                            ${(rawBooking.overage_fee_cents / 100).toFixed(0)} due
+                          </span>
+                        );
+                      }
+                    }
                   }
                   
                   if (badges.length === 0) return null;
