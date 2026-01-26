@@ -664,16 +664,22 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                       ${(pendingGuestFees.count * 25).toFixed(2)}
                     </span>
                   </div>
-                  <button
-                    onClick={() => {
-                      haptic.light();
-                      setShowPaymentModal(true);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl bg-primary text-white font-semibold text-sm transition-colors hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-lg">credit_card</span>
-                    Pay Now
-                  </button>
+                  {booking?.status === 'confirmed' ? (
+                    <button
+                      onClick={() => {
+                        haptic.light();
+                        setShowPaymentModal(true);
+                      }}
+                      className="w-full py-3 px-4 rounded-xl bg-primary text-white font-semibold text-sm transition-colors hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-lg">credit_card</span>
+                      Pay Now
+                    </button>
+                  ) : (
+                    <p className={`text-xs text-center ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
+                      Pay now or at check-in once booking is confirmed
+                    </p>
+                  )}
                 </div>
               )}
             </div>

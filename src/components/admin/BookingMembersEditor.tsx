@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useData } from '../../contexts/DataContext';
+import { useToast } from '../Toast';
+import { StripePaymentForm } from '../stripe/StripePaymentForm';
 
 interface BookingMember {
   id: number;
@@ -59,6 +61,42 @@ interface BookingContext {
   durationMinutes?: number;
   notes?: string;
   ownerName?: string;
+}
+
+interface ParticipantFee {
+  participantId: number;
+  displayName: string;
+  participantType: 'owner' | 'member' | 'guest';
+  paymentStatus: 'pending' | 'paid' | 'waived';
+  overageFee: number;
+  guestFee: number;
+  totalFee: number;
+  tierAtBooking: string | null;
+  dailyAllowance?: number;
+  minutesUsed?: number;
+  guestPassUsed?: boolean;
+  waiverNeedsReview?: boolean;
+  prepaidOnline?: boolean;
+}
+
+interface BillingContext {
+  bookingId: number;
+  sessionId: number | null;
+  ownerId: string;
+  ownerEmail: string;
+  ownerName: string;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
+  resourceName: string;
+  memberNotes: string | null;
+  participants: ParticipantFee[];
+  totalOutstanding: number;
+  hasUnpaidBalance: boolean;
+  overageMinutes?: number;
+  overageFeeCents?: number;
+  overagePaid?: boolean;
+  hasUnpaidOverage?: boolean;
 }
 
 interface BookingMembersEditorProps {
@@ -173,6 +211,23 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
     guestName: string;
     memberMatch: { email: string; name: string; tier: string; status: string; note: string };
   } | null>(null);
+
+  // Inline billing section state
+  const [showBillingSection, setShowBillingSection] = useState(false);
+  const [billingContext, setBillingContext] = useState<BillingContext | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [billingActionInProgress, setBillingActionInProgress] = useState<string | null>(null);
+  const [waiverReason, setWaiverReason] = useState('');
+  const [showWaiverInput, setShowWaiverInput] = useState<number | 'all' | null>(null);
+  const [showStripePayment, setShowStripePayment] = useState(false);
+  const [frozenPaymentData, setFrozenPaymentData] = useState<{
+    participantFees: Array<{id: number; amount: number}>;
+    totalAmount: number;
+    description: string;
+  } | null>(null);
+  
+  const { showToast } = useToast();
 
   const fetchBookingMembers = useCallback(async () => {
     setIsLoading(true);
@@ -386,6 +441,164 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
     setGuestSearchQuery('');
     setGuestSearchResults([]);
     setGuestMode('search');
+  };
+
+  // Billing section functions
+  const fetchBillingContext = useCallback(async () => {
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/staff-checkin-context`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBillingContext(data);
+      } else {
+        setBillingError('Failed to load billing context');
+      }
+    } catch (err) {
+      setBillingError('Failed to load billing context');
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [bookingId]);
+
+  const handleToggleBillingSection = useCallback(async () => {
+    if (showBillingSection) {
+      setShowBillingSection(false);
+      setShowStripePayment(false);
+      setFrozenPaymentData(null);
+    } else {
+      setShowBillingSection(true);
+      await fetchBillingContext();
+    }
+  }, [showBillingSection, fetchBillingContext]);
+
+  const handleConfirmPayment = async (participantId: number) => {
+    setBillingActionInProgress(`confirm-${participantId}`);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/payments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ participantId, action: 'confirm' })
+      });
+      if (res.ok) {
+        showToast('Payment confirmed', 'success');
+        await fetchBillingContext();
+        await fetchBookingMembers();
+      } else {
+        showToast('Failed to confirm payment', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to confirm payment:', err);
+      showToast('Failed to confirm payment', 'error');
+    } finally {
+      setBillingActionInProgress(null);
+    }
+  };
+
+  const handleWaivePayment = async (participantId: number | 'all') => {
+    if (!waiverReason.trim()) {
+      return;
+    }
+    setBillingActionInProgress(`waive-${participantId}`);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/payments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          participantId: participantId === 'all' ? undefined : participantId,
+          action: participantId === 'all' ? 'waive_all' : 'waive',
+          reason: waiverReason.trim()
+        })
+      });
+      if (res.ok) {
+        showToast(participantId === 'all' ? 'All fees waived' : 'Fee waived', 'success');
+        setWaiverReason('');
+        setShowWaiverInput(null);
+        await fetchBillingContext();
+        await fetchBookingMembers();
+      } else {
+        showToast('Failed to waive fee', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to waive payment:', err);
+      showToast('Failed to waive fee', 'error');
+    } finally {
+      setBillingActionInProgress(null);
+    }
+  };
+
+  const handleUseGuestPass = async (participantId: number) => {
+    setBillingActionInProgress(`guest-pass-${participantId}`);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/payments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ participantId, action: 'use_guest_pass' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Guest pass used${data.passesRemaining !== undefined ? ` (${data.passesRemaining} remaining)` : ''}`, 'success');
+        await fetchBillingContext();
+        await fetchBookingMembers();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to use guest pass', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to use guest pass:', err);
+      showToast('Failed to use guest pass', 'error');
+    } finally {
+      setBillingActionInProgress(null);
+    }
+  };
+
+  const handleConfirmAll = async () => {
+    setBillingActionInProgress('confirm-all');
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}/payments`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'confirm_all' })
+      });
+      if (res.ok) {
+        showToast('All payments confirmed', 'success');
+        await fetchBillingContext();
+        await fetchBookingMembers();
+      } else {
+        showToast('Failed to confirm payments', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to confirm all payments:', err);
+      showToast('Failed to confirm payments', 'error');
+    } finally {
+      setBillingActionInProgress(null);
+    }
+  };
+
+  const handleShowStripePayment = () => {
+    if (!billingContext) return;
+    const pendingParticipants = billingContext.participants.filter(p => p.paymentStatus === 'pending' && p.totalFee > 0);
+    const fees = pendingParticipants.map(p => ({ id: p.participantId, amount: p.totalFee }));
+    const totalAmount = fees.reduce((sum, f) => sum + f.amount, 0);
+    const description = `Fees for ${billingContext.resourceName} - ${billingContext.bookingDate}`;
+    
+    setFrozenPaymentData({ participantFees: fees, totalAmount, description });
+    setShowStripePayment(true);
+  };
+
+  const handleStripePaymentSuccess = async () => {
+    showToast('Payment successful!', 'success');
+    setShowStripePayment(false);
+    setFrozenPaymentData(null);
+    await fetchBillingContext();
+    await fetchBookingMembers();
   };
 
   const emptySlots = useMemo(() => 

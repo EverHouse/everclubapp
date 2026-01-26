@@ -1052,14 +1052,34 @@ router.get('/api/fee-estimate', async (req, res) => {
       
       const request = booking[0];
       const declaredPlayerCount = (request as any).declaredPlayerCount || 1;
-      const guestCount = Math.max(0, declaredPlayerCount - 1);
+      
+      // If booking has a session, use actual participant count for accuracy
+      let effectivePlayerCount = declaredPlayerCount;
+      let guestCount = Math.max(0, declaredPlayerCount - 1);
+      
+      if ((request as any).sessionId) {
+        const participantResult = await pool.query(
+          `SELECT 
+            COUNT(*) FILTER (WHERE participant_type = 'guest') as guest_count,
+            COUNT(*) as total_count
+           FROM booking_participants 
+           WHERE session_id = $1`,
+          [(request as any).sessionId]
+        );
+        const actualTotal = parseInt(participantResult.rows[0]?.total_count || '0');
+        const actualGuests = parseInt(participantResult.rows[0]?.guest_count || '0');
+        
+        // Use the greater of declared vs actual (staff may have added more players)
+        effectivePlayerCount = Math.max(declaredPlayerCount, actualTotal);
+        guestCount = actualGuests;
+      }
       
       const estimate = await calculateFeeEstimate({
         ownerEmail: request.userEmail?.toLowerCase() || '',
         durationMinutes: request.durationMinutes || 60,
         guestCount,
         requestDate: request.requestDate || '',
-        playerCount: declaredPlayerCount
+        playerCount: effectivePlayerCount
       });
       
       return res.json(estimate);
@@ -1115,14 +1135,34 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
     
     const request = booking[0];
     const declaredPlayerCount = (request as any).declaredPlayerCount || 1;
-    const guestCount = Math.max(0, declaredPlayerCount - 1);
+    
+    // If booking has a session, use actual participant count for accuracy
+    let effectivePlayerCount = declaredPlayerCount;
+    let guestCount = Math.max(0, declaredPlayerCount - 1);
+    
+    if ((request as any).sessionId) {
+      const participantResult = await pool.query(
+        `SELECT 
+          COUNT(*) FILTER (WHERE participant_type = 'guest') as guest_count,
+          COUNT(*) as total_count
+         FROM booking_participants 
+         WHERE session_id = $1`,
+        [(request as any).sessionId]
+      );
+      const actualTotal = parseInt(participantResult.rows[0]?.total_count || '0');
+      const actualGuests = parseInt(participantResult.rows[0]?.guest_count || '0');
+      
+      // Use the greater of declared vs actual (staff may have added more players)
+      effectivePlayerCount = Math.max(declaredPlayerCount, actualTotal);
+      guestCount = actualGuests;
+    }
     
     const estimate = await calculateFeeEstimate({
       ownerEmail: request.userEmail?.toLowerCase() || '',
       durationMinutes: request.durationMinutes || 60,
       guestCount,
       requestDate: request.requestDate || '',
-      playerCount: declaredPlayerCount
+      playerCount: effectivePlayerCount
     });
     
     res.json(estimate);

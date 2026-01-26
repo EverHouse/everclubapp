@@ -878,11 +878,21 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
         resourceCapacity = capacityResult.rows[0].capacity;
       }
     }
-    // Total slots = declared player count (capped by resource capacity if available)
-    // This ensures 1-player bookings show 1 slot, not 4 open slots
+    
+    // Count actual participants (owner + added participants)
+    // Owner is always counted even if not explicitly in allParticipants
+    const ownerInAll = allParticipants.some(p => p.participantType === 'owner');
+    const actualParticipantCount = ownerInAll ? allParticipants.length : (1 + allParticipants.length);
+    
+    // Use the GREATER of declared count vs actual participants
+    // This ensures when staff adds more players than originally declared,
+    // the time allocation updates correctly (e.g., 240min ÷ 5 players = 48min each)
+    const effectivePlayerCount = Math.max(declaredPlayerCount, actualParticipantCount);
+    
+    // Total slots = effective player count (capped by resource capacity if available)
     const totalSlots = resourceCapacity 
-      ? Math.max(1, Math.min(declaredPlayerCount, resourceCapacity))
-      : Math.max(1, declaredPlayerCount);
+      ? Math.max(1, Math.min(effectivePlayerCount, resourceCapacity))
+      : Math.max(1, effectivePlayerCount);
 
     let dailyAllowance = 60;
     let guestPassesPerMonth = 0;
@@ -981,7 +991,9 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       },
       timeAllocation: {
         totalMinutes: durationMinutes,
-        declaredPlayerCount: totalSlots,
+        declaredPlayerCount: declaredPlayerCount,
+        actualParticipantCount: actualParticipantCount,
+        effectivePlayerCount: effectivePlayerCount,
         totalSlots,
         minutesPerParticipant: minutesPerPlayer,
         allocations: allocations.map(a => ({
