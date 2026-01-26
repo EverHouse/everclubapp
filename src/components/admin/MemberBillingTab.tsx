@@ -502,6 +502,9 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showTierChangeModal, setShowTierChangeModal] = useState(false);
+  const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
+  const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
+  const [selectedSubscriptionTier, setSelectedSubscriptionTier] = useState('');
 
   const showSuccess = (message: string) => {
     setSuccessMessage(message);
@@ -863,6 +866,43 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     }
   };
 
+  const handleCreateSubscription = async () => {
+    if (!selectedSubscriptionTier) {
+      setError('Please select a membership tier');
+      return;
+    }
+    
+    setIsCreatingSubscription(true);
+    setError(null);
+    
+    try {
+      const res = await fetch('/api/stripe/subscriptions/create-for-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          memberEmail,
+          tierName: selectedSubscriptionTier
+        })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        await fetchBillingInfo();
+        setShowCreateSubscriptionModal(false);
+        setSelectedSubscriptionTier('');
+        showSuccess(data.message || 'Subscription created successfully');
+      } else {
+        const errData = await res.json();
+        setError(errData.error || 'Failed to create subscription');
+      }
+    } catch (err) {
+      setError('Failed to create subscription');
+    } finally {
+      setIsCreatingSubscription(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
@@ -1024,6 +1064,32 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           onUpdateBillingSource={handleUpdateBillingSource}
           isUpdatingSource={isUpdatingSource}
         />
+      )}
+
+      {/* Create Subscription option - when Stripe customer exists but no active subscription */}
+      {(billingInfo?.billingProvider === 'stripe' || !billingInfo?.billingProvider) && billingInfo?.stripeCustomerId && !billingInfo?.activeSubscription && (
+        <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
+              <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'}`}>add_card</span>
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-primary'}`}>No Active Subscription</p>
+              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                This member has Stripe set up but doesn't have an active membership subscription.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCreateSubscriptionModal(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isDark ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' : 'bg-green-100 text-green-700 hover:bg-green-200'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+              Create Subscription
+            </button>
+          </div>
+        </div>
       )}
 
       {billingInfo?.billingProvider === 'mindbody' && (
@@ -1364,6 +1430,87 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           }}
         />
       )}
+
+      {/* Create Subscription Modal */}
+      <ModalShell
+        isOpen={showCreateSubscriptionModal}
+        onClose={() => {
+          setShowCreateSubscriptionModal(false);
+          setSelectedSubscriptionTier('');
+        }}
+        title="Create Subscription"
+        size="sm"
+      >
+        <div className="p-4 space-y-4">
+          <div className={`p-4 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
+            <div className="flex items-start gap-3">
+              <span className={`material-symbols-outlined ${isDark ? 'text-green-400' : 'text-green-600'} text-xl`}>add_card</span>
+              <div>
+                <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                  Start a new membership subscription
+                </p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-green-400/80' : 'text-green-600'}`}>
+                  This will create a subscription in Stripe and begin billing the member.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Select Membership Tier
+            </label>
+            <select
+              value={selectedSubscriptionTier}
+              onChange={(e) => setSelectedSubscriptionTier(e.target.value)}
+              className={`w-full p-3 rounded-lg border ${
+                isDark
+                  ? 'bg-white/10 border-white/20 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+              } focus:ring-2 focus:ring-green-500 focus:border-green-500`}
+            >
+              <option value="">Choose a tier...</option>
+              {VALID_TIERS.map((tier) => (
+                <option key={tier} value={tier}>{tier}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && (
+            <div className={`p-3 rounded-lg ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'} text-sm`}>
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => {
+                setShowCreateSubscriptionModal(false);
+                setSelectedSubscriptionTier('');
+              }}
+              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateSubscription}
+              disabled={isCreatingSubscription || !selectedSubscriptionTier}
+              className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
+            >
+              {isCreatingSubscription ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                  Creating...
+                </span>
+              ) : (
+                'Create Subscription'
+              )}
+            </button>
+          </div>
+        </div>
+      </ModalShell>
     </div>
   );
 };

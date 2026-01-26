@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.29.1",
+    date: "2026-01-26",
+    title: "Staff Subscription Management",
+    changes: [
+      "Added: Staff can now create new membership subscriptions directly from the member billing tab",
+      "Added: 'Create Subscription' button appears when a member has Stripe set up but no active subscription",
+      "Added: Modal to select membership tier when creating a new subscription"
+    ]
+  },
+  {
     version: "9.29.0",
     date: "2026-01-26",
     title: "Double-Booking Protection & HubSpot Reliability",

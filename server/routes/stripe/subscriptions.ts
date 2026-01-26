@@ -1,11 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
+import { pool } from '../../core/db';
+import { db } from '../../db';
+import { membershipTiers } from '../../../shared/schema';
+import { eq } from 'drizzle-orm';
 import {
   createSubscription,
   cancelSubscription,
   listCustomerSubscriptions,
-  syncActiveSubscriptionsFromStripe
+  syncActiveSubscriptionsFromStripe,
+  getOrCreateStripeCustomer
 } from '../../core/stripe';
+import { getSessionUser } from '../../types/session';
+import { logFromRequest } from '../../core/auditLog';
 
 const router = Router();
 
@@ -87,6 +94,106 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, async (req: Reques
   } catch (error: any) {
     console.error('[Stripe] Error syncing subscriptions:', error);
     res.status(500).json({ error: 'Failed to sync subscriptions' });
+  }
+});
+
+router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { memberEmail, tierName } = req.body;
+    const sessionUser = getSessionUser(req);
+    
+    if (!memberEmail || !tierName) {
+      return res.status(400).json({ error: 'memberEmail and tierName are required' });
+    }
+    
+    const memberResult = await pool.query(
+      'SELECT id, email, first_name, last_name, tier, stripe_customer_id, billing_provider, stripe_subscription_id FROM users WHERE LOWER(email) = $1',
+      [memberEmail.toLowerCase()]
+    );
+    
+    if (memberResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const member = memberResult.rows[0];
+    
+    if (member.stripe_subscription_id) {
+      return res.status(400).json({ error: 'Member already has an active subscription' });
+    }
+    
+    const tierResult = await db.select()
+      .from(membershipTiers)
+      .where(eq(membershipTiers.name, tierName))
+      .limit(1);
+    
+    if (tierResult.length === 0) {
+      return res.status(400).json({ error: `Tier "${tierName}" not found` });
+    }
+    
+    const tier = tierResult[0];
+    
+    if (!tier.stripePriceId) {
+      return res.status(400).json({ error: `Tier "${tierName}" does not have a Stripe price configured` });
+    }
+    
+    const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email;
+    const { customerId } = await getOrCreateStripeCustomer(
+      member.id.toString(),
+      member.email,
+      memberName,
+      tierName
+    );
+    
+    const subscriptionResult = await createSubscription({
+      customerId,
+      priceId: tier.stripePriceId,
+      metadata: {
+        memberEmail: member.email,
+        tier: tierName,
+        createdBy: sessionUser?.email || 'staff'
+      }
+    });
+    
+    if (!subscriptionResult.success) {
+      return res.status(500).json({ error: subscriptionResult.error || 'Failed to create subscription' });
+    }
+    
+    await pool.query(
+      `UPDATE users SET 
+        billing_provider = 'stripe',
+        tier = $1,
+        stripe_subscription_id = $2,
+        membership_status = 'active',
+        updated_at = NOW()
+      WHERE id = $3`,
+      [tierName, subscriptionResult.subscription?.subscriptionId, member.id]
+    );
+    
+    await logFromRequest(req, {
+      action: 'subscription_created',
+      resourceType: 'member',
+      resourceId: member.id.toString(),
+      resourceName: memberName,
+      details: {
+        tier: tierName,
+        subscriptionId: subscriptionResult.subscription?.subscriptionId,
+        customerId,
+        previousBillingProvider: member.billing_provider,
+        previousTier: member.tier
+      }
+    });
+    
+    console.log(`[Stripe] Created subscription for ${member.email}: ${subscriptionResult.subscription?.subscriptionId}`);
+    
+    res.json({
+      success: true,
+      subscription: subscriptionResult.subscription,
+      customerId,
+      message: `Successfully created ${tierName} subscription for ${memberName}`
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error creating subscription for member:', error);
+    res.status(500).json({ error: error.message || 'Failed to create subscription' });
   }
 });
 
