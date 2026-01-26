@@ -16,6 +16,7 @@ import { logFromRequest } from '../../core/auditLog';
 import { getCalendarNameForBayAsync, isStaffOrAdminCheck } from './helpers';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
 import { getGuestPassesRemaining } from '../guestPasses';
+import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 
 const router = Router();
 
@@ -955,15 +956,17 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
   }
 });
 
-// Shared fee calculation logic - used by both member preview and staff approval
+// Shared fee calculation logic - uses Unified Fee Service for consistency
 async function calculateFeeEstimate(params: {
   ownerEmail: string;
   durationMinutes: number;
   guestCount: number;
   requestDate: string;
   playerCount: number;
+  sessionId?: number;
+  bookingId?: number;
 }) {
-  const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount } = params;
+  const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount, sessionId, bookingId } = params;
   
   const ownerTier = await getMemberTierByEmail(ownerEmail);
   const tierLimits = ownerTier ? await getTierLimits(ownerTier) : null;
@@ -975,55 +978,132 @@ async function calculateFeeEstimate(params: {
   const usedMinutesToday = requestDate ? await getDailyBookedMinutes(ownerEmail, requestDate) : 0;
   const perPersonMins = Math.floor(durationMinutes / playerCount);
   
-  let overageMinutes = 0;
-  let overageFee = 0;
+  // Build participants array for fee computation
+  const participants: Array<{
+    userId?: string;
+    email?: string;
+    displayName: string;
+    participantType: 'owner' | 'member' | 'guest';
+  }> = [
+    { email: ownerEmail, displayName: 'Owner', participantType: 'owner' }
+  ];
   
-  if (isSocialTier) {
-    overageMinutes = durationMinutes;
-    overageFee = Math.ceil(overageMinutes / 30) * 25;
-  } else if (!isUnlimitedTier && dailyAllowance > 0) {
-    overageMinutes = Math.max(0, (usedMinutesToday + perPersonMins) - dailyAllowance);
-    overageFee = Math.ceil(overageMinutes / 30) * 25;
+  // Add guests based on count
+  for (let i = 0; i < guestCount; i++) {
+    participants.push({ displayName: `Guest ${i + 1}`, participantType: 'guest' });
   }
   
-  const guestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
-  const guestsUsingPasses = Math.min(guestCount, guestPassesRemaining);
-  const guestsCharged = Math.max(0, guestCount - guestPassesRemaining);
-  const guestFees = guestsCharged * 25;
-  
-  const totalFee = overageFee + guestFees;
-  
-  return {
-    ownerEmail,
-    ownerTier,
-    durationMinutes,
-    playerCount,
-    perPersonMins,
-    tierInfo: {
-      dailyAllowance,
-      usedMinutesToday,
-      remainingMinutes: Math.max(0, dailyAllowance - usedMinutesToday),
-      isSocialTier,
-      isUnlimitedTier
-    },
-    feeBreakdown: {
-      overageMinutes,
-      overageFee,
-      guestCount,
-      guestPassesRemaining,
-      guestsUsingPasses,
-      guestsCharged,
-      guestFees
-    },
-    totalFee,
-    note: isSocialTier 
-      ? 'Social tier pays for all simulator time'
-      : isUnlimitedTier 
-        ? 'Unlimited access - no overage fees' 
-        : overageFee > 0 
-          ? `${overageMinutes} min over daily allowance`
-          : 'Within daily allowance'
-  };
+  try {
+    // Use unified fee service for actual calculation
+    const breakdown = await computeFeeBreakdown(
+      sessionId || bookingId 
+        ? { sessionId, bookingId, declaredPlayerCount: playerCount, source: 'preview' as const }
+        : {
+            sessionDate: requestDate,
+            sessionDuration: durationMinutes,
+            declaredPlayerCount: playerCount,
+            hostEmail: ownerEmail,
+            participants,
+            source: 'preview' as const
+          }
+    );
+    
+    // Map unified breakdown to legacy response format for backward compatibility
+    const overageFee = Math.round(breakdown.totals.overageCents / 100);
+    const guestFees = Math.round(breakdown.totals.guestCents / 100);
+    const guestsUsingPasses = breakdown.totals.guestPassesUsed;
+    const guestsCharged = Math.max(0, guestCount - guestsUsingPasses);
+    
+    // Calculate overage minutes from the breakdown
+    const ownerLineItem = breakdown.participants.find(p => p.participantType === 'owner');
+    const overageMinutes = ownerLineItem?.overageCents ? Math.ceil((ownerLineItem.overageCents / 100) / 25) * 30 : 0;
+    
+    return {
+      ownerEmail,
+      ownerTier,
+      durationMinutes,
+      playerCount,
+      perPersonMins,
+      tierInfo: {
+        dailyAllowance,
+        usedMinutesToday,
+        remainingMinutes: Math.max(0, dailyAllowance - usedMinutesToday),
+        isSocialTier,
+        isUnlimitedTier
+      },
+      feeBreakdown: {
+        overageMinutes,
+        overageFee,
+        guestCount,
+        guestPassesRemaining: breakdown.totals.guestPassesAvailable,
+        guestsUsingPasses,
+        guestsCharged,
+        guestFees
+      },
+      totalFee: Math.round(breakdown.totals.totalCents / 100),
+      note: isSocialTier 
+        ? 'Social tier pays for all simulator time'
+        : isUnlimitedTier 
+          ? 'Unlimited access - no overage fees' 
+          : overageFee > 0 
+            ? `${overageMinutes} min over daily allowance`
+            : 'Within daily allowance',
+      unifiedBreakdown: breakdown
+    };
+  } catch (error) {
+    // Fallback to simple calculation if unified service fails
+    console.error('[FeeEstimate] Unified service error, using fallback:', error);
+    
+    let overageMinutes = 0;
+    let overageFee = 0;
+    
+    if (isSocialTier) {
+      overageMinutes = durationMinutes;
+      overageFee = Math.ceil(overageMinutes / 30) * 25;
+    } else if (!isUnlimitedTier && dailyAllowance > 0) {
+      overageMinutes = Math.max(0, (usedMinutesToday + perPersonMins) - dailyAllowance);
+      overageFee = Math.ceil(overageMinutes / 30) * 25;
+    }
+    
+    const guestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
+    const guestsUsingPasses = Math.min(guestCount, guestPassesRemaining);
+    const guestsCharged = Math.max(0, guestCount - guestPassesRemaining);
+    const guestFees = guestsCharged * 25;
+    
+    const totalFee = overageFee + guestFees;
+    
+    return {
+      ownerEmail,
+      ownerTier,
+      durationMinutes,
+      playerCount,
+      perPersonMins,
+      tierInfo: {
+        dailyAllowance,
+        usedMinutesToday,
+        remainingMinutes: Math.max(0, dailyAllowance - usedMinutesToday),
+        isSocialTier,
+        isUnlimitedTier
+      },
+      feeBreakdown: {
+        overageMinutes,
+        overageFee,
+        guestCount,
+        guestPassesRemaining,
+        guestsUsingPasses,
+        guestsCharged,
+        guestFees
+      },
+      totalFee,
+      note: isSocialTier 
+        ? 'Social tier pays for all simulator time'
+        : isUnlimitedTier 
+          ? 'Unlimited access - no overage fees' 
+          : overageFee > 0 
+            ? `${overageMinutes} min over daily allowance`
+            : 'Within daily allowance'
+    };
+  }
 }
 
 // Unified fee estimate endpoint - works for both members (with params) and staff (with booking ID)
@@ -1079,7 +1159,9 @@ router.get('/api/fee-estimate', async (req, res) => {
         durationMinutes: request.durationMinutes || 60,
         guestCount,
         requestDate: request.requestDate || '',
-        playerCount: effectivePlayerCount
+        playerCount: effectivePlayerCount,
+        sessionId: (request as any).sessionId ? parseInt((request as any).sessionId) : undefined,
+        bookingId
       });
       
       return res.json(estimate);
@@ -1162,7 +1244,9 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
       durationMinutes: request.durationMinutes || 60,
       guestCount,
       requestDate: request.requestDate || '',
-      playerCount: effectivePlayerCount
+      playerCount: effectivePlayerCount,
+      sessionId: (request as any).sessionId ? parseInt((request as any).sessionId) : undefined,
+      bookingId
     });
     
     res.json(estimate);

@@ -109,6 +109,8 @@ export const bookingRequests = pgTable("booking_requests", {
   isEvent: boolean("is_event").default(false),
   // Flag indicating Trackman player count is higher than app request's declared player count
   playerCountMismatch: boolean("player_count_mismatch").default(false),
+  // Optimistic locking version for roster edits to prevent concurrent overwrites
+  rosterVersion: integer("roster_version").default(0),
 }, (table) => [
   index("idx_booking_requests_trackman_booking_id").on(table.trackmanBookingId),
   uniqueIndex("booking_requests_trackman_external_id_idx").on(table.trackmanExternalId),

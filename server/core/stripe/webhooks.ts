@@ -12,8 +12,109 @@ import { sendPassWithQrEmail } from '../../emails/passEmails';
 import { broadcastBillingUpdate, broadcastDayPassUpdate } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 import { handlePrimarySubscriptionCancelled } from './groupBilling';
+import type { PoolClient } from 'pg';
 
 const EVENT_DEDUP_WINDOW_DAYS = 7;
+
+type DeferredAction = () => Promise<void>;
+
+interface WebhookProcessingResult {
+  processed: boolean;
+  reason?: 'duplicate' | 'out_of_order' | 'error';
+  deferredActions: DeferredAction[];
+}
+
+function extractResourceId(event: any): string | null {
+  const obj = event.data?.object;
+  if (!obj || !obj.id) return null;
+  
+  if (event.type.startsWith('payment_intent.')) return obj.id;
+  if (event.type.startsWith('invoice.')) return obj.id;
+  if (event.type.startsWith('customer.subscription.')) return obj.id;
+  if (event.type.startsWith('checkout.session.')) return obj.id;
+  if (event.type.startsWith('charge.')) return obj.payment_intent || obj.id;
+  
+  return null;
+}
+
+async function tryClaimEvent(
+  client: PoolClient,
+  eventId: string,
+  eventType: string,
+  eventTimestamp: number,
+  resourceId: string | null
+): Promise<{ claimed: boolean; reason?: 'duplicate' | 'out_of_order' }> {
+  const claimed = await client.query(
+    `INSERT INTO webhook_processed_events (event_id, event_type, resource_id, processed_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (event_id) DO NOTHING
+     RETURNING event_id`,
+    [eventId, eventType, resourceId]
+  );
+
+  if (claimed.rowCount === 0) {
+    return { claimed: false, reason: 'duplicate' };
+  }
+
+  return { claimed: true };
+}
+
+async function checkResourceEventOrder(
+  client: PoolClient,
+  resourceId: string,
+  eventType: string,
+  eventTimestamp: number
+): Promise<boolean> {
+  const EVENT_PRIORITY: Record<string, number> = {
+    'payment_intent.created': 1,
+    'payment_intent.processing': 2,
+    'payment_intent.requires_action': 3,
+    'payment_intent.succeeded': 10,
+    'payment_intent.payment_failed': 10,
+    'charge.succeeded': 11,
+    'charge.refunded': 20,
+    'invoice.created': 1,
+    'invoice.finalized': 2,
+    'invoice.payment_succeeded': 10,
+    'invoice.payment_failed': 10,
+    'invoice.paid': 11,
+    'invoice.voided': 20,
+    'invoice.marked_uncollectible': 20,
+  };
+
+  const currentPriority = EVENT_PRIORITY[eventType] || 5;
+
+  const result = await client.query(
+    `SELECT event_type, processed_at FROM webhook_processed_events 
+     WHERE resource_id = $1 AND event_type != $2
+     ORDER BY processed_at DESC LIMIT 1`,
+    [resourceId, eventType]
+  );
+
+  if (result.rows.length === 0) {
+    return true;
+  }
+
+  const lastEventType = result.rows[0].event_type;
+  const lastPriority = EVENT_PRIORITY[lastEventType] || 5;
+
+  if (lastPriority > currentPriority) {
+    console.log(`[Stripe Webhook] Out-of-order event: ${eventType} (priority ${currentPriority}) after ${lastEventType} (priority ${lastPriority}) for resource ${resourceId}`);
+    return false;
+  }
+
+  return true;
+}
+
+async function executeDeferredActions(actions: DeferredAction[]): Promise<void> {
+  for (const action of actions) {
+    try {
+      await action();
+    } catch (err) {
+      console.error('[Stripe Webhook] Deferred action failed (non-critical):', err);
+    }
+  }
+}
 
 interface CacheTransactionParams {
   stripeId: string;
@@ -72,30 +173,6 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
   }
 }
 
-async function isEventAlreadyProcessed(eventId: string): Promise<boolean> {
-  try {
-    const result = await pool.query(
-      'SELECT id FROM webhook_processed_events WHERE event_id = $1',
-      [eventId]
-    );
-    return result.rows.length > 0;
-  } catch (err) {
-    console.error('[Stripe Webhook] Error checking event deduplication:', err);
-    return false;
-  }
-}
-
-async function markEventProcessed(eventId: string, eventType: string): Promise<void> {
-  try {
-    await pool.query(
-      'INSERT INTO webhook_processed_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING',
-      [eventId, eventType]
-    );
-  } catch (err) {
-    console.error('[Stripe Webhook] Error marking event as processed:', err);
-  }
-}
-
 async function cleanupOldProcessedEvents(): Promise<void> {
   try {
     const result = await pool.query(
@@ -122,52 +199,79 @@ export async function processStripeWebhook(
   }
 
   const sync = await getStripeSync();
-  
   await sync.processWebhook(payload, signature);
 
   const payloadString = payload.toString('utf8');
   const event = JSON.parse(payloadString);
 
-  if (await isEventAlreadyProcessed(event.id)) {
-    console.log(`[Stripe Webhook] Skipping duplicate event: ${event.id} (${event.type})`);
-    return;
-  }
-  
+  const resourceId = extractResourceId(event);
+  const client = await pool.connect();
+  let deferredActions: DeferredAction[] = [];
+
   try {
-    if (event.type === 'payment_intent.succeeded') {
-      await handlePaymentIntentSucceeded(event.data.object);
-    } else if (event.type === 'payment_intent.payment_failed') {
-      await handlePaymentIntentFailed(event.data.object);
-    } else if (event.type === 'charge.refunded') {
-      await handleChargeRefunded(event.data.object);
-    } else if (event.type === 'invoice.payment_succeeded') {
-      await handleInvoicePaymentSucceeded(event.data.object);
-    } else if (event.type === 'invoice.payment_failed') {
-      await handleInvoicePaymentFailed(event.data.object);
-    } else if (event.type === 'invoice.created' || event.type === 'invoice.finalized' || event.type === 'invoice.updated') {
-      await handleInvoiceLifecycle(event.data.object, event.type);
-    } else if (event.type === 'invoice.voided' || event.type === 'invoice.marked_uncollectible') {
-      await handleInvoiceVoided(event.data.object, event.type);
-    } else if (event.type === 'checkout.session.completed') {
-      await handleCheckoutSessionCompleted(event.data.object);
-    } else if (event.type === 'customer.subscription.created') {
-      await handleSubscriptionCreated(event.data.object);
-    } else if (event.type === 'customer.subscription.updated') {
-      await handleSubscriptionUpdated(event.data.object, event.data.previous_attributes);
-    } else if (event.type === 'customer.subscription.deleted') {
-      await handleSubscriptionDeleted(event.data.object);
-    }
+    await client.query('BEGIN');
+
+    const claimResult = await tryClaimEvent(client, event.id, event.type, event.created, resourceId);
     
-    await markEventProcessed(event.id, event.type);
+    if (!claimResult.claimed) {
+      await client.query('ROLLBACK');
+      console.log(`[Stripe Webhook] Skipping ${claimResult.reason} event: ${event.id} (${event.type})`);
+      return;
+    }
+
+    if (resourceId) {
+      const orderOk = await checkResourceEventOrder(client, resourceId, event.type, event.created);
+      if (!orderOk) {
+        await client.query('ROLLBACK');
+        console.log(`[Stripe Webhook] Skipping out-of-order event: ${event.id} (${event.type}) for resource ${resourceId}`);
+        return;
+      }
+    }
+
+    console.log(`[Stripe Webhook] Processing event: ${event.id} (${event.type})`);
+
+    if (event.type === 'payment_intent.succeeded') {
+      deferredActions = await handlePaymentIntentSucceeded(client, event.data.object);
+    } else if (event.type === 'payment_intent.payment_failed') {
+      deferredActions = await handlePaymentIntentFailed(client, event.data.object);
+    } else if (event.type === 'charge.refunded') {
+      deferredActions = await handleChargeRefunded(client, event.data.object);
+    } else if (event.type === 'invoice.payment_succeeded') {
+      deferredActions = await handleInvoicePaymentSucceeded(client, event.data.object);
+    } else if (event.type === 'invoice.payment_failed') {
+      deferredActions = await handleInvoicePaymentFailed(client, event.data.object);
+    } else if (event.type === 'invoice.created' || event.type === 'invoice.finalized' || event.type === 'invoice.updated') {
+      deferredActions = await handleInvoiceLifecycle(client, event.data.object, event.type);
+    } else if (event.type === 'invoice.voided' || event.type === 'invoice.marked_uncollectible') {
+      deferredActions = await handleInvoiceVoided(client, event.data.object, event.type);
+    } else if (event.type === 'checkout.session.completed') {
+      deferredActions = await handleCheckoutSessionCompleted(client, event.data.object);
+    } else if (event.type === 'customer.subscription.created') {
+      deferredActions = await handleSubscriptionCreated(client, event.data.object);
+    } else if (event.type === 'customer.subscription.updated') {
+      deferredActions = await handleSubscriptionUpdated(client, event.data.object, event.data.previous_attributes);
+    } else if (event.type === 'customer.subscription.deleted') {
+      deferredActions = await handleSubscriptionDeleted(client, event.data.object);
+    }
+
+    await client.query('COMMIT');
+    console.log(`[Stripe Webhook] Event ${event.id} committed successfully`);
+
+    await executeDeferredActions(deferredActions);
+
     cleanupOldProcessedEvents().catch(() => {});
   } catch (handlerError) {
-    console.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}):`, handlerError);
+    await client.query('ROLLBACK');
+    console.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}), rolled back:`, handlerError);
     throw handlerError;
+  } finally {
+    client.release();
   }
 }
 
-async function handleChargeRefunded(charge: any): Promise<void> {
+async function handleChargeRefunded(client: PoolClient, charge: any): Promise<DeferredAction[]> {
   const { id, amount, amount_refunded, currency, customer, payment_intent, created, refunded } = charge;
+  const deferredActions: DeferredAction[] = [];
   
   console.log(`[Stripe Webhook] Charge refunded: ${id}, refunded amount: $${(amount_refunded / 100).toFixed(2)}`);
   
@@ -180,18 +284,20 @@ async function handleChargeRefunded(charge: any): Promise<void> {
   if (refunds.length > 0) {
     for (const refund of refunds) {
       if (refund?.id && refund?.amount) {
-        upsertTransactionCache({
-          stripeId: refund.id,
-          objectType: 'refund',
-          amountCents: refund.amount,
-          currency: refund.currency || currency || 'usd',
-          status: refund.status || 'succeeded',
-          createdAt: new Date(refund.created ? refund.created * 1000 : Date.now()),
-          customerId,
-          paymentIntentId,
-          chargeId: id,
-          source: 'webhook',
-        }).catch(err => console.error(`[Stripe Webhook] Cache insert failed for refund ${refund.id}:`, err));
+        deferredActions.push(async () => {
+          await upsertTransactionCache({
+            stripeId: refund.id,
+            objectType: 'refund',
+            amountCents: refund.amount,
+            currency: refund.currency || currency || 'usd',
+            status: refund.status || 'succeeded',
+            createdAt: new Date(refund.created ? refund.created * 1000 : Date.now()),
+            customerId,
+            paymentIntentId,
+            chargeId: id,
+            source: 'webhook',
+          });
+        });
       }
     }
     console.log(`[Stripe Webhook] Cached ${refunds.length} refund(s) for charge ${id}`);
@@ -199,28 +305,10 @@ async function handleChargeRefunded(charge: any): Promise<void> {
     console.warn(`[Stripe Webhook] No refund objects found in charge.refunded event for charge ${id}`);
   }
   
-  upsertTransactionCache({
-    stripeId: id,
-    objectType: 'charge',
-    amountCents: amount,
-    currency: currency || 'usd',
-    status,
-    createdAt: new Date(created * 1000),
-    customerId,
-    paymentIntentId,
-    chargeId: id,
-    source: 'webhook',
-  }).catch(err => console.error('[Stripe Webhook] Cache update failed for charge refund status:', err));
-  
-  if (paymentIntentId) {
-    await pool.query(
-      `UPDATE stripe_payment_intents SET status = $1, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,
-      [status, paymentIntentId]
-    );
-    
-    upsertTransactionCache({
-      stripeId: paymentIntentId,
-      objectType: 'payment_intent',
+  deferredActions.push(async () => {
+    await upsertTransactionCache({
+      stripeId: id,
+      objectType: 'charge',
       amountCents: amount,
       currency: currency || 'usd',
       status,
@@ -229,46 +317,63 @@ async function handleChargeRefunded(charge: any): Promise<void> {
       paymentIntentId,
       chargeId: id,
       source: 'webhook',
-    }).catch(err => console.error('[Stripe Webhook] Cache update failed for PI refund:', err));
+    });
+  });
+  
+  if (paymentIntentId) {
+    await client.query(
+      `UPDATE stripe_payment_intents SET status = $1, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,
+      [status, paymentIntentId]
+    );
     
-    // Update booking_participants to 'refunded' status for this payment intent
-    try {
-      const participantUpdate = await pool.query(
-        `UPDATE booking_participants 
-         SET payment_status = 'refunded', refunded_at = NOW()
-         WHERE stripe_payment_intent_id = $1 AND payment_status = 'paid'
-         RETURNING id, session_id, user_email`,
-        [paymentIntentId]
-      );
+    deferredActions.push(async () => {
+      await upsertTransactionCache({
+        stripeId: paymentIntentId,
+        objectType: 'payment_intent',
+        amountCents: amount,
+        currency: currency || 'usd',
+        status,
+        createdAt: new Date(created * 1000),
+        customerId,
+        paymentIntentId,
+        chargeId: id,
+        source: 'webhook',
+      });
+    });
+    
+    const participantUpdate = await client.query(
+      `UPDATE booking_participants 
+       SET payment_status = 'refunded', refunded_at = NOW()
+       WHERE stripe_payment_intent_id = $1 AND payment_status = 'paid'
+       RETURNING id, session_id, user_email`,
+      [paymentIntentId]
+    );
+    
+    if (participantUpdate.rowCount && participantUpdate.rowCount > 0) {
+      console.log(`[Stripe Webhook] Marked ${participantUpdate.rowCount} participant(s) as refunded for PI ${paymentIntentId}`);
       
-      if (participantUpdate.rowCount && participantUpdate.rowCount > 0) {
-        console.log(`[Stripe Webhook] Marked ${participantUpdate.rowCount} participant(s) as refunded for PI ${paymentIntentId}`);
-        
-        // Create audit records for the refund
-        for (const row of participantUpdate.rows) {
-          try {
-            await pool.query(
-              `INSERT INTO booking_payment_audit 
-               (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
-               SELECT bs.booking_id, $1, $2, 'refund_processed', 'system', 'Stripe Webhook', 0, 'stripe', $3
-               FROM booking_sessions bs WHERE bs.id = $1`,
-              [row.session_id, row.id, JSON.stringify({ stripePaymentIntentId: paymentIntentId })]
-            );
-          } catch (auditErr) {
-            console.warn(`[Stripe Webhook] Failed to create refund audit for participant ${row.id}:`, auditErr);
-          }
-        }
+      for (const row of participantUpdate.rows) {
+        await client.query(
+          `INSERT INTO booking_payment_audit 
+           (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
+           SELECT bs.booking_id, $1, $2, 'refund_processed', 'system', 'Stripe Webhook', 0, 'stripe', $3
+           FROM booking_sessions bs WHERE bs.id = $1`,
+          [row.session_id, row.id, JSON.stringify({ stripePaymentIntentId: paymentIntentId })]
+        );
       }
-    } catch (err) {
-      console.error('[Stripe Webhook] Error updating booking participants for refund:', err);
     }
   }
   
-  broadcastBillingUpdate({ type: 'refund', chargeId: id, status, amountRefunded: amount_refunded });
+  deferredActions.push(async () => {
+    broadcastBillingUpdate({ type: 'refund', chargeId: id, status, amountRefunded: amount_refunded });
+  });
+
+  return deferredActions;
 }
 
-async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
+async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: any): Promise<DeferredAction[]> {
   const { id, metadata, amount, currency, customer, receipt_email, description, created } = paymentIntent;
+  const deferredActions: DeferredAction[] = [];
   
   console.log(`[Stripe Webhook] Payment succeeded: ${id}, amount: $${(amount / 100).toFixed(2)}`);
 
@@ -276,23 +381,25 @@ async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
   const customerName = typeof customer === 'object' ? customer?.name : metadata?.memberName;
   const customerId = typeof customer === 'string' ? customer : customer?.id;
   
-  upsertTransactionCache({
-    stripeId: id,
-    objectType: 'payment_intent',
-    amountCents: amount,
-    currency: currency || 'usd',
-    status: 'succeeded',
-    createdAt: new Date(created * 1000),
-    customerId,
-    customerEmail,
-    customerName,
-    description: description || metadata?.productName || 'Stripe payment',
-    metadata,
-    source: 'webhook',
-    paymentIntentId: id,
-  }).catch(err => console.error('[Stripe Webhook] Cache upsert failed:', err));
+  deferredActions.push(async () => {
+    await upsertTransactionCache({
+      stripeId: id,
+      objectType: 'payment_intent',
+      amountCents: amount,
+      currency: currency || 'usd',
+      status: 'succeeded',
+      createdAt: new Date(created * 1000),
+      customerId,
+      customerEmail,
+      customerName,
+      description: description || metadata?.productName || 'Stripe payment',
+      metadata,
+      source: 'webhook',
+      paymentIntentId: id,
+    });
+  });
 
-  await pool.query(
+  await client.query(
     `UPDATE stripe_payment_intents 
      SET status = 'succeeded', updated_at = NOW() 
      WHERE stripe_payment_intent_id = $1`,
@@ -309,410 +416,394 @@ async function handlePaymentIntentSucceeded(paymentIntent: any): Promise<void> {
   const feeSnapshotId = metadata?.feeSnapshotId ? parseInt(metadata.feeSnapshotId, 10) : NaN;
   
   if (!isNaN(feeSnapshotId)) {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      // Lock the snapshot row to prevent concurrent processing
-      const snapshotResult = await client.query(
-        `SELECT bfs.*, bs.booking_id as verified_booking_id
-         FROM booking_fee_snapshots bfs
-         JOIN booking_sessions bs ON bfs.session_id = bs.id
-         WHERE bfs.id = $1 AND bfs.stripe_payment_intent_id = $2 AND bfs.status = 'pending'
-         FOR UPDATE OF bfs SKIP LOCKED`,
-        [feeSnapshotId, id]
-      );
-      
-      if (snapshotResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        console.error(`[Stripe Webhook] Fee snapshot ${feeSnapshotId} not found, already used, or locked by another process`);
-        return;
+    const snapshotResult = await client.query(
+      `SELECT bfs.*, bs.booking_id as verified_booking_id
+       FROM booking_fee_snapshots bfs
+       JOIN booking_sessions bs ON bfs.session_id = bs.id
+       WHERE bfs.id = $1 AND bfs.stripe_payment_intent_id = $2 AND bfs.status = 'pending'
+       FOR UPDATE OF bfs SKIP LOCKED`,
+      [feeSnapshotId, id]
+    );
+    
+    if (snapshotResult.rows.length === 0) {
+      console.error(`[Stripe Webhook] Fee snapshot ${feeSnapshotId} not found, already used, or locked by another process`);
+      return deferredActions;
+    }
+    
+    const snapshot = snapshotResult.rows[0];
+    
+    if (Math.abs(snapshot.total_cents - amount) > 1) {
+      console.error(`[Stripe Webhook] Amount mismatch: snapshot=${snapshot.total_cents}, payment=${amount} - rejecting`);
+      throw new Error(`Amount mismatch: expected ${snapshot.total_cents}, got ${amount}`);
+    }
+    
+    const snapshotFees: ParticipantFee[] = snapshot.participant_fees;
+    const participantIds = snapshotFees.map(pf => pf.id);
+    
+    const statusCheck = await client.query(
+      `SELECT id, payment_status FROM booking_participants WHERE id = ANY($1::int[]) FOR UPDATE`,
+      [participantIds]
+    );
+    
+    const statusMap = new Map<number, string>();
+    for (const row of statusCheck.rows) {
+      statusMap.set(row.id, row.payment_status || 'pending');
+    }
+    
+    for (const pf of snapshotFees) {
+      const status = statusMap.get(pf.id);
+      if (status === 'paid' || status === 'waived') {
+        console.warn(`[Stripe Webhook] Participant ${pf.id} already ${status} - skipping`);
+        continue;
       }
-      
-      const snapshot = snapshotResult.rows[0];
-      
-      if (Math.abs(snapshot.total_cents - amount) > 1) {
-        await client.query('ROLLBACK');
-        console.error(`[Stripe Webhook] Amount mismatch: snapshot=${snapshot.total_cents}, payment=${amount} - rejecting`);
-        return;
-      }
-      
-      const snapshotFees: ParticipantFee[] = snapshot.participant_fees;
-      const participantIds = snapshotFees.map(pf => pf.id);
-      
-      // Lock participant rows to prevent concurrent updates
-      const statusCheck = await client.query(
-        `SELECT id, payment_status FROM booking_participants WHERE id = ANY($1::int[]) FOR UPDATE`,
-        [participantIds]
-      );
-      
-      const statusMap = new Map<number, string>();
-      for (const row of statusCheck.rows) {
-        statusMap.set(row.id, row.payment_status || 'pending');
-      }
-      
-      for (const pf of snapshotFees) {
-        const status = statusMap.get(pf.id);
-        if (status === 'paid' || status === 'waived') {
-          console.warn(`[Stripe Webhook] Participant ${pf.id} already ${status} - skipping`);
-          continue;
-        }
-        participantFees.push(pf);
-        validatedParticipantIds.push(pf.id);
-      }
-      
+      participantFees.push(pf);
+      validatedParticipantIds.push(pf.id);
+    }
+    
+    await client.query(
+      `UPDATE booking_fee_snapshots SET status = 'completed', used_at = NOW() WHERE id = $1`,
+      [feeSnapshotId]
+    );
+    
+    if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
       await client.query(
-        `UPDATE booking_fee_snapshots SET status = 'completed', used_at = NOW() WHERE id = $1`,
-        [feeSnapshotId]
-      );
-      
-      // Update participants within the same transaction to prevent race conditions
-      if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
-        await client.query(
-          `UPDATE booking_participants bp
-           SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $3, cached_fee_cents = 0
-           FROM booking_sessions bs
-           WHERE bp.session_id = bs.id 
-             AND bs.booking_id = $1 
-             AND bp.id = ANY($2::int[])`,
-          [bookingId, validatedParticipantIds, id]
-        );
-        console.log(`[Stripe Webhook] Updated ${validatedParticipantIds.length} participant(s) to paid within transaction`);
-        
-        // Create audit records within transaction
-        for (const pf of participantFees) {
-          await client.query(
-            `INSERT INTO booking_payment_audit 
-             (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
-             VALUES ($1, $2, $3, 'payment_confirmed', 'system', 'Stripe Webhook', $4, $5, $6)`,
-            [bookingId, isNaN(sessionId) ? null : sessionId, pf.id, pf.amountCents / 100, 'stripe', JSON.stringify({ stripePaymentIntentId: id })]
-          );
-        }
-      }
-      
-      await client.query('COMMIT');
-      console.log(`[Stripe Webhook] Snapshot ${feeSnapshotId} transaction committed (validation + payment update + audit)`);
-      
-      // Broadcast after commit (non-critical)
-      if (validatedParticipantIds.length > 0 && !isNaN(bookingId)) {
-        broadcastBillingUpdate({
-          action: 'booking_payment_updated',
-          bookingId,
-          sessionId: isNaN(sessionId) ? undefined : sessionId,
-          amount
-        });
-      }
-      
-      // Skip the later participant update section since we handled it in the transaction
-      validatedParticipantIds = [];
-      participantFees = [];
-    } catch (err) {
-      await client.query('ROLLBACK');
-      console.error('[Stripe Webhook] Failed to validate from snapshot:', err);
-      throw err; // Throw so Stripe retries the webhook
-    } finally {
-      client.release();
-    }
-  } else if (metadata?.participantFees && !isNaN(bookingId) && bookingId > 0) {
-    console.warn(`[Stripe Webhook] No snapshot ID - falling back to DB cached fee validation`);
-    try {
-      const clientFees: ParticipantFee[] = JSON.parse(metadata.participantFees);
-      const participantIds = clientFees.map(pf => pf.id);
-      
-      const dbResult = await pool.query(
-        `SELECT bp.id, bp.payment_status, bp.cached_fee_cents
-         FROM booking_participants bp
-         INNER JOIN booking_sessions bs ON bp.session_id = bs.id
-         WHERE bp.id = ANY($1::int[]) AND bs.booking_id = $2`,
-        [participantIds, bookingId]
-      );
-      
-      const dbFeeMap = new Map<number, number>();
-      const statusMap = new Map<number, string>();
-      for (const row of dbResult.rows) {
-        dbFeeMap.set(row.id, row.cached_fee_cents || 0);
-        statusMap.set(row.id, row.payment_status || 'pending');
-      }
-      
-      for (const pf of clientFees) {
-        const cachedFee = dbFeeMap.get(pf.id);
-        if (cachedFee === undefined) {
-          console.warn(`[Stripe Webhook] Fallback: participant ${pf.id} not in booking - skipping`);
-          continue;
-        }
-        const status = statusMap.get(pf.id);
-        if (status === 'paid' || status === 'waived') {
-          console.warn(`[Stripe Webhook] Fallback: participant ${pf.id} already ${status} - skipping`);
-          continue;
-        }
-        if (cachedFee <= 0) {
-          console.warn(`[Stripe Webhook] Fallback: participant ${pf.id} has no cached fee - skipping`);
-          continue;
-        }
-        participantFees.push({ id: pf.id, amountCents: cachedFee });
-        validatedParticipantIds.push(pf.id);
-      }
-      
-      const dbTotal = participantFees.reduce((sum, pf) => sum + pf.amountCents, 0);
-      if (Math.abs(dbTotal - amount) > 1) {
-        console.error(`[Stripe Webhook] Fallback total mismatch: db=${dbTotal}, payment=${amount} - rejecting`);
-        participantFees = [];
-        validatedParticipantIds = [];
-        return;
-      }
-      
-      console.log(`[Stripe Webhook] Fallback validated ${validatedParticipantIds.length} participants using DB cached fees`);
-    } catch (err) {
-      console.error('[Stripe Webhook] Fallback validation failed:', err);
-    }
-  }
-
-  if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
-    try {
-      const updateResult = await pool.query(
         `UPDATE booking_participants bp
          SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $3, cached_fee_cents = 0
          FROM booking_sessions bs
          WHERE bp.session_id = bs.id 
            AND bs.booking_id = $1 
-           AND bp.id = ANY($2::int[])
-         RETURNING bp.id`,
+           AND bp.id = ANY($2::int[])`,
         [bookingId, validatedParticipantIds, id]
       );
-      console.log(`[Stripe Webhook] Updated ${updateResult.rowCount} participant(s) to paid and cleared cached fees with intent ${id}`);
+      console.log(`[Stripe Webhook] Updated ${validatedParticipantIds.length} participant(s) to paid within transaction`);
       
+      for (const pf of participantFees) {
+        await client.query(
+          `INSERT INTO booking_payment_audit 
+           (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
+           VALUES ($1, $2, $3, 'payment_confirmed', 'system', 'Stripe Webhook', $4, $5, $6)`,
+          [bookingId, isNaN(sessionId) ? null : sessionId, pf.id, pf.amountCents / 100, 'stripe', JSON.stringify({ stripePaymentIntentId: id })]
+        );
+      }
+      
+      const localBookingId = bookingId;
+      const localSessionId = sessionId;
+      const localAmount = amount;
+      deferredActions.push(async () => {
+        broadcastBillingUpdate({
+          action: 'booking_payment_updated',
+          bookingId: localBookingId,
+          sessionId: isNaN(localSessionId) ? undefined : localSessionId,
+          amount: localAmount
+        });
+      });
+    }
+    
+    console.log(`[Stripe Webhook] Snapshot ${feeSnapshotId} processed (validation + payment update + audit)`);
+    validatedParticipantIds = [];
+    participantFees = [];
+  } else if (metadata?.participantFees && !isNaN(bookingId) && bookingId > 0) {
+    console.warn(`[Stripe Webhook] No snapshot ID - falling back to DB cached fee validation`);
+    const clientFees: ParticipantFee[] = JSON.parse(metadata.participantFees);
+    const participantIds = clientFees.map(pf => pf.id);
+    
+    const dbResult = await client.query(
+      `SELECT bp.id, bp.payment_status, bp.cached_fee_cents
+       FROM booking_participants bp
+       INNER JOIN booking_sessions bs ON bp.session_id = bs.id
+       WHERE bp.id = ANY($1::int[]) AND bs.booking_id = $2`,
+      [participantIds, bookingId]
+    );
+    
+    const dbFeeMap = new Map<number, number>();
+    const statusMap = new Map<number, string>();
+    for (const row of dbResult.rows) {
+      dbFeeMap.set(row.id, row.cached_fee_cents || 0);
+      statusMap.set(row.id, row.payment_status || 'pending');
+    }
+    
+    for (const pf of clientFees) {
+      const cachedFee = dbFeeMap.get(pf.id);
+      if (cachedFee === undefined) {
+        console.warn(`[Stripe Webhook] Fallback: participant ${pf.id} not in booking - skipping`);
+        continue;
+      }
+      const status = statusMap.get(pf.id);
+      if (status === 'paid' || status === 'waived') {
+        console.warn(`[Stripe Webhook] Fallback: participant ${pf.id} already ${status} - skipping`);
+        continue;
+      }
+      if (cachedFee <= 0) {
+        console.warn(`[Stripe Webhook] Fallback: participant ${pf.id} has no cached fee - skipping`);
+        continue;
+      }
+      participantFees.push({ id: pf.id, amountCents: cachedFee });
+      validatedParticipantIds.push(pf.id);
+    }
+    
+    const dbTotal = participantFees.reduce((sum, pf) => sum + pf.amountCents, 0);
+    if (Math.abs(dbTotal - amount) > 1) {
+      console.error(`[Stripe Webhook] Fallback total mismatch: db=${dbTotal}, payment=${amount} - rejecting`);
+      throw new Error(`Amount mismatch: expected ${dbTotal}, got ${amount}`);
+    }
+    
+    console.log(`[Stripe Webhook] Fallback validated ${validatedParticipantIds.length} participants using DB cached fees`);
+  }
+
+  if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
+    const updateResult = await client.query(
+      `UPDATE booking_participants bp
+       SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $3, cached_fee_cents = 0
+       FROM booking_sessions bs
+       WHERE bp.session_id = bs.id 
+         AND bs.booking_id = $1 
+         AND bp.id = ANY($2::int[])
+       RETURNING bp.id`,
+      [bookingId, validatedParticipantIds, id]
+    );
+    console.log(`[Stripe Webhook] Updated ${updateResult.rowCount} participant(s) to paid and cleared cached fees with intent ${id}`);
+    
+    const localBookingId = bookingId;
+    const localSessionId = sessionId;
+    const localAmount = amount;
+    deferredActions.push(async () => {
       broadcastBillingUpdate({
         action: 'booking_payment_updated',
-        bookingId,
-        sessionId: isNaN(sessionId) ? undefined : sessionId,
-        amount
+        bookingId: localBookingId,
+        sessionId: isNaN(localSessionId) ? undefined : localSessionId,
+        amount: localAmount
       });
-    } catch (error) {
-      console.error('[Stripe Webhook] Error updating participant payment status:', error);
-    }
+    });
   } else if (validatedParticipantIds.length > 0) {
     console.error(`[Stripe Webhook] Cannot update participants - invalid bookingId: ${bookingId}`);
   }
 
   if (!isNaN(bookingId) && bookingId > 0) {
-    try {
-      if (participantFees.length > 0) {
-        for (const pf of participantFees) {
-          await pool.query(
-            `INSERT INTO booking_payment_audit 
-             (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
-             VALUES ($1, $2, $3, 'payment_confirmed', 'system', 'Stripe Webhook', $4, $5, $6)`,
-            [
-              bookingId, 
-              isNaN(sessionId) ? null : sessionId,
-              pf.id,
-              pf.amountCents / 100,
-              'stripe',
-              JSON.stringify({ stripePaymentIntentId: id })
-            ]
-          );
-        }
-        console.log(`[Stripe Webhook] Created ${participantFees.length} audit record(s) for booking ${bookingId}`);
-      } else {
-        await pool.query(
+    if (participantFees.length > 0) {
+      for (const pf of participantFees) {
+        await client.query(
           `INSERT INTO booking_payment_audit 
            (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
-           VALUES ($1, $2, NULL, 'payment_confirmed', 'system', 'Stripe Webhook', $3, $4, $5)`,
+           VALUES ($1, $2, $3, 'payment_confirmed', 'system', 'Stripe Webhook', $4, $5, $6)`,
           [
             bookingId, 
             isNaN(sessionId) ? null : sessionId,
-            parseFloat(amountDollars),
+            pf.id,
+            pf.amountCents / 100,
             'stripe',
             JSON.stringify({ stripePaymentIntentId: id })
           ]
         );
-        console.log(`[Stripe Webhook] Created payment audit record for booking ${bookingId}`);
       }
-    } catch (error) {
-      console.error('[Stripe Webhook] Error creating payment audit:', error);
+      console.log(`[Stripe Webhook] Created ${participantFees.length} audit record(s) for booking ${bookingId}`);
+    } else {
+      await client.query(
+        `INSERT INTO booking_payment_audit 
+         (booking_id, session_id, participant_id, action, staff_email, staff_name, amount_affected, payment_method, metadata)
+         VALUES ($1, $2, NULL, 'payment_confirmed', 'system', 'Stripe Webhook', $3, $4, $5)`,
+        [
+          bookingId, 
+          isNaN(sessionId) ? null : sessionId,
+          parseFloat(amountDollars),
+          'stripe',
+          JSON.stringify({ stripePaymentIntentId: id })
+        ]
+      );
+      console.log(`[Stripe Webhook] Created payment audit record for booking ${bookingId}`);
     }
   }
 
   if (metadata?.email && metadata?.purpose) {
-    try {
-      await syncPaymentToHubSpot({
-        email: metadata.email,
-        amountCents: amount,
-        purpose: metadata.purpose,
-        description: paymentIntent.description || `Stripe payment: ${metadata.purpose}`,
-        paymentIntentId: id
-      });
-    } catch (error) {
-      console.error('[Stripe Webhook] Error syncing to HubSpot:', error);
-    }
+    const email = metadata.email;
+    const desc = paymentIntent.description || `Stripe payment: ${metadata.purpose}`;
+    const localBookingId = bookingId;
+    const localAmount = amount;
+    const localId = id;
+    
+    deferredActions.push(async () => {
+      try {
+        await syncPaymentToHubSpot({
+          email,
+          amountCents: localAmount,
+          purpose: metadata.purpose,
+          description: desc,
+          paymentIntentId: localId
+        });
+      } catch (error) {
+        console.error('[Stripe Webhook] Error syncing to HubSpot:', error);
+      }
+    });
 
-    try {
-      const email = metadata.email;
-      const description = paymentIntent.description || `Stripe payment: ${metadata.purpose}`;
-      
-      const userResult = await pool.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
-      const memberName = userResult.rows[0] 
-        ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
-        : email;
+    deferredActions.push(async () => {
+      try {
+        const userResult = await pool.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
+        const memberName = userResult.rows[0] 
+          ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
+          : email;
 
-      await notifyPaymentSuccess(email, amount / 100, description, { 
-        sendEmail: false, 
-        bookingId: !isNaN(bookingId) ? bookingId : undefined 
-      });
+        await notifyPaymentSuccess(email, localAmount / 100, desc, { 
+          sendEmail: false, 
+          bookingId: !isNaN(localBookingId) ? localBookingId : undefined 
+        });
 
-      await sendPaymentReceiptEmail(email, { 
-        memberName, 
-        amount: amount / 100, 
-        description, 
-        date: new Date(),
-        transactionId: id
-      });
+        await sendPaymentReceiptEmail(email, { 
+          memberName, 
+          amount: localAmount / 100, 
+          description: desc, 
+          date: new Date(),
+          transactionId: localId
+        });
 
-      broadcastBillingUpdate({
-        action: 'payment_succeeded',
-        memberEmail: email,
-        memberName,
-        amount: amount / 100
-      });
+        broadcastBillingUpdate({
+          action: 'payment_succeeded',
+          memberEmail: email,
+          memberName,
+          amount: localAmount / 100
+        });
 
-      // Notify all staff about the successful payment
-      await notifyAllStaff(
-        'Payment Received',
-        `${memberName} (${email}) made a payment of $${(amount / 100).toFixed(2)} for: ${description}`,
-        'payment_success',
-        { sendPush: true }
-      );
+        await notifyAllStaff(
+          'Payment Received',
+          `${memberName} (${email}) made a payment of $${(localAmount / 100).toFixed(2)} for: ${desc}`,
+          'payment_success',
+          { sendPush: true }
+        );
 
-      console.log(`[Stripe Webhook] Payment notifications sent to ${email} and staff`);
-    } catch (error) {
-      console.error('[Stripe Webhook] Error sending payment notifications:', error);
-    }
+        console.log(`[Stripe Webhook] Payment notifications sent to ${email} and staff`);
+      } catch (error) {
+        console.error('[Stripe Webhook] Error sending payment notifications:', error);
+      }
+    });
   }
+
+  return deferredActions;
 }
 
 const MAX_RETRY_ATTEMPTS = 3;
 
-async function handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
+async function handlePaymentIntentFailed(client: PoolClient, paymentIntent: any): Promise<DeferredAction[]> {
   const { id, metadata, amount, last_payment_error } = paymentIntent;
   const reason = last_payment_error?.message || 'Payment could not be processed';
   
+  const deferredActions: DeferredAction[] = [];
+  
   console.log(`[Stripe Webhook] Payment failed: ${id}, amount: $${(amount / 100).toFixed(2)}, reason: ${reason}`);
 
-  let currentRetryCount = 0;
-  let requiresCardUpdate = false;
+  const existingResult = await client.query(
+    `SELECT retry_count FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
+    [id]
+  );
+  const currentRetryCount = existingResult.rows[0]?.retry_count || 0;
+  
+  const newRetryCount = currentRetryCount + 1;
+  const requiresCardUpdate = newRetryCount >= MAX_RETRY_ATTEMPTS;
 
-  try {
-    const existingResult = await pool.query(
-      `SELECT retry_count FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
-      [id]
-    );
-    currentRetryCount = existingResult.rows[0]?.retry_count || 0;
-    
-    const newRetryCount = currentRetryCount + 1;
-    requiresCardUpdate = newRetryCount >= MAX_RETRY_ATTEMPTS;
-
-    await pool.query(
-      `UPDATE stripe_payment_intents 
-       SET status = 'failed', 
-           updated_at = NOW(),
-           retry_count = $2,
-           last_retry_at = NOW(),
-           failure_reason = $3,
-           dunning_notified_at = NOW(),
-           requires_card_update = $4
-       WHERE stripe_payment_intent_id = $1`,
-      [id, newRetryCount, reason, requiresCardUpdate]
-    );
-    
-    console.log(`[Stripe Webhook] Updated payment ${id}: retry ${newRetryCount}/${MAX_RETRY_ATTEMPTS}, requires_card_update=${requiresCardUpdate}`);
-  } catch (error) {
-    console.error('[Stripe Webhook] Error updating payment intent status to failed:', error);
-  }
+  await client.query(
+    `UPDATE stripe_payment_intents 
+     SET status = 'failed', 
+         updated_at = NOW(),
+         retry_count = $2,
+         last_retry_at = NOW(),
+         failure_reason = $3,
+         dunning_notified_at = NOW(),
+         requires_card_update = $4
+     WHERE stripe_payment_intent_id = $1`,
+    [id, newRetryCount, reason, requiresCardUpdate]
+  );
+  
+  console.log(`[Stripe Webhook] Updated payment ${id}: retry ${newRetryCount}/${MAX_RETRY_ATTEMPTS}, requires_card_update=${requiresCardUpdate}`);
 
   const customer = paymentIntent.customer;
   const customerId = typeof customer === 'string' ? customer : customer?.id;
   const customerEmail = typeof customer === 'object' ? customer?.email : metadata?.email;
   const customerName = typeof customer === 'object' ? customer?.name : metadata?.memberName;
   
-  upsertTransactionCache({
-    stripeId: id,
-    objectType: 'payment_intent',
-    amountCents: amount,
-    currency: paymentIntent.currency || 'usd',
-    status: 'failed',
-    createdAt: new Date(paymentIntent.created * 1000),
-    customerId,
-    customerEmail,
-    customerName,
-    description: metadata?.description || `Failed payment - ${reason}`,
-    metadata,
-    source: 'webhook',
-    paymentIntentId: id,
-  }).catch(err => console.error('[Stripe Webhook] Cache insert failed for failed payment:', err));
+  deferredActions.push(async () => {
+    await upsertTransactionCache({
+      stripeId: id,
+      objectType: 'payment_intent',
+      amountCents: amount,
+      currency: paymentIntent.currency || 'usd',
+      status: 'failed',
+      createdAt: new Date(paymentIntent.created * 1000),
+      customerId,
+      customerEmail,
+      customerName,
+      description: metadata?.description || `Failed payment - ${reason}`,
+      metadata,
+      source: 'webhook',
+      paymentIntentId: id,
+    });
+  });
 
   const email = metadata?.email;
   if (!email) {
     console.warn('[Stripe Webhook] No email in metadata for failed payment - cannot send notifications');
-    return;
+    return deferredActions;
   }
 
   const bookingId = metadata?.bookingId ? parseInt(metadata.bookingId, 10) : NaN;
+  const localAmount = amount;
+  const localReason = reason;
+  const localRequiresCardUpdate = requiresCardUpdate;
 
-  try {
-    const userResult = await pool.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
-    const memberName = userResult.rows[0] 
-      ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
-      : email;
+  deferredActions.push(async () => {
+    try {
+      const userResult = await pool.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
+      const memberName = userResult.rows[0] 
+        ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
+        : email;
 
-    const memberMessage = requiresCardUpdate
-      ? `Your payment of $${(amount / 100).toFixed(2)} failed after ${MAX_RETRY_ATTEMPTS} attempts. Please update your payment method.`
-      : `Your payment of $${(amount / 100).toFixed(2)} could not be processed. Reason: ${reason}`;
-    
-    const memberTitle = requiresCardUpdate ? 'Card Update Required' : 'Payment Failed';
+      const memberMessage = localRequiresCardUpdate
+        ? `Your payment of $${(localAmount / 100).toFixed(2)} failed after ${MAX_RETRY_ATTEMPTS} attempts. Please update your payment method.`
+        : `Your payment of $${(localAmount / 100).toFixed(2)} could not be processed. Reason: ${localReason}`;
 
-    await notifyPaymentFailed(email, amount / 100, memberMessage, { 
-      sendEmail: false, 
-      bookingId: !isNaN(bookingId) ? bookingId : undefined 
-    });
+      await notifyPaymentFailed(email, localAmount / 100, memberMessage, { 
+        sendEmail: false, 
+        bookingId: !isNaN(bookingId) ? bookingId : undefined 
+      });
 
-    await sendPaymentFailedEmail(email, { 
-      memberName, 
-      amount: amount / 100, 
-      reason: requiresCardUpdate 
-        ? `Payment failed after ${MAX_RETRY_ATTEMPTS} attempts. Please update your card.`
-        : reason
-    });
+      await sendPaymentFailedEmail(email, { 
+        memberName, 
+        amount: localAmount / 100, 
+        reason: localRequiresCardUpdate 
+          ? `Payment failed after ${MAX_RETRY_ATTEMPTS} attempts. Please update your card.`
+          : localReason
+      });
 
-    console.log(`[Stripe Webhook] Payment failed notifications sent to ${email} (requires_card_update=${requiresCardUpdate})`);
+      console.log(`[Stripe Webhook] Payment failed notifications sent to ${email} (requires_card_update=${localRequiresCardUpdate})`);
 
-    const staffMessage = requiresCardUpdate
-      ? `${memberName} (${email}) payment failed ${MAX_RETRY_ATTEMPTS}x - card update required`
-      : `Payment of $${(amount / 100).toFixed(2)} failed for ${memberName} (${email}). Reason: ${reason}`;
-    
-    await notifyStaffPaymentFailed(email, memberName, amount / 100, staffMessage);
+      const staffMessage = localRequiresCardUpdate
+        ? `${memberName} (${email}) payment failed ${MAX_RETRY_ATTEMPTS}x - card update required`
+        : `Payment of $${(localAmount / 100).toFixed(2)} failed for ${memberName} (${email}). Reason: ${localReason}`;
+      
+      await notifyStaffPaymentFailed(email, memberName, localAmount / 100, staffMessage);
 
-    broadcastBillingUpdate({
-      action: 'payment_failed',
-      memberEmail: email,
-      memberName,
-      amount: amount / 100,
-      requiresCardUpdate
-    });
+      broadcastBillingUpdate({
+        action: 'payment_failed',
+        memberEmail: email,
+        memberName,
+        amount: localAmount / 100,
+        requiresCardUpdate: localRequiresCardUpdate
+      });
 
-    console.log(`[Stripe Webhook] Staff notified about payment failure for ${email}`);
-  } catch (error) {
-    console.error('[Stripe Webhook] Error sending payment failed notifications:', error);
-  }
+      console.log(`[Stripe Webhook] Staff notified about payment failure for ${email}`);
+    } catch (error) {
+      console.error('[Stripe Webhook] Error sending payment failed notifications:', error);
+    }
+  });
+
+  return deferredActions;
 }
 
-async function handleInvoicePaymentSucceeded(invoice: any): Promise<void> {
-  try {
-    const invoiceEmail = invoice.customer_email;
-    const invoiceAmountPaid = invoice.amount_paid || 0;
-    const invoiceCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
-    const invoiceCustomerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
-    
-    upsertTransactionCache({
+async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
+  const invoiceEmail = invoice.customer_email;
+  const invoiceAmountPaid = invoice.amount_paid || 0;
+  const invoiceCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  const invoiceCustomerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
+  
+  deferredActions.push(async () => {
+    await upsertTransactionCache({
       stripeId: invoice.id,
       objectType: 'invoice',
       amountCents: invoiceAmountPaid,
@@ -727,132 +818,139 @@ async function handleInvoicePaymentSucceeded(invoice: any): Promise<void> {
       source: 'webhook',
       invoiceId: invoice.id,
       paymentIntentId: invoice.payment_intent,
-    }).catch(err => console.error('[Stripe Webhook] Cache upsert failed:', err));
-    
-    if (!invoice.subscription) {
-      console.log(`[Stripe Webhook] Skipping one-time invoice ${invoice.id} (no subscription)`);
-      return;
-    }
+    });
+  });
+  
+  if (!invoice.subscription) {
+    console.log(`[Stripe Webhook] Skipping one-time invoice ${invoice.id} (no subscription)`);
+    return deferredActions;
+  }
 
-    const email = invoice.customer_email;
-    const amountPaid = invoice.amount_paid || 0;
-    const planName = invoice.lines?.data?.[0]?.description || 'Membership';
-    const currentPeriodEnd = invoice.lines?.data?.[0]?.period?.end;
-    const nextBillingDate = currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : new Date();
+  const email = invoice.customer_email;
+  const amountPaid = invoice.amount_paid || 0;
+  const planName = invoice.lines?.data?.[0]?.description || 'Membership';
+  const currentPeriodEnd = invoice.lines?.data?.[0]?.period?.end;
+  const nextBillingDate = currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : new Date();
 
-    if (!email) {
-      console.warn(`[Stripe Webhook] No customer email on invoice ${invoice.id}`);
-      return;
-    }
+  if (!email) {
+    console.warn(`[Stripe Webhook] No customer email on invoice ${invoice.id}`);
+    return deferredActions;
+  }
 
-    const userResult = await pool.query(
-      'SELECT id, first_name, last_name FROM users WHERE email = $1',
-      [email]
+  const userResult = await client.query(
+    'SELECT id, first_name, last_name FROM users WHERE email = $1',
+    [email]
+  );
+  const memberName = userResult.rows[0]
+    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
+    : email;
+  const userId = userResult.rows[0]?.id;
+
+  await client.query(
+    `UPDATE hubspot_deals 
+     SET last_payment_status = 'current',
+         last_payment_check = NOW(),
+         last_sync_error = NULL,
+         updated_at = NOW()
+     WHERE LOWER(member_email) = LOWER($1)`,
+    [email]
+  );
+
+  const priceId = invoice.lines?.data?.[0]?.price?.id;
+  let restoreTierClause = '';
+  let queryParams: any[] = [email];
+  
+  if (priceId) {
+    const tierResult = await client.query(
+      'SELECT slug FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
+      [priceId]
     );
-    const memberName = userResult.rows[0]
-      ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
-      : email;
-    const userId = userResult.rows[0]?.id;
+    if (tierResult.rows.length > 0) {
+      restoreTierClause = ', tier = COALESCE(tier, $2)';
+      queryParams = [email, tierResult.rows[0].slug];
+    }
+  }
+  
+  await client.query(
+    `UPDATE users SET 
+      grace_period_start = NULL,
+      grace_period_email_count = 0,
+      billing_provider = 'stripe'${restoreTierClause},
+      updated_at = NOW()
+    WHERE LOWER(email) = LOWER($1)`,
+    queryParams
+  );
+  console.log(`[Stripe Webhook] Cleared grace period and set billing_provider for ${email}`);
 
+  const localEmail = email;
+  const localMemberName = memberName;
+  const localAmountPaid = amountPaid;
+  const localPlanName = planName;
+  const localNextBillingDate = nextBillingDate;
+  const localUserId = userId;
+  const localPaymentIntent = invoice.payment_intent || invoice.id;
+
+  deferredActions.push(async () => {
     try {
       await syncPaymentToHubSpot({
-        paymentIntentId: invoice.payment_intent || invoice.id,
-        memberEmail: email,
-        memberName,
-        amountCents: amountPaid,
-        description: `Membership Renewal: ${planName}`,
+        paymentIntentId: localPaymentIntent,
+        memberEmail: localEmail,
+        memberName: localMemberName,
+        amountCents: localAmountPaid,
+        description: `Membership Renewal: ${localPlanName}`,
         purpose: 'membership_renewal',
         bookingId: undefined,
-        userId,
+        userId: localUserId,
       });
-      console.log(`[Stripe Webhook] Synced invoice payment to HubSpot for ${email}`);
-      
-      await pool.query(
-        `UPDATE hubspot_deals 
-         SET last_payment_status = 'current',
-             last_payment_check = NOW(),
-             last_sync_error = NULL,
-             updated_at = NOW()
-         WHERE LOWER(member_email) = LOWER($1)`,
-        [email]
-      );
-      console.log(`[Stripe Webhook] Updated HubSpot deal payment status to 'current' for ${email}`);
+      console.log(`[Stripe Webhook] Synced invoice payment to HubSpot for ${localEmail}`);
     } catch (hubspotError) {
       console.error('[Stripe Webhook] HubSpot sync failed for invoice payment:', hubspotError);
     }
+  });
 
+  deferredActions.push(async () => {
     await notifyMember({
-      userEmail: email,
+      userEmail: localEmail,
       title: 'Membership Renewed',
-      message: `Your ${planName} has been renewed successfully.`,
+      message: `Your ${localPlanName} has been renewed successfully.`,
       type: 'membership_renewed',
     });
 
-    await sendMembershipRenewalEmail(email, {
-      memberName,
-      amount: amountPaid / 100,
-      planName,
-      nextBillingDate,
+    await sendMembershipRenewalEmail(localEmail, {
+      memberName: localMemberName,
+      amount: localAmountPaid / 100,
+      planName: localPlanName,
+      nextBillingDate: localNextBillingDate,
     });
 
-    // Notify all staff about the successful membership renewal
     await notifyAllStaff(
       'Membership Renewed',
-      `${memberName} (${email}) membership renewed: ${planName} - $${(amountPaid / 100).toFixed(2)}`,
+      `${localMemberName} (${localEmail}) membership renewed: ${localPlanName} - $${(localAmountPaid / 100).toFixed(2)}`,
       'membership_renewed',
       { sendPush: true }
     );
 
     broadcastBillingUpdate({
       action: 'invoice_paid',
-      memberEmail: email,
-      memberName,
-      amount: amountPaid / 100,
-      planName
+      memberEmail: localEmail,
+      memberName: localMemberName,
+      amount: localAmountPaid / 100,
+      planName: localPlanName
     });
 
-    try {
-      const priceId = invoice.lines?.data?.[0]?.price?.id;
-      let restoreTierClause = '';
-      let queryParams: any[] = [email];
-      
-      if (priceId) {
-        const tierResult = await pool.query(
-          'SELECT slug FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
-          [priceId]
-        );
-        if (tierResult.rows.length > 0) {
-          restoreTierClause = ', tier = COALESCE(tier, $2)';
-          queryParams = [email, tierResult.rows[0].slug];
-        }
-      }
-      
-      await pool.query(
-        `UPDATE users SET 
-          grace_period_start = NULL,
-          grace_period_email_count = 0,
-          billing_provider = 'stripe'${restoreTierClause},
-          updated_at = NOW()
-        WHERE LOWER(email) = LOWER($1)`,
-        queryParams
-      );
-      console.log(`[Stripe Webhook] Cleared grace period and set billing_provider for ${email}`);
-    } catch (gracePeriodError) {
-      console.error('[Stripe Webhook] Error clearing grace period:', gracePeriodError);
-    }
+    console.log(`[Stripe Webhook] Membership renewal processed for ${localEmail}, amount: $${(localAmountPaid / 100).toFixed(2)}`);
+  });
 
-    console.log(`[Stripe Webhook] Membership renewal processed for ${email}, amount: $${(amountPaid / 100).toFixed(2)}`);
-  } catch (error) {
-    console.error('[Stripe Webhook] Error handling invoice payment succeeded:', error);
-  }
+  return deferredActions;
 }
 
-async function handleInvoicePaymentFailed(invoice: any): Promise<void> {
-  try {
-    const invoiceCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
-    const invoiceCustomerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
-    
-    upsertTransactionCache({
+async function handleInvoicePaymentFailed(client: PoolClient, invoice: any): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
+  const invoiceCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  const invoiceCustomerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
+  
+  deferredActions.push(async () => {
+    await upsertTransactionCache({
       stripeId: invoice.id,
       objectType: 'invoice',
       amountCents: invoice.amount_due || 0,
@@ -867,103 +965,103 @@ async function handleInvoicePaymentFailed(invoice: any): Promise<void> {
       source: 'webhook',
       invoiceId: invoice.id,
       paymentIntentId: invoice.payment_intent,
-    }).catch(err => console.error('[Stripe Webhook] Cache insert failed for failed invoice:', err));
-    
-    if (!invoice.subscription) {
-      console.log(`[Stripe Webhook] Skipping one-time invoice ${invoice.id} (no subscription)`);
-      return;
-    }
+    });
+  });
+  
+  if (!invoice.subscription) {
+    console.log(`[Stripe Webhook] Skipping one-time invoice ${invoice.id} (no subscription)`);
+    return deferredActions;
+  }
 
-    const email = invoice.customer_email;
-    const amountDue = invoice.amount_due || 0;
-    const planName = invoice.lines?.data?.[0]?.description || 'Membership';
-    const reason = invoice.last_finalization_error?.message || 'Payment declined';
+  const email = invoice.customer_email;
+  const amountDue = invoice.amount_due || 0;
+  const planName = invoice.lines?.data?.[0]?.description || 'Membership';
+  const reason = invoice.last_finalization_error?.message || 'Payment declined';
 
-    if (!email) {
-      console.warn(`[Stripe Webhook] No customer email on failed invoice ${invoice.id}`);
-      return;
-    }
+  if (!email) {
+    console.warn(`[Stripe Webhook] No customer email on failed invoice ${invoice.id}`);
+    return deferredActions;
+  }
 
-    const userResult = await pool.query(
-      'SELECT first_name, last_name FROM users WHERE email = $1',
-      [email]
-    );
-    const memberName = userResult.rows[0]
-      ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
-      : email;
+  const userResult = await client.query(
+    'SELECT first_name, last_name FROM users WHERE email = $1',
+    [email]
+  );
+  const memberName = userResult.rows[0]
+    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
+    : email;
 
-    try {
-      await pool.query(
-        `UPDATE hubspot_deals 
-         SET last_payment_status = 'failed',
-             last_payment_check = NOW(),
-             last_sync_error = $2,
-             updated_at = NOW()
-         WHERE LOWER(member_email) = LOWER($1)`,
-        [email, `Payment failed: ${reason}`]
-      );
-      console.log(`[Stripe Webhook] Updated HubSpot deal payment status to 'failed' for ${email}`);
-    } catch (hubspotError) {
-      console.error('[Stripe Webhook] Error updating HubSpot deal status:', hubspotError);
-    }
+  await client.query(
+    `UPDATE hubspot_deals 
+     SET last_payment_status = 'failed',
+         last_payment_check = NOW(),
+         last_sync_error = $2,
+         updated_at = NOW()
+     WHERE LOWER(member_email) = LOWER($1)`,
+    [email, `Payment failed: ${reason}`]
+  );
 
+  await client.query(
+    `UPDATE users SET 
+      grace_period_start = COALESCE(grace_period_start, NOW()),
+      updated_at = NOW()
+    WHERE LOWER(email) = LOWER($1) AND grace_period_start IS NULL`,
+    [email]
+  );
+  console.log(`[Stripe Webhook] Started grace period for ${email}`);
+
+  const localEmail = email;
+  const localMemberName = memberName;
+  const localAmountDue = amountDue;
+  const localPlanName = planName;
+  const localReason = reason;
+
+  deferredActions.push(async () => {
     await notifyMember({
-      userEmail: email,
+      userEmail: localEmail,
       title: 'Membership Payment Failed',
-      message: `We were unable to process your ${planName} payment. Please update your payment method.`,
+      message: `We were unable to process your ${localPlanName} payment. Please update your payment method.`,
       type: 'membership_failed',
     }, { sendPush: true });
 
-    await sendMembershipFailedEmail(email, {
-      memberName,
-      amount: amountDue / 100,
-      planName,
-      reason,
+    await sendMembershipFailedEmail(localEmail, {
+      memberName: localMemberName,
+      amount: localAmountDue / 100,
+      planName: localPlanName,
+      reason: localReason,
     });
 
     await notifyAllStaff(
       'Membership Payment Failed',
-      `${memberName} (${email}) membership payment of $${(amountDue / 100).toFixed(2)} failed: ${reason}`,
+      `${localMemberName} (${localEmail}) membership payment of $${(localAmountDue / 100).toFixed(2)} failed: ${localReason}`,
       'membership_failed',
       { sendPush: true }
     );
 
     broadcastBillingUpdate({
       action: 'invoice_failed',
-      memberEmail: email,
-      memberName,
-      amount: amountDue / 100,
-      planName
+      memberEmail: localEmail,
+      memberName: localMemberName,
+      amount: localAmountDue / 100,
+      planName: localPlanName
     });
 
-    try {
-      await pool.query(
-        `UPDATE users SET 
-          grace_period_start = COALESCE(grace_period_start, NOW()),
-          updated_at = NOW()
-        WHERE LOWER(email) = LOWER($1) AND grace_period_start IS NULL`,
-        [email]
-      );
-      console.log(`[Stripe Webhook] Started grace period for ${email}`);
-    } catch (gracePeriodError) {
-      console.error('[Stripe Webhook] Error starting grace period:', gracePeriodError);
-    }
+    console.log(`[Stripe Webhook] Membership payment failure processed for ${localEmail}, amount: $${(localAmountDue / 100).toFixed(2)}`);
+  });
 
-    console.log(`[Stripe Webhook] Membership payment failure processed for ${email}, amount: $${(amountDue / 100).toFixed(2)}`);
-  } catch (error) {
-    console.error('[Stripe Webhook] Error handling invoice payment failed:', error);
-  }
+  return deferredActions;
 }
 
-async function handleInvoiceLifecycle(invoice: any, eventType: string): Promise<void> {
-  try {
-    const invoiceEmail = invoice.customer_email;
-    const amountDue = invoice.amount_due || 0;
-    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
-    const customerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
-    
-    console.log(`[Stripe Webhook] Invoice ${eventType}: ${invoice.id}, status: ${invoice.status}, amount: $${(amountDue / 100).toFixed(2)}`);
-    
+async function handleInvoiceLifecycle(client: PoolClient, invoice: any, eventType: string): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
+  const invoiceEmail = invoice.customer_email;
+  const amountDue = invoice.amount_due || 0;
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  const customerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
+  
+  console.log(`[Stripe Webhook] Invoice ${eventType}: ${invoice.id}, status: ${invoice.status}, amount: $${(amountDue / 100).toFixed(2)}`);
+  
+  deferredActions.push(async () => {
     await upsertTransactionCache({
       stripeId: invoice.id,
       objectType: 'invoice',
@@ -980,11 +1078,13 @@ async function handleInvoiceLifecycle(invoice: any, eventType: string): Promise<
       invoiceId: invoice.id,
       paymentIntentId: invoice.payment_intent,
     });
-    
-    if (invoice.status === 'open' && invoice.due_date) {
-      const dueDate = new Date(invoice.due_date * 1000);
-      const now = new Date();
-      if (dueDate < now) {
+  });
+  
+  if (invoice.status === 'open' && invoice.due_date) {
+    const dueDate = new Date(invoice.due_date * 1000);
+    const now = new Date();
+    if (dueDate < now) {
+      deferredActions.push(async () => {
         broadcastBillingUpdate({
           action: 'invoice_overdue',
           invoiceId: invoice.id,
@@ -992,23 +1092,23 @@ async function handleInvoiceLifecycle(invoice: any, eventType: string): Promise<
           amount: amountDue / 100,
           dueDate: dueDate.toISOString()
         });
-      }
+      });
     }
-  } catch (error) {
-    console.error(`[Stripe Webhook] Error handling ${eventType}:`, error);
-    throw error;
   }
+
+  return deferredActions;
 }
 
-async function handleInvoiceVoided(invoice: any, eventType: string): Promise<void> {
-  try {
-    const invoiceEmail = invoice.customer_email;
-    const amountDue = invoice.amount_due || 0;
-    const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
-    
-    const status = eventType === 'invoice.voided' ? 'void' : 'uncollectible';
-    console.log(`[Stripe Webhook] Invoice ${status}: ${invoice.id}, removing from active invoices`);
-    
+async function handleInvoiceVoided(client: PoolClient, invoice: any, eventType: string): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
+  const invoiceEmail = invoice.customer_email;
+  const amountDue = invoice.amount_due || 0;
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  
+  const status = eventType === 'invoice.voided' ? 'void' : 'uncollectible';
+  console.log(`[Stripe Webhook] Invoice ${status}: ${invoice.id}, removing from active invoices`);
+  
+  deferredActions.push(async () => {
     await upsertTransactionCache({
       stripeId: invoice.id,
       objectType: 'invoice',
@@ -1023,20 +1123,26 @@ async function handleInvoiceVoided(invoice: any, eventType: string): Promise<voi
       source: 'webhook',
       invoiceId: invoice.id,
     });
-    
+  });
+  
+  const localInvoiceEmail = invoiceEmail;
+  const localInvoiceId = invoice.id;
+  const localStatus = status;
+  
+  deferredActions.push(async () => {
     broadcastBillingUpdate({
       action: 'invoice_removed',
-      invoiceId: invoice.id,
-      memberEmail: invoiceEmail,
-      reason: status
+      invoiceId: localInvoiceId,
+      memberEmail: localInvoiceEmail,
+      reason: localStatus
     });
-  } catch (error) {
-    console.error(`[Stripe Webhook] Error handling ${eventType}:`, error);
-    throw error;
-  }
+  });
+
+  return deferredActions;
 }
 
-async function handleCheckoutSessionCompleted(session: any): Promise<void> {
+async function handleCheckoutSessionCompleted(client: PoolClient, session: any): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
   try {
     // Handle add_funds checkout - credit customer balance
     if (session.metadata?.purpose === 'add_funds') {
@@ -1049,17 +1155,17 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
       
       if (!customerId) {
         console.error(`[Stripe Webhook] add_funds failed: No customer ID in session ${session.id}`);
-        return;
+        return deferredActions;
       }
       
       if (amountCents <= 0) {
         console.error(`[Stripe Webhook] add_funds failed: Invalid amount ${amountCents} in session ${session.id}`);
-        return;
+        return deferredActions;
       }
       
       if (!memberEmail) {
         console.error(`[Stripe Webhook] add_funds failed: No memberEmail in session ${session.id}`);
-        return;
+        return deferredActions;
       }
       
       try {
@@ -1140,7 +1246,7 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
         throw balanceError; // Re-throw so Stripe will retry the webhook
       }
       
-      return;
+      return deferredActions;
     }
     
     // Handle corporate membership company sync if company_name is present
@@ -1193,7 +1299,7 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
       
       if (!email || !customerId) {
         console.error(`[Stripe Webhook] Missing email or customer ID for staff invite: ${session.id}`);
-        return;
+        return deferredActions;
       }
       
       // Check if user already exists
@@ -1261,13 +1367,13 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
       }
       
       console.log(`[Stripe Webhook] Staff invite checkout completed for ${email}`);
-      return;
+      return deferredActions;
     }
 
     // Only handle day pass purchases
     if (session.metadata?.purpose !== 'day_pass') {
       console.log(`[Stripe Webhook] Skipping checkout session ${session.id} (not a day_pass or staff_invite)`);
-      return;
+      return deferredActions;
     }
 
     console.log(`[Stripe Webhook] Processing day pass checkout session: ${session.id}`);
@@ -1290,7 +1396,7 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
 
     if (!productSlug || !email || !paymentIntentId) {
       console.error(`[Stripe Webhook] Missing required data for day pass: productSlug=${productSlug}, email=${email}, paymentIntentId=${paymentIntentId}`);
-      return;
+      return deferredActions;
     }
 
     const customerId = session.customer as string;
@@ -1355,10 +1461,13 @@ async function handleCheckoutSessionCompleted(session: any): Promise<void> {
     }
   } catch (error) {
     console.error('[Stripe Webhook] Error handling checkout session completed:', error);
+    throw error;
   }
+  return deferredActions;
 }
 
-async function handleSubscriptionCreated(subscription: any): Promise<void> {
+async function handleSubscriptionCreated(client: PoolClient, subscription: any): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
   try {
     const customerId = subscription.customer;
     const priceId = subscription.items?.data?.[0]?.price?.id;
@@ -1385,13 +1494,13 @@ async function handleSubscriptionCreated(subscription: any): Promise<void> {
       
       if (!customer || customer.deleted) {
         console.error(`[Stripe Webhook] Customer ${customerId} not found or deleted`);
-        return;
+        return deferredActions;
       }
       
       const customerEmail = customer.email?.toLowerCase();
       if (!customerEmail) {
         console.error(`[Stripe Webhook] No email found for Stripe customer ${customerId}`);
-        return;
+        return deferredActions;
       }
       
       const customerName = customer.name || '';
@@ -1612,10 +1721,13 @@ async function handleSubscriptionCreated(subscription: any): Promise<void> {
     console.log(`[Stripe Webhook] New subscription created for ${memberName} (${email}): ${planName}`);
   } catch (error) {
     console.error('[Stripe Webhook] Error handling subscription created:', error);
+    throw error;
   }
+  return deferredActions;
 }
 
-async function handleSubscriptionUpdated(subscription: any, previousAttributes?: any): Promise<void> {
+async function handleSubscriptionUpdated(client: PoolClient, subscription: any, previousAttributes?: any): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
   try {
     const customerId = subscription.customer;
     const status = subscription.status;
@@ -1646,7 +1758,7 @@ async function handleSubscriptionUpdated(subscription: any, previousAttributes?:
 
     if (userResult.rows.length === 0) {
       console.warn(`[Stripe Webhook] No user found for Stripe customer ${customerId}`);
-      return;
+      return deferredActions;
     }
 
     const { id: userId, email, first_name, last_name, tier: currentTier } = userResult.rows[0];
@@ -1758,10 +1870,13 @@ async function handleSubscriptionUpdated(subscription: any, previousAttributes?:
     console.log(`[Stripe Webhook] Subscription status changed to '${status}' for ${memberName} (${email})`);
   } catch (error) {
     console.error('[Stripe Webhook] Error handling subscription updated:', error);
+    throw error;
   }
+  return deferredActions;
 }
 
-async function handleSubscriptionDeleted(subscription: any): Promise<void> {
+async function handleSubscriptionDeleted(client: PoolClient, subscription: any): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
   try {
     const customerId = subscription.customer;
     const subscriptionId = subscription.id;
@@ -1782,7 +1897,7 @@ async function handleSubscriptionDeleted(subscription: any): Promise<void> {
 
     if (userResult.rows.length === 0) {
       console.warn(`[Stripe Webhook] No user found for Stripe customer ${customerId}`);
-      return;
+      return deferredActions;
     }
 
     const { email, first_name, last_name } = userResult.rows[0];
@@ -1865,5 +1980,7 @@ async function handleSubscriptionDeleted(subscription: any): Promise<void> {
     console.log(`[Stripe Webhook] Membership cancellation processed for ${memberName} (${email})`);
   } catch (error) {
     console.error('[Stripe Webhook] Error handling subscription deleted:', error);
+    throw error;
   }
+  return deferredActions;
 }

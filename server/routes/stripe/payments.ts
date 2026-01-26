@@ -16,7 +16,7 @@ import {
   cancelPaymentIntent,
   getOrCreateStripeCustomer
 } from '../../core/stripe';
-import { calculateAndCacheParticipantFees } from '../../core/billing/feeCalculator';
+import { computeFeeBreakdown, applyFeeBreakdownToParticipants, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 import {
   getRefundablePayments,
   getFailedPayments,
@@ -119,21 +119,41 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
 
       const requestedIds: number[] = participantFees.map((pf: any) => pf.id);
 
-      const feeResult = await calculateAndCacheParticipantFees(sessionId, requestedIds);
-      
-      if (!feeResult.success) {
-        return res.status(500).json({ error: feeResult.error || 'Failed to calculate fees' });
+      // Get participant count for effective player count calculation
+      const participantCountResult = await pool.query(
+        `SELECT COUNT(*) as count FROM booking_participants WHERE session_id = $1`,
+        [sessionId]
+      );
+      const actualParticipantCount = parseInt(participantCountResult.rows[0]?.count || '1');
+      const effectivePlayerCount = getEffectivePlayerCount(actualParticipantCount, actualParticipantCount);
+
+      let feeBreakdown;
+      try {
+        feeBreakdown = await computeFeeBreakdown({
+          sessionId,
+          declaredPlayerCount: effectivePlayerCount,
+          source: 'stripe' as const
+        });
+        await applyFeeBreakdownToParticipants(sessionId, feeBreakdown);
+        console.log(`[Stripe] Applied unified fees for session ${sessionId}: $${(feeBreakdown.totals.totalCents/100).toFixed(2)}`);
+      } catch (unifiedError) {
+        console.error('[Stripe] Unified fee service error:', unifiedError);
+        return res.status(500).json({ error: 'Failed to calculate fees' });
       }
+
+      const pendingFees = feeBreakdown.participants.filter(p => 
+        p.participantId && requestedIds.includes(p.participantId) && p.totalCents > 0
+      );
       
-      if (feeResult.fees.length === 0) {
+      if (pendingFees.length === 0) {
         return res.status(400).json({ error: 'No valid pending participants with fees to charge' });
       }
       
-      for (const fee of feeResult.fees) {
-        serverFees.push({ id: fee.participantId, amountCents: fee.amountCents });
+      for (const fee of pendingFees) {
+        serverFees.push({ id: fee.participantId!, amountCents: fee.totalCents });
       }
       
-      console.log(`[Stripe] Calculated ${feeResult.fees.length} authoritative fees using fee calculator`);
+      console.log(`[Stripe] Calculated ${pendingFees.length} authoritative fees using unified service`);
 
       serverTotal = serverFees.reduce((sum, f) => sum + f.amountCents, 0);
       

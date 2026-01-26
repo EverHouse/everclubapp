@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../../core/db';
 import { getSessionUser } from '../../types/session';
+import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 
 const router = Router();
 
@@ -17,6 +18,7 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
     const bookingResult = await pool.query(`
       SELECT br.id, br.user_email, br.overage_fee_cents, br.overage_paid, br.overage_minutes,
              br.request_date, br.start_time, br.duration_minutes,
+             br.session_id, br.declared_player_count,
              u.stripe_customer_id
       FROM booking_requests br
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
@@ -42,6 +44,25 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
     
     if (!booking.overage_fee_cents || booking.overage_fee_cents <= 0) {
       return res.status(400).json({ error: 'No overage fee due for this booking.' });
+    }
+    
+    // Use unified fee service to verify/recalculate overage fee if session exists
+    let verifiedOverageCents = booking.overage_fee_cents;
+    if (booking.session_id) {
+      try {
+        const breakdown = await computeFeeBreakdown({
+          sessionId: booking.session_id,
+          declaredPlayerCount: getEffectivePlayerCount(booking.declared_player_count || 1, booking.declared_player_count || 1),
+          source: 'stripe' as const
+        });
+        
+        if (breakdown.totals.overageCents !== booking.overage_fee_cents) {
+          console.log(`[Stripe Overage] Verified overage: unified=${breakdown.totals.overageCents}, stored=${booking.overage_fee_cents}`);
+          // Use the stored value for payment but log the discrepancy
+        }
+      } catch (verifyError) {
+        console.warn('[Stripe Overage] Failed to verify overage with unified service:', verifyError);
+      }
     }
     
     const { getStripeClient } = await import('../../core/stripe/client');

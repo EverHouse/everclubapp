@@ -8,7 +8,7 @@ import { logAndRespond } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { notifyMember, notifyFeeWaived } from '../core/notificationService';
 import { sendFeeWaivedEmail } from '../emails/paymentEmails';
-import { calculateAndCacheParticipantFees } from '../core/billing/feeCalculator';
+import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../core/billing/unifiedFeeService';
 import { consumeGuestPassForParticipant, canUseGuestPass } from '../core/billing/guestPassConsumer';
 import { logFromRequest } from '../core/auditLog';
 
@@ -125,11 +125,17 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
       `, [booking.session_id]);
 
       const allParticipantIds = participantsResult.rows.map(p => p.participant_id);
-      const feeResult = await calculateAndCacheParticipantFees(booking.session_id, allParticipantIds);
+      const breakdown = await computeFeeBreakdown({
+        sessionId: booking.session_id,
+        source: 'checkin' as const
+      });
+      await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
       
       const feeMap = new Map<number, number>();
-      for (const f of feeResult.fees) {
-        feeMap.set(f.participantId, f.amountCents / 100);
+      for (const p of breakdown.participants) {
+        if (p.participantId) {
+          feeMap.set(p.participantId, p.totalCents / 100);
+        }
       }
       
       const prepaidParticipantIds = new Set<number>();

@@ -9,6 +9,59 @@ import {
   serial,
 } from "drizzle-orm/pg-core";
 
+// --- Unified Fee Service Types ---
+
+export interface FeeLineItem {
+  participantId?: number;
+  userId?: string;
+  displayName: string;
+  participantType: 'owner' | 'member' | 'guest';
+  minutesAllocated: number;
+  overageCents: number;
+  guestCents: number;
+  totalCents: number;
+  guestPassUsed: boolean;
+  tierName?: string;
+  dailyAllowance?: number;
+  usedMinutesToday?: number;
+}
+
+export interface FeeBreakdown {
+  totals: {
+    totalCents: number;
+    overageCents: number;
+    guestCents: number;
+    guestPassesUsed: number;
+    guestPassesAvailable: number;
+  };
+  participants: FeeLineItem[];
+  metadata: {
+    effectivePlayerCount: number;
+    declaredPlayerCount: number;
+    actualPlayerCount: number;
+    sessionDuration: number;
+    sessionDate: string;
+    source: 'preview' | 'approval' | 'checkin' | 'stripe' | 'roster_update';
+  };
+}
+
+export interface FeeComputeParams {
+  sessionId?: number;
+  bookingId?: number;
+  sessionDate?: string;
+  sessionDuration?: number;
+  declaredPlayerCount?: number;
+  hostEmail?: string;
+  participants?: Array<{
+    userId?: string;
+    email?: string;
+    displayName: string;
+    participantType: 'owner' | 'member' | 'guest';
+  }>;
+  source: 'preview' | 'approval' | 'checkin' | 'stripe' | 'roster_update';
+  excludeSessionFromUsage?: boolean;
+}
+
 // --- Day Pass & Redemptions Tables ---
 
 export const dayPassPurchases = pgTable(

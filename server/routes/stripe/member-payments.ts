@@ -11,7 +11,7 @@ import {
   getOrCreateStripeCustomer,
   getInvoice
 } from '../../core/stripe';
-import { calculateAndCacheParticipantFees } from '../../core/billing/feeCalculator';
+import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
 import { GUEST_FEE_CENTS } from './helpers';
 
 const router = Router();
@@ -65,23 +65,34 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     }
 
     const participantIds = pendingParticipants.rows.map(r => r.id);
-    const feeResult = await calculateAndCacheParticipantFees(booking.session_id, participantIds);
-
-    if (!feeResult.success) {
-      return res.status(500).json({ error: feeResult.error || 'Failed to calculate fees' });
+    
+    let breakdown;
+    try {
+      breakdown = await computeFeeBreakdown({
+        sessionId: booking.session_id,
+        source: 'stripe' as const
+      });
+      await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
+    } catch (feeError) {
+      console.error('[Stripe] Failed to compute fees:', feeError);
+      return res.status(500).json({ error: 'Failed to calculate fees' });
     }
 
-    if (feeResult.fees.length === 0) {
+    const pendingFees = breakdown.participants.filter(p => 
+      p.participantId && participantIds.includes(p.participantId) && p.totalCents > 0
+    );
+
+    if (pendingFees.length === 0) {
       return res.status(400).json({ error: 'No fees to charge' });
     }
 
-    const serverTotal = feeResult.totalCents;
+    const serverTotal = pendingFees.reduce((sum, p) => sum + p.totalCents, 0);
 
     if (serverTotal < 50) {
       return res.status(400).json({ error: 'Total amount must be at least $0.50' });
     }
 
-    const serverFees = feeResult.fees.map(f => ({ id: f.participantId, amountCents: f.amountCents }));
+    const serverFees = pendingFees.map(p => ({ id: p.participantId!, amountCents: p.totalCents }));
 
     const client = await pool.connect();
     let snapshotId: number | null = null;

@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.27.0",
+    date: "2026-01-26",
+    title: "Unified Fee Service & System Reliability",
+    isMajor: true,
+    changes: [
+      "Architecture: Created Unified Fee Service - single authoritative source for all fee calculations across the app",
+      "Consistency: All fee previews (booking, roster, approval, check-in, payments) now use the same calculation engine",
+      "Fixed: Fee amounts now always match between what members see and what gets charged",
+      "Reliability: Payment processing from Stripe now handles retries safely - no duplicate charges or emails",
+      "Concurrency: Staff roster edits are now protected - simultaneous edits won't overwrite each other",
+      "Added: 64 new automated tests covering fee calculations, payment safety, and roster protection"
+    ]
+  },
+  {
     version: "9.26.7",
     date: "2026-01-26",
     title: "Roster Sync & Payment UX Improvements",

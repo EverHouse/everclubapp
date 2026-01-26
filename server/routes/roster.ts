@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { pool } from '../core/db';
+import { PoolClient } from 'pg';
 import { 
   bookingRequests, 
   bookingParticipants, 
@@ -44,6 +45,7 @@ import {
 import { notifyMember } from '../core/notificationService';
 import { getStripeClient } from '../core/stripe/client';
 import { getOrCreateStripeCustomer } from '../core/stripe/customers';
+import { computeFeeBreakdown, getEffectivePlayerCount, invalidateCachedFees } from '../core/billing/unifiedFeeService';
 
 const router = Router();
 
@@ -137,6 +139,7 @@ async function getBookingWithSession(bookingId: number) {
       br.resource_id,
       br.notes,
       br.staff_notes,
+      br.roster_version,
       r.name as resource_name,
       u.tier as owner_tier
     FROM booking_requests br
@@ -249,6 +252,7 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
       guestPassesRemaining,
       guestPassesUsed: guestCount,
       remainingMinutes,
+      rosterVersion: booking.roster_version ?? 0,
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to fetch participants', error);
@@ -267,7 +271,7 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
 
-    const { type, userId, guest } = req.body;
+    const { type, userId, guest, rosterVersion } = req.body;
     
     if (!type || !['member', 'guest'].includes(type)) {
       return res.status(400).json({ error: 'Invalid participant type. Must be "member" or "guest"' });
@@ -297,6 +301,33 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
     if (!isOwner && !isStaff) {
       return res.status(403).json({ error: 'Only the booking owner or staff can add participants' });
     }
+
+    const client = await pool.connect();
+    let newRosterVersion: number;
+    
+    try {
+      await client.query('BEGIN');
+      
+      const lockedBooking = await client.query(
+        `SELECT roster_version FROM booking_requests WHERE id = $1 FOR UPDATE`,
+        [bookingId]
+      );
+      
+      if (!lockedBooking.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      
+      const currentVersion = lockedBooking.rows[0].roster_version ?? 0;
+      
+      if (rosterVersion !== undefined && currentVersion !== rosterVersion) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ 
+          error: 'Roster was modified by another user',
+          code: 'ROSTER_CONFLICT',
+          currentVersion
+        });
+      }
 
     let sessionId = booking.session_id;
     
@@ -633,8 +664,15 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       }
     });
 
-    // Recalculate session fees after adding participant
+    // Invalidate and recalculate session fees after adding participant
     try {
+      // Get all participant IDs for this session
+      const allParticipants = await getSessionParticipants(sessionId);
+      const participantIds = allParticipants.map(p => p.id);
+      
+      // Invalidate cached fees for all participants (roster changed)
+      await invalidateCachedFees(participantIds, 'participant_added');
+      
       const recalcResult = await recalculateSessionFees(sessionId);
       logger.info('[roster] Session fees recalculated after adding participant', {
         extra: {
@@ -652,12 +690,28 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       });
     }
 
+      await client.query(
+        `UPDATE booking_requests SET roster_version = COALESCE(roster_version, 0) + 1 WHERE id = $1`,
+        [bookingId]
+      );
+      
+      newRosterVersion = (lockedBooking.rows[0].roster_version ?? 0) + 1;
+      
+      await client.query('COMMIT');
+
     res.status(201).json({
       success: true,
       participant: newParticipant,
       message: `${type === 'member' ? 'Member' : 'Guest'} added successfully`,
-      ...(type === 'guest' && { guestPassesRemaining })
+      ...(type === 'guest' && { guestPassesRemaining }),
+      newRosterVersion
     });
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to add participant', error);
   }
@@ -672,6 +726,7 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
 
     const bookingId = parseInt(req.params.bookingId);
     const participantId = parseInt(req.params.participantId);
+    const rosterVersion = req.body?.rosterVersion;
     
     if (isNaN(bookingId) || isNaN(participantId)) {
       return res.status(400).json({ error: 'Invalid booking ID or participant ID' });
@@ -725,6 +780,33 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
     if (participant.participantType === 'owner') {
       return res.status(400).json({ error: 'Cannot remove the booking owner' });
     }
+
+    const client = await pool.connect();
+    let newRosterVersion: number;
+    
+    try {
+      await client.query('BEGIN');
+      
+      const lockedBooking = await client.query(
+        `SELECT roster_version FROM booking_requests WHERE id = $1 FOR UPDATE`,
+        [bookingId]
+      );
+      
+      if (!lockedBooking.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+      
+      const currentVersion = lockedBooking.rows[0].roster_version ?? 0;
+      
+      if (rosterVersion !== undefined && currentVersion !== rosterVersion) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ 
+          error: 'Roster was modified by another user',
+          code: 'ROSTER_CONFLICT',
+          currentVersion
+        });
+      }
 
     // If removing a guest, refund the guest pass to the booking owner
     let guestPassesRemaining: number | undefined;
@@ -792,8 +874,15 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
       }
     });
 
-    // Recalculate session fees after removing participant
+    // Invalidate and recalculate session fees after removing participant
     try {
+      // Get remaining participant IDs for this session
+      const remainingParticipants = await getSessionParticipants(booking.session_id);
+      const participantIds = remainingParticipants.map(p => p.id);
+      
+      // Invalidate cached fees for all remaining participants (roster changed)
+      await invalidateCachedFees(participantIds, 'participant_removed');
+      
       const recalcResult = await recalculateSessionFees(booking.session_id);
       logger.info('[roster] Session fees recalculated after removing participant', {
         extra: {
@@ -811,11 +900,27 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
       });
     }
 
+      await client.query(
+        `UPDATE booking_requests SET roster_version = COALESCE(roster_version, 0) + 1 WHERE id = $1`,
+        [bookingId]
+      );
+      
+      newRosterVersion = (lockedBooking.rows[0].roster_version ?? 0) + 1;
+      
+      await client.query('COMMIT');
+
     res.json({
       success: true,
       message: 'Participant removed successfully',
-      ...(participant.participantType === 'guest' && guestPassesRemaining !== undefined && { guestPassesRemaining })
+      ...(participant.participantType === 'guest' && guestPassesRemaining !== undefined && { guestPassesRemaining }),
+      newRosterVersion
     });
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to remove participant', error);
   }
@@ -858,7 +963,8 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       if (prov && prov.type && prov.name) {
         allParticipants.push({
           participantType: prov.type,
-          displayName: prov.name
+          displayName: prov.name,
+          email: prov.email
         });
       }
     }
@@ -880,14 +986,11 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
     }
     
     // Count actual participants (owner + added participants)
-    // Owner is always counted even if not explicitly in allParticipants
     const ownerInAll = allParticipants.some(p => p.participantType === 'owner');
     const actualParticipantCount = ownerInAll ? allParticipants.length : (1 + allParticipants.length);
     
-    // Use the GREATER of declared count vs actual participants
-    // This ensures when staff adds more players than originally declared,
-    // the time allocation updates correctly (e.g., 240min ÷ 5 players = 48min each)
-    const effectivePlayerCount = Math.max(declaredPlayerCount, actualParticipantCount);
+    // Use unified service's getEffectivePlayerCount
+    const effectivePlayerCount = getEffectivePlayerCount(declaredPlayerCount, actualParticipantCount);
     
     // Total slots = effective player count (capped by resource capacity if available)
     const totalSlots = resourceCapacity 
@@ -907,74 +1010,163 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       remainingMinutesToday = await getRemainingMinutes(booking.owner_email, ownerTier, booking.request_date);
     }
 
-    // Build participant list - ensure owner is always included
+    // Build participant list for unified fee service
     const ownerInParticipants = allParticipants.some(p => p.participantType === 'owner');
-    const participantsForAllocation: UsageParticipant[] = [];
+    const participantsForFeeCalc: Array<{
+      userId?: string;
+      email?: string;
+      displayName: string;
+      participantType: 'owner' | 'member' | 'guest';
+    }> = [];
     
     // Always add owner first
     if (!ownerInParticipants) {
-      participantsForAllocation.push({
-        participantType: 'owner' as const,
-        displayName: booking.owner_name || booking.owner_email
+      participantsForFeeCalc.push({
+        email: booking.owner_email,
+        displayName: booking.owner_name || booking.owner_email,
+        participantType: 'owner'
       });
     }
     
     // Add existing participants
     for (const p of allParticipants) {
-      participantsForAllocation.push({
+      participantsForFeeCalc.push({
         userId: p.userId,
-        guestId: p.guestId,
-        participantType: p.participantType as 'owner' | 'member' | 'guest',
-        displayName: p.displayName
+        email: p.email,
+        displayName: p.displayName,
+        participantType: p.participantType as 'owner' | 'member' | 'guest'
       });
     }
 
-    // Use computeUsageAllocation with resource capacity (totalSlots) as the divisor
-    // This ensures time is split by total slots (e.g., 4 for a simulator), not just current participants
-    const allocations = computeUsageAllocation(durationMinutes, participantsForAllocation, {
-      declaredSlots: totalSlots,
-      assignRemainderToOwner: true
-    });
-
-    const guestCount = allParticipants.filter(p => p.participantType === 'guest').length;
-    const memberCount = allParticipants.filter(p => p.participantType === 'member').length;
-    
-    // Calculate minutes per slot for display purposes (using resource capacity)
-    const minutesPerPlayer = Math.floor(durationMinutes / totalSlots);
-    
-    // Get owner's allocated minutes from the computed allocations
-    const ownerAllocation = allocations.find(a => a.participantType === 'owner');
-    const baseOwnerMinutes = ownerAllocation?.minutesAllocated || minutesPerPlayer;
-    
-    // Owner is also responsible for any unfilled slots
-    const filledSlots = participantsForAllocation.length;
-    const unfilledSlots = Math.max(0, totalSlots - filledSlots);
-    const unfilledMinutes = unfilledSlots * minutesPerPlayer;
-    const ownerMinutes = baseOwnerMinutes + unfilledMinutes;
-    
-    // Guest minutes from computed allocations
-    const guestMinutes = allocations
-      .filter(a => a.participantType === 'guest')
-      .reduce((sum, a) => sum + a.minutesAllocated, 0);
-    
-    const totalOwnerResponsibleMinutes = ownerMinutes + guestMinutes;
-    
-    let overageFee = 0;
-    let overageMinutes = 0;
-    let minutesWithinAllowance = 0;
-    
-    if (dailyAllowance > 0 && dailyAllowance < 999) {
-      const overageResult = calculateOverageFee(totalOwnerResponsibleMinutes, remainingMinutesToday);
-      overageFee = overageResult.overageFee;
-      overageMinutes = overageResult.overageMinutes;
-      minutesWithinAllowance = Math.max(0, totalOwnerResponsibleMinutes - overageMinutes);
-    } else if (dailyAllowance >= 999) {
-      minutesWithinAllowance = totalOwnerResponsibleMinutes;
+    // Use unified fee service for fee calculation
+    let breakdown;
+    try {
+      breakdown = await computeFeeBreakdown(
+        booking.session_id 
+          ? {
+              sessionId: booking.session_id,
+              declaredPlayerCount: effectivePlayerCount,
+              source: 'roster_update' as const,
+              excludeSessionFromUsage: true
+            }
+          : {
+              sessionDate: booking.request_date,
+              sessionDuration: durationMinutes,
+              declaredPlayerCount: effectivePlayerCount,
+              hostEmail: booking.owner_email,
+              participants: participantsForFeeCalc,
+              source: 'roster_update' as const
+            }
+      );
+    } catch (feeError) {
+      logger.warn('[roster] Failed to compute unified fee breakdown, using fallback', {
+        error: feeError as Error,
+        extra: { bookingId, sessionId: booking.session_id }
+      });
+      
+      // Fallback to legacy calculation if unified service fails
+      const allocations = computeUsageAllocation(durationMinutes, participantsForFeeCalc.map(p => ({
+        participantType: p.participantType,
+        displayName: p.displayName
+      })), {
+        declaredSlots: totalSlots,
+        assignRemainderToOwner: true
+      });
+      
+      const guestCount = allParticipants.filter(p => p.participantType === 'guest').length;
+      const memberCount = allParticipants.filter(p => p.participantType === 'member').length;
+      const minutesPerPlayer = Math.floor(durationMinutes / totalSlots);
+      const ownerAllocation = allocations.find(a => a.participantType === 'owner');
+      const baseOwnerMinutes = ownerAllocation?.minutesAllocated || minutesPerPlayer;
+      const filledSlots = participantsForFeeCalc.length;
+      const unfilledSlots = Math.max(0, totalSlots - filledSlots);
+      const unfilledMinutes = unfilledSlots * minutesPerPlayer;
+      const ownerMinutes = baseOwnerMinutes + unfilledMinutes;
+      const guestMinutes = allocations
+        .filter(a => a.participantType === 'guest')
+        .reduce((sum, a) => sum + a.minutesAllocated, 0);
+      const totalOwnerResponsibleMinutes = ownerMinutes + guestMinutes;
+      
+      let overageFee = 0;
+      let overageMinutes = 0;
+      let minutesWithinAllowance = 0;
+      
+      if (dailyAllowance > 0 && dailyAllowance < 999) {
+        const overageResult = calculateOverageFee(totalOwnerResponsibleMinutes, remainingMinutesToday);
+        overageFee = overageResult.overageFee;
+        overageMinutes = overageResult.overageMinutes;
+        minutesWithinAllowance = Math.max(0, totalOwnerResponsibleMinutes - overageMinutes);
+      } else if (dailyAllowance >= 999) {
+        minutesWithinAllowance = totalOwnerResponsibleMinutes;
+      }
+      
+      const guestPassesRemaining = ownerTier 
+        ? await getGuestPassesRemaining(booking.owner_email) 
+        : 0;
+      
+      return res.json({
+        booking: {
+          id: booking.booking_id,
+          durationMinutes,
+          startTime: booking.start_time,
+          endTime: booking.end_time,
+        },
+        participants: {
+          total: allParticipants.length,
+          members: memberCount,
+          guests: guestCount,
+          owner: 1,
+        },
+        timeAllocation: {
+          totalMinutes: durationMinutes,
+          declaredPlayerCount,
+          actualParticipantCount,
+          effectivePlayerCount,
+          totalSlots,
+          minutesPerParticipant: minutesPerPlayer,
+          allocations: allocations.map(a => ({
+            displayName: a.displayName,
+            type: a.participantType,
+            minutes: a.minutesAllocated,
+          })),
+        },
+        ownerFees: {
+          tier: ownerTier,
+          dailyAllowance,
+          remainingMinutesToday,
+          ownerMinutesUsed: ownerMinutes,
+          guestMinutesCharged: guestMinutes,
+          totalMinutesResponsible: totalOwnerResponsibleMinutes,
+          minutesWithinAllowance,
+          overageMinutes,
+          estimatedOverageFee: overageFee,
+        },
+        guestPasses: {
+          monthlyAllowance: guestPassesPerMonth,
+          remaining: guestPassesRemaining,
+          usedThisBooking: guestCount,
+          afterBooking: Math.max(0, guestPassesRemaining - guestCount),
+        },
+      });
     }
 
-    const guestPassesRemaining = ownerTier 
-      ? await getGuestPassesRemaining(booking.owner_email) 
-      : 0;
+    // Map unified breakdown to response format
+    const guestCount = allParticipants.filter(p => p.participantType === 'guest').length;
+    const memberCount = allParticipants.filter(p => p.participantType === 'member').length;
+    const minutesPerPlayer = Math.floor(durationMinutes / totalSlots);
+    
+    // Calculate owner and guest minutes from breakdown
+    const ownerLineItem = breakdown.participants.find(p => p.participantType === 'owner');
+    const ownerMinutes = ownerLineItem?.minutesAllocated || breakdown.metadata.sessionDuration;
+    const guestMinutes = breakdown.participants
+      .filter(p => p.participantType === 'guest')
+      .reduce((sum, p) => sum + p.minutesAllocated, 0);
+    const totalOwnerResponsibleMinutes = ownerMinutes + guestMinutes;
+    
+    // Calculate overage details
+    const overageFee = Math.round(breakdown.totals.overageCents / 100);
+    const overageMinutes = overageFee > 0 ? Math.ceil(overageFee / 25) * 30 : 0;
+    const minutesWithinAllowance = Math.max(0, totalOwnerResponsibleMinutes - overageMinutes);
 
     res.json({
       booking: {
@@ -991,15 +1183,16 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       },
       timeAllocation: {
         totalMinutes: durationMinutes,
-        declaredPlayerCount: declaredPlayerCount,
-        actualParticipantCount: actualParticipantCount,
-        effectivePlayerCount: effectivePlayerCount,
+        declaredPlayerCount,
+        actualParticipantCount,
+        effectivePlayerCount: breakdown.metadata.effectivePlayerCount,
         totalSlots,
         minutesPerParticipant: minutesPerPlayer,
-        allocations: allocations.map(a => ({
-          displayName: a.displayName,
-          type: a.participantType,
-          minutes: a.minutesAllocated,
+        allocations: breakdown.participants.map(p => ({
+          displayName: p.displayName,
+          type: p.participantType,
+          minutes: p.minutesAllocated,
+          feeCents: p.totalCents,
         })),
       },
       ownerFees: {
@@ -1012,13 +1205,16 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
         minutesWithinAllowance,
         overageMinutes,
         estimatedOverageFee: overageFee,
+        estimatedGuestFees: Math.round(breakdown.totals.guestCents / 100),
+        estimatedTotalFees: Math.round(breakdown.totals.totalCents / 100),
       },
       guestPasses: {
         monthlyAllowance: guestPassesPerMonth,
-        remaining: guestPassesRemaining,
-        usedThisBooking: guestCount,
-        afterBooking: Math.max(0, guestPassesRemaining - guestCount),
+        remaining: breakdown.totals.guestPassesAvailable,
+        usedThisBooking: breakdown.totals.guestPassesUsed,
+        afterBooking: Math.max(0, breakdown.totals.guestPassesAvailable - guestCount),
       },
+      unifiedBreakdown: breakdown,
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to preview fees', error);

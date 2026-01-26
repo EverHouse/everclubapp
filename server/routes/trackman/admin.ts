@@ -4,7 +4,7 @@ import { pool } from '../../core/db';
 import { sendPushNotification } from '../push';
 import { getGuestPassesRemaining } from '../guestPasses';
 import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes, getTotalDailyUsageMinutes } from '../../core/tierService';
-import { calculateAndCacheParticipantFees } from '../../core/billing/feeCalculator';
+import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
 import { getStripeClient } from '../../core/stripe/client';
 import { getOrCreateStripeCustomer } from '../../core/stripe/customers';
@@ -1000,11 +1000,17 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       
       if (participantsResult.rows.length > 0) {
         const allParticipantIds = participantsResult.rows.map(p => p.participant_id);
-        const feeResult = await calculateAndCacheParticipantFees(sessionId, allParticipantIds);
+        const breakdown = await computeFeeBreakdown({
+          sessionId,
+          source: 'trackman' as const
+        });
+        await applyFeeBreakdownToParticipants(sessionId, breakdown);
         
         const feeMap = new Map<number, number>();
-        for (const f of feeResult.fees) {
-          feeMap.set(f.participantId, f.amountCents / 100);
+        for (const p of breakdown.participants) {
+          if (p.participantId) {
+            feeMap.set(p.participantId, p.totalCents / 100);
+          }
         }
         
         const emailToFeeMap = new Map<string, { fee: number; feeNote: string }>();

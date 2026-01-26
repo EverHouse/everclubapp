@@ -1,0 +1,1 @@
+ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS roster_version INTEGER DEFAULT 0;
