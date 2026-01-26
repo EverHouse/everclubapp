@@ -218,6 +218,7 @@ export const bookingMembers = pgTable("booking_members", {
 }, (table) => [
   index("booking_members_booking_id_idx").on(table.bookingId),
   index("booking_members_user_email_idx").on(table.userEmail),
+  uniqueIndex("booking_members_booking_slot_idx").on(table.bookingId, table.slotNumber),
 ]);
 
 // Booking guests table - tracks guests (non-members) on bookings

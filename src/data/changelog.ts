@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.26.2",
+    date: "2026-01-26",
+    title: "Confirmed Booking Details Enhancement",
+    changes: [
+      "Added: Player roster management now shows in confirmed booking details modal",
+      "Added: Staff can add/remove members and guests from confirmed bookings before check-in",
+      "Added: Financial summary shows guest pass usage and estimated fees for confirmed bookings",
+      "Added: Player slots are automatically created when viewing booking details",
+      "Improved: Booking details modal now uses declared player count to create appropriate slots"
+    ]
+  },
+  {
     version: "9.26.1",
     date: "2026-01-26",
     title: "Booking Request Error Fix",

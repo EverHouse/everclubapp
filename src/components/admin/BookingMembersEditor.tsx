@@ -399,8 +399,15 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
     );
   }
 
-  if (members.length === 0 && guests.length === 0) {
-    return null;
+  if (members.length === 0 && guests.length === 0 && !validation) {
+    return (
+      <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+        <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 text-sm">
+          <span className="material-symbols-outlined text-base">group</span>
+          No player data available
+        </div>
+      </div>
+    );
   }
 
   return (

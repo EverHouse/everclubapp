@@ -733,8 +733,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const { id } = req.params;
     
     const bookingResult = await pool.query(
-      `SELECT br.guest_count, br.trackman_player_count, br.resource_id, br.user_email as owner_email,
-              br.duration_minutes, br.request_date, br.session_id,
+      `SELECT br.guest_count, br.trackman_player_count, br.declared_player_count, br.resource_id, br.user_email as owner_email,
+              br.user_name as owner_name, br.duration_minutes, br.request_date, br.session_id, br.status,
               r.capacity as resource_capacity
        FROM booking_requests br
        LEFT JOIN resources r ON br.resource_id = r.id
@@ -748,10 +748,13 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     const legacyGuestCount = bookingResult.rows[0]?.guest_count || 0;
     const trackmanPlayerCount = bookingResult.rows[0]?.trackman_player_count;
+    const declaredPlayerCount = bookingResult.rows[0]?.declared_player_count;
     const resourceCapacity = bookingResult.rows[0]?.resource_capacity || null;
     const ownerEmail = bookingResult.rows[0]?.owner_email;
+    const ownerName = bookingResult.rows[0]?.owner_name;
     const durationMinutes = bookingResult.rows[0]?.duration_minutes || 60;
     const requestDate = bookingResult.rows[0]?.request_date;
+    const bookingStatus = bookingResult.rows[0]?.status;
     
     let ownerTier: string | null = null;
     let ownerTierLimits: Awaited<ReturnType<typeof getTierLimits>> | null = null;
@@ -765,7 +768,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
     }
     
-    const membersResult = await pool.query(
+    let membersResult = await pool.query(
       `SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier
        FROM booking_members bm
        LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
@@ -773,6 +776,37 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
        ORDER BY bm.slot_number`,
       [id]
     );
+    
+    const targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
+    const isUnmatchedOwner = !ownerEmail || ownerEmail.includes('unmatched@') || ownerEmail.includes('@trackman.import');
+    if (membersResult.rows.length === 0 && targetPlayerCount > 0) {
+      const slotsToCreate: { slotNumber: number; isPrimary: boolean; userEmail: string | null }[] = [];
+      for (let i = 1; i <= targetPlayerCount; i++) {
+        slotsToCreate.push({
+          slotNumber: i,
+          isPrimary: i === 1,
+          userEmail: (i === 1 && !isUnmatchedOwner) ? ownerEmail : null
+        });
+      }
+      
+      for (const slot of slotsToCreate) {
+        await pool.query(
+          `INSERT INTO booking_members (booking_id, slot_number, is_primary, user_email, created_at)
+           VALUES ($1, $2, $3, $4, NOW())
+           ON CONFLICT (booking_id, slot_number) DO NOTHING`,
+          [id, slot.slotNumber, slot.isPrimary, slot.userEmail]
+        );
+      }
+      
+      membersResult = await pool.query(
+        `SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier
+         FROM booking_members bm
+         LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
+         WHERE bm.booking_id = $1
+         ORDER BY bm.slot_number`,
+        [id]
+      );
+    }
     
     const guestsResult = await pool.query(
       `SELECT * FROM booking_guests WHERE booking_id = $1 ORDER BY slot_number`,
@@ -793,7 +827,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const actualGuestCount = guestsResult.rows.length;
     
     let expectedPlayerCount: number;
-    if (trackmanPlayerCount && trackmanPlayerCount > 0) {
+    if (declaredPlayerCount && declaredPlayerCount > 0) {
+      expectedPlayerCount = declaredPlayerCount;
+    } else if (trackmanPlayerCount && trackmanPlayerCount > 0) {
       expectedPlayerCount = trackmanPlayerCount;
     } else if (totalMemberSlots > 0) {
       expectedPlayerCount = totalMemberSlots + actualGuestCount;
