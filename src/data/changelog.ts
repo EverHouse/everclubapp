@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.28.0",
+    date: "2026-01-26",
+    title: "Performance & Safety Improvements",
+    changes: [
+      "Performance: Added database indexes for faster email lookups across all booking queries",
+      "Performance: Fee calculations now batch database queries - reduced from ~12 queries to 3 per booking",
+      "Reliability: Guest pass deductions now use transaction locking to prevent double-spending",
+      "Reliability: Fee amounts are verified before payment completes - detects if fees changed after booking",
+      "Maintenance: Created centralized pricing configuration - easier to update fees in the future",
+      "Fixed: HubSpot contact sync now handles duplicate contacts more reliably",
+      "Fixed: Staff check-in now uses shared tier rules - consistent guest validation"
+    ]
+  },
+  {
     version: "9.27.0",
     date: "2026-01-26",
     title: "Unified Fee Service & System Reliability",
