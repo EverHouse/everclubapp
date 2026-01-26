@@ -1,6 +1,7 @@
 import { getHubSpotClient } from '../integrations';
 import { isProduction } from '../db';
 import { retryableHubSpotRequest } from './request';
+import { enqueueHubSpotSync } from './queue';
 
 export interface SyncDayPassPurchaseInput {
   email: string;
@@ -176,4 +177,31 @@ export async function syncDayPassPurchaseToHubSpot(
       error: errorMsg || 'Failed to sync day pass purchase to HubSpot'
     };
   }
+}
+
+/**
+ * Queue a day pass purchase sync to HubSpot (non-blocking)
+ * Use this version when you don't need to wait for the sync to complete
+ */
+export async function queueDayPassSyncToHubSpot(
+  data: SyncDayPassPurchaseInput
+): Promise<{ queued: boolean; jobId?: number }> {
+  const jobId = await enqueueHubSpotSync(
+    'sync_day_pass',
+    {
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      productName: data.productName,
+      amountCents: data.amountCents,
+      purchaseDate: data.purchaseDate.toISOString()
+    },
+    {
+      priority: 3, // Higher priority for customer-facing actions
+      idempotencyKey: `day_pass_${data.email}_${data.purchaseDate.toISOString().split('T')[0]}`
+    }
+  );
+  
+  return { queued: jobId !== null, jobId: jobId ?? undefined };
 }

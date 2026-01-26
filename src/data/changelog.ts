@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.29.0",
+    date: "2026-01-26",
+    title: "Double-Booking Protection & HubSpot Reliability",
+    isMajor: true,
+    changes: [
+      "Architecture: Added database-level constraint that makes double-booking the same bay physically impossible",
+      "Reliability: HubSpot syncs now run in the background - member actions complete instantly even if HubSpot is slow",
+      "Added: Background queue system processes HubSpot updates every 2 minutes with automatic retries",
+      "Data cleanup: Resolved 8 overlapping Trackman phantom bookings from historical imports"
+    ]
+  },
+  {
     version: "9.28.1",
     date: "2026-01-26",
     title: "Trackman Sync Improvements",

@@ -28,6 +28,7 @@ import { startWeeklyCleanupScheduler } from './schedulers/weeklyCleanupScheduler
 import { startInviteExpiryScheduler } from './schedulers/inviteExpiryScheduler';
 import { startCommunicationLogsScheduler } from './schedulers/communicationLogsScheduler';
 import { startWebhookLogCleanupScheduler } from './schedulers/webhookLogCleanupScheduler';
+import { startHubSpotQueueScheduler } from './schedulers/hubspotQueueScheduler';
 import { startSessionCleanupScheduler } from './schedulers/sessionCleanupScheduler';
 import { startUnresolvedTrackmanScheduler } from './schedulers/unresolvedTrackmanScheduler';
 import { processStripeWebhook } from './core/stripe';
@@ -453,6 +454,7 @@ async function startServer() {
   startWebhookLogCleanupScheduler();
   startSessionCleanupScheduler();
   startUnresolvedTrackmanScheduler();
+  startHubSpotQueueScheduler();
 }
 
 startServer().catch((err) => {

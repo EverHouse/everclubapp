@@ -63,6 +63,7 @@ export {
 
 export {
   syncDayPassPurchaseToHubSpot,
+  queueDayPassSyncToHubSpot,
   type SyncDayPassPurchaseInput,
   type SyncDayPassPurchaseResult
 } from './contacts';
@@ -72,3 +73,10 @@ export {
   type SyncCompanyInput,
   type SyncCompanyResult
 } from './companies';
+
+export {
+  enqueueHubSpotSync,
+  processHubSpotQueue,
+  getQueueStats,
+  type HubSpotOperation
+} from './queue';
