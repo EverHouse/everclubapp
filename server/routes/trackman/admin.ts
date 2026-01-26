@@ -1725,4 +1725,224 @@ router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, async (req, re
   }
 });
 
+// ============================================================================
+// Session Backfill Endpoints - for legacy Trackman imports without sessions
+// ============================================================================
+
+router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, res) => {
+  try {
+    // Get count and sample of bookings without sessions
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM booking_requests br
+      WHERE br.session_id IS NULL
+        AND br.status IN ('attended', 'approved')
+        AND br.resource_id IS NOT NULL
+    `);
+    
+    const totalCount = parseInt(countResult.rows[0].total);
+    
+    // Get first 10 samples with details
+    const samplesResult = await pool.query(`
+      SELECT 
+        br.id,
+        br.user_email,
+        br.user_name,
+        br.resource_id,
+        r.name as resource_name,
+        TO_CHAR(br.request_date, 'YYYY-MM-DD') as request_date,
+        br.start_time,
+        br.end_time,
+        br.duration_minutes,
+        br.status,
+        br.trackman_booking_id,
+        br.origin,
+        br.created_at
+      FROM booking_requests br
+      LEFT JOIN resources r ON br.resource_id = r.id
+      WHERE br.session_id IS NULL
+        AND br.status IN ('attended', 'approved')
+        AND br.resource_id IS NOT NULL
+      ORDER BY br.request_date DESC, br.start_time DESC
+      LIMIT 10
+    `);
+    
+    res.json({
+      totalCount,
+      sampleBookings: samplesResult.rows.map(row => ({
+        id: row.id,
+        userEmail: row.user_email,
+        userName: row.user_name,
+        resourceId: row.resource_id,
+        resourceName: row.resource_name,
+        requestDate: row.request_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        durationMinutes: row.duration_minutes,
+        status: row.status,
+        trackmanBookingId: row.trackman_booking_id,
+        origin: row.origin,
+        createdAt: row.created_at
+      })),
+      message: `Found ${totalCount} booking(s) without sessions that can be backfilled`
+    });
+  } catch (error: any) {
+    console.error('[Backfill Preview] Error:', error);
+    res.status(500).json({ error: 'Failed to preview backfill candidates' });
+  }
+});
+
+router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    
+    // Find all bookings without sessions
+    const bookingsResult = await client.query(`
+      SELECT 
+        br.id,
+        br.user_id,
+        br.user_email,
+        br.user_name,
+        br.resource_id,
+        TO_CHAR(br.request_date, 'YYYY-MM-DD') as request_date,
+        br.start_time,
+        br.end_time,
+        br.trackman_booking_id,
+        u.id as owner_user_id
+      FROM booking_requests br
+      LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
+      WHERE br.session_id IS NULL
+        AND br.status IN ('attended', 'approved')
+        AND br.resource_id IS NOT NULL
+      ORDER BY br.request_date ASC
+    `);
+    
+    const bookings = bookingsResult.rows;
+    
+    if (bookings.length === 0) {
+      await client.query('ROLLBACK');
+      return res.json({
+        success: true,
+        sessionsCreated: 0,
+        message: 'No bookings found without sessions'
+      });
+    }
+    
+    let sessionsCreated = 0;
+    const errors: Array<{ bookingId: number; error: string }> = [];
+    
+    for (const booking of bookings) {
+      try {
+        // Determine source based on origin or presence of trackman_booking_id
+        let source = 'member_request';
+        if (booking.trackman_booking_id) {
+          source = 'trackman_import';
+        }
+        
+        // Create booking_session
+        const sessionResult = await client.query(`
+          INSERT INTO booking_sessions (
+            resource_id, 
+            session_date, 
+            start_time, 
+            end_time, 
+            trackman_booking_id,
+            source, 
+            created_by,
+            created_at,
+            updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+          RETURNING id
+        `, [
+          booking.resource_id,
+          booking.request_date,
+          booking.start_time,
+          booking.end_time,
+          booking.trackman_booking_id,
+          source,
+          'backfill_tool'
+        ]);
+        
+        const sessionId = sessionResult.rows[0].id;
+        
+        // Create owner participant if we have user info
+        const displayName = booking.user_name || booking.user_email || 'Unknown';
+        const userId = booking.owner_user_id || booking.user_id;
+        
+        await client.query(`
+          INSERT INTO booking_participants (
+            session_id,
+            user_id,
+            participant_type,
+            display_name,
+            invite_status,
+            invited_at,
+            created_at
+          )
+          VALUES ($1, $2, 'owner', $3, 'accepted', NOW(), NOW())
+        `, [
+          sessionId,
+          userId,
+          displayName
+        ]);
+        
+        // Link session back to booking_request
+        await client.query(`
+          UPDATE booking_requests 
+          SET session_id = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [sessionId, booking.id]);
+        
+        sessionsCreated++;
+      } catch (bookingError: any) {
+        console.error(`[Backfill] Error processing booking ${booking.id}:`, bookingError);
+        errors.push({
+          bookingId: booking.id,
+          error: bookingError.message || 'Unknown error'
+        });
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    // Log the backfill action
+    logFromRequest(req, 'bulk_action', 'booking', undefined, 'Session Backfill', {
+      action: 'backfill_sessions',
+      sessionsCreated,
+      totalProcessed: bookings.length,
+      errorsCount: errors.length,
+      errors: errors.slice(0, 10) // Only log first 10 errors
+    });
+    
+    console.log(`[Backfill] Completed: ${sessionsCreated} sessions created for ${bookings.length} bookings by ${staffEmail}`);
+    
+    res.json({
+      success: true,
+      sessionsCreated,
+      totalProcessed: bookings.length,
+      errorsCount: errors.length,
+      errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
+      message: `Successfully created ${sessionsCreated} sessions for legacy bookings`
+    });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('[Backfill Sessions] Error:', error);
+    
+    // Log the failed attempt
+    logFromRequest(req, 'bulk_action', 'booking', undefined, 'Session Backfill Failed', {
+      action: 'backfill_sessions',
+      error: error.message
+    });
+    
+    res.status(500).json({ error: 'Failed to backfill sessions: ' + (error.message || 'Unknown error') });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
