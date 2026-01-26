@@ -1051,58 +1051,9 @@ async function calculateFeeEstimate(params: {
       unifiedBreakdown: breakdown
     };
   } catch (error) {
-    // Fallback to simple calculation if unified service fails
-    console.error('[FeeEstimate] Unified service error, using fallback:', error);
-    
-    let overageMinutes = 0;
-    let overageFee = 0;
-    
-    if (isSocialTier) {
-      overageMinutes = durationMinutes;
-      overageFee = Math.ceil(overageMinutes / 30) * 25;
-    } else if (!isUnlimitedTier && dailyAllowance > 0) {
-      overageMinutes = Math.max(0, (usedMinutesToday + perPersonMins) - dailyAllowance);
-      overageFee = Math.ceil(overageMinutes / 30) * 25;
-    }
-    
-    const guestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
-    const guestsUsingPasses = Math.min(guestCount, guestPassesRemaining);
-    const guestsCharged = Math.max(0, guestCount - guestPassesRemaining);
-    const guestFees = guestsCharged * 25;
-    
-    const totalFee = overageFee + guestFees;
-    
-    return {
-      ownerEmail,
-      ownerTier,
-      durationMinutes,
-      playerCount,
-      perPersonMins,
-      tierInfo: {
-        dailyAllowance,
-        usedMinutesToday,
-        remainingMinutes: Math.max(0, dailyAllowance - usedMinutesToday),
-        isSocialTier,
-        isUnlimitedTier
-      },
-      feeBreakdown: {
-        overageMinutes,
-        overageFee,
-        guestCount,
-        guestPassesRemaining,
-        guestsUsingPasses,
-        guestsCharged,
-        guestFees
-      },
-      totalFee,
-      note: isSocialTier 
-        ? 'Social tier pays for all simulator time'
-        : isUnlimitedTier 
-          ? 'Unlimited access - no overage fees' 
-          : overageFee > 0 
-            ? `${overageMinutes} min over daily allowance`
-            : 'Within daily allowance'
-    };
+    // Do NOT use fallback - this could show incorrect prices
+    console.error('[FeeEstimate] Unified service error:', error);
+    throw new Error('Unable to calculate fee estimate. Please try again.');
   }
 }
 

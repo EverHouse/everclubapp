@@ -4,9 +4,7 @@ import { getDailyUsageFromLedger, getGuestPassInfo, calculateOverageFee } from '
 import { MemberService, isEmail, normalizeEmail, isUUID } from '../memberService';
 import { FeeBreakdown, FeeComputeParams, FeeLineItem } from '../../../shared/models/billing';
 import { logger } from '../logger';
-
-const OVERAGE_RATE_PER_30_MIN = 25;
-const FLAT_GUEST_FEE_CENTS = 2500;
+import { PRICING } from './pricingConfig';
 
 export function getEffectivePlayerCount(declared: number | undefined, actual: number): number {
   const declaredCount = declared && declared > 0 ? declared : 1;
@@ -175,6 +173,75 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   let guestPassesRemaining = guestPassInfo.remaining;
   const guestPassesAvailable = guestPassInfo.remaining;
   
+  // Pre-fetch participant identifiers (both UUID and email)
+  const participantIdentifiers: Array<{ participantId: number | undefined; userId: string | null; email: string | null }> = [];
+  for (const p of participants) {
+    const email = await resolveToEmail(p.email || p.userId);
+    participantIdentifiers.push({
+      participantId: (p as any).participantId,
+      userId: p.userId || null,
+      email: email || null
+    });
+  }
+
+  // Collect all possible identifiers for usage lookup (both UUIDs and emails)
+  const allIdentifiers: string[] = [];
+  const emailList: string[] = [];
+  for (const pi of participantIdentifiers) {
+    if (pi.userId) allIdentifiers.push(pi.userId.toLowerCase());
+    if (pi.email) {
+      allIdentifiers.push(pi.email.toLowerCase());
+      emailList.push(pi.email);
+    }
+  }
+
+  // Batch fetch member tiers
+  const tierMap = new Map<string, string>();
+  if (emailList.length > 0) {
+    const tiersResult = await pool.query(
+      `SELECT LOWER(email) as email, tier FROM users WHERE LOWER(email) = ANY($1::text[])`,
+      [emailList.map(e => e.toLowerCase())]
+    );
+    tiersResult.rows.forEach(r => tierMap.set(r.email, r.tier));
+  }
+
+  // Batch fetch daily usage from ledger - match by EITHER user_id (UUID) or email
+  // usage_ledger.member_id can contain either a UUID or an email
+  const usageMap = new Map<string, number>();
+  const excludeId = params.excludeSessionFromUsage ? sessionId : undefined;
+  if (allIdentifiers.length > 0) {
+    const usageQuery = excludeId 
+      ? `SELECT LOWER(ul.member_id) as identifier, COALESCE(SUM(ul.minutes_charged), 0) as used
+         FROM usage_ledger ul
+         JOIN booking_sessions bs ON ul.session_id = bs.id
+         WHERE LOWER(ul.member_id) = ANY($1::text[])
+           AND bs.session_date = $2
+           AND ul.session_id != $3
+         GROUP BY LOWER(ul.member_id)`
+      : `SELECT LOWER(ul.member_id) as identifier, COALESCE(SUM(ul.minutes_charged), 0) as used
+         FROM usage_ledger ul
+         JOIN booking_sessions bs ON ul.session_id = bs.id
+         WHERE LOWER(ul.member_id) = ANY($1::text[])
+           AND bs.session_date = $2
+         GROUP BY LOWER(ul.member_id)`;
+    const usageParams = excludeId 
+      ? [allIdentifiers, sessionDate, excludeId]
+      : [allIdentifiers, sessionDate];
+    const usageResult = await pool.query(usageQuery, usageParams);
+    usageResult.rows.forEach(r => usageMap.set(r.identifier, parseInt(r.used) || 0));
+  }
+
+  // Helper function to look up usage by BOTH userId and email
+  function getUsageForParticipant(userId: string | null, email: string | null): number {
+    if (userId && usageMap.has(userId.toLowerCase())) {
+      return usageMap.get(userId.toLowerCase())!;
+    }
+    if (email && usageMap.has(email.toLowerCase())) {
+      return usageMap.get(email.toLowerCase())!;
+    }
+    return 0;
+  }
+  
   const lineItems: FeeLineItem[] = [];
   let totalOverageCents = 0;
   let totalGuestCents = 0;
@@ -202,8 +269,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         guestPassesUsed++;
         lineItem.guestCents = 0;
       } else {
-        lineItem.guestCents = FLAT_GUEST_FEE_CENTS;
-        totalGuestCents += FLAT_GUEST_FEE_CENTS;
+        lineItem.guestCents = PRICING.GUEST_FEE_CENTS;
+        totalGuestCents += PRICING.GUEST_FEE_CENTS;
       }
       
       lineItem.totalCents = lineItem.guestCents;
@@ -211,13 +278,17 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       lineItem.minutesAllocated = sessionDuration;
       
       const ownerEmail = await resolveToEmail(participant.email || participant.userId || hostEmail);
-      const tierName = await getMemberTierByEmail(ownerEmail);
+      // Use batched tier data, fallback to individual query if not found
+      let tierName = tierMap.get(ownerEmail.toLowerCase());
+      if (!tierName && ownerEmail) {
+        tierName = await getMemberTierByEmail(ownerEmail);
+      }
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
       const dailyAllowance = tierLimits?.daily_sim_minutes ?? 0;
       const unlimitedAccess = tierLimits?.unlimited_access ?? false;
       
-      const excludeId = params.excludeSessionFromUsage ? sessionId : undefined;
-      const usedMinutesToday = await getDailyUsageFromLedger(ownerEmail, sessionDate, excludeId);
+      // Use batched usage data - look up by BOTH userId and email
+      const usedMinutesToday = getUsageForParticipant(participant.userId || null, ownerEmail);
       
       lineItem.tierName = tierName || undefined;
       lineItem.dailyAllowance = dailyAllowance;
@@ -240,13 +311,17 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       lineItem.minutesAllocated = minutesPerParticipant;
       
       const memberEmail = await resolveToEmail(participant.email || participant.userId);
-      const tierName = await getMemberTierByEmail(memberEmail);
+      // Use batched tier data, fallback to individual query if not found
+      let tierName = tierMap.get(memberEmail.toLowerCase());
+      if (!tierName && memberEmail) {
+        tierName = await getMemberTierByEmail(memberEmail);
+      }
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
       const dailyAllowance = tierLimits?.daily_sim_minutes ?? 0;
       const unlimitedAccess = tierLimits?.unlimited_access ?? false;
       
-      const excludeId = params.excludeSessionFromUsage ? sessionId : undefined;
-      const usedMinutesToday = await getDailyUsageFromLedger(memberEmail, sessionDate, excludeId);
+      // Use batched usage data - look up by BOTH userId and email
+      const usedMinutesToday = getUsageForParticipant(participant.userId || null, memberEmail);
       
       lineItem.tierName = tierName || undefined;
       lineItem.dailyAllowance = dailyAllowance;

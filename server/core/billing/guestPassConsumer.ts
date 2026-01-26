@@ -249,7 +249,8 @@ export async function refundGuestPassForParticipant(
     );
     
     // Look up guest fee from the Guest Pass Stripe product price
-    let guestFeeCents = 2500; // Default fallback
+    const { PRICING } = await import('./pricingConfig');
+    let guestFeeCents = PRICING.GUEST_FEE_CENTS; // Default fallback
     try {
       const priceResult = await client.query(
         `SELECT stripe_price_id FROM membership_tiers WHERE LOWER(name) = 'guest pass' AND stripe_price_id IS NOT NULL`

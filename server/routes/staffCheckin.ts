@@ -11,6 +11,7 @@ import { sendFeeWaivedEmail } from '../emails/paymentEmails';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../core/billing/unifiedFeeService';
 import { consumeGuestPassForParticipant, canUseGuestPass } from '../core/billing/guestPassConsumer';
 import { logFromRequest } from '../core/auditLog';
+import { enforceSocialTierRules, type ParticipantForValidation } from '../core/bookingService/tierRules';
 
 const router = Router();
 
@@ -817,10 +818,13 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
 
       if (ownerTierResult.rows.length > 0) {
         const ownerTier = ownerTierResult.rows[0];
-        if (ownerTier.tier_name?.toLowerCase() === 'social' || ownerTier.guest_passes === 0) {
-          return res.status(400).json({ 
-            error: 'Cannot add guests for Social tier members. This is a business rule that cannot be overridden.' 
-          });
+        // Use shared tier rules instead of hardcoded check
+        const tierCheck = await enforceSocialTierRules(
+          ownerTier.tier_name || 'Social',
+          [{ type: 'guest', displayName: guestName }]
+        );
+        if (!tierCheck.allowed) {
+          return res.status(400).json({ error: tierCheck.reason });
         }
       }
 

@@ -108,17 +108,29 @@ export async function syncDayPassPurchaseToHubSpot(
         }
       } catch (createError: any) {
         const statusCode = createError?.code || createError?.response?.statusCode || createError?.status;
-        const errorBody = createError?.response?.body;
 
         // Handle duplicate contact (409 Conflict)
-        if (statusCode === 409 && errorBody?.message) {
-          const match = errorBody.message.match(/Existing ID:\s*(\d+)/);
-          if (match && match[1]) {
-            contactId = match[1];
-            if (!isProduction) {
-              console.log(`[DayPassHubSpot] Contact ${normalizedEmail} already exists (ID: ${contactId}), using existing`);
-            }
+        if (statusCode === 409) {
+          // Re-query by email instead of parsing error message
+          console.log(`[DayPassHubSpot] Contact ${normalizedEmail} already exists (409), re-querying...`);
+          
+          const searchResponse = await hubspot.crm.contacts.searchApi.doSearch({
+            filterGroups: [{
+              filters: [{
+                propertyName: 'email',
+                operator: 'EQ',
+                value: normalizedEmail
+              }]
+            }],
+            properties: ['email', 'firstname', 'lastname'],
+            limit: 1
+          });
+          
+          if (searchResponse.results?.length > 0) {
+            contactId = searchResponse.results[0].id;
+            console.log(`[DayPassHubSpot] Found existing contact via re-query: ${contactId}`);
           } else {
+            console.error(`[DayPassHubSpot] 409 conflict but contact not found on re-query`);
             throw createError;
           }
         } else {

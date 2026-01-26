@@ -224,6 +224,23 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
       return res.json({ success: true, message: 'Payment already confirmed' });
     }
 
+    // Verify fee snapshot is still valid before charging
+    const currentFees = await computeFeeBreakdown({ sessionId: booking.session_id, source: 'payment_verification' as const });
+    const snapshotFees = snapshot.participant_fees;
+    const snapshotTotal = Array.isArray(snapshotFees) 
+      ? snapshotFees.reduce((sum: number, f: any) => sum + (f.amountCents || 0), 0)
+      : 0;
+    const currentTotal = currentFees.totals.totalCents;
+
+    if (Math.abs(currentTotal - snapshotTotal) > 100) { // Allow $1 tolerance for rounding
+      return res.status(409).json({ 
+        error: 'Fee calculation has changed since booking. Please refresh and try again.',
+        code: 'FEE_SNAPSHOT_STALE',
+        snapshotTotal,
+        currentTotal
+      });
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');

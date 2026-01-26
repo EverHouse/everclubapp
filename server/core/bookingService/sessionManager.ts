@@ -323,140 +323,97 @@ export async function deductGuestPasses(
     return { success: true, passesDeducted: 0 };
   }
   
+  const client = await pool.connect();
   try {
-    // First, try to update an existing row (most common case)
-    // This handles members who already have a guest_passes record
-    const updateResult = await pool.query(
-      `UPDATE guest_passes 
-       SET passes_used = passes_used + $2
+    await client.query('BEGIN');
+    
+    // Try to lock existing row first
+    const lockResult = await client.query(
+      `SELECT passes_used, passes_total 
+       FROM guest_passes 
        WHERE LOWER(member_email) = LOWER($1) 
-         AND passes_used + $2 <= passes_total
-       RETURNING passes_used, passes_total`,
-      [memberEmail, passCount]
-    );
-    
-    if (updateResult.rows.length > 0) {
-      logger.info('[deductGuestPasses] Guest passes deducted (existing record)', {
-        extra: { 
-          memberEmail, 
-          passCount, 
-          passesUsed: updateResult.rows[0].passes_used,
-          passesTotal: updateResult.rows[0].passes_total
-        }
-      });
-      return { success: true, passesDeducted: passCount };
-    }
-    
-    // Check if record exists - may have insufficient passes or need backfill
-    const existingCheck = await pool.query(
-      `SELECT passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = LOWER($1)`,
+       FOR UPDATE`,
       [memberEmail]
     );
     
-    if (existingCheck.rows.length > 0) {
-      const { passes_used, passes_total } = existingCheck.rows[0];
+    if (lockResult.rows.length > 0) {
+      // Existing row found - check and update
+      const { passes_used, passes_total } = lockResult.rows[0];
       
-      // Check if passes_total needs backfill (was 0 or null from legacy data)
+      // Handle backfill if passes_total is 0
       if (!passes_total || passes_total === 0) {
         const { getTierLimits } = await import('../tierService');
         const tierLimits = tierName ? await getTierLimits(tierName) : null;
-        const monthlyAllocation = tierLimits?.guest_passes_per_month ?? 4; // Default to 4 if unknown
+        const monthlyAllocation = tierLimits?.guest_passes_per_month ?? 4;
         
-        // Backfill passes_total and deduct
-        const backfillResult = await pool.query(
-          `UPDATE guest_passes 
-           SET passes_total = $3, passes_used = passes_used + $2
-           WHERE LOWER(member_email) = LOWER($1) 
-             AND passes_used + $2 <= $3
-           RETURNING passes_used, passes_total`,
-          [memberEmail, passCount, monthlyAllocation]
-        );
-        
-        if (backfillResult.rows.length > 0) {
-          logger.info('[deductGuestPasses] Guest passes deducted (backfilled passes_total)', {
-            extra: { 
-              memberEmail, 
-              passCount, 
-              passesUsed: backfillResult.rows[0].passes_used,
-              passesTotal: backfillResult.rows[0].passes_total
-            }
-          });
+        if (passes_used + passCount <= monthlyAllocation) {
+          await client.query(
+            `UPDATE guest_passes 
+             SET passes_total = $3, passes_used = passes_used + $2
+             WHERE LOWER(member_email) = LOWER($1)`,
+            [memberEmail, passCount, monthlyAllocation]
+          );
+          await client.query('COMMIT');
+          logger.info('[deductGuestPasses] Passes deducted (backfilled)', { extra: { memberEmail, passCount } });
           return { success: true, passesDeducted: passCount };
         }
+        await client.query('ROLLBACK');
+        return { success: false, passesDeducted: 0 };
       }
       
-      // Record exists but insufficient passes
-      logger.warn('[deductGuestPasses] Insufficient passes available', {
-        extra: { memberEmail, passCount, passes_used, passes_total }
-      });
+      // Normal update
+      if (passes_used + passCount <= passes_total) {
+        await client.query(
+          `UPDATE guest_passes SET passes_used = passes_used + $2 
+           WHERE LOWER(member_email) = LOWER($1)`,
+          [memberEmail, passCount]
+        );
+        await client.query('COMMIT');
+        logger.info('[deductGuestPasses] Passes deducted', { extra: { memberEmail, passCount } });
+        return { success: true, passesDeducted: passCount };
+      }
+      await client.query('ROLLBACK');
+      logger.warn('[deductGuestPasses] Insufficient passes', { extra: { memberEmail, passCount, passes_used, passes_total } });
       return { success: false, passesDeducted: 0 };
     }
     
-    // No existing record - create one using tier allocation
+    // No existing record - create with ON CONFLICT for race safety
     const { getTierLimits } = await import('../tierService');
     const tierLimits = tierName ? await getTierLimits(tierName) : null;
-    const monthlyAllocation = tierLimits?.guest_passes_per_month ?? 4; // Default to 4 if unknown
+    const monthlyAllocation = tierLimits?.guest_passes_per_month ?? 4;
     
-    // Validate passCount doesn't exceed allocation for new records
     if (passCount > monthlyAllocation) {
-      logger.warn('[deductGuestPasses] Pass count exceeds monthly allocation', {
-        extra: { memberEmail, passCount, monthlyAllocation }
-      });
+      await client.query('ROLLBACK');
       return { success: false, passesDeducted: 0 };
     }
     
-    // Insert new record with passes deducted
-    const insertResult = await pool.query(
+    // Use INSERT ... ON CONFLICT to safely handle race conditions
+    const insertResult = await client.query(
       `INSERT INTO guest_passes (member_email, passes_used, passes_total)
        VALUES (LOWER($1), $2, $3)
-       ON CONFLICT (member_email) DO NOTHING
+       ON CONFLICT (member_email) DO UPDATE 
+       SET passes_used = guest_passes.passes_used + $2
+       WHERE guest_passes.passes_used + $2 <= guest_passes.passes_total
        RETURNING passes_used, passes_total`,
       [memberEmail, passCount, monthlyAllocation]
     );
     
     if (insertResult.rows.length > 0) {
-      logger.info('[deductGuestPasses] Guest passes deducted (new record created)', {
-        extra: { 
-          memberEmail, 
-          passCount, 
-          monthlyAllocation,
-          passesUsed: insertResult.rows[0].passes_used,
-          passesTotal: insertResult.rows[0].passes_total
-        }
-      });
+      await client.query('COMMIT');
+      logger.info('[deductGuestPasses] Passes deducted (new/conflict resolved)', { extra: { memberEmail, passCount } });
       return { success: true, passesDeducted: passCount };
     }
     
-    // Race condition: another process created the row between our check and insert
-    // Retry the update
-    const retryResult = await pool.query(
-      `UPDATE guest_passes 
-       SET passes_used = passes_used + $2
-       WHERE LOWER(member_email) = LOWER($1) 
-         AND passes_used + $2 <= passes_total
-       RETURNING passes_used, passes_total`,
-      [memberEmail, passCount]
-    );
-    
-    if (retryResult.rows.length > 0) {
-      logger.info('[deductGuestPasses] Guest passes deducted (retry after race)', {
-        extra: { 
-          memberEmail, 
-          passCount, 
-          passesUsed: retryResult.rows[0].passes_used,
-          passesTotal: retryResult.rows[0].passes_total
-        }
-      });
-      return { success: true, passesDeducted: passCount };
-    }
-    
-    logger.warn('[deductGuestPasses] Failed to deduct passes after retry', {
-      extra: { memberEmail, passCount }
-    });
+    // ON CONFLICT WHERE clause failed - insufficient passes after race
+    await client.query('ROLLBACK');
+    logger.warn('[deductGuestPasses] Insufficient passes after race resolution', { extra: { memberEmail, passCount } });
     return { success: false, passesDeducted: 0 };
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error('[deductGuestPasses] Error:', { error: error as Error });
     return { success: false, passesDeducted: 0 };
+  } finally {
+    client.release();
   }
 }
 

@@ -12,6 +12,7 @@ import { sendPassWithQrEmail } from '../../emails/passEmails';
 import { broadcastBillingUpdate, broadcastDayPassUpdate } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 import { handlePrimarySubscriptionCancelled } from './groupBilling';
+import { computeFeeBreakdown } from '../billing/unifiedFeeService';
 import type { PoolClient } from 'pg';
 
 const EVENT_DEDUP_WINDOW_DAYS = 7;
@@ -435,6 +436,29 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
     if (Math.abs(snapshot.total_cents - amount) > 1) {
       console.error(`[Stripe Webhook] Amount mismatch: snapshot=${snapshot.total_cents}, payment=${amount} - rejecting`);
       throw new Error(`Amount mismatch: expected ${snapshot.total_cents}, got ${amount}`);
+    }
+    
+    // Full fee recalculation verification - detect potential fee drift
+    try {
+      const currentFees = await computeFeeBreakdown({ 
+        sessionId: snapshot.session_id, 
+        source: 'webhook_verification' 
+      });
+      
+      // Compare totals with tolerance (allow up to $1.00 difference for rounding)
+      if (Math.abs(currentFees.totals.totalCents - snapshot.total_cents) > 100) {
+        console.error(`[Stripe Webhook] Fee snapshot mismatch - potential drift detected`, {
+          sessionId: snapshot.session_id,
+          snapshotTotal: snapshot.total_cents,
+          currentTotal: currentFees.totals.totalCents,
+          difference: currentFees.totals.totalCents - snapshot.total_cents
+        });
+        // Don't reject payment but log for investigation
+        // The payment already succeeded via Stripe, so we handle this gracefully
+      }
+    } catch (verifyError) {
+      console.warn(`[Stripe Webhook] Could not verify fee breakdown for session ${snapshot.session_id}:`, verifyError);
+      // Continue processing - verification is non-blocking
     }
     
     const snapshotFees: ParticipantFee[] = snapshot.participant_fees;

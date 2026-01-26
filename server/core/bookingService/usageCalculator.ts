@@ -2,6 +2,7 @@ import { logger } from '../logger';
 import { getTierLimits, getMemberTierByEmail } from '../tierService';
 import { pool } from '../db';
 import { MemberService, isUUID, isEmail, normalizeEmail } from '../memberService';
+import { PRICING } from '../billing/pricingConfig';
 
 async function resolveToEmail(identifier: string | undefined): Promise<string> {
   if (!identifier) return '';
@@ -41,10 +42,6 @@ export interface OverageFeeResult {
   overageMinutes: number;
   overageFee: number;
 }
-
-const OVERAGE_RATE_PER_30_MIN = 25;
-const OVERAGE_RATE_PER_HOUR = 50;
-const FLAT_GUEST_FEE = 25;
 
 export interface AllocationOptions {
   declaredSlots?: number;
@@ -102,8 +99,8 @@ export function calculateOverageFee(
   
   const overageMinutes = minutesUsed - tierAllowance;
   
-  const thirtyMinBlocks = Math.ceil(overageMinutes / 30);
-  const overageFee = thirtyMinBlocks * OVERAGE_RATE_PER_30_MIN;
+  const thirtyMinBlocks = Math.ceil(overageMinutes / PRICING.OVERAGE_BLOCK_MINUTES);
+  const overageFee = thirtyMinBlocks * PRICING.OVERAGE_RATE_DOLLARS;
   
   return {
     hasOverage: true,
@@ -220,7 +217,7 @@ export async function calculateSessionBilling(
     let billing: ParticipantBilling;
     
     if (participant.participantType === 'guest') {
-      let guestFee = FLAT_GUEST_FEE;
+      let guestFee = PRICING.GUEST_FEE_DOLLARS;
       let guestPassUsed = false;
       
       if (guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
@@ -365,7 +362,7 @@ export async function calculateFullSessionBilling(
     const minutesAllocated = Math.floor(sessionDuration / participants.length);
     
     if (participant.participantType === 'guest') {
-      let guestFee = FLAT_GUEST_FEE;
+      let guestFee = PRICING.GUEST_FEE_DOLLARS;
       let guestPassUsed = false;
       
       if (guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
@@ -511,7 +508,7 @@ export async function assignGuestTimeToHost(
       if (guestPassInfo.hasGuestPassBenefit && guestPassInfo.remaining > i) {
         guestPassUsed = true;
       } else {
-        guestFee += FLAT_GUEST_FEE;
+        guestFee += PRICING.GUEST_FEE_DOLLARS;
       }
     }
     
@@ -703,4 +700,4 @@ export async function recalculateSessionFees(
   }
 }
 
-export { OVERAGE_RATE_PER_30_MIN, OVERAGE_RATE_PER_HOUR, FLAT_GUEST_FEE };
+export { PRICING };

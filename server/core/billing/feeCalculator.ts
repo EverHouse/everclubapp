@@ -1,4 +1,5 @@
 import { pool } from '../db';
+import { PRICING } from './pricingConfig';
 
 export interface ParticipantFee {
   participantId: number;
@@ -12,8 +13,6 @@ export interface FeeCalculationResult {
   success: boolean;
   error?: string;
 }
-
-const DEFAULT_GUEST_FEE_CENTS = 2500;
 
 export async function calculateAndCacheParticipantFees(
   sessionId: number,
@@ -73,7 +72,7 @@ export async function calculateAndCacheParticipantFees(
         // Only charge guest fee if participant has no user_id (i.e., not a member)
         // Members incorrectly marked as guests should not be charged guest fees
         if (!row.user_id) {
-          amountCents = row.tier_guest_fee_cents ?? DEFAULT_GUEST_FEE_CENTS;
+          amountCents = row.tier_guest_fee_cents ?? PRICING.GUEST_FEE_CENTS;
           source = 'calculated';
         }
       }
