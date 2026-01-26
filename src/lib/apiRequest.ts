@@ -108,7 +108,15 @@ export async function apiRequest<T = any>(
         };
       }
 
-      const data = await res.json();
+      // Handle potential empty response body gracefully
+      const text = await res.text();
+      let data: T;
+      try {
+        data = text ? JSON.parse(text) : {} as T;
+      } catch {
+        // If response is not valid JSON but status was ok, treat as success with empty data
+        data = {} as T;
+      }
       return { ok: true, data };
     } catch (err: any) {
       lastError = err;

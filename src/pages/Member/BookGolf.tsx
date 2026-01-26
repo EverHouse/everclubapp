@@ -186,7 +186,7 @@ const BookGolf: React.FC = () => {
   }>>>({});
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
   const searchTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
-  const [guestPassInfo, setGuestPassInfo] = useState<{ passes_used: number; passes_total: number; passes_remaining: number } | null>(null);
+  const [guestPassInfo, setGuestPassInfo] = useState<{ passes_used: number; passes_total: number; passes_remaining: number; passes_pending?: number; passes_remaining_conservative?: number } | null>(null);
   
   const [rescheduleBookingId, setRescheduleBookingId] = useState<number | null>(null);
   const [originalBooking, setOriginalBooking] = useState<BookingRequest | null>(null);
@@ -1003,7 +1003,8 @@ const BookGolf: React.FC = () => {
     const guestCount = playerSlots.filter(slot => slot.type === 'guest').length;
     
     // Apply guest passes to reduce fees
-    const passesAvailable = guestPassInfo?.passes_remaining ?? 0;
+    // Use conservative estimate (accounts for pending requests)
+    const passesAvailable = guestPassInfo?.passes_remaining_conservative ?? guestPassInfo?.passes_remaining ?? 0;
     const guestsUsingPasses = Math.min(guestCount, passesAvailable);
     const guestsCharged = Math.max(0, guestCount - passesAvailable);
     const guestFees = guestsCharged * 25;

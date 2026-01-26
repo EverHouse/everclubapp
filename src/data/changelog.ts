@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.25.5",
+    date: "2026-01-26",
+    title: "Guest Pass Pending Request Calculation",
+    changes: [
+      "Fixed: Guest pass estimate now accounts for pending booking requests (conservative calculation)",
+      "Fixed: Booking request error handling improved - JSON parsing more resilient",
+      "Improved: API returns both actual and conservative remaining passes for accurate estimates"
+    ]
+  },
+  {
     version: "9.25.4",
     date: "2026-01-26",
     title: "Guest Pass Integration in Booking Fees",

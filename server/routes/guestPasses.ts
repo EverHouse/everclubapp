@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, sql, and, lt } from 'drizzle-orm';
+import { eq, sql, and, lt, inArray } from 'drizzle-orm';
 import { db } from '../db';
-import { guestPasses, notifications, staffUsers } from '../../shared/schema';
+import { guestPasses, notifications, staffUsers, bookingRequests } from '../../shared/schema';
 import { getTierLimits } from '../core/tierService';
 import { sendPushNotification } from './push';
 import { sendNotificationToUser } from '../core/websocket';
@@ -90,10 +90,39 @@ router.get('/api/guest-passes/:email', async (req, res) => {
     }
     
     const data = result[0];
+    
+    // Count guests in pending/approved booking requests (not yet attended/completed)
+    // These represent "reserved" guest passes that haven't been officially consumed yet
+    let pendingGuestCount = 0;
+    try {
+      const pendingBookings = await db.select({
+        requestParticipants: bookingRequests.requestParticipants
+      })
+        .from(bookingRequests)
+        .where(and(
+          eq(sql`LOWER(${bookingRequests.userEmail})`, requestedEmail),
+          inArray(bookingRequests.status, ['pending', 'pending_approval', 'approved', 'confirmed'])
+        ));
+      
+      for (const booking of pendingBookings) {
+        const participants = booking.requestParticipants;
+        if (Array.isArray(participants)) {
+          pendingGuestCount += participants.filter((p: any) => p.type === 'guest').length;
+        }
+      }
+    } catch (err) {
+      console.error('[GuestPasses] Error counting pending guests:', err);
+    }
+    
+    const passesRemaining = data.passesTotal - data.passesUsed;
+    const conservativeRemaining = Math.max(0, passesRemaining - pendingGuestCount);
+    
     res.json({
       passes_used: data.passesUsed,
       passes_total: data.passesTotal,
-      passes_remaining: data.passesTotal - data.passesUsed
+      passes_remaining: passesRemaining,
+      passes_pending: pendingGuestCount,
+      passes_remaining_conservative: conservativeRemaining
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to fetch guest passes', error, 'GUEST_PASSES_FETCH_ERROR');

@@ -629,44 +629,8 @@ router.post('/api/booking-requests', async (req, res) => {
       staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
     }
     
-    notifyAllStaff(
-      staffTitle,
-      staffMessage,
-      'booking',
-      {
-        relatedId: row.id,
-        relatedType: 'booking_request',
-        url: '/#/admin'
-      }
-    ).catch(err => console.error('Staff in-app notification failed:', err));
-    
-    sendPushNotificationToStaff({
-      title: staffTitle,
-      body: staffMessage,
-      url: '/#/admin'
-    }).catch(err => console.error('Staff push notification failed:', err));
-    
-    bookingEvents.publish('booking_created', {
-      bookingId: row.id,
-      memberEmail: row.userEmail,
-      memberName: row.userName || undefined,
-      resourceId: row.resourceId || undefined,
-      resourceName: resourceName,
-      bookingDate: row.requestDate,
-      startTime: row.startTime,
-      durationMinutes: durationMins,
-      playerCount: declared_player_count || undefined,
-      status: row.status || 'pending',
-      actionBy: 'member'
-    }, { notifyMember: false, notifyStaff: true }).catch(err => console.error('Booking event publish failed:', err));
-    
-    broadcastAvailabilityUpdate({
-      resourceId: row.resourceId || undefined,
-      resourceType: 'simulator',
-      date: row.requestDate,
-      action: 'booked'
-    });
-    
+    // Send response FIRST before any post-commit async operations
+    // This ensures the client gets a success response even if notifications fail
     res.status(201).json({
       id: row.id,
       user_email: row.userEmail,
@@ -688,6 +652,50 @@ router.post('/api/booking-requests', async (req, res) => {
       calendar_event_id: row.calendarEventId,
       reschedule_booking_id: row.rescheduleBookingId
     });
+    
+    // All post-commit operations are now AFTER the response is sent
+    // Wrap in try/catch so any failures don't crash the server
+    try {
+      notifyAllStaff(
+        staffTitle,
+        staffMessage,
+        'booking',
+        {
+          relatedId: row.id,
+          relatedType: 'booking_request',
+          url: '/#/admin'
+        }
+      ).catch(err => console.error('Staff in-app notification failed:', err));
+      
+      sendPushNotificationToStaff({
+        title: staffTitle,
+        body: staffMessage,
+        url: '/#/admin'
+      }).catch(err => console.error('Staff push notification failed:', err));
+      
+      bookingEvents.publish('booking_created', {
+        bookingId: row.id,
+        memberEmail: row.userEmail,
+        memberName: row.userName || undefined,
+        resourceId: row.resourceId || undefined,
+        resourceName: resourceName,
+        bookingDate: row.requestDate,
+        startTime: row.startTime,
+        durationMinutes: durationMins,
+        playerCount: declared_player_count || undefined,
+        status: row.status || 'pending',
+        actionBy: 'member'
+      }, { notifyMember: false, notifyStaff: true }).catch(err => console.error('Booking event publish failed:', err));
+      
+      broadcastAvailabilityUpdate({
+        resourceId: row.resourceId || undefined,
+        resourceType: 'simulator',
+        date: row.requestDate,
+        action: 'booked'
+      });
+    } catch (postCommitError) {
+      console.error('[BookingRequest] Post-commit operations failed:', postCommitError);
+    }
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to create booking request', error);
   }
