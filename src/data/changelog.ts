@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.26.0",
+    date: "2026-01-26",
+    title: "Architecture & Performance Improvements",
+    isMajor: true,
+    changes: [
+      "Performance: All DataContext functions now memoized with useCallback to prevent unnecessary re-renders",
+      "Performance: Context value wrapped in useMemo for stable references across renders",
+      "Architecture: Backend startup tasks extracted to dedicated loader module for cleaner organization",
+      "Architecture: Route registration extracted to separate loader module (server/loaders/routes.ts)",
+      "Architecture: Added /api/ready endpoint for proper readiness probes (returns 503 until startup complete)",
+      "Reliability: Added graceful shutdown handlers for SIGTERM/SIGINT signals",
+      "Reliability: Server now properly closes connections and database pools on shutdown"
+    ]
+  },
+  {
     version: "9.25.6",
     date: "2026-01-26",
     title: "Critical Booking Participant Data Fix",

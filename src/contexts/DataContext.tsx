@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { formatDateShort, formatTime12Hour } from '../utils/dateUtils';
 import { useUserStore } from '../stores/userStore';
@@ -296,7 +296,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   
   // View As Functions - only for admins (not staff)
   // Uses flushSync to ensure state updates are synchronous before navigation
-  const setViewAsUser = async (member: MemberProfile) => {
+  const setViewAsUser = useCallback(async (member: MemberProfile) => {
     if (actualUser?.role === 'admin') {
       try {
         const res = await fetch(`/api/members/${encodeURIComponent(member.email)}/details`, { credentials: 'include' });
@@ -327,13 +327,13 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         });
       }
     }
-  };
+  }, [actualUser?.role]);
   
-  const clearViewAsUser = () => {
+  const clearViewAsUser = useCallback(() => {
     flushSync(() => {
       setViewAsUserState(null);
     });
-  };
+  }, []);
 
   // Fetch members from HubSpot for admin/staff users
   // Optimization: Only fetch first page (200 members) initially for faster load
@@ -871,7 +871,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   }, []);
 
   // Auth Logic - verify member email
-  const login = async (email: string) => {
+  const login = useCallback(async (email: string) => {
     const res = await fetch('/api/auth/verify-member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -908,9 +908,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     setActualUser(memberProfile);
     useUserStore.getState().setUser(memberProfile);
     setSessionVersion(v => v + 1);
-  };
+  }, [sessionChecked]);
 
-  const loginWithMember = (member: any) => {
+  const loginWithMember = useCallback((member: any) => {
     const memberProfile: MemberProfile = {
       id: member.id,
       name: [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email || 'Member',
@@ -934,9 +934,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     setActualUser(memberProfile);
     useUserStore.getState().setUser(memberProfile);
     setSessionVersion(v => v + 1);
-  };
+  }, [sessionChecked]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -950,9 +950,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     useUserStore.getState().clearUser();
     setActualUser(null);
     setViewAsUserState(null);
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (!actualUser?.email) return;
     
     try {
@@ -985,15 +985,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to refresh user data:', err);
     }
-  };
+  }, [actualUser?.email]);
 
   // Cafe Actions (optimistic UI)
-  const addCafeItem = async (item: CafeItem) => {
+  const addCafeItem = useCallback(async (item: CafeItem) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticItem = { ...item, id: tempId };
-    const snapshot = [...cafeMenu];
     
-    setCafeMenu(prev => [...prev, optimisticItem]);
+    setCafeMenu(prev => {
+      const snapshot = [...prev];
+      return [...prev, optimisticItem];
+    });
     
     try {
       const res = await fetch('/api/cafe-menu', {
@@ -1020,17 +1022,15 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           image: newItem.image_url || ''
         } : i));
       } else {
-        setCafeMenu(snapshot);
+        setCafeMenu(prev => prev.filter(i => i.id !== tempId));
       }
     } catch (err) {
       console.error('Failed to add cafe item:', err);
-      setCafeMenu(snapshot);
+      setCafeMenu(prev => prev.filter(i => i.id !== tempId));
     }
-  };
+  }, []);
   
-  const updateCafeItem = async (item: CafeItem) => {
-    const snapshot = [...cafeMenu];
-    
+  const updateCafeItem = useCallback(async (item: CafeItem) => {
     setCafeMenu(prev => prev.map(i => i.id === item.id ? item : i));
     
     try {
@@ -1047,32 +1047,30 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         })
       });
       if (!res.ok) {
-        setCafeMenu(snapshot);
+        refreshCafeMenu();
       }
     } catch (err) {
       console.error('Failed to update cafe item:', err);
-      setCafeMenu(snapshot);
+      refreshCafeMenu();
     }
-  };
+  }, [refreshCafeMenu]);
   
-  const deleteCafeItem = async (id: string) => {
-    const snapshot = [...cafeMenu];
-    
+  const deleteCafeItem = useCallback(async (id: string) => {
     setCafeMenu(prev => prev.filter(i => i.id !== id));
     
     try {
       const res = await fetch(`/api/cafe-menu/${id}`, { method: 'DELETE' });
       if (!res.ok) {
-        setCafeMenu(snapshot);
+        refreshCafeMenu();
       }
     } catch (err) {
       console.error('Failed to delete cafe item:', err);
-      setCafeMenu(snapshot);
+      refreshCafeMenu();
     }
-  };
+  }, [refreshCafeMenu]);
 
   // Event Actions
-  const addEvent = async (item: Partial<EventData>) => {
+  const addEvent = useCallback(async (item: Partial<EventData>) => {
     try {
       const res = await fetch('/api/events', {
         method: 'POST',
@@ -1111,9 +1109,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to add event:', err);
     }
-  };
+  }, []);
 
-  const updateEvent = async (item: EventData) => {
+  const updateEvent = useCallback(async (item: EventData) => {
     try {
       const res = await fetch(`/api/events/${item.id}`, {
         method: 'PUT',
@@ -1152,9 +1150,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to update event:', err);
     }
-  };
+  }, []);
 
-  const deleteEvent = async (id: string) => {
+  const deleteEvent = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/api/events/${id}`, { 
         method: 'DELETE',
@@ -1166,9 +1164,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to delete event:', err);
     }
-  };
+  }, []);
   
-  const syncEventbrite = async () => {
+  const syncEventbrite = useCallback(async () => {
     try {
       const res = await fetch('/api/eventbrite/sync', { method: 'POST' });
       if (res.ok) {
@@ -1198,10 +1196,10 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to sync Eventbrite:', err);
     }
-  };
+  }, []);
 
   // Announcement Actions - API backed
-  const addAnnouncement = async (item: Announcement) => {
+  const addAnnouncement = useCallback(async (item: Announcement) => {
     try {
       const res = await fetch('/api/announcements', {
         method: 'POST',
@@ -1226,11 +1224,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     } catch (err) {
       console.error('Failed to add announcement:', err);
     }
-  };
+  }, []);
   
-  const updateAnnouncement = async (item: Announcement) => {
-    const snapshot = [...announcements];
-    
+  const updateAnnouncement = useCallback(async (item: Announcement) => {
     // Optimistically update
     setAnnouncements(prev => prev.map(a => a.id === item.id ? item : a));
     
@@ -1256,16 +1252,15 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         // Update with server data to ensure consistency (e.g. server-side timestamps)
         setAnnouncements(prev => prev.map(a => a.id === updated.id ? updated : a));
       } else {
-        setAnnouncements(snapshot);
+        refreshAnnouncements();
       }
     } catch (err) {
       console.error('Failed to update announcement:', err);
-      setAnnouncements(snapshot);
+      refreshAnnouncements();
     }
-  };
+  }, [refreshAnnouncements]);
   
-  const deleteAnnouncement = async (id: string) => {
-    const snapshot = [...announcements];
+  const deleteAnnouncement = useCallback(async (id: string) => {
     setAnnouncements(prev => prev.filter(a => a.id !== id));
     
     try {
@@ -1274,33 +1269,47 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         credentials: 'include'
       });
       if (!res.ok) {
-        setAnnouncements(snapshot);
+        refreshAnnouncements();
       }
     } catch (err) {
       console.error('Failed to delete announcement:', err);
-      setAnnouncements(snapshot);
+      refreshAnnouncements();
     }
-  };
+  }, [refreshAnnouncements]);
 
   // Member Actions
-  const updateMember = (item: MemberProfile) => setMembers(prev => prev.map(m => m.id === item.id ? item : m));
+  const updateMember = useCallback((item: MemberProfile) => setMembers(prev => prev.map(m => m.id === item.id ? item : m)), []);
 
   // Booking Actions
-  const addBooking = (booking: Booking) => setBookings(prev => [booking, ...prev]);
-  const deleteBooking = (id: string) => setBookings(prev => prev.filter(b => b.id !== id));
+  const addBooking = useCallback((booking: Booking) => setBookings(prev => [booking, ...prev]), []);
+  const deleteBooking = useCallback((id: string) => setBookings(prev => prev.filter(b => b.id !== id)), []);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  // Only re-creates when any of the dependencies change
+  const contextValue = useMemo(() => ({
+    user, actualUser, viewAsUser, isViewingAs,
+    login, loginWithMember, logout, refreshUser, setViewAsUser, clearViewAsUser,
+    cafeMenu, events, announcements, members, formerMembers, bookings, isLoading, isDataReady, sessionChecked, sessionVersion,
+    fetchFormerMembers,
+    fetchMembersPaginated, membersPagination, isFetchingMembers,
+    addCafeItem, updateCafeItem, deleteCafeItem, refreshCafeMenu,
+    addEvent, updateEvent, deleteEvent, syncEventbrite,
+    addAnnouncement, updateAnnouncement, deleteAnnouncement,
+    updateMember, refreshMembers, addBooking, deleteBooking
+  }), [
+    user, actualUser, viewAsUser, isViewingAs,
+    login, loginWithMember, logout, refreshUser, setViewAsUser, clearViewAsUser,
+    cafeMenu, events, announcements, members, formerMembers, bookings, isLoading, isDataReady, sessionChecked, sessionVersion,
+    fetchFormerMembers,
+    fetchMembersPaginated, membersPagination, isFetchingMembers,
+    addCafeItem, updateCafeItem, deleteCafeItem, refreshCafeMenu,
+    addEvent, updateEvent, deleteEvent, syncEventbrite,
+    addAnnouncement, updateAnnouncement, deleteAnnouncement,
+    updateMember, refreshMembers, addBooking, deleteBooking
+  ]);
 
   return (
-    <DataContext.Provider value={{
-      user, actualUser, viewAsUser, isViewingAs,
-      login, loginWithMember, logout, refreshUser, setViewAsUser, clearViewAsUser,
-      cafeMenu, events, announcements, members, formerMembers, bookings, isLoading, isDataReady, sessionChecked, sessionVersion,
-      fetchFormerMembers,
-      fetchMembersPaginated, membersPagination, isFetchingMembers,
-      addCafeItem, updateCafeItem, deleteCafeItem, refreshCafeMenu,
-      addEvent, updateEvent, deleteEvent, syncEventbrite,
-      addAnnouncement, updateAnnouncement, deleteAnnouncement,
-      updateMember, refreshMembers, addBooking, deleteBooking
-    }}>
+    <DataContext.Provider value={contextValue}>
       {children}
     </DataContext.Provider>
   );

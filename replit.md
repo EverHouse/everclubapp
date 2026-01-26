@@ -37,6 +37,14 @@ The backend routes are organized into modular directories for maintainability:
 - **server/routes/bays/** - Booking system (resources, bookings, approval, calendar, notifications)
 - **server/routes/trackman/** - Trackman integration (webhook handling, validation, billing, imports, admin, reconciliation)
 
+### Backend Startup Architecture (v9.26.0+)
+Server startup is organized into loader modules for clean separation of concerns:
+- **server/loaders/routes.ts** - Registers all API routes in a single function
+- **server/loaders/startup.ts** - Contains heavy startup tasks (DB constraints, Stripe sync, Supabase realtime)
+- **Readiness Probe**: `/api/ready` returns 503 until startup tasks complete, then 200
+- **Health Check**: `/healthz` always returns 200 immediately (for liveness probes)
+- **Graceful Shutdown**: SIGTERM/SIGINT handlers properly close server and database connections
+
 ### Technical Implementations
 - **Core Stack**: React 19 (Vite), React Router DOM, Express.js (REST API), PostgreSQL, Tailwind CSS.
 - **Timezone Handling**: All date/time operations prioritize the 'America/Los_Angeles' timezone.
@@ -49,7 +57,7 @@ The backend routes are organized into modular directories for maintainability:
 - **Notifications & Notices**: In-app real-time notifications and a sequential notice dismissal system with 3-channel delivery.
 - **Real-Time Sync**: Instant updates via WebSocket, with Supabase Realtime as a parallel channel.
 - **PWA Features**: Service Worker caching, offline support, and iOS-style interactions.
-- **Performance Optimizations**: List virtualization (`react-window`), skeleton loaders, optimized CSS, lazy-loaded admin tabs, and optimistic updates.
+- **Performance Optimizations**: List virtualization (`react-window`), skeleton loaders, optimized CSS, lazy-loaded admin tabs, optimistic updates, and memoized context functions (useCallback/useMemo in DataContext).
 - **Admin Tools**: Admin-configurable features, data integrity dashboard, and data migration tools.
 - **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, and member data export. Admin audit log tracks staff access to member data.
 - **Waiver Management**: Tracks waiver versions and requires signing on login.
