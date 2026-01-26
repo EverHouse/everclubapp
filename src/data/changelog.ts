@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.25.4",
+    date: "2026-01-26",
+    title: "Guest Pass Integration in Booking Fees",
+    changes: [
+      "Improved: Estimated fees now show guest pass usage when booking with guests",
+      "Improved: Guest fees apply immediately when selecting Guest (not just when email is entered)",
+      "Improved: Clear breakdown showing guests covered by passes ($0) vs charged guests ($25 each)",
+      "Improved: Shows remaining guest passes after booking (e.g. '0 of 4')"
+    ]
+  },
+  {
     version: "9.25.3",
     date: "2026-01-25",
     title: "Activity Tab & Lifetime Visits Improvements",

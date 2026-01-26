@@ -185,7 +185,8 @@ const BookGolf: React.FC = () => {
     visitorType?: string;
   }>>>({});
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
-  const searchTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});;
+  const searchTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
+  const [guestPassInfo, setGuestPassInfo] = useState<{ passes_used: number; passes_total: number; passes_remaining: number } | null>(null);
   
   const [rescheduleBookingId, setRescheduleBookingId] = useState<number | null>(null);
   const [originalBooking, setOriginalBooking] = useState<BookingRequest | null>(null);
@@ -297,6 +298,25 @@ const BookGolf: React.FC = () => {
       }
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const fetchGuestPasses = async () => {
+      if (!effectiveUser?.email || !effectiveUser?.tier) return;
+      try {
+        const res = await fetch(
+          `/api/guest-passes/${encodeURIComponent(effectiveUser.email)}?tier=${encodeURIComponent(effectiveUser.tier)}`,
+          { credentials: 'include' }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setGuestPassInfo(data);
+        }
+      } catch (err) {
+        console.error('[BookGolf] Failed to fetch guest passes:', err);
+      }
+    };
+    fetchGuestPasses();
+  }, [effectiveUser?.email, effectiveUser?.tier]);
 
   useEffect(() => {
     const fetchOriginalBooking = async () => {
@@ -961,7 +981,10 @@ const BookGolf: React.FC = () => {
   // Calculate estimated fees for booking
   const estimatedFees = useMemo(() => {
     if (activeTab !== 'simulator' || !duration) {
-      return { overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0 };
+      return { 
+        overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0,
+        guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0
+      };
     }
     
     const isSocialTier = effectiveUser?.tier?.toLowerCase() === 'social';
@@ -976,16 +999,23 @@ const BookGolf: React.FC = () => {
     const overageBlocks = Math.ceil(overageMinutes / 30);
     const overageFee = overageBlocks * 25;
     
-    // Guest fees: $25 per guest - only count filled guest slots (has selectedId or valid email)
-    const guestCount = playerSlots.filter(slot => 
-      slot.type === 'guest' && (slot.selectedId || (slot.email && slot.email.includes('@')))
-    ).length;
-    const guestFees = guestCount * 25;
+    // Guest fees: Count ALL guest slots (fee applies as soon as Guest is selected)
+    const guestCount = playerSlots.filter(slot => slot.type === 'guest').length;
+    
+    // Apply guest passes to reduce fees
+    const passesAvailable = guestPassInfo?.passes_remaining ?? 0;
+    const guestsUsingPasses = Math.min(guestCount, passesAvailable);
+    const guestsCharged = Math.max(0, guestCount - passesAvailable);
+    const guestFees = guestsCharged * 25;
+    const passesRemainingAfter = Math.max(0, passesAvailable - guestCount);
     
     const totalFee = overageFee + guestFees;
     
-    return { overageFee, guestFees, totalFee, guestCount, overageMinutes };
-  }, [activeTab, duration, playerCount, playerSlots, effectiveUser?.tier, tierPermissions.dailySimulatorMinutes, usedMinutesForDay]);
+    return { 
+      overageFee, guestFees, totalFee, guestCount, overageMinutes,
+      guestsUsingPasses, guestsCharged, passesRemainingAfter
+    };
+  }, [activeTab, duration, playerCount, playerSlots, effectiveUser?.tier, tierPermissions.dailySimulatorMinutes, usedMinutesForDay, guestPassInfo]);
 
   const activeClosures = useMemo(() => {
     if (!selectedDateObj?.date) return [];
@@ -1778,15 +1808,33 @@ const BookGolf: React.FC = () => {
                     <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.overageFee}</span>
                   </div>
                 )}
-                {estimatedFees.guestFees > 0 && (
+                {estimatedFees.guestsUsingPasses > 0 && (
                   <div className="flex justify-between items-center">
                     <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      Guest fees ({estimatedFees.guestCount} guest{estimatedFees.guestCount > 1 ? 's' : ''} @ $25)
+                      {estimatedFees.guestsUsingPasses} guest{estimatedFees.guestsUsingPasses > 1 ? 's' : ''} (using pass{estimatedFees.guestsUsingPasses > 1 ? 'es' : ''})
+                    </span>
+                    <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>$0</span>
+                  </div>
+                )}
+                {estimatedFees.guestsCharged > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                      {estimatedFees.guestsCharged} guest{estimatedFees.guestsCharged > 1 ? 's' : ''} @ $25
                     </span>
                     <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
                   </div>
                 )}
-                {estimatedFees.totalFee === 0 && (
+                {estimatedFees.guestCount > 0 && guestPassInfo && (
+                  <div className="flex justify-between items-center">
+                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                      Passes remaining after booking
+                    </span>
+                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                      {estimatedFees.passesRemainingAfter} of {guestPassInfo.passes_total}
+                    </span>
+                  </div>
+                )}
+                {estimatedFees.totalFee === 0 && estimatedFees.guestCount === 0 && (
                   <div className="flex justify-between items-center">
                     <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
                       Included in your membership
