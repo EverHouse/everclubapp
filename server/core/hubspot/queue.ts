@@ -212,7 +212,9 @@ async function executeHubSpotOperation(operation: string, payload: any): Promise
       break;
       
     case 'sync_day_pass':
-      await contacts.syncDayPassPurchaseToHubSpot(payload);
+      // Use the stripe hubspotSync version which handles line items on deals
+      const dayPassSync = await import('../stripe/hubspotSync');
+      await dayPassSync.syncDayPassToHubSpot(payload);
       break;
       
     case 'sync_payment':
