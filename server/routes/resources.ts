@@ -20,7 +20,7 @@ import { notifyMember, notifyAllStaff } from '../core/notificationService';
 import { refundGuestPass } from './guestPasses';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../utils/dateUtils';
 import { logFromRequest } from '../core/auditLog';
-import { recalculateSessionFees } from '../core/bookingService/usageCalculator';
+import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { cancelPaymentIntent } from '../core/stripe';
 
 interface CancellationCascadeResult {

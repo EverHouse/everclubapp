@@ -1730,7 +1730,8 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     
     const { createSession, recordUsage, linkParticipants } = await import('../core/bookingService/sessionManager');
     const { getMemberTierByEmail } = await import('../core/tierService');
-    const { calculateFullSessionBilling, recalculateSessionFees } = await import('../core/bookingService/usageCalculator');
+    const { calculateFullSessionBilling } = await import('../core/bookingService/usageCalculator');
+    const { recalculateSessionFees } = await import('../core/billing/unifiedFeeService');
     
     for (const booking of ghostBookings) {
       try {

@@ -16,6 +16,7 @@ export const changelog: ChangelogEntry[] = [
     version: "9.32.12",
     date: "2026-01-27",
     title: "Booking Flow and Fee Calculation Fixes",
+    isMajor: true,
     changes: [
       "Fixed: Member booking requests no longer show duplicate confirmation messages",
       "Fixed: Confirmed bookings stay visible on calendar after Trackman webhook confirmation",
@@ -24,6 +25,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Roster check during check-in now respects staff-edited player count",
       "Fixed: Empty player slots now created when player count is increased",
       "CRITICAL: Overage fees now properly saved to bookings during approval (was only storing in session)",
+      "CRITICAL: All fee recalculation paths now sync to booking_requests (webhooks, approval, billing)",
       "Improved: Dev simulated webhook now generates realistic Trackman V2 format for testing"
     ]
   },

@@ -25,7 +25,7 @@ import {
   saveToUnmatchedBookings,
   createUnmatchedBookingRequest,
 } from './webhook-handlers';
-import { recalculateSessionFees } from '../../core/bookingService/usageCalculator';
+import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { 
   updateBaySlotCache, 
   linkByExternalBookingId,
