@@ -1118,6 +1118,8 @@ router.get('/api/fee-estimate', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.removeHeader('ETag');
+  res.set('ETag', '');
   
   try {
     const sessionUser = getSessionUser(req);
@@ -1197,7 +1199,7 @@ router.get('/api/fee-estimate', async (req, res) => {
       playerCount
     });
     
-    res.json(estimate);
+    res.json({ ...estimate, _ts: Date.now() });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
   }
