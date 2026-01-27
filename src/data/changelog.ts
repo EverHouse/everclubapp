@@ -18,7 +18,9 @@ export const changelog: ChangelogEntry[] = [
     title: "Overdue Payment Check-In Fix",
     changes: [
       "Fixed: Staff can now complete check-in for cancelled bookings that have pending payments (overdue payment recovery)",
-      "Fixed: Resolves 'Cannot update booking with status: cancelled' error when marking overdue payments as paid"
+      "Fixed: Resolves 'Cannot update booking with status: cancelled' error when marking overdue payments as paid",
+      "Fixed: Simulated booking confirmations now calculate fees immediately after creating participants",
+      "Fixed: Staff dashboard receives real-time notification when bookings are confirmed for instant UI refresh"
     ]
   },
   {

@@ -25,6 +25,7 @@ import {
   saveToUnmatchedBookings,
   createUnmatchedBookingRequest,
 } from './webhook-handlers';
+import { recalculateSessionFees } from '../../core/bookingService/usageCalculator';
 import { 
   updateBaySlotCache, 
   linkByExternalBookingId,
@@ -909,6 +910,16 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
             sessionId,
             playerCount
           });
+          
+          try {
+            const feeResult = await recalculateSessionFees(sessionId);
+            logger.info('[Simulate Confirm] Calculated fees for session', {
+              sessionId,
+              feeResult: feeResult?.totalSessionFee || 0
+            });
+          } catch (feeError) {
+            logger.warn('[Simulate Confirm] Failed to calculate fees (non-blocking)', { error: feeError });
+          }
         }
       } catch (sessionError) {
         logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { error: sessionError });
@@ -990,6 +1001,17 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       bookingId,
       userEmail: booking.user_email,
       trackmanId: fakeTrackmanId
+    });
+
+    broadcastToStaff({
+      type: 'booking_confirmed',
+      data: {
+        bookingId,
+        status: 'approved',
+        userEmail: booking.user_email,
+        trackmanBookingId: fakeTrackmanId,
+        message: 'Booking has been confirmed',
+      }
     });
 
     res.json({ 

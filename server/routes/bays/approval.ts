@@ -987,6 +987,9 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       }
     }
     
+    // Build status conditions matching allowedStatuses
+    const statusConditions = allowedStatuses.map(s => eq(bookingRequests.status, s as any));
+    
     const result = await db.update(bookingRequests)
       .set({
         status: newStatus,
@@ -994,10 +997,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
-        or(
-          eq(bookingRequests.status, 'approved'),
-          eq(bookingRequests.status, 'confirmed')
-        )
+        or(...statusConditions)
       ))
       .returning();
     
@@ -1028,7 +1028,10 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       }
       
       // Send check-in confirmation notification to member
-      const formattedDate = formatDateDisplayWithDay(booking.requestDate.toISOString().split('T')[0]);
+      const dateStr = booking.requestDate instanceof Date 
+        ? booking.requestDate.toISOString().split('T')[0] 
+        : String(booking.requestDate).split('T')[0];
+      const formattedDate = formatDateDisplayWithDay(dateStr);
       const formattedTime = formatTime12Hour(booking.startTime);
       
       const memberResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`, [booking.userEmail]);
@@ -1052,7 +1055,10 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     
     // Send no-show notification to member
     if (newStatus === 'no_show' && booking.userEmail) {
-      const formattedDate = formatDateDisplayWithDay(booking.requestDate.toISOString().split('T')[0]);
+      const noShowDateStr = booking.requestDate instanceof Date 
+        ? booking.requestDate.toISOString().split('T')[0] 
+        : String(booking.requestDate).split('T')[0];
+      const formattedDate = formatDateDisplayWithDay(noShowDateStr);
       const formattedTime = formatTime12Hour(booking.startTime);
       
       const memberResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`, [booking.userEmail]);
