@@ -108,20 +108,25 @@ export async function createBookingForMember(
       return { success: true, bookingId: existingBooking.rows[0].id };
     }
     
+    // Match existing booking with same member, date, resource, and within 10-minute tolerance
+    // Resource check prevents back-to-back bookings on different bays from mismatching
+    // Uses COALESCE to handle edge case where resource_id might be null on old bookings
     const pendingSync = await pool.query(
-      `SELECT id, staff_notes, start_time, end_time, status FROM booking_requests 
+      `SELECT id, staff_notes, start_time, end_time, status, resource_id FROM booking_requests 
        WHERE LOWER(user_email) = LOWER($1)
        AND request_date = $2
-       AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 900
+       AND (resource_id = $4 OR resource_id IS NULL)
+       AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 600
        AND status IN ('approved', 'pending')
        AND trackman_booking_id IS NULL
        AND (staff_notes LIKE '%[PENDING_TRACKMAN_SYNC]%' OR status = 'pending')
        ORDER BY 
          CASE WHEN staff_notes LIKE '%[PENDING_TRACKMAN_SYNC]%' THEN 0 ELSE 1 END,
+         CASE WHEN resource_id = $4 THEN 0 ELSE 1 END,
          ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))),
          created_at DESC
        LIMIT 1`,
-      [member.email, slotDate, startTime]
+      [member.email, slotDate, startTime, resourceId]
     );
     
     if (pendingSync.rows.length > 0) {

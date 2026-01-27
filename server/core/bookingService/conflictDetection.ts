@@ -24,19 +24,39 @@ function timeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+/**
+ * Check if two time periods overlap, handling cross-midnight cases.
+ * A cross-midnight booking (e.g., 23:00-01:00) has end_time < start_time.
+ * We handle this by adding 24 hours (1440 minutes) to the end time.
+ */
 function timePeriodsOverlap(
   start1: string,
   end1: string,
   start2: string,
   end2: string
 ): boolean {
-  const s1 = timeToMinutes(start1);
-  const e1 = timeToMinutes(end1);
-  const s2 = timeToMinutes(start2);
-  const e2 = timeToMinutes(end2);
+  let s1 = timeToMinutes(start1);
+  let e1 = timeToMinutes(end1);
+  let s2 = timeToMinutes(start2);
+  let e2 = timeToMinutes(end2);
+  
+  // Handle cross-midnight: if end < start, add 24 hours to end
+  if (e1 < s1) e1 += 1440;
+  if (e2 < s2) e2 += 1440;
+  
   return s1 < e2 && s2 < e1;
 }
 
+/**
+ * Find bookings that conflict with the specified time slot for a member.
+ * 
+ * Handles cross-midnight bookings (e.g., 11pm-1am) on the SAME DATE via timePeriodsOverlap().
+ * 
+ * NOTE: Adjacent-date cross-midnight conflicts are not checked because:
+ * - Club operating hours are 8:30 AM - 10:00 PM (closes before midnight)
+ * - Cross-midnight bookings cannot be created through normal booking flows
+ * - If overnight bookings become needed, extend this to query adjacent dates
+ */
 export async function findConflictingBookings(
   memberEmail: string,
   date: string,

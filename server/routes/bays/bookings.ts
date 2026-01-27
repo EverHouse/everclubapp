@@ -462,6 +462,12 @@ router.post('/api/booking-requests', async (req, res) => {
     const endMins = totalMins % 60;
     const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
     
+    // Reject cross-midnight bookings (club closes at 10 PM latest)
+    // This prevents end_time from wrapping past 24:00
+    if (endHours >= 24) {
+      return res.status(400).json({ error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
+    }
+    
     const client = await pool.connect();
     let row: any;
     try {

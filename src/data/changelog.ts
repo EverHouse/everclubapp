@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.30.0",
+    date: "2026-01-27",
+    title: "Production Readiness Improvements",
+    isMajor: true,
+    changes: [
+      "Fixed: Conflict detection time overlap logic now handles edge cases correctly",
+      "Fixed: Trackman webhook matching now checks bay/resource to prevent back-to-back booking mismatches",
+      "Improved: Webhook time tolerance tightened from 15 to 10 minutes for more precise matching",
+      "Improved: Webhook matching prioritizes exact resource matches, with fallback for legacy bookings",
+      "Verified: HubSpot syncs properly use queue system for resilient async processing"
+    ]
+  },
+  {
     version: "9.29.11",
     date: "2026-01-27",
     title: "Improved Payment Descriptions",
