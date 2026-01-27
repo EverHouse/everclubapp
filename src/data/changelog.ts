@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.2",
+    date: "2026-01-27",
+    title: "Trackman Webhook Fee Calculation",
+    changes: [
+      "Fixed: Real Trackman webhook bookings now create booking_participants with cached fees (was only working for simulated confirmations)",
+      "Fixed: Linked pending bookings via Trackman webhook now create sessions and participants if missing",
+      "Fixed: 'Has Unpaid Fees' indicator now shows correctly for all Trackman-confirmed bookings"
+    ]
+  },
+  {
     version: "9.32.1",
     date: "2026-01-27",
     title: "Overdue Payment Check-In Fix",

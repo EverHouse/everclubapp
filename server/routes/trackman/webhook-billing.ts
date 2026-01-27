@@ -186,12 +186,13 @@ export async function createBookingForMember(
         [trackmanBookingId, playerCount, updatedNotes, startTime, endTime, newDurationMinutes, pendingBookingId]
       );
       
-      if (wasTimeTolerance) {
-        const sessionCheck = await pool.query(
-          'SELECT session_id FROM booking_requests WHERE id = $1',
-          [pendingBookingId]
-        );
-        if (sessionCheck.rows[0]?.session_id) {
+      const sessionCheck = await pool.query(
+        'SELECT session_id FROM booking_requests WHERE id = $1',
+        [pendingBookingId]
+      );
+      
+      if (sessionCheck.rows[0]?.session_id) {
+        if (wasTimeTolerance) {
           try {
             await pool.query(
               'UPDATE booking_sessions SET start_time = $1, end_time = $2 WHERE id = $3',
@@ -201,6 +202,46 @@ export async function createBookingForMember(
           } catch (recalcErr) {
             logger.warn('[Trackman Webhook] Failed to recalculate fees', { extra: { bookingId: pendingBookingId, error: recalcErr } });
           }
+        }
+      } else {
+        try {
+          const sessionResult = await pool.query(`
+            INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+            VALUES ($1, $2, $3, $4, $5, 'trackman', 'trackman_webhook')
+            RETURNING id
+          `, [resourceId, slotDate, startTime, endTime, trackmanBookingId]);
+          
+          if (sessionResult.rows.length > 0) {
+            const newSessionId = sessionResult.rows[0].id;
+            await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [newSessionId, pendingBookingId]);
+            
+            const userResult = await pool.query(
+              `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`,
+              [member.email]
+            );
+            const userId = userResult.rows[0]?.id || null;
+            const memberName = customerName || [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email;
+            
+            await pool.query(`
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+              VALUES ($1, $2, 'owner', $3, 'pending')
+              ON CONFLICT (session_id, user_id) WHERE user_id IS NOT NULL DO NOTHING
+            `, [newSessionId, userId, memberName]);
+            
+            for (let i = 1; i < playerCount; i++) {
+              await pool.query(`
+                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+                VALUES ($1, NULL, 'guest', $2, 'pending')
+              `, [newSessionId, `Guest ${i + 1}`]);
+            }
+            
+            await recalculateSessionFees(newSessionId);
+            logger.info('[Trackman Webhook] Created session and participants for linked booking', {
+              extra: { bookingId: pendingBookingId, sessionId: newSessionId, playerCount }
+            });
+          }
+        } catch (sessionErr) {
+          logger.warn('[Trackman Webhook] Failed to create session for linked booking', { extra: { bookingId: pendingBookingId, error: sessionErr } });
         }
       }
       
@@ -364,6 +405,36 @@ export async function createBookingForMember(
                 playerCount
               }
             });
+            
+            try {
+              const userResult = await pool.query(
+                `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`,
+                [member.email]
+              );
+              const userId = userResult.rows[0]?.id || null;
+              
+              await pool.query(`
+                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+                VALUES ($1, $2, 'owner', $3, 'pending')
+                ON CONFLICT (session_id, user_id) WHERE user_id IS NOT NULL DO NOTHING
+              `, [sessionId, userId, memberName]);
+              
+              for (let i = 1; i < playerCount; i++) {
+                await pool.query(`
+                  INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+                  VALUES ($1, NULL, 'guest', $2, 'pending')
+                `, [sessionId, `Guest ${i + 1}`]);
+              }
+              
+              await recalculateSessionFees(sessionId);
+              logger.info('[Trackman Webhook] Created participants and cached fees', {
+                extra: { sessionId, playerCount }
+              });
+            } catch (participantErr) {
+              logger.warn('[Trackman Webhook] Failed to create participants (non-blocking)', { 
+                extra: { sessionId, error: participantErr } 
+              });
+            }
           } catch (billingErr) {
             logger.warn('[Trackman Webhook] Failed to calculate billing (session created)', { 
               extra: { bookingId, sessionId, error: billingErr } 
