@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.7",
+    date: "2026-01-27",
+    title: "Trackman V2 Webhook Complete Fix",
+    changes: [
+      "Fixed: V2 webhooks without customer email now create proper booking requests (appear on calendar)",
+      "Fixed: V2 webhooks now correctly create Needs Assignment bookings for staff to assign",
+      "Fixed: externalBookingId now included in normalized booking data for proper linking",
+      "Fixed: Retry button now updates matched_booking_id after successful processing"
+    ]
+  },
+  {
     version: "9.32.6",
     date: "2026-01-27",
     title: "Trackman V2 Webhook Processing Fix",
@@ -20,7 +31,6 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Trackman V2 webhooks now properly create booking requests when no externalBookingId match",
       "Fixed: V2 payload parsing now correctly handles start/end ISO datetime format",
       "Fixed: handleBookingUpdate detects V2 format and uses correct parser",
-      "Fixed: Retry button now updates matched_booking_id after successful processing",
       "Fixed: Replayed webhooks from production now appear on booking calendar and queue",
       "Fixed: V2 webhooks fall through to standard processing for member matching and booking creation"
     ]

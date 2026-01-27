@@ -577,9 +577,11 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
   }
   
   if (!normalized.customerEmail) {
-    logger.info('[Trackman Webhook] No customer email provided, saving to unmatched', {
+    logger.info('[Trackman Webhook] No customer email provided, creating unmatched booking request', {
       extra: { trackmanBookingId: normalized.trackmanBookingId }
     });
+    
+    // Also save to legacy unmatched table for backward compatibility
     await saveToUnmatchedBookings(
       normalized.trackmanBookingId,
       startParsed.date,
@@ -588,9 +590,24 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       resourceId,
       undefined,
       normalized.customerName,
+      normalized.playerCount,
+      'no_customer_email_in_webhook'
+    );
+    
+    // Create a proper booking request so it appears on calendar and in assignment queue
+    const unmatchedResult = await createUnmatchedBookingRequest(
+      normalized.trackmanBookingId,
+      normalized.externalBookingId,
+      startParsed.date,
+      startParsed.time,
+      endParsed?.time || startParsed.time,
+      resourceId,
+      undefined,  // No customer email
+      normalized.customerName,
       normalized.playerCount
     );
-    return { success: true };
+    
+    return { success: true, matchedBookingId: unmatchedResult.bookingId };
   }
   
   const resolvedEmail = await resolveLinkedEmail(normalized.customerEmail);

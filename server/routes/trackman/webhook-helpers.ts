@@ -205,6 +205,7 @@ export function parseTrackmanV2Payload(payload: TrackmanV2WebhookPayload): {
     parsedDate: startParsed.date,
     parsedStartTime: startParsed.time,
     parsedEndTime: endParsed.time,
+    externalBookingId: booking.externalBookingId,
   };
   
   return {
@@ -233,6 +234,7 @@ export function normalizeBookingFields(booking: TrackmanBookingPayload): Normali
     parsedDate: undefined,
     parsedStartTime: undefined,
     parsedEndTime: undefined,
+    externalBookingId: booking.external_booking_id || booking.externalBookingId,
   };
 }
 
