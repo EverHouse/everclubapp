@@ -68,6 +68,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
       SELECT 
         br.id as booking_id,
         br.session_id,
+        br.resource_id,
         u.id as owner_id,
         br.user_email as owner_email,
         br.user_name as owner_name,
@@ -92,8 +93,64 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
     const booking = result.rows[0];
     const participants: ParticipantFee[] = [];
     let totalOutstanding = 0;
+    
+    // If booking has no session, try to create one on-the-fly for fee calculation
+    let sessionId = booking.session_id;
+    if (!sessionId && booking.resource_id) {
+      try {
+        // Get booking details for session creation
+        const bookingDetails = await pool.query(`
+          SELECT resource_id, request_date, start_time, end_time, declared_player_count, user_email, user_name
+          FROM booking_requests WHERE id = $1
+        `, [bookingId]);
+        
+        if (bookingDetails.rows.length > 0) {
+          const bd = bookingDetails.rows[0];
+          
+          // Create session without trackman_booking_id (to avoid conflicts)
+          const sessionResult = await pool.query(`
+            INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, source, created_by)
+            VALUES ($1, $2, $3, $4, 'staff_manual', 'checkin_context')
+            ON CONFLICT DO NOTHING
+            RETURNING id
+          `, [bd.resource_id, bd.request_date, bd.start_time, bd.end_time]);
+          
+          if (sessionResult.rows.length > 0) {
+            sessionId = sessionResult.rows[0].id;
+            
+            // Update booking with session_id
+            await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [sessionId, bookingId]);
+            
+            // Create owner participant
+            const userResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, [bd.user_email]);
+            const userId = userResult.rows[0]?.id || null;
+            
+            await pool.query(`
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+              VALUES ($1, $2, 'owner', $3, 'pending')
+            `, [sessionId, userId, bd.user_name || 'Member']);
+            
+            // Create guest participants
+            const playerCount = bd.declared_player_count || 1;
+            for (let i = 1; i < playerCount; i++) {
+              await pool.query(`
+                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+                VALUES ($1, NULL, 'guest', $2, 'pending')
+              `, [sessionId, `Guest ${i + 1}`]);
+            }
+            
+            // Calculate and cache fees
+            await recalculateSessionFees(sessionId);
+            
+            console.log(`[Checkin Context] Created session ${sessionId} for booking ${bookingId}`);
+          }
+        }
+      } catch (sessionError: any) {
+        console.warn(`[Checkin Context] Failed to create session for booking ${bookingId}:`, sessionError.message);
+      }
+    }
 
-    if (booking.session_id) {
+    if (sessionId) {
       const participantsResult = await pool.query(`
         SELECT 
           bp.id as participant_id,
@@ -123,12 +180,12 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
             WHEN 'guest' THEN 3 
           END,
           bp.created_at
-      `, [booking.session_id]);
+      `, [sessionId]);
 
       // Compute fees in-memory for display, but DO NOT write to DB on GET request
       // This avoids the anti-pattern of writes during read operations
       const breakdown = await computeFeeBreakdown({
-        sessionId: booking.session_id,
+        sessionId: sessionId,
         source: 'checkin' as const
       });
       
@@ -208,7 +265,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
 
     const context: CheckinContext = {
       bookingId,
-      sessionId: booking.session_id,
+      sessionId: sessionId || null,
       ownerId: booking.owner_id || '',
       ownerEmail: booking.owner_email,
       ownerName: booking.owner_name || booking.owner_email,

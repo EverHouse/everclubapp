@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.4",
+    date: "2026-01-27",
+    title: "Billing Modal Session Fix",
+    changes: [
+      "Fixed: Check-In & Billing modal now creates sessions on-the-fly for bookings without sessions",
+      "Fixed: Staff can now see and charge fees for orphaned bookings that failed to create sessions",
+      "Fixed: Billing modal shows correct fees instead of 'Complete Check-In' for bookings with overage"
+    ]
+  },
+  {
     version: "9.32.3",
     date: "2026-01-27",
     title: "Daily Usage & Notification Fixes",
