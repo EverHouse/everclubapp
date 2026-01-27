@@ -19,6 +19,7 @@ import { initWebSocketServer } from './core/websocket';
 import { startIntegrityScheduler } from './schedulers/integrityScheduler';
 import { startWaiverReviewScheduler } from './schedulers/waiverReviewScheduler';
 import { startStripeReconciliationScheduler } from './schedulers/stripeReconciliationScheduler';
+import { startFeeSnapshotReconciliationScheduler } from './schedulers/feeSnapshotReconciliationScheduler';
 import { startGracePeriodScheduler } from './schedulers/gracePeriodScheduler';
 import { startBookingExpiryScheduler } from './schedulers/bookingExpiryScheduler';
 import { startBackgroundSyncScheduler } from './schedulers/backgroundSyncScheduler';
@@ -448,6 +449,7 @@ async function startServer() {
   startIntegrityScheduler();
   startWaiverReviewScheduler();
   startStripeReconciliationScheduler();
+  startFeeSnapshotReconciliationScheduler();
   startGracePeriodScheduler();
   startBookingExpiryScheduler();
   startCommunicationLogsScheduler();

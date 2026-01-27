@@ -21,6 +21,8 @@ export const changelog: ChangelogEntry[] = [
       "CRITICAL: Fixed booking cancellations now properly refund paid payments (was trying to cancel succeeded payments which caused errors)",
       "CRITICAL: Cancellation now checks actual Stripe payment status before deciding to refund or cancel",
       "NEW: Centralized PaymentStatusService for atomic updates across all payment tables",
+      "NEW: Stripe idempotency keys prevent duplicate payment intents from being created",
+      "NEW: Fee snapshot reconciliation scheduler runs every 15 minutes to sync missed payments",
       "Fixed: All payment status changes now consistently update fee snapshots, participant statuses, and audit logs",
       "Fixed: Participant payment_status now includes paid_at timestamp and stripe_payment_intent_id when paid",
       "Fixed: Fee snapshot status now uses 'completed' to match webhook behavior",

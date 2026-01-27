@@ -70,6 +70,16 @@ export async function createPaymentIntent(
   if (productId) stripeMetadata.productId = productId;
   if (productName) stripeMetadata.productName = productName;
 
+  // Generate idempotency key to prevent duplicate payment intents
+  // Uses a combination of booking/session IDs and amount for uniqueness
+  const idempotencyComponents = [
+    bookingId || 'no-booking',
+    sessionId || 'no-session',
+    amountCents.toString(),
+    metadata?.feeSnapshotId || Date.now().toString()
+  ];
+  const idempotencyKey = `pi_${idempotencyComponents.join('_')}`;
+  
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountCents,
     currency: 'usd',
@@ -79,6 +89,8 @@ export async function createPaymentIntent(
     automatic_payment_methods: {
       enabled: true,
     },
+  }, {
+    idempotencyKey
   });
 
   const dbUserId = userId === 'guest' ? `guest-${customerId}` : userId;
