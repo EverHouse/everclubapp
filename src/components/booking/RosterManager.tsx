@@ -649,22 +649,24 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 </>
               )}
 
-              {isOwner && pendingGuestFees.count > 0 && (
+              {isOwner && (pendingGuestFees.count > 0 || (feePreview?.ownerFees?.overageFee ?? 0) > 0) && (
                 <div className={`mt-4 pt-4 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
-                        Guest Fees Due
+                        Estimated Fees
                       </p>
                       <p className={`text-xs ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                        {pendingGuestFees.count} guest{pendingGuestFees.count > 1 ? 's' : ''} • $25 each
+                        {pendingGuestFees.count > 0 && `${pendingGuestFees.count} guest${pendingGuestFees.count > 1 ? 's' : ''} • $25 each`}
+                        {pendingGuestFees.count > 0 && (feePreview?.ownerFees?.overageFee ?? 0) > 0 && ' + '}
+                        {(feePreview?.ownerFees?.overageFee ?? 0) > 0 && `$${feePreview?.ownerFees?.overageFee?.toFixed(2)} overage`}
                       </p>
                     </div>
                     <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-[#293515]'}`}>
-                      ${(pendingGuestFees.count * 25).toFixed(2)}
+                      ${((pendingGuestFees.count * 25) + (feePreview?.ownerFees?.overageFee ?? 0)).toFixed(2)}
                     </span>
                   </div>
-                  {booking?.status === 'confirmed' ? (
+                  {(booking?.status === 'confirmed' || booking?.status === 'approved') ? (
                     <button
                       onClick={() => {
                         haptic.light();
@@ -677,7 +679,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                     </button>
                   ) : (
                     <p className={`text-xs text-center ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                      Pay now or at check-in once booking is confirmed
+                      Pay now or at check-in once booking is approved
                     </p>
                   )}
                 </div>
