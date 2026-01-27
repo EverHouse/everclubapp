@@ -190,6 +190,19 @@ export async function createUnmatchedBookingRequest(
   playerCount: number
 ): Promise<{ created: boolean; bookingId?: number }> {
   try {
+    // Check if booking_request already exists with this trackman_booking_id
+    const existingResult = await pool.query(
+      `SELECT id FROM booking_requests WHERE trackman_booking_id = $1`,
+      [trackmanBookingId]
+    );
+    
+    if (existingResult.rows.length > 0) {
+      logger.info('[Trackman Webhook] Booking request already exists for this Trackman ID', {
+        extra: { trackmanBookingId, existingBookingId: existingResult.rows[0].id }
+      });
+      return { created: false, bookingId: existingResult.rows[0].id };
+    }
+    
     const durationMinutes = calculateDurationMinutes(startTime, endTime);
     
     // Pre-check availability before INSERT for better error logging

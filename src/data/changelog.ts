@@ -20,7 +20,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: V2 webhooks without customer email now create proper booking requests (appear on calendar)",
       "Fixed: V2 webhooks now correctly create Needs Assignment bookings for staff to assign",
       "Fixed: externalBookingId now included in normalized booking data for proper linking",
-      "Fixed: Retry button now updates matched_booking_id after successful processing"
+      "Fixed: Retry button now updates matched_booking_id after successful processing",
+      "Fixed: Duplicate prevention when retrying webhooks - returns existing booking instead of creating duplicate"
     ]
   },
   {
