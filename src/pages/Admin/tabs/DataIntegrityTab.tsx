@@ -196,6 +196,11 @@ const DataIntegrityTab: React.FC = () => {
   const [isRunningMindbodyImport, setIsRunningMindbodyImport] = useState(false);
   const [mindbodyResult, setMindbodyResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const [isSyncingToHubspot, setIsSyncingToHubspot] = useState(false);
+  const [hubspotSyncResult, setHubspotSyncResult] = useState<{ success: boolean; message: string; members?: any[] } | null>(null);
+  const [isCleaningMindbodyIds, setIsCleaningMindbodyIds] = useState(false);
+  const [mindbodyCleanupResult, setMindbodyCleanupResult] = useState<{ success: boolean; message: string; toClean?: number } | null>(null);
+
   // CSV Upload state
   const [firstVisitFile, setFirstVisitFile] = useState<File | null>(null);
   const [salesFile, setSalesFile] = useState<File | null>(null);
@@ -1062,6 +1067,68 @@ const DataIntegrityTab: React.FC = () => {
     }
   };
 
+  const handleSyncMembersToHubspot = async (dryRun: boolean = true) => {
+    setIsSyncingToHubspot(true);
+    setHubspotSyncResult(null);
+    try {
+      const res = await fetch('/api/data-tools/sync-members-to-hubspot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setHubspotSyncResult({ 
+          success: true, 
+          message: data.message,
+          members: data.members
+        });
+        showToast(data.message, 'success');
+      } else {
+        setHubspotSyncResult({ success: false, message: data.error || 'Failed to sync to HubSpot' });
+        showToast(data.error || 'Failed to sync to HubSpot', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to sync members to HubSpot:', err);
+      setHubspotSyncResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to sync members to HubSpot', 'error');
+    } finally {
+      setIsSyncingToHubspot(false);
+    }
+  };
+
+  const handleCleanupMindbodyIds = async (dryRun: boolean = true) => {
+    setIsCleaningMindbodyIds(true);
+    setMindbodyCleanupResult(null);
+    try {
+      const res = await fetch('/api/data-tools/cleanup-mindbody-ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMindbodyCleanupResult({ 
+          success: true, 
+          message: data.message,
+          toClean: data.toClean
+        });
+        showToast(data.message, 'success');
+      } else {
+        setMindbodyCleanupResult({ success: false, message: data.error || 'Failed to cleanup Mind Body IDs' });
+        showToast(data.error || 'Failed to cleanup Mind Body IDs', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to cleanup Mind Body IDs:', err);
+      setMindbodyCleanupResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to cleanup Mind Body IDs', 'error');
+    } finally {
+      setIsCleaningMindbodyIds(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-slide-up-stagger pb-32" style={{ '--stagger-index': 0 } as React.CSSProperties}>
       <div className="mb-6 flex flex-col gap-3">
@@ -1700,6 +1767,90 @@ const DataIntegrityTab: React.FC = () => {
                   {stripeCacheResult && (
                     <p className={`text-sm mt-2 ${stripeCacheResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {stripeCacheResult.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+              <h4 className="font-semibold text-primary dark:text-white mb-3 flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">hub</span>
+                HubSpot Data Sync
+              </h4>
+              <p className="text-xs text-gray-500 mb-4">
+                Sync members to HubSpot and clean up stale Mind Body IDs.
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Create HubSpot Contacts:</strong> Creates HubSpot contacts for members who don't have one yet.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSyncMembersToHubspot(true)}
+                      disabled={isSyncingToHubspot}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isSyncingToHubspot && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleSyncMembersToHubspot(false)}
+                      disabled={isSyncingToHubspot}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isSyncingToHubspot && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Sync Now
+                    </button>
+                  </div>
+                  {hubspotSyncResult && (
+                    <div className="mt-2">
+                      <p className={`text-sm ${hubspotSyncResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {hubspotSyncResult.message}
+                      </p>
+                      {hubspotSyncResult.members && hubspotSyncResult.members.length > 0 && (
+                        <div className="mt-2 max-h-32 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                          {hubspotSyncResult.members.map((m: any, i: number) => (
+                            <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                              {m.name || m.email} - {m.tier || 'No tier'} {m.mindbodyClientId && `(MB: ${m.mindbodyClientId})`}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Cleanup Stale Mind Body IDs:</strong> Removes Mind Body IDs that don't exist in HubSpot.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleCleanupMindbodyIds(true)}
+                      disabled={isCleaningMindbodyIds}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isCleaningMindbodyIds && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleCleanupMindbodyIds(false)}
+                      disabled={isCleaningMindbodyIds}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isCleaningMindbodyIds && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Clean Up
+                    </button>
+                  </div>
+                  {mindbodyCleanupResult && (
+                    <p className={`text-sm mt-2 ${mindbodyCleanupResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {mindbodyCleanupResult.message}
+                      {mindbodyCleanupResult.toClean !== undefined && mindbodyCleanupResult.toClean > 0 && (
+                        <span className="ml-2">({mindbodyCleanupResult.toClean} records to clean)</span>
+                      )}
                     </p>
                   )}
                 </div>

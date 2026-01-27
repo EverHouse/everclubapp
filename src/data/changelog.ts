@@ -19,8 +19,9 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed: HubSpot sync now clears stale Mind Body IDs not present in HubSpot (instead of preserving old values)",
       "Fixed: Member profile drawer only shows Mind Body ID when validated from HubSpot sync",
-      "Added: Admin cleanup tool to remove stale Mind Body IDs by comparing against HubSpot",
-      "Data: Cleanup tool supports dry-run mode to preview changes before applying"
+      "Added: Admin tool to create HubSpot contacts for members without one (Data Tools section)",
+      "Added: Admin tool to cleanup stale Mind Body IDs by comparing against HubSpot",
+      "UX: Both tools have Preview and Execute buttons in the Data Integrity admin page"
     ]
   },
   {
