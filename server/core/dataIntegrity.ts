@@ -420,10 +420,13 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
     };
   }
   
+  // FIX: Use ORDER BY RANDOM() to ensure all members are eventually checked over time
+  // Previously, LIMIT 100 without ordering always checked the same 100 members
   const appMembersResult = await db.execute(sql`
     SELECT id, email, first_name, last_name, membership_tier, hubspot_id
     FROM users 
     WHERE hubspot_id IS NOT NULL
+    ORDER BY RANDOM()
     LIMIT 100
   `);
   const appMembers = appMembersResult.rows as any[];

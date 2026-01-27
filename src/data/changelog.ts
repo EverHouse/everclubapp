@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.31.1",
+    date: "2026-01-27",
+    title: "Data Integrity & Reconciliation Fixes",
+    changes: [
+      "Fixed: HubSpot sync check now uses random sampling to check all members over time",
+      "Fixed: Resolve endpoint now corrects usage ownership when re-resolving to a different member",
+      "Fixed: Reassign only updates owner entries in usage ledger (not guest entries)",
+      "Fixed: Session creation uses stable IDs to prevent duplicates on re-resolve"
+    ]
+  },
+  {
     version: "9.31.0",
     date: "2026-01-27",
     title: "Trackman Reconciliation & Admin UI Overhaul",
