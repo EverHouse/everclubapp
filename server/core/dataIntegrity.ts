@@ -1134,6 +1134,50 @@ async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
   };
 }
 
+async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  
+  // Find approved/attended/confirmed bookings that are NOT linked to a session
+  // These are "Ghost Bookings" that bypass billing - critical revenue issue
+  const ghostsResult = await db.execute(sql`
+    SELECT br.id, br.user_email, br.request_date, br.status, br.trackman_booking_id, br.resource_id
+    FROM booking_requests br
+    LEFT JOIN booking_sessions bs ON br.session_id = bs.id
+    WHERE br.status IN ('approved', 'attended', 'confirmed')
+      AND (br.session_id IS NULL OR bs.id IS NULL)
+    ORDER BY br.request_date DESC
+    LIMIT 100
+  `);
+  const ghosts = ghostsResult.rows as any[];
+  
+  for (const row of ghosts) {
+    const dateStr = row.request_date ? new Date(row.request_date).toISOString().split('T')[0] : 'unknown';
+    issues.push({
+      category: 'data_quality',
+      severity: 'error',
+      table: 'booking_requests',
+      recordId: row.id,
+      description: `Active booking #${row.id} (${row.status}) for ${row.user_email} on ${dateStr} has NO SESSION. Billing is not being tracked.`,
+      suggestion: 'Run "Backfill Sessions" tool in Admin -> Data Tools, or manually create a session for this booking.',
+      context: {
+        bookingDate: dateStr,
+        memberEmail: row.user_email,
+        trackmanBookingId: row.trackman_booking_id,
+        resourceId: row.resource_id,
+        status: row.status
+      }
+    });
+  }
+
+  return {
+    checkName: 'Active Bookings Without Sessions',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
 async function storeCheckHistory(results: IntegrityCheckResult[], triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<void> {
   const totalIssues = results.reduce((sum, r) => sum + r.issueCount, 0);
   
@@ -1230,7 +1274,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     checkDealsWithoutLineItems(),
     checkDealStageDrift(),
     checkStripeSubscriptionSync(),
-    checkStuckTransitionalMembers()
+    checkStuckTransitionalMembers(),
+    checkBookingsWithoutSessions()
   ]);
   
   const now = new Date();

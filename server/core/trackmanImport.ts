@@ -2585,6 +2585,52 @@ export async function resolveUnmatchedBooking(
 
   const insertResult = await insertBookingIfNotExists(booking, memberEmail, resolvedBy);
 
+  // CRITICAL FIX: Create Session & Ledger if this is a new booking
+  // This ensures billing is properly tracked for resolved bookings
+  if (insertResult.inserted && insertResult.bookingId) {
+    // IDEMPOTENCY: Check if booking already has a session (from previous resolve attempt)
+    const existingSession = await db.execute(sql`
+      SELECT session_id FROM booking_requests WHERE id = ${insertResult.bookingId} AND session_id IS NOT NULL
+    `);
+    
+    if ((existingSession.rows as any[]).length === 0 || !(existingSession.rows[0] as any)?.session_id) {
+      const bookingDate = booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '';
+      const startTime = booking.startTime?.toString() || '';
+      const endTime = booking.endTime?.toString() || '';
+      
+      // Parse players from notes to ensure accurate billing (guests vs members)
+      const parsedPlayers = parseNotesForPlayers(booking.notes || '');
+      const resourceId = parseInt(booking.bayNumber || '0') || 1;
+      const isPast = insertResult.finalStatus === 'attended' || insertResult.finalStatus === 'completed';
+
+      try {
+        // Use stable trackman_booking_id if available, otherwise use booking ID
+        const stableTrackmanId = booking.trackmanBookingId || `booking-${insertResult.bookingId}`;
+        
+        await createTrackmanSessionAndParticipants({
+          bookingId: insertResult.bookingId,
+          trackmanBookingId: stableTrackmanId,
+          resourceId,
+          sessionDate: bookingDate,
+          startTime,
+          endTime,
+          durationMinutes: booking.durationMinutes || 60,
+          ownerEmail: memberEmail,
+          ownerName: booking.userName || 'Unknown',
+          parsedPlayers,
+          membersByEmail: new Map(),
+          trackmanEmailMapping: new Map(),
+          isPast
+        });
+        process.stderr.write(`[Trackman Resolve] Created Session & Ledger for Booking #${insertResult.bookingId}\n`);
+      } catch (sessionErr) {
+        process.stderr.write(`[Trackman Resolve] Warning: Session creation failed for Booking #${insertResult.bookingId}: ${sessionErr}\n`);
+      }
+    } else {
+      process.stderr.write(`[Trackman Resolve] Booking #${insertResult.bookingId} already has session, skipping creation\n`);
+    }
+  }
+
   // Only increment lifetime_visits if the FINAL status is 'attended' (past booking)
   // NOT for future bookings which get 'approved' status
   // Also increment for linked bookings that are past (they were attended)
@@ -2655,6 +2701,49 @@ export async function resolveUnmatchedBooking(
 
     for (const other of otherUnmatched) {
       const otherResult = await insertBookingIfNotExists(other, memberEmail, resolvedBy);
+
+      // CRITICAL FIX: Create Session & Ledger for auto-resolved bookings too
+      if (otherResult.inserted && otherResult.bookingId) {
+        // IDEMPOTENCY: Check if booking already has a session
+        const otherExistingSession = await db.execute(sql`
+          SELECT session_id FROM booking_requests WHERE id = ${otherResult.bookingId} AND session_id IS NOT NULL
+        `);
+        
+        if ((otherExistingSession.rows as any[]).length === 0 || !(otherExistingSession.rows[0] as any)?.session_id) {
+          const otherBookingDate = other.bookingDate ? new Date(other.bookingDate).toISOString().split('T')[0] : '';
+          const otherStartTime = other.startTime?.toString() || '';
+          const otherEndTime = other.endTime?.toString() || '';
+          const otherParsedPlayers = parseNotesForPlayers(other.notes || '');
+          const otherResourceId = parseInt(other.bayNumber || '0') || 1;
+          const otherIsPast = otherResult.finalStatus === 'attended' || otherResult.finalStatus === 'completed';
+
+          try {
+            // Use stable trackman_booking_id if available, otherwise use booking ID
+            const otherStableTrackmanId = other.trackmanBookingId || `booking-${otherResult.bookingId}`;
+            
+            await createTrackmanSessionAndParticipants({
+              bookingId: otherResult.bookingId,
+              trackmanBookingId: otherStableTrackmanId,
+              resourceId: otherResourceId,
+              sessionDate: otherBookingDate,
+              startTime: otherStartTime,
+              endTime: otherEndTime,
+              durationMinutes: other.durationMinutes || 60,
+              ownerEmail: memberEmail,
+              ownerName: other.userName || 'Unknown',
+              parsedPlayers: otherParsedPlayers,
+              membersByEmail: new Map(),
+              trackmanEmailMapping: new Map(),
+              isPast: otherIsPast
+            });
+            process.stderr.write(`[Trackman Resolve] Created Session & Ledger for auto-resolved Booking #${otherResult.bookingId}\n`);
+          } catch (sessionErr) {
+            process.stderr.write(`[Trackman Resolve] Warning: Session creation failed for auto-resolved Booking #${otherResult.bookingId}: ${sessionErr}\n`);
+          }
+        } else {
+          process.stderr.write(`[Trackman Resolve] Auto-resolved Booking #${otherResult.bookingId} already has session, skipping\n`);
+        }
+      }
 
       // Only increment lifetime_visits if the FINAL status is 'attended' (past booking)
       if (otherResult.inserted && otherResult.finalStatus === 'attended') {

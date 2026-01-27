@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.31.0",
+    date: "2026-01-27",
+    title: "Trackman Reconciliation & Admin UI Overhaul",
+    isMajor: true,
+    changes: [
+      "Fixed: Resolving unmatched bookings now creates proper billing sessions and ledger entries",
+      "Fixed: Reassigning matched bookings now updates participants, ledger, and billing correctly",
+      "Fixed: Auto-resolved bookings (same email) also get proper session creation",
+      "Added: Ghost booking detection in Data Integrity (finds bookings missing billing sessions)",
+      "Redesigned: Trackman admin tables now use dense data table layout for faster scanning",
+      "Redesigned: Data Integrity page now uses master-detail split layout for easier navigation"
+    ]
+  },
+  {
     version: "9.30.1",
     date: "2026-01-27",
     title: "Webhook Matching Safety Improvements",

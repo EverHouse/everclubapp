@@ -1017,39 +1017,58 @@ const TrackmanTab: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {unmatchedBookings
-                .filter((booking: any) => {
-                  if (!unmatchedSearchQuery.trim()) return true;
-                  const query = unmatchedSearchQuery.toLowerCase();
-                  const name = (booking.userName || booking.user_name || '').toLowerCase();
-                  const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
-                  return name.includes(query) || email.includes(query);
-                })
-                .map((booking: any) => (
-                <div key={booking.id} className="p-4 bg-white/50 dark:bg-white/5 rounded-xl flex justify-between items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-primary dark:text-white truncate">
-                      {booking.userName || booking.user_name || 'Unknown'}
-                    </p>
-                    <p className="text-xs text-primary/80 dark:text-white/80 truncate">
-                      {booking.originalEmail || booking.original_email || 'No email'}
-                    </p>
-                    <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
-                      {formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)} • {(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)} • Bay {booking.bayNumber || booking.bay_number}
-                    </p>
-                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                      {booking.matchAttemptReason || booking.match_attempt_reason}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => { setSearchQuery(''); setResolveModal({ booking, memberEmail: '', rememberEmail: true }); }}
-                    className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity shrink-0"
-                  >
-                    Resolve
-                  </button>
-                </div>
-              ))}
+            <div className="overflow-x-auto max-h-[500px] overflow-y-auto rounded-lg border border-primary/10 dark:border-white/10">
+              <table className="w-full text-sm">
+                <thead className="bg-white/80 dark:bg-white/10 sticky top-0 z-10">
+                  <tr className="border-b border-primary/10 dark:border-white/10">
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Date/Time</th>
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Trackman Name</th>
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden md:table-cell">Email</th>
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Bay</th>
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden lg:table-cell">Issue</th>
+                    <th className="text-right py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary/5 dark:divide-white/5">
+                  {unmatchedBookings
+                    .filter((booking: any) => {
+                      if (!unmatchedSearchQuery.trim()) return true;
+                      const query = unmatchedSearchQuery.toLowerCase();
+                      const name = (booking.userName || booking.user_name || '').toLowerCase();
+                      const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
+                      return name.includes(query) || email.includes(query);
+                    })
+                    .map((booking: any) => (
+                    <tr key={booking.id} className="bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-colors">
+                      <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
+                        <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}</div>
+                        <div className="text-xs text-primary/60 dark:text-white/60">{(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)}</div>
+                      </td>
+                      <td className="py-2 px-3 text-primary dark:text-white">
+                        <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
+                        <div className="text-xs text-primary/60 dark:text-white/60 truncate max-w-[150px] md:hidden">{booking.originalEmail || booking.original_email || 'No email'}</div>
+                      </td>
+                      <td className="py-2 px-3 text-primary/80 dark:text-white/80 hidden md:table-cell">
+                        <div className="truncate max-w-[180px]">{booking.originalEmail || booking.original_email || 'No email'}</div>
+                      </td>
+                      <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.bayNumber || booking.bay_number}</td>
+                      <td className="py-2 px-3 hidden lg:table-cell">
+                        <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full truncate max-w-[200px] inline-block">
+                          {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        <button
+                          onClick={() => { setSearchQuery(''); setResolveModal({ booking, memberEmail: '', rememberEmail: true }); }}
+                          className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity"
+                        >
+                          Resolve
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             {unmatchedTotalPages > 1 && (
               <div className="flex items-center justify-between pt-3 border-t border-primary/10 dark:border-white/10">
@@ -1338,52 +1357,71 @@ const TrackmanTab: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {matchedBookings
-                    .filter((booking: any) => {
-                      if (!matchedSearchQuery.trim()) return true;
-                      const query = matchedSearchQuery.toLowerCase();
-                      const name = (booking.userName || booking.user_name || '').toLowerCase();
-                      const email = (booking.userEmail || booking.user_email || '').toLowerCase();
-                      const memberName = (booking.member?.fullName || '').toLowerCase();
-                      return name.includes(query) || email.includes(query) || memberName.includes(query);
-                    })
-                    .map((booking: any) => (
-                    <div key={booking.id} className="p-4 bg-white/50 dark:bg-white/5 rounded-xl flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-primary dark:text-white truncate">
-                          {booking.userName || booking.user_name || 'Unknown'}
-                        </p>
-                        <p className="text-xs text-green-600 dark:text-green-400 truncate">
-                          Assigned to: {booking.member?.fullName || booking.userEmail || booking.user_email}
-                        </p>
-                        <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
-                          {formatDateDisplayWithDay(booking.requestDate || booking.request_date)} • {(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)} • Bay {booking.resourceId || booking.resource_id}
-                        </p>
-                        {booking.slotInfo && (
-                          <p className="text-xs text-accent dark:text-accent mt-1 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">group</span>
-                            {booking.slotInfo.filledSlots}/{booking.slotInfo.totalSlots} assigned
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={() => setViewDetailBooking(booking)}
-                          className="px-3 py-1.5 bg-accent/20 text-accent rounded-lg text-xs font-bold hover:bg-accent/30 transition-colors flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-sm">visibility</span>
-                          View
-                        </button>
-                        <button
-                          onClick={() => { setEditSearchQuery(''); setEditMatchedModal({ booking, newMemberEmail: '' }); }}
-                          className="px-3 py-1.5 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-lg text-xs font-bold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto rounded-lg border border-primary/10 dark:border-white/10">
+                  <table className="w-full text-sm">
+                    <thead className="bg-white/80 dark:bg-white/10 sticky top-0 z-10">
+                      <tr className="border-b border-primary/10 dark:border-white/10">
+                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Date/Time</th>
+                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Trackman Name</th>
+                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden md:table-cell">Assigned To</th>
+                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Bay</th>
+                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden lg:table-cell">Players</th>
+                        <th className="text-right py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-primary/5 dark:divide-white/5">
+                      {matchedBookings
+                        .filter((booking: any) => {
+                          if (!matchedSearchQuery.trim()) return true;
+                          const query = matchedSearchQuery.toLowerCase();
+                          const name = (booking.userName || booking.user_name || '').toLowerCase();
+                          const email = (booking.userEmail || booking.user_email || '').toLowerCase();
+                          const memberName = (booking.member?.fullName || '').toLowerCase();
+                          return name.includes(query) || email.includes(query) || memberName.includes(query);
+                        })
+                        .map((booking: any) => (
+                        <tr key={booking.id} className="bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-colors">
+                          <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
+                            <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.requestDate || booking.request_date)}</div>
+                            <div className="text-xs text-primary/60 dark:text-white/60">{(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)}</div>
+                          </td>
+                          <td className="py-2 px-3 text-primary dark:text-white">
+                            <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
+                          </td>
+                          <td className="py-2 px-3 hidden md:table-cell">
+                            <span className="text-green-600 dark:text-green-400 truncate max-w-[180px] inline-block">{booking.member?.fullName || booking.userEmail || booking.user_email}</span>
+                          </td>
+                          <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.resourceId || booking.resource_id}</td>
+                          <td className="py-2 px-3 hidden lg:table-cell">
+                            {booking.slotInfo && (
+                              <span className="text-xs text-accent bg-accent/10 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">group</span>
+                                {booking.slotInfo.filledSlots}/{booking.slotInfo.totalSlots}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right whitespace-nowrap">
+                            <div className="flex gap-1 justify-end">
+                              <button
+                                onClick={() => setViewDetailBooking(booking)}
+                                className="px-2 py-1 bg-accent/20 text-accent rounded text-xs font-bold hover:bg-accent/30 transition-colors"
+                                title="View Details"
+                              >
+                                <span className="material-symbols-outlined text-sm">visibility</span>
+                              </button>
+                              <button
+                                onClick={() => { setEditSearchQuery(''); setEditMatchedModal({ booking, newMemberEmail: '' }); }}
+                                className="px-2 py-1 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded text-xs font-bold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+                                title="Edit Assignment"
+                              >
+                                <span className="material-symbols-outlined text-sm">edit</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
                 {matchedTotalPages > 1 && (
                   <div className="flex items-center justify-between pt-3 border-t border-primary/10 dark:border-white/10">

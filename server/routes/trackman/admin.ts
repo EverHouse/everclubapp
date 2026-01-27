@@ -375,6 +375,87 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       }
     }
     
+    // CRITICAL FIX: Create session for MEMBERS too (not just visitors)
+    // Ensure all resolved bookings have proper billing tracking
+    if (!isVisitor) {
+      try {
+        const bookingDateStr = typeof booking.request_date === 'string' ? booking.request_date : 
+          new Date(booking.request_date).toISOString().split('T')[0];
+        
+        let sessionId = booking.session_id;
+        if (!sessionId) {
+          const sessionResult = await pool.query(`
+            INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+            VALUES ($1, $2, $3, $4, $5, 'trackman', 'staff_resolve')
+            ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL 
+            DO UPDATE SET updated_at = NOW()
+            RETURNING id
+          `, [booking.resource_id, bookingDateStr, booking.start_time, booking.end_time, booking.trackman_booking_id]);
+          
+          if (sessionResult.rows.length > 0) {
+            sessionId = sessionResult.rows[0].id;
+            await pool.query(
+              `UPDATE booking_requests SET session_id = $1 WHERE id = $2`,
+              [sessionId, booking.id]
+            );
+          }
+        }
+        
+        if (sessionId) {
+          // Check if participant already exists
+          const existingParticipant = await pool.query(
+            `SELECT id FROM booking_participants WHERE session_id = $1 AND participant_type = 'owner'`,
+            [sessionId]
+          );
+          
+          if (existingParticipant.rows.length === 0) {
+            await pool.query(`
+              INSERT INTO booking_participants (session_id, user_id, display_name, participant_type)
+              VALUES ($1, $2, $3, 'owner')
+            `, [sessionId, member.id, `${member.first_name} ${member.last_name}`]);
+          } else {
+            // Update existing owner participant
+            await pool.query(`
+              UPDATE booking_participants 
+              SET user_id = $1, display_name = $2
+              WHERE session_id = $3 AND participant_type = 'owner'
+            `, [member.id, `${member.first_name} ${member.last_name}`, sessionId]);
+          }
+          
+          // IDEMPOTENCY: Check existing usage and handle ownership
+          const existingUsage = await pool.query(
+            `SELECT id, member_id FROM usage_ledger WHERE session_id = $1 AND usage_type = 'base' LIMIT 1`,
+            [sessionId]
+          );
+          
+          if (existingUsage.rows.length === 0) {
+            await recordUsage(sessionId, {
+              memberId: member.id,
+              minutesCharged: booking.duration_minutes || 60,
+              overageMinutes: 0,
+              overageFeeCents: 0
+            });
+            console.log(`[Trackman Resolve] Created session and usage ledger for member ${member.email}, booking #${booking.id}`);
+          } else {
+            // OWNERSHIP CORRECTION: If existing usage belongs to a different member, update it
+            const existingMemberId = existingUsage.rows[0].member_id;
+            if (existingMemberId !== member.id) {
+              await pool.query(
+                `UPDATE usage_ledger SET member_id = $1 WHERE session_id = $2 AND usage_type = 'base'`,
+                [member.id, sessionId]
+              );
+              console.log(`[Trackman Resolve] Corrected usage ownership: ${existingMemberId} -> ${member.id} for session ${sessionId}`);
+            } else {
+              console.log(`[Trackman Resolve] Session ${sessionId} already has correct usage ledger, skipping`);
+            }
+          }
+        }
+      } catch (sessionError: any) {
+        console.error('[Trackman Resolve] Session creation error for member:', sessionError);
+        billingMessage += ' (Session setup may need manual review)';
+      }
+    }
+
     await logFromRequest(req, {
       action: 'link_trackman_to_member',
       resourceType: 'booking',
@@ -564,6 +645,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, async (req, res) => {
 });
 
 router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { newMemberEmail } = req.body;
@@ -572,17 +654,36 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       return res.status(400).json({ error: 'newMemberEmail is required' });
     }
     
-    const bookingResult = await pool.query(
-      `SELECT user_email, notes FROM booking_requests WHERE id = $1`,
+    await client.query('BEGIN');
+    
+    // Get booking with session_id
+    const bookingResult = await client.query(
+      `SELECT user_email, notes, session_id FROM booking_requests WHERE id = $1`,
       [id]
     );
     
     if (bookingResult.rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
     }
     
     const oldEmail = bookingResult.rows[0].user_email;
     const notes = bookingResult.rows[0].notes || '';
+    const sessionId = bookingResult.rows[0].session_id;
+    
+    // Get new member info
+    const newMemberResult = await client.query(
+      `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
+      [newMemberEmail]
+    );
+    
+    if (newMemberResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'New member not found' });
+    }
+    
+    const newMember = newMemberResult.rows[0];
+    const newMemberName = `${newMember.first_name} ${newMember.last_name}`.trim();
     
     let placeholderEmail: string | null = null;
     const trackmanMatch = notes.match(/\[Trackman Import ID:[^\]]+\]\s*Original email:\s*([^\s\]]+)/i);
@@ -595,13 +696,59 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       }
     }
     
-    await pool.query(
-      `UPDATE booking_requests SET user_email = $1, updated_at = NOW() WHERE id = $2`,
+    // 1. Update booking_requests
+    await client.query(
+      `UPDATE booking_requests SET user_id = $1, user_email = $2, updated_at = NOW() WHERE id = $3`,
+      [newMember.id, newMemberEmail.toLowerCase(), id]
+    );
+    
+    // 2. CRITICAL FIX: Update booking_participants if session exists
+    if (sessionId) {
+      // Get the old owner's user_id to filter ledger entries
+      const oldOwnerResult = await client.query(
+        `SELECT user_id FROM booking_participants WHERE session_id = $1 AND participant_type = 'owner'`,
+        [sessionId]
+      );
+      const oldOwnerId = oldOwnerResult.rows[0]?.user_id;
+      
+      await client.query(
+        `UPDATE booking_participants 
+         SET user_id = $1, display_name = $2
+         WHERE session_id = $3 AND participant_type = 'owner'`,
+        [newMember.id, newMemberName, sessionId]
+      );
+      
+      // 3. CRITICAL FIX: Update usage_ledger - ONLY for the old owner's entries
+      // Do NOT reassign guest entries or other member entries
+      if (oldOwnerId) {
+        await client.query(
+          `UPDATE usage_ledger 
+           SET member_id = $1
+           WHERE session_id = $2 AND member_id = $3`,
+          [newMember.id, sessionId, oldOwnerId]
+        );
+      } else {
+        // Fallback: If no old owner found, update entries that aren't guests
+        await client.query(
+          `UPDATE usage_ledger 
+           SET member_id = $1
+           WHERE session_id = $2 AND member_id IS NOT NULL AND usage_type != 'guest'`,
+          [newMember.id, sessionId]
+        );
+      }
+    }
+    
+    // 4. CRITICAL FIX: Update booking_members (primary slot)
+    await client.query(
+      `UPDATE booking_members 
+       SET user_email = $1
+       WHERE booking_id = $2 AND is_primary = true`,
       [newMemberEmail.toLowerCase(), id]
     );
     
+    // Handle placeholder email mapping
     if (placeholderEmail) {
-      await pool.query(
+      await client.query(
         `UPDATE users 
          SET manually_linked_emails = (
            SELECT COALESCE(jsonb_agg(to_jsonb(elem)), '[]'::jsonb)
@@ -612,7 +759,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
         [placeholderEmail, oldEmail]
       );
       
-      await pool.query(
+      await client.query(
         `UPDATE users 
          SET manually_linked_emails = COALESCE(manually_linked_emails, '[]'::jsonb) || to_jsonb($1::text)
          WHERE LOWER(email) = LOWER($2)
@@ -621,22 +768,30 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       );
     }
     
+    await client.query('COMMIT');
+    
     logFromRequest(req, 'reassign_booking', 'booking', id, newMemberEmail.toLowerCase(), {
       oldEmail,
       newEmail: newMemberEmail.toLowerCase(),
-      placeholderEmail
+      placeholderEmail,
+      sessionId,
+      updatedParticipants: !!sessionId,
+      updatedLedger: !!sessionId
     });
     
     res.json({ 
       success: true, 
-      message: 'Booking reassigned successfully',
+      message: 'Booking reassigned completely (including billing records)',
       oldEmail,
       newEmail: newMemberEmail.toLowerCase(),
       placeholderEmail
     });
   } catch (error: any) {
+    await client.query('ROLLBACK');
     console.error('Reassign matched booking error:', error);
     res.status(500).json({ error: 'Failed to reassign booking' });
+  } finally {
+    client.release();
   }
 });
 
