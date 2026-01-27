@@ -304,6 +304,26 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
               .set({ status: 'cancelled', updatedAt: new Date() })
               .where(eq(bookingRequests.id, originalBooking.id));
             
+            // Cancel any pending payment intents for the original booking
+            try {
+              const pendingIntents = await pool.query(
+                `SELECT stripe_payment_intent_id 
+                 FROM stripe_payment_intents 
+                 WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+                [originalBooking.id]
+              );
+              for (const row of pendingIntents.rows) {
+                try {
+                  await cancelPaymentIntent(row.stripe_payment_intent_id);
+                  console.log(`[Reschedule] Cancelled payment intent ${row.stripe_payment_intent_id} for original booking ${originalBooking.id}`);
+                } catch (cancelErr: any) {
+                  console.error(`[Reschedule] Failed to cancel payment intent ${row.stripe_payment_intent_id}:`, cancelErr.message);
+                }
+              }
+            } catch (cancelIntentsErr) {
+              console.error('[Reschedule] Failed to cancel pending payment intents (non-blocking):', cancelIntentsErr);
+            }
+            
             if (originalBooking.calendarEventId) {
               try {
                 const calendarName = await getCalendarNameForBayAsync(originalBooking.resourceId);

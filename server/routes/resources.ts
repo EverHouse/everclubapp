@@ -21,6 +21,7 @@ import { refundGuestPass } from './guestPasses';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../utils/dateUtils';
 import { logFromRequest } from '../core/auditLog';
 import { recalculateSessionFees } from '../core/bookingService/usageCalculator';
+import { cancelPaymentIntent } from '../core/stripe';
 
 interface CancellationCascadeResult {
   participantsNotified: number;
@@ -124,7 +125,29 @@ async function handleCancellationCascade(
       });
     }
 
+    // Cancel pending payment intents for this booking
+    const pendingIntents = await client.query(
+      `SELECT stripe_payment_intent_id 
+       FROM stripe_payment_intents 
+       WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+      [bookingId]
+    );
+
     await client.query('COMMIT');
+    
+    // Cancel payment intents after commit (external API call)
+    for (const row of pendingIntents.rows) {
+      try {
+        await cancelPaymentIntent(row.stripe_payment_intent_id);
+        logger.info('[cancellation-cascade] Cancelled payment intent', {
+          extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
+        });
+      } catch (cancelErr: any) {
+        const errorMsg = `Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${cancelErr.message}`;
+        result.errors.push(errorMsg);
+        logger.warn('[cancellation-cascade] ' + errorMsg);
+      }
+    }
 
     for (const member of membersToNotify) {
       try {
@@ -1814,6 +1837,30 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
       await db.update(bookingRequests)
         .set({ status: 'cancelled', updatedAt: new Date() })
         .where(eq(bookingRequests.id, reschedule_from_id as number));
+      
+      // Cancel pending payment intents for the old booking
+      try {
+        const pendingIntents = await pool.query(
+          `SELECT stripe_payment_intent_id 
+           FROM stripe_payment_intents 
+           WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+          [reschedule_from_id]
+        );
+        for (const row of pendingIntents.rows) {
+          try {
+            await cancelPaymentIntent(row.stripe_payment_intent_id);
+            logger.info('[Reschedule] Cancelled payment intent for old booking', {
+              extra: { oldBookingId: reschedule_from_id, paymentIntentId: row.stripe_payment_intent_id }
+            });
+          } catch (cancelErr: any) {
+            logger.warn('[Reschedule] Failed to cancel payment intent', { 
+              extra: { paymentIntentId: row.stripe_payment_intent_id, error: cancelErr.message }
+            });
+          }
+        }
+      } catch (cancelIntentsErr) {
+        logger.warn('[Reschedule] Failed to cancel pending payment intents', { error: cancelIntentsErr as Error });
+      }
       
       // Only delete calendar events for conference room bookings
       if (oldBookingRequest.calendarEventId && oldBookingRequest.resourceId) {

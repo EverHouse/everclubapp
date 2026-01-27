@@ -12,6 +12,28 @@ import { getMemberTierByEmail } from './tierService';
 import { createSession, recordUsage, ParticipantInput } from './bookingService/sessionManager';
 import { calculateFullSessionBilling, FLAT_GUEST_FEE, Participant } from './bookingService/usageCalculator';
 import { useGuestPass } from '../routes/guestPasses';
+import { cancelPaymentIntent } from './stripe';
+
+async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise<void> {
+  try {
+    const pendingIntents = await pool.query(
+      `SELECT stripe_payment_intent_id 
+       FROM stripe_payment_intents 
+       WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+      [bookingId]
+    );
+    for (const row of pendingIntents.rows) {
+      try {
+        await cancelPaymentIntent(row.stripe_payment_intent_id);
+        process.stderr.write(`[Trackman Import] Cancelled payment intent ${row.stripe_payment_intent_id}\n`);
+      } catch (cancelErr: any) {
+        process.stderr.write(`[Trackman Import] Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${cancelErr.message}\n`);
+      }
+    }
+  } catch (e) {
+    // Non-blocking
+  }
+}
 
 interface ParsedPlayer {
   type: 'member' | 'guest';
@@ -1185,6 +1207,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               })
               .where(eq(bookingRequests.id, booking.id));
             
+            // Cancel pending payment intents
+            await cancelPendingPaymentIntentsForBooking(booking.id);
+            
             // Delete associated booking_members records
             await db.delete(bookingMembers)
               .where(eq(bookingMembers.bookingId, booking.id));
@@ -2250,6 +2275,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             notes: sql`COALESCE(notes, '') || ' [Auto-cancelled: Removed from Trackman]'`
           })
           .where(eq(bookingRequests.id, booking.id));
+        
+        // Cancel pending payment intents
+        await cancelPendingPaymentIntentsForBooking(booking.id);
+        
         cancelledBookings++;
         process.stderr.write(`[Trackman Import] Cancelled booking ${booking.trackmanBookingId} (${booking.userName}) for ${bookingDateStr} - no longer in Trackman\n`);
         

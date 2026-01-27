@@ -15,10 +15,16 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "9.32.10",
     date: "2026-01-27",
-    title: "Payment Intent Cancellation Fix",
+    title: "Comprehensive Payment Intent Cancellation",
+    isMajor: true,
     changes: [
-      "Fixed: Payment intents now properly cancelled when bookings are cancelled",
-      "Fixed: Both member-initiated and staff-initiated cancellations now cancel associated payment intents",
+      "CRITICAL: All booking cancellation paths now cancel associated payment intents",
+      "Fixed: Member-initiated cancellations properly cancel payment intents",
+      "Fixed: Staff-initiated cancellations properly cancel payment intents",
+      "Fixed: Reschedule approvals cancel payment intents for original booking",
+      "Fixed: Trackman webhook cancellations cancel payment intents",
+      "Fixed: Trackman CSV import cancellations cancel payment intents",
+      "Fixed: Booking archive/soft-delete cancels payment intents via cascade function",
       "Fixed: 'Invalid Date' no longer appears in payment descriptions when date is missing",
       "Added: Staff cleanup endpoint to cancel stale payment intents from cancelled bookings"
     ]

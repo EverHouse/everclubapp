@@ -1,11 +1,12 @@
 import { pool } from '../../core/db';
 import { logger } from '../../core/logger';
-import { sendNotificationToUser, broadcastToStaff } from '../../core/websocket';
+import { sendNotificationToUser, broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyAllStaff } from '../../core/staffNotifications';
 import { notifyMember } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
 import { formatDatePacific, formatTimePacific } from '../../utils/dateUtils';
 import { checkUnifiedAvailability } from '../../core/bookingService/availabilityGuard';
+import { cancelPaymentIntent } from '../../core/stripe';
 import {
   TrackmanWebhookPayload,
   TrackmanV2WebhookPayload,
@@ -33,13 +34,13 @@ export async function tryAutoApproveBooking(
   slotDate: string,
   startTime: string,
   trackmanBookingId: string
-): Promise<{ matched: boolean; bookingId?: number }> {
+): Promise<{ matched: boolean; bookingId?: number; resourceId?: number }> {
   try {
     // Match pending booking within 10-min tolerance (600 seconds)
     // CRITICAL: Also require end_time > webhook start_time to prevent matching
     // a previous back-to-back slot that ended before this booking starts
     const result = await pool.query(
-      `SELECT id, user_email, staff_notes FROM booking_requests 
+      `SELECT id, user_email, staff_notes, resource_id FROM booking_requests 
        WHERE LOWER(user_email) = LOWER($1)
          AND request_date = $2
          AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 600
@@ -57,6 +58,7 @@ export async function tryAutoApproveBooking(
     
     const pendingBooking = result.rows[0];
     const bookingId = pendingBooking.id;
+    const resourceId = pendingBooking.resource_id;
     
     const updatedNotes = (pendingBooking.staff_notes || '') + ' [Auto-approved via Trackman webhook]';
     
@@ -76,7 +78,7 @@ export async function tryAutoApproveBooking(
       extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
     });
     
-    return { matched: true, bookingId };
+    return { matched: true, bookingId, resourceId };
   } catch (e) {
     logger.error('[Trackman Webhook] Failed to auto-approve booking', { error: e as Error });
     return { matched: false };
@@ -112,6 +114,30 @@ export async function cancelBookingByTrackmanId(
        WHERE id = $1`,
       [bookingId]
     );
+    
+    // Cancel pending payment intents for this booking
+    try {
+      const pendingIntents = await pool.query(
+        `SELECT stripe_payment_intent_id 
+         FROM stripe_payment_intents 
+         WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+        [bookingId]
+      );
+      for (const row of pendingIntents.rows) {
+        try {
+          await cancelPaymentIntent(row.stripe_payment_intent_id);
+          logger.info('[Trackman Webhook] Cancelled payment intent', {
+            extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
+          });
+        } catch (cancelErr: any) {
+          logger.warn('[Trackman Webhook] Failed to cancel payment intent', {
+            extra: { paymentIntentId: row.stripe_payment_intent_id, error: cancelErr.message }
+          });
+        }
+      }
+    } catch (cancelIntentsErr) {
+      logger.warn('[Trackman Webhook] Failed to cancel pending payment intents', { error: cancelIntentsErr as Error });
+    }
     
     const refundedPasses = await refundGuestPassesForCancelledBooking(bookingId, memberEmail);
     
@@ -582,6 +608,15 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     const cancelResult = await cancelBookingByTrackmanId(normalized.trackmanBookingId);
     if (cancelResult.cancelled) {
       matchedBookingId = cancelResult.bookingId;
+      
+      // Broadcast availability update for real-time calendar refresh
+      broadcastAvailabilityUpdate({
+        resourceId,
+        date: startParsed.date,
+        action: 'cancelled',
+        bookingId: cancelResult.bookingId
+      });
+      
       logger.info('[Trackman Webhook] Handled booking cancellation', {
         extra: { trackmanBookingId: normalized.trackmanBookingId, bookingId: cancelResult.bookingId }
       });
@@ -620,6 +655,16 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       normalized.playerCount
     );
     
+    // Broadcast availability update for real-time calendar refresh
+    if (unmatchedResult.bookingId) {
+      broadcastAvailabilityUpdate({
+        resourceId,
+        date: startParsed.date,
+        action: 'created',
+        bookingId: unmatchedResult.bookingId
+      });
+    }
+    
     return { success: true, matchedBookingId: unmatchedResult.bookingId };
   }
   
@@ -645,6 +690,14 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
   
   if (autoApproveResult.matched && autoApproveResult.bookingId) {
     matchedBookingId = autoApproveResult.bookingId;
+    
+    // Broadcast availability update for real-time calendar refresh
+    broadcastAvailabilityUpdate({
+      resourceId: autoApproveResult.resourceId || resourceId,
+      date: startParsed.date,
+      action: 'approved',
+      bookingId: autoApproveResult.bookingId
+    });
     
     await notifyMemberBookingConfirmed(
       emailForLookup,
@@ -745,8 +798,16 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         normalized.playerCount
       );
       
-      if (unmatchedResult.created) {
+      if (unmatchedResult.created && unmatchedResult.bookingId) {
         matchedBookingId = unmatchedResult.bookingId;
+        
+        // Broadcast availability update for real-time calendar refresh
+        broadcastAvailabilityUpdate({
+          resourceId: undefined,
+          date: startParsed.date,
+          action: 'created',
+          bookingId: unmatchedResult.bookingId
+        });
       }
       
       return { success: true, matchedBookingId };
@@ -786,6 +847,14 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         createResult.bookingId
       );
       
+      // Broadcast availability update for real-time calendar refresh
+      broadcastAvailabilityUpdate({
+        resourceId,
+        date: startParsed.date,
+        action: 'created',
+        bookingId: createResult.bookingId
+      });
+      
       logger.info('[Trackman Webhook] Auto-created booking for known member (no pending request)', {
         extra: { bookingId: matchedBookingId, email: member.email, resourceId, memberName }
       });
@@ -821,8 +890,16 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     normalized.playerCount
   );
   
-  if (unmatchedResult.created) {
+  if (unmatchedResult.created && unmatchedResult.bookingId) {
     matchedBookingId = unmatchedResult.bookingId;
+    
+    // Broadcast availability update for real-time calendar refresh
+    broadcastAvailabilityUpdate({
+      resourceId,
+      date: startParsed.date,
+      action: 'created',
+      bookingId: unmatchedResult.bookingId
+    });
   }
   
   await notifyStaffBookingCreated(
