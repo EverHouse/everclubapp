@@ -228,6 +228,21 @@ const DataIntegrityTab: React.FC = () => {
   const [isBackfillingStripeCache, setIsBackfillingStripeCache] = useState(false);
   const [stripeCacheResult, setStripeCacheResult] = useState<{ success: boolean; message: string; stats?: any } | null>(null);
 
+  const [showSyncTools, setShowSyncTools] = useState(true);
+  const [isRunningSubscriptionSync, setIsRunningSubscriptionSync] = useState(false);
+  const [subscriptionStatusResult, setSubscriptionStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; mismatchCount?: number; updated?: any[] } | null>(null);
+  const [isRunningStripeHubspotLink, setIsRunningStripeHubspotLink] = useState(false);
+  const [stripeHubspotLinkResult, setStripeHubspotLinkResult] = useState<{ success: boolean; message: string; stripeOnlyMembers?: any[]; hubspotOnlyMembers?: any[]; linkedCount?: number } | null>(null);
+  const [isRunningPaymentStatusSync, setIsRunningPaymentStatusSync] = useState(false);
+  const [paymentStatusResult, setPaymentStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; updatedCount?: number; updates?: any[] } | null>(null);
+  const [isRunningVisitCountSync, setIsRunningVisitCountSync] = useState(false);
+  const [visitCountResult, setVisitCountResult] = useState<{ success: boolean; message: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: any[] } | null>(null);
+  const [isRunningGhostBookingFix, setIsRunningGhostBookingFix] = useState(false);
+  const [ghostBookingResult, setGhostBookingResult] = useState<{ success: boolean; message: string; ghostBookings?: number; fixed?: number } | null>(null);
+  const [isRunningDuplicateDetection, setIsRunningDuplicateDetection] = useState(false);
+  const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: any[]; hubspotDuplicates?: any[] } | null>(null);
+  const [expandedDuplicates, setExpandedDuplicates] = useState<{ app: boolean; hubspot: boolean }>({ app: false, hubspot: false });
+
   useEffect(() => {
     fetchCachedResults();
     fetchCalendarStatus();
@@ -1129,6 +1144,204 @@ const DataIntegrityTab: React.FC = () => {
     }
   };
 
+  const handleSyncSubscriptionStatus = async (dryRun: boolean = true) => {
+    setIsRunningSubscriptionSync(true);
+    setSubscriptionStatusResult(null);
+    try {
+      const res = await fetch('/api/data-tools/sync-subscription-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSubscriptionStatusResult({
+          success: true,
+          message: data.message || `Checked ${data.totalChecked} members, found ${data.mismatchCount} mismatches`,
+          totalChecked: data.totalChecked,
+          mismatchCount: data.mismatchCount,
+          updated: data.updated
+        });
+        showToast(data.message || 'Subscription status sync complete', 'success');
+      } else {
+        setSubscriptionStatusResult({ success: false, message: data.error || 'Failed to sync subscription status' });
+        showToast(data.error || 'Failed to sync subscription status', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to sync subscription status:', err);
+      setSubscriptionStatusResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to sync subscription status', 'error');
+    } finally {
+      setIsRunningSubscriptionSync(false);
+    }
+  };
+
+  const handleLinkStripeHubspot = async (dryRun: boolean = true) => {
+    setIsRunningStripeHubspotLink(true);
+    setStripeHubspotLinkResult(null);
+    try {
+      const res = await fetch('/api/data-tools/link-stripe-hubspot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStripeHubspotLinkResult({
+          success: true,
+          message: data.message || 'Stripe-HubSpot link complete',
+          stripeOnlyMembers: data.stripeOnlyMembers,
+          hubspotOnlyMembers: data.hubspotOnlyMembers,
+          linkedCount: data.linkedCount
+        });
+        showToast(data.message || 'Stripe-HubSpot link complete', 'success');
+      } else {
+        setStripeHubspotLinkResult({ success: false, message: data.error || 'Failed to link Stripe and HubSpot' });
+        showToast(data.error || 'Failed to link Stripe and HubSpot', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to link Stripe and HubSpot:', err);
+      setStripeHubspotLinkResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to link Stripe and HubSpot', 'error');
+    } finally {
+      setIsRunningStripeHubspotLink(false);
+    }
+  };
+
+  const handleSyncPaymentStatus = async (dryRun: boolean = true) => {
+    setIsRunningPaymentStatusSync(true);
+    setPaymentStatusResult(null);
+    try {
+      const res = await fetch('/api/data-tools/sync-payment-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPaymentStatusResult({
+          success: true,
+          message: data.message || `Checked ${data.totalChecked} members, updated ${data.updatedCount}`,
+          totalChecked: data.totalChecked,
+          updatedCount: data.updatedCount,
+          updates: data.updates
+        });
+        showToast(data.message || 'Payment status sync complete', 'success');
+      } else {
+        setPaymentStatusResult({ success: false, message: data.error || 'Failed to sync payment status' });
+        showToast(data.error || 'Failed to sync payment status', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to sync payment status:', err);
+      setPaymentStatusResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to sync payment status', 'error');
+    } finally {
+      setIsRunningPaymentStatusSync(false);
+    }
+  };
+
+  const handleSyncVisitCounts = async (dryRun: boolean = true) => {
+    setIsRunningVisitCountSync(true);
+    setVisitCountResult(null);
+    try {
+      const res = await fetch('/api/data-tools/sync-visit-counts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setVisitCountResult({
+          success: true,
+          message: data.message || `Found ${data.mismatchCount} mismatches, updated ${data.updatedCount}`,
+          mismatchCount: data.mismatchCount,
+          updatedCount: data.updatedCount,
+          sampleMismatches: data.sampleMismatches
+        });
+        showToast(data.message || 'Visit count sync complete', 'success');
+      } else {
+        setVisitCountResult({ success: false, message: data.error || 'Failed to sync visit counts' });
+        showToast(data.error || 'Failed to sync visit counts', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to sync visit counts:', err);
+      setVisitCountResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to sync visit counts', 'error');
+    } finally {
+      setIsRunningVisitCountSync(false);
+    }
+  };
+
+  const handleFixGhostBookings = async (dryRun: boolean = true) => {
+    setIsRunningGhostBookingFix(true);
+    setGhostBookingResult(null);
+    try {
+      const res = await fetch('/api/data-tools/fix-trackman-ghost-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGhostBookingResult({
+          success: true,
+          message: data.message || `Found ${data.ghostBookings} ghost bookings, fixed ${data.fixed}`,
+          ghostBookings: data.ghostBookings,
+          fixed: data.fixed
+        });
+        showToast(data.message || 'Ghost booking fix complete', 'success');
+      } else {
+        setGhostBookingResult({ success: false, message: data.error || 'Failed to fix ghost bookings' });
+        showToast(data.error || 'Failed to fix ghost bookings', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to fix ghost bookings:', err);
+      setGhostBookingResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to fix ghost bookings', 'error');
+    } finally {
+      setIsRunningGhostBookingFix(false);
+    }
+  };
+
+  const handleDetectDuplicates = async () => {
+    setIsRunningDuplicateDetection(true);
+    setDuplicateDetectionResult(null);
+    setExpandedDuplicates({ app: false, hubspot: false });
+    try {
+      const res = await fetch('/api/data-tools/detect-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const appCount = data.appDuplicates?.length || 0;
+        const hubspotCount = data.hubspotDuplicates?.length || 0;
+        setDuplicateDetectionResult({
+          success: true,
+          message: data.message || `Found ${appCount} app duplicates, ${hubspotCount} HubSpot duplicates`,
+          appDuplicates: data.appDuplicates,
+          hubspotDuplicates: data.hubspotDuplicates
+        });
+        showToast(data.message || 'Duplicate detection complete', 'success');
+      } else {
+        setDuplicateDetectionResult({ success: false, message: data.error || 'Failed to detect duplicates' });
+        showToast(data.error || 'Failed to detect duplicates', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to detect duplicates:', err);
+      setDuplicateDetectionResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to detect duplicates', 'error');
+    } finally {
+      setIsRunningDuplicateDetection(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-slide-up-stagger pb-32" style={{ '--stagger-index': 0 } as React.CSSProperties}>
       <div className="mb-6 flex flex-col gap-3">
@@ -1852,6 +2065,290 @@ const DataIntegrityTab: React.FC = () => {
                         <span className="ml-2">({mindbodyCleanupResult.toClean} records to clean)</span>
                       )}
                     </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+              <h4 className="font-semibold text-primary dark:text-white mb-3 flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">sync_alt</span>
+                Cross-Platform Sync Tools
+              </h4>
+              <p className="text-xs text-gray-500 mb-4">
+                Sync data between the app, Stripe, and HubSpot to ensure consistency across all platforms.
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Subscription Status Sync:</strong> Compares member status in the app with Stripe subscription status and fixes mismatches.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSyncSubscriptionStatus(true)}
+                      disabled={isRunningSubscriptionSync}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningSubscriptionSync && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleSyncSubscriptionStatus(false)}
+                      disabled={isRunningSubscriptionSync}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningSubscriptionSync && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Execute
+                    </button>
+                  </div>
+                  {subscriptionStatusResult && (
+                    <div className={`mt-2 p-3 rounded-lg ${subscriptionStatusResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+                      <p className={`text-sm font-medium ${subscriptionStatusResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {subscriptionStatusResult.message}
+                      </p>
+                      {subscriptionStatusResult.success && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Checked: {subscriptionStatusResult.totalChecked} | Mismatches: {subscriptionStatusResult.mismatchCount}
+                        </p>
+                      )}
+                      {subscriptionStatusResult.updated && subscriptionStatusResult.updated.length > 0 && (
+                        <div className="mt-2 max-h-32 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                          {subscriptionStatusResult.updated.map((u: any, i: number) => (
+                            <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                              {u.email || u.name}: {u.oldStatus} → {u.newStatus}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Stripe-HubSpot Link Tool:</strong> Links Stripe customers with HubSpot contacts, creating missing records.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleLinkStripeHubspot(true)}
+                      disabled={isRunningStripeHubspotLink}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningStripeHubspotLink && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleLinkStripeHubspot(false)}
+                      disabled={isRunningStripeHubspotLink}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningStripeHubspotLink && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Execute
+                    </button>
+                  </div>
+                  {stripeHubspotLinkResult && (
+                    <div className={`mt-2 p-3 rounded-lg ${stripeHubspotLinkResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+                      <p className={`text-sm font-medium ${stripeHubspotLinkResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {stripeHubspotLinkResult.message}
+                      </p>
+                      {stripeHubspotLinkResult.success && stripeHubspotLinkResult.linkedCount !== undefined && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Linked: {stripeHubspotLinkResult.linkedCount} | Stripe Only: {stripeHubspotLinkResult.stripeOnlyMembers?.length || 0} | HubSpot Only: {stripeHubspotLinkResult.hubspotOnlyMembers?.length || 0}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Payment Status Sync:</strong> Syncs payment status from Stripe to HubSpot for accurate reporting.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSyncPaymentStatus(true)}
+                      disabled={isRunningPaymentStatusSync}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningPaymentStatusSync && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleSyncPaymentStatus(false)}
+                      disabled={isRunningPaymentStatusSync}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningPaymentStatusSync && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Execute
+                    </button>
+                  </div>
+                  {paymentStatusResult && (
+                    <div className={`mt-2 p-3 rounded-lg ${paymentStatusResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+                      <p className={`text-sm font-medium ${paymentStatusResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {paymentStatusResult.message}
+                      </p>
+                      {paymentStatusResult.success && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Checked: {paymentStatusResult.totalChecked} | Updated: {paymentStatusResult.updatedCount}
+                        </p>
+                      )}
+                      {paymentStatusResult.updates && paymentStatusResult.updates.length > 0 && (
+                        <div className="mt-2 max-h-32 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                          {paymentStatusResult.updates.map((u: any, i: number) => (
+                            <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                              {u.email || u.name}: {u.field} updated
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Visit Count Sync:</strong> Updates HubSpot total_visit_count with actual check-in data from the app.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSyncVisitCounts(true)}
+                      disabled={isRunningVisitCountSync}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningVisitCountSync && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleSyncVisitCounts(false)}
+                      disabled={isRunningVisitCountSync}
+                      className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningVisitCountSync && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Execute
+                    </button>
+                  </div>
+                  {visitCountResult && (
+                    <div className={`mt-2 p-3 rounded-lg ${visitCountResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+                      <p className={`text-sm font-medium ${visitCountResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {visitCountResult.message}
+                      </p>
+                      {visitCountResult.success && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Mismatches: {visitCountResult.mismatchCount} | Updated: {visitCountResult.updatedCount}
+                        </p>
+                      )}
+                      {visitCountResult.sampleMismatches && visitCountResult.sampleMismatches.length > 0 && (
+                        <div className="mt-2 max-h-32 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                          {visitCountResult.sampleMismatches.map((m: any, i: number) => (
+                            <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                              {m.email || m.name}: App {m.appCount} vs HubSpot {m.hubspotCount}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Ghost Booking Fix:</strong> Creates missing billing sessions for Trackman bookings that weren't properly set up.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleFixGhostBookings(true)}
+                      disabled={isRunningGhostBookingFix}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningGhostBookingFix && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => handleFixGhostBookings(false)}
+                      disabled={isRunningGhostBookingFix}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isRunningGhostBookingFix && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                      Execute
+                    </button>
+                  </div>
+                  {ghostBookingResult && (
+                    <div className={`mt-2 p-3 rounded-lg ${ghostBookingResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+                      <p className={`text-sm font-medium ${ghostBookingResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {ghostBookingResult.message}
+                      </p>
+                      {ghostBookingResult.success && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Ghost Bookings Found: {ghostBookingResult.ghostBookings} | Fixed: {ghostBookingResult.fixed}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                    <strong>Duplicate Detection:</strong> Detects duplicate contacts in the app and HubSpot for manual review.
+                  </p>
+                  <button
+                    onClick={handleDetectDuplicates}
+                    disabled={isRunningDuplicateDetection}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isRunningDuplicateDetection && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                    {isRunningDuplicateDetection ? 'Detecting...' : 'Run Detection'}
+                  </button>
+                  {duplicateDetectionResult && (
+                    <div className={`mt-2 p-3 rounded-lg ${duplicateDetectionResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'}`}>
+                      <p className={`text-sm font-medium ${duplicateDetectionResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                        {duplicateDetectionResult.message}
+                      </p>
+                      {duplicateDetectionResult.success && (
+                        <div className="mt-2 space-y-2">
+                          {duplicateDetectionResult.appDuplicates && duplicateDetectionResult.appDuplicates.length > 0 && (
+                            <div>
+                              <button
+                                onClick={() => setExpandedDuplicates(prev => ({ ...prev, app: !prev.app }))}
+                                className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-white"
+                              >
+                                <span aria-hidden="true" className={`material-symbols-outlined text-[14px] transition-transform ${expandedDuplicates.app ? 'rotate-90' : ''}`}>chevron_right</span>
+                                App Duplicates ({duplicateDetectionResult.appDuplicates.length})
+                              </button>
+                              {expandedDuplicates.app && (
+                                <div className="mt-1 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                                  {duplicateDetectionResult.appDuplicates.map((d: any, i: number) => (
+                                    <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                                      {d.email} - {d.count} records
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {duplicateDetectionResult.hubspotDuplicates && duplicateDetectionResult.hubspotDuplicates.length > 0 && (
+                            <div>
+                              <button
+                                onClick={() => setExpandedDuplicates(prev => ({ ...prev, hubspot: !prev.hubspot }))}
+                                className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-white"
+                              >
+                                <span aria-hidden="true" className={`material-symbols-outlined text-[14px] transition-transform ${expandedDuplicates.hubspot ? 'rotate-90' : ''}`}>chevron_right</span>
+                                HubSpot Duplicates ({duplicateDetectionResult.hubspotDuplicates.length})
+                              </button>
+                              {expandedDuplicates.hubspot && (
+                                <div className="mt-1 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                                  {duplicateDetectionResult.hubspotDuplicates.map((d: any, i: number) => (
+                                    <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                                      {d.email} - {d.count} records
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
