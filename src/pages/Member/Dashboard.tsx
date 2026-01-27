@@ -859,7 +859,7 @@ const Dashboard: React.FC = () => {
     ) : (
     <>
     <PullToRefresh onRefresh={handleRefresh} className="flex-1 flex flex-col">
-      <div className="px-6 pt-4 md:pt-2 pb-32 font-sans relative flex-1">
+      <div className="px-6 lg:px-8 xl:px-12 pt-4 md:pt-2 pb-32 font-sans relative flex-1">
         <ClosureAlert />
         <AnnouncementAlert />
         
@@ -937,7 +937,7 @@ const Dashboard: React.FC = () => {
 
         {/* Member Card + Quick Actions - side by side on desktop, stacked on mobile */}
         {!isStaffOrAdminProfile && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
             {/* Membership Card */}
             {(() => {
               const isExpired = user?.status === 'Expired';

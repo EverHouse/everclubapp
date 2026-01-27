@@ -134,7 +134,7 @@ const History: React.FC = () => {
   return (
     <AnimatedPage>
     <PullToRefresh onRefresh={handleRefresh}>
-      <SwipeablePage className="px-6 relative overflow-hidden">
+      <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative overflow-hidden">
         <section className="mb-4 pt-4 md:pt-2 animate-content-enter-delay-1">
           <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>History</h1>
           <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Your past visits</p>
@@ -165,7 +165,7 @@ const History: React.FC = () => {
                   <p className={`${isDark ? 'text-white/80' : 'text-primary/80'}`}>No past visits yet</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {visits.map((visit, index) => {
                     const isConferenceRoom = visit.category === 'Conference Room';
                     
@@ -344,7 +344,7 @@ const History: React.FC = () => {
                           <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white/60' : 'text-primary/60'}`}>
                             {monthLabel}
                           </h3>
-                          <div className="space-y-3">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                             {monthPurchases.map((purchase, index) => (
                               <div 
                                 key={purchase.id} 

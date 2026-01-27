@@ -55,7 +55,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
   
   const navContent = (
       <nav 
-        className="relative mb-8 mx-auto w-[calc(100%-3rem)] max-w-md rounded-full p-1.5 bg-black/60 backdrop-blur-xl border border-[#293515]/80 shadow-[0_4px_16px_rgba(0,0,0,0.15)] pointer-events-auto"
+        className="relative mb-8 mx-auto w-[calc(100%-3rem)] max-w-md rounded-full p-2 bg-black/60 backdrop-blur-xl border border-[#293515]/80 shadow-[0_4px_16px_rgba(0,0,0,0.15)] pointer-events-auto"
         role="navigation"
         aria-label="Member navigation"
       >
@@ -92,7 +92,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 onMouseEnter={() => prefetchRoute(item.path)}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                 className={`
-                  flex-1 flex flex-col items-center gap-0.5 py-3 px-1 min-h-[44px] relative z-10 cursor-pointer
+                  flex-1 flex flex-col items-center gap-0.5 py-3.5 px-1 min-h-[48px] relative z-10 cursor-pointer
                   select-none transition-colors duration-300 ease-out active:scale-95
                   focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-inset focus-visible:outline-none
                   ${isActive ? 'text-white' : 'text-white/70 hover:text-white/90'}
@@ -100,10 +100,10 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className={`material-symbols-outlined text-xl transition-transform duration-300 pointer-events-none ${shouldFill ? 'filled' : ''} ${isActive ? 'scale-110' : ''}`}>
+                <span className={`material-symbols-outlined text-[22px] transition-transform duration-300 pointer-events-none ${shouldFill ? 'filled' : ''} ${isActive ? 'scale-110' : ''}`}>
                   {item.icon}
                 </span>
-                <span className={`text-[9px] tracking-wide transition-colors duration-300 pointer-events-none ${isActive ? 'font-bold' : 'font-medium'}`}>
+                <span className={`text-[10px] tracking-wide transition-colors duration-300 pointer-events-none ${isActive ? 'font-bold' : 'font-medium'}`}>
                   {item.label}
                 </span>
               </button>

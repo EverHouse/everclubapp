@@ -1096,7 +1096,7 @@ const BookGolf: React.FC = () => {
   return (
     <AnimatedPage>
     <PullToRefresh onRefresh={handleRefresh}>
-    <SwipeablePage className="px-6 relative">
+    <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative">
       <section className="mb-6 pt-4 md:pt-2 animate-content-enter-delay-1">
         <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>Book</h1>
         <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Reserve simulators or conference room.</p>
@@ -1728,7 +1728,7 @@ const BookGolf: React.FC = () => {
                         )}
                       </button>
                       
-                      <div className={`grid grid-cols-2 gap-2 overflow-hidden transition-all duration-300 ease-out ${
+                      <div className={`grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 overflow-hidden transition-all duration-300 ease-out ${
                         isExpanded ? 'max-h-[500px] opacity-100 mt-2 pl-6' : 'max-h-0 opacity-0'
                       }`}>
                         {hourGroup.slots.map((slot, slotIndex) => (
@@ -1771,7 +1771,7 @@ const BookGolf: React.FC = () => {
               <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
                 Select {activeTab === 'simulator' ? 'Bay' : 'Room'}
               </h3>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
                 {getAvailableResourcesForSlot(selectedSlot).map((resource, index) => (
                   <div key={resource.id} className="animate-slide-up-stagger" style={{ '--stagger-index': index, animationFillMode: 'both' } as React.CSSProperties}>
                     <ResourceCard
