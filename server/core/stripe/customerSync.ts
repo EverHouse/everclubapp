@@ -37,6 +37,8 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
         AND tier IS NOT NULL 
         AND tier != ''
         AND stripe_customer_id IS NULL
+        AND email IS NOT NULL
+        AND email != ''
       ORDER BY email
     `);
     
