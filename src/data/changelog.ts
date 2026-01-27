@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.31.5",
+    date: "2026-01-27",
+    title: "Mind Body ID Data Integrity",
+    changes: [
+      "Fixed: HubSpot sync now clears stale Mind Body IDs not present in HubSpot (instead of preserving old values)",
+      "Fixed: Member profile drawer only shows Mind Body ID when validated from HubSpot sync",
+      "Added: Admin cleanup tool to remove stale Mind Body IDs by comparing against HubSpot",
+      "Data: Cleanup tool supports dry-run mode to preview changes before applying"
+    ]
+  },
+  {
     version: "9.31.4",
     date: "2026-01-27",
     title: "Responsive Layout & Modal Fixes",

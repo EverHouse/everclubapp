@@ -901,9 +901,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 </span>
               )}
             </div>
-            {/* System IDs section */}
+            {/* System IDs section - only show mindbody ID if validated from HubSpot */}
             <div className="flex items-center gap-3 flex-wrap text-xs mt-1">
-              {member.mindbodyClientId && (
+              {member.mindbodyClientId && member.hubspotId && (
                 <span className={isDark ? 'text-gray-500' : 'text-gray-400'}>
                   MB: {member.mindbodyClientId}
                 </span>

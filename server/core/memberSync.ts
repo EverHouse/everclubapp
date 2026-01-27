@@ -346,7 +346,8 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
                 membershipStatus: status,
-                mindbodyClientId: sql`COALESCE(${contact.properties.mindbody_client_id || null}, ${users.mindbodyClientId})`,
+                // Use HubSpot value directly - clear stale mindbody IDs not present in HubSpot
+                mindbodyClientId: contact.properties.mindbody_client_id || null,
                 joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
                 emailOptIn: emailOptIn !== null ? emailOptIn : sql`${users.emailOptIn}`,
                 smsOptIn: smsOptIn !== null ? smsOptIn : sql`${users.smsOptIn}`,

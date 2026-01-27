@@ -532,4 +532,142 @@ router.get('/api/data-tools/staff-activity', isAdmin, async (req: Request, res: 
   }
 });
 
+// Clean up stale mindbody_client_id values by comparing against HubSpot
+router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    const { dryRun = true } = req.body;
+    
+    console.log(`[DataTools] Starting mindbody_client_id cleanup (dryRun: ${dryRun}) by ${staffEmail}`);
+    
+    // Get all users with mindbody_client_id
+    const usersWithMindbody = await pool.query(
+      `SELECT id, email, mindbody_client_id, hubspot_id 
+       FROM users 
+       WHERE mindbody_client_id IS NOT NULL 
+         AND mindbody_client_id != ''
+       ORDER BY email`
+    );
+    
+    if (usersWithMindbody.rows.length === 0) {
+      return res.json({ 
+        message: 'No users with mindbody_client_id found',
+        totalChecked: 0,
+        toClean: 0,
+        cleaned: 0
+      });
+    }
+    
+    const hubspot = await getHubSpotClient();
+    const toClean: Array<{ email: string; mindbodyClientId: string; hubspotId: string | null }> = [];
+    const validated: Array<{ email: string; mindbodyClientId: string }> = [];
+    const errors: string[] = [];
+    
+    // Process in batches to avoid rate limits
+    const batchSize = 50;
+    for (let i = 0; i < usersWithMindbody.rows.length; i += batchSize) {
+      const batch = usersWithMindbody.rows.slice(i, i + batchSize);
+      
+      for (const user of batch) {
+        try {
+          let hubspotMindbodyId: string | null = null;
+          
+          if (user.hubspot_id) {
+            // Fetch contact from HubSpot using known ID
+            const contact = await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.getById(user.hubspot_id, ['mindbody_client_id'])
+            );
+            hubspotMindbodyId = contact.properties?.mindbody_client_id || null;
+          } else {
+            // Search by email
+            const searchResponse = await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.searchApi.doSearch({
+                filterGroups: [{
+                  filters: [{
+                    propertyName: 'email',
+                    operator: 'EQ',
+                    value: user.email.toLowerCase()
+                  }]
+                }],
+                properties: ['mindbody_client_id'],
+                limit: 1
+              })
+            );
+            
+            if (searchResponse.results && searchResponse.results.length > 0) {
+              hubspotMindbodyId = searchResponse.results[0].properties?.mindbody_client_id || null;
+            }
+          }
+          
+          // Compare values
+          if (!hubspotMindbodyId || hubspotMindbodyId.trim() === '') {
+            toClean.push({
+              email: user.email,
+              mindbodyClientId: user.mindbody_client_id,
+              hubspotId: user.hubspot_id
+            });
+          } else if (hubspotMindbodyId === user.mindbody_client_id) {
+            validated.push({
+              email: user.email,
+              mindbodyClientId: user.mindbody_client_id
+            });
+          } else {
+            // HubSpot has a different value - flag for review but don't auto-clean
+            console.log(`[DataTools] Mindbody ID mismatch for ${user.email}: DB=${user.mindbody_client_id}, HubSpot=${hubspotMindbodyId}`);
+          }
+        } catch (err: any) {
+          errors.push(`Error checking ${user.email}: ${err.message}`);
+        }
+      }
+      
+      // Small delay between batches to respect rate limits
+      if (i + batchSize < usersWithMindbody.rows.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+    
+    let cleanedCount = 0;
+    
+    if (!dryRun && toClean.length > 0) {
+      // Actually clean up the stale IDs
+      const emailsToClean = toClean.map(u => u.email.toLowerCase());
+      
+      const cleanResult = await pool.query(
+        `UPDATE users 
+         SET mindbody_client_id = NULL, updated_at = NOW() 
+         WHERE LOWER(email) = ANY($1::text[])
+         RETURNING email`,
+        [emailsToClean]
+      );
+      
+      cleanedCount = cleanResult.rowCount || 0;
+      
+      // Log the action
+      await logFromRequest(req, {
+        action: 'cleanup_mindbody_ids',
+        resourceType: 'users',
+        details: {
+          cleanedCount,
+          emails: emailsToClean.slice(0, 20) // Log first 20 for audit
+        }
+      });
+      
+      console.log(`[DataTools] Cleaned ${cleanedCount} stale mindbody_client_id values`);
+    }
+    
+    res.json({
+      message: dryRun ? 'Dry run complete - no changes made' : `Cleaned ${cleanedCount} stale mindbody IDs`,
+      totalChecked: usersWithMindbody.rows.length,
+      validated: validated.length,
+      toClean: toClean.length,
+      cleaned: cleanedCount,
+      staleRecords: toClean.slice(0, 50), // Return first 50 for review
+      errors: errors.slice(0, 10)
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Cleanup mindbody IDs error:', error);
+    res.status(500).json({ error: 'Failed to cleanup mindbody IDs', details: error.message });
+  }
+});
+
 export default router;
