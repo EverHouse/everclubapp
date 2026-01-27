@@ -1883,10 +1883,10 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
       await recalculateSessionFees(booking.session_id, 'staff_action');
     }
 
-    const { logFromRequest, AuditAction, AuditResourceType } = await import('../core/auditLog');
+    const { logFromRequest } = await import('../core/auditLog');
     await logFromRequest(req, {
-      action: 'UPDATE_PLAYER_COUNT' as any,
-      resourceType: AuditResourceType.BOOKING,
+      action: 'update_booking',
+      resourceType: 'booking',
       resourceId: String(bookingId),
       resourceName: `Booking ${bookingId}`,
       details: { 
