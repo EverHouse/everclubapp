@@ -23,6 +23,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Daily usage tracking now correctly uses staff-edited player count for allowance calculations",
       "Fixed: Roster check during check-in now respects staff-edited player count",
       "Fixed: Empty player slots now created when player count is increased",
+      "CRITICAL: Overage fees now properly saved to bookings during approval (was only storing in session)",
       "Improved: Dev simulated webhook now generates realistic Trackman V2 format for testing"
     ]
   },

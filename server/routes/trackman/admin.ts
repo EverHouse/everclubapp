@@ -1163,11 +1163,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       
       if (participantsResult.rows.length > 0) {
         const allParticipantIds = participantsResult.rows.map(p => p.participant_id);
-        const breakdown = await computeFeeBreakdown({
-          sessionId,
-          source: 'trackman' as const
-        });
-        await applyFeeBreakdownToParticipants(sessionId, breakdown);
+        // Use recalculateSessionFees to sync fees to booking_requests.overage_fee_cents
+        const breakdown = await recalculateSessionFees(sessionId, 'trackman');
         
         const feeMap = new Map<number, number>();
         for (const p of breakdown.participants) {

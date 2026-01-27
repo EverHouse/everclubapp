@@ -14,7 +14,7 @@ import { getSessionUser } from '../../types/session';
 import { refundGuestPass } from '../guestPasses';
 import { updateHubSpotContactVisitCount } from '../../core/memberSync';
 import { createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
-import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
+import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
 import { getCalendarNameForBayAsync } from './helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent, CALENDAR_CONFIG } from '../../core/calendar/index';
@@ -251,13 +251,9 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         if (createdSessionId && createdParticipantIds.length > 0) {
           setImmediate(async () => {
             try {
-              const breakdown = await computeFeeBreakdown({
-                sessionId: createdSessionId!,
-                declaredPlayerCount: createdParticipantIds.length,
-                source: 'approval' as const
-              });
-              await applyFeeBreakdownToParticipants(createdSessionId!, breakdown);
-              console.log(`[Booking Approval] Applied unified fees for session ${createdSessionId}: $${(breakdown.totals.totalCents/100).toFixed(2)}`);
+              // Use recalculateSessionFees which syncs fees to booking_requests.overage_fee_cents
+              const breakdown = await recalculateSessionFees(createdSessionId!, 'approval');
+              console.log(`[Booking Approval] Applied unified fees for session ${createdSessionId}: $${(breakdown.totals.totalCents/100).toFixed(2)}, overage: $${(breakdown.totals.overageCents/100).toFixed(2)}`);
             } catch (feeError) {
               console.error('[Booking Approval] Failed to compute/apply fees (non-blocking):', feeError);
             }
