@@ -374,8 +374,8 @@ const TiersTab: React.FC = () => {
                                         <div 
                                             key={pass.id} 
                                             onClick={() => openEdit(pass)}
-                                            className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all animate-pop-in"
-                                            style={{animationDelay: `${0.05 + index * 0.03}s`}}
+                                            className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all animate-slide-up-stagger"
+                                            style={{ '--stagger-index': index } as React.CSSProperties}
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div>

@@ -20,9 +20,9 @@ export const changelog: ChangelogEntry[] = [
       "UX: Replaced all hardcoded animation delays with dynamic stagger indices app-wide",
       "UX: MemberProfileDrawer uses spring physics for natural bounce on slide-in",
       "UX: Dashboard content crossfades from skeleton using SmoothReveal wrapper",
-      "UX: Updated admin tabs (Inquiries, BugReports, Simulator, Cafe, Blocks, Events, Tiers), GalleryAdmin, FaqsAdmin, AnnouncementManager, History",
-      "UX: Updated member pages (Profile sections, BookGolf resources, Dashboard membership card)",
-      "UX: Updated public pages (PrivateHire space cards, MenuOverlay contact section)"
+      "UX: Updated 20+ admin components (all tabs, GalleryAdmin, FaqsAdmin, AnnouncementManager, AvailabilityBlocksContent, ChangelogTab, DirectoryTab, DiscountsSubTab, UpdatesTab, BookingQueuesSection)",
+      "UX: Updated member pages (Profile sections, BookGolf time slots/resources, Dashboard cards, History, GlassRow)",
+      "UX: Updated public pages (Landing FeatureCards, PrivateHire SpaceCards, MenuOverlay navigation links)"
     ]
   },
   {

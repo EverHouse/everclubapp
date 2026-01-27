@@ -1025,8 +1025,8 @@ const BlocksTab: React.FC = () => {
                             return (
                                 <div 
                                     key={closure.id}
-                                    className="rounded-2xl overflow-hidden bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 animate-pop-in"
-                                    style={{animationDelay: `${0.1 + index * 0.03}s`}}
+                                    className="rounded-2xl overflow-hidden bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200 dark:border-cyan-500/30 animate-slide-up-stagger"
+                                    style={{ '--stagger-index': index } as React.CSSProperties}
                                 >
                                     <div className="p-4 flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
@@ -1084,7 +1084,7 @@ const BlocksTab: React.FC = () => {
                                         ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30'
                                         : 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30'
                                 }`}
-                                style={{animationDelay: `${0.1 + index * 0.05}s`}}
+                                style={{ '--stagger-index': index } as React.CSSProperties}
                             >
                                 <div
                                     className={`w-full p-4 text-left transition-colors ${

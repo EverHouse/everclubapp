@@ -436,8 +436,8 @@ const ChangelogTab: React.FC = () => {
                             return (
                                 <div
                                     key={entry.id}
-                                    className="rounded-2xl bg-white dark:bg-white/[0.03] shadow-layered dark:shadow-layered-dark overflow-hidden animate-pop-in"
-                                    style={{ animationDelay: `${0.05 + index * 0.02}s` }}
+                                    className="rounded-2xl bg-white dark:bg-white/[0.03] shadow-layered dark:shadow-layered-dark overflow-hidden animate-slide-up-stagger"
+                                    style={{ '--stagger-index': index } as React.CSSProperties}
                                 >
                                     <div className="flex gap-3 p-4">
                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${actionInfo.color}`}>

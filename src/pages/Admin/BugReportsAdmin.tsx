@@ -197,8 +197,8 @@ const BugReportsAdmin: React.FC = () => {
                             <button
                                 key={report.id}
                                 onClick={() => openDetail(report)}
-                                className={`w-full text-left p-4 rounded-2xl transition-all animate-pop-in ${isDark ? 'glass-card hover:bg-white/5' : 'bg-white border border-black/5 hover:shadow-md'}`}
-                                style={{animationDelay: `${0.1 + idx * 0.05}s`}}
+                                className={`w-full text-left p-4 rounded-2xl transition-all animate-slide-up-stagger ${isDark ? 'glass-card hover:bg-white/5' : 'bg-white border border-black/5 hover:shadow-md'}`}
+                                style={{ '--stagger-index': idx } as React.CSSProperties}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">

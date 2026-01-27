@@ -1879,7 +1879,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                 ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30' 
                                                                 : 'glass-card border border-primary/10 dark:border-white/25'
                                                         }`} 
-                                                            style={{animationDelay: `${0.2 + index * 0.03}s`}}
+                                                            style={{ '--stagger-index': index } as React.CSSProperties}
                                                             onClick={() => setSelectedCalendarBooking(booking)}
                                                         >
                                                             {/* Header: Name/Badge + Status */}

@@ -1045,8 +1045,8 @@ const Dashboard: React.FC = () => {
                 {pendingInvites.map((invite, idx) => (
                   <div 
                     key={`invite-${invite.id}`}
-                    className={`rounded-2xl p-4 border ${isDark ? 'bg-amber-900/20 border-amber-500/30' : 'bg-amber-50 border-amber-200'} animate-pop-in`}
-                    style={{animationDelay: `${0.13 + (idx * 0.05)}s`}}
+                    className={`rounded-2xl p-4 border ${isDark ? 'bg-amber-900/20 border-amber-500/30' : 'bg-amber-50 border-amber-200'} animate-slide-up-stagger`}
+                    style={{ '--stagger-index': idx + 3 } as React.CSSProperties}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -1245,7 +1245,7 @@ const Dashboard: React.FC = () => {
                       icon={getIconForType(item.resourceType)} 
                       color={isDark ? "text-[#E7E7DC]" : "text-primary"}
                       actions={actions}
-                      delay={`${0.15 + (idx * 0.05)}s`}
+                      staggerIndex={idx + 4}
                       badge={getStatusBadge()}
                     />
                     {showRosterManager && (

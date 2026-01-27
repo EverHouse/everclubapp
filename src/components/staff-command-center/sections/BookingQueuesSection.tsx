@@ -250,8 +250,8 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             return (
               <GlassListRow 
                 key={`${request.source || 'request'}-${request.id}`} 
-                className="flex-col !items-stretch !gap-2 animate-slide-in-up"
-                style={{ animationDelay: `${index * 50}ms` }}
+                className="flex-col !items-stretch !gap-2 animate-slide-up-stagger"
+                style={{ '--stagger-index': index } as React.CSSProperties}
               >
                 <div className="flex items-center gap-3">
                   <DateBlock dateStr={request.request_date} today={today} />
@@ -341,8 +341,8 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                 <GlassListRow 
                   key={`${isUnmatched ? 'unmatched-' : ''}${booking.id}`}
                   onClick={() => onTabChange('simulator')}
-                  className={`flex-col !items-stretch !gap-2 animate-slide-in-up ${cardClass}`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  className={`flex-col !items-stretch !gap-2 animate-slide-up-stagger ${cardClass}`}
+                  style={{ '--stagger-index': index } as React.CSSProperties}
                 >
                   <div className="flex items-start gap-3">
                     <DateBlock dateStr={booking.request_date || booking.slot_date || ''} today={today} />

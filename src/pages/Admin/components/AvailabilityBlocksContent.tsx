@@ -357,8 +357,8 @@ const AvailabilityBlocksContent: React.FC = () => {
                         return (
                             <div 
                                 key={date} 
-                                className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden animate-pop-in"
-                                style={{animationDelay: `${0.05 + groupIndex * 0.05}s`}}
+                                className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden animate-slide-up-stagger"
+                                style={{ '--stagger-index': groupIndex } as React.CSSProperties}
                             >
                                 <button
                                     onClick={() => toggleDay(date)}
@@ -394,8 +394,8 @@ const AvailabilityBlocksContent: React.FC = () => {
                                             <div 
                                                 key={block.id} 
                                                 onClick={() => openEdit(block)}
-                                                className="bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors animate-pop-in"
-                                                style={{animationDelay: `${blockIndex * 0.03}s`}}
+                                                className="bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors animate-slide-up-stagger"
+                                                style={{ '--stagger-index': blockIndex } as React.CSSProperties}
                                             >
                                                 <div className="flex gap-3">
                                                     <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${getBlockTypeColor(block.block_type)}`}>

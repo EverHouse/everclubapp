@@ -259,7 +259,7 @@ const UpdatesTab: React.FC = () => {
                                     ? 'bg-white hover:bg-gray-50 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]' 
                                     : 'bg-accent/10 hover:bg-accent/15 border border-accent/30 dark:border-accent/20'
                             } shadow-layered dark:shadow-layered-dark`}
-                            style={{animationDelay: `${0.15 + index * 0.03}s`}}
+                            style={{ '--stagger-index': index } as React.CSSProperties}
                         >
                             <div className="flex gap-3 p-4">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${

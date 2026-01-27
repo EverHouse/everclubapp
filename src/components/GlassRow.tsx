@@ -13,20 +13,20 @@ interface GlassRowProps {
   icon: string;
   color: string;
   actions?: Action[];
-  delay?: string;
+  staggerIndex?: number;
   onClick?: () => void;
   badge?: React.ReactNode;
 }
 
-const GlassRow: React.FC<GlassRowProps> = ({ title, subtitle, icon, color, actions, delay, onClick, badge }) => {
+const GlassRow: React.FC<GlassRowProps> = ({ title, subtitle, icon, color, actions, staggerIndex, onClick, badge }) => {
    const { effectiveTheme } = useTheme();
    const isDark = effectiveTheme === 'dark';
    
    return (
      <div 
        onClick={onClick}
-       className={`glass-card p-4 flex items-center gap-4 group animate-pop-in ${onClick ? 'cursor-pointer card-pressable glass-interactive' : ''}`} 
-       style={{animationDelay: delay, animationFillMode: 'both'}}
+       className={`glass-card p-4 flex items-center gap-4 group animate-slide-up-stagger ${onClick ? 'cursor-pointer card-pressable glass-interactive' : ''}`} 
+       style={staggerIndex !== undefined ? { '--stagger-index': staggerIndex, animationFillMode: 'both' } as React.CSSProperties : { animationFillMode: 'both' }}
      >
         <div className={`w-12 h-12 rounded-[1.5rem] glass-button flex items-center justify-center ${color}`}>
            <span className="material-symbols-outlined text-[24px]">{icon}</span>

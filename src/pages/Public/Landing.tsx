@@ -342,25 +342,25 @@ const Landing: React.FC = () => {
             image="/images/golf-sims-optimized.webp"
             icon="sports_golf"
             title="Golf all year"
-            delay="0.1s"
+            staggerIndex={0}
           />
           <FeatureCard 
             image="/images/cowork-optimized.webp"
             icon="work"
             title="Work from the club"
-            delay="0.2s"
+            staggerIndex={1}
           />
           <FeatureCard 
             image="/images/wellness-yoga-optimized.webp"
             icon="spa"
             title="Wellness & classes"
-            delay="0.3s"
+            staggerIndex={2}
           />
           <FeatureCard 
             image="/images/events-crowd-optimized.webp"
             icon="groups"
             title="Events & community"
-            delay="0.4s"
+            staggerIndex={3}
           />
         </div>
       </div>
@@ -600,10 +600,10 @@ const Landing: React.FC = () => {
   );
 };
 
-const FeatureCard: React.FC<{image: string; icon: string; title: string; delay: string}> = ({ image, icon, title, delay }) => (
+const FeatureCard: React.FC<{image: string; icon: string; title: string; staggerIndex: number}> = ({ image, icon, title, staggerIndex }) => (
   <div 
-    className="relative h-[240px] rounded-[2rem] overflow-hidden group animate-pop-in backdrop-blur-xl bg-black/20 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]" 
-    style={{animationDelay: delay}}
+    className="relative h-[240px] rounded-[2rem] overflow-hidden group animate-slide-up-stagger backdrop-blur-xl bg-black/20 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]" 
+    style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
   >
      <div className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: `url('${image}')`}}></div>
      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>

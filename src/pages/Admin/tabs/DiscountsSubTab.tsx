@@ -229,7 +229,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                   ? 'bg-white dark:bg-surface-dark border-gray-200 dark:border-white/20' 
                   : 'bg-gray-50 dark:bg-surface-dark/50 border-gray-200 dark:border-white/10 opacity-60'
               }`}
-              style={{animationDelay: `${0.05 + index * 0.03}s`}}
+              style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">

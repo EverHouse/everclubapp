@@ -111,12 +111,12 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
             </div>
             
             <nav className="flex flex-col gap-4 flex-1 overflow-y-auto scrollbar-hide py-2">
-                <MenuLink label="Membership" onClick={() => handleNav('/membership')} delay="0.05s" isDark={isDark} />
-                <MenuLink label="Cafe" onClick={() => handleNav('/menu')} delay="0.1s" isDark={isDark} />
-                <MenuLink label="Host Events" onClick={() => handleNav('/private-hire')} delay="0.15s" isDark={isDark} />
-                <MenuLink label="What's On" onClick={() => handleNav('/whats-on')} delay="0.2s" isDark={isDark} />
-                <MenuLink label="Gallery" onClick={() => handleNav('/gallery')} delay="0.25s" isDark={isDark} />
-                <MenuLink label="FAQ" onClick={() => handleNav('/faq')} delay="0.3s" isDark={isDark} />
+                <MenuLink label="Membership" onClick={() => handleNav('/membership')} staggerIndex={0} isDark={isDark} />
+                <MenuLink label="Cafe" onClick={() => handleNav('/menu')} staggerIndex={1} isDark={isDark} />
+                <MenuLink label="Host Events" onClick={() => handleNav('/private-hire')} staggerIndex={2} isDark={isDark} />
+                <MenuLink label="What's On" onClick={() => handleNav('/whats-on')} staggerIndex={3} isDark={isDark} />
+                <MenuLink label="Gallery" onClick={() => handleNav('/gallery')} staggerIndex={4} isDark={isDark} />
+                <MenuLink label="FAQ" onClick={() => handleNav('/faq')} staggerIndex={5} isDark={isDark} />
             </nav>
             
             <div className={`mt-4 pt-6 border-t animate-slide-up-stagger ${isDark ? 'border-[#F2F2EC]/10' : 'border-[#293515]/10'}`} style={{ '--stagger-index': 6 } as React.CSSProperties}>
@@ -141,11 +141,11 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
 interface MenuLinkProps {
   label: string;
   onClick: () => void;
-  delay: string;
+  staggerIndex: number;
   isDark: boolean;
 }
 
-const MenuLink: React.FC<MenuLinkProps> = ({ label, onClick, delay, isDark }) => {
+const MenuLink: React.FC<MenuLinkProps> = ({ label, onClick, staggerIndex, isDark }) => {
   const lastTapRef = useRef(0);
   
   const handlePointerUp = () => {
@@ -159,8 +159,8 @@ const MenuLink: React.FC<MenuLinkProps> = ({ label, onClick, delay, isDark }) =>
       type="button"
       onClick={onClick}
       onPointerUp={handlePointerUp}
-      style={{ touchAction: 'manipulation', animationDelay: delay, animationFillMode: 'both' }}
-      className={`text-left text-[24px] font-display font-medium transition-all duration-300 tracking-tight animate-pop-in leading-tight min-h-[44px] hoverable-translate active:translate-x-2 ${isDark ? 'text-[#F2F2EC] hover:text-[#F2F2EC]/80' : 'text-[#293515] hover:text-[#293515]/80'}`}
+      style={{ '--stagger-index': staggerIndex, touchAction: 'manipulation', animationFillMode: 'both' } as React.CSSProperties}
+      className={`text-left text-[24px] font-display font-medium transition-all duration-300 tracking-tight animate-slide-up-stagger leading-tight min-h-[44px] hoverable-translate active:translate-x-2 ${isDark ? 'text-[#F2F2EC] hover:text-[#F2F2EC]/80' : 'text-[#293515] hover:text-[#293515]/80'}`}
     >
       {label}
     </button>

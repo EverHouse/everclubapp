@@ -1692,8 +1692,8 @@ const BookGolf: React.FC = () => {
                   return (
                     <div 
                       key={hourGroup.hour24}
-                      className="animate-pop-in"
-                      style={{ animationDelay: `${groupIndex * 0.05}s`, animationFillMode: 'both' }}
+                      className="animate-slide-up-stagger"
+                      style={{ '--stagger-index': groupIndex, animationFillMode: 'both' } as React.CSSProperties}
                     >
                       <button
                         onClick={() => {
@@ -1745,7 +1745,7 @@ const BookGolf: React.FC = () => {
                               ? 'bg-accent text-[#293515] border-accent shadow-glow'
                               : (isDark ? 'glass-card text-white hover:bg-white/10 border-white/25' : 'bg-white text-primary hover:bg-black/5 border-black/10 shadow-sm')
                             }`}
-                            style={{ animationDelay: `${slotIndex * 0.03}s` }}
+                            style={{ '--stagger-index': slotIndex } as React.CSSProperties}
                           >
                             <div className="font-bold text-sm">{slot.start}</div>
                             <div className={`text-[10px] font-bold uppercase tracking-wide ${selectedSlot?.id === slot.id ? 'opacity-80' : 'opacity-40'}`}>

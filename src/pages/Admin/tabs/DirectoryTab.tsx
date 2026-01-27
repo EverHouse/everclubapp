@@ -1178,8 +1178,8 @@ const DirectoryTab: React.FC = () => {
                                     <div 
                                         key={v.id}
                                         onClick={() => openVisitorDetails(v)}
-                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-in-up"
-                                        style={{ animationDelay: `${index * 40}ms` }}
+                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-up-stagger"
+                                        style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex-1">
@@ -1353,8 +1353,8 @@ const DirectoryTab: React.FC = () => {
                                     <div 
                                         key={v.id}
                                         onClick={() => openVisitorDetails(v)}
-                                        className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer animate-slide-in-up"
-                                        style={{ animationDelay: `${index * 25}ms` }}
+                                        className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer animate-slide-up-stagger"
+                                        style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
                                         <div style={{ width: '18%' }} className="p-4 font-medium text-primary dark:text-white truncate">
                                             {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
@@ -1445,8 +1445,8 @@ const DirectoryTab: React.FC = () => {
                                     <div 
                                         key={m.email}
                                         onClick={() => openDetailsModal(m)}
-                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-in-up"
-                                        style={{ animationDelay: `${index * 40}ms` }}
+                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-up-stagger"
+                                        style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex-1">
@@ -1543,8 +1543,8 @@ const DirectoryTab: React.FC = () => {
                                     <div 
                                         key={m.email}
                                         onClick={() => openDetailsModal(m)}
-                                        className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer animate-slide-in-up"
-                                        style={{ animationDelay: `${index * 25}ms` }}
+                                        className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer animate-slide-up-stagger"
+                                        style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
                                         <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
                                         <div style={{ width: '20%' }} className="p-4">
