@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.17",
+    date: "2026-01-27",
+    title: "Simulator Tab Full Height Layout",
+    isMajor: false,
+    changes: [
+      "Removed internal scrolling from the Simulator tab queue and calendar panels",
+      "Both the pending/scheduled queue and the day calendar now expand to their full content height",
+      "Page now scrolls naturally as a whole, making it easier to access all bookings including Trackman synced cards at the bottom",
+      "Fixed awkward scroll behavior where mouse had to be positioned outside card boundaries to scroll the page"
+    ]
+  },
+  {
     version: "9.32.16",
     date: "2026-01-27",
     title: "Check-In Fee Detection Fix",

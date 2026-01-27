@@ -223,7 +223,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
 
   const PendingRequestsCard = () => (
     <div 
-      className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${pendingRequests.length > 0 ? 'border-l-4 border-l-amber-500' : ''}`}
+      className={`flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${pendingRequests.length > 0 ? 'border-l-4 border-l-amber-500' : ''}`}
       role="region"
       aria-label={pendingRequests.length > 0 ? `Booking Requests - ${pendingRequests.length} pending, action required` : 'Booking Requests'}
     >
@@ -317,7 +317,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     
     return (
       <div 
-        className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4`}
+        className="flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4"
         role="region"
         aria-label={hasUnmatchedBookings ? 'Upcoming Bookings - some need member assignment' : 'Upcoming Bookings'}
       >
@@ -330,7 +330,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             <EmptyState icon="calendar_today" title="No upcoming bookings" variant="compact" />
           </div>
         ) : (
-          <div className="space-y-2 overflow-y-auto flex-1">
+          <div className="space-y-2">
             {mergedUpcomingBookings.map((booking, index) => {
               const isUnmatched = booking.is_unmatched;
               const cardClass = isUnmatched 

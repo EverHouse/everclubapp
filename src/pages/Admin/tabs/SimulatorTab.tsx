@@ -1644,7 +1644,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
 
     return (
             <AnimatedPage className="flex flex-col">
-                <div className="w-full bg-white dark:bg-surface-dark rounded-2xl shadow-lg border border-gray-200 dark:border-white/25 flex flex-col lg:h-[calc(100vh-220px)] overflow-hidden">
+                <div className="w-full bg-white dark:bg-surface-dark rounded-2xl shadow-lg border border-gray-200 dark:border-white/25 flex flex-col">
                 <div className="lg:hidden flex items-center justify-between border-b border-gray-200 dark:border-white/25 mb-0 animate-content-enter-delay-1 px-4 py-3">
                     <div className="flex">
                         <button
@@ -1691,8 +1691,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     <span aria-hidden="true" className="material-symbols-outlined animate-spin text-primary dark:text-white">progress_activity</span>
                 </div>
             ) : (
-                <div className="flex flex-col lg:flex-row flex-1 lg:overflow-hidden">
-                    <div className={`lg:w-[400px] xl:w-[450px] lg:border-r border-gray-200 dark:border-white/25 flex-shrink-0 lg:h-full lg:overflow-y-auto scrollbar-hide relative ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}>
+                <div className="flex flex-col lg:flex-row flex-1">
+                    <div className={`lg:w-[400px] xl:w-[450px] lg:border-r border-gray-200 dark:border-white/25 flex-shrink-0 relative ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}>
                         <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
                         <div className="space-y-6 p-5 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                     <div className="animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
@@ -2009,7 +2009,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         </div>
                     </div>
                     
-                    <div className={`flex-1 lg:flex lg:flex-col lg:h-full lg:overflow-hidden ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
+                    <div className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
                     <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                         <div className="flex items-center justify-center px-2 relative">
                             <div className="flex items-center gap-2 relative">
@@ -2127,7 +2127,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         </div>
                     </div>
                     
-                    <div className="flex-1 min-h-0 lg:overflow-y-auto scrollbar-hide relative animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+                    <div className="flex-1 relative animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                         <div className="w-full px-1 sm:px-2 pb-4">
                             <div className="w-full">
                             <div className="grid gap-0.5 w-full" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>
