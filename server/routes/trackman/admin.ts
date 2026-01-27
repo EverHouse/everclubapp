@@ -1436,16 +1436,21 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const sessionId = bookingResult.rows[0].session_id;
       
       const memberInfo = await pool.query(
-        `SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
+        `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
         [memberEmail]
       );
-      const displayName = memberInfo.rows[0] 
-        ? `${memberInfo.rows[0].first_name} ${memberInfo.rows[0].last_name}`.trim()
-        : memberEmail;
+      
+      if (!memberInfo.rows[0]?.id) {
+        console.warn(`[Link Member] User not found for email ${memberEmail}`);
+        return res.status(404).json({ error: 'Member not found in system' });
+      }
+      
+      const userId = memberInfo.rows[0].id;
+      const displayName = `${memberInfo.rows[0].first_name || ''} ${memberInfo.rows[0].last_name || ''}`.trim() || memberEmail;
       
       const existingParticipant = await pool.query(
         `SELECT id FROM booking_participants WHERE session_id = $1 AND user_id = $2`,
-        [sessionId, memberEmail.toLowerCase()]
+        [sessionId, userId]
       );
       
       if (existingParticipant.rowCount === 0) {
@@ -1471,7 +1476,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
         await pool.query(
           `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, invite_status)
            VALUES ($1, $2, 'member', $3, 'pending', 'confirmed')`,
-          [sessionId, memberEmail.toLowerCase(), displayName]
+          [sessionId, userId, displayName]
         );
       }
       

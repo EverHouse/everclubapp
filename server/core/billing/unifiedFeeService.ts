@@ -291,7 +291,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       
       lineItem.totalCents = lineItem.guestCents;
     } else if (participant.participantType === 'owner') {
-      lineItem.minutesAllocated = sessionDuration;
+      lineItem.minutesAllocated = minutesPerParticipant;
       
       const ownerEmail = await resolveToEmail(participant.email || participant.userId || hostEmail);
       // Use batched tier data, fallback to individual query if not found
@@ -317,13 +317,13 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
           dailyAllowance,
           unlimitedAccess,
           usedMinutesToday,
-          sessionDuration,
+          minutesAllocated: minutesPerParticipant,
           willCalculateOverage: !unlimitedAccess && dailyAllowance < 999
         }
       });
       
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalAfterSession = usedMinutesToday + sessionDuration;
+        const totalAfterSession = usedMinutesToday + minutesPerParticipant;
         const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
         const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
         

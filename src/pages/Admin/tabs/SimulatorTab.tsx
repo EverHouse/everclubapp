@@ -721,6 +721,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [editingPlayerCount, setEditingPlayerCount] = useState(false);
     const [playerCountDraft, setPlayerCountDraft] = useState<number>(1);
     const [savingPlayerCount, setSavingPlayerCount] = useState(false);
+    const [membersEditorKey, setMembersEditorKey] = useState(0);
     const [feeEstimate, setFeeEstimate] = useState<{
       totalFee: number;
       ownerTier: string | null;
@@ -2800,6 +2801,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                 declared_player_count: playerCountDraft
                                                             } as any);
                                                             setEditingPlayerCount(false);
+                                                            setMembersEditorKey(prev => prev + 1);
                                                             handleRefresh();
                                                         }
                                                     } catch (err) {
@@ -3003,6 +3005,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
 
                     {selectedCalendarBooking && (
                         <BookingMembersEditor 
+                            key={`members-editor-${selectedCalendarBooking.id}-${membersEditorKey}`}
                             bookingId={selectedCalendarBooking.id}
                             onMemberLinked={() => {
                                 handleRefresh();
