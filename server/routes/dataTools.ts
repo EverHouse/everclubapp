@@ -775,4 +775,1135 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
   }
 });
 
+router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    const { dryRun = true } = req.body;
+    
+    console.log(`[DataTools] Starting subscription status sync (dryRun: ${dryRun}) by ${staffEmail}`);
+    
+    const { getStripeClient } = await import('../core/stripe/client');
+    const stripe = await getStripeClient();
+    
+    const membersWithStripe = await pool.query(
+      `SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id
+       FROM users 
+       WHERE stripe_customer_id IS NOT NULL
+         AND role = 'member'
+       ORDER BY email
+       LIMIT 500`
+    );
+    
+    if (membersWithStripe.rows.length === 0) {
+      return res.json({ 
+        message: 'No members with Stripe customer IDs found',
+        totalChecked: 0,
+        mismatches: []
+      });
+    }
+    
+    const STRIPE_STATUS_TO_APP_STATUS: Record<string, string> = {
+      'active': 'active',
+      'trialing': 'active',
+      'past_due': 'past_due',
+      'canceled': 'cancelled',
+      'unpaid': 'suspended',
+      'incomplete': 'pending',
+      'incomplete_expired': 'inactive',
+      'paused': 'frozen'
+    };
+    
+    const mismatches: Array<{
+      email: string;
+      name: string;
+      currentStatus: string;
+      stripeStatus: string;
+      expectedStatus: string;
+      stripeCustomerId: string;
+      userId: number;
+    }> = [];
+    
+    const updated: Array<{ email: string; oldStatus: string; newStatus: string }> = [];
+    const errors: string[] = [];
+    
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY_MS = 100;
+    
+    for (let i = 0; i < membersWithStripe.rows.length; i += BATCH_SIZE) {
+      const batch = membersWithStripe.rows.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (member) => {
+        try {
+          const customerId = member.stripe_customer_id;
+          if (!customerId) return;
+          
+          const customerSubs = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'all',
+            limit: 10
+          });
+          
+          const activeSub = customerSubs.data?.find((s: any) => 
+            ['active', 'trialing', 'past_due'].includes(s.status)
+          ) || customerSubs.data?.[0];
+          
+          let stripeStatus = 'no_subscription';
+          let expectedAppStatus = 'inactive';
+          
+          if (activeSub) {
+            stripeStatus = activeSub.status;
+            expectedAppStatus = STRIPE_STATUS_TO_APP_STATUS[stripeStatus] || 'inactive';
+          }
+          
+          const currentStatus = (member.membership_status || '').toLowerCase();
+          const normalizedExpected = expectedAppStatus.toLowerCase();
+          
+          const statusMatches = currentStatus === normalizedExpected ||
+            (currentStatus === 'active' && ['active', 'trialing'].includes(stripeStatus)) ||
+            (currentStatus === 'cancelled' && stripeStatus === 'canceled') ||
+            (currentStatus === 'terminated' && stripeStatus === 'canceled') ||
+            (currentStatus === 'non-member' && stripeStatus === 'canceled') ||
+            (currentStatus === 'pending' && ['incomplete', 'trialing'].includes(stripeStatus)) ||
+            (currentStatus === 'frozen' && ['paused', 'past_due'].includes(stripeStatus)) ||
+            (currentStatus === 'suspended' && ['unpaid', 'past_due'].includes(stripeStatus));
+          
+          if (!statusMatches) {
+            const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+            
+            mismatches.push({
+              email: member.email,
+              name: memberName,
+              currentStatus: member.membership_status || 'none',
+              stripeStatus,
+              expectedStatus: expectedAppStatus,
+              stripeCustomerId: customerId,
+              userId: member.id
+            });
+            
+            if (!dryRun) {
+              await pool.query(
+                `UPDATE users 
+                 SET membership_status = $1, updated_at = NOW() 
+                 WHERE id = $2`,
+                [expectedAppStatus, member.id]
+              );
+              
+              await db.insert(billingAuditLog).values({
+                memberEmail: member.email,
+                actionType: 'subscription_status_synced',
+                previousValue: member.membership_status || 'none',
+                newValue: expectedAppStatus,
+                actionDetails: {
+                  source: 'data_tools',
+                  stripeCustomerId: customerId,
+                  stripeSubscriptionStatus: stripeStatus,
+                  syncedBy: staffEmail
+                },
+                performedBy: staffEmail,
+                performedByName: staffEmail
+              });
+              
+              updated.push({
+                email: member.email,
+                oldStatus: member.membership_status || 'none',
+                newStatus: expectedAppStatus
+              });
+              
+              if (!isProduction) {
+                console.log(`[DataTools] Updated ${member.email} status: ${member.membership_status} -> ${expectedAppStatus}`);
+              }
+            }
+          }
+        } catch (err: any) {
+          errors.push(`${member.email}: ${err.message}`);
+          if (!isProduction) {
+            console.error(`[DataTools] Error checking subscription for ${member.email}:`, err.message);
+          }
+        }
+      }));
+      
+      if (i + BATCH_SIZE < membersWithStripe.rows.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+    
+    if (!dryRun && updated.length > 0) {
+      logFromRequest(req, 'sync_subscription_status', 'users', null, {
+        action: 'bulk_status_sync',
+        updatedCount: updated.length,
+        staffEmail
+      });
+    }
+    
+    res.json({
+      message: dryRun 
+        ? `Preview: Found ${mismatches.length} status mismatches out of ${membersWithStripe.rows.length} members`
+        : `Updated ${updated.length} member statuses to match Stripe`,
+      totalChecked: membersWithStripe.rows.length,
+      mismatchCount: mismatches.length,
+      updatedCount: updated.length,
+      mismatches: mismatches.slice(0, 100),
+      updated: updated.slice(0, 50),
+      errors: errors.slice(0, 10),
+      dryRun
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Sync subscription status error:', error);
+    res.status(500).json({ error: 'Failed to sync subscription status', details: error.message });
+  }
+});
+
+router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    const { dryRun = true } = req.body;
+    
+    console.log(`[DataTools] Starting Stripe-HubSpot link tool (dryRun: ${dryRun}) by ${staffEmail}`);
+    
+    const { getStripeClient } = await import('../core/stripe/client');
+    const { findOrCreateHubSpotContact } = await import('../core/hubspot/members');
+    const { getOrCreateStripeCustomer } = await import('../core/stripe/customers');
+    const stripe = await getStripeClient();
+    
+    const stripeOnlyMembers = await pool.query(
+      `SELECT id, email, first_name, last_name, tier, stripe_customer_id
+       FROM users 
+       WHERE stripe_customer_id IS NOT NULL
+         AND (hubspot_id IS NULL OR hubspot_id = '')
+         AND role = 'member'
+       ORDER BY email
+       LIMIT 200`
+    );
+    
+    const hubspotOnlyMembers = await pool.query(
+      `SELECT id, email, first_name, last_name, tier, hubspot_id
+       FROM users 
+       WHERE hubspot_id IS NOT NULL
+         AND hubspot_id != ''
+         AND (stripe_customer_id IS NULL OR stripe_customer_id = '')
+         AND role = 'member'
+       ORDER BY email
+       LIMIT 200`
+    );
+    
+    const stripeOnlyList = stripeOnlyMembers.rows.map(m => ({
+      id: m.id,
+      email: m.email,
+      name: [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown',
+      tier: m.tier,
+      stripeCustomerId: m.stripe_customer_id,
+      issue: 'has_stripe_no_hubspot'
+    }));
+    
+    const hubspotOnlyList = hubspotOnlyMembers.rows.map(m => ({
+      id: m.id,
+      email: m.email,
+      name: [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown',
+      tier: m.tier,
+      hubspotId: m.hubspot_id,
+      issue: 'has_hubspot_no_stripe'
+    }));
+    
+    const hubspotCreated: Array<{ email: string; contactId: string }> = [];
+    const stripeCreated: Array<{ email: string; customerId: string }> = [];
+    const errors: string[] = [];
+    
+    if (!dryRun) {
+      for (const member of stripeOnlyMembers.rows) {
+        try {
+          const result = await findOrCreateHubSpotContact(
+            member.email,
+            member.first_name || '',
+            member.last_name || '',
+            undefined,
+            member.tier || undefined
+          );
+          
+          await pool.query(
+            'UPDATE users SET hubspot_id = $1, updated_at = NOW() WHERE id = $2',
+            [result.contactId, member.id]
+          );
+          
+          hubspotCreated.push({ email: member.email, contactId: result.contactId });
+          
+          await db.insert(billingAuditLog).values({
+            memberEmail: member.email,
+            actionType: 'hubspot_contact_created_from_stripe',
+            actionDetails: {
+              source: 'data_tools',
+              hubspotContactId: result.contactId,
+              stripeCustomerId: member.stripe_customer_id,
+              isNew: result.isNew
+            },
+            performedBy: staffEmail,
+            performedByName: staffEmail
+          });
+          
+          if (!isProduction) {
+            console.log(`[DataTools] Created HubSpot contact for ${member.email}: ${result.contactId}`);
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (err: any) {
+          errors.push(`HubSpot for ${member.email}: ${err.message}`);
+          console.error(`[DataTools] Error creating HubSpot contact for ${member.email}:`, err.message);
+        }
+      }
+      
+      for (const member of hubspotOnlyMembers.rows) {
+        try {
+          const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
+          const result = await getOrCreateStripeCustomer(
+            member.id.toString(),
+            member.email,
+            memberName,
+            member.tier
+          );
+          
+          stripeCreated.push({ email: member.email, customerId: result.customerId });
+          
+          await db.insert(billingAuditLog).values({
+            memberEmail: member.email,
+            actionType: 'stripe_customer_created_from_hubspot',
+            actionDetails: {
+              source: 'data_tools',
+              stripeCustomerId: result.customerId,
+              hubspotContactId: member.hubspot_id,
+              isNew: result.isNew
+            },
+            performedBy: staffEmail,
+            performedByName: staffEmail
+          });
+          
+          if (!isProduction) {
+            console.log(`[DataTools] Created Stripe customer for ${member.email}: ${result.customerId}`);
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (err: any) {
+          errors.push(`Stripe for ${member.email}: ${err.message}`);
+          console.error(`[DataTools] Error creating Stripe customer for ${member.email}:`, err.message);
+        }
+      }
+      
+      logFromRequest(req, 'link_stripe_hubspot', 'users', null, {
+        action: 'bulk_link_stripe_hubspot',
+        hubspotCreated: hubspotCreated.length,
+        stripeCreated: stripeCreated.length,
+        staffEmail
+      });
+    }
+    
+    res.json({
+      message: dryRun 
+        ? `Preview: Found ${stripeOnlyList.length} Stripe-only and ${hubspotOnlyList.length} HubSpot-only members`
+        : `Linked ${hubspotCreated.length + stripeCreated.length} members (${hubspotCreated.length} HubSpot contacts, ${stripeCreated.length} Stripe customers created)`,
+      stripeOnlyCount: stripeOnlyList.length,
+      hubspotOnlyCount: hubspotOnlyList.length,
+      stripeOnlyMembers: stripeOnlyList.slice(0, 50),
+      hubspotOnlyMembers: hubspotOnlyList.slice(0, 50),
+      hubspotCreated: hubspotCreated.slice(0, 50),
+      stripeCreated: stripeCreated.slice(0, 50),
+      errors: errors.slice(0, 20),
+      dryRun
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Link Stripe-HubSpot error:', error);
+    res.status(500).json({ error: 'Failed to link Stripe-HubSpot', details: error.message });
+  }
+});
+
+router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    const { dryRun = true } = req.body;
+    
+    console.log(`[DataTools] Starting visit count sync to HubSpot (dryRun: ${dryRun}) by ${staffEmail}`);
+    
+    const hubspot = await getHubSpotClient();
+    
+    const membersWithHubspot = await pool.query(
+      `SELECT id, email, first_name, last_name, hubspot_id
+       FROM users 
+       WHERE hubspot_id IS NOT NULL
+         AND hubspot_id != ''
+         AND role = 'member'
+       ORDER BY email
+       LIMIT 1000`
+    );
+    
+    if (membersWithHubspot.rows.length === 0) {
+      return res.json({ 
+        message: 'No members with HubSpot IDs found',
+        totalChecked: 0,
+        mismatches: []
+      });
+    }
+    
+    interface VisitCountRecord {
+      email: string;
+      name: string;
+      hubspotId: string;
+      appVisitCount: number;
+      hubspotVisitCount: number | null;
+      needsUpdate: boolean;
+    }
+    
+    const mismatches: VisitCountRecord[] = [];
+    const matched: VisitCountRecord[] = [];
+    const updated: Array<{ email: string; oldCount: number | null; newCount: number }> = [];
+    const errors: string[] = [];
+    
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY_MS = 150;
+    
+    for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
+      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (member) => {
+        try {
+          const normalizedEmail = member.email.toLowerCase();
+          
+          const visitCountResult = await pool.query(`
+            SELECT COUNT(DISTINCT booking_id) as count FROM (
+              SELECT id as booking_id FROM booking_requests
+              WHERE LOWER(user_email) = $1
+                AND request_date < CURRENT_DATE
+                AND status NOT IN ('cancelled', 'declined')
+              UNION
+              SELECT br.id as booking_id FROM booking_requests br
+              JOIN booking_members bm ON br.id = bm.booking_id
+              WHERE LOWER(bm.user_email) = $1
+                AND br.request_date < CURRENT_DATE
+                AND br.status NOT IN ('cancelled', 'declined')
+              UNION
+              SELECT br.id as booking_id FROM booking_requests br
+              JOIN booking_guests bg ON br.id = bg.booking_id
+              WHERE LOWER(bg.guest_email) = $1
+                AND br.request_date < CURRENT_DATE
+                AND br.status NOT IN ('cancelled', 'declined')
+            ) all_bookings
+          `, [normalizedEmail]);
+          
+          const eventCountResult = await pool.query(`
+            SELECT COUNT(*) as count FROM event_rsvps er
+            JOIN events e ON er.event_id = e.id
+            WHERE (LOWER(er.user_email) = $1 OR er.matched_user_id = $2)
+              AND e.event_date < CURRENT_DATE
+              AND er.status != 'cancelled'
+          `, [normalizedEmail, member.id]);
+          
+          const wellnessCountResult = await pool.query(`
+            SELECT COUNT(*) as count FROM wellness_enrollments we
+            JOIN wellness_classes wc ON we.class_id = wc.id
+            WHERE LOWER(we.user_email) = $1
+              AND wc.date < CURRENT_DATE
+              AND we.status != 'cancelled'
+          `, [normalizedEmail]);
+          
+          const bookingCount = parseInt(visitCountResult.rows[0]?.count || '0');
+          const eventCount = parseInt(eventCountResult.rows[0]?.count || '0');
+          const wellnessCount = parseInt(wellnessCountResult.rows[0]?.count || '0');
+          const appVisitCount = bookingCount + eventCount + wellnessCount;
+          
+          let hubspotVisitCount: number | null = null;
+          try {
+            const contact = await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.getById(member.hubspot_id, ['total_visit_count'])
+            );
+            const rawCount = contact.properties?.total_visit_count;
+            hubspotVisitCount = rawCount ? parseInt(rawCount) : null;
+          } catch (hubspotErr: any) {
+            if (!hubspotErr.message?.includes('404')) {
+              throw hubspotErr;
+            }
+          }
+          
+          const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+          const record: VisitCountRecord = {
+            email: member.email,
+            name: memberName,
+            hubspotId: member.hubspot_id,
+            appVisitCount,
+            hubspotVisitCount,
+            needsUpdate: hubspotVisitCount !== appVisitCount
+          };
+          
+          if (hubspotVisitCount !== appVisitCount) {
+            mismatches.push(record);
+            
+            if (!dryRun) {
+              try {
+                await retryableHubSpotRequest(() =>
+                  hubspot.crm.contacts.basicApi.update(member.hubspot_id, {
+                    properties: {
+                      total_visit_count: appVisitCount.toString()
+                    }
+                  })
+                );
+                
+                updated.push({
+                  email: member.email,
+                  oldCount: hubspotVisitCount,
+                  newCount: appVisitCount
+                });
+                
+                await db.insert(billingAuditLog).values({
+                  memberEmail: member.email,
+                  actionType: 'visit_count_synced_to_hubspot',
+                  previousValue: hubspotVisitCount?.toString() || 'none',
+                  newValue: appVisitCount.toString(),
+                  actionDetails: {
+                    source: 'data_tools',
+                    hubspotContactId: member.hubspot_id,
+                    bookingCount,
+                    eventCount,
+                    wellnessCount
+                  },
+                  performedBy: staffEmail,
+                  performedByName: staffEmail
+                });
+                
+                if (!isProduction) {
+                  console.log(`[DataTools] Updated HubSpot visit count for ${member.email}: ${hubspotVisitCount} -> ${appVisitCount}`);
+                }
+              } catch (updateErr: any) {
+                errors.push(`Update ${member.email}: ${updateErr.message}`);
+              }
+            }
+          } else {
+            matched.push(record);
+          }
+        } catch (err: any) {
+          errors.push(`${member.email}: ${err.message}`);
+          if (!isProduction) {
+            console.error(`[DataTools] Error checking visit count for ${member.email}:`, err.message);
+          }
+        }
+      }));
+      
+      if (i + BATCH_SIZE < membersWithHubspot.rows.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+    
+    if (!dryRun && updated.length > 0) {
+      logFromRequest(req, 'sync_visit_counts', 'users', null, {
+        action: 'bulk_visit_count_sync',
+        updatedCount: updated.length,
+        staffEmail
+      });
+    }
+    
+    res.json({
+      message: dryRun 
+        ? `Preview: Found ${mismatches.length} members with visit count mismatches`
+        : `Updated ${updated.length} HubSpot contacts with visit counts`,
+      totalChecked: membersWithHubspot.rows.length,
+      mismatchCount: mismatches.length,
+      matchedCount: matched.length,
+      updatedCount: updated.length,
+      mismatches: mismatches.slice(0, 100),
+      updated: updated.slice(0, 50),
+      errors: errors.slice(0, 20),
+      dryRun
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Sync visit counts error:', error);
+    res.status(500).json({ error: 'Failed to sync visit counts', details: error.message });
+  }
+});
+
+router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    
+    console.log(`[DataTools] Starting duplicate detection by ${staffEmail}`);
+    
+    const appDuplicatesResult = await pool.query(`
+      SELECT LOWER(email) as normalized_email, 
+             COUNT(*) as count,
+             ARRAY_AGG(id) as user_ids,
+             ARRAY_AGG(email) as emails,
+             ARRAY_AGG(first_name || ' ' || last_name) as names,
+             ARRAY_AGG(hubspot_id) as hubspot_ids
+      FROM users
+      WHERE email IS NOT NULL
+        AND email != ''
+        AND archived_at IS NULL
+      GROUP BY LOWER(email)
+      HAVING COUNT(*) > 1
+      ORDER BY COUNT(*) DESC
+      LIMIT 100
+    `);
+    
+    const appDuplicates = appDuplicatesResult.rows.map(row => ({
+      email: row.normalized_email,
+      count: parseInt(row.count),
+      members: row.user_ids.map((id: string, idx: number) => ({
+        id,
+        email: row.emails[idx],
+        name: row.names[idx]?.trim() || 'Unknown',
+        hubspotId: row.hubspot_ids[idx]
+      }))
+    }));
+    
+    const hubspot = await getHubSpotClient();
+    const hubspotDuplicates: Array<{
+      email: string;
+      contacts: Array<{ contactId: string; firstname: string; lastname: string; createdate: string }>;
+    }> = [];
+    const hubspotErrors: string[] = [];
+    
+    const membersWithHubspot = await pool.query(
+      `SELECT DISTINCT LOWER(email) as email, hubspot_id
+       FROM users 
+       WHERE hubspot_id IS NOT NULL
+         AND hubspot_id != ''
+         AND email IS NOT NULL
+         AND archived_at IS NULL
+       LIMIT 500`
+    );
+    
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY_MS = 150;
+    
+    for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
+      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (member) => {
+        try {
+          const searchResponse = await retryableHubSpotRequest(() =>
+            hubspot.crm.contacts.searchApi.doSearch({
+              filterGroups: [{
+                filters: [{
+                  propertyName: 'email',
+                  operator: 'EQ',
+                  value: member.email
+                }]
+              }],
+              properties: ['email', 'firstname', 'lastname', 'createdate'],
+              limit: 10
+            })
+          );
+          
+          if (searchResponse.results && searchResponse.results.length > 1) {
+            hubspotDuplicates.push({
+              email: member.email,
+              contacts: searchResponse.results.map((contact: any) => ({
+                contactId: contact.id,
+                firstname: contact.properties?.firstname || '',
+                lastname: contact.properties?.lastname || '',
+                createdate: contact.properties?.createdate || ''
+              }))
+            });
+          }
+        } catch (err: any) {
+          hubspotErrors.push(`${member.email}: ${err.message}`);
+        }
+      }));
+      
+      if (i + BATCH_SIZE < membersWithHubspot.rows.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+    
+    await db.insert(billingAuditLog).values({
+      memberEmail: 'system',
+      actionType: 'duplicate_detection_run',
+      actionDetails: {
+        source: 'data_tools',
+        appDuplicateCount: appDuplicates.length,
+        hubspotDuplicateCount: hubspotDuplicates.length,
+        membersChecked: membersWithHubspot.rows.length
+      },
+      performedBy: staffEmail,
+      performedByName: staffEmail
+    });
+    
+    logFromRequest(req, 'detect_duplicates', 'users', null, {
+      action: 'duplicate_detection',
+      appDuplicateCount: appDuplicates.length,
+      hubspotDuplicateCount: hubspotDuplicates.length,
+      staffEmail
+    });
+    
+    res.json({
+      message: `Found ${appDuplicates.length} duplicate emails in app and ${hubspotDuplicates.length} duplicate contacts in HubSpot`,
+      appDuplicates,
+      hubspotDuplicates,
+      totalAppDuplicates: appDuplicates.length,
+      totalHubspotDuplicates: hubspotDuplicates.length,
+      membersCheckedInHubspot: membersWithHubspot.rows.length,
+      errors: hubspotErrors.slice(0, 20)
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Detect duplicates error:', error);
+    res.status(500).json({ error: 'Failed to detect duplicates', details: error.message });
+  }
+});
+
+router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    const { dryRun = true } = req.body;
+    
+    console.log(`[DataTools] Starting payment status sync to HubSpot (dryRun: ${dryRun}) by ${staffEmail}`);
+    
+    const { getStripeClient } = await import('../core/stripe/client');
+    const hubspot = await getHubSpotClient();
+    const stripe = await getStripeClient();
+    
+    const membersWithBoth = await pool.query(
+      `SELECT id, email, first_name, last_name, tier, stripe_customer_id, hubspot_id
+       FROM users 
+       WHERE stripe_customer_id IS NOT NULL
+         AND stripe_customer_id != ''
+         AND hubspot_id IS NOT NULL
+         AND hubspot_id != ''
+         AND role = 'member'
+       ORDER BY email
+       LIMIT 500`
+    );
+    
+    if (membersWithBoth.rows.length === 0) {
+      return res.json({ 
+        message: 'No members with both Stripe and HubSpot found',
+        totalChecked: 0,
+        needsUpdate: []
+      });
+    }
+    
+    interface PaymentStatusRecord {
+      email: string;
+      name: string;
+      stripeCustomerId: string;
+      hubspotId: string;
+      stripePaymentStatus: string;
+      stripeLastInvoiceDate: string | null;
+      stripeLastInvoiceAmount: number | null;
+      hubspotPaymentStatus: string | null;
+      needsUpdate: boolean;
+    }
+    
+    const needsUpdateList: PaymentStatusRecord[] = [];
+    const alreadySynced: PaymentStatusRecord[] = [];
+    const updated: Array<{ email: string; oldStatus: string | null; newStatus: string }> = [];
+    const errors: string[] = [];
+    
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY_MS = 150;
+    
+    for (let i = 0; i < membersWithBoth.rows.length; i += BATCH_SIZE) {
+      const batch = membersWithBoth.rows.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (member) => {
+        try {
+          const invoices = await stripe.invoices.list({
+            customer: member.stripe_customer_id,
+            limit: 1,
+            status: 'paid'
+          });
+          
+          let stripePaymentStatus = 'no_invoices';
+          let lastInvoiceDate: string | null = null;
+          let lastInvoiceAmount: number | null = null;
+          
+          if (invoices.data.length > 0) {
+            const latestInvoice = invoices.data[0];
+            stripePaymentStatus = latestInvoice.status || 'unknown';
+            lastInvoiceDate = latestInvoice.created 
+              ? new Date(latestInvoice.created * 1000).toISOString().split('T')[0]
+              : null;
+            lastInvoiceAmount = latestInvoice.amount_paid || null;
+          } else {
+            const allInvoices = await stripe.invoices.list({
+              customer: member.stripe_customer_id,
+              limit: 1
+            });
+            
+            if (allInvoices.data.length > 0) {
+              const latestInvoice = allInvoices.data[0];
+              stripePaymentStatus = latestInvoice.status || 'unknown';
+              lastInvoiceDate = latestInvoice.created 
+                ? new Date(latestInvoice.created * 1000).toISOString().split('T')[0]
+                : null;
+              lastInvoiceAmount = latestInvoice.amount_due || null;
+            }
+          }
+          
+          let hubspotPaymentStatus: string | null = null;
+          try {
+            const contact = await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.getById(member.hubspot_id, ['last_payment_status'])
+            );
+            hubspotPaymentStatus = contact.properties?.last_payment_status || null;
+          } catch (hubspotErr: any) {
+            if (!hubspotErr.message?.includes('404')) {
+              throw hubspotErr;
+            }
+          }
+          
+          const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+          const record: PaymentStatusRecord = {
+            email: member.email,
+            name: memberName,
+            stripeCustomerId: member.stripe_customer_id,
+            hubspotId: member.hubspot_id,
+            stripePaymentStatus,
+            stripeLastInvoiceDate: lastInvoiceDate,
+            stripeLastInvoiceAmount: lastInvoiceAmount,
+            hubspotPaymentStatus,
+            needsUpdate: hubspotPaymentStatus !== stripePaymentStatus
+          };
+          
+          if (hubspotPaymentStatus !== stripePaymentStatus) {
+            needsUpdateList.push(record);
+            
+            if (!dryRun) {
+              try {
+                await retryableHubSpotRequest(() =>
+                  hubspot.crm.contacts.basicApi.update(member.hubspot_id, {
+                    properties: {
+                      last_payment_status: stripePaymentStatus,
+                      last_payment_date: lastInvoiceDate || '',
+                      last_payment_amount: lastInvoiceAmount ? (lastInvoiceAmount / 100).toFixed(2) : ''
+                    }
+                  })
+                );
+                
+                updated.push({
+                  email: member.email,
+                  oldStatus: hubspotPaymentStatus,
+                  newStatus: stripePaymentStatus
+                });
+                
+                await db.insert(billingAuditLog).values({
+                  memberEmail: member.email,
+                  actionType: 'payment_status_synced_to_hubspot',
+                  previousValue: hubspotPaymentStatus || 'none',
+                  newValue: stripePaymentStatus,
+                  actionDetails: {
+                    source: 'data_tools',
+                    stripeCustomerId: member.stripe_customer_id,
+                    hubspotContactId: member.hubspot_id,
+                    lastInvoiceDate,
+                    lastInvoiceAmountCents: lastInvoiceAmount
+                  },
+                  performedBy: staffEmail,
+                  performedByName: staffEmail
+                });
+                
+                if (!isProduction) {
+                  console.log(`[DataTools] Updated HubSpot payment status for ${member.email}: ${hubspotPaymentStatus} -> ${stripePaymentStatus}`);
+                }
+              } catch (updateErr: any) {
+                errors.push(`Update ${member.email}: ${updateErr.message}`);
+              }
+            }
+          } else {
+            alreadySynced.push(record);
+          }
+        } catch (err: any) {
+          errors.push(`${member.email}: ${err.message}`);
+          if (!isProduction) {
+            console.error(`[DataTools] Error checking payment status for ${member.email}:`, err.message);
+          }
+        }
+      }));
+      
+      if (i + BATCH_SIZE < membersWithBoth.rows.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+    
+    if (!dryRun && updated.length > 0) {
+      logFromRequest(req, 'sync_payment_status', 'users', null, {
+        action: 'bulk_payment_status_sync',
+        updatedCount: updated.length,
+        staffEmail
+      });
+    }
+    
+    res.json({
+      message: dryRun 
+        ? `Preview: Found ${needsUpdateList.length} members needing payment status update`
+        : `Updated ${updated.length} HubSpot contacts with payment status`,
+      totalChecked: membersWithBoth.rows.length,
+      needsUpdateCount: needsUpdateList.length,
+      alreadySyncedCount: alreadySynced.length,
+      updatedCount: updated.length,
+      needsUpdate: needsUpdateList.slice(0, 100),
+      updated: updated.slice(0, 50),
+      errors: errors.slice(0, 20),
+      dryRun
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Sync payment status error:', error);
+    res.status(500).json({ error: 'Failed to sync payment status', details: error.message });
+  }
+});
+
+router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = (req as any).user?.email || 'unknown';
+    const { dryRun = true, startDate, endDate, limit = 100 } = req.body;
+    
+    console.log(`[DataTools] Starting Trackman ghost booking fix (dryRun: ${dryRun}) by ${staffEmail}`);
+    
+    let whereClause = `
+      br.trackman_booking_id IS NOT NULL
+      AND br.session_id IS NULL
+      AND br.status NOT IN ('cancelled', 'declined')
+    `;
+    const params: any[] = [];
+    let paramIndex = 1;
+    
+    if (startDate) {
+      whereClause += ` AND br.request_date >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      whereClause += ` AND br.request_date <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+    
+    const ghostBookingsResult = await pool.query(
+      `SELECT 
+        br.id,
+        br.user_id,
+        br.user_email,
+        br.user_name,
+        TO_CHAR(br.request_date, 'YYYY-MM-DD') as request_date,
+        br.start_time,
+        br.end_time,
+        br.duration_minutes,
+        br.resource_id,
+        br.trackman_booking_id,
+        br.trackman_player_count,
+        br.status,
+        u.tier
+       FROM booking_requests br
+       LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
+       WHERE ${whereClause}
+       ORDER BY br.request_date DESC, br.start_time DESC
+       LIMIT $${paramIndex}`,
+      [...params, limit]
+    );
+    
+    const ghostBookings = ghostBookingsResult.rows.map(row => ({
+      bookingId: row.id,
+      userId: row.user_id,
+      userEmail: row.user_email,
+      userName: row.user_name,
+      requestDate: row.request_date,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      durationMinutes: parseInt(row.duration_minutes) || 60,
+      resourceId: row.resource_id,
+      trackmanBookingId: row.trackman_booking_id,
+      playerCount: parseInt(row.trackman_player_count) || 1,
+      status: row.status,
+      tier: row.tier
+    }));
+    
+    if (dryRun) {
+      logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, {
+        action: 'preview',
+        ghostBookingsFound: ghostBookings.length,
+        staffEmail
+      });
+      
+      return res.json({
+        message: `Preview: Found ${ghostBookings.length} Trackman ghost bookings without billing sessions`,
+        totalFound: ghostBookings.length,
+        ghostBookings: ghostBookings.slice(0, 100),
+        dryRun: true
+      });
+    }
+    
+    const fixed: Array<{ bookingId: number; sessionId: number; userEmail: string }> = [];
+    const errors: string[] = [];
+    
+    const { createSession, recordUsage, linkParticipants } = await import('../core/bookingService/sessionManager');
+    const { getMemberTierByEmail } = await import('../core/tierService');
+    const { calculateFullSessionBilling } = await import('../core/bookingService/usageCalculator');
+    
+    for (const booking of ghostBookings) {
+      try {
+        const existingSessionCheck = await pool.query(
+          `SELECT session_id FROM booking_requests WHERE id = $1 AND session_id IS NOT NULL`,
+          [booking.bookingId]
+        );
+        
+        if (existingSessionCheck.rows.length > 0) {
+          continue;
+        }
+        
+        const duplicateSessionCheck = await pool.query(
+          `SELECT id FROM booking_sessions WHERE trackman_booking_id = $1`,
+          [booking.trackmanBookingId]
+        );
+        
+        if (duplicateSessionCheck.rows.length > 0) {
+          const existingSessionId = duplicateSessionCheck.rows[0].id;
+          await pool.query(
+            `UPDATE booking_requests SET session_id = $1, updated_at = NOW() WHERE id = $2`,
+            [existingSessionId, booking.bookingId]
+          );
+          
+          fixed.push({
+            bookingId: booking.bookingId,
+            sessionId: existingSessionId,
+            userEmail: booking.userEmail
+          });
+          
+          await db.insert(billingAuditLog).values({
+            memberEmail: booking.userEmail || 'unknown',
+            actionType: 'ghost_booking_linked_to_existing_session',
+            actionDetails: {
+              source: 'data_tools',
+              bookingId: booking.bookingId,
+              sessionId: existingSessionId,
+              trackmanBookingId: booking.trackmanBookingId
+            },
+            performedBy: staffEmail,
+            performedByName: staffEmail
+          });
+          
+          continue;
+        }
+        
+        const sessionResult = await pool.query(`
+          INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)
+          VALUES ($1, $2, $3, $4, $5, 'trackman', 'ghost_booking_fix')
+          RETURNING id
+        `, [booking.resourceId, booking.requestDate, booking.startTime, booking.endTime, booking.trackmanBookingId]);
+        
+        if (sessionResult.rows.length === 0) {
+          errors.push(`Failed to create session for booking ${booking.bookingId}`);
+          continue;
+        }
+        
+        const sessionId = sessionResult.rows[0].id;
+        
+        await pool.query(
+          `UPDATE booking_requests SET session_id = $1, updated_at = NOW() WHERE id = $2`,
+          [sessionId, booking.bookingId]
+        );
+        
+        const ownerTier = booking.tier || await getMemberTierByEmail(booking.userEmail, { allowInactive: true });
+        
+        const participants = [
+          { email: booking.userEmail, participantType: 'owner' as const, displayName: booking.userName || booking.userEmail }
+        ];
+        
+        for (let i = 1; i < booking.playerCount; i++) {
+          participants.push({
+            email: undefined as any,
+            participantType: 'guest' as const,
+            displayName: `Guest ${i + 1}`
+          });
+        }
+        
+        try {
+          const billingResult = await calculateFullSessionBilling(
+            booking.requestDate,
+            booking.durationMinutes,
+            participants,
+            booking.userEmail
+          );
+          
+          for (const billing of billingResult.billingBreakdown) {
+            if (billing.participantType === 'guest') {
+              if (billing.guestFee > 0) {
+                await recordUsage(sessionId, {
+                  memberId: booking.userEmail,
+                  minutesCharged: 0,
+                  overageFee: 0,
+                  guestFee: billing.guestFee,
+                  tierAtBooking: ownerTier || undefined,
+                  paymentMethod: 'unpaid'
+                }, 'staff_manual');
+              }
+            } else {
+              await recordUsage(sessionId, {
+                memberId: billing.email || booking.userEmail,
+                minutesCharged: billing.minutesAllocated,
+                overageFee: billing.overageFee,
+                guestFee: 0,
+                tierAtBooking: billing.tier || ownerTier || undefined,
+                paymentMethod: 'unpaid'
+              }, 'staff_manual');
+            }
+          }
+        } catch (billingErr: any) {
+          console.error(`[DataTools] Billing calculation error for booking ${booking.bookingId}:`, billingErr.message);
+          await recordUsage(sessionId, {
+            memberId: booking.userEmail,
+            minutesCharged: booking.durationMinutes,
+            overageFee: 0,
+            guestFee: 0,
+            tierAtBooking: ownerTier || undefined,
+            paymentMethod: 'unpaid'
+          }, 'staff_manual');
+        }
+        
+        fixed.push({
+          bookingId: booking.bookingId,
+          sessionId,
+          userEmail: booking.userEmail
+        });
+        
+        await db.insert(billingAuditLog).values({
+          memberEmail: booking.userEmail || 'unknown',
+          actionType: 'ghost_booking_session_created',
+          actionDetails: {
+            source: 'data_tools',
+            bookingId: booking.bookingId,
+            sessionId,
+            trackmanBookingId: booking.trackmanBookingId,
+            durationMinutes: booking.durationMinutes,
+            playerCount: booking.playerCount,
+            requestDate: booking.requestDate
+          },
+          performedBy: staffEmail,
+          performedByName: staffEmail
+        });
+        
+        if (!isProduction) {
+          console.log(`[DataTools] Fixed ghost booking ${booking.bookingId} -> session ${sessionId}`);
+        }
+        
+      } catch (err: any) {
+        errors.push(`Booking ${booking.bookingId}: ${err.message}`);
+        console.error(`[DataTools] Error fixing ghost booking ${booking.bookingId}:`, err.message);
+      }
+    }
+    
+    logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, {
+      action: 'execute',
+      ghostBookingsFound: ghostBookings.length,
+      fixedCount: fixed.length,
+      errorCount: errors.length,
+      staffEmail
+    });
+    
+    res.json({
+      message: `Fixed ${fixed.length} of ${ghostBookings.length} Trackman ghost bookings`,
+      totalFound: ghostBookings.length,
+      fixedCount: fixed.length,
+      fixed: fixed.slice(0, 100),
+      errors: errors.slice(0, 20),
+      dryRun: false
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Fix Trackman ghost bookings error:', error);
+    res.status(500).json({ error: 'Failed to fix Trackman ghost bookings', details: error.message });
+  }
+});
+
 export default router;

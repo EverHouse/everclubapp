@@ -35,6 +35,7 @@ const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'Booking Time Validity': 'high',
   'Members Without Email': 'high',
   'Deals Without Line Items': 'high',
+  'Tier Reconciliation': 'high',
   'Orphan Booking Participants': 'medium',
   'Orphan Wellness Enrollments': 'medium',
   'Orphan Event RSVPs': 'medium',
@@ -1137,6 +1138,187 @@ async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
   };
 }
 
+async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  
+  let stripe: any;
+  try {
+    stripe = await getStripeClient();
+  } catch (err) {
+    if (!isProduction) console.error('[DataIntegrity] Stripe API error for tier reconciliation:', err);
+    return {
+      checkName: 'Tier Reconciliation',
+      status: 'warning',
+      issueCount: 0,
+      issues: [{
+        category: 'sync_mismatch',
+        severity: 'info',
+        table: 'stripe_sync',
+        recordId: 'stripe_api',
+        description: 'Unable to connect to Stripe for tier reconciliation',
+        suggestion: 'Check Stripe integration connection'
+      }],
+      lastRun: new Date()
+    };
+  }
+  
+  let hubspot: any;
+  try {
+    hubspot = await getHubSpotClient();
+  } catch (err) {
+    if (!isProduction) console.error('[DataIntegrity] HubSpot API error for tier reconciliation:', err);
+  }
+  
+  const appMembersResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id, hubspot_id
+    FROM users 
+    WHERE stripe_customer_id IS NOT NULL
+      AND role = 'member'
+    ORDER BY RANDOM()
+    LIMIT 100
+  `);
+  const appMembers = appMembersResult.rows as any[];
+  
+  if (appMembers.length === 0) {
+    return {
+      checkName: 'Tier Reconciliation',
+      status: 'pass',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date()
+    };
+  }
+  
+  const productMap = new Map<string, { name: string; tier: string }>();
+  
+  const BATCH_SIZE = 10;
+  const BATCH_DELAY_MS = 100;
+  
+  const processMember = async (member: any): Promise<void> => {
+    const customerId = member.stripe_customer_id;
+    if (!customerId) return;
+    
+    const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const appTier = (member.tier || '').toLowerCase().trim();
+    
+    try {
+      const customerSubs = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'all',
+        limit: 10,
+        expand: ['data.items.data.price.product']
+      });
+      
+      const activeSub = customerSubs.data?.find((s: any) => 
+        ['active', 'trialing', 'past_due'].includes(s.status)
+      );
+      
+      if (!activeSub) return;
+      
+      const item = activeSub.items?.data?.[0];
+      const price = item?.price;
+      const product = typeof price?.product === 'object' ? price.product : null;
+      
+      if (!product) return;
+      
+      const stripeTier = (product.metadata?.tier || '').toLowerCase().trim();
+      const productName = (product.name || '').toLowerCase().trim();
+      const stripeEffectiveTier = stripeTier || productName;
+      
+      let hubspotTier: string | null = null;
+      if (hubspot && member.hubspot_id) {
+        try {
+          const contact = await hubspot.crm.contacts.basicApi.getById(
+            member.hubspot_id,
+            ['membership_tier']
+          );
+          hubspotTier = (contact.properties?.membership_tier || '').toLowerCase().trim();
+        } catch (err: any) {
+          if (err?.response?.status !== 404) {
+            if (!isProduction) console.error(`[DataIntegrity] HubSpot tier lookup failed for ${member.email}:`, err.message);
+          }
+        }
+      }
+      
+      const tierMismatches: SyncComparisonData[] = [];
+      
+      const tierMatches = (tier1: string, tier2: string): boolean => {
+        if (!tier1 || !tier2) return true;
+        return tier1.includes(tier2) || tier2.includes(tier1) || tier1 === tier2;
+      };
+      
+      const appVsStripe = tierMatches(appTier, stripeEffectiveTier);
+      const appVsHubspot = !hubspotTier || tierMatches(appTier, hubspotTier);
+      const stripeVsHubspot = !hubspotTier || tierMatches(stripeEffectiveTier, hubspotTier);
+      
+      if (!appVsStripe) {
+        tierMismatches.push({
+          field: 'App Tier vs Stripe Product',
+          appValue: member.tier || null,
+          externalValue: product.metadata?.tier || product.name || null
+        });
+      }
+      
+      if (!appVsHubspot && hubspotTier) {
+        tierMismatches.push({
+          field: 'App Tier vs HubSpot',
+          appValue: member.tier || null,
+          externalValue: hubspotTier
+        });
+      }
+      
+      if (!stripeVsHubspot && hubspotTier) {
+        tierMismatches.push({
+          field: 'Stripe Product vs HubSpot',
+          appValue: product.metadata?.tier || product.name || null,
+          externalValue: hubspotTier
+        });
+      }
+      
+      if (tierMismatches.length > 0) {
+        const mismatchDesc = tierMismatches.map(m => m.field).join(', ');
+        issues.push({
+          category: 'sync_mismatch',
+          severity: 'warning',
+          table: 'users',
+          recordId: member.id,
+          description: `Member "${memberName}" has tier mismatch: ${mismatchDesc}. App: "${member.tier || 'none'}", Stripe: "${product.name || 'unknown'}", HubSpot: "${hubspotTier || 'not set'}"`,
+          suggestion: 'Align tier across all systems using the Tier Change Wizard or manual sync',
+          context: {
+            memberName,
+            memberEmail: member.email || undefined,
+            memberTier: member.tier || undefined,
+            syncType: 'stripe',
+            stripeCustomerId: customerId,
+            hubspotContactId: member.hubspot_id || undefined,
+            userId: member.id,
+            syncComparison: tierMismatches
+          }
+        });
+      }
+    } catch (err: any) {
+      if (!isProduction) console.error(`[DataIntegrity] Error checking tier reconciliation for ${member.email}:`, err.message);
+    }
+  };
+  
+  for (let i = 0; i < appMembers.length; i += BATCH_SIZE) {
+    const batch = appMembers.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(processMember));
+    
+    if (i + BATCH_SIZE < appMembers.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+    }
+  }
+  
+  return {
+    checkName: 'Tier Reconciliation',
+    status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
 async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
@@ -1278,6 +1460,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     checkDealStageDrift(),
     checkStripeSubscriptionSync(),
     checkStuckTransitionalMembers(),
+    checkTierReconciliation(),
     checkBookingsWithoutSessions()
   ]);
   
