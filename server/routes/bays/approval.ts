@@ -300,24 +300,37 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
               .set({ status: 'cancelled', updatedAt: new Date() })
               .where(eq(bookingRequests.id, originalBooking.id));
             
-            // Cancel any pending payment intents for the original booking
+            // Handle all payment intents for the original booking - refund succeeded, cancel pending
             try {
-              const pendingIntents = await pool.query(
-                `SELECT stripe_payment_intent_id 
-                 FROM stripe_payment_intents 
-                 WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+              const stripe = await getStripeClient();
+              const allSnapshots = await pool.query(
+                `SELECT id, stripe_payment_intent_id FROM booking_fee_snapshots 
+                 WHERE booking_id = $1 AND stripe_payment_intent_id IS NOT NULL`,
                 [originalBooking.id]
               );
-              for (const row of pendingIntents.rows) {
+              
+              for (const snapshot of allSnapshots.rows) {
                 try {
-                  await cancelPaymentIntent(row.stripe_payment_intent_id);
-                  console.log(`[Reschedule] Cancelled payment intent ${row.stripe_payment_intent_id} for original booking ${originalBooking.id}`);
-                } catch (cancelErr: any) {
-                  console.error(`[Reschedule] Failed to cancel payment intent ${row.stripe_payment_intent_id}:`, cancelErr.message);
+                  const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
+                  
+                  if (pi.status === 'succeeded') {
+                    const refund = await stripe.refunds.create({
+                      payment_intent: snapshot.stripe_payment_intent_id,
+                      reason: 'requested_by_customer'
+                    });
+                    console.log(`[Reschedule] Refunded payment ${snapshot.stripe_payment_intent_id} for booking ${originalBooking.id}: ${refund.id}`);
+                    await pool.query(`UPDATE booking_fee_snapshots SET status = 'refunded' WHERE id = $1`, [snapshot.id]);
+                  } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
+                    await stripe.paymentIntents.cancel(snapshot.stripe_payment_intent_id);
+                    console.log(`[Reschedule] Cancelled payment intent ${snapshot.stripe_payment_intent_id} for original booking ${originalBooking.id}`);
+                    await pool.query(`UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE id = $1`, [snapshot.id]);
+                  }
+                } catch (piErr: any) {
+                  console.error(`[Reschedule] Failed to handle payment ${snapshot.stripe_payment_intent_id}:`, piErr.message);
                 }
               }
             } catch (cancelIntentsErr) {
-              console.error('[Reschedule] Failed to cancel pending payment intents (non-blocking):', cancelIntentsErr);
+              console.error('[Reschedule] Failed to handle payment intents (non-blocking):', cancelIntentsErr);
             }
             
             if (originalBooking.calendarEventId) {
@@ -565,24 +578,93 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           }
         }
         
-        // Cancel pending payment intents from stripe_payment_intents table
+        // Handle all payment intents - refund succeeded ones, cancel pending ones
         try {
-          const pendingIntents = await pool.query(
-            `SELECT stripe_payment_intent_id 
-             FROM stripe_payment_intents 
-             WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+          const stripe = await getStripeClient();
+          
+          // Get ALL payment intents for this booking from fee snapshots
+          const allSnapshots = await pool.query(
+            `SELECT id, stripe_payment_intent_id, status as snapshot_status, total_cents
+             FROM booking_fee_snapshots 
+             WHERE booking_id = $1 AND stripe_payment_intent_id IS NOT NULL`,
             [bookingId]
           );
-          for (const row of pendingIntents.rows) {
+          
+          for (const snapshot of allSnapshots.rows) {
             try {
-              await cancelPaymentIntent(row.stripe_payment_intent_id);
-              console.log(`[Staff Cancel] Cancelled payment intent ${row.stripe_payment_intent_id} for booking ${bookingId}`);
-            } catch (cancelErr: any) {
-              console.error(`[Staff Cancel] Failed to cancel payment intent ${row.stripe_payment_intent_id}:`, cancelErr.message);
+              const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
+              
+              if (pi.status === 'succeeded') {
+                // Refund succeeded payments
+                const refund = await stripe.refunds.create({
+                  payment_intent: snapshot.stripe_payment_intent_id,
+                  reason: 'requested_by_customer'
+                });
+                console.log(`[Staff Cancel] Refunded payment ${snapshot.stripe_payment_intent_id} for booking ${bookingId}: $${(pi.amount / 100).toFixed(2)}, refund: ${refund.id}`);
+                
+                // Update snapshot and participant status
+                await pool.query(
+                  `UPDATE booking_fee_snapshots SET status = 'refunded' WHERE id = $1`,
+                  [snapshot.id]
+                );
+              } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
+                // Cancel pending payments
+                await stripe.paymentIntents.cancel(snapshot.stripe_payment_intent_id);
+                console.log(`[Staff Cancel] Cancelled payment intent ${snapshot.stripe_payment_intent_id} for booking ${bookingId}`);
+                
+                await pool.query(
+                  `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE id = $1`,
+                  [snapshot.id]
+                );
+              } else if (pi.status === 'canceled') {
+                // Already cancelled, just update snapshot
+                await pool.query(
+                  `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE id = $1`,
+                  [snapshot.id]
+                );
+              }
+              
+              // Update stripe_payment_intents table status
+              await pool.query(
+                `UPDATE stripe_payment_intents SET status = $1, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,
+                [pi.status === 'succeeded' ? 'refunded' : 'canceled', snapshot.stripe_payment_intent_id]
+              );
+            } catch (piErr: any) {
+              console.error(`[Staff Cancel] Failed to handle payment ${snapshot.stripe_payment_intent_id}:`, piErr.message);
             }
           }
+          
+          // Also handle any payment intents in stripe_payment_intents not linked to snapshots
+          const otherIntents = await pool.query(
+            `SELECT stripe_payment_intent_id 
+             FROM stripe_payment_intents 
+             WHERE booking_id = $1 
+             AND stripe_payment_intent_id NOT IN (
+               SELECT stripe_payment_intent_id FROM booking_fee_snapshots 
+               WHERE booking_id = $1 AND stripe_payment_intent_id IS NOT NULL
+             )`,
+            [bookingId]
+          );
+          
+          for (const row of otherIntents.rows) {
+            try {
+              await cancelPaymentIntent(row.stripe_payment_intent_id);
+              console.log(`[Staff Cancel] Cancelled orphan payment intent ${row.stripe_payment_intent_id} for booking ${bookingId}`);
+            } catch (cancelErr: any) {
+              // Ignore errors for orphan intents
+            }
+          }
+          
+          // Update participant payment status to refunded for any paid participants
+          if (existing.sessionId) {
+            await pool.query(
+              `UPDATE booking_participants SET payment_status = 'refunded' 
+               WHERE session_id = $1 AND payment_status = 'paid'`,
+              [existing.sessionId]
+            );
+          }
         } catch (cancelIntentsErr) {
-          console.error('[Staff Cancel] Failed to cancel pending payment intents (non-blocking):', cancelIntentsErr);
+          console.error('[Staff Cancel] Failed to handle payment intents (non-blocking):', cancelIntentsErr);
         }
         
         let updatedStaffNotes = staff_notes || '';
