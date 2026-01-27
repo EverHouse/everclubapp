@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.18",
+    date: "2026-01-27",
+    title: "Trackman Webhook Count Display",
+    isMajor: false,
+    changes: [
+      "Webhook events section now always shows total count (e.g. '4 webhooks received') even when there's only one page",
+      "Pagination controls (Previous/Next) still only appear when there are multiple pages of results"
+    ]
+  },
+  {
     version: "9.32.17",
     date: "2026-01-27",
     title: "Simulator Tab Full Height Layout",

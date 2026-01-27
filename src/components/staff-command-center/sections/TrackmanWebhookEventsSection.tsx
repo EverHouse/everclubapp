@@ -611,11 +611,12 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                 })}
               </div>
 
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-3 border-t border-primary/10 dark:border-white/10">
-                  <p className="text-xs text-primary/60 dark:text-white/60">
-                    Page {webhookPage} of {totalPages} ({webhookTotalCount} total)
-                  </p>
+              {/* Always show total count, pagination buttons only when multiple pages */}
+              <div className="flex items-center justify-between pt-3 border-t border-primary/10 dark:border-white/10">
+                <p className="text-xs text-primary/60 dark:text-white/60">
+                  {totalPages > 1 ? `Page ${webhookPage} of ${totalPages} (${webhookTotalCount} total)` : `${webhookTotalCount} webhook${webhookTotalCount !== 1 ? 's' : ''} received`}
+                </p>
+                {totalPages > 1 && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => { 
@@ -642,8 +643,8 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                       Next
                     </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
