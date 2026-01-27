@@ -578,9 +578,10 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
     if (success) {
       await pool.query(
         `UPDATE trackman_webhook_events 
-         SET processing_error = NULL
+         SET processing_error = NULL,
+             matched_booking_id = COALESCE($2, matched_booking_id)
          WHERE id = $1`,
-        [eventId]
+        [eventId, matchedBookingId || null]
       );
     } else {
       await pool.query(
