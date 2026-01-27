@@ -1810,10 +1810,10 @@ const BookGolf: React.FC = () => {
       )}
 
       {canBook && (
-        <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-6 flex flex-col items-center w-full max-w-md mx-auto animate-in slide-in-from-bottom-4 duration-300 gap-2">
+        <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-300 gap-2">
           {/* Fee Breakdown - always show for simulator bookings */}
           {activeTab === 'simulator' && (
-            <div className={`w-full px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
+            <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`material-symbols-outlined text-lg ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>receipt_long</span>
                 <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Estimated Fees</span>
