@@ -1034,16 +1034,11 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       const formattedDate = formatDateDisplayWithDay(dateStr);
       const formattedTime = formatTime12Hour(booking.startTime);
       
-      const memberResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`, [booking.userEmail]);
-      const memberId = memberResult.rows[0]?.id;
-      
-      if (memberId) {
-        await pool.query(
-          `INSERT INTO notifications (user_id, title, message, type, link, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [memberId, 'Check-In Complete', `Thanks for visiting! Your session on ${formattedDate} at ${formattedTime} has been checked in.`, 'booking', '/bookings']
-        );
-      }
+      await pool.query(
+        `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [booking.userEmail, 'Check-In Complete', `Thanks for visiting! Your session on ${formattedDate} at ${formattedTime} has been checked in.`, 'booking', 'booking']
+      );
       
       sendNotificationToUser(booking.userEmail, {
         type: 'notification',
@@ -1061,16 +1056,11 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       const formattedDate = formatDateDisplayWithDay(noShowDateStr);
       const formattedTime = formatTime12Hour(booking.startTime);
       
-      const memberResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`, [booking.userEmail]);
-      const memberId = memberResult.rows[0]?.id;
-      
-      if (memberId) {
-        await pool.query(
-          `INSERT INTO notifications (user_id, title, message, type, link, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [memberId, 'Missed Booking', `You were marked as a no-show for your booking on ${formattedDate} at ${formattedTime}. If this was in error, please contact staff.`, 'booking', '/bookings']
-        );
-      }
+      await pool.query(
+        `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [booking.userEmail, 'Missed Booking', `You were marked as a no-show for your booking on ${formattedDate} at ${formattedTime}. If this was in error, please contact staff.`, 'booking', 'booking']
+      );
       
       sendNotificationToUser(booking.userEmail, {
         type: 'notification',

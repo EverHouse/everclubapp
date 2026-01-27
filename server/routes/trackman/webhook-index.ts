@@ -872,6 +872,35 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     }
 
     const fakeTrackmanId = `SIM-${Date.now()}`;
+    
+    // Create a webhook event record so it appears in Trackman Synced section
+    const webhookEventResult = await pool.query(`
+      INSERT INTO trackman_webhook_events (
+        event_type, 
+        trackman_booking_id, 
+        matched_booking_id,
+        payload, 
+        processed_at
+      )
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING id
+    `, [
+      'booking.confirmed',
+      fakeTrackmanId,
+      bookingId,
+      JSON.stringify({
+        test: true,
+        simulatedBy: 'staff',
+        bookingId: bookingId,
+        players: [{ email: booking.user_email, name: booking.user_name }]
+      })
+    ]);
+    
+    logger.info('[Simulate Confirm] Created webhook event record', {
+      bookingId,
+      trackmanId: fakeTrackmanId,
+      webhookEventId: webhookEventResult.rows[0]?.id
+    });
 
     let sessionId = booking.session_id;
     if (!sessionId && booking.resource_id) {

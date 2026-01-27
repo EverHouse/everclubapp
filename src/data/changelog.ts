@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.3",
+    date: "2026-01-27",
+    title: "Daily Usage & Notification Fixes",
+    changes: [
+      "Fixed: Daily usage now correctly includes 'attended' bookings (prevents unlimited bookings after check-in)",
+      "Fixed: Check-in and no-show notifications use correct database schema (user_email column)",
+      "Fixed: Simulated Trackman bookings now appear in Trackman Synced section",
+      "Fixed: Fee estimates now correctly calculate overage when member has already attended bookings today"
+    ]
+  },
+  {
     version: "9.32.2",
     date: "2026-01-27",
     title: "Comprehensive Fee Calculation Fix",

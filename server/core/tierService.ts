@@ -121,12 +121,14 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
 
 export async function getDailyBookedMinutes(email: string, date: string): Promise<number> {
   try {
+    // Include 'attended' - completed bookings still count toward daily allowance
+    // Exclude 'cancelled' and 'no_show' - those don't consume the allowance
     const result = await pool.query(
       `SELECT COALESCE(SUM(duration_minutes), 0) as total_minutes
        FROM booking_requests
        WHERE LOWER(user_email) = LOWER($1)
          AND request_date = $2
-         AND status IN ('pending', 'approved')`,
+         AND status IN ('pending', 'approved', 'attended')`,
       [email, date]
     );
     
@@ -158,7 +160,7 @@ export async function getDailyParticipantMinutes(email: string, date: string, ex
        JOIN booking_requests br ON bm.booking_id = br.id
        WHERE LOWER(bm.user_email) = LOWER($1)
          AND br.request_date = $2
-         AND br.status IN ('pending', 'approved')
+         AND br.status IN ('pending', 'approved', 'attended')
          AND LOWER(br.user_email) != LOWER($1)
          ${excludeBookingId ? 'AND br.id != $3' : ''}`,
       excludeBookingId ? [email, date, excludeBookingId] : [email, date]
@@ -184,7 +186,7 @@ export async function getDailyParticipantMinutes(email: string, date: string, ex
        JOIN users u ON bp.user_id = u.id
        WHERE LOWER(u.email) = LOWER($1)
          AND br.request_date = $2
-         AND br.status IN ('pending', 'approved')
+         AND br.status IN ('pending', 'approved', 'attended')
          AND LOWER(br.user_email) != LOWER($1)
          ${excludeBookingId ? 'AND br.id != $3' : ''}`,
       excludeBookingId ? [email, date, excludeBookingId] : [email, date]
