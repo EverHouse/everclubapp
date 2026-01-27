@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.14",
+    date: "2026-01-27",
+    title: "Fee Calculation Bug Fixes",
+    isMajor: false,
+    changes: [
+      "CRITICAL: Preview mode now counts ALL bookings where member is a participant (owned, booking_members, or booking_participants)",
+      "CRITICAL: This prevents surprise overage charges at check-in when member was on another booking earlier that day",
+      "Fixed: Preview usage now correctly calculates per-participant minutes (duration / player_count)",
+      "Fixed: Double-counting prevented when member is both owner and participant by deduplicating on booking_id",
+      "Fixed: Guest fee logic now consistent between feeCalculator and unifiedFeeService",
+      "Fixed: Members mistakenly marked as guests no longer charged guest fees (checks for user_id presence)"
+    ]
+  },
+  {
     version: "9.32.13",
     date: "2026-01-27",
     title: "Payment Cancellation and Refund System Overhaul",

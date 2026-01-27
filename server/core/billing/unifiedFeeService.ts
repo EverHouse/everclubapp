@@ -214,13 +214,63 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   if (allIdentifiers.length > 0) {
     if (isPreviewMode) {
       // For preview mode, query booking_requests directly (includes pending/approved/attended)
+      // IMPORTANT: Include bookings where the member is EITHER the owner OR a participant
+      // This prevents surprise overage charges at check-in
+      // Note: We use UNION (not UNION ALL) and deduplicate by booking_id to prevent double-counting
       const previewUsageQuery = `
-        SELECT LOWER(user_email) as identifier, COALESCE(SUM(duration_minutes), 0) as used
-        FROM booking_requests
-        WHERE LOWER(user_email) = ANY($1::text[])
-          AND request_date = $2
-          AND status IN ('pending', 'approved', 'attended')
-        GROUP BY LOWER(user_email)`;
+        WITH owned_bookings AS (
+          -- Bookings where the member is the owner
+          -- Per-participant minutes = duration / player_count
+          SELECT LOWER(user_email) as identifier, 
+                 br.id as booking_id,
+                 FLOOR(duration_minutes::float / GREATEST(1, COALESCE(declared_player_count, 1))) as minutes_share
+          FROM booking_requests br
+          WHERE LOWER(user_email) = ANY($1::text[])
+            AND request_date = $2
+            AND status IN ('pending', 'approved', 'attended')
+        ),
+        member_bookings AS (
+          -- Bookings where the member is a participant (via booking_members table)
+          -- Exclude bookings where they are already the owner to prevent double-counting
+          SELECT LOWER(bm.user_email) as identifier,
+                 br.id as booking_id,
+                 FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1))) as minutes_share
+          FROM booking_members bm
+          JOIN booking_requests br ON bm.booking_id = br.id
+          WHERE LOWER(bm.user_email) = ANY($1::text[])
+            AND br.request_date = $2
+            AND br.status IN ('pending', 'approved', 'attended')
+            AND LOWER(bm.user_email) != LOWER(br.user_email)  -- Exclude if they're the owner
+        ),
+        session_participant_bookings AS (
+          -- Bookings where the member is a participant (via booking_participants -> booking_sessions)
+          -- This handles cases where sessions were created but booking not in booking_members
+          SELECT LOWER(u.email) as identifier,
+                 br.id as booking_id,
+                 FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1))) as minutes_share
+          FROM booking_participants bp
+          JOIN booking_sessions bs ON bp.session_id = bs.id
+          JOIN booking_requests br ON bs.booking_id = br.id
+          JOIN users u ON bp.user_id = u.id
+          WHERE LOWER(u.email) = ANY($1::text[])
+            AND br.request_date = $2
+            AND br.status IN ('pending', 'approved', 'attended')
+            AND LOWER(u.email) != LOWER(br.user_email)  -- Exclude if they're the owner
+        ),
+        all_usage AS (
+          -- Combine all sources and deduplicate by booking_id + identifier
+          SELECT DISTINCT ON (identifier, booking_id) identifier, booking_id, minutes_share 
+          FROM (
+            SELECT identifier, booking_id, minutes_share FROM owned_bookings
+            UNION ALL
+            SELECT identifier, booking_id, minutes_share FROM member_bookings
+            UNION ALL
+            SELECT identifier, booking_id, minutes_share FROM session_participant_bookings
+          ) combined
+        )
+        SELECT identifier, COALESCE(SUM(minutes_share), 0) as used
+        FROM all_usage
+        GROUP BY identifier`;
       const usageResult = await pool.query(previewUsageQuery, [emailList.map(e => e.toLowerCase()), sessionDate]);
       usageResult.rows.forEach(r => usageMap.set(r.identifier, parseInt(r.used) || 0));
     } else {
@@ -279,7 +329,18 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     if (participant.participantType === 'guest') {
       lineItem.minutesAllocated = minutesPerParticipant;
       
-      if (guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
+      // Only charge guest fee if participant has NO user_id (i.e., not a member)
+      // Members incorrectly marked as guests should not be charged guest fees
+      // This matches the logic in feeCalculator.ts for consistency
+      const isActualGuest = !participant.userId;
+      
+      if (!isActualGuest) {
+        // Member mistakenly marked as guest - don't charge guest fee
+        lineItem.guestCents = 0;
+        logger.info('[FeeBreakdown] Skipping guest fee for member marked as guest', {
+          extra: { participantId: (participant as any).participantId, userId: participant.userId }
+        });
+      } else if (guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
         lineItem.guestPassUsed = true;
         guestPassesRemaining--;
         guestPassesUsed++;
