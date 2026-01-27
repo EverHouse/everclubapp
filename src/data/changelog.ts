@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.8",
+    date: "2026-01-27",
+    title: "Fee Estimate Caching Fix",
+    changes: [
+      "Fixed: Fee estimates now refresh properly instead of returning stale cached values",
+      "Fixed: Browser caching no longer causes incorrect $0 fee display for overage bookings",
+      "Added: Cache-control headers to fee estimate endpoints to prevent stale responses"
+    ]
+  },
+  {
     version: "9.32.7",
     date: "2026-01-27",
     title: "Trackman V2 Webhook Complete Fix",

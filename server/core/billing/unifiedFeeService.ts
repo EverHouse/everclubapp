@@ -310,6 +310,18 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       lineItem.dailyAllowance = dailyAllowance;
       lineItem.usedMinutesToday = usedMinutesToday;
       
+      logger.info('[FeeBreakdown] Owner fee calculation', {
+        extra: {
+          ownerEmail,
+          tierName,
+          dailyAllowance,
+          unlimitedAccess,
+          usedMinutesToday,
+          sessionDuration,
+          willCalculateOverage: !unlimitedAccess && dailyAllowance < 999
+        }
+      });
+      
       if (!unlimitedAccess && dailyAllowance < 999) {
         const totalAfterSession = usedMinutesToday + sessionDuration;
         const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
@@ -317,6 +329,18 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         
         const overageMinutes = Math.max(0, overageResult.overageMinutes - priorOverage.overageMinutes);
         const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
+        
+        logger.info('[FeeBreakdown] Overage calculation result', {
+          extra: {
+            totalAfterSession,
+            overageResultMinutes: overageResult.overageMinutes,
+            overageResultFee: overageResult.overageFee,
+            priorOverageMinutes: priorOverage.overageMinutes,
+            priorOverageFee: priorOverage.overageFee,
+            finalOverageMinutes: overageMinutes,
+            finalOverageFee: overageFee
+          }
+        });
         
         lineItem.overageCents = overageFee * 100;
         totalOverageCents += lineItem.overageCents;
