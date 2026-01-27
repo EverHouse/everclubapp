@@ -1045,17 +1045,79 @@ html.dark .border-accessible {
 @keyframes staggerFadeIn {
   0% {
     opacity: 0;
-    transform: scale(0.98);
+    transform: translateY(16px) scale(0.97);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
+/* Dynamic stagger with CSS variable - use style={{ '--stagger-index': index }} */
 .animate-slide-up-stagger {
   opacity: 0;
-  animation: staggerFadeIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: staggerFadeIn 0.45s var(--spring-smooth) forwards;
+  animation-delay: calc(var(--stagger-index, 0) * 50ms);
+}
+
+/* Glass Interactive - Premium shimmer effect on press */
+.glass-interactive {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s var(--spring-smooth), box-shadow 0.15s ease-out;
+}
+
+.glass-interactive::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  transition: none;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-interactive:active {
+  transform: scale(var(--tap-scale, 0.97));
+}
+
+.glass-interactive:active::after {
+  left: 150%;
+  transition: left 0.5s ease-out;
+}
+
+/* Dark mode shimmer - slightly more visible */
+.dark .glass-interactive::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+}
+
+/* Smooth skeleton-to-content reveal transition */
+.smooth-reveal {
+  transition: opacity 0.4s ease-out, transform 0.4s var(--spring-smooth);
+}
+
+.smooth-reveal-hidden {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.smooth-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Soft Layered Shadows - Premium floating card effect */
