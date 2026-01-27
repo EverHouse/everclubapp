@@ -987,32 +987,6 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       }
     }
     
-    const { skipOverageCheck } = req.body;
-    if (newStatus === 'attended' && !skipOverageCheck) {
-      const overageResult = await pool.query(`
-        SELECT overage_minutes, overage_fee_cents, overage_paid
-        FROM booking_requests
-        WHERE id = $1
-      `, [bookingId]);
-      
-      if (overageResult.rows.length > 0) {
-        const overage = overageResult.rows[0];
-        const overageFeeCents = overage.overage_fee_cents || 0;
-        const overagePaid = overage.overage_paid ?? (overageFeeCents === 0);
-        
-        if (overageFeeCents > 0 && !overagePaid) {
-          return res.status(402).json({
-            error: 'Unpaid overage fee',
-            requiresOveragePayment: true,
-            overageMinutes: overage.overage_minutes,
-            overageFeeCents: overageFeeCents,
-            overageBlocks: Math.ceil(overage.overage_minutes / 30),
-            message: `Member has an unpaid simulator overage fee of $${(overageFeeCents / 100).toFixed(2)} (${overage.overage_minutes} min over tier limit). Payment required before check-in.`
-          });
-        }
-      }
-    }
-    
     if (newStatus === 'attended' && !existing.session_id && !skipPaymentCheck) {
       return res.status(400).json({
         error: 'Billing session not generated yet',
@@ -1028,13 +1002,8 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
           bp.display_name,
           bp.participant_type,
           bp.payment_status,
-          COALESCE(ul.overage_fee, 0)::numeric as overage_fee,
-          COALESCE(ul.guest_fee, 0)::numeric as guest_fee
+          COALESCE(bp.cached_fee_cents, 0)::numeric / 100.0 as fee_amount
         FROM booking_participants bp
-        LEFT JOIN users pu ON pu.id = bp.user_id
-        LEFT JOIN booking_requests br ON br.session_id = bp.session_id AND br.status != 'cancelled'
-        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
-          AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email) OR LOWER(ul.member_id) = LOWER(br.user_email))
         WHERE bp.session_id = $1 AND bp.payment_status = 'pending'
       `, [existing.session_id]);
       
@@ -1042,7 +1011,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       const unpaidParticipants: Array<{ id: number; name: string; amount: number }> = [];
       
       for (const p of balanceResult.rows) {
-        const amount = parseFloat(p.overage_fee) + parseFloat(p.guest_fee);
+        const amount = parseFloat(p.fee_amount);
         if (amount > 0) {
           totalOutstanding += amount;
           unpaidParticipants.push({

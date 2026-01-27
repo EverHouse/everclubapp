@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.16",
+    date: "2026-01-27",
+    title: "Check-In Fee Detection Fix",
+    isMajor: false,
+    changes: [
+      "CRITICAL: Fixed check-in not detecting unpaid fees - was reading from legacy usage_ledger table instead of unified fee data",
+      "Fixed: Check-in endpoint now reads fees from booking_participants.cached_fee_cents (the authoritative source)",
+      "Fixed: Removed duplicate legacy overage check that was querying deprecated booking_requests.overage_fee_cents column",
+      "Consolidated to single unified payment check that correctly filters by payment_status = 'pending'",
+      "This ensures 'Charge $XX' button appears when members have unpaid fees, preventing uncollected overage charges"
+    ]
+  },
+  {
     version: "9.32.15",
     date: "2026-01-27",
     title: "Fee Estimate Display Fix & Responsive Layout",
