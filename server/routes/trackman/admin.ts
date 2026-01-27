@@ -1477,6 +1477,13 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
           [sessionId, memberEmail.toLowerCase(), displayName]
         );
       }
+      
+      // Recalculate fees after adding participant
+      try {
+        await recalculateSessionFees(sessionId, 'link_member');
+      } catch (feeErr) {
+        console.warn(`[Link Member] Failed to recalculate fees for session ${sessionId}:`, feeErr);
+      }
     }
     
     if (bookingResult.rows[0]) {

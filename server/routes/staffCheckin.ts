@@ -862,6 +862,13 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
         JSON.stringify({ participantType: 'guest', guestName })
       ]);
 
+      // Recalculate fees to update all participant fees
+      try {
+        await recalculateSessionFees(sessionId, 'staff_add_guest');
+      } catch (feeErr) {
+        console.warn(`[Staff Add Guest] Failed to recalculate fees for session ${sessionId}:`, feeErr);
+      }
+
       logFromRequest(req, 'direct_add_participant', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {
         participantType: 'guest',
         guestName,
@@ -961,6 +968,13 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
           tierOverrideApplied
         })
       ]);
+
+      // Recalculate fees to update all participant fees
+      try {
+        await recalculateSessionFees(sessionId, 'staff_add_member');
+      } catch (feeErr) {
+        console.warn(`[Staff Add Member] Failed to recalculate fees for session ${sessionId}:`, feeErr);
+      }
 
       logFromRequest(req, 'direct_add_participant', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {
         participantType: 'member',

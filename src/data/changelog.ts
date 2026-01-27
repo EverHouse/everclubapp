@@ -15,12 +15,15 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "9.32.2",
     date: "2026-01-27",
-    title: "Trackman Webhook Fee Calculation",
+    title: "Comprehensive Fee Calculation Fix",
     changes: [
-      "Fixed: Real Trackman webhook bookings now create booking_participants with cached fees (was only working for simulated confirmations)",
+      "Fixed: Real Trackman webhook bookings now create booking_participants with cached fees",
       "Fixed: Linked pending bookings via Trackman webhook now create sessions and participants if missing",
-      "Fixed: 'Has Unpaid Fees' indicator now shows correctly for all Trackman-confirmed bookings",
-      "Fixed: Assigning unmatched Trackman bookings to members now recalculates and caches fees properly"
+      "Fixed: Assigning unmatched Trackman bookings to members now recalculates fees",
+      "Fixed: Ghost booking auto-fix tool now creates participants and caches fees",
+      "Fixed: Staff adding members/guests to bookings now triggers fee recalculation",
+      "Fixed: Linking members to booking slots now recalculates session fees",
+      "Fixed: 'Has Unpaid Fees' indicator now shows correctly across all booking creation flows"
     ]
   },
   {

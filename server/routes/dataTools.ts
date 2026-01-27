@@ -1730,7 +1730,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     
     const { createSession, recordUsage, linkParticipants } = await import('../core/bookingService/sessionManager');
     const { getMemberTierByEmail } = await import('../core/tierService');
-    const { calculateFullSessionBilling } = await import('../core/bookingService/usageCalculator');
+    const { calculateFullSessionBilling, recalculateSessionFees } = await import('../core/bookingService/usageCalculator');
     
     for (const booking of ghostBookings) {
       try {
@@ -1850,6 +1850,32 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             tierAtBooking: ownerTier || undefined,
             paymentMethod: 'unpaid'
           }, 'staff_manual');
+        }
+        
+        // Create booking_participants and cache fees
+        try {
+          const userResult = await pool.query(
+            `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`,
+            [booking.userEmail]
+          );
+          const userId = userResult.rows[0]?.id || null;
+          
+          await pool.query(`
+            INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+            VALUES ($1, $2, 'owner', $3, 'pending')
+            ON CONFLICT (session_id, user_id) WHERE user_id IS NOT NULL DO NOTHING
+          `, [sessionId, userId, booking.userName || booking.userEmail]);
+          
+          for (let i = 1; i < booking.playerCount; i++) {
+            await pool.query(`
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+              VALUES ($1, NULL, 'guest', $2, 'pending')
+            `, [sessionId, `Guest ${i + 1}`]);
+          }
+          
+          await recalculateSessionFees(sessionId);
+        } catch (participantErr: any) {
+          console.warn(`[DataTools] Failed to create participants for session ${sessionId}:`, participantErr.message);
         }
         
         fixed.push({
