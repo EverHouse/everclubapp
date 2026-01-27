@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.31.2",
+    date: "2026-01-27",
+    title: "Premium Motion & Interaction Polish",
+    changes: [
+      "UX: Added shimmer effect on interactive cards for premium glass feel",
+      "UX: Improved stagger animations with smooth slide-up and spring physics",
+      "UX: Added SmoothReveal component for smoother skeleton-to-content transitions",
+      "UX: Enhanced tap feedback with consistent scaling across interactive elements"
+    ]
+  },
+  {
     version: "9.31.1",
     date: "2026-01-27",
     title: "Data Integrity & Reconciliation Fixes",
