@@ -3,8 +3,8 @@ import Stripe from 'stripe';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { pool } from '../../core/db';
 import { db } from '../../db';
-import { billingAuditLog, passRedemptionLogs, dayPassPurchases } from '../../../shared/schema';
-import { eq, gte, desc } from 'drizzle-orm';
+import { billingAuditLog, passRedemptionLogs, dayPassPurchases, users } from '../../../shared/schema';
+import { eq, gte, desc, inArray } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
 import { isExpandedProduct } from '../../types/stripe-helpers';
 import { getTodayPacific, getPacificMidnightUTC } from '../../utils/dateUtils';
@@ -813,6 +813,7 @@ router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request
       stripe.paymentIntents.list({
         created: { gte: Math.floor(startOfDay.getTime() / 1000) },
         limit: 50,
+        expand: ['data.customer'],
       }),
       db.select({
         id: passRedemptionLogs.id,
@@ -831,18 +832,55 @@ router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request
         .limit(20)
     ]);
 
+    const getPaymentEmail = (pi: any): string => {
+      if (pi.metadata?.memberEmail) return pi.metadata.memberEmail;
+      if (pi.metadata?.email) return pi.metadata.email;
+      if (pi.receipt_email) return pi.receipt_email;
+      if (typeof pi.customer === 'object' && pi.customer?.email) return pi.customer.email;
+      return '';
+    };
+
+    const getCustomerName = (pi: any): string | undefined => {
+      if (pi.metadata?.memberName) return pi.metadata.memberName;
+      if (typeof pi.customer === 'object' && pi.customer?.name) return pi.customer.name;
+      return undefined;
+    };
+
+    const emails = paymentIntents.data
+      .map(getPaymentEmail)
+      .filter((e): e is string => !!e);
+    
+    const memberNameMap = new Map<string, string>();
+    if (emails.length > 0) {
+      const memberResults = await db
+        .select({ email: users.email, firstName: users.firstName, lastName: users.lastName })
+        .from(users)
+        .where(inArray(users.email, emails));
+      for (const m of memberResults) {
+        if (m.email) {
+          const name = [m.firstName, m.lastName].filter(Boolean).join(' ');
+          memberNameMap.set(m.email.toLowerCase(), name || m.email);
+        }
+      }
+    }
+
     const stripeTransactions = paymentIntents.data
       .filter(pi => pi.status === 'succeeded' || pi.status === 'processing')
-      .map(pi => ({
-        id: pi.id,
-        amount: pi.amount,
-        status: pi.status,
-        description: pi.description || pi.metadata?.purpose || 'Payment',
-        memberEmail: pi.metadata?.memberEmail || pi.metadata?.email || pi.receipt_email || '',
-        memberName: pi.metadata?.memberName || 'Unknown',
-        createdAt: new Date(pi.created * 1000).toISOString(),
-        type: pi.metadata?.purpose || 'payment'
-      }));
+      .map(pi => {
+        const email = getPaymentEmail(pi);
+        const stripeName = getCustomerName(pi);
+        const dbName = email ? memberNameMap.get(email.toLowerCase()) : undefined;
+        return {
+          id: pi.id,
+          amount: pi.amount,
+          status: pi.status,
+          description: pi.description || pi.metadata?.purpose || 'Payment',
+          memberEmail: email,
+          memberName: dbName || stripeName || email || 'Unknown',
+          createdAt: new Date(pi.created * 1000).toISOString(),
+          type: pi.metadata?.purpose || 'payment'
+        };
+      });
 
     const passRedemptionTransactions = passRedemptions.map(pr => {
       const guestName = [pr.purchaserFirstName, pr.purchaserLastName].filter(Boolean).join(' ') || 'Guest';
