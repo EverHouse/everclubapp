@@ -890,11 +890,14 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     
     // Get resource info for realistic webhook
     const resourceResult = await pool.query(
-      `SELECT id, name, trackman_bay_id FROM resources WHERE id = $1`,
+      `SELECT id, name FROM resources WHERE id = $1`,
       [booking.resource_id]
     );
     const resource = resourceResult.rows[0];
     const bayRef = resource?.name?.match(/\d+/)?.[0] || '1';
+    // Map bay number to Trackman bay ID (approximate mapping)
+    const bayIdMap: Record<string, number> = { '1': 7410, '2': 7411, '3': 7412, '4': 7413 };
+    const trackmanBayId = bayIdMap[bayRef] || 7410;
     
     // Build ISO timestamps from booking date and times
     const bookingDate = typeof booking.request_date === 'string' 
@@ -913,7 +916,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       booking: {
         id: parseInt(fakeTrackmanId.replace('SIM-', '')),
         bay: {
-          id: resource?.trackman_bay_id || 7410,
+          id: trackmanBayId,
           ref: bayRef
         },
         end: endISO,
