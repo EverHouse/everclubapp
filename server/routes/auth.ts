@@ -325,12 +325,35 @@ router.post('/api/auth/verify-member', async (req, res) => {
     const hasDbUser = dbUser.length > 0;
     const isStripeBilled = hasDbUser && (dbUser[0].stripeSubscriptionId || dbUser[0].stripeCustomerId);
     
-    // For Stripe-billed members: use database as source of truth
+    // For Stripe-billed members: verify with Stripe and auto-correct status if needed
     if (hasDbUser && isStripeBilled && !isStaffOrAdmin) {
-      const dbMemberStatus = (dbUser[0].membershipStatus || '').toLowerCase();
-      const activeStatuses = ['active', 'trialing', 'past_due']; // past_due still has access while retrying payment
+      let dbMemberStatus = (dbUser[0].membershipStatus || '').toLowerCase();
+      const activeStatuses = ['active', 'trialing', 'past_due'];
       
-      if (!activeStatuses.includes(dbMemberStatus)) {
+      // If database status doesn't match active statuses, verify with Stripe directly
+      if (!activeStatuses.includes(dbMemberStatus) && dbUser[0].stripeSubscriptionId) {
+        try {
+          const { getStripeClient } = await import('../core/stripe/client');
+          const stripe = await getStripeClient();
+          const subscription = await stripe.subscriptions.retrieve(dbUser[0].stripeSubscriptionId);
+          
+          const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
+          if (stripeActiveStatuses.includes(subscription.status)) {
+            // Auto-fix the database - subscription is actually active
+            await pool.query(
+              `UPDATE users SET membership_status = $1, updated_at = NOW() WHERE id = $2`,
+              [subscription.status, dbUser[0].id]
+            );
+            console.log(`[Auth] Auto-fixed membership_status for ${normalizedEmail}: ${dbMemberStatus} -> ${subscription.status}`);
+            dbMemberStatus = subscription.status; // Update for session
+          } else {
+            return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+          }
+        } catch (stripeError: any) {
+          console.error(`[Auth] Failed to verify Stripe subscription for ${normalizedEmail}:`, stripeError.message);
+          return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+        }
+      } else if (!activeStatuses.includes(dbMemberStatus)) {
         return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
       }
       
@@ -461,12 +484,39 @@ router.post('/api/auth/request-otp', async (req, res) => {
     
     let firstName = isStaffOrAdmin ? 'Team Member' : 'Member';
     
-    // For Stripe-billed members: use database as source of truth
+    // For Stripe-billed members: verify with Stripe and auto-correct status if needed
     if (hasDbUser && isStripeBilled && !isStaffOrAdmin) {
       const dbMemberStatus = (dbUser[0].membershipStatus || '').toLowerCase();
-      const activeStatuses = ['active', 'trialing', 'past_due']; // past_due still has access while retrying payment
+      const activeStatuses = ['active', 'trialing', 'past_due'];
       
-      if (!activeStatuses.includes(dbMemberStatus)) {
+      // If database status doesn't match active statuses, verify with Stripe directly
+      if (!activeStatuses.includes(dbMemberStatus) && dbUser[0].stripeSubscriptionId) {
+        try {
+          const { getStripeClient } = await import('../core/stripe/client');
+          const stripe = await getStripeClient();
+          const subscription = await stripe.subscriptions.retrieve(dbUser[0].stripeSubscriptionId);
+          
+          // Map Stripe status to our status
+          const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
+          if (stripeActiveStatuses.includes(subscription.status)) {
+            // Auto-fix the database - subscription is actually active
+            await pool.query(
+              `UPDATE users SET membership_status = $1, updated_at = NOW() WHERE id = $2`,
+              [subscription.status, dbUser[0].id]
+            );
+            console.log(`[Auth] Auto-fixed membership_status for ${normalizedEmail}: ${dbMemberStatus} -> ${subscription.status}`);
+            // Continue with login - subscription is valid
+          } else {
+            // Subscription is genuinely not active in Stripe
+            return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+          }
+        } catch (stripeError: any) {
+          console.error(`[Auth] Failed to verify Stripe subscription for ${normalizedEmail}:`, stripeError.message);
+          // If we can't verify with Stripe, fall back to database status
+          return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+        }
+      } else if (!activeStatuses.includes(dbMemberStatus)) {
+        // No subscription ID to verify, status is not active
         return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
       }
       

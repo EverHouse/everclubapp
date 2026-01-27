@@ -72,6 +72,7 @@ Server startup is organized into loader modules for clean separation of concerns
 - **QR Code System**: QR codes for day passes and digital access cards for members, with staff scanning functionality.
 - **Corporate Membership**: Supports unified billing groups, volume pricing, corporate checkout, HubSpot company sync, and individual tracking.
 - **Data Integrity Architecture**: Stripe as the source of truth for billing, transaction rollback, fail-fast on Stripe errors, webhook idempotency, and automatic status sync. Dual-source active tracking using HubSpot and Stripe.
+- **Stripe Member Auto-Fix**: Login flow automatically verifies Stripe subscription status and corrects `membership_status` if database is out of sync. If a member has a Stripe subscription but incorrect status (e.g., 'non-member'), the system checks Stripe directly and auto-corrects the database. This prevents login failures due to stale data from imports or missed webhooks.
 - **Stripe Customer Metadata Sync**: Customer metadata (userId, tier) is synced to Stripe automatically and via a bulk sync endpoint.
 - **Stripe Transaction Cache**: Transactions are cached locally in `stripe_transaction_cache` for fast querying.
 - **Scheduled Maintenance**: Daily scheduled tasks for session cleanup, webhook log cleanup, Stripe reconciliation, and grace period checks.
