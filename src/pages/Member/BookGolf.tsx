@@ -1239,7 +1239,7 @@ const BookGolf: React.FC = () => {
           )}
 
           {activeTab === 'simulator' && playerCount > 1 && (
-          <section className={`rounded-2xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+          <section className={`rounded-2xl p-4 border glass-card relative ${activeSearchIndex !== null ? 'z-20' : 'z-10'} ${isDark ? 'border-white/25' : 'border-black/10'}`}>
             <div className="flex items-center gap-2 mb-3">
               <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Additional Players</span>
               <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>(Optional)</span>
