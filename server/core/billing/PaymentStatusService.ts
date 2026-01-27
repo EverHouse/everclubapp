@@ -72,7 +72,7 @@ export class PaymentStatusService {
       
       // Update fee snapshot status to 'completed' to match webhook behavior
       await client.query(
-        `UPDATE booking_fee_snapshots SET status = 'completed', used_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        `UPDATE booking_fee_snapshots SET status = 'completed', used_at = NOW() WHERE id = $1`,
         [snapshot.id]
       );
       
@@ -153,7 +153,7 @@ export class PaymentStatusService {
         const snapshot = snapshotResult.rows[0];
         
         await client.query(
-          `UPDATE booking_fee_snapshots SET status = 'refunded', updated_at = NOW() WHERE id = $1`,
+          `UPDATE booking_fee_snapshots SET status = 'refunded' WHERE id = $1`,
           [snapshot.id]
         );
         
@@ -221,7 +221,7 @@ export class PaymentStatusService {
       // Update fee snapshot status
       if (snapshotResult.rows.length > 0) {
         await client.query(
-          `UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() 
+          `UPDATE booking_fee_snapshots SET status = 'cancelled' 
            WHERE stripe_payment_intent_id = $1`,
           [paymentIntentId]
         );
