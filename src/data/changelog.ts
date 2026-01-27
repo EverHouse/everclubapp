@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.6",
+    date: "2026-01-27",
+    title: "Trackman V2 Webhook Processing Fix",
+    changes: [
+      "Fixed: Trackman V2 webhooks now properly create booking requests when no externalBookingId match",
+      "Fixed: Replayed webhooks from production now appear on booking calendar and queue",
+      "Fixed: V2 webhooks fall through to standard processing for member matching and booking creation"
+    ]
+  },
+  {
     version: "9.32.5",
     date: "2026-01-27",
     title: "Critical Fee Estimate Fix",

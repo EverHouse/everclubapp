@@ -199,6 +199,20 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
           if (cancelResult.cancelled) {
             matchedBookingId = cancelResult.bookingId;
           }
+        } else {
+          // V2 webhook didn't match via externalBookingId - fall through to standard processing
+          // This creates booking requests for new Trackman bookings, auto-approves pending requests, etc.
+          logger.info('[Trackman Webhook] V2: No externalBookingId match, falling through to standard processing', {
+            extra: { 
+              trackmanBookingId: v2Result.normalized.trackmanBookingId,
+              customerEmail: v2Result.normalized.customerEmail,
+              date: v2Result.normalized.parsedDate,
+              time: v2Result.normalized.parsedStartTime
+            }
+          });
+          
+          const result = await handleBookingUpdate(payload);
+          matchedBookingId = result.matchedBookingId;
         }
       }
     } else {
