@@ -602,6 +602,19 @@ const BookGolf: React.FC = () => {
     }
   }, [selectedDateObj?.date, activeTab, rescheduleBookingId, checkExistingBookings]);
 
+  // Listen for real-time booking updates (e.g., when staff declines a booking)
+  useEffect(() => {
+    const handleBookingUpdate = () => {
+      fetchMyRequests();
+      if (selectedDateObj?.date && activeTab === 'simulator' && !rescheduleBookingId) {
+        checkExistingBookings(selectedDateObj.date, 'simulator');
+      }
+    };
+    
+    window.addEventListener('booking-update', handleBookingUpdate);
+    return () => window.removeEventListener('booking-update', handleBookingUpdate);
+  }, [fetchMyRequests, checkExistingBookings, selectedDateObj?.date, activeTab, rescheduleBookingId]);
+
   // Auto-scroll to time slots when duration is selected by user (not on initial load)
   useEffect(() => {
     if (hasUserSelectedDuration && duration && timeSlotsRef.current) {

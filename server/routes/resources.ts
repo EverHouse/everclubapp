@@ -605,6 +605,13 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
       reason: req.body.reason || 'Not specified'
     });
     
+    sendNotificationToUser(result.userEmail, {
+      type: 'booking_update',
+      title: 'Booking Declined',
+      message: 'Your booking request has been declined.',
+      data: { bookingId, status: 'declined' }
+    });
+    
     res.json(result);
   } catch (error: any) {
     if (error.statusCode) {
