@@ -18,6 +18,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Landing Page Header Visual Polish",
     changes: [
       "Fixed: Landing page header now matches green status bar for unified appearance",
+      "Fixed: Removed background transition that caused white flash when scrolling",
       "Fixed: Member profile drawer no longer shows gap on right side during slide-in animation"
     ]
   },
