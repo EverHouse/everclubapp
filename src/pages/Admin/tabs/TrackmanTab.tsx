@@ -1146,57 +1146,90 @@ const TrackmanTab: React.FC = () => {
           </p>
           
           <div className="space-y-4 max-h-[500px] overflow-y-auto">
-            {potentialMatches.map((item: any) => (
-              <div key={item.id} className="p-4 bg-white/50 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10">
-                <div className="flex justify-between items-start gap-3 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-primary dark:text-white truncate">
-                      {item.user_name || 'Unknown'}
+            {potentialMatches.map((item: any) => {
+              const trackman = item.unmatchedBooking || item;
+              const unmatchedId = trackman.id || item.id;
+              const formatTime = (t: string | null | undefined) => t?.substring(0, 5) || '--:--';
+              
+              return (
+                <div key={unmatchedId} className="p-4 bg-white/50 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10">
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300">
+                        Trackman Booking
+                      </span>
+                    </div>
+                    <p className="font-bold text-primary dark:text-white">
+                      {trackman.userName || trackman.user_name || 'Unknown Customer'}
                     </p>
-                    <p className="text-xs text-primary/80 dark:text-white/80 truncate">
-                      {item.original_email || 'No email'}
+                    <p className="text-xs text-primary/80 dark:text-white/80">
+                      {trackman.originalEmail || trackman.original_email || 'No email from Trackman'}
                     </p>
-                    <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
-                      {formatDateDisplayWithDay(item.booking_date)} • {item.start_time?.substring(0, 5)} - {item.end_time?.substring(0, 5)} • Bay {item.bay_number}
-                    </p>
-                  </div>
-                </div>
-                
-                {item.potentialAppBookings && item.potentialAppBookings.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-primary/10 dark:border-white/10">
-                    <p className="text-xs font-medium text-primary/60 dark:text-white/60 mb-2 uppercase tracking-wide">
-                      Potential Matches:
-                    </p>
-                    <div className="space-y-2">
-                      {item.potentialAppBookings.map((match: any) => (
-                        <div key={match.id} className="flex items-center justify-between gap-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-primary dark:text-white truncate">
-                              {match.userName}
-                            </p>
-                            <p className="text-xs text-primary/70 dark:text-white/70 truncate">
-                              {match.userEmail}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleLinkPotentialMatch(item.id, match.id, match.userEmail)}
-                            disabled={isLinkingMatch === item.id}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors disabled:opacity-50 shrink-0 flex items-center gap-1"
-                          >
-                            {isLinkingMatch === item.id ? (
-                              <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                            ) : (
-                              <span className="material-symbols-outlined text-sm">link</span>
-                            )}
-                            Link
-                          </button>
-                        </div>
-                      ))}
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
+                        <span className="material-symbols-outlined text-sm">calendar_today</span>
+                        {trackman.bookingDate || trackman.booking_date 
+                          ? formatDateDisplayWithDay(trackman.bookingDate || trackman.booking_date) 
+                          : 'Unknown date'}
+                      </span>
+                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
+                        <span className="material-symbols-outlined text-sm">schedule</span>
+                        {formatTime(trackman.startTime || trackman.start_time)} - {formatTime(trackman.endTime || trackman.end_time)}
+                      </span>
+                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
+                        <span className="material-symbols-outlined text-sm">sports_golf</span>
+                        Bay {trackman.bayNumber || trackman.bay_number || '?'}
+                      </span>
+                      {(trackman.playerCount || trackman.player_count) && (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
+                          <span className="material-symbols-outlined text-sm">group</span>
+                          {trackman.playerCount || trackman.player_count} players
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
-            ))}
+                  
+                  {item.potentialAppBookings && item.potentialAppBookings.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-primary/10 dark:border-white/10">
+                      <p className="text-xs font-medium text-primary/60 dark:text-white/60 mb-2 uppercase tracking-wide">
+                        Matching App Bookings ({item.potentialAppBookings.length}):
+                      </p>
+                      <div className="space-y-2">
+                        {item.potentialAppBookings.map((match: any) => (
+                          <div key={match.id} className="flex items-center justify-between gap-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-primary dark:text-white truncate">
+                                {match.memberName || match.userName}
+                              </p>
+                              <p className="text-xs text-primary/70 dark:text-white/70 truncate">
+                                {match.userEmail}
+                              </p>
+                              {(match.startTime || match.endTime) && (
+                                <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
+                                  {formatTime(match.startTime)} - {formatTime(match.endTime)}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleLinkPotentialMatch(unmatchedId, match.id, match.userEmail)}
+                              disabled={isLinkingMatch === unmatchedId}
+                              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors disabled:opacity-50 shrink-0 flex items-center gap-1"
+                            >
+                              {isLinkingMatch === unmatchedId ? (
+                                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                              ) : (
+                                <span className="material-symbols-outlined text-sm">link</span>
+                              )}
+                              Link
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

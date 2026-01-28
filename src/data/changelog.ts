@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.13",
+    date: "2026-01-28",
+    title: "Improved Potential Matches Display",
+    changes: [
+      "Fixed: Potential Matches section now shows full Trackman booking details (date, time, bay, players)",
+      "Added: Clear visual badges show Trackman booking info vs matching app bookings",
+      "Improved: Easier to understand why bookings are potential matches"
+    ]
+  },
+  {
     version: "9.33.12",
     date: "2026-01-28",
     title: "Trackman Auto-Match Badge & Concurrency Guard",
