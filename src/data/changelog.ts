@@ -13,10 +13,11 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.33.19",
+    version: "9.33.20",
     date: "2026-01-28",
-    title: "Staff Portal Mobile Menu",
+    title: "Staff Portal Mobile Cleanup",
     changes: [
+      "Improved: Removed redundant Employee Resources section from mobile dashboard - now accessible via hamburger menu",
       "Added: Hamburger menu on staff portal mobile for quick access to all navigation items",
       "Added: Mobile sidebar mirrors desktop sidebar with Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources, and Admin sections",
       "Fixed: Simulator Overage fee no longer appears on Day Passes purchase page",
