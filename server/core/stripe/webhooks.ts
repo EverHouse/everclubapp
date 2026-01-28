@@ -1940,6 +1940,15 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
         
         console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
         
+        // Sync tier change to HubSpot
+        try {
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          await syncMemberToHubSpot({ email, tier: newTierName, billingProvider: 'stripe' });
+          console.log(`[Stripe Webhook] Synced ${email} tier=${newTierName} to HubSpot`);
+        } catch (hubspotError) {
+          console.error('[Stripe Webhook] HubSpot sync failed for tier change:', hubspotError);
+        }
+        
         await notifyMember({
           userEmail: email,
           title: 'Membership Updated',

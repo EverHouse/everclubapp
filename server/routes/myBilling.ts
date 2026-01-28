@@ -254,6 +254,11 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
           `UPDATE users SET stripe_customer_id = $1, billing_provider = 'stripe' WHERE LOWER(email) = $2`,
           [customerId, targetEmail.toLowerCase()]
         );
+        // Sync billing_provider change to HubSpot
+        try {
+          const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+          await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
+        } catch (e) { /* silent */ }
       } else {
         const customer = await stripe.customers.create({ email: member.email });
         customerId = customer.id;
@@ -261,6 +266,11 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
           `UPDATE users SET stripe_customer_id = $1, billing_provider = 'stripe' WHERE LOWER(email) = $2`,
           [customerId, targetEmail.toLowerCase()]
         );
+        // Sync billing_provider change to HubSpot
+        try {
+          const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+          await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
+        } catch (e) { /* silent */ }
       }
     }
     
@@ -783,6 +793,15 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
     );
     
     console.log(`[SyncTierFromStripe] Updated tier for ${targetEmail}: ${previousTier} -> ${newTier} (matched by ${matchMethod})`);
+    
+    // Sync to HubSpot
+    try {
+      const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+      await syncMemberToHubSpot({ email: targetEmail, status: 'active', tier: newTier, billingProvider: 'stripe' });
+      console.log(`[SyncTierFromStripe] Synced ${targetEmail} to HubSpot: status=active, tier=${newTier}, billing=stripe`);
+    } catch (hubspotError) {
+      console.error('[SyncTierFromStripe] HubSpot sync failed:', hubspotError);
+    }
     
     res.json({ 
       success: true, 

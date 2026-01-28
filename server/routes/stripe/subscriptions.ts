@@ -183,6 +183,15 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
       }
     });
     
+    // Sync to HubSpot
+    try {
+      const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
+      await syncMemberToHubSpot({ email: member.email, status: 'active', tier: tierName, billingProvider: 'stripe' });
+      console.log(`[Stripe] Synced ${member.email} to HubSpot: status=active, tier=${tierName}, billing=stripe`);
+    } catch (hubspotError) {
+      console.error('[Stripe] HubSpot sync failed for subscription creation:', hubspotError);
+    }
+    
     console.log(`[Stripe] Created subscription for ${member.email}: ${subscriptionResult.subscription?.subscriptionId}`);
     
     res.json({
