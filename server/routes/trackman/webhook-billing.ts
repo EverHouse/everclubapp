@@ -313,6 +313,8 @@ export async function createBookingForMember(
       [member.firstName, member.lastName].filter(Boolean).join(' ') || 
       member.email;
     
+    // Use INSERT ... ON CONFLICT to atomically prevent duplicate trackman_booking_id
+    // This prevents race conditions when multiple webhooks arrive simultaneously
     const result = await pool.query(
       `INSERT INTO booking_requests 
        (user_id, user_email, user_name, resource_id, request_date, start_time, end_time, 
@@ -322,7 +324,10 @@ export async function createBookingForMember(
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', $9, $10, 'trackman_webhook', NOW(), 
                '[Auto-created via Trackman webhook - staff booking]', true,
                'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
-       RETURNING id`,
+       ON CONFLICT (trackman_booking_id) DO UPDATE SET
+         last_trackman_sync_at = NOW(),
+         updated_at = NOW()
+       RETURNING id, (xmax = 0) AS was_inserted`,
       [
         member.id,
         member.email,
@@ -339,6 +344,15 @@ export async function createBookingForMember(
     
     if (result.rows.length > 0) {
       const bookingId = result.rows[0].id;
+      const wasInserted = result.rows[0].was_inserted;
+      
+      // If this was a duplicate (ON CONFLICT triggered), just return the existing booking
+      if (!wasInserted) {
+        logger.info('[Trackman Webhook] Booking already exists for this Trackman ID (atomic dedup)', {
+          extra: { trackmanBookingId, existingBookingId: bookingId }
+        });
+        return { success: true, bookingId };
+      }
       
       try {
         const sessionResult = await pool.query(`

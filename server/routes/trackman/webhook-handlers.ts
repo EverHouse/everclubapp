@@ -299,19 +299,6 @@ export async function createUnmatchedBookingRequest(
   playerCount: number
 ): Promise<{ created: boolean; bookingId?: number }> {
   try {
-    // Check if booking_request already exists with this trackman_booking_id
-    const existingResult = await pool.query(
-      `SELECT id FROM booking_requests WHERE trackman_booking_id = $1`,
-      [trackmanBookingId]
-    );
-    
-    if (existingResult.rows.length > 0) {
-      logger.info('[Trackman Webhook] Booking request already exists for this Trackman ID', {
-        extra: { trackmanBookingId, existingBookingId: existingResult.rows[0].id }
-      });
-      return { created: false, bookingId: existingResult.rows[0].id };
-    }
-    
     const durationMinutes = calculateDurationMinutes(startTime, endTime);
     
     // Pre-check availability before INSERT for better error logging
@@ -335,6 +322,8 @@ export async function createUnmatchedBookingRequest(
       }
     }
     
+    // Use INSERT ... ON CONFLICT to atomically prevent duplicate trackman_booking_id
+    // This prevents race conditions when multiple webhooks arrive simultaneously
     const result = await pool.query(
       `INSERT INTO booking_requests 
        (request_date, start_time, end_time, duration_minutes, resource_id,
@@ -343,7 +332,10 @@ export async function createUnmatchedBookingRequest(
         origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $9, $10, true,
                'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
-       RETURNING id`,
+       ON CONFLICT (trackman_booking_id) DO UPDATE SET
+         last_trackman_sync_at = NOW(),
+         updated_at = NOW()
+       RETURNING id, (xmax = 0) AS was_inserted`,
       [
         slotDate,
         startTime,
@@ -360,7 +352,17 @@ export async function createUnmatchedBookingRequest(
     
     if (result.rows.length > 0) {
       const bookingId = result.rows[0].id;
+      const wasInserted = result.rows[0].was_inserted;
       
+      // If this was a duplicate (ON CONFLICT triggered), just return the existing booking
+      if (!wasInserted) {
+        logger.info('[Trackman Webhook] Booking already exists for this Trackman ID (atomic dedup)', {
+          extra: { trackmanBookingId, existingBookingId: bookingId }
+        });
+        return { created: false, bookingId };
+      }
+      
+      // Only create session for newly inserted bookings
       try {
         const sessionResult = await pool.query(`
           INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, source, created_by)

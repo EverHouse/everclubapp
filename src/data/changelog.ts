@@ -13,14 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.33.5",
+    version: "9.33.6",
     date: "2026-01-28",
-    title: "Duplicate Trackman Booking Fix",
+    title: "Atomic Duplicate Prevention for Trackman Webhooks",
     changes: [
-      "Fixed: Added unique constraint on Trackman booking ID to prevent duplicate bookings from race conditions",
+      "Fixed: Trackman webhook now uses atomic INSERT ON CONFLICT to prevent duplicate bookings in real-time",
+      "Fixed: Race condition eliminated - simultaneous webhooks now create exactly one booking",
+      "Added: Unique constraint on Trackman booking ID enforced at database level",
       "Added: Automatic duplicate cleanup runs on server startup and daily at 4am Pacific",
-      "Added: Admin endpoint to detect duplicate Trackman bookings (/api/admin/trackman/duplicate-bookings)",
-      "Added: Admin endpoint to manually clean up duplicate bookings if needed (/api/admin/trackman/cleanup-duplicates)"
+      "Added: Admin endpoints to detect and clean up any legacy duplicates"
     ]
   },
   {
