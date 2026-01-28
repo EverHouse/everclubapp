@@ -94,12 +94,13 @@ export async function reconcileSubscriptions() {
   try {
     const stripe = await getStripeClient();
     
-    // Phase 1: Check if DB active members have active Stripe subscriptions
+    // Phase 1: Check if DB active/trialing/past_due members have corresponding Stripe subscriptions
+    // Include trialing and past_due as active - they still have membership access
     const activeMembers = await pool.query(
-      `SELECT stripe_customer_id, email, tier 
+      `SELECT stripe_customer_id, email, tier, membership_status 
        FROM users 
        WHERE stripe_customer_id IS NOT NULL 
-       AND membership_status = 'active'`
+       AND (membership_status IN ('active', 'trialing', 'past_due') OR stripe_subscription_id IS NOT NULL)`
     );
 
     let mismatches = 0;
@@ -108,14 +109,18 @@ export async function reconcileSubscriptions() {
       if (!member.stripe_customer_id) continue;
       
       try {
+        // Check for any active-ish subscription status
         const subscriptions = await stripe.subscriptions.list({
           customer: member.stripe_customer_id,
-          status: 'active',
-          limit: 1
+          limit: 10
         });
+        
+        const hasActiveSubscription = subscriptions.data.some(s => 
+          ['active', 'trialing', 'past_due'].includes(s.status)
+        );
 
-        if (subscriptions.data.length === 0) {
-          console.warn(`[Reconcile] Active member ${member.email} has no active Stripe subscription`);
+        if (!hasActiveSubscription) {
+          console.warn(`[Reconcile] Member ${member.email} (status: ${member.membership_status}) has no active Stripe subscription`);
           mismatches++;
         }
       } catch (err: any) {
@@ -135,9 +140,14 @@ export async function reconcileSubscriptions() {
     let hasMore = true;
     let startingAfter: string | undefined;
     
+    // Include trialing and past_due - members still have access during these states
+    for (const status of ['active', 'trialing', 'past_due'] as const) {
+    hasMore = true;
+    startingAfter = undefined;
+    
     while (hasMore) {
       const params: Stripe.SubscriptionListParams = {
-        status: 'active',
+        status,
         limit: 100,
         expand: ['data.customer']
       };
@@ -270,6 +280,7 @@ export async function reconcileSubscriptions() {
         startingAfter = subscriptions.data[subscriptions.data.length - 1].id;
       }
     }
+    } // end for loop over statuses
     
     console.log(`[Reconcile] Phase 2 complete - ${subscriptionsChecked} subscriptions checked, ${usersCreated} users created`);
     console.log(`[Reconcile] Subscription reconciliation complete`);

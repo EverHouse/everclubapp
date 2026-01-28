@@ -459,7 +459,8 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
     `;
     
     if (includeInactive !== 'true') {
-      sql += ` AND (membership_status = 'active' OR membership_status IS NULL)`;
+      // Include trialing and past_due as active - they still have membership access
+      sql += ` AND (membership_status IN ('active', 'trialing', 'past_due') OR membership_status IS NULL OR stripe_subscription_id IS NOT NULL)`;
     }
     
     sql += ` AND archived_at IS NULL ORDER BY first_name, last_name LIMIT 10`;

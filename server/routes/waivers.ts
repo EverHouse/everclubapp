@@ -137,9 +137,10 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, async (req, res) => {
         },
       });
 
+    // Include trialing and past_due as active - they still have membership access
     const affectedUsersResult = await db.execute(sql`
       SELECT COUNT(*) as count FROM users 
-      WHERE membership_status = 'active' 
+      WHERE (membership_status IN ('active', 'trialing', 'past_due') OR stripe_subscription_id IS NOT NULL)
       AND archived_at IS NULL 
       AND role = 'member'
       AND (waiver_version IS NULL OR waiver_version != ${version})

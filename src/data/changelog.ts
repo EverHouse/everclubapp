@@ -13,20 +13,35 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.31",
+    date: "2026-01-28",
+    title: "Deep Sweep - All Status Checks Fixed",
+    isMajor: true,
+    changes: [
+      "CRITICAL: Fixed staff billing member search only showing 'active' members (payments.ts)",
+      "CRITICAL: Fixed waiver affected count only counting 'active' members",
+      "CRITICAL: Fixed HubSpot deals analytics undercounting active members",
+      "CRITICAL: Fixed member billing subscription fetch missing past_due subscriptions",
+      "CRITICAL: Fixed Stripe reconciliation only checking 'active' subscriptions",
+      "CRITICAL: Fixed Stripe subscription sync only fetching 'active' subscriptions",
+      "All Stripe sync operations now include active, trialing, and past_due subscriptions",
+      "Fixed member directory SQL filter including trialing/past_due in active members",
+      "Fixed 'former members' filter no longer incorrectly including past_due members",
+      "22 total status-related fixes across 11 files"
+    ]
+  },
+  {
     version: "9.32.30",
     date: "2026-01-27",
     title: "Comprehensive Status Fix - All Endpoints & UI",
     isMajor: true,
     changes: [
       "CRITICAL: Fixed login flow blocking members with trialing/past_due status from logging in (3 auth paths)",
-      "CRITICAL: Fixed member directory SQL filter not including trialing/past_due in active members",
-      "CRITICAL: Fixed 'former members' filter incorrectly including past_due members",
       "CRITICAL: Fixed HubSpot endpoints only recognizing 'active' status",
       "CRITICAL: Fixed Trackman webhook cancellations missing fee cleanup",
       "CRITICAL: Fixed individual booking payment endpoint hiding valid fees",
       "Fixed MemberProfileDrawer showing reactivation button for past_due members (they still have access)",
       "All cancellation paths now properly clear pending fees",
-      "All active status checks now include trialing and past_due across ALL systems",
       "Added Bug Prevention Guidelines to project documentation"
     ]
   },

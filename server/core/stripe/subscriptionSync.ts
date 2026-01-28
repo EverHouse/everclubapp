@@ -52,31 +52,36 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
       console.log('[Stripe Sync] Could not retrieve account info:', e.message);
     }
     
-    console.log('[Stripe Sync] Starting active subscription sync from Stripe...');
+    console.log('[Stripe Sync] Starting subscription sync from Stripe (active, trialing, past_due)...');
     
     const subscriptions: Stripe.Subscription[] = [];
-    let hasMore = true;
-    let startingAfter: string | undefined;
+    
+    // Fetch all subscription statuses that represent active membership
+    // Include trialing and past_due - members still have access during these states
+    for (const status of ['active', 'trialing', 'past_due'] as const) {
+      let hasMore = true;
+      let startingAfter: string | undefined;
 
-    while (hasMore) {
-      const listParams: Stripe.SubscriptionListParams = {
-        status: 'active',
-        limit: 100,
-        expand: ['data.customer', 'data.items.data.price'],
-      };
-      if (startingAfter) {
-        listParams.starting_after = startingAfter;
-      }
+      while (hasMore) {
+        const listParams: Stripe.SubscriptionListParams = {
+          status,
+          limit: 100,
+          expand: ['data.customer', 'data.items.data.price'],
+        };
+        if (startingAfter) {
+          listParams.starting_after = startingAfter;
+        }
 
-      const page = await stripe.subscriptions.list(listParams);
-      subscriptions.push(...page.data);
-      hasMore = page.has_more;
-      if (page.data.length > 0) {
-        startingAfter = page.data[page.data.length - 1].id;
+        const page = await stripe.subscriptions.list(listParams);
+        subscriptions.push(...page.data);
+        hasMore = page.has_more;
+        if (page.data.length > 0) {
+          startingAfter = page.data[page.data.length - 1].id;
+        }
       }
     }
 
-    console.log(`[Stripe Sync] Found ${subscriptions.length} active subscriptions from global list`);
+    console.log(`[Stripe Sync] Found ${subscriptions.length} subscriptions (active/trialing/past_due) from global list`);
     
     // If no subscriptions found globally, try per-customer fetch (for test clock subscriptions)
     if (subscriptions.length === 0) {
@@ -97,15 +102,18 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
         
         for (const cust of customersPage.data) {
           try {
-            const custSubs = await stripe.subscriptions.list({ 
-              customer: cust.id, 
-              status: 'active',
-              limit: 100,
-              expand: ['data.items.data.price']
-            });
-            for (const sub of custSubs.data) {
-              (sub as any).customer = cust;
-              subscriptions.push(sub);
+            // Include trialing and past_due - members still have access during these states
+            for (const status of ['active', 'trialing', 'past_due'] as const) {
+              const custSubs = await stripe.subscriptions.list({ 
+                customer: cust.id, 
+                status,
+                limit: 100,
+                expand: ['data.items.data.price']
+              });
+              for (const sub of custSubs.data) {
+                (sub as any).customer = cust;
+                subscriptions.push(sub);
+              }
             }
           } catch (e: any) {
             console.log(`[Stripe Sync] Error fetching subs for ${cust.email}: ${e.message}`);

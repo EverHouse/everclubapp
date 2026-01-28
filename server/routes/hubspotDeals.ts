@@ -362,8 +362,9 @@ router.get('/api/hubspot/deal-stage-summary', isStaffOrAdmin, async (req, res) =
       ORDER BY hd.pipeline_stage, count DESC
     `);
     
+    // Include trialing and past_due as active - they still have membership access
     const activeMembers = await pool.query(`
-      SELECT COUNT(*) as count FROM users WHERE role = 'member' AND membership_status = 'active'
+      SELECT COUNT(*) as count FROM users WHERE role = 'member' AND (membership_status IN ('active', 'trialing', 'past_due') OR stripe_subscription_id IS NOT NULL)
     `);
     
     const activeDeals = await pool.query(`

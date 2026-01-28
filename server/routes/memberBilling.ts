@@ -53,7 +53,13 @@ async function findEligibleSubscription(
     status: 'trialing',
   });
 
-  const allActiveOrTrialing = [...activeSubscriptions.data, ...trialingSubscriptions.data];
+  // Include past_due subscriptions - members still have access during grace period
+  const pastDueSubscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: 'past_due',
+  });
+
+  const allActiveOrTrialing = [...activeSubscriptions.data, ...trialingSubscriptions.data, ...pastDueSubscriptions.data];
 
   let subscription: Stripe.Subscription | undefined;
 
