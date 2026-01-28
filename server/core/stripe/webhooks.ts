@@ -439,10 +439,10 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
   const feeSnapshotId = metadata?.feeSnapshotId ? parseInt(metadata.feeSnapshotId, 10) : NaN;
   
   if (!isNaN(feeSnapshotId)) {
+    // Query fee snapshot directly - it already has booking_id and session_id
     const snapshotResult = await client.query(
-      `SELECT bfs.*, bs.booking_id as verified_booking_id
+      `SELECT bfs.*
        FROM booking_fee_snapshots bfs
-       JOIN booking_sessions bs ON bfs.session_id = bs.id
        WHERE bfs.id = $1 AND bfs.stripe_payment_intent_id = $2 AND bfs.status = 'pending'
        FOR UPDATE OF bfs SKIP LOCKED`,
       [feeSnapshotId, id]
@@ -511,15 +511,13 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
       [feeSnapshotId]
     );
     
-    if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
+    if (validatedParticipantIds.length > 0) {
+      // Update participants directly by ID - we already validated them from the snapshot
       await client.query(
-        `UPDATE booking_participants bp
-         SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $3, cached_fee_cents = 0
-         FROM booking_sessions bs
-         WHERE bp.session_id = bs.id 
-           AND bs.booking_id = $1 
-           AND bp.id = ANY($2::int[])`,
-        [bookingId, validatedParticipantIds, id]
+        `UPDATE booking_participants
+         SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $2, cached_fee_cents = 0
+         WHERE id = ANY($1::int[])`,
+        [validatedParticipantIds, id]
       );
       console.log(`[Stripe Webhook] Updated ${validatedParticipantIds.length} participant(s) to paid within transaction`);
       
@@ -548,17 +546,17 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
     console.log(`[Stripe Webhook] Snapshot ${feeSnapshotId} processed (validation + payment update + audit)`);
     validatedParticipantIds = [];
     participantFees = [];
-  } else if (metadata?.participantFees && !isNaN(bookingId) && bookingId > 0) {
+  } else if (metadata?.participantFees) {
     console.warn(`[Stripe Webhook] No snapshot ID - falling back to DB cached fee validation`);
     const clientFees: ParticipantFee[] = JSON.parse(metadata.participantFees);
     const participantIds = clientFees.map(pf => pf.id);
     
+    // Query participants directly by ID - simpler and more reliable
     const dbResult = await client.query(
       `SELECT bp.id, bp.payment_status, bp.cached_fee_cents
        FROM booking_participants bp
-       INNER JOIN booking_sessions bs ON bp.session_id = bs.id
-       WHERE bp.id = ANY($1::int[]) AND bs.booking_id = $2`,
-      [participantIds, bookingId]
+       WHERE bp.id = ANY($1::int[])`,
+      [participantIds]
     );
     
     const dbFeeMap = new Map<number, number>();
@@ -596,16 +594,14 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
     console.log(`[Stripe Webhook] Fallback validated ${validatedParticipantIds.length} participants using DB cached fees`);
   }
 
-  if (validatedParticipantIds.length > 0 && !isNaN(bookingId) && bookingId > 0) {
+  if (validatedParticipantIds.length > 0) {
+    // Update participants directly by ID - we already validated them
     const updateResult = await client.query(
-      `UPDATE booking_participants bp
-       SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $3, cached_fee_cents = 0
-       FROM booking_sessions bs
-       WHERE bp.session_id = bs.id 
-         AND bs.booking_id = $1 
-         AND bp.id = ANY($2::int[])
-       RETURNING bp.id`,
-      [bookingId, validatedParticipantIds, id]
+      `UPDATE booking_participants
+       SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $2, cached_fee_cents = 0
+       WHERE id = ANY($1::int[])
+       RETURNING id`,
+      [validatedParticipantIds, id]
     );
     console.log(`[Stripe Webhook] Updated ${updateResult.rowCount} participant(s) to paid and cleared cached fees with intent ${id}`);
     
@@ -620,8 +616,6 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
         amount: localAmount
       });
     });
-  } else if (validatedParticipantIds.length > 0) {
-    console.error(`[Stripe Webhook] Cannot update participants - invalid bookingId: ${bookingId}`);
   }
 
   if (!isNaN(bookingId) && bookingId > 0) {

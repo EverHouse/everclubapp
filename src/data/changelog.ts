@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.34.3",
+    date: "2026-01-28",
+    title: "Payment Webhook Database Fix",
+    changes: [
+      "Fixed: Critical bug in payment webhook that prevented payment status from updating correctly",
+      "Fixed: Booking participants now properly marked as 'Paid' when Stripe payment succeeds",
+      "Fixed: Fee snapshots correctly transition to 'completed' status after payment",
+      "Improved: Simplified webhook queries for more reliable payment processing"
+    ]
+  },
+  {
     version: "9.34.2",
     date: "2026-01-28",
     title: "Payment Status Display Fix",
