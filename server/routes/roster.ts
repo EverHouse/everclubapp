@@ -407,12 +407,43 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       const normalize = (name: string) => name.replace(/\s+/g, ' ').trim().toLowerCase();
       const normalizedMember = normalize(memberFullName);
       
+      // Pattern to identify placeholder guests (e.g., "Guest 2", "Guest 3", "Guest (info pending)")
+      // IMPORTANT: Only match explicit system-generated patterns, not a real guest named "Guest"
+      const isPlaceholderGuest = (name: string | null): boolean => {
+        if (!name) return false;
+        const normalized = name.trim().toLowerCase();
+        // Match "guest 2", "guest 3", etc. (must have a number)
+        // Or "guest (info pending)" style patterns
+        return /^guest\s+\d+$/.test(normalized) || 
+               /^guest\s*\(.*pending.*\)$/i.test(normalized);
+      };
+      
       // Store matching guest ID for deletion AFTER successful member add (hoisted to broader scope)
-      const matchingGuest = existingParticipants.find(p => {
+      // First try exact name match
+      let matchingGuest = existingParticipants.find(p => {
         if (p.participantType !== 'guest') return false;
         const normalizedGuest = normalize(p.displayName || '');
         return normalizedGuest === normalizedMember;
       });
+      
+      // If no exact match, look for placeholder guests to replace
+      if (!matchingGuest) {
+        matchingGuest = existingParticipants.find(p => {
+          if (p.participantType !== 'guest') return false;
+          return isPlaceholderGuest(p.displayName);
+        });
+        
+        if (matchingGuest) {
+          logger.info('[roster] Found placeholder guest to replace with member', {
+            extra: {
+              bookingId,
+              placeholderName: matchingGuest.displayName,
+              memberName: memberFullName,
+              memberEmail: memberInfo.email
+            }
+          });
+        }
+      }
       
       if (matchingGuest) {
         matchingGuestId = matchingGuest.id;

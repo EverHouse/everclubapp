@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.1",
+    date: "2026-01-28",
+    title: "Roster Placeholder Guest Replacement",
+    changes: [
+      "Fixed: Adding members to a booking now replaces placeholder guests (Guest 2, Guest 3, etc.)",
+      "Previously, adding a named member would keep placeholder guests, causing inflated participant counts",
+      "Members added to roster now automatically replace any 'Guest X' placeholders"
+    ]
+  },
+  {
     version: "9.33.0",
     date: "2026-01-28",
     title: "HubSpot Billing Provider Sync",
