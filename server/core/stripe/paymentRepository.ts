@@ -66,7 +66,8 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
 }
 
 export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
-  const failedStatuses = ['failed', 'canceled', 'requires_action', 'requires_payment_method'];
+  // Exclude 'canceled' since those are already resolved/dismissed
+  const failedStatuses = ['failed', 'requires_action', 'requires_payment_method'];
   
   const results = await db
     .select({

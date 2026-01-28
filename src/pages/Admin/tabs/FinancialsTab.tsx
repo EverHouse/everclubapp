@@ -958,6 +958,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
   const [loading, setLoading] = useState(true);
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(null);
+  const [cancelingPaymentId, setCancelingPaymentId] = useState<string | null>(null);
 
   const fetchFailedPayments = async () => {
     try {
@@ -996,6 +997,31 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
       console.error('Error retrying payment:', err);
     } finally {
       setRetryingPaymentId(null);
+    }
+  };
+
+  const handleCancelPayment = async (paymentIntentId: string) => {
+    if (!window.confirm('Cancel this payment? This will remove it from the failed payments list.')) {
+      return;
+    }
+    setCancelingPaymentId(paymentIntentId);
+    try {
+      const res = await fetch('/api/payments/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ paymentIntentId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await fetchFailedPayments();
+      } else {
+        console.error('Cancel failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Error canceling payment:', err);
+    } finally {
+      setCancelingPaymentId(null);
     }
   };
 
@@ -1100,6 +1126,18 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                       Retry
                     </button>
                   )}
+                  <button
+                    onClick={() => handleCancelPayment(payment.paymentIntentId)}
+                    disabled={cancelingPaymentId === payment.paymentIntentId}
+                    className="px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {cancelingPaymentId === payment.paymentIntentId ? (
+                      <span className="animate-spin w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full" />
+                    ) : (
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    )}
+                    Cancel
+                  </button>
                   <button
                     onClick={() => handleContactMember(payment.memberEmail)}
                     className="px-2 py-1 text-xs font-medium text-primary dark:text-lavender hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"

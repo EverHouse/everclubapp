@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.34.4",
+    date: "2026-01-28",
+    title: "Failed Payments Cleanup & Cancel Button",
+    changes: [
+      "Added: Cancel button on failed payments to dismiss them without going to Stripe",
+      "Fixed: Already-canceled payments no longer appear in the Failed Payments list",
+      "Improved: Failed Payments section now only shows actionable items (not resolved/canceled ones)",
+      "Added: Staff activity logging when payments are canceled"
+    ]
+  },
+  {
     version: "9.34.3",
     date: "2026-01-28",
     title: "Payment Webhook Database Fix",

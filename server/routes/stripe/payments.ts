@@ -1218,6 +1218,77 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
   }
 });
 
+router.post('/api/payments/cancel', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId } = req.body;
+    const { staffEmail, staffName } = getStaffInfo(req);
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Missing required field: paymentIntentId' });
+    }
+
+    const payment = await getPaymentByIntentId(paymentIntentId);
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    if (payment.status === 'succeeded') {
+      return res.status(400).json({ error: 'Cannot cancel a succeeded payment. Use refund instead.' });
+    }
+
+    if (payment.status === 'canceled') {
+      return res.json({ success: true, message: 'Payment was already canceled' });
+    }
+
+    const stripe = await getStripeClient();
+
+    try {
+      await stripe.paymentIntents.cancel(paymentIntentId);
+    } catch (stripeError: any) {
+      if (stripeError.code !== 'payment_intent_unexpected_state') {
+        throw stripeError;
+      }
+    }
+
+    await pool.query(
+      `UPDATE stripe_payment_intents 
+       SET status = 'canceled', updated_at = NOW()
+       WHERE stripe_payment_intent_id = $1`,
+      [paymentIntentId]
+    );
+
+    await db.insert(billingAuditLog).values({
+      memberEmail: payment.member_email || 'unknown',
+      hubspotDealId: null,
+      actionType: 'payment_canceled',
+      actionDetails: {
+        paymentIntentId,
+        amount: payment.amountCents,
+        description: payment.description
+      },
+      newValue: `Canceled payment: $${(payment.amountCents / 100).toFixed(2)}`,
+      performedBy: staffEmail,
+      performedByName: staffName
+    });
+
+    await logFromRequest(req, {
+      action: 'cancel_payment',
+      resourceType: 'billing',
+      resourceId: paymentIntentId,
+      resourceName: `$${(payment.amountCents / 100).toFixed(2)} - ${payment.description || 'Payment'}`,
+      details: { memberEmail: payment.member_email }
+    });
+
+    console.log(`[Payments] Payment ${paymentIntentId} canceled by ${staffEmail}`);
+
+    res.json({ success: true, message: 'Payment canceled successfully' });
+  } catch (error: any) {
+    console.error('[Payments] Error canceling payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to cancel payment' });
+  }
+});
+
 router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents, reason } = req.body;
