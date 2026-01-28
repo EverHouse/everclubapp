@@ -13,11 +13,12 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.32.20",
+    version: "9.32.21",
     date: "2026-01-28",
-    title: "Activity Tab Added to Member Updates",
+    title: "Payment Modal Fix & Activity Tab",
     isMajor: false,
     changes: [
+      "Fixed 'Failed to create payment' error in both Pay Outstanding Balance and Pay Booking Fees modals",
       "Added Activity tab to member Updates page as the first/default tab - members can now view their notifications including booking confirmations, check-ins, and payment updates",
       "Activity tab shows unread count badge when there are unread notifications",
       "Added 'Mark all as read' button for quick notification management",

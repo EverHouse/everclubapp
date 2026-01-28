@@ -907,7 +907,7 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       
       const snapshotResult = await client.query(
         `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
-         VALUES (0, 0, $1, $2, 'pending') RETURNING id`,
+         VALUES (NULL, NULL, $1, $2, 'pending') RETURNING id`,
         [JSON.stringify(participantFees), totalCents]
       );
       snapshotId = snapshotResult.rows[0].id;
