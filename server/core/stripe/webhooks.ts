@@ -1404,6 +1404,15 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
           `UPDATE users SET stripe_customer_id = $1, status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
           [customerId, email]
         );
+        
+        // Sync to HubSpot for existing user update
+        try {
+          const { syncMemberToHubSpot } = await import('../hubspot/stages');
+          await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe', memberSince: new Date() });
+          console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot`);
+        } catch (hubspotError) {
+          console.error('[Stripe Webhook] HubSpot sync failed for existing user:', hubspotError);
+        }
       } else {
         // Create new user
         console.log(`[Stripe Webhook] Creating new user from staff invite: ${email}`);

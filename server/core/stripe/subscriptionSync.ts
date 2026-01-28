@@ -260,6 +260,13 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                  WHERE id = $4`,
                 [stripeCustomerId, stripeSubscriptionId, tier, user.id, hubspotId]
               );
+              
+              // Sync to HubSpot
+              try {
+                const { syncMemberToHubSpot } = await import('../hubspot/stages');
+                await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe' });
+              } catch (e) { /* silent */ }
+              
               result.updated++;
               result.details.push({
                 email,

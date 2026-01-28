@@ -96,6 +96,16 @@ export async function syncMemberStatusFromStripe(
     }
     
     console.log(`[TierSync] Updated ${email} membership_status to ${membershipStatus}`);
+    
+    // Sync status change to HubSpot
+    try {
+      const { syncMemberToHubSpot } = await import('../hubspot/stages');
+      await syncMemberToHubSpot({ email, status: membershipStatus, billingProvider: 'stripe' });
+      console.log(`[TierSync] Synced ${email} status=${membershipStatus} to HubSpot`);
+    } catch (hubspotError) {
+      console.error('[TierSync] HubSpot sync failed:', hubspotError);
+    }
+    
     return { success: true };
   } catch (error: any) {
     console.error('[TierSync] Error syncing status:', error);

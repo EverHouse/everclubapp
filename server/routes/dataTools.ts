@@ -888,6 +888,12 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
                 [expectedAppStatus, member.id]
               );
               
+              // Sync status change to HubSpot
+              try {
+                const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+                await syncMemberToHubSpot({ email: member.email, status: expectedAppStatus, billingProvider: 'stripe' });
+              } catch (e) { /* silent */ }
+              
               await db.insert(billingAuditLog).values({
                 memberEmail: member.email,
                 actionType: 'subscription_status_synced',
