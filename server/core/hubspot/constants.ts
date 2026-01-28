@@ -62,10 +62,12 @@ export const DB_STATUS_TO_HUBSPOT_STATUS: Record<string, ContactMembershipStatus
   'non-member': 'Inactive',
 };
 
-export const DB_BILLING_PROVIDER_TO_HUBSPOT: Record<string, BillingProvider> = {
-  'stripe': 'Stripe',
-  'mindbody': 'MindBody',
-  'manual': 'Manual',
+export const DB_BILLING_PROVIDER_TO_HUBSPOT: Record<string, string> = {
+  'stripe': 'stripe',
+  'mindbody': 'mindbody',
+  'manual': 'manual',
+  'comped': 'Comped',
+  'none': 'None',
 };
 
 // Map app tier slugs to HubSpot membership_tier dropdown options

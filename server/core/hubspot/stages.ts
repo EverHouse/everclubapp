@@ -196,7 +196,7 @@ export async function syncMemberToHubSpot(
       // HubSpot date properties expect midnight UTC timestamp in milliseconds
       const date = memberSince instanceof Date ? memberSince : new Date(memberSince);
       const midnightUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-      properties.member_since_date = midnightUtc.getTime().toString();
+      properties.membership_start_date = midnightUtc.getTime().toString();
       updated.memberSince = true;
     }
     
