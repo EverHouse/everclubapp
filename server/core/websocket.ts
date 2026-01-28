@@ -826,7 +826,7 @@ export function broadcastDataIntegrityUpdate(action: 'check_complete' | 'issue_r
 export function broadcastBillingUpdate(data: {
   action: 'subscription_created' | 'subscription_cancelled' | 'subscription_updated' | 
           'payment_succeeded' | 'payment_failed' | 'invoice_paid' | 'invoice_failed' |
-          'booking_payment_updated' | 'payment_refunded';
+          'booking_payment_updated' | 'payment_refunded' | 'balance_updated';
   customerId?: string;
   memberEmail?: string;
   memberName?: string;
@@ -835,6 +835,8 @@ export function broadcastBillingUpdate(data: {
   status?: string;
   bookingId?: number;
   sessionId?: number;
+  amountCents?: number;
+  newBalance?: number;
 }) {
   const payload = JSON.stringify({
     type: 'billing_update',

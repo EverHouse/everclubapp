@@ -1310,7 +1310,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
         // Broadcast update for real-time UI updates
         broadcastBillingUpdate({
           action: 'balance_updated',
-          email: memberEmail,
+          memberEmail: memberEmail,
           amountCents,
           newBalance: transaction.ending_balance
         });

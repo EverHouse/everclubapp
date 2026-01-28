@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.35.2",
+    date: "2026-01-28",
+    title: "Add Funds Balance Update Fix",
+    changes: [
+      "Fixed: Account balance now updates in real-time after adding funds via 'Add Funds' button",
+      "Fixed: Balance notification now correctly targets the member who added funds",
+      "Added: Profile page listens for billing updates to refresh balance automatically"
+    ]
+  },
+  {
     version: "9.35.1",
     date: "2026-01-28",
     title: "Staff Profile Bottom Navigation Fix",
