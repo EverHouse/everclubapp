@@ -6,7 +6,7 @@ import { notifyMember } from '../../core/notificationService';
 import { refundGuestPass } from '../guestPasses';
 import { calculateFullSessionBilling } from '../../core/bookingService/usageCalculator';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
-import { recordUsage } from '../../core/bookingService/sessionManager';
+import { recordUsage, createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
 import { getMemberTierByEmail } from '../../core/tierService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
 import { calculateDurationMinutes, NormalizedBookingFields } from './webhook-helpers';
@@ -633,6 +633,56 @@ export async function linkByExternalBookingId(
       } catch (recalcErr) {
         logger.warn('[Trackman Webhook] Failed to recalculate fees for externalBookingId link', { 
           extra: { bookingId, error: recalcErr } 
+        });
+      }
+    }
+    
+    if (!booking.session_id && resourceId) {
+      try {
+        const sessionResult = await createSessionWithUsageTracking(
+          {
+            ownerEmail: memberEmail,
+            resourceId: resourceId,
+            sessionDate: slotDate,
+            startTime: startTime,
+            endTime: endTime,
+            durationMinutes: durationMinutes,
+            participants: [{
+              userId: booking.user_id || undefined,
+              participantType: 'owner',
+              displayName: memberName || memberEmail
+            }],
+            trackmanBookingId: trackmanBookingId
+          },
+          'trackman_webhook'
+        );
+        
+        if (sessionResult.success && sessionResult.session) {
+          const createdSessionId = sessionResult.session.id;
+          
+          await pool.query(
+            `UPDATE booking_requests SET session_id = $1 WHERE id = $2`,
+            [createdSessionId, bookingId]
+          );
+          
+          try {
+            const breakdown = await recalculateSessionFees(createdSessionId, 'approval');
+            logger.info('[Trackman Webhook] Created session and calculated fees for externalBookingId link', {
+              extra: { 
+                sessionId: createdSessionId, 
+                bookingId, 
+                totalCents: breakdown.totals.totalCents 
+              }
+            });
+          } catch (feeError) {
+            logger.warn('[Trackman Webhook] Failed to calculate fees for new session', {
+              extra: { sessionId: createdSessionId, error: feeError }
+            });
+          }
+        }
+      } catch (sessionError) {
+        logger.warn('[Trackman Webhook] Failed to create session for externalBookingId link', {
+          extra: { bookingId, error: sessionError }
         });
       }
     }

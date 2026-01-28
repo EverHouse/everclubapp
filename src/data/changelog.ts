@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.38.0",
+    date: "2026-01-28",
+    title: "Staff Manual Booking Tool",
+    isMajor: true,
+    changes: [
+      "Added: Staff can now create bookings for members directly from the Bookings page",
+      "Added: Floating action button on Bookings page to open the manual booking form",
+      "Added: Bay, date, time, duration, and player count selection",
+      "Added: Dynamic participant slots with member/guest selection using unified member search",
+      "Added: Automatic generation of Trackman notes text with copy button",
+      "Added: External Trackman booking ID linking for webhook auto-confirmation",
+      "Added: Pending bookings created by staff function identically to member requests"
+    ]
+  },
+  {
     version: "9.37.6",
     date: "2026-01-28",
     title: "Same-Day Booking Fee Calculation Fix",

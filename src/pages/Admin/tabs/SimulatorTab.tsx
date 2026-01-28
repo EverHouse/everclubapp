@@ -15,8 +15,10 @@ import { CheckinBillingModal } from '../../../components/staff-command-center/mo
 import { CompleteRosterModal } from '../../../components/staff-command-center/modals/CompleteRosterModal';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
+import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
 import { AnimatedPage } from '../../../components/motion';
 import { TrackmanWebhookEventsSection } from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
+import FloatingActionButton from '../../../components/FloatingActionButton';
 
 interface BookingRequest {
     id: number | string;
@@ -762,6 +764,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         isCancelling: boolean;
         showSuccess: boolean;
     }>({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
+    const [staffManualBookingModalOpen, setStaffManualBookingModalOpen] = useState(false);
 
     useEffect(() => {
         setEditingTrackmanId(false);
@@ -1046,6 +1049,41 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
             isRelink: event.isRelink
         });
     }, []);
+
+    const handleStaffManualBookingSubmit = useCallback(async (data: StaffManualBookingData) => {
+        const requestParticipants = data.participants.map(p => ({
+            type: p.type,
+            email: p.member?.email || p.email || '',
+            userId: p.member?.id,
+            name: p.member?.name || p.name
+        })).filter(p => p.email || p.userId);
+
+        const res = await fetch('/api/staff/manual-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                user_email: data.hostMember.email,
+                user_name: data.hostMember.name,
+                resource_id: data.resourceId,
+                request_date: data.requestDate,
+                start_time: data.startTime + ':00',
+                duration_minutes: data.durationMinutes,
+                declared_player_count: data.declaredPlayerCount,
+                request_participants: requestParticipants,
+                trackman_external_id: data.trackmanExternalId
+            })
+        });
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to create booking');
+        }
+
+        showToast('Booking created successfully', 'success');
+        setStaffManualBookingModalOpen(false);
+        handleRefresh();
+    }, [showToast, handleRefresh]);
 
     const unmatchedBookings = useMemo(() => {
         const today = getTodayPacific();
@@ -3284,6 +3322,12 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
               onConfirm={handleTrackmanConfirm}
             />
 
+            <StaffManualBookingModal
+              isOpen={staffManualBookingModalOpen}
+              onClose={() => setStaffManualBookingModalOpen(false)}
+              onSubmit={handleStaffManualBookingSubmit}
+            />
+
             <TrackmanLinkModal
               isOpen={trackmanLinkModal.isOpen}
               onClose={() => setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null })}
@@ -3423,6 +3467,15 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     onLinkToMember={handleLinkTrackmanToMember}
                   />
                 </div>
+
+                {/* FAB for Staff Manual Booking */}
+                <FloatingActionButton
+                  onClick={() => setStaffManualBookingModalOpen(true)}
+                  icon="add"
+                  secondaryIcon="sports_golf"
+                  color="brand"
+                  label="Create Booking for Member"
+                />
             </AnimatedPage>
     );
 };
