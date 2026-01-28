@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
-import { StripePaymentForm } from '../stripe/StripePaymentForm';
+import { StripePaymentWithSecret } from '../stripe/StripePaymentForm';
 
 interface ParticipantFee {
   id: number;
@@ -261,13 +261,10 @@ export function BalancePaymentModal({
                       </p>
                     </div>
                   ) : paymentData.clientSecret ? (
-                    <StripePaymentForm
+                    <StripePaymentWithSecret
+                      clientSecret={paymentData.clientSecret}
                       amount={(paymentData.remainingCents || paymentData.totalCents) / 100}
                       description={`Outstanding balance - ${paymentData.itemCount} item(s)`}
-                      userId={memberEmail}
-                      userEmail={memberEmail}
-                      memberName={memberName}
-                      purpose="overage_fee"
                       onSuccess={handlePaymentSuccess}
                       onCancel={onClose}
                     />

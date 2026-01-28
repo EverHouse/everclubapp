@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
-import { StripePaymentForm } from '../stripe/StripePaymentForm';
+import { StripePaymentWithSecret } from '../stripe/StripePaymentForm';
 
 interface ParticipantFee {
   id: number;
@@ -273,16 +273,10 @@ export function MemberPaymentModal({
                       </p>
                     </div>
                   ) : paymentData.clientSecret ? (
-                    <StripePaymentForm
+                    <StripePaymentWithSecret
+                      clientSecret={paymentData.clientSecret}
                       amount={paymentData.remainingAmount || paymentData.totalAmount}
-                      description={`Guest fees for booking #${bookingId}`}
-                      userId={ownerEmail}
-                      userEmail={ownerEmail}
-                      memberName={ownerName}
-                      purpose="guest_fee"
-                      bookingId={bookingId}
-                      sessionId={sessionId}
-                      participantFees={paymentData.participantFees.map(pf => ({ id: pf.id, amount: pf.amount }))}
+                      description={`Booking fees for #${bookingId}`}
                       onSuccess={handlePaymentSuccess}
                       onCancel={onClose}
                     />

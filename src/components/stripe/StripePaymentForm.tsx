@@ -147,6 +147,95 @@ function CheckoutForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel
   return <SimpleCheckoutForm onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
+interface StripePaymentWithSecretProps {
+  clientSecret: string;
+  amount: number;
+  description: string;
+  onSuccess: (paymentIntentId?: string) => void;
+  onCancel: () => void;
+}
+
+export function StripePaymentWithSecret({
+  clientSecret,
+  amount,
+  description,
+  onSuccess,
+  onCancel
+}: StripePaymentWithSecretProps) {
+  const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initStripe = async () => {
+      try {
+        const stripe = await getStripePromise();
+        if (!stripe) {
+          throw new Error('Stripe is not configured');
+        }
+        setStripeInstance(stripe);
+      } catch (err: any) {
+        setError(err.message || 'Failed to initialize Stripe');
+      } finally {
+        setLoading(false);
+      }
+    };
+    initStripe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !stripeInstance) {
+    return (
+      <div className="text-center py-8">
+        <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+        <p className="text-red-600 dark:text-red-400 mb-4">{error || 'Failed to load Stripe'}</p>
+        <button
+          onClick={onCancel}
+          className="py-3 px-6 rounded-lg font-medium transition-colors text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/5"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const options: StripeElementsOptions = {
+    clientSecret,
+    appearance: {
+      theme: 'stripe',
+      variables: {
+        colorPrimary: '#31543C',
+        colorBackground: '#ffffff',
+        colorText: '#31543C',
+        colorDanger: '#df1b41',
+        fontFamily: 'system-ui, sans-serif',
+        borderRadius: '8px',
+      },
+    },
+  };
+
+  return (
+    <Elements stripe={stripeInstance} options={options}>
+      <div className="space-y-4">
+        <div className="bg-primary/5 dark:bg-white/5 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-primary/70 dark:text-white/70">{description}</span>
+          <span className="text-xl font-bold text-primary dark:text-white">
+            ${amount.toFixed(2)}
+          </span>
+        </div>
+        <SimpleCheckoutForm onSuccess={onSuccess} onCancel={onCancel} />
+      </div>
+    </Elements>
+  );
+}
+
 export function StripePaymentForm({
   amount,
   description,

@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.22",
+    date: "2026-01-28",
+    title: "Payment Modal Fix - Use Existing Payment Intent",
+    isMajor: false,
+    changes: [
+      "Fixed 'Failed to create payment' error - payment modals now correctly use the existing payment intent created by the API instead of trying to create a duplicate",
+      "Added StripePaymentWithSecret component to accept pre-created payment intents for unified billing flow"
+    ]
+  },
+  {
     version: "9.32.21",
     date: "2026-01-28",
     title: "Payment Modal Fix & Activity Tab",
