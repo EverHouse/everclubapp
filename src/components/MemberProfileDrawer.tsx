@@ -1014,7 +1014,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             </div>
           )}
 
-          {isAdmin && !visitorMode && member.membershipStatus && ['terminated', 'cancelled', 'canceled', 'frozen', 'inactive', 'past_due', 'suspended'].includes(member.membershipStatus.toLowerCase()) && (
+          {isAdmin && !visitorMode && member.membershipStatus && ['terminated', 'cancelled', 'canceled', 'frozen', 'inactive', 'suspended'].includes(member.membershipStatus.toLowerCase()) && (
             <div className="mt-3">
               <button
                 onClick={async () => {

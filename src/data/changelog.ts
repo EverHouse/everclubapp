@@ -13,17 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.32.29",
+    version: "9.32.30",
     date: "2026-01-27",
-    title: "Critical Auth & Status Fixes Across All Systems",
+    title: "Comprehensive Status Fix - All Endpoints & UI",
     isMajor: true,
     changes: [
-      "CRITICAL: Fixed login flow blocking members with trialing/past_due status from logging in (3 auth paths fixed)",
-      "CRITICAL: Fixed HubSpot endpoints only recognizing 'active' status, blocking trialing/past_due members from directory",
+      "CRITICAL: Fixed login flow blocking members with trialing/past_due status from logging in (3 auth paths)",
+      "CRITICAL: Fixed member directory SQL filter not including trialing/past_due in active members",
+      "CRITICAL: Fixed 'former members' filter incorrectly including past_due members",
+      "CRITICAL: Fixed HubSpot endpoints only recognizing 'active' status",
       "CRITICAL: Fixed Trackman webhook cancellations missing fee cleanup",
       "CRITICAL: Fixed individual booking payment endpoint hiding valid fees",
-      "All cancellation paths now properly clear pending fees (member, staff, Trackman webhook)",
-      "All active status checks now include trialing and past_due across auth, directory, and HubSpot systems",
+      "Fixed MemberProfileDrawer showing reactivation button for past_due members (they still have access)",
+      "All cancellation paths now properly clear pending fees",
+      "All active status checks now include trialing and past_due across ALL systems",
       "Added Bug Prevention Guidelines to project documentation"
     ]
   },
