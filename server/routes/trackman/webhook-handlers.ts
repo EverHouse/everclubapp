@@ -178,6 +178,26 @@ export async function cancelBookingByTrackmanId(
       [bookingId]
     );
     
+    // Clear any pending fees for this booking's session
+    if (booking.session_id) {
+      try {
+        await pool.query(
+          `UPDATE booking_participants 
+           SET cached_fee_cents = 0, payment_status = 'waived'
+           WHERE session_id = $1 
+           AND payment_status = 'pending'`,
+          [booking.session_id]
+        );
+        logger.info('[Trackman Webhook] Cleared pending fees for cancelled booking', {
+          extra: { bookingId, sessionId: booking.session_id }
+        });
+      } catch (feeErr) {
+        logger.warn('[Trackman Webhook] Failed to clear fees for cancelled booking', {
+          extra: { bookingId, sessionId: booking.session_id, error: (feeErr as Error).message }
+        });
+      }
+    }
+    
     // Cancel pending payment intents for this booking
     try {
       const pendingIntents = await pool.query(

@@ -13,17 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.32.27",
+    version: "9.32.28",
     date: "2026-01-27",
-    title: "Billing & Status Fixes with Bug Prevention Documentation",
+    title: "Complete Fee Cleanup Across All Cancellation Paths",
     isMajor: false,
     changes: [
-      "CRITICAL: Fixed individual booking payment endpoint that was hiding valid fees due to snapshot filtering",
-      "CRITICAL: Booking cancellations now properly clear pending fees - no more orphaned charges",
-      "Fixed 'Membership Not Active' banner incorrectly showing for members with active Stripe subscriptions",
+      "CRITICAL: Fixed Trackman webhook cancellations missing fee cleanup - now clears pending fees like other cancellation paths",
+      "CRITICAL: Fixed individual booking payment endpoint hiding valid fees due to snapshot filtering",
+      "CRITICAL: All cancellation paths now properly clear pending fees - member cancel, staff cancel, and Trackman webhook",
+      "Fixed 'Membership Not Active' banner incorrectly showing for members with active subscriptions",
       "Improved active status detection to include trialing and past_due statuses",
-      "Added Bug Prevention Guidelines to project documentation covering timezone, Stripe status, and data cleanup patterns",
-      "Updated documentation to reflect new balance display logic (payment_status as single source of truth)"
+      "Added Bug Prevention Guidelines to project documentation",
+      "Verified all 4 cancellation paths now have consistent fee cleanup"
     ]
   },
   {
