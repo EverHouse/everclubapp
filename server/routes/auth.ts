@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { eq, and, sql, gt, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import { users, magicLinks, staffUsers, membershipTiers } from '../../shared/schema';
-import { isProduction } from '../core/db';
+import { isProduction, pool } from '../core/db';
 import { getHubSpotClient } from '../core/integrations';
 import { normalizeTierName, extractTierTags, DEFAULT_TIER } from '../../shared/constants/tiers';
 import { getResendClient } from '../utils/resend';
