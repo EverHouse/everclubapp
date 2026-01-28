@@ -27,7 +27,7 @@ import {
 } from '../../core/stripe/paymentRepository';
 import { logFromRequest } from '../../core/auditLog';
 import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS } from './helpers';
-import { broadcastBillingUpdate } from '../../core/websocket';
+import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
 
 const router = Router();
 
@@ -1483,9 +1483,21 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
 
     console.log(`[Payments] Refund ${refund.id} created for ${paymentIntentId}: $${(refundedAmount / 100).toFixed(2)}`);
 
+    const memberEmail = payment.memberEmail || payment.member_email;
+    
+    // Notify member directly of refund
+    if (memberEmail) {
+      sendNotificationToUser(memberEmail, {
+        type: 'billing_update',
+        title: 'Refund Processed',
+        message: `A refund of $${(refundedAmount / 100).toFixed(2)} has been processed to your payment method.`,
+        data: { paymentIntentId, refundId: refund.id, amount: refundedAmount }
+      });
+    }
+    
     broadcastBillingUpdate({
       action: 'payment_refunded',
-      memberEmail: payment.memberEmail || payment.member_email,
+      memberEmail,
       amount: refundedAmount,
       status: newStatus
     });

@@ -135,6 +135,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           if (message.type === 'billing_update') {
             window.dispatchEvent(new CustomEvent('billing-update', { detail: message }));
           }
+          
+          // Handle booking updates (status changes: approved, declined, cancelled)
+          if (message.type === 'booking_update') {
+            window.dispatchEvent(new CustomEvent('booking-update', { detail: message }));
+            bookingEvents.emit(); // Trigger data refresh
+          }
 
           // Handle tier updates (membership tier changes by staff)
           if (message.type === 'tier_update') {

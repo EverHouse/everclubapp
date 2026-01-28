@@ -562,6 +562,14 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
       action: 'booked'
     });
     
+    // Notify member that their booking was approved
+    sendNotificationToUser(result.userEmail, {
+      type: 'booking_update',
+      title: 'Booking Confirmed',
+      message: `Your booking for ${result.requestDate} at ${result.startTime?.substring(0, 5) || ''} has been approved.`,
+      data: { bookingId, status: 'confirmed' }
+    });
+    
     logFromRequest(req, 'approve_booking', 'booking', id, {
       member_email: result.userEmail,
       bay: result.resourceId,

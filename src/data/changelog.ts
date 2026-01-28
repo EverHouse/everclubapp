@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.37.0",
+    date: "2026-01-28",
+    title: "Real-Time Notifications for Bookings & Billing",
+    isMajor: true,
+    changes: [
+      "Added: Real-time notification when booking is approved by staff",
+      "Added: Real-time notification when booking is declined by staff",
+      "Added: Real-time notification when payment is confirmed",
+      "Added: Real-time notification when refund is processed",
+      "Added: Real-time notification when invoice is paid",
+      "Fixed: Book page now refreshes automatically when staff declines a pending booking",
+      "Improved: Members receive instant updates for all booking and billing status changes"
+    ]
+  },
+  {
     version: "9.36.1",
     date: "2026-01-28",
     title: "Wellness Tab Mobile Crash Fix",

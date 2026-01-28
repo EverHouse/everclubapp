@@ -14,6 +14,7 @@ import {
 } from '../../core/stripe';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
 import { GUEST_FEE_CENTS } from './helpers';
+import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 
 const router = Router();
 
@@ -392,6 +393,21 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
 
       await client.query('COMMIT');
       console.log(`[Stripe] Member payment confirmed for booking ${bookingId}, ${participantIds.length} participants marked as paid (transaction committed)`);
+      
+      // Notify member and broadcast billing update
+      sendNotificationToUser(sessionEmail, {
+        type: 'billing_update',
+        title: 'Payment Successful',
+        message: 'Your payment has been processed successfully.',
+        data: { bookingId, status: 'paid' }
+      });
+      
+      broadcastBillingUpdate({
+        memberEmail: sessionEmail,
+        action: 'payment_confirmed',
+        bookingId,
+        status: 'paid'
+      });
     } catch (txError) {
       await client.query('ROLLBACK');
       console.error('[Stripe] Transaction rolled back for member payment confirmation:', txError);
@@ -542,6 +558,21 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
         paid_out_of_band: true,
       });
       console.log(`[Stripe] Invoice ${invoiceId} marked as paid out of band after PaymentIntent ${paymentIntentId} succeeded`);
+      
+      // Notify member and broadcast billing update
+      sendNotificationToUser(sessionEmail, {
+        type: 'billing_update',
+        title: 'Invoice Paid',
+        message: 'Your invoice has been paid successfully.',
+        data: { invoiceId, status: 'paid' }
+      });
+      
+      broadcastBillingUpdate({
+        memberEmail: sessionEmail,
+        action: 'invoice_paid',
+        invoiceId,
+        status: 'paid'
+      });
     } catch (payErr: any) {
       if (payErr.code === 'invoice_already_paid') {
         console.log(`[Stripe] Invoice ${invoiceId} was already marked as paid`);
