@@ -821,10 +821,12 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     }
     
     const memberResult = await pool.query(
-      'SELECT display_name FROM users WHERE LOWER(email) = $1',
+      'SELECT first_name, last_name FROM users WHERE LOWER(email) = $1',
       [memberEmail]
     );
-    const memberName = memberResult.rows[0]?.display_name || memberEmail.split('@')[0];
+    const memberName = memberResult.rows[0]?.first_name && memberResult.rows[0]?.last_name 
+      ? `${memberResult.rows[0].first_name} ${memberResult.rows[0].last_name}`
+      : memberEmail.split('@')[0];
 
     // Only include fees where there's a pending fee snapshot OR no snapshot at all (legacy)
     const result = await pool.query(
