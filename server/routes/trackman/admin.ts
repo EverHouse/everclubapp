@@ -2055,11 +2055,11 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
             display_name,
             invite_status,
             payment_status,
-            payment_method,
             invited_at,
-            created_at
+            created_at,
+            paid_at
           )
-          VALUES ($1, $2, 'owner', $3, 'accepted', 'paid', 'external', NOW(), NOW())
+          VALUES ($1, $2, 'owner', $3, 'accepted', 'paid', NOW(), NOW(), NOW())
         `, [
           sessionId,
           userId,

@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.14",
+    date: "2026-01-28",
+    title: "Historical Session Backfill",
+    changes: [
+      "Added: Backfilled 1,089 billing sessions for historical Trackman bookings (June 2025 - January 2026)",
+      "Fixed: Historical bookings now visible in member booking history and staff portals",
+      "Fixed: All backfilled sessions marked as 'paid' since they occurred in the past",
+      "Improved: Data integrity - cleaned up 7 orphan database records"
+    ]
+  },
+  {
     version: "9.33.13",
     date: "2026-01-28",
     title: "Improved Potential Matches Display",
