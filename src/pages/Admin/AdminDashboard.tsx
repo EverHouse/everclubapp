@@ -11,6 +11,7 @@ import MenuOverlay from '../../components/MenuOverlay';
 import PageErrorBoundary from '../../components/PageErrorBoundary';
 import { useStaffWebSocket } from '../../hooks/useStaffWebSocket';
 import StaffCommandCenter from '../../components/StaffCommandCenter';
+import StaffMobileSidebar from '../../components/StaffMobileSidebar';
 
 import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications } from './layout';
 
@@ -48,6 +49,7 @@ const AdminDashboard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { actualUser } = useData();
   const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const { pendingRequestsCount, refetch: refetchPendingCounts } = usePendingCounts();
@@ -129,15 +131,11 @@ const AdminDashboard: React.FC = () => {
     <header className="fixed top-0 left-0 right-0 lg:left-64 flex items-center justify-between px-4 md:px-6 pt-[max(16px,env(safe-area-inset-top))] pb-4 bg-[#293515] shadow-md transition-all duration-200 text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)' }}>
       <div className="flex items-center flex-shrink-0 w-[88px] lg:w-0">
         <button 
-          onClick={() => navigate('/')}
-          className="flex items-center justify-center min-h-[44px] hover:opacity-70 transition-opacity py-1 lg:hidden"
-          aria-label="Go to home"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity lg:hidden"
+          aria-label="Open menu"
         >
-          <img 
-            src="/assets/logos/mascot-white.webp" 
-            alt="Ever House" 
-            className="h-10 w-auto object-contain"
-          />
+          <span className="material-symbols-outlined text-[24px]">menu</span>
         </button>
       </div>
       
@@ -179,6 +177,14 @@ const AdminDashboard: React.FC = () => {
         activeTab={activeTab} 
         onTabChange={handleTabChange} 
         isAdmin={actualUser?.role === 'admin'} 
+      />
+      
+      <StaffMobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        isAdmin={actualUser?.role === 'admin'}
       />
       
       {createPortal(headerContent, document.body)}

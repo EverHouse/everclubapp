@@ -13,10 +13,12 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.33.18",
+    version: "9.33.19",
     date: "2026-01-28",
-    title: "Day Pass Page & Visual Polish",
+    title: "Staff Portal Mobile Menu",
     changes: [
+      "Added: Hamburger menu on staff portal mobile for quick access to all navigation items",
+      "Added: Mobile sidebar mirrors desktop sidebar with Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources, and Admin sections",
       "Fixed: Simulator Overage fee no longer appears on Day Passes purchase page",
       "Fixed: Landing page header now matches green status bar for unified appearance",
       "Fixed: Removed background transition that caused white flash when scrolling",
