@@ -37,7 +37,8 @@ export async function classifyMembersByBilling(): Promise<BillingClassification>
   })
     .from(users)
     .where(and(
-      eq(users.membershipStatus, 'active'),
+      // Include trialing and past_due as active - they still have membership access
+      sql`(${users.membershipStatus} IN ('active', 'trialing', 'past_due') OR ${users.stripeSubscriptionId} IS NOT NULL)`,
       isNull(users.archivedAt)
     ));
 

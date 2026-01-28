@@ -114,13 +114,14 @@ const isActive = activeStatuses.includes(status) || !!stripeSubscriptionId;
 
 **Files that check membership status (audit these when making changes):**
 - `server/routes/auth.ts` - Login flow
-- `server/routes/members/search.ts` - Directory search
-- `server/routes/hubspot.ts` - HubSpot sync and webhooks
+- `server/routes/members/search.ts` - Directory search (multiple places!)
+- `server/routes/hubspot.ts` - HubSpot sync, webhooks, and push-db-tiers
 - `server/routes/stripe/payments.ts` - Billing member search
 - `server/routes/waivers.ts` - Waiver counts
 - `server/core/stripe/reconciliation.ts` - Stripe reconciliation
 - `server/core/stripe/subscriptionSync.ts` - Subscription sync
 - `server/routes/memberBilling.ts` - Member billing operations
+- `server/scripts/classifyMemberBilling.ts` - Billing classification script
 - `src/components/MemberProfileDrawer.tsx` - Member profile UI
 
 ### MindBody/HubSpot Status Sync (v9.32.32)

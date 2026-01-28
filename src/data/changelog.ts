@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.33",
+    date: "2026-01-28",
+    title: "Final Status Check Sweep",
+    changes: [
+      "Fixed push-db-tiers endpoint only syncing 'active' members to HubSpot",
+      "Fixed billing classification script missing trialing/past_due members",
+      "Fixed member search API missing trialing/past_due in all filter branches",
+      "25+ total status-related fixes across 13 files"
+    ]
+  },
+  {
     version: "9.32.32",
     date: "2026-01-28",
     title: "HubSpot Webhook Instant Status Updates",

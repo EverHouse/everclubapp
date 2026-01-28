@@ -31,25 +31,26 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
       )`
     );
     
+    // Include trialing and past_due as active - they still have membership access
     if (shouldIncludeFormer && shouldIncludeVisitors) {
       whereConditions = and(
         whereConditions,
-        sql`${users.membershipStatus} IN ('active', 'expired', 'inactive', 'visitor', 'non-member')`
+        sql`(${users.membershipStatus} IN ('active', 'trialing', 'past_due', 'expired', 'inactive', 'visitor', 'non-member') OR ${users.stripeSubscriptionId} IS NOT NULL)`
       );
     } else if (shouldIncludeFormer) {
       whereConditions = and(
         whereConditions,
-        sql`${users.membershipStatus} IN ('active', 'expired', 'inactive')`
+        sql`(${users.membershipStatus} IN ('active', 'trialing', 'past_due', 'expired', 'inactive') OR ${users.stripeSubscriptionId} IS NOT NULL)`
       );
     } else if (shouldIncludeVisitors) {
       whereConditions = and(
         whereConditions,
-        sql`${users.membershipStatus} IN ('active', 'visitor', 'non-member')`
+        sql`(${users.membershipStatus} IN ('active', 'trialing', 'past_due', 'visitor', 'non-member') OR ${users.stripeSubscriptionId} IS NOT NULL)`
       );
     } else {
       whereConditions = and(
         whereConditions,
-        sql`${users.membershipStatus} = 'active'`
+        sql`(${users.membershipStatus} IN ('active', 'trialing', 'past_due') OR ${users.stripeSubscriptionId} IS NOT NULL)`
       );
     }
     

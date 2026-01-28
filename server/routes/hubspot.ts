@@ -1236,6 +1236,7 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
     const hubspot = await getHubSpotClient();
     
     // Get all active members with hubspot_id
+    // Include trialing and past_due as active - they still have membership access
     const members = await db.select({
       email: users.email,
       tier: users.tier,
@@ -1246,7 +1247,7 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
       .from(users)
       .where(and(
         isNotNull(users.hubspotId),
-        eq(users.membershipStatus, 'active'),
+        sql`(${users.membershipStatus} IN ('active', 'trialing', 'past_due') OR ${users.stripeSubscriptionId} IS NOT NULL)`,
         sql`${users.archivedAt} IS NULL`
       ));
     
