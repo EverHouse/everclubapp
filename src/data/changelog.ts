@@ -13,10 +13,11 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.33.16",
+    version: "9.33.17",
     date: "2026-01-28",
-    title: "Member Profile Drawer Visual Fix",
+    title: "Landing Page Header Visual Polish",
     changes: [
+      "Fixed: Landing page header now matches green status bar for unified appearance",
       "Fixed: Member profile drawer no longer shows gap on right side during slide-in animation"
     ]
   },
