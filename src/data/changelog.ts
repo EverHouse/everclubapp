@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.7",
+    date: "2026-01-28",
+    title: "Fix Trackman Webhook ON CONFLICT Syntax",
+    changes: [
+      "Fixed: ON CONFLICT clauses now correctly match partial unique index for booking_requests",
+      "Fixed: ON CONFLICT for trackman_bay_slots now uses correct composite key",
+      "Fixed: Trackman webhook booking creation/linking now works correctly in production"
+    ]
+  },
+  {
     version: "9.33.6",
     date: "2026-01-28",
     title: "Atomic Duplicate Prevention for Trackman Webhooks",

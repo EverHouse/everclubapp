@@ -36,11 +36,8 @@ export async function updateBaySlotCache(
       `INSERT INTO trackman_bay_slots 
        (resource_id, slot_date, start_time, end_time, status, trackman_booking_id, customer_email, customer_name, player_count)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (trackman_booking_id) 
+       ON CONFLICT (resource_id, slot_date, start_time, trackman_booking_id) 
        DO UPDATE SET 
-         resource_id = EXCLUDED.resource_id,
-         slot_date = EXCLUDED.slot_date,
-         start_time = EXCLUDED.start_time,
          end_time = EXCLUDED.end_time,
          status = EXCLUDED.status,
          customer_email = EXCLUDED.customer_email,
@@ -324,7 +321,7 @@ export async function createBookingForMember(
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', $9, $10, 'trackman_webhook', NOW(), 
                '[Auto-created via Trackman webhook - staff booking]', true,
                'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
-       ON CONFLICT (trackman_booking_id) DO UPDATE SET
+       ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
          last_trackman_sync_at = NOW(),
          updated_at = NOW()
        RETURNING id, (xmax = 0) AS was_inserted`,

@@ -332,7 +332,7 @@ export async function createUnmatchedBookingRequest(
         origin, last_sync_source, last_trackman_sync_at, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, $9, $10, true,
                'trackman_webhook', 'trackman_webhook', NOW(), NOW(), NOW())
-       ON CONFLICT (trackman_booking_id) DO UPDATE SET
+       ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
          last_trackman_sync_at = NOW(),
          updated_at = NOW()
        RETURNING id, (xmax = 0) AS was_inserted`,
