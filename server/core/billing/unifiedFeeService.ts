@@ -296,8 +296,13 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       
       // Filter clause: only count bookings that started earlier OR same time with lower ID
       // This ensures deterministic ordering and the current booking is excluded
+      // IMPORTANT: Handle NULL start_time values with COALESCE - NULL times are treated as midnight (earliest)
+      // This ensures legacy bookings without start_time don't break the ordering logic
       const timeFilterClause = hasTimeFilter 
-        ? `AND (br.start_time < $3 OR (br.start_time = $3 AND br.id < COALESCE($4, 0)))`
+        ? `AND (
+             COALESCE(br.start_time, '00:00:00') < $3 
+             OR (COALESCE(br.start_time, '00:00:00') = $3 AND br.id < COALESCE($4, 0))
+           )`
         : hasBookingIdFilter
           ? `AND br.id != $3`
           : '';
