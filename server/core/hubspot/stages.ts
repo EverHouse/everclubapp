@@ -14,7 +14,8 @@ import {
   ContactMembershipStatus,
   BillingProvider,
   DB_STATUS_TO_HUBSPOT_STATUS,
-  DB_BILLING_PROVIDER_TO_HUBSPOT
+  DB_BILLING_PROVIDER_TO_HUBSPOT,
+  DB_TIER_TO_HUBSPOT
 } from './constants';
 
 export async function updateDealStage(
@@ -185,7 +186,9 @@ export async function syncMemberToHubSpot(
     }
     
     if (tier) {
-      properties.membership_tier = tier;
+      const normalizedTier = tier.toLowerCase();
+      const hubspotTier = DB_TIER_TO_HUBSPOT[normalizedTier] || tier;
+      properties.membership_tier = hubspotTier;
       updated.tier = true;
     }
     
@@ -202,12 +205,38 @@ export async function syncMemberToHubSpot(
       return { success: true, contactId, updated };
     }
     
-    await retryableHubSpotRequest(() =>
-      hubspot.crm.contacts.basicApi.update(contactId, { properties })
-    );
-    
-    console.log(`[HubSpot Sync] Updated ${email}: ${JSON.stringify(properties)}`);
-    return { success: true, contactId, updated };
+    // Try to update all properties first
+    try {
+      await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.update(contactId, { properties })
+      );
+      console.log(`[HubSpot Sync] Updated ${email}: ${JSON.stringify(properties)}`);
+      return { success: true, contactId, updated };
+    } catch (updateError: any) {
+      // If some properties don't exist, retry with only the valid ones
+      if (updateError.body?.errors?.some((e: any) => e.code === 'PROPERTY_DOESNT_EXIST')) {
+        const invalidProps = updateError.body.errors
+          .filter((e: any) => e.code === 'PROPERTY_DOESNT_EXIST')
+          .map((e: any) => e.context?.propertyName?.[0]);
+        
+        const validProperties: Record<string, string> = {};
+        for (const [key, value] of Object.entries(properties)) {
+          if (!invalidProps.includes(key)) {
+            validProperties[key] = value;
+          }
+        }
+        
+        if (Object.keys(validProperties).length > 0) {
+          console.log(`[HubSpot Sync] Retrying ${email} without missing properties: ${invalidProps.join(', ')}`);
+          await retryableHubSpotRequest(() =>
+            hubspot.crm.contacts.basicApi.update(contactId, { properties: validProperties })
+          );
+          console.log(`[HubSpot Sync] Updated ${email}: ${JSON.stringify(validProperties)}`);
+          return { success: true, contactId, updated };
+        }
+      }
+      throw updateError;
+    }
   } catch (error) {
     console.error(`[HubSpot Sync] Error syncing ${email}:`, error);
     return { success: false, error: error instanceof Error ? error.message : String(error), updated: {} };
@@ -329,5 +358,69 @@ export async function syncDealStageFromMindbodyStatus(
   } catch (error) {
     console.error('[HubSpotDeals] Error syncing deal stage from Mindbody:', error);
     return { success: false };
+  }
+}
+
+export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean; created: string[]; existing: string[]; errors: string[] }> {
+  const created: string[] = [];
+  const existing: string[] = [];
+  const errors: string[] = [];
+  
+  try {
+    const hubspot = await getHubSpotClient();
+    
+    const propertiesToCreate = [
+      {
+        name: 'billing_provider',
+        label: 'Billing Provider',
+        type: 'enumeration',
+        fieldType: 'select',
+        groupName: 'contactinformation',
+        description: 'The billing system managing this member\'s subscription (Stripe, MindBody, or Manual)',
+        options: [
+          { label: 'Stripe', value: 'Stripe', displayOrder: 1 },
+          { label: 'MindBody', value: 'MindBody', displayOrder: 2 },
+          { label: 'Manual', value: 'Manual', displayOrder: 3 },
+        ]
+      },
+      {
+        name: 'member_since_date',
+        label: 'Member Since Date',
+        type: 'date',
+        fieldType: 'date',
+        groupName: 'contactinformation',
+        description: 'The date this person became a member'
+      }
+    ];
+    
+    for (const prop of propertiesToCreate) {
+      try {
+        await retryableHubSpotRequest(() =>
+          hubspot.crm.properties.coreApi.getByName('contacts', prop.name)
+        );
+        existing.push(prop.name);
+        console.log(`[HubSpot] Property ${prop.name} already exists`);
+      } catch (getError: any) {
+        if (getError.code === 404 || getError.message?.includes('not exist')) {
+          try {
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.properties.coreApi.create('contacts', prop as any)
+            );
+            created.push(prop.name);
+            console.log(`[HubSpot] Created property ${prop.name}`);
+          } catch (createError: any) {
+            errors.push(`${prop.name}: ${createError.message}`);
+            console.error(`[HubSpot] Failed to create property ${prop.name}:`, createError.message);
+          }
+        } else {
+          errors.push(`${prop.name}: ${getError.message}`);
+        }
+      }
+    }
+    
+    return { success: errors.length === 0, created, existing, errors };
+  } catch (error: any) {
+    console.error('[HubSpot] Error ensuring properties exist:', error);
+    return { success: false, created, existing, errors: [error.message] };
   }
 }

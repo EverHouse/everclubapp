@@ -68,6 +68,33 @@ export const DB_BILLING_PROVIDER_TO_HUBSPOT: Record<string, BillingProvider> = {
   'manual': 'Manual',
 };
 
+// Map app tier slugs to HubSpot membership_tier dropdown options
+export const DB_TIER_TO_HUBSPOT: Record<string, string> = {
+  'core': 'Core Membership',
+  'core membership': 'Core Membership',
+  'core-founding': 'Core Membership Founding Members',
+  'core_founding': 'Core Membership Founding Members',
+  'core membership founding members': 'Core Membership Founding Members',
+  'premium': 'Premium Membership',
+  'premium membership': 'Premium Membership',
+  'premium-founding': 'Premium Membership Founding Members',
+  'premium_founding': 'Premium Membership Founding Members',
+  'premium membership founding members': 'Premium Membership Founding Members',
+  'social': 'Social Membership',
+  'social membership': 'Social Membership',
+  'social-founding': 'Social Membership Founding Members',
+  'social_founding': 'Social Membership Founding Members',
+  'social membership founding members': 'Social Membership Founding Members',
+  'vip': 'VIP Membership',
+  'vip membership': 'VIP Membership',
+  'corporate': 'Corporate Membership',
+  'corporate membership': 'Corporate Membership',
+  'group-lessons': 'Group Lessons Membership',
+  'group_lessons': 'Group Lessons Membership',
+  'group lessons': 'Group Lessons Membership',
+  'group lessons membership': 'Group Lessons Membership',
+};
+
 export const INACTIVE_STATUSES = ['pending', 'declined', 'suspended', 'expired', 'froze', 'frozen'];
 export const CHURNED_STATUSES = ['terminated', 'cancelled', 'non-member'];
 export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
