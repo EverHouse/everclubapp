@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.26",
+    date: "2026-01-27",
+    title: "Booking Cancellation Fee Cleanup & Membership Status Fix",
+    isMajor: false,
+    changes: [
+      "CRITICAL: Booking cancellations now properly clear pending fees - no more orphaned charges after cancelling",
+      "Added automatic fee cleanup to both member and staff cancellation flows",
+      "Fixed 'Membership Not Active' banner incorrectly showing for members with active Stripe subscriptions",
+      "Improved active status detection to include trialing and past_due statuses",
+      "View As mode now correctly shows member status based on subscription data"
+    ]
+  },
+  {
     version: "9.32.24",
     date: "2026-01-27",
     title: "Critical Pacific Timezone Fix",

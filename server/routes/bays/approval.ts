@@ -706,6 +706,20 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
               }
             }
           }
+          
+          // Clear pending fees for cancelled booking
+          try {
+            await pool.query(
+              `UPDATE booking_participants 
+               SET cached_fee_cents = 0, payment_status = 'waived'
+               WHERE session_id = $1 
+               AND payment_status = 'pending'`,
+              [sessionResult[0].sessionId]
+            );
+            console.log(`[Staff Cancel] Cleared pending fees for session ${sessionResult[0].sessionId}`);
+          } catch (feeCleanupErr) {
+            console.error('[Staff Cancel] Failed to clear pending fees (non-blocking):', feeCleanupErr);
+          }
         }
         
         let pushInfo: { type: 'staff' | 'member' | 'both'; email?: string; staffMessage?: string; memberMessage?: string; message: string } | null = null;

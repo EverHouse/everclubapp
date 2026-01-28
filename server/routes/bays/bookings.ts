@@ -962,6 +962,22 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       console.error('[Member Cancel] Failed to process participant refunds (non-blocking):', participantRefundErr);
     }
     
+    // Clear pending fees for cancelled booking
+    try {
+      if (sessionResult?.rows[0]?.session_id) {
+        await pool.query(
+          `UPDATE booking_participants 
+           SET cached_fee_cents = 0, payment_status = 'waived'
+           WHERE session_id = $1 
+           AND payment_status = 'pending'`,
+          [sessionResult.rows[0].session_id]
+        );
+        console.log(`[Member Cancel] Cleared pending fees for session ${sessionResult.rows[0].session_id}`);
+      }
+    } catch (feeCleanupErr) {
+      console.error('[Member Cancel] Failed to clear pending fees (non-blocking):', feeCleanupErr);
+    }
+    
     if (wasApproved) {
       const memberName = existing.userName || existing.userEmail;
       const bookingDate = existing.requestDate;

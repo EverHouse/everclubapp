@@ -290,7 +290,10 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
       const events = eventCounts[emailLower] || 0;
       const wellness = wellnessCounts[emailLower] || 0;
       const status = member.membershipStatus || 'active';
-      const isActive = status === 'active' || !status;
+      // Consider all active statuses, including trialing and past_due (still has access)
+      // Also consider active if they have a Stripe subscription
+      const activeStatuses = ['active', 'trialing', 'past_due'];
+      const isActive = activeStatuses.includes(status.toLowerCase()) || !status || !!member.stripeSubscriptionId;
       
       return {
         id: member.id,
