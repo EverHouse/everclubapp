@@ -306,9 +306,9 @@ export function StaffManualBookingModal({
       onClose={handleClose}
       title={step === 1 ? 'Create Manual Booking' : 'Complete Trackman Booking'}
       size="md"
-      overflowVisible
+      overflowVisible={step === 1}
     >
-      <div className="p-4 space-y-5">
+      <div className={`p-4 space-y-5 ${step === 2 ? 'max-h-[calc(100dvh-180px)] overflow-y-auto' : ''}`}>
         {step === 1 ? (
           <>
             <div className="grid grid-cols-2 gap-4">
