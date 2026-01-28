@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.35.3",
+    date: "2026-01-28",
+    title: "Stripe Webhook Fix",
+    changes: [
+      "Fixed: Add Funds payments now properly credit account balance",
+      "Fixed: Removed duplicate Stripe webhook endpoint that was causing signature verification failures",
+      "Improved: Stripe webhook reliability - all checkout session events now process correctly"
+    ]
+  },
+  {
     version: "9.35.2",
     date: "2026-01-28",
     title: "Add Funds Balance Update Fix",
