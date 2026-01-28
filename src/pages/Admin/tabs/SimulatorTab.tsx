@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
@@ -770,6 +770,40 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         startTime?: string;
         date?: string;
     }>({});
+    
+    // Refs for syncing queue height to calendar height
+    const calendarColRef = useRef<HTMLDivElement>(null);
+    const [queueMaxHeight, setQueueMaxHeight] = useState<number | null>(null);
+    
+    // Sync queue height to match calendar height
+    useLayoutEffect(() => {
+        const syncHeights = () => {
+            if (calendarColRef.current) {
+                const calendarHeight = calendarColRef.current.offsetHeight;
+                if (calendarHeight > 0) {
+                    setQueueMaxHeight(calendarHeight);
+                }
+            }
+        };
+        
+        // Small delay to ensure calendar is rendered
+        const timer = setTimeout(syncHeights, 100);
+        
+        // Also sync on window resize
+        window.addEventListener('resize', syncHeights);
+        
+        // Use ResizeObserver to detect calendar content changes
+        const observer = new ResizeObserver(syncHeights);
+        if (calendarColRef.current) {
+            observer.observe(calendarColRef.current);
+        }
+        
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', syncHeights);
+            observer.disconnect();
+        };
+    }, [isLoading, calendarDate]);
 
     useEffect(() => {
         setEditingTrackmanId(false);
@@ -1691,7 +1725,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
 
     return (
             <AnimatedPage className="flex flex-col">
-                <div className="w-full bg-white dark:bg-surface-dark rounded-2xl shadow-lg border border-gray-200 dark:border-white/25 flex flex-col lg:h-[calc(100vh-120px)] lg:overflow-hidden">
+                <div className="w-full bg-white dark:bg-surface-dark rounded-2xl shadow-lg border border-gray-200 dark:border-white/25 flex flex-col">
                 <div className="lg:hidden flex items-center justify-between border-b border-gray-200 dark:border-white/25 mb-0 animate-content-enter-delay-1 px-4 py-3">
                     <div className="flex">
                         <button
@@ -1738,10 +1772,14 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     <span aria-hidden="true" className="material-symbols-outlined animate-spin text-primary dark:text-white">progress_activity</span>
                 </div>
             ) : (
-                <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr] xl:grid-cols-[450px_1fr] flex-1">
-                    <div className={`lg:border-r border-gray-200 dark:border-white/25 relative lg:h-full lg:overflow-hidden ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}>
+                <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr] xl:grid-cols-[450px_1fr] lg:items-start flex-1">
+                    <div 
+                        className={`lg:border-r border-gray-200 dark:border-white/25 relative ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}
+                        style={queueMaxHeight ? { height: queueMaxHeight, overflow: 'hidden' } : undefined}
+                    >
                         <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
-                        <div className="space-y-6 p-5 animate-slide-up-stagger lg:h-full lg:overflow-y-auto lg:pb-10" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none" />
+                        <div className="space-y-6 p-5 animate-slide-up-stagger h-full overflow-y-auto pb-10" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                     <div className="animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-bold text-primary dark:text-white flex items-center gap-2">
@@ -2056,7 +2094,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         </div>
                     </div>
                     
-                    <div className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
+                    <div ref={calendarColRef} className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
                     <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                         <div className="flex items-center justify-center px-2 relative">
                             <div className="flex items-center gap-2 relative">
