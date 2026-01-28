@@ -170,7 +170,9 @@ export function TrackmanBookingModal({
             </div>
             <div>
               <span className="text-blue-700/70 dark:text-blue-300/70">Bay</span>
-              <p className="font-medium text-blue-900 dark:text-blue-100">{booking.bay_name || 'Any Available'}</p>
+              <p className="font-medium text-blue-900 dark:text-blue-100">
+                {booking.bay_name || booking.resource_name || (booking as any).resource_preference || 'Any Available'}
+              </p>
             </div>
             <div className="col-span-2">
               <span className="text-blue-700/70 dark:text-blue-300/70">Total Players</span>

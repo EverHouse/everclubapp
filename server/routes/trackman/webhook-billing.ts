@@ -524,16 +524,19 @@ export async function linkByExternalBookingId(
   playerCount: number
 ): Promise<{ matched: boolean; bookingId?: number; memberEmail?: string; memberName?: string }> {
   try {
+    // First check: trackman_external_id (staff-pasted ID), calendar_event_id, or booking ID
     const result = await pool.query(
       `SELECT id, user_email, user_name, user_id, status as current_status, resource_id, session_id, duration_minutes
        FROM booking_requests 
-       WHERE calendar_event_id = $1
+       WHERE trackman_external_id = $1
+         OR calendar_event_id = $1
          OR id::text = $1
        LIMIT 1`,
       [externalBookingId]
     );
     
     if (result.rows.length === 0) {
+      // Fallback: check staff_notes for the ID
       const pendingResult = await pool.query(
         `SELECT id, user_email, user_name, user_id, status as current_status, resource_id, session_id, duration_minutes
          FROM booking_requests 
@@ -632,6 +635,95 @@ export async function linkByExternalBookingId(
     return { matched: true, bookingId, memberEmail, memberName };
   } catch (e) {
     logger.error('[Trackman Webhook] Failed to link by externalBookingId', { error: e as Error });
+    return { matched: false };
+  }
+}
+
+export async function tryMatchByBayDateTime(
+  resourceId: number,
+  slotDate: string,
+  startTime: string,
+  trackmanBookingId: string,
+  playerCount: number
+): Promise<{ matched: boolean; bookingId?: number; memberEmail?: string; memberName?: string }> {
+  try {
+    // Find pending or approved bookings at the same bay/date/time (within 30 min tolerance)
+    const result = await pool.query(
+      `SELECT id, user_email, user_name, status, start_time, end_time, duration_minutes, session_id
+       FROM booking_requests 
+       WHERE resource_id = $1
+         AND request_date = $2
+         AND trackman_booking_id IS NULL
+         AND status IN ('pending', 'approved')
+         AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 1800
+       ORDER BY 
+         CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+         ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) ASC
+       LIMIT 1`,
+      [resourceId, slotDate, startTime]
+    );
+    
+    if (result.rows.length === 0) {
+      logger.info('[Trackman Webhook] No bay/date/time match found', {
+        extra: { resourceId, slotDate, startTime }
+      });
+      return { matched: false };
+    }
+    
+    const booking = result.rows[0];
+    const bookingId = booking.id;
+    const memberEmail = booking.user_email;
+    const memberName = booking.user_name;
+    const wasPending = booking.status === 'pending';
+    
+    // Link the booking to Trackman with concurrency guard
+    const updateResult = await pool.query(
+      `UPDATE booking_requests 
+       SET trackman_booking_id = $1,
+           trackman_player_count = $2,
+           status = 'approved',
+           reviewed_by = COALESCE(reviewed_by, 'trackman_auto_match'),
+           reviewed_at = COALESCE(reviewed_at, NOW()),
+           staff_notes = COALESCE(staff_notes, '') || ' [Auto-linked via bay/date/time match]',
+           last_sync_source = 'trackman_auto_match',
+           last_trackman_sync_at = NOW(),
+           was_auto_linked = true,
+           updated_at = NOW()
+       WHERE id = $3 AND trackman_booking_id IS NULL
+       RETURNING id`,
+      [trackmanBookingId, playerCount, bookingId]
+    );
+    
+    if (updateResult.rowCount === 0) {
+      logger.warn('[Trackman Webhook] Bay/date/time match found but booking was already linked by another process', {
+        extra: { bookingId, trackmanBookingId }
+      });
+      return { matched: false };
+    }
+    
+    // Update webhook event record
+    await pool.query(
+      `UPDATE trackman_webhook_events 
+       SET matched_booking_id = $1, matched_user_id = $2
+       WHERE trackman_booking_id = $3`,
+      [bookingId, memberEmail, trackmanBookingId]
+    );
+    
+    logger.info('[Trackman Webhook] Auto-linked via bay/date/time match', {
+      extra: { 
+        bookingId, 
+        trackmanBookingId, 
+        resourceId, 
+        slotDate, 
+        startTime,
+        wasPending,
+        memberEmail
+      }
+    });
+    
+    return { matched: true, bookingId, memberEmail, memberName };
+  } catch (e) {
+    logger.error('[Trackman Webhook] Failed to match by bay/date/time', { error: e as Error });
     return { matched: false };
   }
 }

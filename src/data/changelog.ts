@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.11",
+    date: "2026-01-28",
+    title: "Trackman Webhook Auto-Match Improvements",
+    changes: [
+      "Fixed: Webhooks now auto-link to existing bookings by matching bay + date + time",
+      "Fixed: Webhooks with externalBookingId now check trackman_external_id column for matching",
+      "Fixed: 'Book on Trackman' modal now shows bay preference when bay not yet assigned",
+      "Improved: Eliminated need for manual 'Auto Match' button in most webhook scenarios"
+    ]
+  },
+  {
     version: "9.33.10",
     date: "2026-01-28",
     title: "Fix Double Push Notifications for Booking Requests",
