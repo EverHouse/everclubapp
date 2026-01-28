@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.0",
+    date: "2026-01-28",
+    title: "HubSpot Billing Provider Sync",
+    isMajor: true,
+    changes: [
+      "New: billing_provider property syncs to HubSpot (Stripe/MindBody/Manual)",
+      "New: membership_status now includes Trialing and Past Due options in HubSpot",
+      "New: Centralized syncMemberToHubSpot function for consistent data sync",
+      "New: Backfill endpoint to sync all existing contacts with billing data",
+      "Stripe subscription webhooks now sync status, tier, and billing provider to HubSpot instantly",
+      "Tier upgrades/downgrades now sync to HubSpot",
+      "Subscription cancellations now sync cancelled status to HubSpot",
+      "Manual billing provider changes by staff now sync to HubSpot",
+      "Past due and suspended statuses now sync to HubSpot"
+    ]
+  },
+  {
     version: "9.32.33",
     date: "2026-01-28",
     title: "Final Status Check Sweep",

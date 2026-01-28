@@ -1089,6 +1089,15 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: any): Pro
     [email]
   );
   console.log(`[Stripe Webhook] Started grace period for ${email}`);
+  
+  // Sync payment failure status to HubSpot
+  try {
+    const { syncMemberToHubSpot } = await import('../hubspot/stages');
+    await syncMemberToHubSpot({ email, status: 'past_due', billingProvider: 'stripe' });
+    console.log(`[Stripe Webhook] Synced ${email} payment failure status to HubSpot`);
+  } catch (hubspotError) {
+    console.error('[Stripe Webhook] HubSpot sync failed for payment failure:', hubspotError);
+  }
 
   const localEmail = email;
   const localMemberName = memberName;
@@ -1426,11 +1435,11 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
         console.log(`[Stripe Webhook] Created user ${email} with tier ${tierSlug || 'none'}`);
       }
       
-      // Sync to HubSpot with proper tier name
+      // Sync to HubSpot with proper tier name and billing provider
       try {
         const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-        const { updateContactMembershipStatus } = await import('../hubspot/stages');
-        const contactResult = await findOrCreateHubSpotContact(
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await findOrCreateHubSpotContact(
           email,
           firstName || '',
           lastName || '',
@@ -1438,10 +1447,13 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
           tierName || undefined
         );
         
-        if (contactResult?.contactId) {
-          await updateContactMembershipStatus(contactResult.contactId, 'Active');
-          console.log(`[Stripe Webhook] Synced ${email} to HubSpot contact ${contactResult.contactId}`);
-        }
+        await syncMemberToHubSpot({
+          email,
+          status: 'active',
+          billingProvider: 'stripe',
+          tier: tierName || undefined
+        });
+        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: status=active, tier=${tierName}, billing=stripe`);
       } catch (hubspotError) {
         console.error('[Stripe Webhook] HubSpot sync failed for staff invite:', hubspotError);
       }
@@ -1602,24 +1614,25 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
         }
       }
       
+      const actualStatus = subscription.status === 'trialing' ? 'trialing' : subscription.status === 'past_due' ? 'past_due' : 'active';
       await pool.query(
         `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, join_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'active', $5, $6, 'stripe', NOW(), NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $7, $5, $6, 'stripe', NOW(), NOW(), NOW())
          ON CONFLICT (email) DO UPDATE SET 
            stripe_customer_id = EXCLUDED.stripe_customer_id,
            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
-           membership_status = 'active',
+           membership_status = $7,
            billing_provider = 'stripe',
            tier = COALESCE(EXCLUDED.tier, users.tier),
            updated_at = NOW()`,
-        [customerEmail, firstName, lastName, tierName, customerId, subscription.id]
+        [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus]
       );
       
       console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, subscription ${subscription.id}`);
       
       try {
         const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-        const { updateContactMembershipStatus } = await import('../hubspot/stages');
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
         const contactResult = await findOrCreateHubSpotContact(
           customerEmail,
           firstName,
@@ -1629,8 +1642,13 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
         );
         
         if (contactResult?.contactId) {
-          await updateContactMembershipStatus(contactResult.contactId, 'Active');
-          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot contact ${contactResult.contactId}`);
+          await syncMemberToHubSpot({
+            email: customerEmail,
+            status: subscription.status,
+            billingProvider: 'stripe',
+            tier: tierName || undefined
+          });
+          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot: status=${subscription.status}, tier=${tierName}, billing=stripe`);
         }
       } catch (hubspotError) {
         console.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', hubspotError);
@@ -1700,22 +1718,16 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
           if (updateResult.rowCount && updateResult.rowCount > 0) {
             console.log(`[Stripe Webhook] User activation: ${email} tier updated to ${tierSlug}, membership_status conditionally set to active`);
             
-            // Sync membership status and tier to HubSpot for existing users
+            // Sync membership status, tier, and billing provider to HubSpot for existing users
             try {
-              const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-              const { updateContactMembershipStatus } = await import('../hubspot/stages');
-              const contactResult = await findOrCreateHubSpotContact(
+              const { syncMemberToHubSpot } = await import('../hubspot/stages');
+              await syncMemberToHubSpot({
                 email,
-                first_name || '',
-                last_name || '',
-                undefined,
-                tierName // Send tier name to HubSpot
-              );
-              
-              if (contactResult?.contactId) {
-                await updateContactMembershipStatus(contactResult.contactId, 'Active');
-                console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot: tier=${tierName}, status=Active`);
-              }
+                status: status, // Use actual subscription status (active, trialing, past_due)
+                billingProvider: 'stripe',
+                tier: tierName
+              });
+              console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe`);
             } catch (hubspotError) {
               console.error('[Stripe Webhook] HubSpot sync failed for existing user subscription:', hubspotError);
             }
@@ -1775,20 +1787,14 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                       
                       // Sync to HubSpot for product name matched tier
                       try {
-                        const { findOrCreateHubSpotContact } = await import('../hubspot/members');
-                        const { updateContactMembershipStatus } = await import('../hubspot/stages');
-                        const contactResult = await findOrCreateHubSpotContact(
+                        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+                        await syncMemberToHubSpot({
                           email,
-                          first_name || '',
-                          last_name || '',
-                          undefined,
-                          tierName
-                        );
-                        
-                        if (contactResult?.contactId) {
-                          await updateContactMembershipStatus(contactResult.contactId, 'Active');
-                          console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=Active`);
-                        }
+                          status: status, // Use actual subscription status
+                          billingProvider: 'stripe',
+                          tier: tierName
+                        });
+                        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe`);
                       } catch (hubspotError) {
                         console.error('[Stripe Webhook] HubSpot sync failed for product name match:', hubspotError);
                       }
@@ -1950,6 +1956,15 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
         [userId]
       );
       console.log(`[Stripe Webhook] Membership status set to active for ${email}`);
+      
+      // Sync status change to HubSpot
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe' });
+        console.log(`[Stripe Webhook] Synced ${email} status=active to HubSpot`);
+      } catch (hubspotError) {
+        console.error('[Stripe Webhook] HubSpot sync failed for status active:', hubspotError);
+      }
     } else if (status === 'past_due') {
       await pool.query(
         `UPDATE users SET membership_status = 'past_due', updated_at = NOW() WHERE id = $1`,
@@ -1963,6 +1978,15 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       }, { sendPush: true });
 
       console.log(`[Stripe Webhook] Past due notification sent to ${email}`);
+      
+      // Sync past_due status to HubSpot
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email, status: 'past_due', billingProvider: 'stripe' });
+        console.log(`[Stripe Webhook] Synced ${email} status=past_due to HubSpot`);
+      } catch (hubspotError) {
+        console.error('[Stripe Webhook] HubSpot sync failed for status past_due:', hubspotError);
+      }
     } else if (status === 'canceled') {
       console.log(`[Stripe Webhook] Subscription canceled for ${email} - handled by subscription.deleted webhook`);
     } else if (status === 'unpaid') {
@@ -1978,6 +2002,15 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       }, { sendPush: true });
 
       console.log(`[Stripe Webhook] Unpaid notification sent to ${email}`);
+      
+      // Sync suspended status to HubSpot
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email, status: 'suspended', billingProvider: 'stripe' });
+        console.log(`[Stripe Webhook] Synced ${email} status=suspended to HubSpot`);
+      } catch (hubspotError) {
+        console.error('[Stripe Webhook] HubSpot sync failed for status suspended:', hubspotError);
+      }
     }
 
     broadcastBillingUpdate({
@@ -2083,6 +2116,15 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       [email]
     );
     console.log(`[Stripe Webhook] Updated ${email} membership_status to cancelled, tier cleared`);
+
+    // Sync cancelled status to HubSpot (include billing_provider to ensure it stays as 'stripe')
+    try {
+      const { syncMemberToHubSpot } = await import('../hubspot/stages');
+      await syncMemberToHubSpot({ email, status: 'cancelled', billingProvider: 'stripe' });
+      console.log(`[Stripe Webhook] Synced ${email} status=cancelled to HubSpot`);
+    } catch (hubspotError) {
+      console.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', hubspotError);
+    }
 
     await notifyMember({
       userEmail: email,

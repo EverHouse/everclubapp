@@ -226,6 +226,16 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
     );
 
     console.log(`[MemberBilling] Updated billing provider for ${email} to ${billingProvider}`);
+    
+    // Sync billing provider to HubSpot
+    try {
+      const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+      await syncMemberToHubSpot({ email, billingProvider: billingProvider || 'manual' });
+      console.log(`[MemberBilling] Synced billing provider ${billingProvider} to HubSpot for ${email}`);
+    } catch (hubspotError) {
+      console.error('[MemberBilling] HubSpot sync failed for billing provider change:', hubspotError);
+    }
+    
     res.json({ success: true, billingProvider });
   } catch (error: any) {
     console.error('[MemberBilling] Error updating billing source:', error);

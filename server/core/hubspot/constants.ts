@@ -28,21 +28,46 @@ export const MINDBODY_TO_STAGE_MAP: Record<string, string> = {
   'nonmember': HUBSPOT_STAGE_IDS.CLOSED_LOST,
 };
 
-export type ContactMembershipStatus = 'active' | 'inactive' | 'former_member';
+export type ContactMembershipStatus = 'Active' | 'Trialing' | 'Past Due' | 'Inactive' | 'Cancelled' | 'Former Member';
+
+export type BillingProvider = 'Stripe' | 'MindBody' | 'Manual';
 
 export const MINDBODY_TO_CONTACT_STATUS_MAP: Record<string, ContactMembershipStatus> = {
-  'active': 'active',
-  'pending': 'inactive',
-  'declined': 'inactive',
-  'suspended': 'inactive',
-  'expired': 'inactive',
-  'froze': 'inactive',
-  'frozen': 'inactive',
-  'terminated': 'inactive',
-  'cancelled': 'inactive',
-  'non-member': 'inactive',
+  'active': 'Active',
+  'trialing': 'Trialing',
+  'past_due': 'Past Due',
+  'pending': 'Inactive',
+  'declined': 'Inactive',
+  'suspended': 'Inactive',
+  'expired': 'Inactive',
+  'froze': 'Inactive',
+  'frozen': 'Inactive',
+  'terminated': 'Cancelled',
+  'cancelled': 'Cancelled',
+  'non-member': 'Inactive',
+};
+
+export const DB_STATUS_TO_HUBSPOT_STATUS: Record<string, ContactMembershipStatus> = {
+  'active': 'Active',
+  'trialing': 'Trialing',
+  'past_due': 'Past Due',
+  'inactive': 'Inactive',
+  'cancelled': 'Cancelled',
+  'expired': 'Cancelled',
+  'terminated': 'Cancelled',
+  'former_member': 'Former Member',
+  'pending': 'Inactive',
+  'suspended': 'Inactive',
+  'frozen': 'Inactive',
+  'non-member': 'Inactive',
+};
+
+export const DB_BILLING_PROVIDER_TO_HUBSPOT: Record<string, BillingProvider> = {
+  'stripe': 'Stripe',
+  'mindbody': 'MindBody',
+  'manual': 'Manual',
 };
 
 export const INACTIVE_STATUSES = ['pending', 'declined', 'suspended', 'expired', 'froze', 'frozen'];
 export const CHURNED_STATUSES = ['terminated', 'cancelled', 'non-member'];
-export const ACTIVE_STATUSES = ['active'];
+export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];

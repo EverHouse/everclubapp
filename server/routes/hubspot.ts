@@ -1330,6 +1330,107 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
   }
 });
 
+router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { dryRun = true } = req.body;
+    const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+    
+    // Get all members with HubSpot IDs and billing info
+    const membersResult = await pool.query(`
+      SELECT email, membership_status, billing_provider, tier, hubspot_id, first_name, last_name
+      FROM users
+      WHERE hubspot_id IS NOT NULL 
+        AND archived_at IS NULL
+        AND (membership_status IN ('active', 'trialing', 'past_due') OR stripe_subscription_id IS NOT NULL)
+      ORDER BY email
+    `);
+    
+    console.log(`[HubSpot Sync] Found ${membersResult.rows.length} members with HubSpot IDs to sync`);
+    
+    const results = {
+      total: membersResult.rows.length,
+      synced: 0,
+      skipped: 0,
+      errors: 0,
+      details: [] as Array<{ email: string; status: string; billingProvider: string; tier: string; result: string }>
+    };
+    
+    for (const member of membersResult.rows) {
+      const email = member.email;
+      const status = member.membership_status || 'active';
+      const billingProvider = member.billing_provider || 'manual';
+      const tier = member.tier;
+      
+      if (dryRun) {
+        results.details.push({
+          email,
+          status,
+          billingProvider,
+          tier: tier || 'none',
+          result: 'would sync'
+        });
+        results.synced++;
+        continue;
+      }
+      
+      try {
+        const syncResult = await syncMemberToHubSpot({
+          email,
+          status,
+          billingProvider,
+          tier
+        });
+        
+        if (syncResult.success) {
+          results.synced++;
+          results.details.push({
+            email,
+            status,
+            billingProvider,
+            tier: tier || 'none',
+            result: 'synced'
+          });
+        } else {
+          results.skipped++;
+          results.details.push({
+            email,
+            status,
+            billingProvider,
+            tier: tier || 'none',
+            result: `skipped: ${syncResult.error}`
+          });
+        }
+      } catch (err: any) {
+        results.errors++;
+        results.details.push({
+          email,
+          status,
+          billingProvider,
+          tier: tier || 'none',
+          result: `error: ${err.message}`
+        });
+      }
+      
+      // Rate limiting: 100ms between requests
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log(`[HubSpot Sync] Completed: ${results.synced} synced, ${results.skipped} skipped, ${results.errors} errors`);
+    
+    res.json({
+      dryRun,
+      total: results.total,
+      synced: results.synced,
+      skipped: results.skipped,
+      errors: results.errors,
+      sampleDetails: results.details.slice(0, 50)
+    });
+  } catch (error: any) {
+    console.error('[HubSpot Sync] Error syncing billing providers:', error);
+    res.status(500).json({ error: 'Sync failed: ' + error.message });
+  }
+});
+
 router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
   try {
     const hubspot = await getHubSpotClient();

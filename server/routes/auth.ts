@@ -346,6 +346,15 @@ router.post('/api/auth/verify-member', async (req, res) => {
             );
             console.log(`[Auth] Auto-fixed membership_status for ${normalizedEmail}: ${dbMemberStatus} -> ${subscription.status}`);
             dbMemberStatus = subscription.status; // Update for session
+            
+            // Sync corrected status to HubSpot
+            try {
+              const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+              await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
+              console.log(`[Auth] Synced auto-fixed status to HubSpot for ${normalizedEmail}`);
+            } catch (hubspotError) {
+              console.error('[Auth] HubSpot sync failed for auto-fix:', hubspotError);
+            }
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
@@ -507,6 +516,15 @@ router.post('/api/auth/request-otp', async (req, res) => {
               [subscription.status, dbUser[0].id]
             );
             console.log(`[Auth] Auto-fixed membership_status for ${normalizedEmail}: ${dbMemberStatus} -> ${subscription.status}`);
+            
+            // Sync corrected status to HubSpot
+            try {
+              const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+              await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
+              console.log(`[Auth] Synced auto-fixed status to HubSpot for ${normalizedEmail}`);
+            } catch (hubspotError) {
+              console.error('[Auth] HubSpot sync failed for auto-fix:', hubspotError);
+            }
             // Continue with login - subscription is valid
           } else {
             // Subscription is genuinely not active in Stripe

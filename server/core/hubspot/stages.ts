@@ -11,7 +11,10 @@ import {
   MINDBODY_TO_CONTACT_STATUS_MAP,
   ACTIVE_STATUSES,
   CHURNED_STATUSES,
-  ContactMembershipStatus
+  ContactMembershipStatus,
+  BillingProvider,
+  DB_STATUS_TO_HUBSPOT_STATUS,
+  DB_BILLING_PROVIDER_TO_HUBSPOT
 } from './constants';
 
 export async function updateDealStage(
@@ -96,6 +99,108 @@ export async function updateContactMembershipStatus(
   } catch (error) {
     console.error('[HubSpotDeals] Error updating contact membership_status:', error);
     return false;
+  }
+}
+
+export interface SyncMemberToHubSpotInput {
+  email: string;
+  status?: string;
+  billingProvider?: string;
+  tier?: string;
+  createIfMissing?: boolean; // If true (default), creates HubSpot contact if not found
+}
+
+export interface SyncMemberToHubSpotResult {
+  success: boolean;
+  contactId?: string;
+  updated: {
+    status?: boolean;
+    billingProvider?: boolean;
+    tier?: boolean;
+  };
+  error?: string;
+}
+
+export async function syncMemberToHubSpot(
+  input: SyncMemberToHubSpotInput
+): Promise<SyncMemberToHubSpotResult> {
+  const { email, status, billingProvider, tier, createIfMissing = true } = input;
+  
+  try {
+    const hubspot = await getHubSpotClient();
+    
+    const searchResponse = await retryableHubSpotRequest(() =>
+      hubspot.crm.contacts.searchApi.doSearch({
+        filterGroups: [{
+          filters: [{
+            propertyName: 'email',
+            operator: 'EQ',
+            value: email.toLowerCase()
+          }]
+        }],
+        properties: ['email', 'membership_status', 'billing_provider', 'membership_tier'],
+        limit: 1
+      })
+    );
+    
+    let contactId: string;
+    
+    if (!searchResponse.results || searchResponse.results.length === 0) {
+      if (!createIfMissing) {
+        console.log(`[HubSpot Sync] Contact not found for ${email}, skipping sync`);
+        return { success: false, error: 'Contact not found', updated: {} };
+      }
+      
+      // Create the contact if it doesn't exist
+      console.log(`[HubSpot Sync] Contact not found for ${email}, creating...`);
+      const { findOrCreateHubSpotContact } = await import('./members');
+      const result = await findOrCreateHubSpotContact(email);
+      if (!result.success || !result.contactId) {
+        console.error(`[HubSpot Sync] Failed to create contact for ${email}`);
+        return { success: false, error: 'Failed to create contact', updated: {} };
+      }
+      contactId = result.contactId;
+      console.log(`[HubSpot Sync] Created contact ${contactId} for ${email}`);
+    } else {
+      contactId = searchResponse.results[0].id;
+    }
+    
+    const properties: Record<string, string> = {};
+    const updated: SyncMemberToHubSpotResult['updated'] = {};
+    
+    if (status) {
+      const normalizedStatus = status.toLowerCase();
+      const hubspotStatus = DB_STATUS_TO_HUBSPOT_STATUS[normalizedStatus] || 'Inactive';
+      properties.membership_status = hubspotStatus;
+      updated.status = true;
+    }
+    
+    if (billingProvider) {
+      const normalizedProvider = billingProvider.toLowerCase();
+      const hubspotProvider = DB_BILLING_PROVIDER_TO_HUBSPOT[normalizedProvider] || 'Manual';
+      properties.billing_provider = hubspotProvider;
+      updated.billingProvider = true;
+    }
+    
+    if (tier) {
+      properties.membership_tier = tier;
+      updated.tier = true;
+    }
+    
+    if (Object.keys(properties).length === 0) {
+      console.log(`[HubSpot Sync] No properties to update for ${email}`);
+      return { success: true, contactId, updated };
+    }
+    
+    await retryableHubSpotRequest(() =>
+      hubspot.crm.contacts.basicApi.update(contactId, { properties })
+    );
+    
+    console.log(`[HubSpot Sync] Updated ${email}: ${JSON.stringify(properties)}`);
+    return { success: true, contactId, updated };
+  } catch (error) {
+    console.error(`[HubSpot Sync] Error syncing ${email}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : String(error), updated: {} };
   }
 }
 

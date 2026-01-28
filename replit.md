@@ -130,6 +130,20 @@ const isActive = activeStatuses.includes(status) || !!stripeSubscriptionId;
 - **Background sync runs every 5 minutes** as a fallback
 - **Both billing sources are valid**: Stripe members have `billing_provider = 'stripe'`, MindBody members have `billing_provider = 'mindbody'`
 
+### Stripe → HubSpot Sync (v9.33.0)
+- **All Stripe subscription changes sync to HubSpot instantly** via `syncMemberToHubSpot()`
+- **Properties synced**: `membership_status`, `billing_provider`, `membership_tier`
+- **Events that trigger sync**:
+  - `subscription.created` → syncs status (active/trialing), tier, billing_provider=Stripe
+  - `subscription.updated` → syncs status changes (active, past_due, suspended), tier changes
+  - `subscription.deleted` → syncs cancelled status
+  - `invoice.payment_failed` → syncs past_due status
+  - Auth auto-fix → syncs corrected status when DB is out of sync with Stripe
+  - Manual billing_provider change → syncs new provider
+- **Backfill endpoint**: `POST /api/hubspot/sync-billing-providers` (dryRun: true/false)
+- **HubSpot status values**: Active, Trialing, Past Due, Inactive, Cancelled, Former Member
+- **HubSpot billing_provider values**: Stripe, MindBody, Manual
+
 ### Data Cleanup on Actions
 - **When cancelling bookings**: Clear associated fees (`cached_fee_cents = 0`, `payment_status = 'waived'`)
 - **When deleting records**: Consider all related data (participants, fees, sessions, notifications)
