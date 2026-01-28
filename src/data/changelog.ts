@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.32.20",
+    date: "2026-01-28",
+    title: "Activity Tab Added to Member Updates",
+    isMajor: false,
+    changes: [
+      "Restored Activity tab to member Updates page - members can now view their notifications including booking confirmations, check-ins, and payment updates",
+      "Activity tab shows unread count badge when there are unread notifications",
+      "Added 'Mark all as read' button for quick notification management",
+      "Notification icons and colors match notification type (booking, payment, check-in, etc.)",
+      "Clicking a notification marks it as read and navigates to relevant booking if applicable"
+    ]
+  },
+  {
     version: "9.32.19",
     date: "2026-01-28",
     title: "Member Balance & Payment Flow Fixes",

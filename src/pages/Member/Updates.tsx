@@ -145,6 +145,16 @@ const isActiveAnnouncement = (item: Announcement): boolean => {
   return true;
 };
 
+interface NotificationItem {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  created_at: string;
+  read: boolean;
+  action_url?: string;
+}
+
 const MemberUpdates: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -159,18 +169,44 @@ const MemberUpdates: React.FC = () => {
   const isViewingAsMember = user?.email && actualUser?.email && user.email !== actualUser.email;
   
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'announcements' | 'notices'>(
-    (tabParam === 'notices' || tabParam === 'closures') ? 'notices' : 'announcements'
+  const [activeTab, setActiveTab] = useState<'announcements' | 'notices' | 'activity'>(
+    tabParam === 'activity' ? 'activity' : (tabParam === 'notices' || tabParam === 'closures') ? 'notices' : 'announcements'
   );
   
   const [closures, setClosures] = useState<Closure[]>([]);
   const [closuresLoading, setClosuresLoading] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!isLoading && !closuresLoading) {
+    if (!isLoading && !closuresLoading && !notificationsLoading) {
       setPageReady(true);
     }
-  }, [isLoading, closuresLoading, setPageReady]);
+  }, [isLoading, closuresLoading, notificationsLoading, setPageReady]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user?.email) {
+      setNotificationsLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/notifications?user_email=${encodeURIComponent(user.email)}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+        setUnreadCount(data.filter((n: NotificationItem) => !n.read).length);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [user?.email]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const fetchClosures = useCallback(async () => {
     try {
@@ -212,17 +248,48 @@ const MemberUpdates: React.FC = () => {
       setActiveTab('announcements');
     } else if (tabParam === 'notices' || tabParam === 'closures') {
       setActiveTab('notices');
+    } else if (tabParam === 'activity') {
+      setActiveTab('activity');
     }
   }, [tabParam]);
 
-  const handleTabChange = (tab: 'announcements' | 'notices') => {
+  const handleTabChange = (tab: 'announcements' | 'notices' | 'activity') => {
     setActiveTab(tab);
     setSearchParams({ tab });
   };
 
+  const markNotificationRead = async (notificationId: number) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}/read`, { 
+        method: 'POST',
+        credentials: 'include' 
+      });
+      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+  };
+
+  const markAllRead = async () => {
+    if (!user?.email) return;
+    try {
+      await fetch(`/api/notifications/mark-all-read`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_email: user.email }),
+        credentials: 'include' 
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+    }
+  };
+
   const handleRefresh = useCallback(async () => {
-    await fetchClosures();
-  }, [fetchClosures]);
+    await Promise.all([fetchClosures(), fetchNotifications()]);
+  }, [fetchClosures, fetchNotifications]);
 
   const handleAnnouncementClick = (item: Announcement) => {
     if (item.linkType) {
@@ -541,6 +608,122 @@ const MemberUpdates: React.FC = () => {
     );
   };
 
+  const getNotificationIcon = (type: string): string => {
+    switch (type) {
+      case 'booking_approved': return 'check_circle';
+      case 'booking_declined': return 'cancel';
+      case 'booking_cancelled': return 'event_busy';
+      case 'booking_reminder': return 'schedule';
+      case 'check_in': return 'location_on';
+      case 'no_show': return 'person_off';
+      case 'payment': return 'payments';
+      case 'refund': return 'receipt_long';
+      case 'fee_charged': return 'attach_money';
+      case 'roster_update': return 'group';
+      case 'trackman': return 'sports_golf';
+      default: return 'notifications';
+    }
+  };
+
+  const getNotificationColor = (type: string, isDark: boolean): string => {
+    switch (type) {
+      case 'booking_approved':
+      case 'check_in':
+        return isDark ? 'text-green-400' : 'text-green-600';
+      case 'booking_declined':
+      case 'no_show':
+      case 'booking_cancelled':
+        return isDark ? 'text-red-400' : 'text-red-600';
+      case 'payment':
+      case 'fee_charged':
+      case 'refund':
+        return isDark ? 'text-blue-400' : 'text-blue-600';
+      default:
+        return isDark ? 'text-accent' : 'text-primary';
+    }
+  };
+
+  const renderActivityTab = () => (
+    <div className="relative z-10 pb-32">
+      {notificationsLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={`p-4 rounded-2xl animate-pulse ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+                <div className="flex-1">
+                  <div className={`h-4 w-3/4 rounded mb-2 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+                  <div className={`h-3 w-1/2 rounded ${isDark ? 'bg-white/5' : 'bg-gray-100'}`} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+          <span className="material-symbols-outlined text-6xl mb-4 block opacity-30">notifications_none</span>
+          <p className="text-lg font-medium">No activity yet</p>
+          <p className="text-sm mt-1 opacity-70">Booking updates and alerts will appear here.</p>
+        </div>
+      ) : (
+        <>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              className={`mb-4 text-xs font-medium px-3 py-2 rounded-lg transition-colors ${
+                isDark ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-primary/10 text-primary/80 hover:bg-primary/15'
+              }`}
+            >
+              Mark all as read
+            </button>
+          )}
+          <MotionList className="space-y-3">
+            {notifications.map((notification) => (
+              <MotionListItem
+                key={notification.id}
+                className={`rounded-2xl transition-all overflow-hidden cursor-pointer ${
+                  notification.read
+                    ? isDark ? 'bg-white/[0.02] shadow-layered-dark' : 'bg-white/70 shadow-layered'
+                    : isDark ? 'bg-white/[0.05] shadow-layered-dark' : 'bg-white shadow-layered'
+                }`}
+                onClick={() => {
+                  if (!notification.read) markNotificationRead(notification.id);
+                  if (notification.action_url) navigate(notification.action_url);
+                }}
+              >
+                <div className="p-4 flex gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    isDark ? 'bg-white/10' : 'bg-primary/5'
+                  }`}>
+                    <span className={`material-symbols-outlined text-xl ${getNotificationColor(notification.type, isDark)}`}>
+                      {getNotificationIcon(notification.type)}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className={`font-semibold text-sm leading-snug ${isDark ? 'text-white' : 'text-gray-900'} ${!notification.read ? 'font-bold' : ''}`}>
+                        {notification.title}
+                      </h4>
+                      {!notification.read && (
+                        <span className="w-2 h-2 rounded-full bg-accent shrink-0 mt-1.5" />
+                      )}
+                    </div>
+                    <p className={`text-sm mt-0.5 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                      {notification.message}
+                    </p>
+                    <p className={`text-xs mt-2 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                      {formatDateTimePacific(notification.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </MotionListItem>
+            ))}
+          </MotionList>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <SwipeablePage className="px-6 relative overflow-hidden">
@@ -575,10 +758,25 @@ const MemberUpdates: React.FC = () => {
             </span>
           )}
         </button>
+        <button
+          onClick={() => handleTabChange('activity')}
+          className={`flex-1 py-3 px-2 rounded-xl text-[11px] font-bold uppercase tracking-tight transition-all relative ${
+            activeTab === 'activity'
+              ? 'bg-accent text-primary'
+              : isDark ? 'bg-white/5 text-white/80 hover:bg-white/10' : 'bg-primary/5 text-primary/80 hover:bg-primary/10'
+          }`}
+        >
+          Activity
+          {unreadCount > 0 && activeTab !== 'activity' && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-primary text-[10px] font-bold rounded-full flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
       </div>
 
       <div key={activeTab} className="animate-content-enter">
-        {activeTab === 'announcements' ? renderAnnouncementsTab() : renderNoticesTab()}
+        {activeTab === 'announcements' ? renderAnnouncementsTab() : activeTab === 'notices' ? renderNoticesTab() : renderActivityTab()}
       </div>
     </SwipeablePage>
     </PullToRefresh>
