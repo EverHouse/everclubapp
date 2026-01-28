@@ -52,86 +52,87 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
     
     const user = userResult[0];
     
-    const pastBookingsResult = await db.execute(sql`
-      SELECT COUNT(DISTINCT booking_id) as count FROM (
-        SELECT id as booking_id FROM booking_requests
-        WHERE LOWER(user_email) = ${normalizedEmail}
-          AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          AND status NOT IN ('cancelled', 'declined')
-        UNION
-        SELECT br.id as booking_id FROM booking_requests br
-        JOIN booking_members bm ON br.id = bm.booking_id
-        WHERE LOWER(bm.user_email) = ${normalizedEmail}
-          AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          AND br.status NOT IN ('cancelled', 'declined')
-        UNION
-        SELECT br.id as booking_id FROM booking_requests br
-        JOIN booking_guests bg ON br.id = bg.booking_id
-        WHERE LOWER(bg.guest_email) = ${normalizedEmail}
-          AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          AND br.status NOT IN ('cancelled', 'declined')
-      ) all_bookings
-    `);
+    // Run all count queries in parallel for better performance
+    const [pastBookingsResult, pastEventsResult, pastWellnessResult, lastActivityResult] = await Promise.all([
+      db.execute(sql`
+        SELECT COUNT(DISTINCT booking_id) as count FROM (
+          SELECT id as booking_id FROM booking_requests
+          WHERE LOWER(user_email) = ${normalizedEmail}
+            AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+            AND status NOT IN ('cancelled', 'declined')
+          UNION
+          SELECT br.id as booking_id FROM booking_requests br
+          JOIN booking_members bm ON br.id = bm.booking_id
+          WHERE LOWER(bm.user_email) = ${normalizedEmail}
+            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+            AND br.status NOT IN ('cancelled', 'declined')
+          UNION
+          SELECT br.id as booking_id FROM booking_requests br
+          JOIN booking_guests bg ON br.id = bg.booking_id
+          WHERE LOWER(bg.guest_email) = ${normalizedEmail}
+            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+            AND br.status NOT IN ('cancelled', 'declined')
+        ) all_bookings
+      `),
+      db.select({ count: sql<number>`COUNT(*)` })
+        .from(eventRsvps)
+        .innerJoin(events, eq(eventRsvps.eventId, events.id))
+        .where(and(
+          sql`${events.eventDate} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`,
+          sql`${eventRsvps.status} != 'cancelled'`,
+          or(
+            sql`LOWER(${eventRsvps.userEmail}) = ${normalizedEmail}`,
+            eq(eventRsvps.matchedUserId, user.id)
+          )
+        )),
+      db.select({ count: sql<number>`COUNT(*)` })
+        .from(wellnessEnrollments)
+        .innerJoin(wellnessClasses, eq(wellnessEnrollments.classId, wellnessClasses.id))
+        .where(and(
+          sql`LOWER(${wellnessEnrollments.userEmail}) = ${normalizedEmail}`,
+          sql`${wellnessEnrollments.status} != 'cancelled'`,
+          sql`${wellnessClasses.date} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`
+        )),
+      db.execute(sql`
+        SELECT MAX(last_date) as last_date FROM (
+          SELECT MAX(request_date) as last_date FROM booking_requests
+          WHERE LOWER(user_email) = ${normalizedEmail} 
+            AND status NOT IN ('cancelled', 'declined')
+            AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+          UNION ALL
+          SELECT MAX(br.request_date) as last_date FROM booking_guests bg
+          JOIN booking_requests br ON bg.booking_id = br.id
+          WHERE LOWER(bg.guest_email) = ${normalizedEmail} 
+            AND br.status NOT IN ('cancelled', 'declined')
+            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+          UNION ALL
+          SELECT MAX(br.request_date) as last_date FROM booking_members bm
+          JOIN booking_requests br ON bm.booking_id = br.id
+          WHERE LOWER(bm.user_email) = ${normalizedEmail} 
+            AND bm.is_primary IS NOT TRUE 
+            AND br.status NOT IN ('cancelled', 'declined')
+            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+          UNION ALL
+          SELECT MAX(e.event_date) as last_date FROM event_rsvps er
+          JOIN events e ON er.event_id = e.id
+          WHERE LOWER(er.user_email) = ${normalizedEmail} 
+            AND er.status != 'cancelled'
+            AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+          UNION ALL
+          SELECT MAX(wc.date) as last_date FROM wellness_enrollments we
+          JOIN wellness_classes wc ON we.class_id = wc.id
+          WHERE LOWER(we.user_email) = ${normalizedEmail} 
+            AND we.status != 'cancelled'
+            AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+        ) combined
+      `)
+    ]);
+    
     const pastBookingsCount = Number((pastBookingsResult as any).rows?.[0]?.count || 0);
-    
-    const pastEventsResult = await db.select({ count: sql<number>`COUNT(*)` })
-      .from(eventRsvps)
-      .innerJoin(events, eq(eventRsvps.eventId, events.id))
-      .where(and(
-        sql`${events.eventDate} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`,
-        sql`${eventRsvps.status} != 'cancelled'`,
-        or(
-          sql`LOWER(${eventRsvps.userEmail}) = ${normalizedEmail}`,
-          eq(eventRsvps.matchedUserId, user.id)
-        )
-      ));
     const pastEventsCount = Number(pastEventsResult[0]?.count || 0);
-    
-    const pastWellnessResult = await db.select({ count: sql<number>`COUNT(*)` })
-      .from(wellnessEnrollments)
-      .innerJoin(wellnessClasses, eq(wellnessEnrollments.classId, wellnessClasses.id))
-      .where(and(
-        sql`LOWER(${wellnessEnrollments.userEmail}) = ${normalizedEmail}`,
-        sql`${wellnessEnrollments.status} != 'cancelled'`,
-        sql`${wellnessClasses.date} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`
-      ));
     const pastWellnessCount = Number(pastWellnessResult[0]?.count || 0);
-    
     const totalLifetimeVisits = pastBookingsCount + pastEventsCount + pastWellnessCount;
     
-    const lastActivityResult = await db.execute(sql`
-      SELECT MAX(last_date) as last_date FROM (
-        SELECT MAX(request_date) as last_date FROM booking_requests
-        WHERE LOWER(user_email) = ${normalizedEmail} 
-          AND status NOT IN ('cancelled', 'declined')
-          AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-        UNION ALL
-        SELECT MAX(br.request_date) as last_date FROM booking_guests bg
-        JOIN booking_requests br ON bg.booking_id = br.id
-        WHERE LOWER(bg.guest_email) = ${normalizedEmail} 
-          AND br.status NOT IN ('cancelled', 'declined')
-          AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-        UNION ALL
-        SELECT MAX(br.request_date) as last_date FROM booking_members bm
-        JOIN booking_requests br ON bm.booking_id = br.id
-        WHERE LOWER(bm.user_email) = ${normalizedEmail} 
-          AND bm.is_primary IS NOT TRUE 
-          AND br.status NOT IN ('cancelled', 'declined')
-          AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-        UNION ALL
-        SELECT MAX(e.event_date) as last_date FROM event_rsvps er
-        JOIN events e ON er.event_id = e.id
-        WHERE LOWER(er.user_email) = ${normalizedEmail} 
-          AND er.status != 'cancelled'
-          AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-        UNION ALL
-        SELECT MAX(wc.date) as last_date FROM wellness_enrollments we
-        JOIN wellness_classes wc ON we.class_id = wc.id
-        WHERE LOWER(we.user_email) = ${normalizedEmail} 
-          AND we.status != 'cancelled'
-          AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-      ) combined
-    `);
     const lastBookingDateRaw = (lastActivityResult as any).rows?.[0]?.last_date;
     const lastBookingDate = lastBookingDateRaw 
       ? (lastBookingDateRaw instanceof Date ? lastBookingDateRaw.toISOString().split('T')[0] : String(lastBookingDateRaw).split('T')[0])
@@ -195,69 +196,91 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       ))
       .orderBy(desc(bookingRequests.requestDate), desc(bookingRequests.startTime));
     
-    const enrichedBookingHistory = await Promise.all(bookingHistory.map(async (booking) => {
+    // Batch fetch all counts in a single query instead of N+1 queries per booking
+    const bookingIds = bookingHistory.map(b => b.id);
+    
+    // Build counts map with a single batch query
+    type BookingCounts = {
+      memberSlotsCount: number;
+      additionalMemberCount: number;
+      guestCount: number;
+      isPrimaryViaMemberSlot: boolean;
+    };
+    const countsMap = new Map<number, BookingCounts>();
+    
+    if (bookingIds.length > 0) {
+      const batchCountsResult = await db.execute(sql`
+        WITH member_counts AS (
+          SELECT 
+            booking_id,
+            COUNT(*)::int as total_slots,
+            COUNT(*) FILTER (WHERE user_email IS NOT NULL)::int as filled_slots,
+            COUNT(*) FILTER (WHERE user_email IS NOT NULL AND is_primary IS NOT TRUE)::int as additional_members,
+            BOOL_OR(is_primary = true AND LOWER(user_email) = ${normalizedEmail}) as is_primary_member
+          FROM booking_members
+          WHERE booking_id = ANY(${bookingIds}::int[])
+          GROUP BY booking_id
+        ),
+        guest_counts AS (
+          SELECT booking_id, COUNT(*)::int as guest_count
+          FROM booking_guests
+          WHERE booking_id = ANY(${bookingIds}::int[])
+          GROUP BY booking_id
+        )
+        SELECT 
+          COALESCE(mc.booking_id, gc.booking_id) as booking_id,
+          COALESCE(mc.total_slots, 0) as member_slots_count,
+          COALESCE(mc.additional_members, 0) as additional_member_count,
+          COALESCE(gc.guest_count, 0) as guest_count,
+          COALESCE(mc.is_primary_member, false) as is_primary_via_member_slot
+        FROM member_counts mc
+        FULL OUTER JOIN guest_counts gc ON mc.booking_id = gc.booking_id
+      `);
+      
+      for (const row of (batchCountsResult as any).rows || []) {
+        countsMap.set(row.booking_id, {
+          memberSlotsCount: row.member_slots_count || 0,
+          additionalMemberCount: row.additional_member_count || 0,
+          guestCount: row.guest_count || 0,
+          isPrimaryViaMemberSlot: row.is_primary_via_member_slot || false
+        });
+      }
+    }
+    
+    // Enrich bookings using the pre-fetched counts (no additional queries)
+    const enrichedBookingHistory = bookingHistory.map((booking) => {
       const isPrimaryViaBookingRequest = booking.userEmail?.toLowerCase() === normalizedEmail;
+      const counts = countsMap.get(booking.id) || {
+        memberSlotsCount: 0,
+        additionalMemberCount: 0,
+        guestCount: 0,
+        isPrimaryViaMemberSlot: false
+      };
       
-      const primaryMemberResult = await db.select({ isPrimary: bookingMembers.isPrimary })
-        .from(bookingMembers)
-        .where(and(
-          eq(bookingMembers.bookingId, booking.id),
-          sql`LOWER(${bookingMembers.userEmail}) = ${normalizedEmail}`
-        ))
-        .limit(1);
-      
-      const isPrimaryViaMemberSlot = primaryMemberResult[0]?.isPrimary === true;
-      const isPrimaryBooker = isPrimaryViaBookingRequest || isPrimaryViaMemberSlot;
-      
-      const memberSlotsResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingMembers)
-        .where(eq(bookingMembers.bookingId, booking.id));
-      
-      const filledMemberResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingMembers)
-        .where(and(
-          eq(bookingMembers.bookingId, booking.id),
-          sql`${bookingMembers.userEmail} IS NOT NULL`
-        ));
-      
-      const additionalMemberResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingMembers)
-        .where(and(
-          eq(bookingMembers.bookingId, booking.id),
-          sql`${bookingMembers.userEmail} IS NOT NULL`,
-          sql`${bookingMembers.isPrimary} IS NOT TRUE`
-        ));
-      
-      const guestResult = await db.select({ count: sql<number>`count(*)::int` })
-        .from(bookingGuests)
-        .where(eq(bookingGuests.bookingId, booking.id));
-      
-      const memberSlotsCount = memberSlotsResult[0]?.count || 0;
-      const additionalMemberCount = additionalMemberResult[0]?.count || 0;
-      const actualGuestCount = guestResult[0]?.count || 0;
+      const isPrimaryBooker = isPrimaryViaBookingRequest || counts.isPrimaryViaMemberSlot;
       const legacyGuestCount = booking.guestCount || 0;
       
       let totalPlayerCount: number;
       const trackmanPlayerCount = booking.trackmanPlayerCount;
       if (trackmanPlayerCount && trackmanPlayerCount > 0) {
         totalPlayerCount = trackmanPlayerCount;
-      } else if (memberSlotsCount > 0) {
-        totalPlayerCount = memberSlotsCount + actualGuestCount;
+      } else if (counts.memberSlotsCount > 0) {
+        totalPlayerCount = counts.memberSlotsCount + counts.guestCount;
       } else {
         totalPlayerCount = Math.max(legacyGuestCount + 1, 1);
       }
       
-      const effectiveGuestCount = actualGuestCount > 0 ? actualGuestCount : legacyGuestCount;
+      const effectiveGuestCount = counts.guestCount > 0 ? counts.guestCount : legacyGuestCount;
       
       return {
         ...booking,
         role: isPrimaryBooker ? 'owner' : 'player',
         primaryBookerName: isPrimaryBooker ? null : (booking.userName || booking.userEmail),
         totalPlayerCount,
-        linkedMemberCount: additionalMemberCount,
+        linkedMemberCount: counts.additionalMemberCount,
         actualGuestCount: effectiveGuestCount
       };
-    }));
+    });
     
     const eventRsvpHistory = await db.select({
       id: eventRsvps.id,
