@@ -88,6 +88,16 @@ const ToursTab: React.FC = () => {
     fetchTours();
   }, [fetchTours]);
 
+  useEffect(() => {
+    const handleTourUpdate = () => {
+      fetchTours();
+    };
+    window.addEventListener('tour-update', handleTourUpdate);
+    return () => {
+      window.removeEventListener('tour-update', handleTourUpdate);
+    };
+  }, [fetchTours]);
+
   const handlePullRefresh = useCallback(async () => {
     setSyncMessage(null);
     const maxRetries = 3;

@@ -34,7 +34,7 @@ const GUEST_CHECKIN_FIELDS = [
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, actualUser, isViewingAs } = useData();
+  const { user, logout, actualUser, isViewingAs, refreshUser } = useData();
   const { effectiveTheme } = useTheme();
   const { setPageReady } = usePageReady();
   const { startNavigation } = useNavigationLoading();
@@ -142,6 +142,18 @@ const Profile: React.FC = () => {
         .catch(() => {});
     }
   }, [user?.email, isStaffOrAdminProfile]);
+
+  useEffect(() => {
+    const handleTierUpdate = (event: CustomEvent) => {
+      const detail = event.detail;
+      if (detail?.memberEmail?.toLowerCase() === user?.email?.toLowerCase()) {
+        refreshUser();
+      }
+    };
+
+    window.addEventListener('tier-update', handleTierUpdate as EventListener);
+    return () => window.removeEventListener('tier-update', handleTierUpdate as EventListener);
+  }, [user?.email, refreshUser]);
 
   const handlePasswordSubmit = async () => {
     setPasswordError('');

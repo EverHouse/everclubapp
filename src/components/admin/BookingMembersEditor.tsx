@@ -526,6 +526,21 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   }, [showBillingSection, fetchBillingContext]);
 
   const handleConfirmPayment = async (participantId: number) => {
+    if (!billingContext) return;
+    
+    // Store previous state for rollback
+    const previousBillingContext = billingContext;
+    
+    // Optimistically update the participant's payment status to 'paid'
+    setBillingContext({
+      ...billingContext,
+      participants: billingContext.participants.map(p =>
+        p.participantId === participantId ? { ...p, paymentStatus: 'paid' } : p
+      ),
+      totalOutstanding: billingContext.totalOutstanding - (billingContext.participants.find(p => p.participantId === participantId)?.totalFee || 0),
+      hasUnpaidBalance: billingContext.participants.filter(p => p.participantId !== participantId && p.paymentStatus === 'pending' && p.totalFee > 0).length > 0
+    });
+    
     setBillingActionInProgress(`confirm-${participantId}`);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
@@ -536,13 +551,18 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
       });
       if (res.ok) {
         showToast('Payment confirmed', 'success');
+        // Refresh to get accurate server state
         await fetchBillingContext();
         await fetchBookingMembers();
       } else {
+        // Rollback on failure
+        setBillingContext(previousBillingContext);
         showToast('Failed to confirm payment', 'error');
       }
     } catch (err) {
       console.error('Failed to confirm payment:', err);
+      // Rollback on error
+      setBillingContext(previousBillingContext);
       showToast('Failed to confirm payment', 'error');
     } finally {
       setBillingActionInProgress(null);
@@ -609,6 +629,21 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   };
 
   const handleConfirmAll = async () => {
+    if (!billingContext) return;
+    
+    // Store previous state for rollback
+    const previousBillingContext = billingContext;
+    
+    // Optimistically update all participants' payment status to 'paid'
+    setBillingContext({
+      ...billingContext,
+      participants: billingContext.participants.map(p =>
+        p.paymentStatus === 'pending' && p.totalFee > 0 ? { ...p, paymentStatus: 'paid' } : p
+      ),
+      totalOutstanding: 0,
+      hasUnpaidBalance: false
+    });
+    
     setBillingActionInProgress('confirm-all');
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
@@ -619,13 +654,18 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
       });
       if (res.ok) {
         showToast('All payments confirmed', 'success');
+        // Refresh to get accurate server state
         await fetchBillingContext();
         await fetchBookingMembers();
       } else {
+        // Rollback on failure
+        setBillingContext(previousBillingContext);
         showToast('Failed to confirm payments', 'error');
       }
     } catch (err) {
       console.error('Failed to confirm all payments:', err);
+      // Rollback on error
+      setBillingContext(previousBillingContext);
       showToast('Failed to confirm payments', 'error');
     } finally {
       setBillingActionInProgress(null);

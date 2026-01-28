@@ -273,6 +273,31 @@ const Dashboard: React.FC = () => {
   }, [fetchUserData]);
 
   useEffect(() => {
+    const handleMemberStatsUpdated = (event: CustomEvent) => {
+      const detail = event.detail;
+      if (detail?.memberEmail?.toLowerCase() === user?.email?.toLowerCase() && detail?.guestPasses !== undefined) {
+        fetch(`/api/guest-passes/${encodeURIComponent(user?.email || '')}?tier=${encodeURIComponent(user?.tier || 'Social')}`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => data && setGuestPasses(data))
+          .catch(err => console.error('Error refreshing guest passes:', err));
+      }
+    };
+
+    window.addEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
+    return () => window.removeEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
+  }, [user?.email, user?.tier]);
+
+  // Listen for billing-update events to refresh balance display in real-time
+  useEffect(() => {
+    const handleBillingUpdate = () => {
+      setBalanceRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('billing-update', handleBillingUpdate);
+    return () => window.removeEventListener('billing-update', handleBillingUpdate);
+  }, []);
+
+  useEffect(() => {
     if (user?.email && !isStaffOrAdminProfile) {
       fetch(`/api/guest-passes/${encodeURIComponent(user.email)}?tier=${encodeURIComponent(user.tier || 'Social')}`, { credentials: 'include' })
         .then(res => {

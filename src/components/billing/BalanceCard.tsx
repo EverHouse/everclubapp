@@ -58,6 +58,18 @@ export function BalanceCard({ memberEmail, onPayNow, className = '' }: BalanceCa
     fetchBalance();
   }, [fetchBalance]);
 
+  // Listen for billing-update events (WebSocket) to refresh balance in real-time
+  useEffect(() => {
+    const handleBillingUpdate = () => {
+      fetchBalance();
+    };
+
+    window.addEventListener('billing-update', handleBillingUpdate);
+    return () => {
+      window.removeEventListener('billing-update', handleBillingUpdate);
+    };
+  }, [fetchBalance]);
+
   if (loading) {
     return (
       <div className={`glass-card rounded-2xl p-4 ${className}`}>

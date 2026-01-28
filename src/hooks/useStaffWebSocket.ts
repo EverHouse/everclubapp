@@ -278,6 +278,12 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             console.log('[StaffWebSocket] Received day_pass_update:', message.action);
             window.dispatchEvent(new CustomEvent('day-pass-update', { detail: message }));
           }
+
+          // Handle tour updates (scheduled, rescheduled, cancelled, checked in)
+          if (message.type === 'tour_update') {
+            console.log('[StaffWebSocket] Received tour_update:', message.action);
+            window.dispatchEvent(new CustomEvent('tour-update', { detail: message }));
+          }
         } catch (e) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }

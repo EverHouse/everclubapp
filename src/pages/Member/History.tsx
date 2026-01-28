@@ -95,6 +95,17 @@ const History: React.FC = () => {
     }
   }, [isLoading, setPageReady]);
 
+  useEffect(() => {
+    const handleBillingUpdate = () => {
+      fetchPurchases();
+    };
+
+    window.addEventListener('billing-update', handleBillingUpdate);
+    return () => {
+      window.removeEventListener('billing-update', handleBillingUpdate);
+    };
+  }, [fetchPurchases]);
+
   const handleRefresh = useCallback(async () => {
     await loadData();
   }, [loadData]);

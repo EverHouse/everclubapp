@@ -507,6 +507,7 @@ export function broadcastToStaff(notification: {
   action?: string;
   eventId?: number;
   classId?: number;
+  tourId?: number;
   memberEmail?: string;
   data?: any;
 }) {
@@ -825,7 +826,7 @@ export function broadcastDataIntegrityUpdate(action: 'check_complete' | 'issue_r
 export function broadcastBillingUpdate(data: {
   action: 'subscription_created' | 'subscription_cancelled' | 'subscription_updated' | 
           'payment_succeeded' | 'payment_failed' | 'invoice_paid' | 'invoice_failed' |
-          'booking_payment_updated';
+          'booking_payment_updated' | 'payment_refunded';
   customerId?: string;
   memberEmail?: string;
   memberName?: string;
@@ -841,6 +842,19 @@ export function broadcastBillingUpdate(data: {
   });
 
   let sent = 0;
+
+  // Send to the affected member if memberEmail is provided
+  if (data.memberEmail) {
+    const memberConnections = clients.get(data.memberEmail.toLowerCase()) || [];
+    memberConnections.forEach(conn => {
+      if (conn.ws.readyState === WebSocket.OPEN) {
+        conn.ws.send(payload);
+        sent++;
+      }
+    });
+  }
+
+  // Also broadcast to all staff
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
@@ -851,7 +865,7 @@ export function broadcastBillingUpdate(data: {
   });
 
   if (sent > 0) {
-    console.log(`[WebSocket] Broadcast billing ${data.action} to ${sent} staff connections`);
+    console.log(`[WebSocket] Broadcast billing ${data.action} to ${sent} connections (member: ${data.memberEmail || 'none'})`);
   }
   return sent;
 }

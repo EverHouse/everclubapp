@@ -115,6 +115,21 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   };
 
   const handleConfirmPayment = async (participantId: number) => {
+    if (!context) return;
+    
+    // Store previous state for rollback
+    const previousContext = context;
+    
+    // Optimistically update the participant's payment status to 'paid'
+    setContext({
+      ...context,
+      participants: context.participants.map(p =>
+        p.participantId === participantId ? { ...p, paymentStatus: 'paid' } : p
+      ),
+      totalOutstanding: context.totalOutstanding - (context.participants.find(p => p.participantId === participantId)?.totalFee || 0),
+      hasUnpaidBalance: context.participants.filter(p => p.participantId !== participantId && p.paymentStatus === 'pending' && p.totalFee > 0).length > 0
+    });
+    
     setActionInProgress(`confirm-${participantId}`);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
@@ -125,12 +140,17 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       });
       if (res.ok) {
         showToast('Payment confirmed', 'success');
+        // Refresh to get accurate server state
         await fetchContext();
       } else {
+        // Rollback on failure
+        setContext(previousContext);
         showToast('Failed to confirm payment', 'error');
       }
     } catch (err) {
       console.error('Failed to confirm payment:', err);
+      // Rollback on error
+      setContext(previousContext);
       showToast('Failed to confirm payment', 'error');
     } finally {
       setActionInProgress(null);
@@ -195,6 +215,21 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   };
 
   const handleConfirmAll = async () => {
+    if (!context) return;
+    
+    // Store previous state for rollback
+    const previousContext = context;
+    
+    // Optimistically update all participants' payment status to 'paid'
+    setContext({
+      ...context,
+      participants: context.participants.map(p =>
+        p.paymentStatus === 'pending' && p.totalFee > 0 ? { ...p, paymentStatus: 'paid' } : p
+      ),
+      totalOutstanding: 0,
+      hasUnpaidBalance: false
+    });
+    
     setActionInProgress('confirm-all');
     try {
       const res = await fetch(`/api/bookings/${bookingId}/payments`, {
@@ -205,12 +240,17 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       });
       if (res.ok) {
         showToast('All payments confirmed', 'success');
+        // Refresh to get accurate server state
         await fetchContext();
       } else {
+        // Rollback on failure
+        setContext(previousContext);
         showToast('Failed to confirm payments', 'error');
       }
     } catch (err) {
       console.error('Failed to confirm all payments:', err);
+      // Rollback on error
+      setContext(previousContext);
       showToast('Failed to confirm payments', 'error');
     } finally {
       setActionInProgress(null);

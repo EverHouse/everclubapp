@@ -10,6 +10,7 @@ import { getTierRank } from './helpers';
 import { createMemberLocally, queueMemberCreation, getAllDiscountRules, handleTierChange } from '../../core/hubspot';
 import { changeSubscriptionTier, pauseSubscription } from '../../core/stripe';
 import { notifyMember } from '../../core/notificationService';
+import { broadcastTierUpdate } from '../../core/websocket';
 import { cascadeEmailChange, previewEmailChangeImpact } from '../../core/memberService/emailChangeService';
 import { getAvailableTiersForChange, previewTierChange, commitTierChange } from '../../core/stripe/tierChanges';
 import { logFromRequest } from '../../core/auditLog';
@@ -118,6 +119,14 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         : `Your membership tier has been cleared (was ${oldTierDisplay})`,
       type: 'system',
       url: '/#/profile'
+    });
+    
+    broadcastTierUpdate({
+      action: normalizedTier ? 'updated' : 'removed',
+      memberEmail: normalizedEmail,
+      tier: normalizedTier || undefined,
+      previousTier: actualTier,
+      assignedBy: performedBy
     });
     
     res.json({

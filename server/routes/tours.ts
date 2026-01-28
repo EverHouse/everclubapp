@@ -10,6 +10,7 @@ import { notifyAllStaff } from '../core/notificationService';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getSessionUser } from '../types/session';
 import { logFromRequest, AuditAction } from '../core/auditLog';
+import { broadcastToStaff } from '../core/websocket';
 
 function parseTimeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -109,6 +110,8 @@ router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
       { relatedId: updated.id, relatedType: 'tour', url: '/#/staff/tours' }
     );
     
+    broadcastToStaff({ type: 'tour_update', action: 'checked_in', tourId: updated.id });
+    
     res.json(updated);
   } catch (error: any) {
     if (!isProduction) console.error('Tour check-in error:', error);
@@ -184,6 +187,15 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
       );
     }
     
+    const actionMap: Record<string, string> = {
+      'checked_in': 'checked_in',
+      'cancelled': 'cancelled',
+      'completed': 'updated',
+      'no-show': 'updated',
+      'scheduled': 'updated'
+    };
+    broadcastToStaff({ type: 'tour_update', action: actionMap[status] || 'updated', tourId: updated.id });
+    
     res.json(updated);
   } catch (error: any) {
     if (!isProduction) console.error('Tour status update error:', error);
@@ -237,6 +249,8 @@ router.post('/api/tours/book', async (req, res) => {
       { relatedId: newTour.id, relatedType: 'tour', url: '/#/staff/tours' }
     );
     
+    broadcastToStaff({ type: 'tour_update', action: 'created', tourId: newTour.id });
+    
     res.json({ id: newTour.id, message: 'Tour request created' });
   } catch (error: any) {
     if (!isProduction) console.error('Tour booking error:', error);
@@ -266,6 +280,8 @@ router.patch('/api/tours/:id/confirm', async (req, res) => {
       'tour_scheduled',
       { relatedId: updated.id, relatedType: 'tour', url: '/#/staff/tours' }
     );
+    
+    broadcastToStaff({ type: 'tour_update', action: 'updated', tourId: updated.id });
     
     res.json(updated);
   } catch (error: any) {

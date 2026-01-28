@@ -62,7 +62,7 @@ export default function BillingSection({ isDark }: Props) {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [migratingPayment, setMigratingPayment] = useState(false);
 
-  useEffect(() => {
+  const fetchBillingData = () => {
     const emailParam = viewAsUser?.email ? `?email=${encodeURIComponent(viewAsUser.email)}` : '';
     Promise.all([
       fetch(`/api/my/billing${emailParam}`, { credentials: 'include' }).then(r => r.ok ? r.json() : null),
@@ -72,6 +72,21 @@ export default function BillingSection({ isDark }: Props) {
       setInvoices(invoiceData?.invoices || []);
     }).catch(() => {})
     .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchBillingData();
+  }, [viewAsUser?.email]);
+
+  useEffect(() => {
+    const handleBillingUpdate = () => {
+      fetchBillingData();
+    };
+
+    window.addEventListener('billing-update', handleBillingUpdate);
+    return () => {
+      window.removeEventListener('billing-update', handleBillingUpdate);
+    };
   }, [viewAsUser?.email]);
 
   const handleUpdatePaymentMethod = async () => {

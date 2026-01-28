@@ -372,6 +372,16 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     return unsubscribe;
   }, [fetchClasses, fetchEnrollments]);
 
+  // Listen for waitlist-update custom events (from WebSocket) for real-time availability
+  useEffect(() => {
+    const handleWaitlistUpdate = () => {
+      fetchClasses();
+      fetchEnrollments();
+    };
+    window.addEventListener('waitlist-update', handleWaitlistUpdate);
+    return () => window.removeEventListener('waitlist-update', handleWaitlistUpdate);
+  }, [fetchClasses, fetchEnrollments]);
+
   useEffect(() => {
     if (!isLoading) {
       setPageReady(true);

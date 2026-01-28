@@ -27,6 +27,7 @@ import {
 } from '../../core/stripe/paymentRepository';
 import { logFromRequest } from '../../core/auditLog';
 import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS } from './helpers';
+import { broadcastBillingUpdate } from '../../core/websocket';
 
 const router = Router();
 
@@ -302,6 +303,14 @@ router.post('/api/stripe/confirm-payment', isStaffOrAdmin, async (req: Request, 
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
+
+    const paymentRecord = await getPaymentByIntentId(paymentIntentId);
+    
+    broadcastBillingUpdate({
+      action: 'payment_succeeded',
+      memberEmail: paymentRecord?.memberEmail || paymentRecord?.member_email,
+      amount: paymentRecord?.amountCents || paymentRecord?.amount_cents
+    });
 
     res.json({ success: true });
   } catch (error: any) {
@@ -636,6 +645,14 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
     if (!result.success) {
       return res.status(400).json({ error: result.error || 'Payment confirmation failed' });
     }
+
+    const paymentRecord = await getPaymentByIntentId(paymentIntentId);
+    
+    broadcastBillingUpdate({
+      action: 'payment_succeeded',
+      memberEmail: paymentRecord?.memberEmail || paymentRecord?.member_email,
+      amount: paymentRecord?.amountCents || paymentRecord?.amount_cents
+    });
 
     console.log(`[Stripe] Quick charge confirmed: ${paymentIntentId} by ${staffEmail}`);
     res.json({ success: true });
@@ -1465,6 +1482,13 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
     });
 
     console.log(`[Payments] Refund ${refund.id} created for ${paymentIntentId}: $${(refundedAmount / 100).toFixed(2)}`);
+
+    broadcastBillingUpdate({
+      action: 'payment_refunded',
+      memberEmail: payment.memberEmail || payment.member_email,
+      amount: refundedAmount,
+      status: newStatus
+    });
 
     res.json({
       success: true,

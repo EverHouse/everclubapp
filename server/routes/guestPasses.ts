@@ -4,7 +4,7 @@ import { db } from '../db';
 import { guestPasses, notifications, staffUsers, bookingRequests } from '../../shared/schema';
 import { getTierLimits } from '../core/tierService';
 import { sendPushNotification } from './push';
-import { sendNotificationToUser } from '../core/websocket';
+import { sendNotificationToUser, broadcastMemberStatsUpdated } from '../core/websocket';
 import { logAndRespond } from '../core/logger';
 import { withRetry } from '../core/retry';
 import { getSessionUser } from '../types/session';
@@ -184,6 +184,8 @@ router.post('/api/guest-passes/:email/use', async (req, res) => {
       url: '/#/profile'
     }).catch(err => console.error('Push notification failed:', err));
     
+    broadcastMemberStatsUpdated(email, { guestPasses: remaining });
+    
     res.json({
       passes_used: data.passesUsed,
       passes_total: data.passesTotal,
@@ -220,10 +222,14 @@ router.put('/api/guest-passes/:email', async (req, res) => {
     }
     
     const data = result[0];
+    const passesRemaining = data.passesTotal - data.passesUsed;
+    
+    broadcastMemberStatsUpdated(email, { guestPasses: passesRemaining });
+    
     res.json({
       passes_used: data.passesUsed,
       passes_total: data.passesTotal,
-      passes_remaining: data.passesTotal - data.passesUsed
+      passes_remaining: passesRemaining
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to update guest passes', error, 'GUEST_PASS_UPDATE_ERROR');
@@ -270,6 +276,8 @@ export async function useGuestPass(
         url: '/#/profile'
       }).catch(err => console.error('Push notification failed:', err));
     }
+    
+    broadcastMemberStatsUpdated(memberEmail, { guestPasses: remaining });
     
     return { success: true, remaining };
   } catch (error) {
@@ -323,6 +331,8 @@ export async function refundGuestPass(
         message: message
       });
     }
+    
+    broadcastMemberStatsUpdated(memberEmail, { guestPasses: remaining });
     
     return { success: true, remaining };
   } catch (error) {

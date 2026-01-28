@@ -135,6 +135,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           if (message.type === 'billing_update') {
             window.dispatchEvent(new CustomEvent('billing-update', { detail: message }));
           }
+
+          // Handle tier updates (membership tier changes by staff)
+          if (message.type === 'tier_update') {
+            window.dispatchEvent(new CustomEvent('tier-update', { detail: message }));
+          }
         } catch (e) {
           console.error('[WebSocket] Error parsing message:', e);
         }

@@ -12,6 +12,7 @@ import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessio
 import { consumeGuestPassForParticipant, canUseGuestPass } from '../core/billing/guestPassConsumer';
 import { logFromRequest } from '../core/auditLog';
 import { enforceSocialTierRules, type ParticipantForValidation } from '../core/bookingService/tierRules';
+import { broadcastMemberStatsUpdated } from '../core/websocket';
 
 const router = Router();
 
@@ -429,6 +430,10 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           newStatus: 'waived',
           passesRemaining: consumeResult.passesRemaining
         });
+        
+        if (consumeResult.passesRemaining !== undefined) {
+          broadcastMemberStatsUpdated(booking.owner_email, { guestPasses: consumeResult.passesRemaining });
+        }
         
         return res.json({ 
           success: true, 
