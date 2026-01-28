@@ -3472,7 +3472,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 <FloatingActionButton
                   onClick={() => setStaffManualBookingModalOpen(true)}
                   icon="add"
-                  secondaryIcon="sports_golf"
                   color="brand"
                   label="Create Booking for Member"
                 />
