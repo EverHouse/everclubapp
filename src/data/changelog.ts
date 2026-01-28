@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.37.3",
+    date: "2026-01-28",
+    title: "Calendar Refresh Button & Last Updated Time",
+    changes: [
+      "Added: Sync button now refreshes all calendar data (bookings, requests, closures)",
+      "Added: Last updated timestamp shown next to sync button on desktop",
+      "Improved: Visual feedback when calendar data is refreshed",
+      "Improved: Auto-refresh from webhooks now updates the timestamp"
+    ]
+  },
+  {
     version: "9.37.2",
     date: "2026-01-28",
     title: "Webhook Booking Link Fix",

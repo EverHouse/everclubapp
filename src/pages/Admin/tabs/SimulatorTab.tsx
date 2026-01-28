@@ -715,6 +715,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [calendarDate, setCalendarDate] = useState(() => getTodayPacific());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
     const [editingTrackmanId, setEditingTrackmanId] = useState(false);
     const [trackmanIdDraft, setTrackmanIdDraft] = useState('');
     const [savingTrackmanId, setSavingTrackmanId] = useState(false);
@@ -972,11 +973,14 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     }, [fetchData]);
 
     useEffect(() => {
-        fetchCalendarData();
+        fetchCalendarData().then(() => {
+            setLastRefresh(new Date());
+        });
     }, [fetchCalendarData]);
 
     const handleRefresh = useCallback(async () => {
         await Promise.all([fetchData(), fetchCalendarData()]);
+        setLastRefresh(new Date());
     }, [fetchData, fetchCalendarData]);
 
     useEffect(() => {
@@ -2094,36 +2098,45 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     document.body
                                 )}
                             </div>
-                            <button
-                                onClick={async () => {
-                                    if (isSyncing) return;
-                                    setIsSyncing(true);
-                                    try {
-                                        const res = await fetch('/api/admin/bookings/sync-calendar', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            credentials: 'include'
-                                        });
-                                        const data = await res.json();
-                                        if (res.ok) {
-                                            showToast(`Synced ${data.conference_room?.synced || 0} conference room bookings`, 'success');
-                                            fetchCalendarData();
-                                        } else {
-                                            showToast(data.error || 'Sync failed', 'error');
+                            <div className="absolute right-2 flex items-center gap-2">
+                                {lastRefresh && (
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap hidden sm:inline">
+                                        Updated {lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                    </span>
+                                )}
+                                <button
+                                    onClick={async () => {
+                                        if (isSyncing) return;
+                                        setIsSyncing(true);
+                                        try {
+                                            const syncRes = await fetch('/api/admin/bookings/sync-calendar', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                credentials: 'include'
+                                            });
+                                            const syncData = await syncRes.json();
+                                            
+                                            await handleRefresh();
+                                            
+                                            if (syncRes.ok && syncData.conference_room?.synced > 0) {
+                                                showToast(`Refreshed calendar + synced ${syncData.conference_room.synced} conference room bookings`, 'success');
+                                            } else {
+                                                showToast('Calendar refreshed', 'success');
+                                            }
+                                        } catch (err: any) {
+                                            const errorMsg = err?.message || 'Network error - please check your connection';
+                                            showToast(`Refresh failed: ${errorMsg}`, 'error');
+                                        } finally {
+                                            setIsSyncing(false);
                                         }
-                                    } catch (err: any) {
-                                        const errorMsg = err?.message || 'Network error - please check your connection';
-                                        showToast(`Sync failed: ${errorMsg}`, 'error');
-                                    } finally {
-                                        setIsSyncing(false);
-                                    }
-                                }}
-                                disabled={isSyncing}
-                                className="absolute right-2 p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
-                                title="Sync conference room bookings"
-                            >
-                                <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
-                            </button>
+                                    }}
+                                    disabled={isSyncing}
+                                    className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
+                                    title="Refresh calendar data"
+                                >
+                                    <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     
