@@ -107,6 +107,7 @@ export interface SyncMemberToHubSpotInput {
   status?: string;
   billingProvider?: string;
   tier?: string;
+  memberSince?: Date | string; // Date when membership started (synced on new subscriptions)
   createIfMissing?: boolean; // If true (default), creates HubSpot contact if not found
 }
 
@@ -117,6 +118,7 @@ export interface SyncMemberToHubSpotResult {
     status?: boolean;
     billingProvider?: boolean;
     tier?: boolean;
+    memberSince?: boolean;
   };
   error?: string;
 }
@@ -124,7 +126,7 @@ export interface SyncMemberToHubSpotResult {
 export async function syncMemberToHubSpot(
   input: SyncMemberToHubSpotInput
 ): Promise<SyncMemberToHubSpotResult> {
-  const { email, status, billingProvider, tier, createIfMissing = true } = input;
+  const { email, status, billingProvider, tier, memberSince, createIfMissing = true } = input;
   
   try {
     const hubspot = await getHubSpotClient();
@@ -185,6 +187,14 @@ export async function syncMemberToHubSpot(
     if (tier) {
       properties.membership_tier = tier;
       updated.tier = true;
+    }
+    
+    if (memberSince) {
+      // HubSpot date properties expect midnight UTC timestamp in milliseconds
+      const date = memberSince instanceof Date ? memberSince : new Date(memberSince);
+      const midnightUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      properties.member_since_date = midnightUtc.getTime().toString();
+      updated.memberSince = true;
     }
     
     if (Object.keys(properties).length === 0) {

@@ -1451,9 +1451,10 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
           email,
           status: 'active',
           billingProvider: 'stripe',
-          tier: tierName || undefined
+          tier: tierName || undefined,
+          memberSince: new Date()
         });
-        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: status=active, tier=${tierName}, billing=stripe`);
+        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: status=active, tier=${tierName}, billing=stripe, memberSince=now`);
       } catch (hubspotError) {
         console.error('[Stripe Webhook] HubSpot sync failed for staff invite:', hubspotError);
       }
@@ -1646,9 +1647,10 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
             email: customerEmail,
             status: subscription.status,
             billingProvider: 'stripe',
-            tier: tierName || undefined
+            tier: tierName || undefined,
+            memberSince: new Date()
           });
-          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot: status=${subscription.status}, tier=${tierName}, billing=stripe`);
+          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot: status=${subscription.status}, tier=${tierName}, billing=stripe, memberSince=now`);
         }
       } catch (hubspotError) {
         console.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', hubspotError);
@@ -1725,9 +1727,10 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                 email,
                 status: status, // Use actual subscription status (active, trialing, past_due)
                 billingProvider: 'stripe',
-                tier: tierName
+                tier: tierName,
+                memberSince: new Date()
               });
-              console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe`);
+              console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe, memberSince=now`);
             } catch (hubspotError) {
               console.error('[Stripe Webhook] HubSpot sync failed for existing user subscription:', hubspotError);
             }
@@ -1792,9 +1795,10 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                           email,
                           status: status, // Use actual subscription status
                           billingProvider: 'stripe',
-                          tier: tierName
+                          tier: tierName,
+                          memberSince: new Date()
                         });
-                        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe`);
+                        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe, memberSince=now`);
                       } catch (hubspotError) {
                         console.error('[Stripe Webhook] HubSpot sync failed for product name match:', hubspotError);
                       }

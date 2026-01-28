@@ -186,8 +186,8 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
     // Sync to HubSpot
     try {
       const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
-      await syncMemberToHubSpot({ email: member.email, status: 'active', tier: tierName, billingProvider: 'stripe' });
-      console.log(`[Stripe] Synced ${member.email} to HubSpot: status=active, tier=${tierName}, billing=stripe`);
+      await syncMemberToHubSpot({ email: member.email, status: 'active', tier: tierName, billingProvider: 'stripe', memberSince: new Date() });
+      console.log(`[Stripe] Synced ${member.email} to HubSpot: status=active, tier=${tierName}, billing=stripe, memberSince=now`);
     } catch (hubspotError) {
       console.error('[Stripe] HubSpot sync failed for subscription creation:', hubspotError);
     }
