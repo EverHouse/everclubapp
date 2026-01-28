@@ -65,7 +65,7 @@ export async function tryAutoApproveBooking(
     
     const updatedNotes = (pendingBooking.staff_notes || '') + ' [Auto-approved via Trackman webhook]';
     
-    await pool.query(
+    const updateResult = await pool.query(
       `UPDATE booking_requests 
        SET status = 'approved', 
            trackman_booking_id = $1, 
@@ -73,9 +73,17 @@ export async function tryAutoApproveBooking(
            reviewed_by = 'trackman_webhook',
            reviewed_at = NOW(),
            updated_at = NOW()
-       WHERE id = $3`,
+       WHERE id = $3 AND trackman_booking_id IS NULL
+       RETURNING id`,
       [trackmanBookingId, updatedNotes, bookingId]
     );
+    
+    if (updateResult.rowCount === 0) {
+      logger.warn('[Trackman Webhook] Pending booking was already linked by another process', {
+        extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
+      });
+      return { matched: false };
+    }
     
     let createdSessionId: number | undefined;
     
@@ -427,14 +435,22 @@ async function tryLinkCancelledBooking(
     const updatedNotes = (cancelledBooking.staff_notes || '') + 
       ' [Trackman booking linked - request was cancelled, manual Trackman cancellation may be needed]';
     
-    await pool.query(
+    const updateResult = await pool.query(
       `UPDATE booking_requests 
        SET trackman_booking_id = $1, 
            staff_notes = $2,
            updated_at = NOW()
-       WHERE id = $3`,
+       WHERE id = $3 AND trackman_booking_id IS NULL
+       RETURNING id`,
       [trackmanBookingId, updatedNotes, bookingId]
     );
+    
+    if (updateResult.rowCount === 0) {
+      logger.warn('[Trackman Webhook] Cancelled booking was already linked by another process', {
+        extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
+      });
+      return { matched: false };
+    }
     
     logger.info('[Trackman Webhook] Linked Trackman booking to cancelled request', {
       extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime }
