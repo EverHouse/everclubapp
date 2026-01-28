@@ -26,9 +26,11 @@ interface ParticipantFee {
   totalFee: number;
   tierAtBooking: string | null;
   dailyAllowance?: number;
+  minutesUsed?: number;
   waiverNeedsReview?: boolean;
   guestPassUsed?: boolean;
   prepaidOnline?: boolean;
+  cachedFeeCents?: number | null;
 }
 
 interface CheckinContext {
@@ -225,6 +227,10 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           !p.used_guest_pass &&
           !p.waiver_reviewed_at;
         
+        const rawCachedFee = p.cached_total_fee === null ? null : parseFloat(p.cached_total_fee);
+        const cachedFeeCentsValue = rawCachedFee === null ? null : Math.round(rawCachedFee * 100);
+        const minutesUsed = breakdownItem?.usedMinutesToday ?? undefined;
+        
         participants.push({
           participantId: p.participant_id,
           displayName: p.display_name,
@@ -236,9 +242,11 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           totalFee,
           tierAtBooking,
           dailyAllowance,
+          minutesUsed,
           waiverNeedsReview,
           guestPassUsed: p.used_guest_pass || false,
-          prepaidOnline: prepaidParticipantIds.has(p.participant_id)
+          prepaidOnline: prepaidParticipantIds.has(p.participant_id),
+          cachedFeeCents: cachedFeeCentsValue
         });
 
         if (p.payment_status !== 'paid' && p.payment_status !== 'waived') {

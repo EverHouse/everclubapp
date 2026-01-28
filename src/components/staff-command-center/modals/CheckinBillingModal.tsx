@@ -25,6 +25,7 @@ interface ParticipantFee {
   guestPassUsed?: boolean;
   waiverNeedsReview?: boolean;
   prepaidOnline?: boolean;
+  cachedFeeCents?: number | null;
 }
 
 interface CheckinContext {
@@ -594,7 +595,19 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             </div>
                           )}
                           {p.totalFee === 0 && p.participantType !== 'guest' && !p.guestPassUsed && (
-                            <span className="text-green-600 dark:text-green-400">Within daily allowance</span>
+                            p.cachedFeeCents === null && p.paymentStatus === 'pending' ? (
+                              <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                <span className="inline-block w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
+                                Calculating fees...
+                              </span>
+                            ) : (p.dailyAllowance !== undefined && p.dailyAllowance < 999 && p.minutesUsed !== undefined && p.minutesUsed > p.dailyAllowance) ? (
+                              <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                <span className="inline-block w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
+                                Calculating fees...
+                              </span>
+                            ) : (
+                              <span className="text-green-600 dark:text-green-400">Within daily allowance</span>
+                            )
                           )}
                         </div>
 

@@ -31,7 +31,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     }
 
     const bookingResult = await pool.query(
-      `SELECT br.id, br.session_id, br.user_email, br.user_name, u.id as user_id
+      `SELECT br.id, br.session_id, br.user_email, br.user_name, br.status, u.id as user_id
        FROM booking_requests br
        LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
        WHERE br.id = $1`,
@@ -43,6 +43,10 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     }
 
     const booking = bookingResult.rows[0];
+
+    if (booking.status === 'cancelled' || booking.status === 'declined') {
+      return res.status(400).json({ error: 'Cannot pay for a cancelled or declined booking' });
+    }
 
     if (booking.user_email?.toLowerCase() !== sessionEmail.toLowerCase()) {
       return res.status(403).json({ error: 'Only the booking owner can pay fees' });
@@ -99,15 +103,49 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
 
     const client = await pool.connect();
     let snapshotId: number | null = null;
+    let existingPaymentIntentId: string | null = null;
+    let existingClientSecret: string | null = null;
+    
     try {
       await client.query('BEGIN');
-
-      const snapshotResult = await client.query(
-        `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
-         VALUES ($1, $2, $3, $4, 'pending') RETURNING id`,
-        [bookingId, booking.session_id, JSON.stringify(serverFees), serverTotal]
+      
+      const existingSnapshot = await client.query(
+        `SELECT id, stripe_payment_intent_id, total_cents, participant_fees
+         FROM booking_fee_snapshots 
+         WHERE booking_id = $1 AND session_id = $2 AND status = 'pending' 
+         AND created_at > NOW() - INTERVAL '1 hour'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [bookingId, booking.session_id]
       );
-      snapshotId = snapshotResult.rows[0].id;
+      
+      if (existingSnapshot.rows.length > 0) {
+        const existing = existingSnapshot.rows[0];
+        const existingParticipantIds = (existing.participant_fees || []).map((p: any) => p.id).sort().join(',');
+        const newParticipantIds = serverFees.map(p => p.id).sort().join(',');
+        const participantsMatch = existingParticipantIds === newParticipantIds;
+        
+        if (existing.stripe_payment_intent_id && existing.total_cents === serverTotal && participantsMatch) {
+          snapshotId = existing.id;
+          existingPaymentIntentId = existing.stripe_payment_intent_id;
+          console.log(`[Stripe] Reusing existing pending snapshot ${snapshotId} for booking ${bookingId}`);
+        } else {
+          await client.query(
+            `UPDATE booking_fee_snapshots SET status = 'expired' WHERE id = $1`,
+            [existing.id]
+          );
+          console.log(`[Stripe] Expiring stale snapshot ${existing.id} (amount/participants changed or no intent)`);
+        }
+      }
+      
+      if (!snapshotId) {
+        const snapshotResult = await client.query(
+          `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
+           VALUES ($1, $2, $3, $4, 'pending') RETURNING id`,
+          [bookingId, booking.session_id, JSON.stringify(serverFees), serverTotal]
+        );
+        snapshotId = snapshotResult.rows[0].id;
+      }
 
       await client.query('COMMIT');
     } catch (err) {
@@ -115,6 +153,31 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
       throw err;
     } finally {
       client.release();
+    }
+    
+    if (existingPaymentIntentId) {
+      try {
+        const { getStripeClient } = await import('../../core/stripe/client');
+        const stripe = await getStripeClient();
+        const existingIntent = await stripe.paymentIntents.retrieve(existingPaymentIntentId);
+        if (existingIntent.status === 'requires_payment_method' || existingIntent.status === 'requires_confirmation') {
+          existingClientSecret = existingIntent.client_secret;
+          console.log(`[Stripe] Returning existing payment intent ${existingPaymentIntentId} for snapshot ${snapshotId}`);
+          return res.json({
+            clientSecret: existingClientSecret,
+            paymentIntentId: existingPaymentIntentId,
+            snapshotId,
+            total: serverTotal,
+            fees: serverFees.map((f, i) => ({
+              participantId: f.id,
+              amount: f.amountCents,
+              displayName: pendingFees[i]?.displayName || 'Fee'
+            }))
+          });
+        }
+      } catch (intentError) {
+        console.log(`[Stripe] Could not reuse intent ${existingPaymentIntentId}, creating new one`);
+      }
     }
 
     // Build description based on fee types present

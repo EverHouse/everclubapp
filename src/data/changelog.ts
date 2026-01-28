@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.4",
+    date: "2026-01-28",
+    title: "Billing Security Hardening",
+    changes: [
+      "Fixed: Payment snapshots now scoped to booking ID, preventing cross-booking payment intent reuse",
+      "Fixed: Payment endpoint validates booking status before processing (rejects cancelled/declined bookings)",
+      "Improved: Fee display now shows 'Calculating...' indicator when fees are still being computed",
+      "Added: Minutes used today and cached fee data now included in check-in context for accurate fee detection"
+    ]
+  },
+  {
     version: "9.33.3",
     date: "2026-01-28",
     title: "Persistent Sync Timestamp",

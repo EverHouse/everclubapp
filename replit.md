@@ -30,17 +30,14 @@ The application utilizes a React 19 frontend with Vite, styled using Tailwind CS
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling, and entry/exit animations.
 - **Drawer UX**: MemberProfileDrawer hides bottom navigation and floating action button on mobile.
 
-### Backend Structure
-- **Route Organization**: Modular directories for API routes (e.g., `server/routes/stripe/`, `server/routes/members/`, `server/routes/bays/`, `server/routes/trackman/`).
-- **Startup Architecture**: Loader modules for startup tasks (e.g., `server/loaders/routes.ts`, `server/loaders/startup.ts`). Includes a readiness probe (`/api/ready`) and a health check (`/healthz`), along with graceful shutdown handlers.
-
 ### Technical Implementations
 - **Core Stack**: React 19 (Vite), React Router DOM, Express.js (REST API), PostgreSQL, Tailwind CSS.
 - **Timezone Handling**: All date/time operations prioritize the 'America/Los_Angeles' timezone.
-- **Member Management**: Supports member tiers, tags, a directory, and unified billing groups (family and corporate) with primary payers.
-- **Booking System**: Features "Request & Hold," conflict detection, staff/member initiated bookings, multi-member bookings, and calendar management. Uses database transactions with row-level locking and a trigger (`prevent_booking_session_overlap`) to prevent double-bookings.
-- **Check-In Notifications**: Members receive in-app and WebSocket notifications for check-in status and refunds.
-- **Trackman Integration**: Unified 1:1 sync for CSV imports and webhooks using `trackman_booking_id`. Includes origin tracking, UPSERT logic, and placeholder handling for unmatched bookings. Webhook integration supports real-time booking synchronization, delta billing, idempotency, and cross-midnight durations.
+- **Backend Structure**: Modular API routes, loader modules for startup tasks, readiness/health checks, and graceful shutdown.
+- **Member Management**: Supports member tiers, tags, directory, and unified billing groups with primary payers.
+- **Booking System**: Features "Request & Hold," conflict detection, staff/member initiated bookings, multi-member bookings, calendar management, and uses database transactions with row-level locking and a trigger to prevent double-bookings.
+- **Check-In Notifications**: In-app and WebSocket notifications for check-in status and refunds.
+- **Trackman Integration**: Unified 1:1 sync for CSV imports and webhooks with origin tracking, UPSERT logic, and placeholder handling. Webhook integration supports real-time booking synchronization, delta billing, idempotency, and cross-midnight durations.
 - **Linked Email Addresses**: Supports alternate email addresses and auto-learns associations during Trackman imports.
 - **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware.
 - **Notifications**: In-app real-time notifications and a sequential notice dismissal system with 3-channel delivery.
@@ -48,9 +45,9 @@ The application utilizes a React 19 frontend with Vite, styled using Tailwind CS
 - **PWA Features**: Service Worker caching, offline support, and iOS-style interactions.
 - **Performance Optimizations**: List virtualization, skeleton loaders, optimized CSS, lazy-loaded admin tabs, optimistic updates, and memoized context functions.
 - **Admin Tools**: Admin-configurable features, data integrity dashboard, and data migration tools.
-- **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, and data export. Admin audit log for staff access to member data.
+- **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, data export, and admin audit log for staff access to member data.
 - **Waiver Management**: Tracks waiver versions and requires signing on login.
-- **Unified Fee Service**: Single authoritative source for all fee calculations (`server/core/billing/unifiedFeeService.ts`). Uses `computeFeeBreakdown()` for all fee-related operations and `effectivePlayerCount = MAX(declared, actual)`. Roster changes invalidate cached fees.
+- **Unified Fee Service**: Single authoritative source for all fee calculations, using `computeFeeBreakdown()` and `effectivePlayerCount = MAX(declared, actual)`. Roster changes invalidate cached fees.
 - **Webhook Safety**: Stripe webhooks process once via transactional dedup. Deferred action pattern for external calls and resource-based ordering guards.
 - **Roster Protection**: Optimistic locking with `roster_version` and row-level locking.
 - **Billing Management**: Staff Payments Dashboard, unified payment history, member billing management, self-service portal, tier change wizard with proration, dunning for failed payments, and refund processing.
@@ -77,80 +74,3 @@ The application utilizes a React 19 frontend with Vite, styled using Tailwind CS
 - **Apple Messages for Business**: For direct messaging.
 - **Amarie Aesthetics MedSpa**: For direct booking links.
 - **Supabase**: For backend admin client, Realtime subscriptions, and session token generation.
-
-## Bug Prevention Guidelines
-These patterns have caused bugs before. Watch out for them:
-
-### Timezone Bugs (CRITICAL)
-- **NEVER use `CURRENT_DATE` in SQL** - It returns UTC date, not Pacific time
-- **ALWAYS use**: `(CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date` for date comparisons
-- **Use `server/utils/dateUtils.ts`** - Contains `getPacificDate()`, `getPacificNow()`, `toPacificTime()` utilities
-- **Test during evening hours** (5 PM - midnight Pacific) when UTC is "tomorrow" but Pacific is still "today"
-
-### Active Membership Status (CRITICAL - v9.32.31)
-**The canonical definition of "has membership access":**
-```sql
--- SQL pattern for active members
-WHERE (membership_status IN ('active', 'trialing', 'past_due') 
-       OR stripe_subscription_id IS NOT NULL)
-```
-```typescript
-// TypeScript pattern for active members
-const activeStatuses = ['active', 'trialing', 'past_due'];
-const isActive = activeStatuses.includes(status) || !!stripeSubscriptionId;
-```
-
-**Why this matters:**
-- `trialing` = New member in trial period (full access)
-- `past_due` = Payment failed but still in grace period (full access for 3 days)
-- `stripeSubscriptionId` = Has subscription in Stripe regardless of DB status (DB can be stale)
-
-**Audit checklist when modifying status-related code:**
-1. Search for `membership_status = 'active'` - should usually be `IN ('active', 'trialing', 'past_due')`
-2. Search for `status: 'active'` in Stripe API calls - should include trialing/past_due
-3. Check SQL queries in: `server/routes/`, `server/core/stripe/`, `server/schedulers/`
-4. Check frontend filters in: `src/contexts/`, `src/pages/Admin/`
-5. Never put `past_due` in "former/inactive" lists - they're still active!
-
-**Files that check membership status (audit these when making changes):**
-- `server/routes/auth.ts` - Login flow
-- `server/routes/members/search.ts` - Directory search (multiple places!)
-- `server/routes/hubspot.ts` - HubSpot sync, webhooks, and push-db-tiers
-- `server/routes/stripe/payments.ts` - Billing member search
-- `server/routes/waivers.ts` - Waiver counts
-- `server/core/stripe/reconciliation.ts` - Stripe reconciliation
-- `server/core/stripe/subscriptionSync.ts` - Subscription sync
-- `server/routes/memberBilling.ts` - Member billing operations
-- `server/scripts/classifyMemberBilling.ts` - Billing classification script
-- `src/components/MemberProfileDrawer.tsx` - Member profile UI
-
-### MindBody/HubSpot Status Sync (v9.33.2)
-- **MindBody billing status flows through HubSpot** → HubSpot webhook → Database
-- **HubSpot webhooks update database instantly** when `membership_status` or `membership_tier` changes
-- **Background sync runs daily at 3am Pacific** (moved from every 5 minutes to prevent connection pool exhaustion)
-- **Manual sync available** via the Sync button on Directory page (shows last sync timestamp)
-- **Both billing sources are valid**: Stripe members have `billing_provider = 'stripe'`, MindBody members have `billing_provider = 'mindbody'`
-
-### Stripe → HubSpot Sync (v9.33.0)
-- **All Stripe subscription changes sync to HubSpot instantly** via `syncMemberToHubSpot()`
-- **Properties synced**: `membership_status`, `billing_provider`, `membership_tier`
-- **Events that trigger sync**:
-  - `subscription.created` → syncs status (active/trialing), tier, billing_provider=Stripe
-  - `subscription.updated` → syncs status changes (active, past_due, suspended), tier changes
-  - `subscription.deleted` → syncs cancelled status
-  - `invoice.payment_failed` → syncs past_due status
-  - Auth auto-fix → syncs corrected status when DB is out of sync with Stripe
-  - Manual billing_provider change → syncs new provider
-- **Backfill endpoint**: `POST /api/hubspot/sync-billing-providers` (dryRun: true/false)
-- **HubSpot status values**: Active, Trialing, Past Due, Inactive, Cancelled, Former Member
-- **HubSpot billing_provider values**: Stripe, MindBody, Manual
-
-### Data Cleanup on Actions
-- **When cancelling bookings**: Clear associated fees (`cached_fee_cents = 0`, `payment_status = 'waived'`)
-- **When deleting records**: Consider all related data (participants, fees, sessions, notifications)
-- **Think through side effects**: What other data depends on this record?
-
-### Keep Filtering Logic Simple
-- **Prefer single source of truth** - Use `payment_status = 'pending'` instead of complex snapshot-based filtering
-- **Don't over-engineer** - If a simple field tells you the state, trust it
-- **Avoid "orphan detection" logic** - It's usually wrong; fix the root cause instead
