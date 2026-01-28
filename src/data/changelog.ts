@@ -15,12 +15,15 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "9.32.19",
     date: "2026-01-28",
-    title: "Member Balance Shows Only Valid Pending Fees",
+    title: "Member Balance & Payment Flow Fixes",
     isMajor: false,
     changes: [
       "CRITICAL: Fixed member balance showing cancelled/orphaned fees from database instead of actual pending charges",
       "Balance calculation now checks Stripe fee snapshot status - only includes fees with 'pending' snapshots",
       "Fees from sessions with cancelled/paid/failed Stripe payment intents are now correctly excluded",
+      "Fixed 'Pay Outstanding Balance' failing to create payment - now properly filters orphaned fees before creating Stripe payment intent",
+      "Fixed individual booking payment to handle overage fees (was only looking for guest fees, causing 'No unpaid guest fees found' error)",
+      "Renamed 'Pay Guest Fees' modal to 'Pay Booking Fees' to accurately reflect all fee types",
       "Ensures Stripe is the source of truth for billing - database cached fees are filtered by snapshot validity",
       "Added HubSpot sync when existing users purchase Stripe subscriptions (was only working for new users)"
     ]

@@ -157,7 +157,7 @@ export function MemberPaymentModal({
                 id="payment-modal-title"
                 className={`text-xl font-bold font-serif ${isDark ? 'text-white' : 'text-primary'}`}
               >
-                Pay Guest Fees
+                Pay Booking Fees
               </h3>
               <button
                 onClick={onClose}

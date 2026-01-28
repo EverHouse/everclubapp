@@ -52,20 +52,31 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
       return res.status(400).json({ error: 'Booking has no session' });
     }
 
+    // Get all pending participants (guests, members, and owner for overage fees)
     const pendingParticipants = await pool.query(
-      `SELECT id, participant_type, display_name, cached_fee_cents
-       FROM booking_participants
-       WHERE session_id = $1 
-         AND participant_type = 'guest'
-         AND (payment_status = 'pending' OR payment_status IS NULL)`,
+      `SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents,
+              (SELECT COUNT(*) FROM booking_fee_snapshots bfs WHERE bfs.session_id = bp.session_id AND bfs.status = 'pending') as pending_snapshot_count,
+              (SELECT COUNT(*) FROM booking_fee_snapshots bfs WHERE bfs.session_id = bp.session_id) as total_snapshot_count
+       FROM booking_participants bp
+       WHERE bp.session_id = $1 
+         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND bp.cached_fee_cents > 0`,
       [booking.session_id]
     );
 
-    if (pendingParticipants.rows.length === 0) {
-      return res.status(400).json({ error: 'No unpaid guest fees found' });
+    // Filter out orphaned fees (sessions with only cancelled/paid snapshots)
+    const validParticipants = pendingParticipants.rows.filter(row => {
+      const pendingCount = parseInt(row.pending_snapshot_count) || 0;
+      const totalCount = parseInt(row.total_snapshot_count) || 0;
+      // Include if no snapshots exist (legacy) or if there's a pending snapshot
+      return totalCount === 0 || pendingCount > 0;
+    });
+
+    if (validParticipants.length === 0) {
+      return res.status(400).json({ error: 'No unpaid fees found' });
     }
 
-    const participantIds = pendingParticipants.rows.map(r => r.id);
+    const participantIds = validParticipants.map(r => r.id);
     
     let breakdown;
     try {
@@ -115,8 +126,18 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
       client.release();
     }
 
-    const guestNames = pendingParticipants.rows.map(r => r.display_name).join(', ');
-    const description = `Guest fees for: ${guestNames}`;
+    // Build description based on fee types present
+    const hasGuestFees = validParticipants.some(r => r.participant_type === 'guest');
+    const hasOverageFees = validParticipants.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
+    let description = 'Booking fees';
+    if (hasGuestFees && hasOverageFees) {
+      description = `Overage & guest fees for booking ${bookingId}`;
+    } else if (hasGuestFees) {
+      const guestNames = validParticipants.filter(r => r.participant_type === 'guest').map(r => r.display_name).join(', ');
+      description = `Guest fees for: ${guestNames}`;
+    } else if (hasOverageFees) {
+      description = `Overage fees for booking ${bookingId}`;
+    }
 
     const metadata: Record<string, string> = {
       feeSnapshotId: snapshotId!.toString(),
@@ -805,12 +826,15 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     );
     const memberName = memberResult.rows[0]?.display_name || memberEmail.split('@')[0];
 
+    // Only include fees where there's a pending fee snapshot OR no snapshot at all (legacy)
     const result = await pool.query(
       `SELECT 
         bp.id as participant_id,
         bp.session_id,
         bp.cached_fee_cents,
-        COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) as ledger_fee
+        COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) as ledger_fee,
+        (SELECT COUNT(*) FROM booking_fee_snapshots bfs WHERE bfs.session_id = bp.session_id AND bfs.status = 'pending') as pending_snapshot_count,
+        (SELECT COUNT(*) FROM booking_fee_snapshots bfs WHERE bfs.session_id = bp.session_id) as total_snapshot_count
        FROM booking_participants bp
        JOIN users pu ON pu.id = bp.user_id
        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
@@ -825,7 +849,9 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       `SELECT 
         bp.id as participant_id,
         bp.session_id,
-        bp.cached_fee_cents
+        bp.cached_fee_cents,
+        (SELECT COUNT(*) FROM booking_fee_snapshots bfs WHERE bfs.session_id = bp.session_id AND bfs.status = 'pending') as pending_snapshot_count,
+        (SELECT COUNT(*) FROM booking_fee_snapshots bfs WHERE bfs.session_id = bp.session_id) as total_snapshot_count
        FROM booking_participants bp
        JOIN booking_participants owner_bp ON owner_bp.session_id = bp.session_id 
          AND owner_bp.participant_type = 'owner'
@@ -840,6 +866,13 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     const participantFees: Array<{id: number; amountCents: number}> = [];
 
     for (const row of result.rows) {
+      // Skip if session has fee snapshots but none are pending (orphaned cached_fee_cents)
+      const pendingCount = parseInt(row.pending_snapshot_count) || 0;
+      const totalCount = parseInt(row.total_snapshot_count) || 0;
+      if (totalCount > 0 && pendingCount === 0) {
+        continue;
+      }
+      
       let amountCents = 0;
       if (row.cached_fee_cents > 0) {
         amountCents = row.cached_fee_cents;
@@ -852,6 +885,13 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     }
 
     for (const row of guestResult.rows) {
+      // Skip if session has fee snapshots but none are pending
+      const pendingCount = parseInt(row.pending_snapshot_count) || 0;
+      const totalCount = parseInt(row.total_snapshot_count) || 0;
+      if (totalCount > 0 && pendingCount === 0) {
+        continue;
+      }
+      
       const amountCents = row.cached_fee_cents || GUEST_FEE_CENTS;
       participantFees.push({ id: row.participant_id, amountCents });
     }
