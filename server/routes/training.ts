@@ -28,9 +28,9 @@ export const TRAINING_SEED_DATA = [
       { title: 'Command Center Overview', content: 'The Home dashboard is your command center. It shows pending booking requests, today\'s schedule, facility status, upcoming tours, and recent activity at a glance.', pageIcon: 'home' },
       { title: 'Bottom Navigation', content: 'Use the bottom navigation bar to quickly access the main sections: Home, Bookings, Financials, Tours, Calendar, and Directory.', pageIcon: 'menu' },
       { title: 'Updates (Header Icon)', content: 'The megaphone/campaign icon in the header takes you to the Updates page where you can view your activity notifications and manage member announcements.', pageIcon: 'campaign' },
-      { title: 'Employee Resources', content: 'Find quick links to Member Directory, Team, Cafe Menu, and Training Guide in the Employee Resources section on the Home tab.' },
+      { title: 'Mobile Hamburger Menu', content: 'On mobile, tap the hamburger menu (three lines) in the top left to access all navigation items including: Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources (Cafe, Training, Team), and Admin settings.', pageIcon: 'menu' },
       { title: 'Profile Access', content: 'Tap your avatar in the top right to access your profile, where you can manage push notifications and set up a password for faster login.', pageIcon: 'person' },
-      { title: 'Sidebar Navigation', content: 'On larger screens, the sidebar provides quick access to all main sections plus Facility/Notices for managing closures and announcements.' },
+      { title: 'Sidebar Navigation', content: 'On larger screens (desktop/tablet), the sidebar provides quick access to all main sections plus Facility/Notices for managing closures and announcements.' },
     ]
   },
   {
@@ -220,7 +220,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 11,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Directory', content: 'Go to Directory from the bottom navigation or tap "Member Directory" in the Employee Resources section on Home.', pageIcon: 'groups' },
+      { title: 'Access Directory', content: 'Go to Directory from the bottom navigation, sidebar, or the hamburger menu on mobile.', pageIcon: 'groups' },
       { title: 'Three Directory Tabs', content: 'The directory has three tabs: Active (current paying members), Former (cancelled or expired memberships), and Visitors (non-members).' },
       { title: 'Active Members', content: 'The Active tab shows all current members with active subscriptions. These are your paying club members.' },
       { title: 'Former Members', content: 'The Former tab shows members who have cancelled or whose memberships have expired. Useful for win-back outreach.' },
@@ -258,7 +258,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 13,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Cafe Menu', content: 'Go to the Home tab and tap "Cafe Menu" in the Employee Resources section.', pageIcon: 'local_cafe' },
+      { title: 'Access Cafe Menu', content: 'On desktop, use the sidebar under Resources. On mobile, tap the hamburger menu and select "Cafe" under Resources.', pageIcon: 'local_cafe' },
       { title: 'Add Menu Items', content: 'Tap "Add Item" to create a new menu item. Fill in the name, description, price, and category.' },
       { title: 'Categories', content: 'Organize items into categories like Drinks, Bites, Cocktails, etc. for easy browsing by members.' },
       { title: 'Upload Images', content: 'Add images to menu items by tapping the image upload button. Images are automatically optimized for web.' },
@@ -335,7 +335,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 18,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Team Directory', content: 'Go to the Home tab and tap "Team" in the Employee Resources section.', pageIcon: 'badge' },
+      { title: 'Access Team Directory', content: 'On desktop, use the sidebar under Resources. On mobile, tap the hamburger menu and select "Team" under Resources.', pageIcon: 'badge' },
       { title: 'View Team Members', content: 'See all active staff and admin team members with their names, job titles, and profile photos.' },
       { title: 'Contact Information', content: 'Tap a team member to view their phone number and email for quick contact.' },
       { title: 'Different from Team Access', content: 'This directory is read-only for viewing contact info. Admins who need to manage accounts should use Team Access in Admin Settings.' },

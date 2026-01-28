@@ -13,10 +13,13 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.33.20",
+    version: "9.34.0",
     date: "2026-01-28",
-    title: "Staff Portal Mobile Cleanup",
+    title: "Training Guide & Mobile Navigation Update",
+    isMajor: true,
     changes: [
+      "Updated: Training Guide now reflects current app navigation and mobile hamburger menu",
+      "Updated: All training sections updated to reference sidebar and hamburger menu instead of deprecated Employee Resources",
       "Improved: Removed redundant Employee Resources section from mobile dashboard - now accessible via hamburger menu",
       "Added: Hamburger menu on staff portal mobile for quick access to all navigation items",
       "Added: Mobile sidebar mirrors desktop sidebar with Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources, and Admin sections",
