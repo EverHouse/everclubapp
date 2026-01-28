@@ -112,7 +112,7 @@ export const bookingRequests = pgTable("booking_requests", {
   // Optimistic locking version for roster edits to prevent concurrent overwrites
   rosterVersion: integer("roster_version").default(0),
 }, (table) => [
-  index("idx_booking_requests_trackman_booking_id").on(table.trackmanBookingId),
+  uniqueIndex("idx_booking_requests_trackman_booking_id").on(table.trackmanBookingId),
   uniqueIndex("booking_requests_trackman_external_id_idx").on(table.trackmanExternalId),
   index("booking_requests_session_idx").on(table.sessionId),
   index("booking_requests_date_resource_idx").on(table.requestDate, table.resourceId),

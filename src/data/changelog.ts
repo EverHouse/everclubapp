@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.5",
+    date: "2026-01-28",
+    title: "Duplicate Trackman Booking Fix",
+    changes: [
+      "Fixed: Added unique constraint on Trackman booking ID to prevent duplicate bookings from race conditions",
+      "Added: Admin endpoint to detect duplicate Trackman bookings (/api/admin/trackman/duplicate-bookings)",
+      "Added: Admin endpoint to clean up duplicate bookings while preserving the original (/api/admin/trackman/cleanup-duplicates)"
+    ]
+  },
+  {
     version: "9.33.4",
     date: "2026-01-28",
     title: "Billing Security Hardening",

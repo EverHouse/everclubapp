@@ -2120,4 +2120,125 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
   }
 });
 
+// Admin endpoint to detect and clean up duplicate Trackman booking IDs
+// This is needed because production may have duplicates from race conditions
+router.get('/api/admin/trackman/duplicate-bookings', isStaffOrAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        trackman_booking_id,
+        COUNT(*) as duplicate_count,
+        array_agg(id ORDER BY created_at) as booking_ids,
+        array_agg(created_at ORDER BY created_at) as created_dates,
+        array_agg(is_unmatched ORDER BY created_at) as is_unmatched_flags,
+        array_agg(user_email ORDER BY created_at) as emails
+      FROM booking_requests
+      WHERE trackman_booking_id IS NOT NULL
+      GROUP BY trackman_booking_id
+      HAVING COUNT(*) > 1
+      ORDER BY COUNT(*) DESC
+    `);
+
+    res.json({
+      duplicatesFound: result.rows.length,
+      duplicates: result.rows.map(row => ({
+        trackmanBookingId: row.trackman_booking_id,
+        count: parseInt(row.duplicate_count),
+        bookingIds: row.booking_ids,
+        createdDates: row.created_dates,
+        isUnmatchedFlags: row.is_unmatched_flags,
+        emails: row.emails
+      }))
+    });
+  } catch (error: any) {
+    console.error('[Trackman Duplicates] Error:', error);
+    res.status(500).json({ error: 'Failed to check for duplicates' });
+  }
+});
+
+// Admin endpoint to clean up duplicate Trackman bookings by keeping the oldest (first created)
+router.post('/api/admin/trackman/cleanup-duplicates', isStaffOrAdmin, async (req, res) => {
+  const { dryRun = true } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Find all duplicates, keeping the oldest (first created) for each trackman_booking_id
+    const duplicateResult = await client.query(`
+      WITH ranked AS (
+        SELECT 
+          id,
+          trackman_booking_id,
+          ROW_NUMBER() OVER (PARTITION BY trackman_booking_id ORDER BY created_at ASC) as rn
+        FROM booking_requests
+        WHERE trackman_booking_id IS NOT NULL
+      )
+      SELECT id, trackman_booking_id
+      FROM ranked
+      WHERE rn > 1
+    `);
+    
+    const idsToDelete = duplicateResult.rows.map(r => r.id);
+    
+    if (dryRun) {
+      await client.query('ROLLBACK');
+      res.json({
+        dryRun: true,
+        wouldDelete: idsToDelete.length,
+        bookingIds: idsToDelete.slice(0, 50),
+        message: `Would delete ${idsToDelete.length} duplicate booking(s). Set dryRun=false to execute.`
+      });
+      return;
+    }
+    
+    // Delete the duplicates (keeps the oldest)
+    if (idsToDelete.length > 0) {
+      // First delete related records
+      await client.query(
+        `DELETE FROM booking_payment_audit WHERE booking_id = ANY($1)`,
+        [idsToDelete]
+      );
+      await client.query(
+        `DELETE FROM booking_fee_snapshots WHERE booking_id = ANY($1)`,
+        [idsToDelete]
+      );
+      await client.query(
+        `DELETE FROM booking_members WHERE booking_id = ANY($1)`,
+        [idsToDelete]
+      );
+      // Delete the duplicate booking requests
+      await client.query(
+        `DELETE FROM booking_requests WHERE id = ANY($1)`,
+        [idsToDelete]
+      );
+    }
+    
+    await client.query('COMMIT');
+    
+    const sessionUser = (req as any).session?.user?.email || 'admin';
+    const { logFromRequest } = await import('../core/auditLog');
+    await logFromRequest(req, {
+      action: 'bulk_action',
+      resourceType: 'booking',
+      resourceId: undefined,
+      resourceName: 'Duplicate Cleanup',
+      details: { deletedCount: idsToDelete.length, bookingIds: idsToDelete }
+    });
+    
+    res.json({
+      success: true,
+      deletedCount: idsToDelete.length,
+      bookingIds: idsToDelete,
+      message: `Successfully deleted ${idsToDelete.length} duplicate booking(s)`
+    });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('[Trackman Cleanup Duplicates] Error:', error);
+    res.status(500).json({ error: 'Failed to cleanup duplicates: ' + (error.message || 'Unknown error') });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
