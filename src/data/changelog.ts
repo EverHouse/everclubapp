@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.12",
+    date: "2026-01-28",
+    title: "Trackman Auto-Match Badge & Concurrency Guard",
+    changes: [
+      "Added: Auto-matched webhooks now show blue 'Automated' badge in Trackman synced section",
+      "Added: Concurrency guard prevents race conditions when multiple processes try to link same booking",
+      "Changed: Badge text updated from 'Auto-Linked' to 'Automated' for clarity"
+    ]
+  },
+  {
     version: "9.33.11",
     date: "2026-01-28",
     title: "Trackman Webhook Auto-Match Improvements",

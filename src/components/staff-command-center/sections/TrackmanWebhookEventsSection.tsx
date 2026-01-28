@@ -424,7 +424,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                   : 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400'
                               }`}>
                                 <span className="material-symbols-outlined text-xs">{event.was_auto_linked ? 'auto_awesome' : 'link'}</span>
-                                {event.was_auto_linked ? 'Auto-Linked' : 'Linked'}
+                                {event.was_auto_linked ? 'Automated' : 'Linked'}
                               </span>
                             )}
                           </div>
