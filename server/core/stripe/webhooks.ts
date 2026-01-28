@@ -1699,6 +1699,26 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
           
           if (updateResult.rowCount && updateResult.rowCount > 0) {
             console.log(`[Stripe Webhook] User activation: ${email} tier updated to ${tierSlug}, membership_status conditionally set to active`);
+            
+            // Sync membership status and tier to HubSpot for existing users
+            try {
+              const { findOrCreateHubSpotContact } = await import('../hubspot/members');
+              const { updateContactMembershipStatus } = await import('../hubspot/stages');
+              const contactResult = await findOrCreateHubSpotContact(
+                email,
+                first_name || '',
+                last_name || '',
+                undefined,
+                tierName // Send tier name to HubSpot
+              );
+              
+              if (contactResult?.contactId) {
+                await updateContactMembershipStatus(contactResult.contactId, 'Active');
+                console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot: tier=${tierName}, status=Active`);
+              }
+            } catch (hubspotError) {
+              console.error('[Stripe Webhook] HubSpot sync failed for existing user subscription:', hubspotError);
+            }
           } else {
             console.log(`[Stripe Webhook] User activation: ${email} - no update performed`);
           }
@@ -1752,6 +1772,26 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                     
                     if (updateResult.rowCount && updateResult.rowCount > 0) {
                       console.log(`[Stripe Webhook] User activation (product name match): ${email} tier updated to ${tierName} from product "${product.name}"`);
+                      
+                      // Sync to HubSpot for product name matched tier
+                      try {
+                        const { findOrCreateHubSpotContact } = await import('../hubspot/members');
+                        const { updateContactMembershipStatus } = await import('../hubspot/stages');
+                        const contactResult = await findOrCreateHubSpotContact(
+                          email,
+                          first_name || '',
+                          last_name || '',
+                          undefined,
+                          tierName
+                        );
+                        
+                        if (contactResult?.contactId) {
+                          await updateContactMembershipStatus(contactResult.contactId, 'Active');
+                          console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=Active`);
+                        }
+                      } catch (hubspotError) {
+                        console.error('[Stripe Webhook] HubSpot sync failed for product name match:', hubspotError);
+                      }
                     }
                     break;
                   }
