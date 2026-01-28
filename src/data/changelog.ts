@@ -18,7 +18,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Activity Tab Added to Member Updates",
     isMajor: false,
     changes: [
-      "Restored Activity tab to member Updates page - members can now view their notifications including booking confirmations, check-ins, and payment updates",
+      "Added Activity tab to member Updates page as the first/default tab - members can now view their notifications including booking confirmations, check-ins, and payment updates",
       "Activity tab shows unread count badge when there are unread notifications",
       "Added 'Mark all as read' button for quick notification management",
       "Notification icons and colors match notification type (booking, payment, check-in, etc.)",

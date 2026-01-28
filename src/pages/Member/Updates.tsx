@@ -170,7 +170,7 @@ const MemberUpdates: React.FC = () => {
   
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<'announcements' | 'notices' | 'activity'>(
-    tabParam === 'activity' ? 'activity' : (tabParam === 'notices' || tabParam === 'closures') ? 'notices' : 'announcements'
+    tabParam === 'announcements' ? 'announcements' : (tabParam === 'notices' || tabParam === 'closures') ? 'notices' : 'activity'
   );
   
   const [closures, setClosures] = useState<Closure[]>([]);
@@ -734,6 +734,21 @@ const MemberUpdates: React.FC = () => {
 
       <div className="flex gap-1.5 mb-6">
         <button
+          onClick={() => handleTabChange('activity')}
+          className={`flex-1 py-3 px-2 rounded-xl text-[11px] font-bold uppercase tracking-tight transition-all relative ${
+            activeTab === 'activity'
+              ? 'bg-accent text-primary'
+              : isDark ? 'bg-white/5 text-white/80 hover:bg-white/10' : 'bg-primary/5 text-primary/80 hover:bg-primary/10'
+          }`}
+        >
+          Activity
+          {unreadCount > 0 && activeTab !== 'activity' && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-primary text-[10px] font-bold rounded-full flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => handleTabChange('announcements')}
           className={`flex-1 py-3 px-2 rounded-xl text-[11px] font-bold uppercase tracking-tight transition-all ${
             activeTab === 'announcements'
@@ -755,21 +770,6 @@ const MemberUpdates: React.FC = () => {
           {closures.length > 0 && activeTab !== 'notices' && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
               {closures.length > 9 ? '9+' : closures.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => handleTabChange('activity')}
-          className={`flex-1 py-3 px-2 rounded-xl text-[11px] font-bold uppercase tracking-tight transition-all relative ${
-            activeTab === 'activity'
-              ? 'bg-accent text-primary'
-              : isDark ? 'bg-white/5 text-white/80 hover:bg-white/10' : 'bg-primary/5 text-primary/80 hover:bg-primary/10'
-          }`}
-        >
-          Activity
-          {unreadCount > 0 && activeTab !== 'activity' && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-primary text-[10px] font-bold rounded-full flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </button>
