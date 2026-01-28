@@ -124,10 +124,11 @@ const isActive = activeStatuses.includes(status) || !!stripeSubscriptionId;
 - `server/scripts/classifyMemberBilling.ts` - Billing classification script
 - `src/components/MemberProfileDrawer.tsx` - Member profile UI
 
-### MindBody/HubSpot Status Sync (v9.32.32)
+### MindBody/HubSpot Status Sync (v9.33.2)
 - **MindBody billing status flows through HubSpot** → HubSpot webhook → Database
 - **HubSpot webhooks update database instantly** when `membership_status` or `membership_tier` changes
-- **Background sync runs every 5 minutes** as a fallback
+- **Background sync runs daily at 3am Pacific** (moved from every 5 minutes to prevent connection pool exhaustion)
+- **Manual sync available** via the Sync button on Directory page (shows last sync timestamp)
 - **Both billing sources are valid**: Stripe members have `billing_provider = 'stripe'`, MindBody members have `billing_provider = 'mindbody'`
 
 ### Stripe → HubSpot Sync (v9.33.0)

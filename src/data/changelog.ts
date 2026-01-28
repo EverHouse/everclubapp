@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.33.2",
+    date: "2026-01-28",
+    title: "Background Sync Optimization",
+    changes: [
+      "Moved HubSpot member sync from every 5 minutes to once daily at 3am Pacific",
+      "Prevents database connection pool exhaustion during peak hours",
+      "Manual sync button still works instantly for on-demand syncing",
+      "Added 'Last synced' timestamp next to the Sync button on Directory page",
+      "Webhooks continue to handle real-time status/tier updates from HubSpot"
+    ]
+  },
+  {
     version: "9.33.1",
     date: "2026-01-28",
     title: "Roster Placeholder Guest Replacement",

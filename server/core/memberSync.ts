@@ -135,6 +135,14 @@ let syncInProgress = false;
 let lastSyncTime = 0;
 const SYNC_COOLDOWN = 5 * 60 * 1000;
 
+export function getLastMemberSyncTime(): number {
+  return lastSyncTime;
+}
+
+export function setLastMemberSyncTime(time: number): void {
+  lastSyncTime = time;
+}
+
 export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; errors: number }> {
   if (syncInProgress) {
     if (!isProduction) console.log('[MemberSync] Sync already in progress, skipping');

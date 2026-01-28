@@ -251,6 +251,7 @@ const DirectoryTab: React.FC = () => {
     const [formerError, setFormerError] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
     const [addMemberModalOpen, setAddMemberModalOpen] = useState(false);
     const [showMissingTierOnly, setShowMissingTierOnly] = useState(false);
     const [assignTierModalOpen, setAssignTierModalOpen] = useState(false);
@@ -379,6 +380,18 @@ const DirectoryTab: React.FC = () => {
         
         setIsSyncing(false);
         setTimeout(() => setSyncMessage(null), 5000);
+        
+        fetchSyncStatus();
+    };
+
+    const fetchSyncStatus = async () => {
+        try {
+            const res = await apiRequest('/api/hubspot/sync-status');
+            if (res.ok && res.data?.lastSyncTime) {
+                setLastSyncTime(res.data.lastSyncTime);
+            }
+        } catch {
+        }
     };
 
     const openDetailsModal = (member: MemberProfile) => {
@@ -388,6 +401,7 @@ const DirectoryTab: React.FC = () => {
 
     useEffect(() => {
         setPageReady(true);
+        fetchSyncStatus();
     }, [setPageReady]);
 
     useEffect(() => {
@@ -792,16 +806,29 @@ const DirectoryTab: React.FC = () => {
                         </span>
                     )}
                 </div>
-                <button
-                    onClick={handleSync}
-                    disabled={isSyncing}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <span className={`material-symbols-outlined text-[14px] ${isSyncing ? 'animate-spin' : ''}`}>
-                        sync
-                    </span>
-                    {isSyncing ? 'Syncing...' : 'Sync'}
-                </button>
+                <div className="flex flex-col items-end gap-0.5">
+                    <button
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span className={`material-symbols-outlined text-[14px] ${isSyncing ? 'animate-spin' : ''}`}>
+                            sync
+                        </span>
+                        {isSyncing ? 'Syncing...' : 'Sync'}
+                    </button>
+                    {lastSyncTime && (
+                        <span className="text-[9px] text-gray-500 dark:text-gray-400">
+                            Last synced: {new Date(lastSyncTime).toLocaleString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                hour: 'numeric', 
+                                minute: '2-digit',
+                                timeZone: 'America/Los_Angeles'
+                            })}
+                        </span>
+                    )}
+                </div>
             </div>
             
             {/* Needs Attention Alert - Members without tier */}
