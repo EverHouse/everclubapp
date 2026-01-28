@@ -260,7 +260,8 @@ function transformHubSpotContact(contact: any): any {
   const lifecycleStage = (contact.properties.lifecyclestage || '').toLowerCase();
   const membershipStatus = (contact.properties.membership_status || '').toLowerCase();
   
-  const activeStatuses = ['active'];
+  // Include trialing and past_due as active - they still have membership access
+  const activeStatuses = ['active', 'trialing', 'past_due'];
   const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined', 'suspended', 'frozen', 'froze', 'pending', 'non-member'];
   
   const isActiveMember = activeStatuses.includes(membershipStatus);
@@ -686,6 +687,11 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
       ])
     );
 
+    // Normalize status - trialing and past_due should show as Active
+    const rawStatus = (contact.properties.membership_status || '').toLowerCase();
+    const activeStatuses = ['active', 'trialing', 'past_due'];
+    const normalizedStatus = activeStatuses.includes(rawStatus) ? 'Active' : (contact.properties.membership_status || contact.properties.hs_lead_status || 'Active');
+    
     res.json({
       id: contact.id,
       firstName: contact.properties.firstname || '',
@@ -693,7 +699,7 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
       email: contact.properties.email || '',
       phone: contact.properties.phone || '',
       company: contact.properties.company || '',
-      status: contact.properties.membership_status || contact.properties.hs_lead_status || 'Active',
+      status: normalizedStatus,
       tier: normalizeTierName(contact.properties.membership_tier),
       tags: extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason),
       createdAt: contact.properties.createdate,

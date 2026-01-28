@@ -412,9 +412,11 @@ router.post('/api/auth/verify-member', async (req, res) => {
     }
     
     // For non-Stripe (Mindbody legacy) users: HubSpot is source of truth for membership status
+    // Include trialing and past_due as active - they still have membership access
     if (!isStaffOrAdmin && !isStripeBilled && contact) {
       const status = (contact.properties.membership_status || '').toLowerCase();
-      if (status !== 'active') {
+      const activeStatuses = ['active', 'trialing', 'past_due'];
+      if (!activeStatuses.includes(status) && status !== '') {
         return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
       }
     }
@@ -548,7 +550,9 @@ router.post('/api/auth/request-otp', async (req, res) => {
         const status = (contact.properties.membership_status || '').toLowerCase();
         firstName = contact.properties.firstname || firstName;
         
-        if (status !== 'active' && !isStaffOrAdmin) {
+        // Include trialing and past_due as active - they still have membership access
+        const activeStatuses = ['active', 'trialing', 'past_due'];
+        if (!activeStatuses.includes(status) && status !== '' && !isStaffOrAdmin) {
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
       }
@@ -833,9 +837,11 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         }
         
         // For non-Stripe (Mindbody legacy) members: HubSpot is source of truth
+        // Include trialing and past_due as active - they still have membership access
         if (!isStripeBilled && contact) {
           const hubspotStatus = (contact.properties.membership_status || '').toLowerCase();
-          if (hubspotStatus !== 'active') {
+          const activeStatuses = ['active', 'trialing', 'past_due'];
+          if (!activeStatuses.includes(hubspotStatus) && hubspotStatus !== '') {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         }

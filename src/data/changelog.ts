@@ -13,18 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.32.28",
+    version: "9.32.29",
     date: "2026-01-27",
-    title: "Complete Fee Cleanup Across All Cancellation Paths",
-    isMajor: false,
+    title: "Critical Auth & Status Fixes Across All Systems",
+    isMajor: true,
     changes: [
-      "CRITICAL: Fixed Trackman webhook cancellations missing fee cleanup - now clears pending fees like other cancellation paths",
-      "CRITICAL: Fixed individual booking payment endpoint hiding valid fees due to snapshot filtering",
-      "CRITICAL: All cancellation paths now properly clear pending fees - member cancel, staff cancel, and Trackman webhook",
-      "Fixed 'Membership Not Active' banner incorrectly showing for members with active subscriptions",
-      "Improved active status detection to include trialing and past_due statuses",
-      "Added Bug Prevention Guidelines to project documentation",
-      "Verified all 4 cancellation paths now have consistent fee cleanup"
+      "CRITICAL: Fixed login flow blocking members with trialing/past_due status from logging in (3 auth paths fixed)",
+      "CRITICAL: Fixed HubSpot endpoints only recognizing 'active' status, blocking trialing/past_due members from directory",
+      "CRITICAL: Fixed Trackman webhook cancellations missing fee cleanup",
+      "CRITICAL: Fixed individual booking payment endpoint hiding valid fees",
+      "All cancellation paths now properly clear pending fees (member, staff, Trackman webhook)",
+      "All active status checks now include trialing and past_due across auth, directory, and HubSpot systems",
+      "Added Bug Prevention Guidelines to project documentation"
     ]
   },
   {
