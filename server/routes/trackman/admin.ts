@@ -1153,6 +1153,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           bp.participant_type,
           bp.user_id,
           bp.used_guest_pass,
+          bp.payment_status,
+          bp.cached_fee_cents,
           u.tier as user_tier,
           u.email as user_email
         FROM booking_participants bp
@@ -1173,36 +1175,44 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           }
         }
         
-        const emailToFeeMap = new Map<string, { fee: number; feeNote: string }>();
+        const emailToFeeMap = new Map<string, { fee: number; feeNote: string; isPaid?: boolean }>();
         
         for (const p of participantsResult.rows) {
           const participantFee = feeMap.get(p.participant_id) || 0;
           const email = p.user_email?.toLowerCase();
+          const isPaid = p.payment_status === 'paid';
           
           if (p.participant_type === 'owner') {
-            ownerOverageFee = participantFee;
+            // Only count unpaid fees toward the collectible total
+            ownerOverageFee = isPaid ? 0 : participantFee;
             if (email) {
               emailToFeeMap.set(email, {
                 fee: participantFee,
-                feeNote: participantFee > 0 ? 'Overage fee' : 'Within daily allowance'
+                feeNote: isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'),
+                isPaid
               });
             }
           } else if (p.participant_type === 'member') {
-            totalPlayersOwe += participantFee;
+            // Only count unpaid fees toward the collectible total
+            if (!isPaid) {
+              totalPlayersOwe += participantFee;
+            }
             playerBreakdownFromSession.push({
               name: p.display_name || 'Unknown Member',
               tier: p.user_tier || null,
-              fee: participantFee,
-              feeNote: participantFee > 0 ? 'Overage fee' : 'Within allowance'
+              fee: isPaid ? 0 : participantFee,
+              feeNote: isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within allowance')
             });
             if (email) {
               emailToFeeMap.set(email, {
                 fee: participantFee,
-                feeNote: participantFee > 0 ? 'Overage fee' : 'Within daily allowance'
+                feeNote: isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'),
+                isPaid
               });
             }
           } else if (p.participant_type === 'guest') {
-            if (!p.user_id && !p.used_guest_pass && participantFee > 0) {
+            // Only count unpaid guest fees
+            if (!p.user_id && !p.used_guest_pass && participantFee > 0 && !isPaid) {
               guestFeesWithoutPass += participantFee;
             }
           }
@@ -1262,6 +1272,24 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     const grandTotal = ownerOverageFee + guestFeesWithoutPass + totalPlayersOwe;
     
+    // Check if there are any fees that have been paid (to show "Paid" indicator)
+    let hasPaidFees = false;
+    let hasOriginalFees = false;
+    if (sessionId) {
+      const paidCheck = await pool.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE payment_status = 'paid' AND cached_fee_cents > 0) as paid_count,
+          COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status = 'paid') as total_with_fees
+        FROM booking_participants 
+        WHERE session_id = $1
+      `, [sessionId]);
+      hasPaidFees = parseInt(paidCheck.rows[0]?.paid_count || '0') > 0;
+      hasOriginalFees = parseInt(paidCheck.rows[0]?.total_with_fees || '0') > 0;
+    }
+    
+    // All fees are paid if there were original fees and no outstanding balance
+    const allPaid = hasOriginalFees && grandTotal === 0 && hasPaidFees;
+    
     res.json({
       ownerGuestPassesRemaining,
       bookingInfo: {
@@ -1303,7 +1331,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         totalOwnerOwes: grandTotal,
         totalPlayersOwe,
         grandTotal,
-        playerBreakdown: playerBreakdownFromSession
+        playerBreakdown: playerBreakdownFromSession,
+        allPaid
       }
     });
   } catch (error: any) {

@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.34.2",
+    date: "2026-01-28",
+    title: "Payment Status Display Fix",
+    changes: [
+      "Fixed: Collect Payment button now shows 'Paid' indicator when fees have already been collected",
+      "Fixed: Financial summary now correctly excludes already-paid fees from the total",
+      "Improved: Booking details accurately reflects payment status from Stripe"
+    ]
+  },
+  {
     version: "9.34.1",
     date: "2026-01-28",
     title: "Tier Change Payment Fix",

@@ -50,6 +50,7 @@ interface FinancialSummary {
     fee: number;
     feeNote: string;
   }>;
+  allPaid?: boolean;
 }
 
 interface BookingContext {
@@ -1326,8 +1327,14 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         </div>
       )}
 
-      {/* Collect Payment Button */}
-      {financialSummary && financialSummary.grandTotal > 0 && (
+      {/* Collect Payment Button or Paid Indicator */}
+      {financialSummary && financialSummary.allPaid && (
+        <div className="w-full mt-3 py-2.5 px-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-green-200 dark:border-green-800">
+          <span className="material-symbols-outlined text-lg">check_circle</span>
+          Paid
+        </div>
+      )}
+      {financialSummary && financialSummary.grandTotal > 0 && !financialSummary.allPaid && (
         <button
           onClick={() => onCollectPayment?.(Number(bookingId))}
           className="w-full mt-3 py-2.5 px-4 bg-primary text-white rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
