@@ -658,8 +658,10 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         importedName={trackmanLinkModal.importedName}
         notes={trackmanLinkModal.notes}
         originalEmail={trackmanLinkModal.originalEmail}
-        onSuccess={() => {
-          showToast('Member assigned to booking', 'success');
+        onSuccess={(options) => {
+          if (!options?.markedAsEvent) {
+            showToast('Member assigned to booking', 'success');
+          }
           window.dispatchEvent(new CustomEvent('booking-action-completed'));
           refresh();
         }}

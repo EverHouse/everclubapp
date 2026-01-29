@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.46.3",
+    date: "2026-01-29",
+    title: "Private Event Toast Fix",
+    changes: [
+      "Fixed: Marking booking as private event no longer shows duplicate toast notifications",
+      "Fixed: 'Trackman booking linked to member' toast no longer appears when marking as private event"
+    ]
+  },
+  {
     version: "9.46.2",
     date: "2026-01-29",
     title: "Complete User Merge Coverage",

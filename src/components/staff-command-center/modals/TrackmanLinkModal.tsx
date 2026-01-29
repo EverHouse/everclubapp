@@ -15,7 +15,7 @@ interface TrackmanLinkModalProps {
   currentMemberName?: string;
   currentMemberEmail?: string;
   isRelink?: boolean;
-  onSuccess?: () => void;
+  onSuccess?: (options?: { markedAsEvent?: boolean }) => void;
   onOpenBillingModal?: (bookingId: number) => void;
   importedName?: string;
   notes?: string;
@@ -445,7 +445,7 @@ export function TrackmanLinkModal({
       }
       
       showToast('Booking marked as private event', 'success');
-      onSuccess?.();
+      onSuccess?.({ markedAsEvent: true });
       onClose();
     } catch (err: any) {
       showToast(err.message || 'Failed to mark as event', 'error');
