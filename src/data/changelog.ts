@@ -13,6 +13,24 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.47.0",
+    date: "2026-01-29",
+    title: "Comprehensive System Reliability Improvements",
+    isMajor: true,
+    changes: [
+      "Fixed: Database constraint errors now return proper error messages instead of crashing",
+      "Fixed: Booking conflicts during busy periods now handled gracefully with retry guidance",
+      "Fixed: Payment processing now uses unique identifiers to prevent duplicate charges",
+      "Fixed: Stripe payment failures now trigger staff alerts for immediate visibility",
+      "Fixed: Email matching is now consistent across login, member lookup, and tier checks",
+      "Fixed: Usage tracking now prevents duplicate entries even if recorded multiple times",
+      "Improved: Database connection pool increased from 8 to 20 for better handling of busy periods",
+      "Improved: Error logging now includes detailed database information for faster debugging",
+      "Improved: All payment operations alert staff if they fail (no more silent failures)",
+      "Improved: Member access no longer blocked due to minor email formatting differences"
+    ]
+  },
+  {
     version: "9.46.13",
     date: "2026-01-29",
     title: "Staff Lesson Auto-Conversion",
