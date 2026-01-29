@@ -247,3 +247,64 @@ export async function alertOnScheduledTaskFailure(
   await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
   recordAlertSent(alertKey);
 }
+
+/**
+ * Alert staff on Trackman import issues (errors or low match rate)
+ */
+export interface TrackmanImportResult {
+  totalRows: number;
+  matchedRows: number;
+  unmatchedRows: number;
+  skippedRows: number;
+  errors: string[];
+}
+
+export async function alertOnTrackmanImportIssues(result: TrackmanImportResult): Promise<void> {
+  // Check for errors
+  if (result.errors.length > 0) {
+    const alertKey = `trackman_import_errors_${getTodayKey()}`;
+    if (canSendAlert(alertKey)) {
+      const title = `Trackman Import Issues`;
+      const errorSummary = result.errors.slice(0, 5).join('; ');
+      const moreErrors = result.errors.length > 5 ? ` (+${result.errors.length - 5} more)` : '';
+      
+      const message = `Import completed with ${result.errors.length} error(s). ` +
+        `Total: ${result.totalRows}, Matched: ${result.matchedRows}, Unmatched: ${result.unmatchedRows}, ` +
+        `Skipped: ${result.skippedRows}. Issues: ${errorSummary}${moreErrors}`;
+      
+      if (!isProduction) {
+        console.log(`[DataAlerts] Creating Trackman import error alert: ${result.errors.length} errors`);
+      }
+      
+      await notifyAllStaff(title, message, 'system', { url: '/#/admin/trackman' });
+      recordAlertSent(alertKey);
+    }
+  }
+  
+  // Check for low match rate (only if we have rows to compare)
+  if (result.totalRows > 0) {
+    const matchRate = (result.matchedRows / result.totalRows) * 100;
+    const MATCH_THRESHOLD = 80; // Lower threshold than MindBody since Trackman has more unmatched scenarios
+    
+    if (matchRate < MATCH_THRESHOLD) {
+      const alertKey = `trackman_low_match_${getTodayKey()}`;
+      if (canSendAlert(alertKey)) {
+        const title = `Low Trackman Match Rate`;
+        const message = `Match rate is ${matchRate.toFixed(1)}% (below ${MATCH_THRESHOLD}% threshold). ` +
+          `${result.unmatchedRows} of ${result.totalRows} bookings could not be matched to members. ` +
+          `Please review unmatched bookings in the Trackman tab.`;
+        
+        if (!isProduction) {
+          console.log(`[DataAlerts] Creating Trackman low match rate alert: ${matchRate.toFixed(1)}%`);
+        }
+        
+        await notifyAllStaff(title, message, 'system', { url: '/#/admin/trackman' });
+        recordAlertSent(alertKey);
+      }
+    }
+  }
+}
+
+function getTodayKey(): string {
+  return new Date().toISOString().split('T')[0];
+}

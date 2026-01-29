@@ -1,7 +1,8 @@
 import { db } from "../../db";
 import { users, dayPassPurchases } from "../../../shared/schema";
+import { userLinkedEmails } from "../../../shared/models/membership";
 import { User } from "../../../shared/schema";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, sql } from "drizzle-orm";
 import { getOrCreateStripeCustomer } from "../stripe/customers";
 
 /**
@@ -38,6 +39,8 @@ export function normalizePhone(phone: string): string {
 /**
  * Finds an existing user by multiple identifiers in priority order:
  * 1. Exact email match (case-insensitive, trim whitespace)
+ * 1b. Linked email match (user_linked_emails table)
+ * 1c. Manually linked email match (manuallyLinkedEmails JSONB field)
  * 2. Exact mindbodyClientId match
  * 3. Exact hubspotId match
  * 4. Exact phone match (normalized)
@@ -46,13 +49,34 @@ export function normalizePhone(phone: string): string {
 export async function findMatchingUser(criteria: MatchCriteria): Promise<User | null> {
   // 1. Exact email match (case-insensitive, trim whitespace)
   if (criteria.email) {
-    const trimmedEmail = criteria.email.trim();
+    const trimmedEmail = criteria.email.trim().toLowerCase();
     const results = await db
       .select()
       .from(users)
       .where(ilike(users.email, trimmedEmail))
       .limit(1);
     if (results.length > 0) return results[0];
+    
+    // 1b. Check user_linked_emails table for linked email match
+    try {
+      const linkedResult = await db
+        .select({ user: users })
+        .from(userLinkedEmails)
+        .innerJoin(users, eq(users.email, userLinkedEmails.primaryEmail))
+        .where(ilike(userLinkedEmails.linkedEmail, trimmedEmail))
+        .limit(1);
+      if (linkedResult.length > 0) return linkedResult[0].user;
+    } catch {
+      // Table may not exist in older schemas, continue silently
+    }
+    
+    // 1c. Check manuallyLinkedEmails JSONB field for linked email match
+    const manuallyLinkedResults = await db
+      .select()
+      .from(users)
+      .where(sql`COALESCE(${users.manuallyLinkedEmails}, '[]'::jsonb) @> ${JSON.stringify([trimmedEmail])}::jsonb`)
+      .limit(1);
+    if (manuallyLinkedResults.length > 0) return manuallyLinkedResults[0];
   }
 
   // 2. Exact mindbodyClientId match

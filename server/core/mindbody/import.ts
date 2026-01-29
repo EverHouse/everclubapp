@@ -786,13 +786,13 @@ export async function runFullMindbodyImport(
   
   const batchId = `full_import_${Date.now()}`;
   
-  // Create import job record
-  await db.insert(legacyImportJobs).values({
+  // Create import job record and get ID for later update
+  const [job] = await db.insert(legacyImportJobs).values({
     jobType: 'full_import',
     fileName: `${membersCSV}, ${salesCSV}, ${attendanceCSV}`,
     status: 'running',
     startedAt: new Date(),
-  });
+  }).returning({ id: legacyImportJobs.id });
   
   // Step 1: Import members first (to establish mindbody_client_id links)
   console.log('[MindbodyImport] Importing members...');
@@ -817,6 +817,21 @@ export async function runFullMindbodyImport(
   
   await alertOnLowMatchRate('members', membersResult);
   await alertOnLowMatchRate('sales', salesResult);
+  
+  // Update job status to completed
+  if (job?.id) {
+    await db.update(legacyImportJobs)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+        results: {
+          members: membersResult,
+          sales: salesResult,
+          attendance: attendanceResult,
+        },
+      })
+      .where(eq(legacyImportJobs.id, job.id));
+  }
   
   return {
     members: membersResult,

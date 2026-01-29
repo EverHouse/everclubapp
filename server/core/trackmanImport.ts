@@ -13,6 +13,7 @@ import { createSession, recordUsage, ParticipantInput } from './bookingService/s
 import { calculateFullSessionBilling, FLAT_GUEST_FEE, Participant } from './bookingService/usageCalculator';
 import { useGuestPass } from '../routes/guestPasses';
 import { cancelPaymentIntent } from './stripe';
+import { alertOnTrackmanImportIssues } from './dataAlerts';
 
 async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise<void> {
   try {
@@ -2534,6 +2535,15 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     unmatchedRows,
     skippedRows,
     importedBy
+  });
+
+  // Alert staff on import issues (errors or low match rate)
+  await alertOnTrackmanImportIssues({
+    totalRows: parsedRows.length - 1,
+    matchedRows,
+    unmatchedRows,
+    skippedRows,
+    errors
   });
 
   return {
