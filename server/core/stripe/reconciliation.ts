@@ -46,14 +46,13 @@ export async function reconcileDailyPayments() {
             // A. Update the Audit Log / Intent Table
             await pool.query(
               `INSERT INTO stripe_payment_intents (
-                stripe_payment_intent_id, user_id, amount, currency, status, purpose, created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-              ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET status = $5, updated_at = NOW()`,
+                stripe_payment_intent_id, user_id, amount_cents, status, purpose, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+              ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET status = $4, updated_at = NOW()`,
               [
                 pi.id,
                 pi.metadata?.userId || pi.metadata?.email || 'unknown',
                 pi.amount,
-                pi.currency,
                 'succeeded',
                 pi.metadata?.purpose || 'reconciled'
               ]
