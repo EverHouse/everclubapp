@@ -13,10 +13,27 @@ interface FieldErrors {
   lastName?: string;
   email?: string;
   phone?: string;
+  visitorType?: string;
+}
+
+interface PotentialDuplicate {
+  id: string;
+  email: string;
+  name: string;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[\d\s\-\+\(\)\.]+$/;
+
+const VISITOR_TYPE_OPTIONS = [
+  { value: 'guest', label: 'Guest' },
+  { value: 'day_pass', label: 'Day Pass' },
+  { value: 'sim_walkin', label: 'Simulator Walk-in' },
+  { value: 'golfnow', label: 'GolfNow' },
+  { value: 'classpass', label: 'ClassPass' },
+  { value: 'private_lesson', label: 'Private Lesson' },
+  { value: 'lead', label: 'Lead' }
+];
 
 export const AddMemberModal: React.FC<AddUserModalProps> = ({
   isOpen,
@@ -29,10 +46,13 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [visitorType, setVisitorType] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [potentialDuplicates, setPotentialDuplicates] = useState<PotentialDuplicate[]>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
 
   const validateFirstName = (value: string): string | undefined => {
     if (!value.trim()) return 'First name is required';
@@ -62,12 +82,18 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
     return undefined;
   };
 
+  const validateVisitorType = (value: string): string | undefined => {
+    if (!value) return 'Visitor type is required';
+    return undefined;
+  };
+
   const validateAllFields = (): FieldErrors => {
     return {
       firstName: validateFirstName(firstName),
       lastName: validateLastName(lastName),
       email: validateEmail(email),
-      phone: validatePhone(phone)
+      phone: validatePhone(phone),
+      visitorType: validateVisitorType(visitorType)
     };
   };
 
@@ -80,8 +106,10 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
     setLastName('');
     setEmail('');
     setPhone('');
+    setVisitorType('');
     setError(null);
     setFieldErrors({});
+    setPotentialDuplicates([]);
   }, []);
 
   useEffect(() => {
@@ -89,6 +117,40 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
       resetForm();
     }
   }, [isOpen, resetForm]);
+
+  useEffect(() => {
+    const checkDuplicates = async () => {
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName.length < 3) {
+        setPotentialDuplicates([]);
+        return;
+      }
+      
+      setIsCheckingDuplicates(true);
+      try {
+        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const matches = data.filter((v: any) => {
+            const vName = (v.name || `${v.firstName} ${v.lastName}`).toLowerCase().trim();
+            return vName === fullName.toLowerCase();
+          });
+          setPotentialDuplicates(matches.map((v: any) => ({
+            id: v.id,
+            email: v.email,
+            name: v.name || `${v.firstName} ${v.lastName}`
+          })));
+        }
+      } catch (err) {
+        console.error('Duplicate check error:', err);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    };
+    
+    const timeoutId = setTimeout(checkDuplicates, 500);
+    return () => clearTimeout(timeoutId);
+  }, [firstName, lastName]);
 
   const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -122,6 +184,20 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
     }
   };
 
+  const handleVisitorTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setVisitorType(value);
+    if (fieldErrors.visitorType) {
+      setFieldErrors(prev => ({ ...prev, visitorType: validateVisitorType(value) }));
+    }
+  };
+
+  const handleSelectDuplicate = (duplicate: PotentialDuplicate) => {
+    showToast(`Selected existing user: ${duplicate.name}`, 'success');
+    onSuccess?.();
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -145,7 +221,7 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
           lastName: lastName.trim(),
           email: email.trim().toLowerCase(),
           phone: phone.trim() || null,
-          visitorType: 'NEW',
+          visitorType: visitorType,
           dataSource: 'APP',
           createStripeCustomer: true
         })
@@ -228,6 +304,35 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
                 </div>
               </div>
 
+              {potentialDuplicates.length > 0 && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg flex-shrink-0 mt-0.5">warning</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                        Possible duplicate{potentialDuplicates.length > 1 ? 's' : ''} found
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                        Click to use existing record instead:
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        {potentialDuplicates.map((dup) => (
+                          <button
+                            key={dup.id}
+                            type="button"
+                            onClick={() => handleSelectDuplicate(dup)}
+                            className="w-full p-2 text-left rounded-lg bg-white dark:bg-black/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700/50 transition-colors"
+                          >
+                            <p className="font-medium text-sm text-primary dark:text-white">{dup.name}</p>
+                            <p className="text-xs text-primary/60 dark:text-white/60">{dup.email}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-primary dark:text-white mb-2">
                   Email *
@@ -261,6 +366,29 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
                 />
                 {fieldErrors.phone && (
                   <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.phone}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary dark:text-white mb-2">
+                  Visitor Type *
+                </label>
+                <select
+                  value={visitorType}
+                  onChange={handleVisitorTypeChange}
+                  className={`w-full px-4 py-2 border rounded-xl bg-white dark:bg-black/20 text-primary dark:text-white ${
+                    fieldErrors.visitorType ? 'border-red-500' : 'border-primary/20 dark:border-white/20'
+                  }`}
+                >
+                  <option value="">Select visitor type...</option>
+                  {VISITOR_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {fieldErrors.visitorType && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.visitorType}</p>
                 )}
               </div>
 

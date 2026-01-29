@@ -14,6 +14,7 @@ interface BookingMember {
   linkedBy: string | null;
   memberName: string;
   tier?: string | null;
+  originalEmail?: string | null;
 }
 
 interface BookingGuest {
@@ -112,6 +113,24 @@ function getBayName(resourceId: number): string {
   return bayMap[resourceId] || `Bay ${resourceId}`;
 }
 
+function isPlaceholderEmail(email: string): boolean {
+  if (!email) return true;
+  const lower = email.toLowerCase();
+  return lower.includes('@visitors.evenhouse.club') || 
+         lower.includes('@trackman.local') || 
+         lower.startsWith('classpass-') ||
+         lower.startsWith('golfnow-') ||
+         lower.startsWith('lesson-') ||
+         lower.startsWith('unmatched-');
+}
+
+interface PendingLinkConfirmation {
+  slotId: number;
+  memberEmail: string;
+  memberName: string;
+  originalEmail: string;
+}
+
 const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
   isOpen,
   onClose,
@@ -129,6 +148,8 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
   const [activeSearchSlot, setActiveSearchSlot] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [pendingLink, setPendingLink] = useState<PendingLinkConfirmation | null>(null);
+  const [rememberEmail, setRememberEmail] = useState(true);
 
   const fetchBookingMembers = useCallback(async () => {
     if (!booking?.id) return;
@@ -155,22 +176,34 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
     if (isOpen) {
       fetchBookingMembers();
       setHasChanges(false);
+      setPendingLink(null);
+      setRememberEmail(true);
     }
   }, [isOpen, fetchBookingMembers]);
 
-  const handleLinkMember = async (slotId: number, memberEmail: string) => {
+  const handleLinkMember = async (slotId: number, memberEmail: string, options?: { rememberEmail?: boolean; originalEmail?: string }) => {
     setLinkingSlotId(slotId);
     try {
+      const body: { memberEmail: string; rememberEmail?: boolean; originalEmail?: string } = { memberEmail };
+      if (options?.rememberEmail !== undefined) {
+        body.rememberEmail = options.rememberEmail;
+      }
+      if (options?.originalEmail) {
+        body.originalEmail = options.originalEmail;
+      }
+
       const res = await fetch(`/api/admin/booking/${booking.id}/members/${slotId}/link`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ memberEmail })
+        body: JSON.stringify(body)
       });
       
       if (res.ok) {
         await fetchBookingMembers();
         setActiveSearchSlot(null);
+        setPendingLink(null);
+        setRememberEmail(true);
         setHasChanges(true);
       } else {
         const data = await res.json();
@@ -181,6 +214,38 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
     } finally {
       setLinkingSlotId(null);
     }
+  };
+
+  const handleMemberSelected = (slot: BookingMember, member: SelectedMember) => {
+    const slotOriginalEmail = slot.originalEmail;
+    
+    if (slotOriginalEmail && 
+        !isPlaceholderEmail(slotOriginalEmail) && 
+        slotOriginalEmail.toLowerCase() !== member.email.toLowerCase()) {
+      setPendingLink({
+        slotId: slot.id,
+        memberEmail: member.email,
+        memberName: member.name,
+        originalEmail: slotOriginalEmail
+      });
+      setRememberEmail(true);
+      setActiveSearchSlot(null);
+    } else {
+      handleLinkMember(slot.id, member.email);
+    }
+  };
+
+  const handleConfirmLink = () => {
+    if (!pendingLink) return;
+    handleLinkMember(pendingLink.slotId, pendingLink.memberEmail, {
+      rememberEmail,
+      originalEmail: pendingLink.originalEmail
+    });
+  };
+
+  const handleCancelPendingLink = () => {
+    setPendingLink(null);
+    setRememberEmail(true);
   };
 
   const handleUnlinkMember = async (slotId: number) => {
@@ -214,7 +279,7 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
     if (match) {
       const emptySlot = bookingMembers.find(m => !m.userEmail && !m.isPrimary);
       if (emptySlot) {
-        handleLinkMember(emptySlot.id, match.email);
+        handleMemberSelected(emptySlot, { id: match.id?.toString() || '', email: match.email, name: match.name || '', tier: match.tier });
       }
     } else {
       const emptySlot = bookingMembers.find(m => !m.userEmail && !m.isPrimary);
@@ -465,7 +530,7 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
                     {activeSearchSlot === slot.id ? (
                       <div className="p-3 bg-white dark:bg-black/20 rounded-lg border-2 border-accent">
                         <MemberSearchInput
-                          onSelect={(selectedMember: SelectedMember) => handleLinkMember(slot.id, selectedMember.email)}
+                          onSelect={(selectedMember: SelectedMember) => handleMemberSelected(slot, selectedMember)}
                           onClear={() => setActiveSearchSlot(null)}
                           placeholder="Search by name or email..."
                           autoFocus
@@ -484,6 +549,66 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
                     )}
                   </div>
                 ))}
+                
+                {pendingLink && (
+                  <div className="col-span-full p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">link</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-primary dark:text-white">
+                          Link {pendingLink.memberName}?
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Original booking email: <span className="font-medium">{pendingLink.originalEmail}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Member email: <span className="font-medium">{pendingLink.memberEmail}</span>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={rememberEmail}
+                        onChange={(e) => setRememberEmail(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                      />
+                      <span className="text-sm text-primary dark:text-white">
+                        Remember this email for future bookings
+                      </span>
+                    </label>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleConfirmLink}
+                        disabled={linkingSlotId !== null}
+                        className="flex-1 px-4 py-2 bg-accent hover:bg-accent/90 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {linkingSlotId !== null ? (
+                          <>
+                            <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                            Linking...
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-sm">check</span>
+                            Confirm Link
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleCancelPendingLink}
+                        disabled={linkingSlotId !== null}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
