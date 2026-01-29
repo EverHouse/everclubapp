@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { pool } from './db';
-import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, notifications, bookingMembers, bookingGuests, bookingSessions, bookingParticipants, usageLedger, guests as guestsTable } from '../../shared/schema';
-import { eq, or, ilike, sql } from 'drizzle-orm';
+import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, notifications, bookingMembers, bookingGuests, bookingSessions, bookingParticipants, usageLedger, guests as guestsTable, availabilityBlocks, facilityClosures } from '../../shared/schema';
+import { eq, or, ilike, sql, and } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getTodayPacific, getPacificDateParts, formatNotificationDateTime } from '../utils/dateUtils';
@@ -144,6 +144,51 @@ function isPlaceholderEmail(email: string): boolean {
   // Also treat trackman.local and unmatched- prefixes as placeholders
   if (normalizedEmail.endsWith('@trackman.local') || normalizedEmail.startsWith('unmatched-')) return true;
   return false;
+}
+
+/**
+ * Check if a booking has already been converted to a private event block.
+ * This prevents creating duplicate unmatched bookings when re-importing CSV data
+ * after a booking was marked as a private event.
+ */
+async function isConvertedToPrivateEventBlock(
+  resourceId: number | null,
+  bookingDate: string,
+  startTime: string,
+  endTime: string | null
+): Promise<boolean> {
+  if (!resourceId || !bookingDate || !startTime) return false;
+  
+  try {
+    // Build effective end time - use provided endTime or default to 1 hour after start
+    const effectiveEndTime = endTime 
+      ? sql`${endTime}::time`
+      : sql`${startTime}::time + interval '1 hour'`;
+    
+    // Look for availability blocks on this resource/date/time that are linked to private_event closures
+    const matchingBlocks = await db.select({
+      blockId: availabilityBlocks.id,
+      closureId: availabilityBlocks.closureId
+    })
+      .from(availabilityBlocks)
+      .innerJoin(facilityClosures, eq(availabilityBlocks.closureId, facilityClosures.id))
+      .where(and(
+        eq(availabilityBlocks.resourceId, resourceId),
+        eq(availabilityBlocks.blockDate, bookingDate),
+        eq(facilityClosures.noticeType, 'private_event'),
+        eq(facilityClosures.isActive, true),
+        // Time overlap check: block starts before booking ends AND block ends after booking starts
+        sql`${availabilityBlocks.startTime} < ${effectiveEndTime}`,
+        sql`${availabilityBlocks.endTime} > ${startTime}::time`
+      ))
+      .limit(1);
+    
+    return matchingBlocks.length > 0;
+  } catch (err) {
+    // Non-blocking - if check fails, allow booking creation
+    process.stderr.write(`[Trackman Import] Error checking for private event block: ${(err as Error).message}\n`);
+    return false;
+  }
 }
 
 async function loadEmailMapping(): Promise<Map<string, string>> {
@@ -1078,6 +1123,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   linkedRows: number;
   unmatchedRows: number;
   skippedRows: number;
+  skippedAsPrivateEventBlocks: number;
   removedFromUnmatched: number;
   cancelledBookings: number;
   updatedRows: number;
@@ -1087,7 +1133,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   const parsedRows = parseCSVWithMultilineSupport(content);
   
   if (parsedRows.length < 2) {
-    return { totalRows: 0, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: ['Empty or invalid CSV'] };
+    return { totalRows: 0, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, skippedAsPrivateEventBlocks: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: ['Empty or invalid CSV'] };
   }
 
   // Fetch all members (active + former) from HubSpot for matching
@@ -1106,6 +1152,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
       linkedRows: 0,
       unmatchedRows: 0, 
       skippedRows: 0, 
+      skippedAsPrivateEventBlocks: 0,
       removedFromUnmatched: 0,
       cancelledBookings: 0,
       updatedRows: 0,
@@ -1172,6 +1219,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   let removedFromUnmatched = 0;
   let cancelledBookings = 0;
   let updatedRows = 0;
+  let skippedAsPrivateEventBlocks = 0;
   const errors: string[] = [];
   let mappingMatchCount = 0;
   let mappingFoundButNotInDb = 0;
@@ -2304,6 +2352,22 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           matchAttemptReason += ` | Additional players need review: ${reviewItems}`;
         }
         
+        // Check if this booking was already converted to a private event block
+        // This prevents duplicate bookings when re-importing CSVs after converting to blocks
+        const alreadyConvertedToBlock = await isConvertedToPrivateEventBlock(
+          parsedBayId,
+          bookingDate,
+          startTime,
+          endTime
+        );
+        
+        if (alreadyConvertedToBlock) {
+          process.stderr.write(`[Trackman Import] Skipping ${row.bookingId} - already converted to private event block (bay ${parsedBayId}, ${bookingDate} ${startTime})\n`);
+          skippedAsPrivateEventBlocks++;
+          skippedRows++;
+          continue;
+        }
+        
         // CRITICAL: Create booking_request to block the time slot even for unmatched bookings
         // This ensures no double-booking regardless of member matching
         const unmatchedPlaceholderEmail = `unmatched-${row.bookingId}@trackman.local`;
@@ -2371,7 +2435,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     }
   }
 
-  process.stderr.write(`[Trackman Import] Summary: mappingMatchCount=${mappingMatchCount}, mappingFoundButNotInDb=${mappingFoundButNotInDb}, matchedRows=${matchedRows}, linkedRows=${linkedRows}, unmatchedRows=${unmatchedRows}, skipped=${skippedRows}\n`);
+  process.stderr.write(`[Trackman Import] Summary: mappingMatchCount=${mappingMatchCount}, mappingFoundButNotInDb=${mappingFoundButNotInDb}, matchedRows=${matchedRows}, linkedRows=${linkedRows}, unmatchedRows=${unmatchedRows}, skipped=${skippedRows}, skippedAsPrivateEventBlocks=${skippedAsPrivateEventBlocks}\n`);
 
   // Clean up bookings that are no longer in the import file
   // This handles cases where members cancel bookings in Trackman
@@ -2478,6 +2542,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     linkedRows,
     unmatchedRows,
     skippedRows,
+    skippedAsPrivateEventBlocks,
     removedFromUnmatched,
     cancelledBookings,
     updatedRows,
