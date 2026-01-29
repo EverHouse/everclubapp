@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { isAdmin } from '../core/middleware';
-import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, syncPush, syncPull, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults } from '../core/dataIntegrity';
+import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, syncPush, syncPull, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults, runDataCleanup } from '../core/dataIntegrity';
 import { isProduction } from '../core/db';
 import { broadcastDataIntegrityUpdate } from '../core/websocket';
 import { syncAllCustomerMetadata } from '../core/stripe/customers';
@@ -293,6 +293,22 @@ router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res
   } catch (error: any) {
     if (!isProduction) console.error('[DataIntegrity] Stripe metadata sync error:', error);
     res.status(500).json({ error: 'Failed to sync Stripe metadata', details: error.message });
+  }
+});
+
+router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {
+  try {
+    console.log('[DataIntegrity] Starting data cleanup...');
+    const result = await runDataCleanup();
+    
+    res.json({ 
+      success: true, 
+      message: `Cleanup complete: Removed ${result.orphanedNotifications} orphaned notifications, marked ${result.orphanedBookings} orphaned bookings, normalized ${result.normalizedEmails} emails.`,
+      ...result
+    });
+  } catch (error: any) {
+    if (!isProduction) console.error('[DataIntegrity] Data cleanup error:', error);
+    res.status(500).json({ error: 'Failed to run data cleanup', details: error.message });
   }
 });
 

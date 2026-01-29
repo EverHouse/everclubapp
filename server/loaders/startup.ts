@@ -1,4 +1,4 @@
-import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache } from '../db-init';
+import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, setupEmailNormalization, normalizeExistingEmails, cleanupOrphanedRecords } from '../db-init';
 import { seedTrainingSections } from '../routes/training';
 import { getStripeSync } from '../core/stripe';
 import { runMigrations } from 'stripe-replit-sync';
@@ -39,6 +39,17 @@ export async function runStartupTasks(): Promise<void> {
     console.error('[Startup] Database constraints failed:', err);
     startupHealth.database = 'failed';
     startupHealth.criticalFailures.push(`Database constraints: ${err.message}`);
+  }
+
+  try {
+    await setupEmailNormalization();
+    const { updated } = await normalizeExistingEmails();
+    if (updated > 0) {
+      console.log(`[Startup] Normalized ${updated} existing email records`);
+    }
+  } catch (err: any) {
+    console.error('[Startup] Email normalization failed:', err);
+    startupHealth.warnings.push(`Email normalization: ${err.message}`);
   }
   
   try {

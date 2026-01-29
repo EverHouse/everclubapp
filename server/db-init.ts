@@ -2,6 +2,128 @@ import { sql } from 'drizzle-orm';
 import { db } from './db';
 import { pool } from './core/db';
 
+export async function setupEmailNormalization(): Promise<void> {
+  try {
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION normalize_email()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF TG_TABLE_NAME = 'users' AND NEW.email IS NOT NULL THEN
+          NEW.email := LOWER(TRIM(NEW.email));
+        END IF;
+        IF TG_TABLE_NAME = 'booking_requests' AND NEW.user_email IS NOT NULL THEN
+          NEW.user_email := LOWER(TRIM(NEW.user_email));
+        END IF;
+        IF TG_TABLE_NAME = 'notifications' AND NEW.user_email IS NOT NULL THEN
+          NEW.user_email := LOWER(TRIM(NEW.user_email));
+        END IF;
+        IF TG_TABLE_NAME = 'push_subscriptions' AND NEW.user_email IS NOT NULL THEN
+          NEW.user_email := LOWER(TRIM(NEW.user_email));
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    const tables = [
+      { table: 'users', column: 'email' },
+      { table: 'booking_requests', column: 'user_email' },
+      { table: 'notifications', column: 'user_email' },
+      { table: 'push_subscriptions', column: 'user_email' }
+    ];
+
+    for (const { table, column } of tables) {
+      try {
+        await pool.query(`
+          DROP TRIGGER IF EXISTS normalize_email_trigger ON ${table};
+          CREATE TRIGGER normalize_email_trigger
+          BEFORE INSERT OR UPDATE OF ${column} ON ${table}
+          FOR EACH ROW
+          EXECUTE FUNCTION normalize_email();
+        `);
+      } catch (err: any) {
+        console.warn(`[DB Init] Skipping email trigger on ${table}: ${err.message}`);
+      }
+    }
+
+    console.log('[DB Init] Email normalization triggers created');
+  } catch (error: any) {
+    console.error('[DB Init] Failed to create email normalization triggers:', error.message);
+  }
+}
+
+export async function normalizeExistingEmails(): Promise<{ updated: number }> {
+  let totalUpdated = 0;
+  
+  try {
+    const usersResult = await pool.query(`
+      UPDATE users 
+      SET email = LOWER(TRIM(email))
+      WHERE email != LOWER(TRIM(email))
+    `);
+    totalUpdated += usersResult.rowCount || 0;
+
+    const bookingsResult = await pool.query(`
+      UPDATE booking_requests 
+      SET user_email = LOWER(TRIM(user_email))
+      WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+    `);
+    totalUpdated += bookingsResult.rowCount || 0;
+
+    const notificationsResult = await pool.query(`
+      UPDATE notifications 
+      SET user_email = LOWER(TRIM(user_email))
+      WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+    `);
+    totalUpdated += notificationsResult.rowCount || 0;
+
+    const pushResult = await pool.query(`
+      UPDATE push_subscriptions 
+      SET user_email = LOWER(TRIM(user_email))
+      WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+    `);
+    totalUpdated += pushResult.rowCount || 0;
+
+    console.log(`[DB Init] Normalized ${totalUpdated} email records`);
+  } catch (error: any) {
+    console.error('[DB Init] Failed to normalize existing emails:', error.message);
+  }
+  
+  return { updated: totalUpdated };
+}
+
+export async function cleanupOrphanedRecords(): Promise<{ notifications: number; oldBookings: number }> {
+  let notificationsDeleted = 0;
+  let oldBookingsArchived = 0;
+  
+  try {
+    const notifResult = await pool.query(`
+      DELETE FROM notifications n
+      WHERE n.user_email IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(n.user_email))
+        AND n.created_at < NOW() - INTERVAL '30 days'
+    `);
+    notificationsDeleted = notifResult.rowCount || 0;
+    console.log(`[DB Init] Cleaned up ${notificationsDeleted} orphaned notifications (older than 30 days)`);
+
+    const bookingResult = await pool.query(`
+      UPDATE booking_requests
+      SET notes = COALESCE(notes, '') || ' [Orphaned record - no matching user]'
+      WHERE user_email IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(user_email))
+        AND notes NOT LIKE '%[Orphaned record%'
+        AND status IN ('cancelled', 'declined', 'no_show')
+        AND request_date < NOW() - INTERVAL '90 days'
+    `);
+    oldBookingsArchived = bookingResult.rowCount || 0;
+    console.log(`[DB Init] Marked ${oldBookingsArchived} orphaned old booking records`);
+  } catch (error: any) {
+    console.error('[DB Init] Failed to cleanup orphaned records:', error.message);
+  }
+  
+  return { notifications: notificationsDeleted, oldBookings: oldBookingsArchived };
+}
+
 export async function createStripeTransactionCache(): Promise<void> {
   try {
     await pool.query(`

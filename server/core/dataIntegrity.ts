@@ -2003,3 +2003,67 @@ export async function getActiveIgnoreKeys(): Promise<Set<string>> {
   
   return new Set(activeIgnores.map(i => i.issueKey));
 }
+
+export async function runDataCleanup(): Promise<{
+  orphanedNotifications: number;
+  orphanedBookings: number;
+  normalizedEmails: number;
+}> {
+  let orphanedNotifications = 0;
+  let orphanedBookings = 0;
+  let normalizedEmails = 0;
+
+  try {
+    const notifResult = await db.execute(sql`
+      DELETE FROM notifications n
+      WHERE n.user_email IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(n.user_email))
+        AND n.created_at < NOW() - INTERVAL '30 days'
+      RETURNING id
+    `);
+    orphanedNotifications = notifResult.rows.length;
+
+    const bookingResult = await db.execute(sql`
+      UPDATE booking_requests
+      SET notes = COALESCE(notes, '') || ' [Orphaned - no matching user]'
+      WHERE user_email IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE LOWER(u.email) = LOWER(user_email))
+        AND notes NOT LIKE '%[Orphaned%'
+        AND status IN ('cancelled', 'declined', 'no_show')
+        AND request_date < NOW() - INTERVAL '90 days'
+      RETURNING id
+    `);
+    orphanedBookings = bookingResult.rows.length;
+
+    const emailResult = await db.execute(sql`
+      WITH 
+        users_updated AS (
+          UPDATE users SET email = LOWER(TRIM(email))
+          WHERE email != LOWER(TRIM(email))
+          RETURNING 1
+        ),
+        bookings_updated AS (
+          UPDATE booking_requests SET user_email = LOWER(TRIM(user_email))
+          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+          RETURNING 1
+        ),
+        notifs_updated AS (
+          UPDATE notifications SET user_email = LOWER(TRIM(user_email))
+          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+          RETURNING 1
+        )
+      SELECT 
+        (SELECT COUNT(*) FROM users_updated) +
+        (SELECT COUNT(*) FROM bookings_updated) +
+        (SELECT COUNT(*) FROM notifs_updated) as total
+    `);
+    normalizedEmails = (emailResult.rows[0] as any)?.total || 0;
+
+    console.log(`[DataCleanup] Removed ${orphanedNotifications} orphaned notifications, marked ${orphanedBookings} orphaned bookings, normalized ${normalizedEmails} emails`);
+  } catch (error: any) {
+    console.error('[DataCleanup] Error during cleanup:', error.message);
+    throw error;
+  }
+
+  return { orphanedNotifications, orphanedBookings, normalizedEmails };
+}
