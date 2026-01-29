@@ -70,7 +70,7 @@ const MobileRowComponent = ({ index, style, data, memberTab, isAdmin, openDetail
                 <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
                     <div className="flex items-center gap-1.5 flex-wrap">
                         <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                        {m.tags?.map(tag => (
+                        {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                             <TagBadge key={tag} tag={tag} size="sm" />
                         ))}
                         {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
@@ -120,7 +120,7 @@ const DesktopRowComponent = ({ index, style, data, memberTab, isAdmin, openDetai
             <div style={{ width: '20%' }} className="p-4">
                 <div className="flex items-center gap-1 flex-wrap">
                     <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                    {m.tags?.map(tag => (
+                    {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                         <TagBadge key={tag} tag={tag} size="sm" />
                     ))}
                     {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
@@ -544,11 +544,15 @@ const DirectoryTab: React.FC = () => {
         [currentMembers]
     );
 
-    // Get all unique tags for the tag filter
+    // Get all unique tags for the tag filter (filter out any non-string entries like merge records)
     const allTags = useMemo(() => {
         const tagSet = new Set<string>();
         regularMembers.forEach(m => {
-            m.tags?.forEach(tag => tagSet.add(tag));
+            m.tags?.forEach(tag => {
+                if (typeof tag === 'string') {
+                    tagSet.add(tag);
+                }
+            });
         });
         return Array.from(tagSet).sort();
     }, [regularMembers]);
@@ -655,10 +659,10 @@ const DirectoryTab: React.FC = () => {
             });
         }
         
-        // Tag filter
+        // Tag filter (only check string tags)
         if (tagFilter !== 'All') {
             filtered = filtered.filter(m => 
-                m.tags?.includes(tagFilter)
+                m.tags?.filter((t): t is string => typeof t === 'string').includes(tagFilter)
             );
         }
         
@@ -692,7 +696,7 @@ const DirectoryTab: React.FC = () => {
                 m.email.toLowerCase().includes(query) ||
                 (m.tier && m.tier.toLowerCase().includes(query)) ||
                 (m.phone && m.phone.toLowerCase().includes(query)) ||
-                (m.tags?.some(t => t.toLowerCase().includes(query)))
+                (m.tags?.filter((t): t is string => typeof t === 'string').some(t => t.toLowerCase().includes(query)))
             );
         }
         
@@ -1496,7 +1500,7 @@ const DirectoryTab: React.FC = () => {
                                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                                                {m.tags?.map(tag => (
+                                                {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                                                     <TagBadge key={tag} tag={tag} size="sm" />
                                                 ))}
                                                 {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
@@ -1577,7 +1581,7 @@ const DirectoryTab: React.FC = () => {
                                         <div style={{ width: '20%' }} className="p-4">
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                                                {m.tags?.map(tag => (
+                                                {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                                                     <TagBadge key={tag} tag={tag} size="sm" />
                                                 ))}
                                                 {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (

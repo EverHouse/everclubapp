@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.46.4",
+    date: "2026-01-29",
+    title: "Staff Portal Directory Fix",
+    changes: [
+      "Fixed: Directory tab in Staff Portal now loads correctly",
+      "Fixed: Member merge records no longer cause display errors in tag filters",
+      "Technical: Added filtering for non-string entries in member tags array"
+    ]
+  },
+  {
     version: "9.46.3",
     date: "2026-01-29",
     title: "Private Event Toast Fix",
