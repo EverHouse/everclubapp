@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.44.0",
+    date: "2026-01-29",
+    title: "Auto-Match Visitors from MindBody",
+    isMajor: true,
+    changes: [
+      "New: Auto-Match Visitors button in Queue auto-assigns unmatched bookings to visitors",
+      "New: Matching uses MindBody purchase history (date + time + purchase type)",
+      "New: ClassPass, Day Pass, Private Lesson bookings auto-linked to visitor records",
+      "New: After-hours bookings (10 PM - 6 AM) auto-marked as Private Events",
+      "New: Unmatched GolfNow bookings create new visitors with GolfNow type",
+      "New: All auto-matches logged to Staff Activity for audit trail",
+      "Improved: Visitor types now include 'golfnow' and 'private_event'"
+    ]
+  },
+  {
     version: "9.43.0",
     date: "2026-01-29",
     title: "Unified Queue with Requires Review",

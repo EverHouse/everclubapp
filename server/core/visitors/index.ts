@@ -13,3 +13,15 @@ export {
   type VisitorType,
   type ActivitySource,
 } from "./typeService";
+
+export {
+  parseBookingNotes,
+  matchBookingToPurchase,
+  autoMatchSingleBooking,
+  autoMatchAllUnmatchedBookings,
+  isAfterClosingHours,
+  type BookingTypeInfo,
+  type ParsedBookingNotes,
+  type PurchaseMatch,
+  type AutoMatchResult,
+} from "./autoMatchService";

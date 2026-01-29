@@ -707,6 +707,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [availabilityBlocks, setAvailabilityBlocks] = useState<AvailabilityBlock[]>([]);
     const [requiresReviewBookings, setRequiresReviewBookings] = useState<RequiresReviewBooking[]>([]);
     const [isRescanningMatches, setIsRescanningMatches] = useState(false);
+    const [isAutoMatchingVisitors, setIsAutoMatchingVisitors] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState<BookingRequest | null>(null);
     const [actionModal, setActionModal] = useState<'approve' | 'decline' | null>(null);
@@ -1897,6 +1898,41 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                             {isRescanningMatches ? 'progress_activity' : 'refresh'}
                                         </span>
                                         <span className="hidden sm:inline">Re-scan</span>
+                                    </button>
+                                )}
+                                {(unmatchedWebhookBookings.length > 0 || requiresReviewBookings.length > 0) && (
+                                    <button
+                                        onClick={async () => {
+                                            if (isAutoMatchingVisitors) return;
+                                            setIsAutoMatchingVisitors(true);
+                                            try {
+                                                const res = await fetch('/api/admin/trackman/auto-match-visitors', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    credentials: 'include'
+                                                });
+                                                if (res.ok) {
+                                                    const data = await res.json();
+                                                    showToast(`Auto-matched ${data.matched || 0} bookings to visitors (${data.failed || 0} unmatched)`, 'success');
+                                                    handleRefresh();
+                                                } else {
+                                                    const err = await res.json();
+                                                    showToast(err.error || 'Failed to auto-match visitors', 'error');
+                                                }
+                                            } catch (err) {
+                                                showToast('Failed to auto-match visitors', 'error');
+                                            } finally {
+                                                setIsAutoMatchingVisitors(false);
+                                            }
+                                        }}
+                                        disabled={isAutoMatchingVisitors}
+                                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/20 hover:bg-purple-200 dark:hover:bg-purple-500/30 rounded-lg transition-colors disabled:opacity-50"
+                                        title="Auto-match unmatched bookings to visitors based on MindBody purchase history"
+                                    >
+                                        <span className={`material-symbols-outlined text-sm ${isAutoMatchingVisitors ? 'animate-spin' : ''}`}>
+                                            {isAutoMatchingVisitors ? 'progress_activity' : 'person_search'}
+                                        </span>
+                                        <span className="hidden sm:inline">Auto-Match</span>
                                     </button>
                                 )}
                                 <button

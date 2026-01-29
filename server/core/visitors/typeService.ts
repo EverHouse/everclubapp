@@ -1,7 +1,7 @@
 import { pool } from '../db';
 
-export type VisitorType = 'classpass' | 'sim_walkin' | 'private_lesson' | 'guest' | 'day_pass' | 'lead';
-export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'legacy_purchase';
+export type VisitorType = 'classpass' | 'sim_walkin' | 'private_lesson' | 'guest' | 'day_pass' | 'lead' | 'golfnow' | 'private_event';
+export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'legacy_purchase' | 'trackman_auto_match';
 
 interface UpdateVisitorTypeParams {
   email: string;

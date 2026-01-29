@@ -2339,4 +2339,44 @@ router.post('/api/admin/trackman/cleanup-duplicates', isStaffOrAdmin, async (req
   }
 });
 
+// Auto-match unmatched bookings to visitors based on MindBody purchase history
+router.post('/api/admin/trackman/auto-match-visitors', isStaffOrAdmin, async (req, res) => {
+  try {
+    const sessionUser = (req as any).session?.user?.email || 'system';
+    
+    const { autoMatchAllUnmatchedBookings } = await import('../../core/visitors/autoMatchService');
+    
+    const results = await autoMatchAllUnmatchedBookings(sessionUser);
+    
+    // Log the auto-match action
+    await logFromRequest(req, {
+      action: 'bulk_action',
+      resourceType: 'booking',
+      resourceId: undefined,
+      resourceName: 'Auto-Match Visitors',
+      details: { 
+        matched: results.matched, 
+        failed: results.failed,
+        matchTypes: results.results.reduce((acc, r) => {
+          acc[r.matchType] = (acc[r.matchType] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      }
+    });
+    
+    res.json({
+      success: true,
+      matched: results.matched,
+      failed: results.failed,
+      results: results.results.slice(0, 50), // Limit response size
+      message: `Auto-matched ${results.matched} booking(s), ${results.failed} could not be matched`
+    });
+  } catch (error: any) {
+    console.error('[Trackman Auto-Match] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to auto-match visitors: ' + (error.message || 'Unknown error') 
+    });
+  }
+});
+
 export default router;
