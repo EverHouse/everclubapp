@@ -767,16 +767,53 @@ async function autoMatchBookingRequests(
         }
       }
       
-      // Create visitor
-      const visitor = await upsertVisitor({
-        email: generatedEmail,
-        firstName,
-        lastName: lastName || 'Visitor'
-      }, false);
+      // First, check if a visitor with the same name already exists
+      let visitor: { id: string; email: string } | null = null;
+      let usedExistingVisitor = false;
       
-      // Update visitor type
+      if (firstName && lastName) {
+        const existingVisitorResult = await pool.query(`
+          SELECT id, email, first_name, last_name, visitor_type
+          FROM users
+          WHERE LOWER(first_name) = LOWER($1)
+            AND LOWER(last_name) = LOWER($2)
+            AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
+            AND archived_at IS NULL
+          ORDER BY created_at ASC
+          LIMIT 1
+        `, [firstName, lastName]);
+        
+        if (existingVisitorResult.rows.length > 0) {
+          const existing = existingVisitorResult.rows[0];
+          visitor = { id: existing.id, email: existing.email };
+          usedExistingVisitor = true;
+          
+          // Add the generated email as a linked email if it's different
+          if (existing.email.toLowerCase() !== generatedEmail.toLowerCase()) {
+            await pool.query(`
+              INSERT INTO linked_email_addresses (user_id, email, source, is_verified)
+              VALUES ($1, $2, 'trackman_auto_match', false)
+              ON CONFLICT (email) DO NOTHING
+            `, [existing.id, generatedEmail]);
+          }
+          
+          console.log(`[AutoMatch] Found existing visitor ${firstName} ${lastName} (${existing.email}) - linking booking`);
+        }
+      }
+      
+      // Only create a new visitor if no existing one found
+      if (!visitor) {
+        const newVisitor = await upsertVisitor({
+          email: generatedEmail,
+          firstName,
+          lastName: lastName || 'Visitor'
+        }, false);
+        visitor = newVisitor;
+      }
+      
+      // Update visitor type (always try, in case it needs updating)
       await updateVisitorType({
-        email: generatedEmail,
+        email: visitor.email,
         type: visitorType,
         activitySource: 'trackman_auto_match',
         activityDate: new Date(row.booking_date)
@@ -829,6 +866,10 @@ async function autoMatchBookingRequests(
       }
       
       // Update booking_request with the visitor email
+      const matchNote = usedExistingVisitor 
+        ? ` [Auto-matched to existing ${visitorType} visitor ${visitor.email} by ${staffEmail || 'system'}]`
+        : ` [Auto-matched to new ${visitorType} visitor by ${staffEmail || 'system'}]`;
+      
       await pool.query(`
         UPDATE booking_requests
         SET 
@@ -842,21 +883,21 @@ async function autoMatchBookingRequests(
       `, [
         row.id,
         visitor.id,
-        generatedEmail,
+        visitor.email, // Use visitor's actual email (not generated)
         sessionId,
-        ` [Auto-matched to ${visitorType} visitor by ${staffEmail || 'system'}]`
+        matchNote
       ]);
       
       results.push({
         bookingId: row.id,
         matched: true,
-        matchType: 'golfnow_fallback',
-        visitorEmail: generatedEmail,
+        matchType: usedExistingVisitor ? 'name_match' : 'golfnow_fallback',
+        visitorEmail: visitor.email,
         visitorType: visitorType,
         sessionId: sessionId || undefined
       });
       matched++;
-      console.log(`[AutoMatch] Matched booking_request #${row.id} -> ${generatedEmail}`);
+      console.log(`[AutoMatch] Matched booking_request #${row.id} -> ${visitor.email}${usedExistingVisitor ? ' (existing)' : ' (new)'}`);
     } catch (error) {
       console.error(`[AutoMatch] Error matching booking_request #${row.id}:`, error);
       results.push({

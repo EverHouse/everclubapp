@@ -56,19 +56,22 @@ export async function updateVisitorType({
       `;
       params = [normalizedEmail, activityDate, activitySource];
     } else {
+      // For classpass, golfnow, private_lesson, sim_walkin - allow updating from NULL or lead
       updateQuery = `
         UPDATE users
         SET 
           visitor_type = $2,
+          last_activity_at = $3,
+          last_activity_source = $4,
           updated_at = NOW()
         WHERE LOWER(email) = $1
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
-          AND visitor_type IS NULL
+          AND (visitor_type IS NULL OR visitor_type = 'lead' OR visitor_type = 'guest')
         RETURNING id
       `;
-      params = [normalizedEmail, type];
+      params = [normalizedEmail, type, activityDate, activitySource];
     }
     
     const result = await pool.query(updateQuery, params);
@@ -127,19 +130,22 @@ export async function updateVisitorTypeByUserId(
       `;
       params = [userId, activityDate, activitySource];
     } else {
+      // For classpass, golfnow, private_lesson, sim_walkin - allow updating from NULL or lead
       updateQuery = `
         UPDATE users
         SET 
           visitor_type = $2,
+          last_activity_at = $3,
+          last_activity_source = $4,
           updated_at = NOW()
         WHERE id = $1
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
-          AND visitor_type IS NULL
+          AND (visitor_type IS NULL OR visitor_type = 'lead' OR visitor_type = 'guest')
         RETURNING id
       `;
-      params = [userId, type];
+      params = [userId, type, activityDate, activitySource];
     }
     
     const result = await pool.query(updateQuery, params);
