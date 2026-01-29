@@ -166,26 +166,28 @@ html.dark, html.dark body {
 }
 
 /* Page-specific backgrounds for Safari translucent toolbar support */
+/* Using !important to override any conflicting styles and ensure Safari picks up correct color */
 html.page-landing, html.page-landing body {
-  background-color: #1a1610;
+  background-color: #1a1610 !important;
 }
 
 html.page-landing-scrolled, html.page-landing-scrolled body {
-  background-color: #F2F2EC;
+  background-color: #F2F2EC !important;
+  color: var(--brand-primary) !important;
 }
 
 html.page-private-hire, html.page-private-hire body {
-  background-color: #293515;
+  background-color: #293515 !important;
 }
 
 html.page-dark, html.page-dark body {
-  background-color: #0f120a;
-  color: #F2F2EC;
+  background-color: #0f120a !important;
+  color: #F2F2EC !important;
 }
 
 html.page-light, html.page-light body {
-  background-color: #F2F2EC;
-  color: var(--brand-primary);
+  background-color: #F2F2EC !important;
+  color: var(--brand-primary) !important;
 }
 
 #root {
