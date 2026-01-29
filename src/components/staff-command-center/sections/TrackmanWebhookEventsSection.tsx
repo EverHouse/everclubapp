@@ -471,7 +471,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                           </div>
                           
                           {hasError && (
-                            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                            <p className="mt-1 text-xs text-red-600 dark:text-red-400 break-words">
                               {event.processing_error}
                             </p>
                           )}
@@ -515,9 +515,9 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                 const isAutoMatching = autoMatchingEventId === event.id;
                                 const matchResult = autoMatchResult?.eventId === event.id ? autoMatchResult : null;
                                 return (
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex flex-wrap items-center gap-1">
                                     {matchResult && (
-                                      <span className={`text-xs ${matchResult.success ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                      <span className={`text-xs max-w-[180px] break-words ${matchResult.success ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                         {matchResult.message}
                                       </span>
                                     )}
@@ -552,9 +552,9 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                 const isAutoMatching = autoMatchingEventId === event.id;
                                 const matchResult = autoMatchResult?.eventId === event.id ? autoMatchResult : null;
                                 return (
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex flex-wrap items-center gap-1">
                                     {matchResult && (
-                                      <span className={`text-xs ${matchResult.success ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                      <span className={`text-xs max-w-[180px] break-words ${matchResult.success ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                         {matchResult.message}
                                       </span>
                                     )}

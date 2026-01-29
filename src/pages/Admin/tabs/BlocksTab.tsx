@@ -677,7 +677,7 @@ const BlocksTab: React.FC = () => {
 
             {activeSubTab === 'notices' && (
             <>
-            <p className="text-sm text-primary/80 dark:text-white/80">
+            <p className="text-sm text-primary/80 dark:text-white/80 mb-4">
                 Synced from Google Calendar: <span className="font-medium">Internal Calendar</span>
             </p>
 
@@ -725,7 +725,7 @@ const BlocksTab: React.FC = () => {
                 </label>
             </div>
 
-            <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-3 text-xs my-4">
                 <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full bg-red-500"></span>
                     <span className="text-gray-600 dark:text-white/70">Blocks bookings</span>
@@ -740,7 +740,7 @@ const BlocksTab: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div className="rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden">
                 <button
                     onClick={() => setShowClosureReasonsSection(!showClosureReasonsSection)}
