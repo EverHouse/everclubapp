@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
+import { useBottomNav } from '../contexts/BottomNavContext';
 import { haptic } from '../utils/haptics';
 
 interface MemberMenuOverlayProps {
@@ -37,6 +38,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
   const location = useLocation();
   const { effectiveTheme } = useTheme();
   const { startNavigation } = useNavigationLoading();
+  const { setDrawerOpen } = useBottomNav();
   const isDark = effectiveTheme === 'dark';
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -79,6 +81,11 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
 
   useScrollLockManager(isVisible);
 
+  useEffect(() => {
+    setDrawerOpen(isVisible);
+    return () => setDrawerOpen(false);
+  }, [isVisible, setDrawerOpen]);
+
   const handleClose = () => {
     haptic.selection();
     onClose();
@@ -92,17 +99,35 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
   };
 
   const isActive = (item: MenuItem) => {
+    const currentPath = location.pathname;
+    const currentSearch = new URLSearchParams(location.search);
+    
     if (item.path.includes('?')) {
       const [basePath, queryString] = item.path.split('?');
-      if (!location.pathname.startsWith(basePath)) return false;
+      if (!currentPath.startsWith(basePath)) return false;
       const params = new URLSearchParams(queryString);
-      const searchParams = new URLSearchParams(location.search);
       for (const [key, value] of params) {
-        if (searchParams.get(key) !== value) return false;
+        if (currentSearch.get(key) !== value) return false;
       }
       return true;
     }
-    return location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+    
+    if (currentPath === item.path || currentPath.startsWith(item.path + '/')) {
+      const hasActiveTabChild = MEMBER_MENU_ITEMS.some(other => {
+        if (!other.path.includes('?')) return false;
+        const [otherBase, otherQuery] = other.path.split('?');
+        if (otherBase !== item.path && !item.path.startsWith(otherBase)) return false;
+        if (!currentPath.startsWith(otherBase)) return false;
+        const otherParams = new URLSearchParams(otherQuery);
+        for (const [key, value] of otherParams) {
+          if (currentSearch.get(key) === value) return true;
+        }
+        return false;
+      });
+      return !hasActiveTabChild;
+    }
+    
+    return false;
   };
 
   if (!isVisible) return null;
