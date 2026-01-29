@@ -35,6 +35,8 @@ export type AuditAction =
   | 'change_booking_owner'
   | 'assign_member_to_booking'
   | 'link_trackman_to_member'
+  | 'booking_cancelled_webhook'
+  | 'booking_cancelled_member'
   // Billing actions
   | 'view_payment'
   | 'process_refund'
@@ -45,6 +47,10 @@ export type AuditAction =
   | 'send_payment_link'
   | 'update_payment_status'
   | 'apply_credit'
+  | 'payment_refunded'
+  | 'payment_refund_partial'
+  | 'payment_failed'
+  | 'payment_succeeded'
   // Tour actions
   | 'tour_checkin'
   | 'tour_completed'
@@ -95,6 +101,8 @@ export type AuditAction =
   | 'update_settings'
   | 'bulk_action';
 
+export type ActorType = 'staff' | 'member' | 'system';
+
 export type ResourceType = 
   | 'member'
   | 'booking'
@@ -122,10 +130,12 @@ interface AuditLogParams {
   resourceName?: string;
   details?: Record<string, any>;
   req?: Request;
+  actorType?: ActorType;
+  actorEmail?: string;
 }
 
 export async function logAdminAction(params: AuditLogParams): Promise<void> {
-  const { staffEmail, staffName, action, resourceType, resourceId, resourceName, details, req } = params;
+  const { staffEmail, staffName, action, resourceType, resourceId, resourceName, details, req, actorType = 'staff', actorEmail } = params;
   
   try {
     const entry: InsertAdminAuditLog = {
@@ -138,11 +148,80 @@ export async function logAdminAction(params: AuditLogParams): Promise<void> {
       details: details || null,
       ipAddress: req ? getClientIp(req) : null,
       userAgent: req?.get('user-agent') || null,
+      actorType,
+      actorEmail: actorEmail || null,
     };
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error) {
     console.error('[AuditLog] Failed to log admin action:', error);
+  }
+}
+
+interface SystemActionParams {
+  action: AuditAction;
+  resourceType: ResourceType;
+  resourceId?: string;
+  resourceName?: string;
+  details?: Record<string, any>;
+}
+
+export async function logSystemAction(params: SystemActionParams): Promise<void> {
+  const { action, resourceType, resourceId, resourceName, details } = params;
+  
+  try {
+    const entry: InsertAdminAuditLog = {
+      staffEmail: 'system',
+      staffName: null,
+      action,
+      resourceType,
+      resourceId: resourceId || null,
+      resourceName: resourceName || null,
+      details: details || null,
+      ipAddress: null,
+      userAgent: null,
+      actorType: 'system',
+      actorEmail: null,
+    };
+    
+    await db.insert(adminAuditLog).values(entry);
+  } catch (error) {
+    console.error('[AuditLog] Failed to log system action:', error);
+  }
+}
+
+interface MemberActionParams {
+  memberEmail: string;
+  memberName?: string;
+  action: AuditAction;
+  resourceType: ResourceType;
+  resourceId?: string;
+  resourceName?: string;
+  details?: Record<string, any>;
+  req?: Request;
+}
+
+export async function logMemberAction(params: MemberActionParams): Promise<void> {
+  const { memberEmail, memberName, action, resourceType, resourceId, resourceName, details, req } = params;
+  
+  try {
+    const entry: InsertAdminAuditLog = {
+      staffEmail: 'member',
+      staffName: memberName || null,
+      action,
+      resourceType,
+      resourceId: resourceId || null,
+      resourceName: resourceName || null,
+      details: details || null,
+      ipAddress: req ? getClientIp(req) : null,
+      userAgent: req?.get('user-agent') || null,
+      actorType: 'member',
+      actorEmail: memberEmail,
+    };
+    
+    await db.insert(adminAuditLog).values(entry);
+  } catch (error) {
+    console.error('[AuditLog] Failed to log member action:', error);
   }
 }
 

@@ -139,6 +139,8 @@ export const adminAuditLog = pgTable("admin_audit_log", {
   details: jsonb("details"), // additional context about the action
   ipAddress: varchar("ip_address", { length: 45 }),
   userAgent: text("user_agent"),
+  actorType: varchar("actor_type", { length: 50 }).notNull().default('staff'), // 'staff' | 'member' | 'system'
+  actorEmail: varchar("actor_email", { length: 255 }), // member email when actor is 'member'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   staffEmailIdx: index("admin_audit_log_staff_email_idx").on(table.staffEmail),
@@ -146,6 +148,8 @@ export const adminAuditLog = pgTable("admin_audit_log", {
   resourceTypeIdx: index("admin_audit_log_resource_type_idx").on(table.resourceType),
   resourceIdIdx: index("admin_audit_log_resource_id_idx").on(table.resourceId),
   createdAtIdx: index("admin_audit_log_created_at_idx").on(table.createdAt),
+  actorTypeIdx: index("admin_audit_log_actor_type_idx").on(table.actorType),
+  actorEmailIdx: index("admin_audit_log_actor_email_idx").on(table.actorEmail),
 }));
 
 export type AdminAuditLog = typeof adminAuditLog.$inferSelect;
