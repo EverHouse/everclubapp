@@ -77,53 +77,63 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
   
   const secondaryEmail = secondaryUser.email?.toLowerCase() || '';
   
+  // Count bookings (all booking requests for this user)
   const bookingsResult = await pool.query(
     `SELECT COUNT(*) as count FROM booking_requests WHERE LOWER(user_email) = $1 OR user_id = $2`,
     [secondaryEmail, secondaryUserId]
   );
-  const bookingsCount = bookingsResult.rows[0];
+  const bookingsCount = parseInt(bookingsResult.rows[0]?.count || '0');
   
+  // Count attended visits (booking requests with attended status)
   const visitsResult = await pool.query(
-    `SELECT COUNT(*) as count FROM visits WHERE LOWER(member_email) = $1`,
-    [secondaryEmail]
+    `SELECT COUNT(*) as count FROM booking_requests 
+     WHERE (LOWER(user_email) = $1 OR user_id = $2) 
+     AND status = 'attended'`,
+    [secondaryEmail, secondaryUserId]
   );
-  const visitsCount = visitsResult.rows[0];
+  const visitsCount = parseInt(visitsResult.rows[0]?.count || '0');
   
+  // Count wellness enrollments
   const wellnessResult = await pool.query(
-    `SELECT COUNT(*) as count FROM wellness_bookings WHERE LOWER(member_email) = $1`,
+    `SELECT COUNT(*) as count FROM wellness_enrollments WHERE LOWER(user_email) = $1`,
     [secondaryEmail]
   );
-  const wellnessCount = wellnessResult.rows[0];
+  const wellnessCount = parseInt(wellnessResult.rows[0]?.count || '0');
   
+  // Count event RSVPs
   const eventRsvpsResult = await pool.query(
     `SELECT COUNT(*) as count FROM event_rsvps WHERE LOWER(member_email) = $1`,
     [secondaryEmail]
   );
-  const eventRsvpsCount = eventRsvpsResult.rows[0];
+  const eventRsvpsCount = parseInt(eventRsvpsResult.rows[0]?.count || '0');
   
+  // Count notifications
   const notificationsResult = await pool.query(
     `SELECT COUNT(*) as count FROM notifications WHERE user_id = $1`,
     [secondaryUserId]
   );
-  const notificationsCount = notificationsResult.rows[0];
+  const notificationsCount = parseInt(notificationsResult.rows[0]?.count || '0');
   
+  // Count member notes
   const memberNotesResult = await pool.query(
     `SELECT COUNT(*) as count FROM member_notes WHERE LOWER(member_email) = $1`,
     [secondaryEmail]
   );
-  const memberNotesCount = memberNotesResult.rows[0];
+  const memberNotesCount = parseInt(memberNotesResult.rows[0]?.count || '0');
   
+  // Count guest check-ins
   const guestCheckInsResult = await pool.query(
     `SELECT COUNT(*) as count FROM guest_check_ins WHERE LOWER(host_email) = $1`,
     [secondaryEmail]
   );
-  const guestCheckInsCount = guestCheckInsResult.rows[0];
+  const guestCheckInsCount = parseInt(guestCheckInsResult.rows[0]?.count || '0');
   
+  // Count usage ledger entries
   const usageLedgerResult = await pool.query(
     `SELECT COUNT(*) as count FROM usage_ledger WHERE user_id = $1`,
     [secondaryUserId]
   );
-  const usageLedgerCount = usageLedgerResult.rows[0];
+  const usageLedgerCount = parseInt(usageLedgerResult.rows[0]?.count || '0');
   
   const conflicts: string[] = [];
   const recommendations: string[] = [];
@@ -173,14 +183,14 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
       hubspotId: secondaryUser.hubspotId,
     },
     recordsToMerge: {
-      bookings: parseInt(bookingsCount.rows[0]?.count || '0'),
-      visits: parseInt(visitsCount.rows[0]?.count || '0'),
-      wellnessBookings: parseInt(wellnessCount.rows[0]?.count || '0'),
-      eventRsvps: parseInt(eventRsvpsCount.rows[0]?.count || '0'),
-      notifications: parseInt(notificationsCount.rows[0]?.count || '0'),
-      memberNotes: parseInt(memberNotesCount.rows[0]?.count || '0'),
-      guestCheckIns: parseInt(guestCheckInsCount.rows[0]?.count || '0'),
-      usageLedger: parseInt(usageLedgerCount.rows[0]?.count || '0'),
+      bookings: bookingsCount,
+      visits: visitsCount,
+      wellnessBookings: wellnessCount,
+      eventRsvps: eventRsvpsCount,
+      notifications: notificationsCount,
+      memberNotes: memberNotesCount,
+      guestCheckIns: guestCheckInsCount,
+      usageLedger: usageLedgerCount,
     },
     conflicts,
     recommendations,
@@ -234,14 +244,18 @@ export async function executeMerge(
       [primaryEmail, secondaryEmail]
     );
     
-    const visitsResult = await client.query(
-      `UPDATE visits SET member_email = $1 WHERE LOWER(member_email) = $2`,
-      [primaryEmail, secondaryEmail]
+    // Visits are tracked via booking_requests status - no separate table to update
+    // Just count how many attended bookings were transferred
+    const attendedResult = await client.query(
+      `SELECT COUNT(*) as count FROM booking_requests 
+       WHERE (LOWER(user_email) = $1 OR user_id = $2) AND status = 'attended'`,
+      [primaryEmail, primaryUserId]
     );
-    recordsMerged.visits = visitsResult.rowCount || 0;
+    recordsMerged.visits = parseInt(attendedResult.rows[0]?.count || '0');
     
+    // Update wellness enrollments
     const wellnessResult = await client.query(
-      `UPDATE wellness_bookings SET member_email = $1, updated_at = NOW() WHERE LOWER(member_email) = $2`,
+      `UPDATE wellness_enrollments SET user_email = $1 WHERE LOWER(user_email) = $2`,
       [primaryEmail, secondaryEmail]
     );
     recordsMerged.wellnessBookings = wellnessResult.rowCount || 0;
