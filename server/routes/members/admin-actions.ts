@@ -14,6 +14,7 @@ import { broadcastTierUpdate } from '../../core/websocket';
 import { cascadeEmailChange, previewEmailChangeImpact } from '../../core/memberService/emailChangeService';
 import { getAvailableTiersForChange, previewTierChange, commitTierChange } from '../../core/stripe/tierChanges';
 import { logFromRequest } from '../../core/auditLog';
+import { previewMerge, executeMerge, findPotentialDuplicates } from '../../core/userMerge';
 
 const router = Router();
 
@@ -822,6 +823,57 @@ router.post('/api/admin/tier-change/commit', isStaffOrAdmin, async (req, res) =>
   } catch (error: any) {
     console.error('[Tier Change] Commit error:', error);
     res.status(500).json({ error: 'Failed to change tier' });
+  }
+});
+
+router.get('/api/members/:userId/duplicates', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const duplicates = await findPotentialDuplicates(userId);
+    res.json({ duplicates });
+  } catch (error: any) {
+    console.error('[Duplicates] Error finding duplicates:', error);
+    res.status(500).json({ error: error.message || 'Failed to find duplicates' });
+  }
+});
+
+router.post('/api/members/merge/preview', isAdmin, async (req, res) => {
+  try {
+    const { primaryUserId, secondaryUserId } = req.body;
+    
+    if (!primaryUserId || !secondaryUserId) {
+      return res.status(400).json({ error: 'primaryUserId and secondaryUserId are required' });
+    }
+    
+    const preview = await previewMerge(primaryUserId, secondaryUserId);
+    res.json(preview);
+  } catch (error: any) {
+    console.error('[Merge Preview] Error:', error);
+    res.status(400).json({ error: error.message || 'Failed to preview merge' });
+  }
+});
+
+router.post('/api/members/merge/execute', isAdmin, async (req, res) => {
+  try {
+    const { primaryUserId, secondaryUserId } = req.body;
+    const sessionUser = getSessionUser(req);
+    
+    if (!primaryUserId || !secondaryUserId) {
+      return res.status(400).json({ error: 'primaryUserId and secondaryUserId are required' });
+    }
+    
+    const result = await executeMerge(primaryUserId, secondaryUserId, sessionUser?.email || 'admin');
+    
+    logFromRequest(req, 'merge_users', 'user', primaryUserId, {
+      secondary_user_id: secondaryUserId,
+      records_merged: result.recordsMerged,
+      merged_lifetime_visits: result.mergedLifetimeVisits
+    });
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('[Merge Execute] Error:', error);
+    res.status(400).json({ error: error.message || 'Failed to merge users' });
   }
 });
 

@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.45.0",
+    date: "2026-01-29",
+    title: "User Merge & Duplicate Prevention",
+    isMajor: true,
+    changes: [
+      "New: Merge Users feature - combine duplicate member/visitor records safely",
+      "New: Merge button in member profile opens search and preview modal",
+      "New: Preview shows all records that will be transferred (bookings, visits, fees, etc.)",
+      "New: Transaction-safe merge consolidates all data and soft-deletes merged account",
+      "New: Remember Email checkbox in Assign Players to link alternate emails for future auto-matching",
+      "New: Duplicate name warning when creating new visitors shows existing matches",
+      "New: Visitor Type is now required when creating new visitors",
+      "Improved: Merge actions logged to Staff Activity for audit trail",
+      "Improved: Merged users tagged for 30-day recovery if needed"
+    ]
+  },
+  {
     version: "9.44.1",
     date: "2026-01-29",
     title: "Duplicate Visitor Cleanup & Queue Stats Layout",

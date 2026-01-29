@@ -20,6 +20,7 @@ interface TrackmanLinkModalProps {
   importedName?: string;
   notes?: string;
   isLegacyReview?: boolean;
+  originalEmail?: string;
 }
 
 interface VisitorSearchResult {
@@ -53,7 +54,8 @@ export function TrackmanLinkModal({
   onOpenBillingModal,
   importedName,
   notes,
-  isLegacyReview
+  isLegacyReview,
+  originalEmail
 }: TrackmanLinkModalProps) {
   const [slots, setSlots] = useState<SlotsArray>([
     { type: 'empty' },
@@ -65,12 +67,34 @@ export function TrackmanLinkModal({
   const [linking, setLinking] = useState(false);
   const [markingAsEvent, setMarkingAsEvent] = useState(false);
   const [showAddVisitor, setShowAddVisitor] = useState(false);
-  const [visitorData, setVisitorData] = useState({ firstName: '', lastName: '', email: '', visitorType: 'guest' as string });
+  const [visitorData, setVisitorData] = useState({ firstName: '', lastName: '', email: '', visitorType: '' as string });
   const [isCreatingVisitor, setIsCreatingVisitor] = useState(false);
   const [visitorSearch, setVisitorSearch] = useState('');
   const [visitorSearchResults, setVisitorSearchResults] = useState<VisitorSearchResult[]>([]);
   const [isSearchingVisitors, setIsSearchingVisitors] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(true);
+  const [potentialDuplicates, setPotentialDuplicates] = useState<Array<{id: string; email: string; name: string}>>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const { showToast } = useToast();
+
+  const isPlaceholderEmail = (email: string): boolean => {
+    if (!email) return true;
+    const lower = email.toLowerCase();
+    return lower.includes('@visitors.evenhouse.club') || 
+           lower.includes('@trackman.local') || 
+           lower.startsWith('classpass-') ||
+           lower.startsWith('golfnow-') ||
+           lower.startsWith('lesson-') ||
+           lower.startsWith('unmatched-');
+  };
+
+  const shouldShowRememberEmail = (): boolean => {
+    const ownerSlot = slots[0];
+    if (ownerSlot.type !== 'member' && ownerSlot.type !== 'visitor') return false;
+    if (!originalEmail || isPlaceholderEmail(originalEmail)) return false;
+    const selectedEmail = ownerSlot.member?.email?.toLowerCase() || '';
+    return originalEmail.toLowerCase() !== selectedEmail;
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -84,11 +108,47 @@ export function TrackmanLinkModal({
       setLinking(false);
       setMarkingAsEvent(false);
       setShowAddVisitor(false);
-      setVisitorData({ firstName: '', lastName: '', email: '', visitorType: 'guest' });
+      setVisitorData({ firstName: '', lastName: '', email: '', visitorType: '' });
       setVisitorSearch('');
       setVisitorSearchResults([]);
+      setRememberEmail(true);
+      setPotentialDuplicates([]);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const checkDuplicates = async () => {
+      const fullName = `${visitorData.firstName} ${visitorData.lastName}`.trim();
+      if (fullName.length < 3) {
+        setPotentialDuplicates([]);
+        return;
+      }
+      
+      setIsCheckingDuplicates(true);
+      try {
+        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          const matches = data.filter((v: any) => {
+            const vName = (v.name || `${v.firstName} ${v.lastName}`).toLowerCase().trim();
+            return vName === fullName.toLowerCase();
+          });
+          setPotentialDuplicates(matches.map((v: any) => ({
+            id: v.id,
+            email: v.email,
+            name: v.name || `${v.firstName} ${v.lastName}`
+          })));
+        }
+      } catch (err) {
+        console.error('Duplicate check error:', err);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    };
+    
+    const timeoutId = setTimeout(checkDuplicates, 500);
+    return () => clearTimeout(timeoutId);
+  }, [visitorData.firstName, visitorData.lastName]);
 
   useEffect(() => {
     const searchVisitors = async () => {
@@ -292,7 +352,9 @@ export function TrackmanLinkModal({
               name: owner.name,
               member_id: owner.id
             },
-            additional_players: additionalPlayers
+            additional_players: additionalPlayers,
+            rememberEmail: shouldShowRememberEmail() ? rememberEmail : false,
+            originalEmail: originalEmail
           })
         });
         
@@ -314,7 +376,9 @@ export function TrackmanLinkModal({
               name: owner.name,
               member_id: owner.id
             },
-            additional_players: additionalPlayers
+            additional_players: additionalPlayers,
+            rememberEmail: shouldShowRememberEmail() ? rememberEmail : false,
+            originalEmail: originalEmail
           })
         });
         
@@ -513,12 +577,16 @@ export function TrackmanLinkModal({
                   className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-xs"
                 />
                 <div>
-                  <label className="block text-xs text-primary/70 dark:text-white/70 mb-1">Visitor Type</label>
+                  <label className="block text-xs text-primary/70 dark:text-white/70 mb-1">Visitor Type *</label>
                   <select
                     value={visitorData.visitorType}
                     onChange={(e) => setVisitorData({ ...visitorData, visitorType: e.target.value })}
-                    className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-xs"
+                    className={`w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border text-primary dark:text-white text-xs ${
+                      visitorData.visitorType ? 'border-primary/20 dark:border-white/20' : 'border-red-300 dark:border-red-500/50'
+                    }`}
+                    required
                   >
+                    <option value="">Select visitor type...</option>
                     <option value="guest">Guest</option>
                     <option value="day_pass">Day Pass</option>
                     <option value="sim_walkin">Simulator Walk-in</option>
@@ -527,13 +595,49 @@ export function TrackmanLinkModal({
                     <option value="private_lesson">Private Lesson</option>
                     <option value="lead">Lead</option>
                   </select>
+                  {!visitorData.visitorType && visitorData.email && (
+                    <p className="text-xs text-red-500 mt-0.5">Please select a visitor type</p>
+                  )}
                 </div>
               </div>
             </div>
 
+            {potentialDuplicates.length > 0 && (
+              <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1 mb-1">
+                  <span className="material-symbols-outlined text-sm">warning</span>
+                  Possible duplicate found
+                </p>
+                <div className="space-y-1">
+                  {potentialDuplicates.map((dup) => (
+                    <button
+                      key={dup.id}
+                      onClick={() => {
+                        if (activeSlotIndex !== null) {
+                          updateSlot(activeSlotIndex, {
+                            type: 'visitor',
+                            member: { id: dup.id, email: dup.email, name: dup.name }
+                          });
+                          setShowAddVisitor(false);
+                          setVisitorData({ firstName: '', lastName: '', email: '', visitorType: '' });
+                          setActiveSlotIndex(null);
+                          setPotentialDuplicates([]);
+                        }
+                      }}
+                      className="w-full p-1.5 text-left rounded-lg bg-white dark:bg-white/5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors border border-amber-200 dark:border-amber-500/20"
+                    >
+                      <p className="text-xs font-medium text-primary dark:text-white">{dup.name}</p>
+                      <p className="text-xs text-primary/60 dark:text-white/60">{dup.email}</p>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Click to use existing record instead</p>
+              </div>
+            )}
+
             <button
               onClick={handleCreateVisitorAndAssign}
-              disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || isCreatingVisitor}
+              disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || !visitorData.visitorType || isCreatingVisitor}
               className="w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
             >
               {isCreatingVisitor ? (
@@ -738,6 +842,25 @@ export function TrackmanLinkModal({
             </div>
           </div>
         </div>
+
+        {shouldShowRememberEmail() && (
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rememberEmail}
+                onChange={(e) => setRememberEmail(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-amber-400 text-amber-500 focus:ring-amber-500/50 focus:ring-offset-0"
+              />
+              <div>
+                <p className="text-sm font-medium text-primary dark:text-white">Remember this email for future bookings</p>
+                <p className="text-xs text-primary/70 dark:text-white/70 mt-0.5">
+                  Link "{originalEmail}" to this member's account so future imports match automatically
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
 
         <div className="pt-4 border-t border-primary/10 dark:border-white/10 space-y-2">
           <div className="flex gap-3">

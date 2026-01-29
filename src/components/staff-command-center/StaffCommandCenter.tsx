@@ -56,6 +56,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
     isRelink?: boolean;
     importedName?: string;
     notes?: string;
+    originalEmail?: string;
   }>({ isOpen: false, trackmanBookingId: null });
   
   const optimisticUpdateRef = useRef<OptimisticUpdateRef | null>(null);
@@ -656,6 +657,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
         isRelink={trackmanLinkModal.isRelink}
         importedName={trackmanLinkModal.importedName}
         notes={trackmanLinkModal.notes}
+        originalEmail={trackmanLinkModal.originalEmail}
         onSuccess={() => {
           showToast('Member assigned to booking', 'success');
           window.dispatchEvent(new CustomEvent('booking-action-completed'));

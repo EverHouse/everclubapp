@@ -10,6 +10,7 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
 import MemberBillingTab from './admin/MemberBillingTab';
 import MemberActivityTab from './admin/MemberActivityTab';
+import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 
 const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '';
 
@@ -174,6 +175,11 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [isAddingComm, setIsAddingComm] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState<number | string | null>(null);
   const [displayedTier, setDisplayedTier] = useState<string>('');
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [selectedMergeTarget, setSelectedMergeTarget] = useState<SelectedMember | null>(null);
+  const [mergePreview, setMergePreview] = useState<any>(null);
+  const [isMerging, setIsMerging] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   useEffect(() => {
     setDisplayedTier(member?.rawTier || member?.tier || '');
@@ -934,6 +940,17 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 View As This Member
               </button>
               <button
+                onClick={() => {
+                  setShowMergeModal(true);
+                  setSelectedMergeTarget(null);
+                  setMergePreview(null);
+                }}
+                className="py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+                title="Merge with another user"
+              >
+                <span className="material-symbols-outlined text-lg">merge</span>
+              </button>
+              <button
                 onClick={() => setShowDeleteModal(true)}
                 className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors"
                 title="Permanently delete member (for testing)"
@@ -1114,6 +1131,251 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     <>
                       <span className="material-symbols-outlined text-lg">delete_forever</span>
                       Delete Forever
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showMergeModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto`}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="material-symbols-outlined text-3xl text-indigo-500">merge</span>
+                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Merge {member.name || member.firstName}
+                </h3>
+              </div>
+              
+              <div className={`p-3 rounded-xl mb-4 ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  <strong>User to be merged (will be deleted):</strong>
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-red-900/30' : 'bg-red-100'}`}>
+                    <span className="material-symbols-outlined text-red-500 text-sm">person_remove</span>
+                  </div>
+                  <div>
+                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{member.name}</p>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{member.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Search for PRIMARY user (will be kept):
+                </label>
+                <MemberSearchInput
+                  onSelect={async (selected) => {
+                    setSelectedMergeTarget(selected);
+                    setMergePreview(null);
+                    setIsLoadingPreview(true);
+                    try {
+                      const res = await fetch('/api/members/merge/preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          primaryUserId: selected.id,
+                          secondaryUserId: member.id
+                        })
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setMergePreview(data);
+                      } else {
+                        const error = await res.json();
+                        alert(error.error || 'Failed to load merge preview');
+                        setSelectedMergeTarget(null);
+                      }
+                    } catch (err) {
+                      console.error('Failed to fetch merge preview:', err);
+                      alert('Failed to load merge preview');
+                      setSelectedMergeTarget(null);
+                    } finally {
+                      setIsLoadingPreview(false);
+                    }
+                  }}
+                  onClear={() => {
+                    setSelectedMergeTarget(null);
+                    setMergePreview(null);
+                  }}
+                  selectedMember={selectedMergeTarget}
+                  placeholder="Search by name or email..."
+                  excludeEmails={[member.email]}
+                  includeVisitors={true}
+                  includeFormer={true}
+                  autoFocus
+                />
+              </div>
+
+              {selectedMergeTarget && (
+                <div className={`p-3 rounded-xl mb-4 ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <strong>Primary user (will be kept):</strong>
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                      <span className="material-symbols-outlined text-green-500 text-sm">person</span>
+                    </div>
+                    <div>
+                      <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedMergeTarget.name}</p>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{selectedMergeTarget.email}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isLoadingPreview && (
+                <div className="flex items-center justify-center py-6">
+                  <span className="material-symbols-outlined text-2xl text-indigo-500 animate-spin">progress_activity</span>
+                  <span className={`ml-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Loading preview...</span>
+                </div>
+              )}
+
+              {mergePreview && (
+                <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-indigo-900/20 border border-indigo-500/30' : 'bg-indigo-50 border border-indigo-200'}`}>
+                  <h4 className={`font-medium mb-3 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <span className="material-symbols-outlined text-lg text-indigo-500">preview</span>
+                    Merge Preview
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {mergePreview.recordsToMerge?.bookings !== undefined && mergePreview.recordsToMerge.bookings > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">event_note</span>
+                        Bookings: <strong>{mergePreview.recordsToMerge.bookings}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.visits !== undefined && mergePreview.recordsToMerge.visits > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>
+                        Visits: <strong>{mergePreview.recordsToMerge.visits}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.eventRsvps !== undefined && mergePreview.recordsToMerge.eventRsvps > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">celebration</span>
+                        Events: <strong>{mergePreview.recordsToMerge.eventRsvps}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.wellnessBookings !== undefined && mergePreview.recordsToMerge.wellnessBookings > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">spa</span>
+                        Wellness: <strong>{mergePreview.recordsToMerge.wellnessBookings}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.memberNotes !== undefined && mergePreview.recordsToMerge.memberNotes > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">sticky_note_2</span>
+                        Notes: <strong>{mergePreview.recordsToMerge.memberNotes}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.notifications !== undefined && mergePreview.recordsToMerge.notifications > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">notifications</span>
+                        Notifications: <strong>{mergePreview.recordsToMerge.notifications}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.usageLedger !== undefined && mergePreview.recordsToMerge.usageLedger > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">payments</span>
+                        Fees: <strong>{mergePreview.recordsToMerge.usageLedger}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.guestCheckIns !== undefined && mergePreview.recordsToMerge.guestCheckIns > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">how_to_reg</span>
+                        Guest Check-ins: <strong>{mergePreview.recordsToMerge.guestCheckIns}</strong>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {((mergePreview.conflicts && mergePreview.conflicts.length > 0) || (mergePreview.recommendations && mergePreview.recommendations.length > 0)) && (
+                    <div className={`mt-3 p-2 rounded-lg ${isDark ? 'bg-amber-900/30' : 'bg-amber-50'}`}>
+                      <p className={`text-xs font-medium ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">warning</span>
+                        Conflicts/Recommendations:
+                      </p>
+                      <ul className={`text-xs mt-1 space-y-1 ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
+                        {mergePreview.conflicts?.map((c: string, i: number) => (
+                          <li key={`conflict-${i}`}>• {c}</li>
+                        ))}
+                        {mergePreview.recommendations?.map((r: string, i: number) => (
+                          <li key={`rec-${i}`}>• {r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className={`text-sm mb-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                <span className="material-symbols-outlined text-sm align-middle mr-1">warning</span>
+                This action cannot be undone. {member.name}'s account will be deleted after merging.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowMergeModal(false);
+                    setSelectedMergeTarget(null);
+                    setMergePreview(null);
+                  }}
+                  disabled={isMerging}
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium ${
+                    isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  } transition-colors`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!selectedMergeTarget) return;
+                    setIsMerging(true);
+                    try {
+                      const res = await fetch('/api/members/merge/execute', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          primaryUserId: selectedMergeTarget.id,
+                          secondaryUserId: member.id
+                        })
+                      });
+                      if (res.ok) {
+                        const result = await res.json();
+                        alert(`Merge successful!\n\nRecords merged into ${selectedMergeTarget.name}:\n• Bookings: ${result.mergedCounts?.bookings || 0}\n• Visits: ${result.mergedCounts?.visits || 0}\n• Notes: ${result.mergedCounts?.notes || 0}`);
+                        setShowMergeModal(false);
+                        setSelectedMergeTarget(null);
+                        setMergePreview(null);
+                        onClose();
+                        onMemberDeleted?.();
+                      } else {
+                        const error = await res.json();
+                        alert(error.error || 'Failed to merge users');
+                      }
+                    } catch (err) {
+                      console.error('Failed to merge users:', err);
+                      alert('Failed to merge users. Please try again.');
+                    } finally {
+                      setIsMerging(false);
+                    }
+                  }}
+                  disabled={isMerging || !selectedMergeTarget || !mergePreview}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isMerging ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                      Merging...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-lg">merge</span>
+                      Confirm Merge
                     </>
                   )}
                 </button>

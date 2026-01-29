@@ -716,7 +716,7 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
 
 router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req, res) => {
   try {
-    const { trackman_booking_id, owner, additional_players, member_email, member_name, member_id } = req.body;
+    const { trackman_booking_id, owner, additional_players, member_email, member_name, member_id, rememberEmail, originalEmail } = req.body;
     
     if (!trackman_booking_id) {
       return res.status(400).json({ error: 'Missing required field: trackman_booking_id' });
@@ -895,6 +895,34 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       totalPlayers: totalPlayerCount
     });
     
+    let emailLinked = false;
+    if (rememberEmail && originalEmail && originalEmail.toLowerCase() !== ownerEmail.toLowerCase()) {
+      try {
+        const existingLink = await pool.query(
+          `SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = LOWER($1)`,
+          [originalEmail]
+        );
+        
+        if (existingLink.rows.length === 0) {
+          const [member] = await db.select().from(users).where(eq(users.email, ownerEmail.toLowerCase())).limit(1);
+          if (member) {
+            await pool.query(
+              `INSERT INTO user_linked_emails (user_id, linked_email, source, created_at) 
+               VALUES ($1, $2, $3, NOW())
+               ON CONFLICT (LOWER(linked_email)) DO NOTHING`,
+              [member.id, originalEmail.toLowerCase(), 'staff_assignment']
+            );
+            emailLinked = true;
+            logger.info('[link-trackman-to-member] Linked email to member', {
+              extra: { memberEmail: ownerEmail, linkedEmail: originalEmail, memberId: member.id }
+            });
+          }
+        }
+      } catch (linkErr) {
+        logger.warn('[link-trackman-to-member] Failed to link email', { extra: { error: linkErr } });
+      }
+    }
+    
     logFromRequest(req, 'link_trackman_to_member', 'booking', result.booking.id.toString(), {
       trackman_booking_id,
       owner_email: ownerEmail,
@@ -902,7 +930,8 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       total_players: totalPlayerCount,
       guest_count: guestCount,
       was_created: result.created,
-      fees_recalculated: !!result.sessionId
+      fees_recalculated: !!result.sessionId,
+      email_linked: emailLinked ? originalEmail : null
     });
     
     res.json({ 
@@ -911,7 +940,8 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       created: result.created,
       totalPlayers: totalPlayerCount,
       guestCount,
-      feesRecalculated: !!result.sessionId
+      feesRecalculated: !!result.sessionId,
+      emailLinked
     });
   } catch (error: any) {
     if (error.statusCode) {
@@ -1122,7 +1152,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
 router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id);
-    const { owner, additional_players } = req.body;
+    const { owner, additional_players, rememberEmail, originalEmail } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
@@ -1222,12 +1252,41 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       totalPlayers: totalPlayerCount
     });
     
+    let emailLinked = false;
+    if (rememberEmail && originalEmail && originalEmail.toLowerCase() !== owner.email.toLowerCase()) {
+      try {
+        const existingLink = await pool.query(
+          `SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = LOWER($1)`,
+          [originalEmail]
+        );
+        
+        if (existingLink.rows.length === 0) {
+          const [member] = await db.select().from(users).where(eq(users.email, owner.email.toLowerCase())).limit(1);
+          if (member) {
+            await pool.query(
+              `INSERT INTO user_linked_emails (user_id, linked_email, source, created_at) 
+               VALUES ($1, $2, $3, NOW())
+               ON CONFLICT (LOWER(linked_email)) DO NOTHING`,
+              [member.id, originalEmail.toLowerCase(), 'staff_assignment']
+            );
+            emailLinked = true;
+            logger.info('[assign-with-players] Linked email to member', {
+              extra: { memberEmail: owner.email, linkedEmail: originalEmail, memberId: member.id }
+            });
+          }
+        }
+      } catch (linkErr) {
+        logger.warn('[assign-with-players] Failed to link email', { extra: { error: linkErr } });
+      }
+    }
+    
     logFromRequest(req, 'assign_booking_with_players', 'booking', bookingId.toString(), {
       owner_email: owner.email,
       owner_name: owner.name,
       total_players: totalPlayerCount,
       guest_count: guestCount,
-      fees_recalculated: !!result.sessionId
+      fees_recalculated: !!result.sessionId,
+      email_linked: emailLinked ? originalEmail : null
     });
     
     res.json({ 
@@ -1235,7 +1294,8 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       booking: result.booking,
       totalPlayers: totalPlayerCount,
       guestCount,
-      feesRecalculated: !!result.sessionId
+      feesRecalculated: !!result.sessionId,
+      emailLinked
     });
   } catch (error: any) {
     if (error.statusCode) {
