@@ -13,7 +13,7 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.40.2",
+    version: "9.40.3",
     date: "2026-01-29",
     title: "Staff Notification Coverage",
     changes: [
@@ -22,6 +22,7 @@ export const changelog: ChangelogEntry[] = [
       "Added: Staff notifications when subscriptions go past due or unpaid/suspended",
       "Added: Staff notifications when member payment cards are expiring soon",
       "Added: Staff notifications when day passes are purchased",
+      "Fixed: Added missing notification types to type system (day_pass, trackman_booking, etc.)",
       "Improved: Complete staff visibility into booking and billing events requiring attention"
     ]
   },

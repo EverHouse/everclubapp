@@ -30,7 +30,11 @@ export type NotificationType =
   | 'membership_failed'
   | 'membership_past_due'
   | 'membership_cancelled'
-  | 'card_expiring';
+  | 'membership_terminated'
+  | 'card_expiring'
+  | 'day_pass'
+  | 'trackman_booking'
+  | 'account_deletion';
 
 export interface NotificationPayload {
   userEmail: string;
