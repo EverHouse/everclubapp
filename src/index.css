@@ -1011,6 +1011,14 @@ html.dark .text-accent-accessible {
   color: #CCB8E4;
 }
 
+/* Lavender text contrast fix - use darker shade for text on light backgrounds */
+.text-lavender-dark {
+  color: #8B6FA8;
+}
+html.dark .text-lavender-dark {
+  color: #CCB8E4;
+}
+
 /* Accessible placeholder text */
 .placeholder-accessible::placeholder {
   color: #6B7280; /* gray-500 - 5.7:1 */

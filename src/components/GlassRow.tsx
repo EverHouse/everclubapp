@@ -44,7 +44,7 @@ const GlassRow: React.FC<GlassRowProps> = ({ title, subtitle, icon, color, actio
                   <button 
                       key={idx} 
                       onClick={(e) => { e.stopPropagation(); action.onClick(); }} 
-                      className={`w-8 h-8 rounded-[1rem] glass-button flex items-center justify-center active:scale-90 ${isDark ? 'text-white/80 hover:text-white' : 'text-primary/80 hover:text-primary'}`}
+                      className={`w-11 h-11 rounded-[1rem] glass-button flex items-center justify-center active:scale-90 ${isDark ? 'text-white/80 hover:text-white' : 'text-primary/80 hover:text-primary'}`}
                       aria-label={action.label}
                   >
                       <span className="material-symbols-outlined text-[18px]">{action.icon}</span>

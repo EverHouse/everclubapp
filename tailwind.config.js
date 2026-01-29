@@ -16,7 +16,9 @@ export default {
         primary: "#293515",
         secondary: "#E7E7DC",
         accent: "#CCB8E4",
+        "accent-dark": "#8B6FA8",
         lavender: "#CCB8E4",
+        "lavender-dark": "#8B6FA8",
         surface: {
           light: "#FFFFFF",
           dark: "rgba(255, 255, 255, 0.05)",

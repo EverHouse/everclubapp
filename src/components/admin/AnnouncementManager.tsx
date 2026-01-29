@@ -189,7 +189,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                                 </div>
                             )}
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="text-gray-500 hover:text-red-500 p-2 min-w-[44px] min-h-[44px]">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="text-gray-500 hover:text-red-500 p-2 min-w-[44px] min-h-[44px]" aria-label="Delete announcement">
                             <span aria-hidden="true" className="material-symbols-outlined">delete</span>
                         </button>
                     </div>

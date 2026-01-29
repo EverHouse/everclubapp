@@ -685,8 +685,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       <button
                         onClick={() => handleDeleteCommunication(comm.id)}
                         className="text-red-500 hover:text-red-600 p-1"
+                        aria-label="Delete communication"
                       >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
                       </button>
                     </div>
                   </div>
@@ -772,21 +773,23 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                             <button
                               onClick={() => handleUpdateNote(note.id, note.content, !note.isPinned)}
                               className={`p-1 ${note.isPinned ? 'text-yellow-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`}
-                              title={note.isPinned ? 'Unpin' : 'Pin'}
+                              aria-label={note.isPinned ? 'Unpin note' : 'Pin note'}
                             >
-                              <span className="material-symbols-outlined text-[18px]">push_pin</span>
+                              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">push_pin</span>
                             </button>
                             <button
                               onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content); }}
                               className={`p-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                              aria-label="Edit note"
                             >
-                              <span className="material-symbols-outlined text-[18px]">edit</span>
+                              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
                             </button>
                             <button
                               onClick={() => handleDeleteNote(note.id)}
                               className="text-red-500 hover:text-red-600 p-1"
+                              aria-label="Delete note"
                             >
-                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
                             </button>
                           </div>
                         </div>

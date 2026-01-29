@@ -88,7 +88,7 @@ const WelcomeBanner: React.FC = () => {
         
         <button 
           onClick={handleDismiss}
-          className={`p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${
+          className={`p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${
             isDark ? 'hover:bg-black/10 text-brand-green/70 hover:text-brand-green' : 'hover:bg-white/10 text-white/70 hover:text-white'
           }`}
           aria-label="Dismiss banner"

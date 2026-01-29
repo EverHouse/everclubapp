@@ -205,8 +205,8 @@ const QuickChargeSection: React.FC<SectionProps> = ({ onClose, variant = 'modal'
           <span className="material-symbols-outlined text-slate-600 dark:text-slate-400">point_of_sale</span>
           <h3 className="font-bold text-primary dark:text-white">Quick Charge</h3>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
+          <span className="material-symbols-outlined text-primary/60 dark:text-white/60" aria-hidden="true">close</span>
         </button>
       </div>
       {content}
