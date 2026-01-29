@@ -1,6 +1,8 @@
 import { pool } from '../db';
 import { findMatchingUser, upsertVisitor } from './matchingService';
 import { updateVisitorType, VisitorType } from './typeService';
+import { getMemberTierByEmail } from '../tierService';
+import { recordUsage } from '../bookingService/sessionManager';
 
 export interface BookingTypeInfo {
   keyword: string | null;
@@ -34,6 +36,7 @@ export interface AutoMatchResult {
   visitorEmail?: string;
   visitorType?: VisitorType;
   purchaseId?: number;
+  sessionId?: number;
   reason?: string;
 }
 
@@ -182,6 +185,7 @@ export async function matchBookingToPurchase(
       WHERE DATE(lp.sale_date) = $1
         AND lp.item_category = ANY($2)
         AND lp.linked_booking_session_id IS NULL
+        AND lp.linked_at IS NULL
         AND lp.sale_date::time BETWEEN $4::time AND $5::time
       ORDER BY 
         ABS(EXTRACT(EPOCH FROM (lp.sale_date::time - $3::time))) ASC
@@ -217,6 +221,161 @@ export function isAfterClosingHours(startTime: string): boolean {
   return hour >= 22 || hour < 6;
 }
 
+export function isFutureBooking(bookingDate: Date | string): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const bookingDay = typeof bookingDate === 'string' 
+    ? new Date(bookingDate + 'T00:00:00')
+    : new Date(bookingDate);
+  bookingDay.setHours(0, 0, 0, 0);
+  
+  return bookingDay >= today;
+}
+
+interface UnmatchedBookingDetails {
+  id: number;
+  trackmanBookingId: string | null;
+  bayNumber: string | null;
+  bookingDate: string;
+  startTime: string;
+  endTime: string | null;
+  durationMinutes: number;
+  userName: string | null;
+  notes: string | null;
+}
+
+async function getUnmatchedBookingDetails(bookingId: number): Promise<UnmatchedBookingDetails | null> {
+  const result = await pool.query(`
+    SELECT 
+      id,
+      trackman_booking_id,
+      bay_number,
+      booking_date::text as booking_date,
+      start_time::text as start_time,
+      end_time::text as end_time,
+      duration_minutes,
+      user_name,
+      notes
+    FROM trackman_unmatched_bookings
+    WHERE id = $1
+  `, [bookingId]);
+  
+  if (result.rows.length === 0) return null;
+  
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    trackmanBookingId: row.trackman_booking_id,
+    bayNumber: row.bay_number,
+    bookingDate: row.booking_date,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    durationMinutes: row.duration_minutes || 60,
+    userName: row.user_name,
+    notes: row.notes
+  };
+}
+
+async function getResourceIdByBay(bayNumber: string | null): Promise<number | null> {
+  if (!bayNumber) return null;
+  
+  const result = await pool.query(`
+    SELECT id FROM resources 
+    WHERE LOWER(name) LIKE LOWER($1) OR bay_number = $2
+    LIMIT 1
+  `, [`%${bayNumber}%`, bayNumber]);
+  
+  return result.rows.length > 0 ? result.rows[0].id : null;
+}
+
+async function createBookingSessionForAutoMatch(
+  booking: UnmatchedBookingDetails,
+  userId: number,
+  email: string,
+  displayName: string
+): Promise<number | null> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const resourceId = await getResourceIdByBay(booking.bayNumber);
+    if (!resourceId) {
+      console.log(`[AutoMatch] No resource found for bay ${booking.bayNumber}, skipping session creation`);
+      await client.query('ROLLBACK');
+      return null;
+    }
+    
+    // Create the booking session
+    const sessionResult = await client.query(`
+      INSERT INTO booking_sessions (
+        resource_id, session_date, start_time, end_time, 
+        trackman_booking_id, source, created_by
+      )
+      VALUES ($1, $2, $3, $4, $5, 'trackman', 'auto_match')
+      ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL
+      DO UPDATE SET updated_at = NOW()
+      RETURNING id
+    `, [
+      resourceId, 
+      booking.bookingDate, 
+      booking.startTime, 
+      booking.endTime || booking.startTime,
+      booking.trackmanBookingId
+    ]);
+    
+    if (sessionResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    
+    const sessionId = sessionResult.rows[0].id;
+    
+    // Add participant as owner
+    await client.query(`
+      INSERT INTO booking_participants (session_id, user_id, display_name, participant_type)
+      VALUES ($1, $2, $3, 'owner')
+      ON CONFLICT (session_id, participant_type) WHERE participant_type = 'owner'
+      DO UPDATE SET user_id = EXCLUDED.user_id, display_name = EXCLUDED.display_name
+    `, [sessionId, userId, displayName]);
+    
+    // Check if user is an active member and record initial usage
+    // Note: Actual fees will be calculated at check-in based on daily usage
+    const memberTier = await getMemberTierByEmail(email);
+    
+    if (memberTier) {
+      // Member: record usage with tier - fees calculated at check-in based on daily allowance
+      await recordUsage(sessionId, {
+        memberId: userId,
+        minutesCharged: booking.durationMinutes,
+        overageFee: 0, // Initial - actual overage calculated at check-in
+        guestFee: 0,
+        tierAtBooking: memberTier
+      }, 'trackman');
+      console.log(`[AutoMatch] Created session ${sessionId} for member ${email} (${memberTier})`);
+    } else {
+      // Non-member (visitor): record usage without tier - visitor fees apply at check-in
+      await recordUsage(sessionId, {
+        memberId: userId,
+        minutesCharged: booking.durationMinutes,
+        overageFee: 0,
+        guestFee: 0,
+        tierAtBooking: undefined
+      }, 'trackman');
+      console.log(`[AutoMatch] Created session ${sessionId} for visitor ${email}`);
+    }
+    
+    await client.query('COMMIT');
+    return sessionId;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[AutoMatch] Error creating booking session:', error);
+    return null;
+  } finally {
+    client.release();
+  }
+}
+
 export async function autoMatchSingleBooking(
   bookingId: number,
   bookingDate: Date | string,
@@ -232,23 +391,41 @@ export async function autoMatchSingleBooking(
   };
 
   try {
+    // Get full booking details for session creation
+    const bookingDetails = await getUnmatchedBookingDetails(bookingId);
+    const isFuture = isFutureBooking(bookingDate);
     const parsed = parseBookingNotes(notes);
     
+    // Helper to create session for future bookings
+    const maybeCreateSession = async (userId: number, email: string, displayName: string): Promise<number | null> => {
+      if (!isFuture || !bookingDetails) return null;
+      return createBookingSessionForAutoMatch(bookingDetails, userId, email, displayName);
+    };
+    
+    // Try email from notes first
     if (parsed.memberEmail) {
       const user = await findMatchingUser({ email: parsed.memberEmail });
       if (user) {
-        await resolveBookingWithUser(bookingId, user.id, user.email, staffEmail);
+        const sessionId = await maybeCreateSession(
+          user.id, 
+          user.email, 
+          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
+        );
+        await resolveBookingWithUser(bookingId, user.id, user.email, staffEmail, sessionId);
         result.matched = true;
         result.matchType = 'purchase';
         result.visitorEmail = user.email;
+        if (sessionId) result.sessionId = sessionId;
         return result;
       }
     }
 
+    // Try purchase match
     const purchaseMatch = await matchBookingToPurchase(bookingDate, startTime, notes);
     
     if (purchaseMatch && purchaseMatch.email) {
       let userId = purchaseMatch.userId;
+      let displayName = `${purchaseMatch.firstName || ''} ${purchaseMatch.lastName || ''}`.trim() || purchaseMatch.email;
       
       if (!userId) {
         const visitor = await upsertVisitor({
@@ -260,9 +437,18 @@ export async function autoMatchSingleBooking(
         userId = visitor.id;
       }
       
-      await resolveBookingWithUser(bookingId, userId, purchaseMatch.email, staffEmail);
+      // For future bookings, create session first so we can link purchase correctly
+      const sessionId = await maybeCreateSession(userId, purchaseMatch.email, displayName);
       
-      await linkPurchaseToBooking(purchaseMatch.purchaseId, bookingId);
+      await resolveBookingWithUser(bookingId, userId, purchaseMatch.email, staffEmail, sessionId);
+      
+      // Only link purchase to session if we have a real session ID
+      if (sessionId) {
+        await linkPurchaseToSession(purchaseMatch.purchaseId, sessionId);
+      } else {
+        // Historical booking: just mark purchase as used (via unmatched booking reference)
+        await markPurchaseAsUsed(purchaseMatch.purchaseId, bookingId);
+      }
       
       const visitorType = parsed.bookingType?.visitorType || 'guest';
       await updateVisitorType({
@@ -277,9 +463,11 @@ export async function autoMatchSingleBooking(
       result.visitorEmail = purchaseMatch.email;
       result.visitorType = visitorType;
       result.purchaseId = purchaseMatch.purchaseId;
+      if (sessionId) result.sessionId = sessionId;
       return result;
     }
 
+    // After hours = private event
     if (isAfterClosingHours(startTime)) {
       await markBookingAsPrivateEvent(bookingId, staffEmail);
       result.matched = true;
@@ -288,16 +476,19 @@ export async function autoMatchSingleBooking(
       return result;
     }
 
+    // Fallback: create GolfNow visitor
     if (parsed.bookingType?.keyword === 'golfnow' || !parsed.bookingType) {
       const visitorEmail = await createGolfNowVisitor(userName, bookingDate, startTime);
       if (visitorEmail) {
         const user = await findMatchingUser({ email: visitorEmail });
         if (user) {
-          await resolveBookingWithUser(bookingId, user.id, visitorEmail, staffEmail);
+          const sessionId = await maybeCreateSession(user.id, visitorEmail, userName || 'GolfNow Visitor');
+          await resolveBookingWithUser(bookingId, user.id, visitorEmail, staffEmail, sessionId);
           result.matched = true;
           result.matchType = 'golfnow_fallback';
           result.visitorEmail = visitorEmail;
           result.visitorType = 'golfnow';
+          if (sessionId) result.sessionId = sessionId;
           return result;
         }
       }
@@ -316,7 +507,8 @@ async function resolveBookingWithUser(
   bookingId: number,
   userId: number,
   email: string,
-  staffEmail?: string
+  staffEmail?: string,
+  sessionId?: number | null
 ): Promise<void> {
   const client = await pool.connect();
   try {
@@ -329,9 +521,14 @@ async function resolveBookingWithUser(
         resolved_email = $2,
         resolved_at = NOW(),
         resolved_by = $3,
-        match_attempt_reason = 'auto_matched'
+        match_attempt_reason = $4
       WHERE id = $1
-    `, [bookingId, email, staffEmail || 'system']);
+    `, [
+      bookingId, 
+      email, 
+      staffEmail || 'system',
+      sessionId ? 'auto_matched_with_session' : 'auto_matched'
+    ]);
 
     await client.query('COMMIT');
   } catch (error) {
@@ -342,12 +539,27 @@ async function resolveBookingWithUser(
   }
 }
 
-async function linkPurchaseToBooking(purchaseId: number, bookingId: number): Promise<void> {
+// Link purchase to a real booking session (for future bookings)
+async function linkPurchaseToSession(purchaseId: number, sessionId: number): Promise<void> {
   await pool.query(`
     UPDATE legacy_purchases
-    SET linked_booking_session_id = $2
+    SET 
+      linked_booking_session_id = $2,
+      linked_at = NOW()
     WHERE id = $1
-  `, [purchaseId, bookingId]);
+  `, [purchaseId, sessionId]);
+  console.log(`[AutoMatch] Linked purchase ${purchaseId} to session ${sessionId}`);
+}
+
+// Mark purchase as used without linking to session (for historical bookings)
+// We use linked_at to prevent re-matching but don't set linked_booking_session_id
+async function markPurchaseAsUsed(purchaseId: number, unmatchedBookingId: number): Promise<void> {
+  await pool.query(`
+    UPDATE legacy_purchases
+    SET linked_at = NOW()
+    WHERE id = $1 AND linked_at IS NULL
+  `, [purchaseId]);
+  console.log(`[AutoMatch] Marked purchase ${purchaseId} as used (historical, unmatched booking ${unmatchedBookingId})`);
 }
 
 async function markBookingAsPrivateEvent(bookingId: number, staffEmail?: string): Promise<void> {
