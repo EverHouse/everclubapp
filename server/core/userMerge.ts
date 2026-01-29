@@ -42,6 +42,11 @@ export interface MergePreview {
     groupMembers: number;
     pushSubscriptions: number;
     dismissedNotices: number;
+    billingGroups: number;
+    bugReports: number;
+    dataExportRequests: number;
+    hubspotDeals: number;
+    stripePaymentIntents: number;
   };
   conflicts: string[];
   recommendations: string[];
@@ -66,6 +71,11 @@ export interface MergeResult {
     groupMembers: number;
     pushSubscriptions: number;
     dismissedNotices: number;
+    billingGroups: number;
+    bugReports: number;
+    dataExportRequests: number;
+    hubspotDeals: number;
+    stripePaymentIntents: number;
     linkedEmails: number;
   };
   mergedLifetimeVisits: number;
@@ -189,6 +199,41 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
   );
   const dismissedNoticesCount = parseInt(dismissedNoticesResult.rows[0]?.count || '0');
   
+  // Count billing groups where user is primary payer (uses primary_email column)
+  const billingGroupsResult = await pool.query(
+    `SELECT COUNT(*) as count FROM billing_groups WHERE LOWER(primary_email) = $1`,
+    [secondaryEmail]
+  );
+  const billingGroupsCount = parseInt(billingGroupsResult.rows[0]?.count || '0');
+  
+  // Count bug reports (uses user_email column)
+  const bugReportsResult = await pool.query(
+    `SELECT COUNT(*) as count FROM bug_reports WHERE LOWER(user_email) = $1`,
+    [secondaryEmail]
+  );
+  const bugReportsCount = parseInt(bugReportsResult.rows[0]?.count || '0');
+  
+  // Count data export requests (uses user_email column)
+  const dataExportResult = await pool.query(
+    `SELECT COUNT(*) as count FROM data_export_requests WHERE LOWER(user_email) = $1`,
+    [secondaryEmail]
+  );
+  const dataExportCount = parseInt(dataExportResult.rows[0]?.count || '0');
+  
+  // Count HubSpot deals (uses member_email column)
+  const hubspotDealsResult = await pool.query(
+    `SELECT COUNT(*) as count FROM hubspot_deals WHERE LOWER(member_email) = $1`,
+    [secondaryEmail]
+  );
+  const hubspotDealsCount = parseInt(hubspotDealsResult.rows[0]?.count || '0');
+  
+  // Count Stripe payment intents (uses user_id column)
+  const stripePaymentIntentsResult = await pool.query(
+    `SELECT COUNT(*) as count FROM stripe_payment_intents WHERE user_id = $1`,
+    [secondaryUserId]
+  );
+  const stripePaymentIntentsCount = parseInt(stripePaymentIntentsResult.rows[0]?.count || '0');
+  
   const conflicts: string[] = [];
   const recommendations: string[] = [];
   
@@ -251,6 +296,11 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
       groupMembers: groupMembersCount,
       pushSubscriptions: pushSubscriptionsCount,
       dismissedNotices: dismissedNoticesCount,
+      billingGroups: billingGroupsCount,
+      bugReports: bugReportsCount,
+      dataExportRequests: dataExportCount,
+      hubspotDeals: hubspotDealsCount,
+      stripePaymentIntents: stripePaymentIntentsCount,
     },
     conflicts,
     recommendations,
@@ -288,6 +338,11 @@ export async function executeMerge(
     groupMembers: 0,
     pushSubscriptions: 0,
     dismissedNotices: 0,
+    billingGroups: 0,
+    bugReports: 0,
+    dataExportRequests: 0,
+    hubspotDeals: 0,
+    stripePaymentIntents: 0,
     linkedEmails: 0,
   };
   
@@ -413,6 +468,41 @@ export async function executeMerge(
       [primaryEmail, secondaryEmail]
     );
     recordsMerged.dismissedNotices = dismissedNoticesResult.rowCount || 0;
+    
+    // Update billing groups where user is primary payer (uses primary_email column)
+    const billingGroupsResult = await client.query(
+      `UPDATE billing_groups SET primary_email = $1 WHERE LOWER(primary_email) = $2`,
+      [primaryEmail, secondaryEmail]
+    );
+    recordsMerged.billingGroups = billingGroupsResult.rowCount || 0;
+    
+    // Update bug reports (uses user_email column)
+    const bugReportsResult = await client.query(
+      `UPDATE bug_reports SET user_email = $1 WHERE LOWER(user_email) = $2`,
+      [primaryEmail, secondaryEmail]
+    );
+    recordsMerged.bugReports = bugReportsResult.rowCount || 0;
+    
+    // Update data export requests (uses user_email column)
+    const dataExportResult = await client.query(
+      `UPDATE data_export_requests SET user_email = $1 WHERE LOWER(user_email) = $2`,
+      [primaryEmail, secondaryEmail]
+    );
+    recordsMerged.dataExportRequests = dataExportResult.rowCount || 0;
+    
+    // Update HubSpot deals (uses member_email column)
+    const hubspotDealsResult = await client.query(
+      `UPDATE hubspot_deals SET member_email = $1 WHERE LOWER(member_email) = $2`,
+      [primaryEmail, secondaryEmail]
+    );
+    recordsMerged.hubspotDeals = hubspotDealsResult.rowCount || 0;
+    
+    // Update Stripe payment intents (uses user_id column)
+    const stripePaymentIntentsResult = await client.query(
+      `UPDATE stripe_payment_intents SET user_id = $1 WHERE user_id = $2`,
+      [primaryUserId, secondaryUserId]
+    );
+    recordsMerged.stripePaymentIntents = stripePaymentIntentsResult.rowCount || 0;
     
     // Update user_linked_emails (uses primary_email column, not user_id)
     await client.query(

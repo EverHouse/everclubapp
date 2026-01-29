@@ -1340,6 +1340,36 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         Dismissed Notices: <strong>{mergePreview.recordsToMerge.dismissedNotices}</strong>
                       </div>
                     )}
+                    {mergePreview.recordsToMerge?.billingGroups !== undefined && mergePreview.recordsToMerge.billingGroups > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">account_balance</span>
+                        Billing Groups: <strong>{mergePreview.recordsToMerge.billingGroups}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.bugReports !== undefined && mergePreview.recordsToMerge.bugReports > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">bug_report</span>
+                        Bug Reports: <strong>{mergePreview.recordsToMerge.bugReports}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.dataExportRequests !== undefined && mergePreview.recordsToMerge.dataExportRequests > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">download</span>
+                        Data Exports: <strong>{mergePreview.recordsToMerge.dataExportRequests}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.hubspotDeals !== undefined && mergePreview.recordsToMerge.hubspotDeals > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">handshake</span>
+                        HubSpot Deals: <strong>{mergePreview.recordsToMerge.hubspotDeals}</strong>
+                      </div>
+                    )}
+                    {mergePreview.recordsToMerge?.stripePaymentIntents !== undefined && mergePreview.recordsToMerge.stripePaymentIntents > 0 && (
+                      <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <span className="material-symbols-outlined text-sm align-middle mr-1">credit_card</span>
+                        Payment Intents: <strong>{mergePreview.recordsToMerge.stripePaymentIntents}</strong>
+                      </div>
+                    )}
                   </div>
                   
                   {((mergePreview.conflicts && mergePreview.conflicts.length > 0) || (mergePreview.recommendations && mergePreview.recommendations.length > 0)) && (

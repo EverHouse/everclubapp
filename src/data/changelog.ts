@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.46.2",
+    date: "2026-01-29",
+    title: "Complete User Merge Coverage",
+    changes: [
+      "New: Merge now covers ALL 19 user-related data tables",
+      "New: Includes booking participants, day passes, legacy purchases",
+      "New: Includes group memberships, push subscriptions, dismissed notices",
+      "New: Includes billing groups (primary payer transfer)",
+      "New: Includes bug reports, data export requests",
+      "New: Includes HubSpot deals, Stripe payment intents",
+      "Improved: Merge preview shows counts for all data types being transferred"
+    ]
+  },
+  {
     version: "9.46.1",
     date: "2026-01-29",
     title: "Expanded User Merge Coverage",
