@@ -1023,14 +1023,27 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   </button>
                 </div>
               </div>
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="w-full py-2.5 px-4 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors"
-                title="Permanently delete visitor"
-              >
-                <span className="material-symbols-outlined text-lg">delete_forever</span>
-                Delete Visitor
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowMergeModal(true);
+                    setSelectedMergeTarget(null);
+                    setMergePreview(null);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+                  title="Merge visitor records into a member account"
+                >
+                  <span className="material-symbols-outlined text-lg">merge</span>
+                  Merge to Member
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="py-2.5 px-4 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors"
+                  title="Permanently delete visitor"
+                >
+                  <span className="material-symbols-outlined text-lg">delete_forever</span>
+                </button>
+              </div>
             </div>
           )}
 
