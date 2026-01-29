@@ -1018,7 +1018,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     {sendingPaymentLink ? (
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                     ) : (
-                      <span className="material-symbols-outlined text-lg">link</span>
+                      <span className="material-symbols-outlined text-lg">send</span>
                     )}
                   </button>
                 </div>
