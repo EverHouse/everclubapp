@@ -1620,6 +1620,15 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
       console.error('[Stripe Webhook] Failed to send QR pass email:', emailError);
     }
 
+    // Notify staff about day pass purchase
+    const purchaserName = [firstName, lastName].filter(Boolean).join(' ') || email;
+    await notifyAllStaff(
+      'Day Pass Purchased',
+      `${purchaserName} (${email}) purchased a ${productSlug} day pass.`,
+      'day_pass',
+      { sendPush: false, sendWebSocket: true }
+    );
+
     // Queue HubSpot sync for day pass (non-blocking)
     try {
       await queueDayPassSyncToHubSpot({
