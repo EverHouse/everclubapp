@@ -63,12 +63,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } else {
       document.documentElement.classList.remove('dark');
     }
-    
-    const themeColor = effectiveTheme === 'dark' ? '#0f120a' : '#F2F2EC';
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', themeColor);
-    }
+    // Note: theme-color meta tag is managed by App.tsx for route-specific colors
   }, [effectiveTheme]);
 
   return (

@@ -468,13 +468,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       if (!metaThemeColor) return;
       
       let themeColor: string;
-      if (location.pathname === '/' && !scrolledPastHero) {
-        themeColor = '#1a1610';
-      } else if (isFullBleedPage) {
+      if (location.pathname === '/') {
+        // Landing page: dark hero at top, light content when scrolled
+        themeColor = scrolledPastHero ? '#F2F2EC' : '#1a1610';
+      } else if (location.pathname === '/private-hire') {
+        // Private hire: keep dark green theme throughout
         themeColor = '#293515';
       } else if (isDark) {
+        // Member/staff pages in dark mode
         themeColor = '#0f120a';
       } else {
+        // All other pages (light mode)
         themeColor = '#F2F2EC';
       }
       metaThemeColor.setAttribute('content', themeColor);
