@@ -34,11 +34,10 @@ interface BlockFormData {
 }
 
 const BLOCK_TYPES = [
+    { id: 'blocked', label: 'Blocked / Private Event' },
     { id: 'maintenance', label: 'Maintenance' },
-    { id: 'private_event', label: 'Private Event' },
-    { id: 'staff_hold', label: 'Staff Hold' },
     { id: 'wellness', label: 'Wellness Class' },
-    { id: 'other', label: 'Other' },
+    { id: 'event', label: 'Club Event' },
 ];
 
 const AvailabilityBlocksContent: React.FC = () => {
@@ -270,10 +269,11 @@ const AvailabilityBlocksContent: React.FC = () => {
 
     const getBlockTypeColor = (type: string) => {
         switch (type) {
+            case 'blocked': return 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400';
             case 'maintenance': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400';
-            case 'private_event': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
-            case 'staff_hold': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
             case 'wellness': return 'bg-[#CCB8E4]/30 dark:bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4]';
+            case 'event': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
+            case 'available': return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
             default: return 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400';
         }
     };
