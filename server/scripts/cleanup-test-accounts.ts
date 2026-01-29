@@ -89,13 +89,18 @@ async function cleanupTestAccounts() {
         WHERE booking_id IN (SELECT id FROM booking_requests WHERE user_email = $1)
       `, [email.toLowerCase()]);
       
-      // Clear billing & financial records
+      // Clear billing & financial records (by user_id)
       await pool.query('DELETE FROM usage_ledger WHERE user_id = $1', [userId]);
       await pool.query('DELETE FROM stripe_payment_intents WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM day_pass_purchases WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM legacy_purchases WHERE user_id = $1', [userId]);
       
-      // Clear linked emails
+      // Clear linked emails and user preferences (by user_id)
       await pool.query('DELETE FROM user_linked_emails WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM booking_participants WHERE user_id = $1', [userId]);
+      await pool.query('DELETE FROM account_deletion_requests WHERE user_id = $1', [userId]);
       
+      // Clear records by email
       await pool.query('DELETE FROM member_notes WHERE member_email = $1', [email.toLowerCase()]);
       await pool.query('DELETE FROM communication_logs WHERE member_email = $1', [email.toLowerCase()]);
       await pool.query('DELETE FROM guest_passes WHERE member_email = $1', [email.toLowerCase()]);
@@ -105,13 +110,16 @@ async function cleanupTestAccounts() {
       await pool.query('DELETE FROM booking_requests WHERE user_email = $1', [email.toLowerCase()]);
       await pool.query('DELETE FROM booking_members WHERE user_email = $1', [email.toLowerCase()]);
       await pool.query('DELETE FROM notifications WHERE user_email = $1', [email.toLowerCase()]);
-      await pool.query('DELETE FROM admin_audit_log WHERE staff_email = $1', [email.toLowerCase()]);
-      
-      // Delete booking participants where the user is involved
-      await pool.query(`
-        DELETE FROM booking_participants 
-        WHERE user_id = $1
-      `, [userId]);
+      await pool.query('DELETE FROM admin_audit_log WHERE staff_email = $1 OR actor_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM billing_audit_log WHERE member_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM bug_reports WHERE user_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM data_export_requests WHERE user_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM group_members WHERE member_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM hubspot_deals WHERE member_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM legacy_purchases WHERE member_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM push_subscriptions WHERE user_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM user_dismissed_notices WHERE user_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM day_pass_purchases WHERE purchaser_email = $1', [email.toLowerCase()]);
       
       // Delete the user
       await pool.query('DELETE FROM users WHERE id = $1', [userId]);
