@@ -84,17 +84,23 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
       <button
         onClick={() => handleNavClick(item.id)}
         className={`
-          w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
+          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
           ${isActive 
-            ? 'bg-white/20 text-white font-semibold shadow-sm' 
+            ? 'text-white font-semibold' 
             : 'text-white/70 hover:bg-white/10 hover:text-white'
           }
         `}
       >
-        <span className={`material-symbols-outlined text-xl ${isActive ? 'filled' : ''}`}>
+        {isActive && (
+          <div className="absolute inset-0 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md" />
+        )}
+        <span className={`material-symbols-outlined text-xl relative z-10 ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
           {item.icon}
         </span>
-        <span className="text-sm">{item.label}</span>
+        <span className="text-sm relative z-10">{item.label}</span>
+        {isActive && (
+          <span className="relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4]" />
+        )}
       </button>
     );
   };
