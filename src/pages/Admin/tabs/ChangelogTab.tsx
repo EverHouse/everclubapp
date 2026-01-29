@@ -17,6 +17,8 @@ interface AuditLogEntry {
     details: Record<string, any> | null;
     ipAddress: string | null;
     createdAt: string;
+    actorType: 'staff' | 'member' | 'system';
+    actorEmail: string | null;
 }
 
 const ACTION_LABELS: Record<string, { label: string; icon: string; color: string }> = {
@@ -97,12 +99,20 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; color: string
     link_group_subscription: { label: 'Linked Group Subscription', icon: 'link', color: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30' },
     // Waiver actions
     review_waiver: { label: 'Reviewed Waiver', icon: 'verified', color: 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30' },
+    // Webhook/system booking actions
+    booking_cancelled_webhook: { label: 'Booking Cancelled (TrackMan)', icon: 'webhook', color: 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30' },
+    booking_cancelled_member: { label: 'Booking Cancelled (Member)', icon: 'person_off', color: 'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30' },
+    // Payment actions
+    payment_refunded: { label: 'Payment Refunded', icon: 'currency_exchange', color: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30' },
+    payment_refund_partial: { label: 'Partial Refund', icon: 'currency_exchange', color: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30' },
+    payment_failed: { label: 'Payment Failed', icon: 'credit_card_off', color: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30' },
+    payment_succeeded: { label: 'Payment Successful', icon: 'check_circle', color: 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30' },
 };
 
 const FILTER_CATEGORIES = [
     { key: 'all', label: 'All' },
-    { key: 'bookings', label: 'Bookings', actions: ['approve_booking', 'decline_booking', 'cancel_booking', 'create_booking', 'reschedule_booking', 'mark_no_show', 'mark_attended', 'add_guest_to_booking', 'remove_guest_from_booking', 'link_member_to_booking', 'unlink_member_from_booking', 'direct_add_participant', 'reassign_booking', 'unmatch_booking', 'import_trackman', 'change_booking_owner', 'assign_member_to_booking', 'link_trackman_to_member'] },
-    { key: 'billing', label: 'Billing', actions: ['pause_subscription', 'resume_subscription', 'cancel_subscription', 'record_charge', 'process_refund', 'send_payment_link', 'change_tier', 'update_payment_status', 'add_group_member', 'remove_group_member', 'link_group_subscription'] },
+    { key: 'bookings', label: 'Bookings', actions: ['approve_booking', 'decline_booking', 'cancel_booking', 'create_booking', 'reschedule_booking', 'mark_no_show', 'mark_attended', 'add_guest_to_booking', 'remove_guest_from_booking', 'link_member_to_booking', 'unlink_member_from_booking', 'direct_add_participant', 'reassign_booking', 'unmatch_booking', 'import_trackman', 'change_booking_owner', 'assign_member_to_booking', 'link_trackman_to_member', 'booking_cancelled_webhook', 'booking_cancelled_member'] },
+    { key: 'billing', label: 'Billing', actions: ['pause_subscription', 'resume_subscription', 'cancel_subscription', 'record_charge', 'process_refund', 'send_payment_link', 'change_tier', 'update_payment_status', 'add_group_member', 'remove_group_member', 'link_group_subscription', 'payment_refunded', 'payment_refund_partial', 'payment_failed', 'payment_succeeded'] },
     { key: 'members', label: 'Members', actions: ['invite_member', 'create_member', 'update_member', 'delete_member', 'archive_member', 'sync_hubspot', 'link_stripe_customer', 'update_member_notes', 'review_waiver'] },
     { key: 'tours', label: 'Tours', actions: ['tour_checkin', 'tour_completed', 'tour_no_show', 'tour_cancelled', 'tour_status_changed'] },
     { key: 'events', label: 'Events', actions: ['create_event', 'update_event', 'delete_event', 'sync_events', 'manual_rsvp', 'remove_rsvp', 'create_wellness_class', 'update_wellness_class', 'delete_wellness_class', 'sync_wellness', 'manual_enrollment'] },
@@ -119,6 +129,7 @@ const ChangelogTab: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [filterCategory, setFilterCategory] = useState('all');
     const [staffFilter, setStaffFilter] = useState('');
+    const [sourceFilter, setSourceFilter] = useState<'' | 'staff' | 'member' | 'system'>('');
     const [uniqueStaff, setUniqueStaff] = useState<string[]>([]);
     const [limit, setLimit] = useState(50);
     const [hasMore, setHasMore] = useState(true);
@@ -141,6 +152,10 @@ const ChangelogTab: React.FC = () => {
             
             if (staffFilter) {
                 params.set('staff_email', staffFilter);
+            }
+            
+            if (sourceFilter) {
+                params.set('actor_type', sourceFilter);
             }
             
             const category = FILTER_CATEGORIES.find(c => c.key === filterCategory);
@@ -169,13 +184,13 @@ const ChangelogTab: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [limit, staffFilter, filterCategory, uniqueStaff.length, isAdmin]);
+    }, [limit, staffFilter, sourceFilter, filterCategory, uniqueStaff.length, isAdmin]);
 
     useEffect(() => {
         if (activeTab === 'activity' && isAdmin) {
             fetchActivityLog(true);
         }
-    }, [activeTab, filterCategory, staffFilter, isAdmin]);
+    }, [activeTab, filterCategory, staffFilter, sourceFilter, isAdmin]);
 
     useEffect(() => {
         if (limit > 50 && activeTab === 'activity') {
@@ -301,6 +316,44 @@ const ChangelogTab: React.FC = () => {
             case 'reassign_booking':
                 if (d.oldEmail && d.newEmail) parts.push(`${d.oldEmail} → ${d.newEmail}`);
                 break;
+            case 'booking_cancelled_webhook':
+            case 'booking_cancelled_member':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.booking_date) parts.push(d.booking_date);
+                if (d.booking_time) parts.push(d.booking_time);
+                if (d.bay_name) parts.push(d.bay_name);
+                if (d.refund_amount_cents && d.refund_amount_cents > 0) {
+                    parts.push(`Refunded: $${(d.refund_amount_cents / 100).toFixed(2)}`);
+                }
+                if (d.refunded_passes && d.refunded_passes > 0) {
+                    parts.push(`${d.refunded_passes} guest pass${d.refunded_passes > 1 ? 'es' : ''} refunded`);
+                }
+                break;
+            case 'payment_refunded':
+            case 'payment_refund_partial':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.amount_cents) parts.push(`$${(d.amount_cents / 100).toFixed(2)}`);
+                if (d.is_partial) parts.push('(Partial)');
+                if (d.refund_reason) parts.push(d.refund_reason);
+                break;
+            case 'payment_succeeded':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.amount_cents) parts.push(`$${(d.amount_cents / 100).toFixed(2)}`);
+                if (d.description) parts.push(d.description);
+                break;
+            case 'payment_failed':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.amount_cents) parts.push(`$${(d.amount_cents / 100).toFixed(2)}`);
+                if (d.failure_reason) parts.push(d.failure_reason);
+                break;
+            case 'record_charge':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.amount) parts.push(`$${(d.amount / 100).toFixed(2)}`);
+                if (d.description) parts.push(d.description);
+                break;
+            case 'send_payment_link':
+                if (d.member_email) parts.push(d.member_email);
+                break;
             default:
                 // Generic fallback
                 if (d.member_email) parts.push(d.member_email);
@@ -310,9 +363,12 @@ const ChangelogTab: React.FC = () => {
                         : d.amount;
                     parts.push(amount);
                 }
+                if (d.amount_cents) parts.push(`$${(d.amount_cents / 100).toFixed(2)}`);
                 if (d.tier) parts.push(`Tier: ${d.tier}`);
                 if (d.reason) parts.push(`Reason: ${d.reason}`);
                 if (d.bay) parts.push(`Bay ${d.bay}`);
+                if (d.booking_date) parts.push(d.booking_date);
+                if (d.description) parts.push(d.description);
         }
         
         return parts.join(' • ') || 'No additional details';
@@ -402,8 +458,8 @@ const ChangelogTab: React.FC = () => {
                     ))}
                 </div>
 
-                {uniqueStaff.length > 1 && (
-                    <div className="mb-4">
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {uniqueStaff.length > 1 && (
                         <select
                             value={staffFilter}
                             onChange={(e) => setStaffFilter(e.target.value)}
@@ -414,8 +470,18 @@ const ChangelogTab: React.FC = () => {
                                 <option key={email} value={email}>{email}</option>
                             ))}
                         </select>
-                    </div>
-                )}
+                    )}
+                    <select
+                        value={sourceFilter}
+                        onChange={(e) => setSourceFilter(e.target.value as '' | 'staff' | 'member' | 'system')}
+                        className="w-full sm:w-auto px-3 py-2 rounded-xl text-sm bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white"
+                    >
+                        <option value="">All Sources</option>
+                        <option value="staff">Staff</option>
+                        <option value="member">Member</option>
+                        <option value="system">System</option>
+                    </select>
+                </div>
 
                 {error && (
                     <div className="mb-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
@@ -454,9 +520,24 @@ const ChangelogTab: React.FC = () => {
                                                     {formatRelativeTime(entry.createdAt)}
                                                 </span>
                                             </div>
-                                            <p className="text-xs mt-0.5 text-primary/70 dark:text-white/70">
-                                                by {entry.staffName || entry.staffEmail}
-                                            </p>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                                                    entry.actorType === 'system' 
+                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                                        : entry.actorType === 'member'
+                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300'
+                                                }`}>
+                                                    {entry.actorType === 'system' ? 'System' : entry.actorType === 'member' ? 'Member' : 'Staff'}
+                                                </span>
+                                                <span className="text-xs text-primary/70 dark:text-white/70">
+                                                    {entry.actorType === 'system' 
+                                                        ? entry.actorEmail || 'Automated'
+                                                        : entry.actorType === 'member'
+                                                        ? entry.actorEmail || 'Unknown Member'
+                                                        : entry.staffName || entry.staffEmail}
+                                                </span>
+                                            </div>
                                             <p className="text-xs mt-1 text-primary/60 dark:text-white/60 truncate">
                                                 {formatDetails(entry)}
                                             </p>

@@ -503,6 +503,7 @@ router.get('/api/data-tools/staff-activity', isAdmin, async (req: Request, res: 
     const limitParam = parseInt(req.query.limit as string) || 50;
     const staffEmail = req.query.staff_email as string;
     const actionsParam = req.query.actions as string;
+    const actorType = req.query.actor_type as string;
     
     const conditions = [];
     
@@ -515,6 +516,10 @@ router.get('/api/data-tools/staff-activity', isAdmin, async (req: Request, res: 
       if (actionsList.length > 0) {
         conditions.push(inArray(adminAuditLog.action, actionsList));
       }
+    }
+    
+    if (actorType && ['staff', 'member', 'system'].includes(actorType)) {
+      conditions.push(eq(adminAuditLog.actorType, actorType));
     }
     
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
