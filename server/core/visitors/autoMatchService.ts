@@ -537,18 +537,23 @@ export async function autoMatchSingleBooking(
       return result;
     }
 
-    // Fallback: create GolfNow visitor
-    if (parsed.bookingType?.keyword === 'golfnow' || !parsed.bookingType) {
+    // Fallback: create GolfNow or ClassPass visitor
+    const isGolfNow = parsed.bookingType?.keyword === 'golfnow';
+    const isClassPass = parsed.bookingType?.keyword === 'classpass';
+    
+    if (isGolfNow || isClassPass || !parsed.bookingType) {
       const visitorEmail = await createGolfNowVisitor(userName, bookingDate, startTime);
       if (visitorEmail) {
         const user = await findMatchingUser({ email: visitorEmail });
         if (user) {
-          const sessionId = await maybeCreateSession(user.id, visitorEmail, userName || 'GolfNow Visitor');
+          const visitorType: VisitorType = isClassPass ? 'classpass' : 'golfnow';
+          const visitorLabel = isClassPass ? 'ClassPass Visitor' : 'GolfNow Visitor';
+          const sessionId = await maybeCreateSession(user.id, visitorEmail, userName || visitorLabel);
           await resolveBookingWithUser(bookingId, user.id, visitorEmail, staffEmail, sessionId);
           result.matched = true;
-          result.matchType = 'golfnow_fallback';
+          result.matchType = isClassPass ? 'classpass_visitor' : 'golfnow_fallback';
           result.visitorEmail = visitorEmail;
-          result.visitorType = 'golfnow';
+          result.visitorType = visitorType;
           if (sessionId) result.sessionId = sessionId;
           return result;
         }

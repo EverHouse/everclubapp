@@ -18,6 +18,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Zombie User Fix & Lesson Cleanup Tool",
     changes: [
       "Fixed: Auto-matching no longer links new bookings to archived/merged user profiles",
+      "Fixed: ClassPass bookings now get proper fallback handling (same as GolfNow)",
       "New: Lesson cleanup tool to retroactively convert historical lesson bookings to availability blocks",
       "New: Staff Manual Booking modal now has 'Lesson / Staff Block' tab with streamlined workflow",
       "Improved: Lesson cleanup tool validates bay numbers and prevents duplicate block creation"
