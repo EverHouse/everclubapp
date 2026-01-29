@@ -368,15 +368,15 @@ async function checkBookingResourceRelationships(): Promise<IntegrityCheckResult
 async function checkParticipantUserRelationships(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   
-  // Note: booking_participants.user_id stores email addresses, not user UUIDs
+  // Note: booking_participants.user_id stores user UUIDs that should match users.id
   const invalidUsers = await db.execute(sql`
     SELECT bp.id, bp.user_id, bp.display_name, bp.session_id,
            bs.session_date, bs.start_time, r.name as resource_name
     FROM booking_participants bp
-    LEFT JOIN users u ON LOWER(bp.user_id) = LOWER(u.email)
+    LEFT JOIN users u ON bp.user_id = u.id
     LEFT JOIN booking_sessions bs ON bp.session_id = bs.id
     LEFT JOIN resources r ON bs.resource_id = r.id
-    WHERE bp.user_id IS NOT NULL AND bp.user_id != '' AND u.email IS NULL
+    WHERE bp.user_id IS NOT NULL AND bp.user_id != '' AND u.id IS NULL
   `);
   
   for (const row of invalidUsers.rows as any[]) {
