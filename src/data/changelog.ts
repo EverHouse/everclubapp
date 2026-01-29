@@ -13,11 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.39.2",
+    version: "9.39.3",
     date: "2026-01-29",
-    title: "Staff Cancellation Audit Logging Fix",
+    title: "Complete Activity Logging Coverage",
     changes: [
-      "Fixed: Staff cancellations via booking approval workflow now properly logged to Staff Activity"
+      "Added: Wellness class enrollment cancellations now logged to Staff Activity",
+      "Added: Event RSVP cancellations now logged to Staff Activity",
+      "Fixed: Staff cancellations via booking approval workflow now properly logged",
+      "Improved: All member-initiated cancellations show with Member badge in activity feed"
     ]
   },
   {

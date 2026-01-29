@@ -102,6 +102,9 @@ const ACTION_LABELS: Record<string, { label: string; icon: string; color: string
     // Webhook/system booking actions
     booking_cancelled_webhook: { label: 'Booking Cancelled (TrackMan)', icon: 'webhook', color: 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30' },
     booking_cancelled_member: { label: 'Booking Cancelled (Member)', icon: 'person_off', color: 'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30' },
+    // Wellness/Event cancellations by members
+    cancel_wellness_enrollment: { label: 'Wellness Cancelled (Member)', icon: 'fitness_center', color: 'text-pink-600 bg-pink-100 dark:text-pink-400 dark:bg-pink-900/30' },
+    cancel_event_rsvp: { label: 'Event RSVP Cancelled (Member)', icon: 'event_busy', color: 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30' },
     // Payment actions
     payment_refunded: { label: 'Payment Refunded', icon: 'currency_exchange', color: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30' },
     payment_refund_partial: { label: 'Partial Refund', icon: 'currency_exchange', color: 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30' },
@@ -115,7 +118,7 @@ const FILTER_CATEGORIES = [
     { key: 'billing', label: 'Billing', actions: ['pause_subscription', 'resume_subscription', 'cancel_subscription', 'record_charge', 'process_refund', 'send_payment_link', 'change_tier', 'update_payment_status', 'add_group_member', 'remove_group_member', 'link_group_subscription', 'payment_refunded', 'payment_refund_partial', 'payment_failed', 'payment_succeeded'] },
     { key: 'members', label: 'Members', actions: ['invite_member', 'create_member', 'update_member', 'delete_member', 'archive_member', 'sync_hubspot', 'link_stripe_customer', 'update_member_notes', 'review_waiver'] },
     { key: 'tours', label: 'Tours', actions: ['tour_checkin', 'tour_completed', 'tour_no_show', 'tour_cancelled', 'tour_status_changed'] },
-    { key: 'events', label: 'Events', actions: ['create_event', 'update_event', 'delete_event', 'sync_events', 'manual_rsvp', 'remove_rsvp', 'create_wellness_class', 'update_wellness_class', 'delete_wellness_class', 'sync_wellness', 'manual_enrollment'] },
+    { key: 'events', label: 'Events', actions: ['create_event', 'update_event', 'delete_event', 'sync_events', 'manual_rsvp', 'remove_rsvp', 'create_wellness_class', 'update_wellness_class', 'delete_wellness_class', 'sync_wellness', 'manual_enrollment', 'cancel_wellness_enrollment', 'cancel_event_rsvp'] },
     { key: 'admin', label: 'Admin', actions: ['create_announcement', 'update_announcement', 'delete_announcement', 'create_closure', 'update_closure', 'delete_closure', 'sync_closures', 'reset_trackman_data'] },
 ];
 
@@ -328,6 +331,16 @@ const ChangelogTab: React.FC = () => {
                 if (d.refunded_passes && d.refunded_passes > 0) {
                     parts.push(`${d.refunded_passes} guest pass${d.refunded_passes > 1 ? 'es' : ''} refunded`);
                 }
+                break;
+            case 'cancel_wellness_enrollment':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.class_title) parts.push(d.class_title);
+                if (d.class_date) parts.push(d.class_date);
+                break;
+            case 'cancel_event_rsvp':
+                if (d.member_email) parts.push(d.member_email);
+                if (d.event_title) parts.push(d.event_title);
+                if (d.event_date) parts.push(d.event_date);
                 break;
             case 'payment_refunded':
             case 'payment_refund_partial':
