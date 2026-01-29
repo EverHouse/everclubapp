@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.39.0",
+    date: "2026-01-29",
+    title: "Comprehensive Activity Logging & Staff Notifications",
+    isMajor: true,
+    changes: [
+      "Added: Real-time notifications for all booking cancellations (from TrackMan, members, or staff)",
+      "Added: System and member action logging to the Staff Activity tab",
+      "Added: Actor badges showing who performed each action (Staff/Member/System)",
+      "Added: Source filter to view activity by actor type",
+      "Added: Human-readable activity descriptions with refund amounts and booking details",
+      "Added: Stripe payment event logging (refunds, successful payments, failed payments)",
+      "Added: TrackMan webhook cancellation logging with pass refund tracking"
+    ]
+  },
+  {
     version: "9.38.1",
     date: "2026-01-28",
     title: "Calendar Quick Booking",
