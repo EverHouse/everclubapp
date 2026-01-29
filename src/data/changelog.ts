@@ -13,10 +13,11 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.39.3",
+    version: "9.39.4",
     date: "2026-01-29",
     title: "Complete Activity Logging Coverage",
     changes: [
+      "Added: Member booking cancellations via resources endpoint now logged to Staff Activity",
       "Added: Wellness class enrollment cancellations now logged to Staff Activity",
       "Added: Event RSVP cancellations now logged to Staff Activity",
       "Fixed: Staff cancellations via booking approval workflow now properly logged",

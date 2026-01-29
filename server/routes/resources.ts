@@ -19,7 +19,7 @@ import { getSessionUser } from '../types/session';
 import { notifyMember, notifyAllStaff } from '../core/notificationService';
 import { refundGuestPass } from './guestPasses';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../utils/dateUtils';
-import { logFromRequest } from '../core/auditLog';
+import { logFromRequest, logMemberAction } from '../core/auditLog';
 import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { cancelPaymentIntent } from '../core/stripe';
 
@@ -1598,6 +1598,15 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
         console.error('Failed to delete calendar event (non-blocking):', calError);
       }
     }
+    
+    logMemberAction('booking_cancelled_member', 'booking', bookingId.toString(), existing.userEmail || '', {
+      member_email: existing.userEmail,
+      member_name: existing.userName,
+      booking_date: existing.requestDate,
+      booking_time: existing.startTime,
+      bay_name: resourceName,
+      refunded_passes: cascadeResult.guestPassesRefunded
+    });
     
     res.json({ 
       success: true, 
