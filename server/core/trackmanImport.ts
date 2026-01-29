@@ -2275,6 +2275,12 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
 
           matchedRows++;
         } catch (insertErr: any) {
+          // Handle duplicate key violations gracefully (race condition with webhook)
+          if (insertErr.message?.includes('duplicate key') || insertErr.code === '23505') {
+            process.stderr.write(`[Trackman Import] Booking ${row.bookingId} already exists (race with webhook) - skipping\n`);
+            skippedRows++;
+            continue;
+          }
           const errDetails = insertErr.cause?.message || insertErr.detail || insertErr.code || 'no details';
           process.stderr.write(`[Trackman Import] Insert error for ${row.bookingId}: ${insertErr.message} | Details: ${errDetails}\n`);
           throw insertErr;
