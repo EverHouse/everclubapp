@@ -65,16 +65,12 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
           }
         `}
       >
-        {isActive && (
-          <div className="absolute inset-0 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md" />
-        )}
-        <span className={`material-symbols-outlined text-xl relative z-10 ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
+        <div className={`absolute inset-0 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} />
+        <span className={`material-symbols-outlined text-xl relative z-10 transition-colors duration-300 ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
           {item.icon}
         </span>
         <span className="text-sm relative z-10">{item.label}</span>
-        {isActive && (
-          <span className="relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4]" />
-        )}
+        <span className={`relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4] transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
       </button>
     );
   };

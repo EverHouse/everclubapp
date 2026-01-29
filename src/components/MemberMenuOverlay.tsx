@@ -223,15 +223,15 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
             : 'text-[#293515]/60 hover:text-[#293515] hover:bg-black/5'
       }`}
     >
-      {isActive && (
-        <div 
-          className={`absolute inset-0 rounded-xl ${
-            isDark 
-              ? 'bg-white/10 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]' 
-              : 'bg-white/80 border border-black/10 shadow-[0_4px_20px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.8)]'
-          } backdrop-blur-md`}
-        />
-      )}
+      <div 
+        className={`absolute inset-0 rounded-xl transition-all duration-300 ${
+          isActive
+            ? isDark 
+              ? 'opacity-100 scale-100 bg-white/10 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]' 
+              : 'opacity-100 scale-100 bg-white/80 border border-black/10 shadow-[0_4px_20px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.8)]'
+            : 'opacity-0 scale-95'
+        } backdrop-blur-md`}
+      />
 
       <span className={`material-symbols-outlined text-xl relative z-10 ${
         isActive 
@@ -242,9 +242,11 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
       </span>
       <span className="relative z-10 flex-1">{item.label}</span>
       
-      {isActive && (
-        <span className={`relative z-10 w-2 h-2 rounded-full ${isDark ? 'bg-[#CCB8E4]' : 'bg-[#293515]'}`} />
-      )}
+      <span className={`relative z-10 w-2 h-2 rounded-full transition-all duration-300 ${
+        isActive 
+          ? isDark ? 'opacity-100 scale-100 bg-[#CCB8E4]' : 'opacity-100 scale-100 bg-[#293515]'
+          : 'opacity-0 scale-0'
+      }`} />
     </button>
   );
 };
