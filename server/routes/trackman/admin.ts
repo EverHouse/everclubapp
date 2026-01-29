@@ -15,9 +15,10 @@ const router = Router();
 
 router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => {
   try {
-    const { limit = '50', offset = '0', search = '', resolved = 'false' } = req.query;
+    const { limit = '50', offset = '0', search = '', resolved = 'false', category = '' } = req.query;
     const limitNum = Math.min(parseInt(limit as string) || 50, 100);
     const offsetNum = parseInt(offset as string) || 0;
+    const categoryFilter = (category as string).toLowerCase();
     
     let whereClause = `WHERE br.is_unmatched = true`;
     const params: any[] = [];
@@ -37,6 +38,28 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
       paramIndex++;
     }
     
+    // Category filtering
+    if (categoryFilter === 'matchable') {
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM users u 
+        WHERE LOWER(u.email) = LOWER(REGEXP_REPLACE(br.trackman_customer_notes, '.*Original email:\\s*([^,\\s]+).*', '\\1'))
+      )`;
+    } else if (categoryFilter === 'events') {
+      whereClause += ` AND (
+        br.user_name ILIKE ANY(ARRAY['%birthday%', '%event%', '%party%', '%club%'])
+        OR br.trackman_customer_notes ILIKE ANY(ARRAY['%birthday%', '%event%', '%party%', '%club%'])
+      )`;
+    } else if (categoryFilter === 'visitors') {
+      // Visitors: NOT matchable AND NOT events
+      whereClause += ` AND NOT EXISTS (
+        SELECT 1 FROM users u 
+        WHERE LOWER(u.email) = LOWER(REGEXP_REPLACE(br.trackman_customer_notes, '.*Original email:\\s*([^,\\s]+).*', '\\1'))
+      ) AND NOT (
+        br.user_name ILIKE ANY(ARRAY['%birthday%', '%event%', '%party%', '%club%'])
+        OR br.trackman_customer_notes ILIKE ANY(ARRAY['%birthday%', '%event%', '%party%', '%club%'])
+      )`;
+    }
+    
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM booking_requests br ${whereClause}`,
       params
@@ -51,12 +74,21 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
         br.start_time,
         br.end_time,
         br.resource_id,
+        br.user_name as raw_user_name,
         r.name as bay_name,
         br.staff_notes,
         br.trackman_customer_notes as notes,
         br.trackman_player_count as player_count,
         br.created_at,
-        br.updated_at
+        br.updated_at,
+        EXISTS (
+          SELECT 1 FROM users u 
+          WHERE LOWER(u.email) = LOWER(REGEXP_REPLACE(br.trackman_customer_notes, '.*Original email:\\s*([^,\\s]+).*', '\\1'))
+        ) as is_matchable,
+        (
+          br.user_name ILIKE ANY(ARRAY['%birthday%', '%event%', '%party%', '%club%'])
+          OR br.trackman_customer_notes ILIKE ANY(ARRAY['%birthday%', '%event%', '%party%', '%club%'])
+        ) as is_event
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
       ${whereClause}
@@ -78,7 +110,20 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
         matchAttemptReason = 'No matching member found in system';
       }
       
+      // Use raw_user_name if no parsed name
+      if (userName === 'Unknown' && row.raw_user_name) {
+        userName = row.raw_user_name;
+      }
+      
       const bayNumber = row.bay_name ? row.bay_name.replace(/Bay\s*/i, '') : row.resource_id;
+      
+      // Determine category
+      let bookingCategory: 'matchable' | 'events' | 'visitors' = 'visitors';
+      if (row.is_matchable) {
+        bookingCategory = 'matchable';
+      } else if (row.is_event) {
+        bookingCategory = 'events';
+      }
       
       return {
         id: row.id,
@@ -93,7 +138,8 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
         match_attempt_reason: matchAttemptReason,
         notes: row.notes,
         player_count: row.player_count,
-        created_at: row.created_at
+        created_at: row.created_at,
+        category: bookingCategory
       };
     });
     
@@ -106,6 +152,153 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
   } catch (error: any) {
     console.error('Error fetching unmatched bookings:', error);
     res.status(500).json({ error: 'Failed to fetch unmatched bookings' });
+  }
+});
+
+// Auto-resolve matchable bookings - finds unmatched bookings where original email exists in users table
+router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async (req, res) => {
+  try {
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    
+    // Find all matchable bookings with their matching user
+    const matchableResult = await pool.query(`
+      SELECT 
+        br.id as booking_id,
+        br.trackman_booking_id,
+        br.trackman_customer_notes,
+        br.request_date,
+        br.start_time,
+        br.end_time,
+        br.duration_minutes,
+        br.resource_id,
+        u.id as user_id,
+        u.email as user_email,
+        u.first_name,
+        u.last_name,
+        u.role
+      FROM booking_requests br
+      INNER JOIN users u ON LOWER(u.email) = LOWER(REGEXP_REPLACE(br.trackman_customer_notes, '.*Original email:\\s*([^,\\s]+).*', '\\1'))
+      WHERE br.is_unmatched = true
+        AND (br.user_email LIKE 'unmatched-%@%' OR br.user_email LIKE '%@trackman.local')
+      ORDER BY br.request_date DESC
+      LIMIT 100
+    `);
+    
+    if (matchableResult.rows.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: 'No matchable bookings found',
+        resolved: 0 
+      });
+    }
+    
+    let resolvedCount = 0;
+    const errors: string[] = [];
+    
+    for (const row of matchableResult.rows) {
+      try {
+        // Update booking to link to the matched user
+        await pool.query(
+          `UPDATE booking_requests 
+           SET user_id = $1, 
+               user_email = $2, 
+               user_name = $3,
+               is_unmatched = false,
+               staff_notes = COALESCE(staff_notes, '') || $4,
+               updated_at = NOW()
+           WHERE id = $5`,
+          [
+            row.user_id,
+            row.user_email,
+            `${row.first_name} ${row.last_name}`,
+            ` [Auto-resolved by ${staffEmail} on ${new Date().toISOString()}]`,
+            row.booking_id
+          ]
+        );
+        
+        resolvedCount++;
+      } catch (err: any) {
+        errors.push(`Booking ${row.trackman_booking_id}: ${err.message}`);
+      }
+    }
+    
+    await logFromRequest(req, {
+      action: 'bulk_action',
+      resourceType: 'trackman',
+      resourceId: 'auto-resolve',
+      resourceName: 'Auto-resolve matchable bookings',
+      details: { 
+        resolvedCount,
+        totalFound: matchableResult.rows.length,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Auto-resolved ${resolvedCount} matchable booking(s)`,
+      resolved: resolvedCount,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error: any) {
+    console.error('Error auto-resolving matchable bookings:', error);
+    res.status(500).json({ error: 'Failed to auto-resolve matchable bookings' });
+  }
+});
+
+// Bulk dismiss bookings as external (visitor/event) - removes from unresolved queue
+router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { bookingIds, reason = 'external_booking' } = req.body;
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    
+    if (!bookingIds || !Array.isArray(bookingIds) || bookingIds.length === 0) {
+      return res.status(400).json({ error: 'bookingIds array is required' });
+    }
+    
+    if (bookingIds.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 bookings can be dismissed at once' });
+    }
+    
+    const validReasons = ['external_booking', 'visitor', 'event', 'duplicate', 'test_data', 'other'];
+    const dismissReason = validReasons.includes(reason) ? reason : 'external_booking';
+    
+    const result = await pool.query(
+      `UPDATE booking_requests 
+       SET is_unmatched = false,
+           staff_notes = COALESCE(staff_notes, '') || $1,
+           updated_at = NOW()
+       WHERE id = ANY($2::int[])
+         AND is_unmatched = true
+       RETURNING id, trackman_booking_id`,
+      [
+        ` [Dismissed as ${dismissReason} by ${staffEmail} on ${new Date().toISOString()}]`,
+        bookingIds
+      ]
+    );
+    
+    const dismissedCount = result.rowCount || 0;
+    
+    await logFromRequest(req, {
+      action: 'bulk_action',
+      resourceType: 'trackman',
+      resourceId: 'bulk-dismiss',
+      resourceName: 'Bulk dismiss unmatched bookings',
+      details: { 
+        dismissedCount,
+        reason: dismissReason,
+        bookingIds: result.rows.map(r => r.trackman_booking_id || r.id)
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Dismissed ${dismissedCount} booking(s) as ${dismissReason}`,
+      dismissed: dismissedCount
+    });
+  } catch (error: any) {
+    console.error('Error bulk dismissing bookings:', error);
+    res.status(500).json({ error: 'Failed to dismiss bookings' });
   }
 });
 

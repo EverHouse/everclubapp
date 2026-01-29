@@ -8,18 +8,20 @@ export async function setupEmailNormalization(): Promise<void> {
       CREATE OR REPLACE FUNCTION normalize_email()
       RETURNS TRIGGER AS $$
       BEGIN
-        IF TG_TABLE_NAME = 'users' AND NEW.email IS NOT NULL THEN
-          NEW.email := LOWER(TRIM(NEW.email));
+        -- Normalize user_email column for tables that have it
+        IF TG_TABLE_NAME IN ('booking_requests', 'notifications', 'push_subscriptions') THEN
+          IF NEW.user_email IS NOT NULL THEN
+            NEW.user_email := LOWER(TRIM(NEW.user_email));
+          END IF;
         END IF;
-        IF TG_TABLE_NAME = 'booking_requests' AND NEW.user_email IS NOT NULL THEN
-          NEW.user_email := LOWER(TRIM(NEW.user_email));
+        
+        -- Normalize email column only for users table
+        IF TG_TABLE_NAME = 'users' THEN
+          IF NEW.email IS NOT NULL THEN
+            NEW.email := LOWER(TRIM(NEW.email));
+          END IF;
         END IF;
-        IF TG_TABLE_NAME = 'notifications' AND NEW.user_email IS NOT NULL THEN
-          NEW.user_email := LOWER(TRIM(NEW.user_email));
-        END IF;
-        IF TG_TABLE_NAME = 'push_subscriptions' AND NEW.user_email IS NOT NULL THEN
-          NEW.user_email := LOWER(TRIM(NEW.user_email));
-        END IF;
+        
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql;
