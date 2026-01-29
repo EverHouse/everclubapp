@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.39.7",
+    date: "2026-01-29",
+    title: "Fix Staff Activity Raw JSON Display",
+    changes: [
+      "Fixed: Staff Activity now properly parses JSON details from database",
+      "Fixed: Record Charge, Detect Duplicates, Fix Ghost Bookings now show readable text",
+      "Improved: All 40+ action types now display human-readable formatted details"
+    ]
+  },
+  {
     version: "9.39.6",
     date: "2026-01-29",
     title: "Complete Human-Readable Activity Details",

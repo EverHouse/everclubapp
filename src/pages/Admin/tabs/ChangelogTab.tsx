@@ -279,7 +279,21 @@ const ChangelogTab: React.FC = () => {
 
     const formatDetails = (entry: AuditLogEntry): string => {
         const parts: string[] = [];
-        const d = entry.details || {};
+        
+        // Parse details - handle both object and string (from database)
+        let d: Record<string, any> = {};
+        if (entry.details) {
+            if (typeof entry.details === 'string') {
+                try {
+                    d = JSON.parse(entry.details);
+                } catch {
+                    // If JSON parse fails, just return the string as-is
+                    return entry.details;
+                }
+            } else {
+                d = entry.details;
+            }
+        }
         
         // Resource name first
         if (entry.resourceName) {
