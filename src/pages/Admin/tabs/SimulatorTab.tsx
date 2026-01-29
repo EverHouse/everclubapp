@@ -1020,7 +1020,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                 const mappedBlocks: AvailabilityBlock[] = blocksData.map((b: any) => ({
                     id: b.id,
                     resourceId: b.resource_id,
-                    blockDate: b.block_date,
+                    blockDate: b.block_date?.includes('T') ? b.block_date.split('T')[0] : b.block_date,
                     startTime: b.start_time,
                     endTime: b.end_time,
                     blockType: b.block_type,
