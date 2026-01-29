@@ -153,12 +153,12 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                 <button 
                   onClick={() => handleNav('/')}
                   aria-label="Go to home"
-                  className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition-transform duration-300 rounded-full active:scale-90 hover:scale-105"
+                  className="w-14 h-14 min-w-[56px] min-h-[56px] flex items-center justify-center transition-transform duration-300 rounded-full active:scale-90 hover:scale-105"
                 >
                   <img 
                     src={isDark ? "/assets/logos/mascot-white.webp" : "/assets/logos/mascot-dark.webp"}
                     alt="Ever House"
-                    className="h-10 w-auto object-contain"
+                    className="h-14 w-auto object-contain"
                   />
                 </button>
                 <button 
