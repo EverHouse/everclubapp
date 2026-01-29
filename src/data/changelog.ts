@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.46.8",
+    date: "2026-01-29",
+    title: "Safari Browser Theme Improvements",
+    changes: [
+      "Improved: Safari toolbar now matches page background colors correctly",
+      "Fixed: Landing page toolbar transitions from dark hero to light content when scrolling",
+      "Fixed: Member and staff pages in dark mode now show proper dark toolbar color",
+      "Fixed: Removed conflicting theme-color logic for consistent Safari experience"
+    ]
+  },
+  {
     version: "9.46.7",
     date: "2026-01-29",
     title: "Smart Queue Resolution",
