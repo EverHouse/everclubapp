@@ -1210,7 +1210,7 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
         customer: customerId,
         status: 'all',
         limit: 10,
-        expand: ['data.items.data.price.product']
+        expand: ['data.items.data.price']
       });
       
       const activeSub = customerSubs.data?.find((s: any) => 
@@ -1221,9 +1221,11 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
       
       const item = activeSub.items?.data?.[0];
       const price = item?.price;
-      const product = typeof price?.product === 'object' ? price.product : null;
+      const productId = typeof price?.product === 'string' ? price.product : price?.product?.id;
       
-      if (!product) return;
+      if (!productId) return;
+      
+      const product = await stripe.products.retrieve(productId);
       
       const stripeTier = (product.metadata?.tier || '').toLowerCase().trim();
       const productName = (product.name || '').toLowerCase().trim();
