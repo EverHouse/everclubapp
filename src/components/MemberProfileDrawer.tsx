@@ -1193,7 +1193,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         credentials: 'include',
                         body: JSON.stringify({
                           primaryUserId: selected.id,
-                          secondaryUserId: member.id
+                          secondaryUserId: member.id || member.userId
                         })
                       });
                       if (res.ok) {
@@ -1355,7 +1355,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         credentials: 'include',
                         body: JSON.stringify({
                           primaryUserId: selectedMergeTarget.id,
-                          secondaryUserId: member.id
+                          secondaryUserId: member.id || member.userId
                         })
                       });
                       if (res.ok) {
