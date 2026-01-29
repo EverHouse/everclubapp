@@ -100,9 +100,9 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
   );
   const wellnessCount = parseInt(wellnessResult.rows[0]?.count || '0');
   
-  // Count event RSVPs
+  // Count event RSVPs (uses user_email column)
   const eventRsvpsResult = await pool.query(
-    `SELECT COUNT(*) as count FROM event_rsvps WHERE LOWER(member_email) = $1`,
+    `SELECT COUNT(*) as count FROM event_rsvps WHERE LOWER(user_email) = $1`,
     [secondaryEmail]
   );
   const eventRsvpsCount = parseInt(eventRsvpsResult.rows[0]?.count || '0');
@@ -121,9 +121,9 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
   );
   const memberNotesCount = parseInt(memberNotesResult.rows[0]?.count || '0');
   
-  // Count guest check-ins
+  // Count guest check-ins (uses member_email column)
   const guestCheckInsResult = await pool.query(
-    `SELECT COUNT(*) as count FROM guest_check_ins WHERE LOWER(host_email) = $1`,
+    `SELECT COUNT(*) as count FROM guest_check_ins WHERE LOWER(member_email) = $1`,
     [secondaryEmail]
   );
   const guestCheckInsCount = parseInt(guestCheckInsResult.rows[0]?.count || '0');
@@ -260,8 +260,9 @@ export async function executeMerge(
     );
     recordsMerged.wellnessBookings = wellnessResult.rowCount || 0;
     
+    // Update event RSVPs (uses user_email column)
     const eventRsvpsResult = await client.query(
-      `UPDATE event_rsvps SET member_email = $1 WHERE LOWER(member_email) = $2`,
+      `UPDATE event_rsvps SET user_email = $1 WHERE LOWER(user_email) = $2`,
       [primaryEmail, secondaryEmail]
     );
     recordsMerged.eventRsvps = eventRsvpsResult.rowCount || 0;
@@ -278,8 +279,9 @@ export async function executeMerge(
     );
     recordsMerged.memberNotes = memberNotesResult.rowCount || 0;
     
+    // Update guest check-ins (uses member_email column)
     const guestCheckInsResult = await client.query(
-      `UPDATE guest_check_ins SET host_email = $1 WHERE LOWER(host_email) = $2`,
+      `UPDATE guest_check_ins SET member_email = $1 WHERE LOWER(member_email) = $2`,
       [primaryEmail, secondaryEmail]
     );
     recordsMerged.guestCheckIns = guestCheckInsResult.rowCount || 0;
@@ -300,11 +302,13 @@ export async function executeMerge(
       [primaryEmail, secondaryEmail]
     );
     
+    // Update user_linked_emails (uses primary_email column, not user_id)
     await client.query(
-      `UPDATE user_linked_emails SET user_id = $1 WHERE user_id = $2`,
-      [primaryUserId, secondaryUserId]
+      `UPDATE user_linked_emails SET primary_email = $1 WHERE LOWER(primary_email) = $2`,
+      [primaryEmail, secondaryEmail]
     );
     
+    // Add secondary email as a linked email for the primary user
     if (secondaryEmail && secondaryEmail !== primaryEmail) {
       const existingLink = await client.query(
         `SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = $1`,
@@ -313,10 +317,10 @@ export async function executeMerge(
       
       if (existingLink.rows.length === 0) {
         await client.query(
-          `INSERT INTO user_linked_emails (user_id, linked_email, source, created_at)
+          `INSERT INTO user_linked_emails (primary_email, linked_email, source, created_at)
            VALUES ($1, $2, 'user_merge', NOW())
-           ON CONFLICT (LOWER(linked_email)) DO NOTHING`,
-          [primaryUserId, secondaryEmail]
+           ON CONFLICT (linked_email) DO NOTHING`,
+          [primaryEmail, secondaryEmail]
         );
         recordsMerged.linkedEmails++;
       }
