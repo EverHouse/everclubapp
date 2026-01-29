@@ -120,6 +120,12 @@ async function cleanupTestAccounts() {
       await pool.query('DELETE FROM push_subscriptions WHERE user_email = $1', [email.toLowerCase()]);
       await pool.query('DELETE FROM user_dismissed_notices WHERE user_email = $1', [email.toLowerCase()]);
       await pool.query('DELETE FROM day_pass_purchases WHERE purchaser_email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM magic_links WHERE email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM form_submissions WHERE email = $1', [email.toLowerCase()]);
+      await pool.query('DELETE FROM stripe_transaction_cache WHERE customer_email = $1', [email.toLowerCase()]);
+      
+      // Update event_rsvps that reference user by matched_user_id (clear the reference, don't delete)
+      await pool.query('UPDATE event_rsvps SET matched_user_id = NULL WHERE matched_user_id = $1', [userId]);
       
       // Delete the user
       await pool.query('DELETE FROM users WHERE id = $1', [userId]);
