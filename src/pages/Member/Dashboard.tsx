@@ -989,7 +989,7 @@ const Dashboard: React.FC = () => {
                             Expired
                           </span>
                         )}
-                        {!isExpired && (user?.tags || []).map((tag) => (
+                        {!isExpired && (user?.tags || []).filter((tag): tag is string => typeof tag === 'string').map((tag) => (
                           <TagBadge key={tag} tag={tag} size="sm" />
                         ))}
                         {!isExpired && !user?.tags?.length && isFoundingMember(user?.tier || '', user?.isFounding) && (
@@ -1496,7 +1496,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 {!isExpiredModal && ((user.tags || []).length > 0 || isFoundingMember(user.tier || '', user.isFounding)) && (
                   <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {(user.tags || []).map((tag) => (
+                    {(user.tags || []).filter((tag): tag is string => typeof tag === 'string').map((tag) => (
                       <TagBadge key={tag} tag={tag} size="sm" />
                     ))}
                     {!user.tags?.length && isFoundingMember(user.tier || '', user.isFounding) && (

@@ -1022,7 +1022,7 @@ const Profile: React.FC = () => {
                        </div>
                        {((user.tags || []).length > 0 || isFoundingMember(user.tier || '', user.isFounding)) && (
                          <div className="flex items-center justify-center gap-2 flex-wrap">
-                            {(user.tags || []).map((tag) => (
+                            {(user.tags || []).filter((tag): tag is string => typeof tag === 'string').map((tag) => (
                                <TagBadge key={tag} tag={tag} size="sm" />
                             ))}
                             {!user.tags?.length && isFoundingMember(user.tier || '', user.isFounding) && (

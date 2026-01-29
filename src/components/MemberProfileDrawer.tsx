@@ -870,7 +870,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     {getMemberStatusLabel(member.status)}
                   </span>
                 )}
-                {member.tags?.map(tag => (
+                {member.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                   <TagBadge key={tag} tag={tag} size="sm" />
                 ))}
               </div>

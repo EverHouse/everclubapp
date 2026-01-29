@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.46.6",
+    date: "2026-01-29",
+    title: "Tag Display Crash Fix",
+    changes: [
+      "Fixed: Member profile drawer, Dashboard, and Profile pages no longer crash when viewing merged members",
+      "Fixed: View As mode now works correctly for all members",
+      "Fixed: Tag display across all member views now properly filters merge records"
+    ]
+  },
+  {
     version: "9.46.5",
     date: "2026-01-29",
     title: "Private Event from Unmatched Bookings",
