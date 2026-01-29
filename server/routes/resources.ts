@@ -995,25 +995,52 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
     const { availabilityBlocks } = await import('../../shared/schema');
     const staffEmail = req.session?.user?.email || 'staff';
     
+    // Check for existing closures that overlap with this time/date
+    const existingClosures = await db.select()
+      .from(facilityClosures)
+      .where(and(
+        eq(facilityClosures.startDate, bookingDate),
+        eq(facilityClosures.startTime, startTime),
+        eq(facilityClosures.isActive, true)
+      ));
+    
+    // Check for existing blocks on any of these resources at this time
+    const existingBlocks = resourceIds.length > 0 ? await db.select()
+      .from(availabilityBlocks)
+      .where(and(
+        eq(availabilityBlocks.blockDate, bookingDate),
+        eq(availabilityBlocks.startTime, startTime),
+        sql`${availabilityBlocks.resourceId} IN (${sql.join(resourceIds.map(id => sql`${id}`), sql`, `)})`
+      )) : [];
+    
+    // If blocks already exist for all resources, just delete the bookings
+    const blockedResourceIds = new Set(existingBlocks.map(b => b.resourceId));
+    const unblockResourceIds = resourceIds.filter(id => !blockedResourceIds.has(id));
+    
     // Use transaction to ensure atomicity - either all succeed or all fail
     const result = await db.transaction(async (tx) => {
-      // Create facility closure
-      const [closure] = await tx.insert(facilityClosures).values({
-        title: eventTitle,
-        reason: 'Private Event',
-        noticeType: 'private_event',
-        startDate: bookingDate,
-        startTime: startTime,
-        endDate: bookingDate,
-        endTime: endTime,
-        affectedAreas: JSON.stringify(resourceIds.map(id => `bay_${id}`)),
-        isActive: true,
-        createdBy: staffEmail
-      }).returning();
+      let closure = existingClosures[0]; // Use existing closure if found
       
-      // Create availability blocks for each bay
-      if (resourceIds.length > 0 && closure) {
-        const blockValues = resourceIds.map(resourceId => ({
+      // Only create new closure if none exists for this time
+      if (!closure) {
+        const [newClosure] = await tx.insert(facilityClosures).values({
+          title: eventTitle,
+          reason: 'Private Event',
+          noticeType: 'private_event',
+          startDate: bookingDate,
+          startTime: startTime,
+          endDate: bookingDate,
+          endTime: endTime,
+          affectedAreas: JSON.stringify(resourceIds.map(id => `bay_${id}`)),
+          isActive: true,
+          createdBy: staffEmail
+        }).returning();
+        closure = newClosure;
+      }
+      
+      // Only create blocks for resources that don't already have one
+      if (unblockResourceIds.length > 0 && closure) {
+        const blockValues = unblockResourceIds.map(resourceId => ({
           resourceId,
           blockDate: bookingDate,
           startTime: startTime,
@@ -1024,7 +1051,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
           createdBy: staffEmail
         }));
         
-        await tx.insert(availabilityBlocks).values(blockValues).onConflictDoNothing();
+        await tx.insert(availabilityBlocks).values(blockValues);
       }
       
       // Delete the bookings from the queue (they're now represented as blocks)
@@ -1034,7 +1061,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
         await tx.delete(bookingRequests).where(sql`id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
       }
       
-      return { closure, bookingIds, resourceIds };
+      return { closure, bookingIds, resourceIds, reusedExistingClosure: existingClosures.length > 0, newBlocksCreated: unblockResourceIds.length };
     });
     
     // Broadcast updates after successful transaction
@@ -1058,15 +1085,30 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       trackman_booking_id,
       grouped_booking_count: result.bookingIds.length,
       resource_ids: result.resourceIds,
-      closure_id: result.closure?.id
+      closure_id: result.closure?.id,
+      reused_existing_closure: result.reusedExistingClosure,
+      new_blocks_created: result.newBlocksCreated
     });
+    
+    // Build response message based on what happened
+    let message = `Converted ${result.bookingIds.length} booking(s) to private event`;
+    if (result.reusedExistingClosure) {
+      message += ' (linked to existing closure)';
+    }
+    if (result.newBlocksCreated === 0) {
+      message += ' - all blocks already existed';
+    } else if (result.newBlocksCreated < result.resourceIds.length) {
+      message += ` - created ${result.newBlocksCreated} new block(s)`;
+    }
     
     res.json({ 
       success: true, 
-      message: `Converted ${result.bookingIds.length} booking(s) to private event block`,
+      message,
       closureId: result.closure?.id,
       convertedBookingIds: result.bookingIds,
-      resourceIds: result.resourceIds
+      resourceIds: result.resourceIds,
+      reusedExistingClosure: result.reusedExistingClosure,
+      newBlocksCreated: result.newBlocksCreated
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to mark booking as event', error, 'MARK_EVENT_ERROR');
