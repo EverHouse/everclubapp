@@ -951,7 +951,23 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
     const userName = primaryBooking.userName?.toLowerCase()?.trim();
     const bookingDate = primaryBooking.requestDate;
     const startTime = primaryBooking.startTime;
-    const endTime = primaryBooking.endTime;
+    // Calculate end time - use booking endTime or compute from duration if not available
+    let endTime = primaryBooking.endTime;
+    if (!endTime && primaryBooking.durationMinutes && startTime) {
+      const startMinutes = parseTimeToMinutes(startTime);
+      const endMinutes = startMinutes + primaryBooking.durationMinutes;
+      const endHours = Math.floor(endMinutes / 60);
+      const endMins = endMinutes % 60;
+      endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}:00`;
+    }
+    // Fallback: if still no endTime, default to 1 hour after start
+    if (!endTime && startTime) {
+      const startMinutes = parseTimeToMinutes(startTime);
+      const endMinutes = startMinutes + 60;
+      const endHours = Math.floor(endMinutes / 60);
+      const endMins = endMinutes % 60;
+      endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}:00`;
+    }
     
     let relatedBookings: any[] = [];
     if (userName && bookingDate && startTime) {
@@ -977,73 +993,80 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
     // Create a facility closure for the private event
     const eventTitle = primaryBooking.userName || 'Private Event';
     const { availabilityBlocks } = await import('../../shared/schema');
+    const staffEmail = req.session?.user?.email || 'staff';
     
-    const [closure] = await db.insert(facilityClosures).values({
-      title: eventTitle,
-      reason: 'Private Event',
-      noticeType: 'private_event',
-      startDate: bookingDate,
-      startTime: startTime,
-      endDate: bookingDate,
-      endTime: endTime,
-      affectedAreas: JSON.stringify(resourceIds.map(id => `bay_${id}`)),
-      isActive: true,
-      createdBy: req.session?.user?.email || 'staff'
-    }).returning();
-    
-    // Create availability blocks for each bay
-    if (resourceIds.length > 0 && closure) {
-      const blockValues = resourceIds.map(resourceId => ({
-        resourceId,
-        blockDate: bookingDate,
+    // Use transaction to ensure atomicity - either all succeed or all fail
+    const result = await db.transaction(async (tx) => {
+      // Create facility closure
+      const [closure] = await tx.insert(facilityClosures).values({
+        title: eventTitle,
+        reason: 'Private Event',
+        noticeType: 'private_event',
+        startDate: bookingDate,
         startTime: startTime,
+        endDate: bookingDate,
         endTime: endTime,
-        blockType: 'private_event',
-        notes: `Private Event: ${eventTitle}`,
-        closureId: closure.id,
-        createdBy: req.session?.user?.email || 'staff'
-      }));
+        affectedAreas: JSON.stringify(resourceIds.map(id => `bay_${id}`)),
+        isActive: true,
+        createdBy: staffEmail
+      }).returning();
       
-      await db.insert(availabilityBlocks).values(blockValues).onConflictDoNothing();
-    }
+      // Create availability blocks for each bay
+      if (resourceIds.length > 0 && closure) {
+        const blockValues = resourceIds.map(resourceId => ({
+          resourceId,
+          blockDate: bookingDate,
+          startTime: startTime,
+          endTime: endTime,
+          blockType: 'closure',
+          notes: `Private Event: ${eventTitle}`,
+          closureId: closure.id,
+          createdBy: staffEmail
+        }));
+        
+        await tx.insert(availabilityBlocks).values(blockValues).onConflictDoNothing();
+      }
+      
+      // Delete the bookings from the queue (they're now represented as blocks)
+      if (bookingIds.length > 0) {
+        await tx.delete(bookingMembers).where(sql`booking_id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
+        await tx.delete(bookingGuests).where(sql`booking_id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
+        await tx.delete(bookingRequests).where(sql`id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
+      }
+      
+      return { closure, bookingIds, resourceIds };
+    });
     
-    // Delete the bookings from the queue (they're now represented as blocks)
-    if (bookingIds.length > 0) {
-      // First delete related records
-      await db.delete(bookingMembers).where(sql`booking_id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
-      await db.delete(bookingGuests).where(sql`booking_id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
-      await db.delete(bookingRequests).where(sql`id IN (${sql.join(bookingIds.map(id => sql`${id}`), sql`, `)})`);
-    }
-    
+    // Broadcast updates after successful transaction
     const { broadcastToStaff, broadcastClosureUpdate } = await import('../core/websocket');
     broadcastToStaff({
       type: 'booking_updated',
       action: 'converted_to_private_event',
-      bookingIds,
-      closureId: closure?.id
+      bookingIds: result.bookingIds,
+      closureId: result.closure?.id
     });
     
-    if (closure) {
+    if (result.closure) {
       broadcastClosureUpdate({
         type: 'closure_created',
-        closureId: closure.id
+        closureId: result.closure.id
       });
     }
     
     logFromRequest(req, 'mark_booking_as_event', 'booking', primaryBooking.id.toString(), `Private Event: ${eventTitle}`, {
       booking_id: primaryBooking.id,
       trackman_booking_id,
-      grouped_booking_count: bookingIds.length,
-      resource_ids: resourceIds,
-      closure_id: closure?.id
+      grouped_booking_count: result.bookingIds.length,
+      resource_ids: result.resourceIds,
+      closure_id: result.closure?.id
     });
     
     res.json({ 
       success: true, 
-      message: `Converted ${bookingIds.length} booking(s) to private event block`,
-      closureId: closure?.id,
-      convertedBookingIds: bookingIds,
-      resourceIds
+      message: `Converted ${result.bookingIds.length} booking(s) to private event block`,
+      closureId: result.closure?.id,
+      convertedBookingIds: result.bookingIds,
+      resourceIds: result.resourceIds
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to mark booking as event', error, 'MARK_EVENT_ERROR');
