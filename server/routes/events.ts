@@ -20,7 +20,8 @@ async function createEventAvailabilityBlocks(
   endTime: string, 
   blockSimulators: boolean, 
   blockConferenceRoom: boolean,
-  createdBy?: string
+  createdBy?: string,
+  eventTitle?: string
 ): Promise<void> {
   const resourceIds: number[] = [];
   
@@ -36,12 +37,14 @@ async function createEventAvailabilityBlocks(
     }
   }
   
+  const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
+  
   for (const resourceId of resourceIds) {
     await pool.query(
       `INSERT INTO availability_blocks (resource_id, block_date, start_time, end_time, block_type, notes, created_by, event_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT DO NOTHING`,
-      [resourceId, eventDate, startTime, endTime || startTime, 'event', 'Blocked for event', createdBy || 'system', eventId]
+      [resourceId, eventDate, startTime, endTime || startTime, 'event', blockNotes, createdBy || 'system', eventId]
     );
   }
 }
@@ -57,11 +60,12 @@ async function updateEventAvailabilityBlocks(
   endTime: string, 
   blockSimulators: boolean,
   blockConferenceRoom: boolean,
-  createdBy?: string
+  createdBy?: string,
+  eventTitle?: string
 ): Promise<void> {
   await removeEventAvailabilityBlocks(eventId);
   if (blockSimulators || blockConferenceRoom) {
-    await createEventAvailabilityBlocks(eventId, eventDate, startTime, endTime, blockSimulators, blockConferenceRoom, createdBy);
+    await createEventAvailabilityBlocks(eventId, eventDate, startTime, endTime, blockSimulators, blockConferenceRoom, createdBy, eventTitle);
   }
 }
 
@@ -362,7 +366,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
     if (newBlockSimulators || newBlockConferenceRoom) {
       try {
         const userEmail = getSessionUser(req)?.email || 'system';
-        await createEventAvailabilityBlocks(createdEvent.id, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail);
+        await createEventAvailabilityBlocks(createdEvent.id, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, createdEvent.title);
       } catch (blockError) {
         if (!isProduction) console.error('Failed to create availability blocks for event:', blockError);
       }
@@ -508,22 +512,22 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     const hadAnyBlocking = previousBlockSimulators || previousBlockConferenceRoom;
     const hasAnyBlocking = newBlockSimulators || newBlockConferenceRoom;
     
+    const updatedEvent = result[0];
+    
     try {
       if (!hadAnyBlocking && hasAnyBlocking) {
         // Blocks newly enabled
-        await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail);
+        await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
       } else if (hadAnyBlocking && !hasAnyBlocking) {
         // Blocks disabled
         await removeEventAvailabilityBlocks(eventId);
       } else if (hasAnyBlocking) {
         // Blocks changed or time/date changed
-        await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail);
+        await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
       }
     } catch (blockError) {
       if (!isProduction) console.error('Failed to update availability blocks for event:', blockError);
     }
-    
-    const updatedEvent = result[0];
     logFromRequest(req, 'update_event', 'event', String(updatedEvent.id), updatedEvent.title, {
       event_date: updatedEvent.eventDate,
       start_time: updatedEvent.startTime,
