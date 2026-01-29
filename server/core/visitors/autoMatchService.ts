@@ -191,6 +191,7 @@ export async function matchBookingToPurchase(
         AND lp.linked_booking_session_id IS NULL
         AND lp.linked_at IS NULL
         AND lp.sale_date::time BETWEEN $4::time AND $5::time
+        AND (u.archived_at IS NULL OR u.id IS NULL)
       ORDER BY time_diff ASC
       LIMIT 1
     `;

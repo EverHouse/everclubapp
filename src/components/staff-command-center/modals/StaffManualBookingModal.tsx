@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ModalShell } from '../../ModalShell';
 import { MemberSearchInput, type SelectedMember } from '../../shared/MemberSearchInput';
 import { getTodayPacific, formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
+import toast from 'react-hot-toast';
 
 const TRACKMAN_PORTAL_URL = 'https://portal.trackmangolf.com/facility/RmFjaWxpdHkKZGI4YWMyN2FhLTM2YWQtNDM4ZC04MjUzLWVmOWU5NzMwMjkxZg==';
 
@@ -93,9 +94,14 @@ export function StaffManualBookingModal({
   defaultStartTime,
   defaultDate
 }: StaffManualBookingModalProps) {
+  const [mode, setMode] = useState<'member' | 'lesson'>('member');
   const [step, setStep] = useState<1 | 2>(1);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
+  
+  // Lesson helper state
+  const [lessonClientName, setLessonClientName] = useState('');
+  const [lessonCopied, setLessonCopied] = useState(false);
 
   const [resourceId, setResourceId] = useState<number | null>(defaultResourceId ?? null);
   const [requestDate, setRequestDate] = useState(defaultDate ?? getTodayPacific());
@@ -114,6 +120,7 @@ export function StaffManualBookingModal({
 
   useEffect(() => {
     if (isOpen) {
+      setMode('member');
       setStep(1);
       setHostMember(null);
       setParticipants([]);
@@ -123,6 +130,8 @@ export function StaffManualBookingModal({
       setError(null);
       setPlayerCount(1);
       setDurationMinutes(60);
+      setLessonClientName('');
+      setLessonCopied(false);
       
       setResourceId(defaultResourceId ?? null);
       setStartTime(defaultStartTime ?? '10:00');
@@ -230,6 +239,18 @@ export function StaffManualBookingModal({
     window.open(TRACKMAN_PORTAL_URL, '_blank', 'noopener,noreferrer');
   }, []);
 
+  const handleCopyLessonNotes = useCallback(async () => {
+    const text = lessonClientName.trim() ? `Lesson: ${lessonClientName.trim()}` : 'Lesson';
+    try {
+      await navigator.clipboard.writeText(text);
+      setLessonCopied(true);
+      setTimeout(() => setLessonCopied(false), 2000);
+      toast.success('Notes copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  }, [lessonClientName]);
+
   const handleSubmit = useCallback(async () => {
     if (!hostMember || !resourceId) {
       setError('Missing required booking data');
@@ -304,12 +325,126 @@ export function StaffManualBookingModal({
     <ModalShell
       isOpen={isOpen}
       onClose={handleClose}
-      title={step === 1 ? 'Create Manual Booking' : 'Complete Trackman Booking'}
+      title={mode === 'lesson' ? 'Lesson / Staff Block' : (step === 1 ? 'Create Manual Booking' : 'Complete Trackman Booking')}
       size="md"
-      overflowVisible={step === 1}
+      overflowVisible={step === 1 && mode === 'member'}
     >
-      <div className={`p-4 space-y-5 ${step === 2 ? 'max-h-[calc(100dvh-180px)] overflow-y-auto' : ''}`}>
-        {step === 1 ? (
+      <div className={`p-4 space-y-5 ${step === 2 && mode === 'member' ? 'max-h-[calc(100dvh-180px)] overflow-y-auto' : ''}`}>
+        {/* Mode Selector */}
+        <div className="flex p-1 bg-gray-100 dark:bg-white/10 rounded-lg">
+          <button
+            type="button"
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+              mode === 'member' 
+                ? 'bg-white dark:bg-white/20 shadow text-gray-900 dark:text-white' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5'
+            }`}
+            onClick={() => setMode('member')}
+          >
+            Member Booking
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
+              mode === 'lesson' 
+                ? 'bg-white dark:bg-white/20 shadow text-gray-900 dark:text-white' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5'
+            }`}
+            onClick={() => setMode('lesson')}
+          >
+            Lesson / Staff Block
+          </button>
+        </div>
+
+        {mode === 'lesson' ? (
+          /* Lesson / Staff Block Helper View */
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+              <div className="flex gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-800/50 rounded-lg h-fit">
+                  <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
+                </div>
+                <div>
+                  <h3 className="font-medium text-blue-900 dark:text-blue-100">New Workflow</h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
+                    Lessons and Staff Blocks are now handled automatically. Instead of creating a booking here, simply book in Trackman using your staff email.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Client Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={lessonClientName}
+                  onChange={(e) => setLessonClientName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 py-2.5 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-primary/20 dark:focus:ring-[#CCB8E4]/20 focus:border-primary dark:focus:border-[#CCB8E4] transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div className="border border-gray-100 dark:border-white/10 rounded-xl divide-y divide-gray-100 dark:divide-white/10 bg-white dark:bg-white/5 shadow-sm">
+                <div className="p-4 flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">1</div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Open Trackman</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Go to the Trackman booking grid.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">2</div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Create booking with your @evenhouse.club email</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">This tells the system it's a lesson/staff block, not a member booking.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">3</div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Paste the notes (optional)</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Click "Copy Notes" below, then paste into Trackman's notes field.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-sm font-bold text-green-600 dark:text-green-400 shrink-0">
+                    <span className="material-symbols-outlined text-lg">check</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">That's it!</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">The system will auto-convert it to an availability block.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCopyLessonNotes}
+                className="flex-1 py-3 px-4 bg-primary/10 dark:bg-[#CCB8E4]/20 hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 text-primary dark:text-[#CCB8E4] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined">
+                  {lessonCopied ? 'check' : 'content_copy'}
+                </span>
+                {lessonCopied ? 'Copied!' : 'Copy Notes'}
+              </button>
+              <button
+                onClick={handleOpenTrackman}
+                className="flex-1 py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined">open_in_new</span>
+                Open Trackman
+              </button>
+            </div>
+          </div>
+        ) : step === 1 ? (
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>

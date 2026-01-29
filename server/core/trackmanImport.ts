@@ -3406,3 +3406,132 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
     errors
   };
 }
+
+/**
+ * MASS CLEANUP: Converts Instructor Bookings -> Availability Blocks
+ * This converts lesson bookings (identified by staff emails or "lesson" keywords) 
+ * from booking_requests into availability_blocks so they don't appear in member history.
+ */
+export async function cleanupHistoricalLessons(dryRun = false): Promise<string[]> {
+  const logs: string[] = [];
+  const log = (msg: string) => { console.log(msg); logs.push(msg); };
+
+  log(`[Cleanup] Starting run (Dry Run: ${dryRun})...`);
+
+  // 1. Find existing bookings linked to Tim/Rebecca or containing "Lesson"
+  const lessonBookings = await db.select()
+    .from(bookingRequests)
+    .where(or(
+      ilike(bookingRequests.userEmail, '%@evenhouse.club'),
+      ilike(bookingRequests.userName, '%lesson%'),
+      ilike(bookingRequests.notes, '%lesson%'),
+      ilike(bookingRequests.userName, '%rebecca%'),
+      ilike(bookingRequests.userName, '%tim%')
+    ));
+
+  log(`[Cleanup] Found ${lessonBookings.length} bookings to convert.`);
+
+  for (const booking of lessonBookings) {
+    if (!booking.resourceId || !booking.requestDate || !booking.startTime) continue;
+
+    const endTime = booking.endTime || booking.startTime;
+
+    if (!dryRun) {
+      // Create the Block
+      const [closure] = await db.insert(facilityClosures).values({
+        resourceId: booking.resourceId,
+        startDate: booking.requestDate.toString(),
+        endDate: booking.requestDate.toString(),
+        startTime: booking.startTime,
+        endTime: endTime,
+        reason: `Lesson (Converted): ${booking.userName}`,
+        noticeType: 'private_event',
+        isActive: true,
+        createdBy: 'system_cleanup'
+      }).returning();
+
+      await db.insert(availabilityBlocks).values({
+        closureId: closure.id,
+        resourceId: booking.resourceId,
+        blockDate: booking.requestDate.toString(),
+        startTime: booking.startTime,
+        endTime: endTime,
+        reason: `Lesson - ${booking.userName}`
+      });
+
+      // Soft Delete the Booking
+      await db.update(bookingRequests)
+        .set({ status: 'cancelled', notes: (booking.notes || '') + ' [Converted to Availability Block]' })
+        .where(eq(bookingRequests.id, booking.id));
+    }
+    log(`[Cleanup] Converted Booking #${booking.id} (${booking.userName}) -> Block.`);
+  }
+
+  // 2. Clean up the Unmatched Queue
+  const unmatched = await db.select().from(trackmanUnmatchedBookings).where(sql`resolved_at IS NULL`);
+  
+  for (const item of unmatched) {
+    const isTarget = item.userName?.toLowerCase().includes('lesson') || 
+                     item.userName?.toLowerCase().includes('rebecca') ||
+                     item.userName?.toLowerCase().includes('tim');
+    
+    if (isTarget && item.bayNumber && item.bookingDate && item.startTime) {
+       const resourceIdNum = parseInt(item.bayNumber || '');
+       
+       // Skip if we can't determine a valid resource ID
+       if (!resourceIdNum || resourceIdNum <= 0) {
+         log(`[Cleanup] Skipping Unmatched Item #${item.id} - invalid bay number: ${item.bayNumber}`);
+         continue;
+       }
+       
+       if (!dryRun) {
+         // Check if this unmatched item was already converted (avoid duplicates)
+         const existingBlock = await pool.query(
+           `SELECT id FROM availability_blocks 
+            WHERE resource_id = $1 AND block_date = $2 AND start_time = $3
+            LIMIT 1`,
+           [resourceIdNum, item.bookingDate, item.startTime]
+         );
+         
+         if (existingBlock.rows.length > 0) {
+           log(`[Cleanup] Unmatched Item #${item.id} already has a block - marking resolved.`);
+           await db.update(trackmanUnmatchedBookings)
+             .set({ resolvedAt: new Date(), resolvedBy: 'cleanup_script', matchAttemptReason: 'Already converted to Block' })
+             .where(eq(trackmanUnmatchedBookings.id, item.id));
+           continue;
+         }
+         
+         // Create Block
+         const [closure] = await db.insert(facilityClosures).values({
+            resourceId: resourceIdNum,
+            startDate: item.bookingDate,
+            endDate: item.bookingDate,
+            startTime: item.startTime,
+            endTime: item.endTime || item.startTime,
+            reason: `Lesson: ${item.userName}`,
+            noticeType: 'private_event',
+            isActive: true,
+            createdBy: 'system_cleanup'
+         }).returning();
+
+         await db.insert(availabilityBlocks).values({
+            closureId: closure.id,
+            resourceId: resourceIdNum,
+            blockDate: item.bookingDate,
+            startTime: item.startTime,
+            endTime: item.endTime || item.startTime,
+            reason: `Lesson - ${item.userName}`
+         });
+         
+         // Mark as Resolved
+         await db.update(trackmanUnmatchedBookings)
+           .set({ resolvedAt: new Date(), resolvedBy: 'cleanup_script', matchAttemptReason: 'Converted to Block' })
+           .where(eq(trackmanUnmatchedBookings.id, item.id));
+       }
+       log(`[Cleanup] Unmatched Item #${item.id} -> Converted to Block.`);
+    }
+  }
+
+  log(`[Cleanup] Completed.`);
+  return logs;
+}

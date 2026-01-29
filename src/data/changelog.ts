@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.47.1",
+    date: "2026-01-29",
+    title: "Zombie User Fix & Lesson Cleanup Tool",
+    changes: [
+      "Fixed: Auto-matching no longer links new bookings to archived/merged user profiles",
+      "New: Lesson cleanup tool to retroactively convert historical lesson bookings to availability blocks",
+      "New: Staff Manual Booking modal now has 'Lesson / Staff Block' tab with streamlined workflow",
+      "Improved: Lesson cleanup tool validates bay numbers and prevents duplicate block creation"
+    ]
+  },
+  {
     version: "9.47.0",
     date: "2026-01-29",
     title: "Comprehensive System Reliability Improvements",
