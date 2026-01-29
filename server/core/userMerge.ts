@@ -107,10 +107,10 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
   );
   const eventRsvpsCount = parseInt(eventRsvpsResult.rows[0]?.count || '0');
   
-  // Count notifications
+  // Count notifications (uses user_email column)
   const notificationsResult = await pool.query(
-    `SELECT COUNT(*) as count FROM notifications WHERE user_id = $1`,
-    [secondaryUserId]
+    `SELECT COUNT(*) as count FROM notifications WHERE LOWER(user_email) = $1`,
+    [secondaryEmail]
   );
   const notificationsCount = parseInt(notificationsResult.rows[0]?.count || '0');
   
@@ -128,9 +128,9 @@ export async function previewMerge(primaryUserId: string, secondaryUserId: strin
   );
   const guestCheckInsCount = parseInt(guestCheckInsResult.rows[0]?.count || '0');
   
-  // Count usage ledger entries
+  // Count usage ledger entries (uses member_id column)
   const usageLedgerResult = await pool.query(
-    `SELECT COUNT(*) as count FROM usage_ledger WHERE user_id = $1`,
+    `SELECT COUNT(*) as count FROM usage_ledger WHERE member_id = $1`,
     [secondaryUserId]
   );
   const usageLedgerCount = parseInt(usageLedgerResult.rows[0]?.count || '0');
@@ -267,9 +267,10 @@ export async function executeMerge(
     );
     recordsMerged.eventRsvps = eventRsvpsResult.rowCount || 0;
     
+    // Update notifications (uses user_email column)
     const notificationsResult = await client.query(
-      `UPDATE notifications SET user_id = $1 WHERE user_id = $2`,
-      [primaryUserId, secondaryUserId]
+      `UPDATE notifications SET user_email = $1 WHERE LOWER(user_email) = $2`,
+      [primaryEmail, secondaryEmail]
     );
     recordsMerged.notifications = notificationsResult.rowCount || 0;
     
@@ -286,8 +287,9 @@ export async function executeMerge(
     );
     recordsMerged.guestCheckIns = guestCheckInsResult.rowCount || 0;
     
+    // Update usage ledger (uses member_id column)
     const usageLedgerResult = await client.query(
-      `UPDATE usage_ledger SET user_id = $1 WHERE user_id = $2`,
+      `UPDATE usage_ledger SET member_id = $1 WHERE member_id = $2`,
       [primaryUserId, secondaryUserId]
     );
     recordsMerged.usageLedger = usageLedgerResult.rowCount || 0;
