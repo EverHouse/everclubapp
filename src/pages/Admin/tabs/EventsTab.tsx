@@ -709,6 +709,8 @@ const EventsAdminContent: React.FC = () => {
             external_url: newItem.external_url || null,
             visibility: newItem.visibility || 'public',
             block_bookings: newItem.block_bookings || false,
+            block_simulators: newItem.block_simulators || false,
+            block_conference_room: newItem.block_conference_room || false,
         };
 
         setIsSaving(true);
