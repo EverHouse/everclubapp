@@ -743,6 +743,14 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
       client.release();
     }
   } catch (error: any) {
+    const { isConstraintError } = await import('../core/db');
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique') {
+      return res.status(409).json({ error: 'This participant may have already been added. Please refresh and try again.' });
+    }
+    if (constraint.type === 'foreign_key') {
+      return res.status(400).json({ error: 'Referenced record not found. Please refresh and try again.' });
+    }
     logAndRespond(req, res, 500, 'Failed to add participant', error);
   }
 });
@@ -952,6 +960,14 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
       client.release();
     }
   } catch (error: any) {
+    const { isConstraintError } = await import('../core/db');
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique') {
+      return res.status(409).json({ error: 'This operation may have already been completed. Please refresh and try again.' });
+    }
+    if (constraint.type === 'foreign_key') {
+      return res.status(400).json({ error: 'Referenced record not found. Please refresh and try again.' });
+    }
     logAndRespond(req, res, 500, 'Failed to remove participant', error);
   }
 });
@@ -1648,6 +1664,14 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
       participantId: newParticipant.id
     });
   } catch (error: any) {
+    const { isConstraintError } = await import('../core/db');
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique') {
+      return res.status(409).json({ error: 'This participant may have already been added. Please refresh and try again.' });
+    }
+    if (constraint.type === 'foreign_key') {
+      return res.status(400).json({ error: 'Referenced record not found. Please refresh and try again.' });
+    }
     logAndRespond(req, res, 500, 'Failed to initiate guest fee checkout', error);
   }
 });

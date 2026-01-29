@@ -907,6 +907,14 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         message: error.message 
       });
     }
+    const { isConstraintError } = await import('../../core/db');
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique') {
+      return res.status(409).json({ error: 'This booking may have already been processed. Please refresh and try again.' });
+    }
+    if (constraint.type === 'foreign_key') {
+      return res.status(400).json({ error: 'Referenced record not found. Please refresh and try again.' });
+    }
     logAndRespond(req, res, 500, 'Failed to update booking request', error);
   }
 });

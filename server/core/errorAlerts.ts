@@ -327,7 +327,16 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
 
 export async function alertOnServerError(
   error: Error,
-  context: { path?: string; method?: string; userEmail?: string; requestId?: string }
+  context: { 
+    path?: string; 
+    method?: string; 
+    userEmail?: string; 
+    requestId?: string;
+    dbErrorCode?: string;
+    dbErrorDetail?: string;
+    dbErrorTable?: string;
+    dbErrorConstraint?: string;
+  }
 ): Promise<void> {
   await sendErrorAlert({
     type: 'server_error',
@@ -336,7 +345,11 @@ export async function alertOnServerError(
     context: context.path,
     details: {
       path: context.path,
-      method: context.method
+      method: context.method,
+      dbErrorCode: context.dbErrorCode,
+      dbErrorDetail: context.dbErrorDetail,
+      dbErrorTable: context.dbErrorTable,
+      dbErrorConstraint: context.dbErrorConstraint
     },
     userEmail: context.userEmail,
     requestId: context.requestId

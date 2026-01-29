@@ -41,6 +41,10 @@ interface LogContext {
   actingAsEmail?: string;
   normalizedBookingEmail?: string;
   normalizedSessionEmail?: string;
+  dbErrorCode?: string;
+  dbErrorDetail?: string;
+  dbErrorTable?: string;
+  dbErrorConstraint?: string;
 }
 
 function formatTimestamp(): string {
@@ -160,14 +164,24 @@ export function logAndRespond(
   code?: string
 ) {
   const err = error instanceof Error ? error : new Error(String(error));
+  const errAny = error as any;
   
-  logger.error(message, {
+  const dbErrorCode = errAny?.code;
+  const dbErrorDetail = errAny?.detail;
+  const dbErrorTable = errAny?.table;
+  const dbErrorConstraint = errAny?.constraint;
+  
+  logger.error(`[API Error] ${message}`, {
     requestId: req.requestId,
     method: req.method,
     path: req.path,
     params: req.params,
     query: req.query as Record<string, any>,
     error: err,
+    dbErrorCode,
+    dbErrorDetail,
+    dbErrorTable,
+    dbErrorConstraint,
     userEmail: getSessionUser(req)?.email,
   });
   
@@ -177,7 +191,11 @@ export function logAndRespond(
         path: req.path,
         method: req.method,
         userEmail: getSessionUser(req)?.email,
-        requestId: req.requestId
+        requestId: req.requestId,
+        dbErrorCode,
+        dbErrorDetail,
+        dbErrorTable,
+        dbErrorConstraint
       }).catch(() => {});
     }).catch(() => {});
   }

@@ -4,19 +4,17 @@ export const isProduction = process.env.NODE_ENV === 'production';
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 15000,
+  connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
-  max: 8,
+  max: parseInt(process.env.DB_POOL_MAX || '20', 10),
 });
 
 pool.on('error', (err) => {
-  console.error('[Database] Unexpected pool error:', err.message);
+  console.error('[Database] Pool error:', err.message);
 });
 
 pool.on('connect', () => {
-  if (!isProduction) {
-    console.log('[Database] New client connected');
-  }
+  console.log('[Database] New client connected');
 });
 
 const RETRYABLE_ERRORS = [
@@ -35,6 +33,12 @@ function isRetryableError(error: any): boolean {
   const message = error.message || '';
   const code = error.code || '';
   return RETRYABLE_ERRORS.some(e => message.includes(e) || code === e);
+}
+
+export function isConstraintError(error: any): { type: 'unique' | 'foreign_key' | null, detail?: string } {
+  if (error?.code === '23505') return { type: 'unique', detail: error.detail };
+  if (error?.code === '23503') return { type: 'foreign_key', detail: error.detail };
+  return { type: null };
 }
 
 export async function queryWithRetry<T = any>(
@@ -63,4 +67,12 @@ export async function queryWithRetry<T = any>(
   }
   
   throw lastError;
+}
+
+export function getPoolStatus() {
+  return {
+    total: pool.totalCount,
+    idle: pool.idleCount,
+    waiting: pool.waitingCount
+  };
 }

@@ -710,6 +710,14 @@ router.post('/api/booking-requests', async (req, res) => {
       console.error('[BookingRequest] Post-commit operations failed:', postCommitError);
     }
   } catch (error: any) {
+    const { isConstraintError } = await import('../../core/db');
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique') {
+      return res.status(409).json({ error: 'This time slot may have just been booked. Please refresh and try again.' });
+    }
+    if (constraint.type === 'foreign_key') {
+      return res.status(400).json({ error: 'Referenced record not found. Please refresh and try again.' });
+    }
     logAndRespond(req, res, 500, 'Failed to create booking request', error);
   }
 });
