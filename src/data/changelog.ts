@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.42.0",
+    date: "2026-01-29",
+    title: "TrackMan Import & Email Learning System",
+    isMajor: true,
+    changes: [
+      "Added: Email learning system - when staff links an unmatched booking, system remembers email for future auto-matching",
+      "Added: CSV import now backfills webhook-created bookings instead of creating duplicates",
+      "Added: Automatic email association learning when import matches unmatched bookings",
+      "Fixed: Legacy unmatched bookings table no longer causes skipped imports",
+      "Fixed: Auto-resolves legacy entries when booking exists in main system",
+      "Improved: TrackMan import loads learned emails from user_linked_emails table",
+      "Improved: Staff can choose 'Remember this email' when resolving unmatched bookings"
+    ]
+  },
+  {
     version: "9.41.1",
     date: "2026-01-29",
     title: "Booking Availability Fix",

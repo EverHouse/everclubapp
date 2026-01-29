@@ -133,7 +133,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     const staffEmail = (req as any).session?.user?.email || 'admin';
     
     let bookingResult = await pool.query(
-      `SELECT id, trackman_booking_id, staff_notes, request_date, start_time, end_time, 
+      `SELECT id, trackman_booking_id, staff_notes, trackman_customer_notes, request_date, start_time, end_time, 
               duration_minutes, resource_id, session_id
        FROM booking_requests WHERE id = $1`,
       [id]
@@ -222,6 +222,66 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         id
       ]
     );
+    
+    let originalEmailForLearning: string | null = null;
+    if (fromLegacyTable) {
+      const legacyData = await pool.query(
+        `SELECT original_email FROM trackman_unmatched_bookings WHERE id = $1`,
+        [id]
+      );
+      if (legacyData.rows[0]?.original_email) {
+        originalEmailForLearning = legacyData.rows[0].original_email.toLowerCase().trim();
+      }
+    } else if (booking.trackman_customer_notes) {
+      const emailMatch = booking.trackman_customer_notes.match(/Original email:\s*([^\s,]+)/i);
+      if (emailMatch && emailMatch[1]) {
+        originalEmailForLearning = emailMatch[1].toLowerCase().trim();
+      }
+    }
+    
+    const PLACEHOLDER_EMAILS = [
+      'anonymous@yourgolfbooking.com',
+      'booking@evenhouse.club',
+      'bookings@evenhouse.club',
+      'tccmembership@evenhouse.club'
+    ];
+    const isPlaceholderEmail = (email: string): boolean => {
+      const normalizedEmail = email.toLowerCase().trim();
+      if (PLACEHOLDER_EMAILS.includes(normalizedEmail)) return true;
+      if (normalizedEmail.endsWith('@evenhouse.club') && normalizedEmail.length < 25) {
+        const localPart = normalizedEmail.split('@')[0];
+        if (/^[a-z]{3,12}$/.test(localPart) && !/\d/.test(localPart)) {
+          return true;
+        }
+      }
+      if (normalizedEmail.endsWith('@trackman.local') || normalizedEmail.startsWith('unmatched-')) return true;
+      return false;
+    };
+    
+    let emailLearningMessage = '';
+    if (rememberEmail && originalEmailForLearning && originalEmailForLearning.includes('@')) {
+      if (originalEmailForLearning.toLowerCase() !== member.email.toLowerCase() && 
+          !isPlaceholderEmail(originalEmailForLearning)) {
+        try {
+          const existingLink = await pool.query(
+            `SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = LOWER($1)`,
+            [originalEmailForLearning]
+          );
+          
+          if (existingLink.rows.length === 0) {
+            await pool.query(
+              `INSERT INTO user_linked_emails (primary_email, linked_email, source, created_by)
+               VALUES ($1, $2, 'staff_resolution', $3)`,
+              [member.email.toLowerCase(), originalEmailForLearning, staffEmail]
+            );
+            emailLearningMessage = ` Email ${originalEmailForLearning} learned for future auto-matching.`;
+            console.log(`[Email Learning] Linked ${originalEmailForLearning} -> ${member.email} by ${staffEmail}`);
+          }
+        } catch (linkError: any) {
+          console.error('[Email Learning] Failed to save email link:', linkError.message);
+        }
+      }
+    }
     
     let billingMessage = '';
     
@@ -480,7 +540,8 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     
     res.json({ 
       success: true, 
-      message: `Booking linked to ${member.first_name} ${member.last_name}${billingMessage}` 
+      message: `Booking linked to ${member.first_name} ${member.last_name}${billingMessage}${emailLearningMessage}`,
+      emailLearned: emailLearningMessage.length > 0 ? originalEmailForLearning : null
     });
   } catch (error: any) {
     console.error('Error resolving unmatched booking:', error);

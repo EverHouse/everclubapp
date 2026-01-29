@@ -128,7 +128,8 @@ interface TrackmanRow {
 const PLACEHOLDER_EMAILS = [
   'anonymous@yourgolfbooking.com',
   'booking@evenhouse.club',
-  'bookings@evenhouse.club'
+  'bookings@evenhouse.club',
+  'tccmembership@evenhouse.club'
 ];
 
 function isPlaceholderEmail(email: string): boolean {
@@ -140,6 +141,8 @@ function isPlaceholderEmail(email: string): boolean {
       return true;
     }
   }
+  // Also treat trackman.local and unmatched- prefixes as placeholders
+  if (normalizedEmail.endsWith('@trackman.local') || normalizedEmail.startsWith('unmatched-')) return true;
   return false;
 }
 
@@ -198,10 +201,35 @@ async function loadEmailMapping(): Promise<Map<string, string>> {
     }
     
     if (dbMappingsCount > 0) {
-      process.stderr.write(`[Trackman Import] Loaded ${dbMappingsCount} email mappings from database\n`);
+      process.stderr.write(`[Trackman Import] Loaded ${dbMappingsCount} email mappings from users.manuallyLinkedEmails\n`);
     }
   } catch (err: any) {
     process.stderr.write('[Trackman Import] Error loading DB mappings: ' + err.message + '\n');
+  }
+  
+  // Load from user_linked_emails table (staff resolutions and auto-learning)
+  try {
+    const linkedEmailsResult = await pool.query(
+      `SELECT primary_email, linked_email FROM user_linked_emails`
+    );
+    
+    let linkedCount = 0;
+    for (const row of linkedEmailsResult.rows) {
+      if (row.primary_email && row.linked_email) {
+        const normalizedLinked = row.linked_email.toLowerCase().trim();
+        const normalizedPrimary = row.primary_email.toLowerCase().trim();
+        if (!mapping.has(normalizedLinked)) {
+          mapping.set(normalizedLinked, normalizedPrimary);
+          linkedCount++;
+        }
+      }
+    }
+    
+    if (linkedCount > 0) {
+      process.stderr.write(`[Trackman Import] Loaded ${linkedCount} email mappings from user_linked_emails table\n`);
+    }
+  } catch (err: any) {
+    process.stderr.write('[Trackman Import] Error loading user_linked_emails: ' + err.message + '\n');
   }
   
   process.stderr.write(`[Trackman Import] Total email mappings: ${mapping.size}\n`);
@@ -1357,15 +1385,19 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         continue;
       }
 
-      const existingUnmatched = await db.select({ id: trackmanUnmatchedBookings.id })
+      // Check if booking exists in legacy table - if so, we'll migrate it to the new system
+      const existingUnmatched = await db.select({ 
+        id: trackmanUnmatchedBookings.id,
+        resolvedAt: trackmanUnmatchedBookings.resolvedAt
+      })
         .from(trackmanUnmatchedBookings)
         .where(eq(trackmanUnmatchedBookings.trackmanBookingId, row.bookingId))
         .limit(1);
       
-      if (existingUnmatched.length > 0) {
-        skippedRows++;
-        continue;
-      }
+      // Legacy entry exists but resolved - we can proceed (booking should exist in booking_requests)
+      // Legacy entry exists but unresolved - check booking_requests, if missing create it and auto-resolve legacy
+      const hasLegacyEntry = existingUnmatched.length > 0;
+      const legacyIsUnresolved = hasLegacyEntry && !existingUnmatched[0].resolvedAt;
 
       const parsedBayId = parseInt(row.bayNumber) || null;
 
@@ -1476,6 +1508,35 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           updateFields.userName = row.userName;
           updateFields.isUnmatched = false;
           changes.push(`member: linked ${matchedEmail}`);
+          
+          // Email learning: if original email differs from matched member email, learn the association
+          const originalEmail = row.userEmail?.toLowerCase().trim();
+          if (originalEmail && 
+              originalEmail.includes('@') && 
+              originalEmail !== matchedEmail.toLowerCase() &&
+              !isPlaceholderEmail(originalEmail)) {
+            try {
+              // Check if this email is already linked
+              const existingLink = await pool.query(
+                `SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = $1`,
+                [originalEmail]
+              );
+              
+              if (existingLink.rows.length === 0) {
+                await pool.query(
+                  `INSERT INTO user_linked_emails (primary_email, linked_email, source, created_by)
+                   VALUES ($1, $2, 'trackman_import_auto', 'system')`,
+                  [matchedEmail.toLowerCase(), originalEmail]
+                );
+                process.stderr.write(`[Email Learning] Auto-linked ${originalEmail} -> ${matchedEmail} from import\n`);
+              }
+            } catch (linkErr: any) {
+              // Non-blocking - just log
+              if (!linkErr.message?.includes('duplicate key')) {
+                process.stderr.write(`[Email Learning] Error: ${linkErr.message}\n`);
+              }
+            }
+          }
         }
         
         // Always update sync tracking fields
@@ -1574,6 +1635,22 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               isPast: !isUpcoming
             });
             process.stderr.write(`[Trackman Import] Backfilled session for webhook booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
+          }
+        }
+        
+        // Auto-resolve legacy entry if it exists - booking is now tracked in booking_requests
+        if (legacyIsUnresolved && existingUnmatched[0]) {
+          try {
+            await db.update(trackmanUnmatchedBookings)
+              .set({ 
+                resolvedAt: new Date(),
+                resolvedBy: 'trackman_import_sync',
+                notes: sql`COALESCE(notes, '') || ' [Auto-resolved: booking exists in booking_requests]'`
+              })
+              .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+            process.stderr.write(`[Trackman Import] Auto-resolved legacy entry for booking ${row.bookingId}\n`);
+          } catch (resolveErr: any) {
+            // Non-blocking
           }
         }
         
@@ -1695,6 +1772,20 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 });
                 
                 process.stderr.write(`[Trackman Import] Auto-linked Trackman ID ${row.bookingId} to existing app booking #${existing.id} (${matchedEmail}) - exact time match\n`);
+                
+                // Auto-resolve legacy entry if it exists
+                if (legacyIsUnresolved && existingUnmatched[0]) {
+                  try {
+                    await db.update(trackmanUnmatchedBookings)
+                      .set({ 
+                        resolvedAt: new Date(),
+                        resolvedBy: 'trackman_import_link',
+                        notes: sql`COALESCE(notes, '') || ' [Auto-resolved: linked to app booking]'`
+                      })
+                      .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+                  } catch (e) { /* non-blocking */ }
+                }
+                
                 linkedRows++;
                 continue;
               } else if (existing.trackmanBookingId === row.bookingId) {
@@ -1726,6 +1817,20 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   
                   process.stderr.write(`[Trackman Import] Backfilled session for matched booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
                 }
+                
+                // Auto-resolve legacy entry if it exists
+                if (legacyIsUnresolved && existingUnmatched[0]) {
+                  try {
+                    await db.update(trackmanUnmatchedBookings)
+                      .set({ 
+                        resolvedAt: new Date(),
+                        resolvedBy: 'trackman_import_existing',
+                        notes: sql`COALESCE(notes, '') || ' [Auto-resolved: booking already exists]'`
+                      })
+                      .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+                  } catch (e) { /* non-blocking */ }
+                }
+                
                 matchedRows++;
                 continue;
               } else {
@@ -1842,6 +1947,20 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               });
               
               process.stderr.write(`[Trackman Import] Auto-linked Trackman ID ${row.bookingId} to existing app booking #${existing.id} (${matchedEmail}) - time tolerance match (${existing.startTime} vs ${startTime})\n`);
+              
+              // Auto-resolve legacy entry if it exists
+              if (legacyIsUnresolved && existingUnmatched[0]) {
+                try {
+                  await db.update(trackmanUnmatchedBookings)
+                    .set({ 
+                      resolvedAt: new Date(),
+                      resolvedBy: 'trackman_import_link',
+                      notes: sql`COALESCE(notes, '') || ' [Auto-resolved: linked to app booking]'`
+                    })
+                    .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+                } catch (e) { /* non-blocking */ }
+              }
+              
               linkedRows++;
               continue;
             } else if (matchesWithinTolerance.length > 1) {
@@ -2139,6 +2258,21 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             });
           }
 
+          // Auto-resolve legacy entry if it exists - booking now tracked in booking_requests
+          if (legacyIsUnresolved && existingUnmatched[0]) {
+            try {
+              await db.update(trackmanUnmatchedBookings)
+                .set({ 
+                  resolvedAt: new Date(),
+                  resolvedBy: 'trackman_import_create',
+                  resolvedEmail: matchedEmail,
+                  notes: sql`COALESCE(notes, '') || ' [Auto-resolved: matched booking created]'`
+                })
+                .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+              process.stderr.write(`[Trackman Import] Auto-resolved legacy entry for booking ${row.bookingId} -> ${matchedEmail}\n`);
+            } catch (e) { /* non-blocking */ }
+          }
+
           matchedRows++;
         } catch (insertErr: any) {
           const errDetails = insertErr.cause?.message || insertErr.detail || insertErr.code || 'no details';
@@ -2198,21 +2332,30 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           }
         }
         
-        // Also insert into trackmanUnmatchedBookings for staff resolution UI
-        await db.insert(trackmanUnmatchedBookings).values({
-          trackmanBookingId: row.bookingId,
-          userName: row.userName,
-          originalEmail: row.userEmail,
-          bookingDate: bookingDate,
-          startTime: startTime,
-          endTime: endTime,
-          durationMinutes: row.durationMins,
-          status: normalizedStatus,
-          bayNumber: row.bayNumber,
-          playerCount: row.playerCount,
-          notes: row.notes,
-          matchAttemptReason: matchAttemptReason
-        });
+        // Also insert into trackmanUnmatchedBookings for staff resolution UI (only if not already there)
+        if (!hasLegacyEntry) {
+          try {
+            await db.insert(trackmanUnmatchedBookings).values({
+              trackmanBookingId: row.bookingId,
+              userName: row.userName,
+              originalEmail: row.userEmail,
+              bookingDate: bookingDate,
+              startTime: startTime,
+              endTime: endTime,
+              durationMinutes: row.durationMins,
+              status: normalizedStatus,
+              bayNumber: row.bayNumber,
+              playerCount: row.playerCount,
+              notes: row.notes,
+              matchAttemptReason: matchAttemptReason
+            });
+          } catch (legacyErr: any) {
+            // Ignore duplicate key errors - entry already exists
+            if (!legacyErr.message?.includes('duplicate key')) {
+              process.stderr.write(`[Trackman Import] Error creating legacy unmatched entry: ${legacyErr.message}\n`);
+            }
+          }
+        }
 
         unmatchedRows++;
       }
