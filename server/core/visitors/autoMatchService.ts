@@ -667,7 +667,8 @@ async function autoMatchBookingRequests(
   let matched = 0;
   let failed = 0;
 
-  // Get unmatched booking_requests with GolfNow indicators
+  // Get unmatched booking_requests with GolfNow/lesson/visitor indicators
+  // Check user_name, notes, staff_notes, and trackman_customer_notes for keywords
   const query = `
     SELECT 
       id, 
@@ -678,6 +679,7 @@ async function autoMatchBookingRequests(
       end_time,
       duration_minutes,
       resource_id,
+      notes,
       staff_notes,
       trackman_customer_notes,
       trackman_booking_id
@@ -686,10 +688,14 @@ async function autoMatchBookingRequests(
       AND (user_email LIKE 'unmatched-%@%' OR user_email LIKE '%@trackman.local')
       AND (
         LOWER(user_name) LIKE '%golfnow%'
+        OR LOWER(notes) LIKE '%golfnow%'
         OR LOWER(staff_notes) LIKE '%golfnow%'
         OR LOWER(trackman_customer_notes) LIKE '%golfnow%'
         OR LOWER(user_name) LIKE '%walk-in%'
         OR LOWER(user_name) LIKE '%walk in%'
+        OR LOWER(user_name) LIKE '%lesson%'
+        OR LOWER(notes) LIKE '%lesson%'
+        OR LOWER(user_name) LIKE '%anonymous%'
       )
     ORDER BY request_date DESC, start_time DESC
     LIMIT 500
@@ -702,37 +708,69 @@ async function autoMatchBookingRequests(
   for (const row of rows) {
     try {
       const isFuture = isFutureBooking(row.booking_date);
-      const userName = row.user_name || 'GolfNow Visitor';
+      const userName = row.user_name || 'Visitor';
+      const allNotes = `${row.notes || ''} ${row.staff_notes || ''} ${row.trackman_customer_notes || ''}`.toLowerCase();
+      const lowerName = userName.toLowerCase();
+      
+      // Determine visitor type based on content
+      let visitorType: VisitorType = 'guest';
+      let emailPrefix = 'visitor';
+      
+      if (lowerName.includes('golfnow') || allNotes.includes('golfnow')) {
+        visitorType = 'golfnow';
+        emailPrefix = 'golfnow';
+      } else if (lowerName.includes('lesson') || allNotes.includes('lesson')) {
+        visitorType = 'private_lesson';
+        emailPrefix = 'lesson';
+      } else if (lowerName.includes('anonymous') || allNotes.includes('anonymous')) {
+        visitorType = 'guest';
+        emailPrefix = 'anonymous';
+      } else if (lowerName.includes('walk-in') || lowerName.includes('walk in')) {
+        visitorType = 'sim_walkin';
+        emailPrefix = 'walkin';
+      }
       
       // Generate visitor email
       const dateStr = row.booking_date instanceof Date 
         ? row.booking_date.toISOString().split('T')[0].replace(/-/g, '') 
         : row.booking_date.replace(/-/g, '');
       const timeStr = (row.start_time || '12:00').replace(/:/g, '').substring(0, 4);
-      const generatedEmail = `golfnow-${dateStr}-${timeStr}@visitors.evenhouse.club`;
+      const generatedEmail = `${emailPrefix}-${dateStr}-${timeStr}@visitors.evenhouse.club`;
       
-      // Parse name
-      const nameParts = userName.split(/[,\s]+/).filter(Boolean);
-      let firstName = nameParts[0] || 'GolfNow';
-      let lastName = nameParts.slice(1).join(' ') || 'Visitor';
+      // Parse name - extract actual person name from booking name if possible
+      let firstName = 'Visitor';
+      let lastName = '';
       
-      // Handle "Last, First" format
-      if (userName.includes(',')) {
-        lastName = nameParts[0] || 'Visitor';
-        firstName = nameParts.slice(1).join(' ') || 'GolfNow';
+      // Try to extract real name (e.g., "Beginner Group Lesson Tim Silverman" -> "Tim Silverman")
+      const nameMatch = userName.match(/(?:lesson|group|private|beginner|advanced)\s+(.+)/i);
+      if (nameMatch) {
+        const extractedName = nameMatch[1].trim();
+        const parts = extractedName.split(/\s+/);
+        firstName = parts[0] || 'Visitor';
+        lastName = parts.slice(1).join(' ') || '';
+      } else {
+        const nameParts = userName.split(/[,\s]+/).filter(Boolean);
+        firstName = nameParts[0] || 'Visitor';
+        lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Handle "Last, First" format
+        if (userName.includes(',')) {
+          lastName = nameParts[0] || '';
+          firstName = nameParts.slice(1).join(' ') || 'Visitor';
+        }
       }
       
       // Create visitor
       const visitor = await upsertVisitor({
         email: generatedEmail,
         firstName,
-        lastName
+        lastName: lastName || 'Visitor'
       }, false);
       
       // Update visitor type
       await updateVisitorType({
         email: generatedEmail,
-        type: 'golfnow',
+        type: visitorType,
         activitySource: 'trackman_auto_match',
         activityDate: new Date(row.booking_date)
       });
@@ -799,7 +837,7 @@ async function autoMatchBookingRequests(
         visitor.id,
         generatedEmail,
         sessionId,
-        ` [Auto-matched to GolfNow visitor by ${staffEmail || 'system'}]`
+        ` [Auto-matched to ${visitorType} visitor by ${staffEmail || 'system'}]`
       ]);
       
       results.push({
@@ -807,7 +845,7 @@ async function autoMatchBookingRequests(
         matched: true,
         matchType: 'golfnow_fallback',
         visitorEmail: generatedEmail,
-        visitorType: 'golfnow',
+        visitorType: visitorType,
         sessionId: sessionId || undefined
       });
       matched++;
