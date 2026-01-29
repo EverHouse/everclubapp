@@ -846,6 +846,17 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       });
     }
     
+    // Notify staff about unmatched booking (no customer email in webhook)
+    await notifyStaffBookingCreated(
+      'unmatched',
+      normalized.customerName || 'Unknown',
+      undefined,
+      startParsed.date,
+      startParsed.time,
+      normalized.bayName,
+      unmatchedResult.bookingId
+    );
+    
     return { success: true, matchedBookingId: unmatchedResult.bookingId };
   }
   
@@ -989,6 +1000,17 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
           action: 'created',
           bookingId: unmatchedResult.bookingId
         });
+        
+        // Notify staff about unmatched booking (bay not mapped)
+        await notifyStaffBookingCreated(
+          'unmatched',
+          normalized.customerName || 'Unknown',
+          normalized.customerEmail,
+          startParsed.date,
+          startParsed.time,
+          undefined,  // No bay name since bay wasn't mapped
+          unmatchedResult.bookingId
+        );
       }
       
       return { success: true, matchedBookingId };

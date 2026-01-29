@@ -2097,6 +2097,14 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
         type: 'membership_past_due',
       }, { sendPush: true });
 
+      // Notify staff about subscription going unpaid/suspended
+      await notifyAllStaff(
+        'Membership Suspended - Unpaid',
+        `${memberName} (${email}) subscription is unpaid and has been suspended.`,
+        'membership_past_due',
+        { sendPush: true, sendWebSocket: true }
+      );
+
       console.log(`[Stripe Webhook] Unpaid notification sent to ${email}`);
       
       // Sync suspended status to HubSpot
@@ -2228,6 +2236,14 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       message: 'Your membership has been cancelled. We hope to see you again soon.',
       type: 'membership_cancelled',
     });
+
+    // Notify staff about membership cancellation
+    await notifyAllStaff(
+      'Membership Cancelled',
+      `${memberName} (${email}) has cancelled their membership.`,
+      'membership_cancelled',
+      { sendPush: true, sendWebSocket: true }
+    );
 
     broadcastBillingUpdate({
       action: 'subscription_cancelled',

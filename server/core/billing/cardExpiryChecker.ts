@@ -1,6 +1,6 @@
 import { getStripeClient } from '../stripe/client';
 import { pool } from '../db';
-import { notifyMember } from '../notificationService';
+import { notifyMember, notifyAllStaff } from '../notificationService';
 import { sendCardExpiringEmail } from '../../emails/membershipEmails';
 
 interface CheckExpiringCardsResult {
@@ -98,6 +98,14 @@ export async function checkExpiringCards(): Promise<CheckExpiringCardsResult> {
               type: 'card_expiring',
               url: '/profile'
             });
+
+            // Notify staff about expiring card
+            await notifyAllStaff(
+              'Member Card Expiring',
+              `${memberName} (${userEmail}) has a card ending in ${cardLast4} expiring ${String(expMonth).padStart(2, '0')}/${expYear}.`,
+              'card_expiring',
+              { sendPush: false, sendWebSocket: true }
+            );
 
             result.notified++;
           }
