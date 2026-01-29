@@ -15,13 +15,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "9.44.1",
     date: "2026-01-29",
-    title: "Duplicate Visitor Cleanup & Desktop Queue Stats",
+    title: "Duplicate Visitor Cleanup & Queue Stats Layout",
     changes: [
       "Fixed: Merged 139 duplicate visitor records (same name, multiple date-based emails)",
       "Fixed: Reassigned 157 bookings from duplicate visitors to primary records",
-      "New: Desktop dashboard shows queue stats below header (pending requests + needs assignment)",
-      "Improved: Queue stats are clickable buttons that navigate to Simulator tab",
-      "Improved: Mobile keeps compact pending indicator in header"
+      "Fixed: Queue stats text (pending, unassigned, need review) now appears below header instead of inline",
+      "Improved: Queue header row is cleaner with just title and action buttons"
     ]
   },
   {

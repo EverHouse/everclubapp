@@ -1853,20 +1853,12 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-b-xl" />
                         <div className="space-y-6 p-5 animate-slide-up-stagger h-full overflow-y-auto pb-10" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                     <div className="animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-bold text-primary dark:text-white flex items-center gap-2">
-                                <span aria-hidden="true" className="material-symbols-outlined text-yellow-500">pending</span>
-                                Queue ({queueItems.length})
-                                {queueItems.length > 0 && (
-                                    <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
-                                        {pendingRequests.length > 0 && `${pendingRequests.length} pending`}
-                                        {pendingRequests.length > 0 && (unmatchedWebhookBookings.length > 0 || requiresReviewQueueItems.length > 0) && ', '}
-                                        {unmatchedWebhookBookings.length > 0 && `${unmatchedWebhookBookings.length} unassigned`}
-                                        {unmatchedWebhookBookings.length > 0 && requiresReviewQueueItems.length > 0 && ', '}
-                                        {requiresReviewQueueItems.length > 0 && `${requiresReviewQueueItems.length} need review`}
-                                    </span>
-                                )}
-                            </h3>
+                        <div className="flex flex-col gap-2 mb-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-bold text-primary dark:text-white flex items-center gap-2">
+                                    <span aria-hidden="true" className="material-symbols-outlined text-yellow-500">pending</span>
+                                    Queue ({queueItems.length})
+                                </h3>
                             <div className="flex items-center gap-2">
                                 {(unmatchedWebhookBookings.length > 0 || requiresReviewQueueItems.length > 0) && (
                                     <button
@@ -1944,6 +1936,16 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     <span>Import</span>
                                 </button>
                             </div>
+                            </div>
+                            {queueItems.length > 0 && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {pendingRequests.length > 0 && `${pendingRequests.length} pending`}
+                                    {pendingRequests.length > 0 && (unmatchedWebhookBookings.length > 0 || requiresReviewQueueItems.length > 0) && ', '}
+                                    {unmatchedWebhookBookings.length > 0 && `${unmatchedWebhookBookings.length} unassigned`}
+                                    {unmatchedWebhookBookings.length > 0 && requiresReviewQueueItems.length > 0 && ', '}
+                                    {requiresReviewQueueItems.length > 0 && `${requiresReviewQueueItems.length} need review`}
+                                </p>
+                            )}
                         </div>
                         {queueItems.length === 0 ? (
                             <div className="py-8 text-center border-2 border-dashed border-gray-200 dark:border-white/25 rounded-xl">
