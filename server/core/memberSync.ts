@@ -117,6 +117,14 @@ interface HubSpotContact {
     zip?: string;
     // Date of birth (synced from Mindbody via HubSpot)
     date_of_birth?: string;
+    // Stripe delinquent status (synced from Stripe via HubSpot)
+    stripe_delinquent?: string;
+    // Granular SMS preferences
+    hs_sms_promotional?: string;
+    hs_sms_customer_updates?: string;
+    hs_sms_reminders?: string;
+    // Merged contact IDs (for linked emails)
+    hs_merged_object_ids?: string;
   };
 }
 
@@ -213,7 +221,15 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
       'state',
       'zip',
       // Date of birth (synced from Mindbody via HubSpot)
-      'date_of_birth'
+      'date_of_birth',
+      // Stripe delinquent status (synced from Stripe via HubSpot)
+      'stripe_delinquent',
+      // Granular SMS preferences
+      'hs_sms_promotional',
+      'hs_sms_customer_updates',
+      'hs_sms_reminders',
+      // Merged contact IDs (for linked emails)
+      'hs_merged_object_ids'
     ];
     
     let allContacts: HubSpotContact[] = [];
@@ -317,6 +333,14 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           const smsOptIn = parseOptIn(contact.properties.eh_sms_updates_opt_in);
           const { firstName, lastName } = getNameFromContact(contact);
           
+          // Granular SMS preferences from HubSpot
+          const smsPromoOptIn = parseOptIn(contact.properties.hs_sms_promotional);
+          const smsTransactionalOptIn = parseOptIn(contact.properties.hs_sms_customer_updates);
+          const smsRemindersOptIn = parseOptIn(contact.properties.hs_sms_reminders);
+          
+          // Stripe delinquent status (comes as "true"/"false" string)
+          const stripeDelinquent = parseOptIn(contact.properties.stripe_delinquent);
+          
           const existingUser = await db.select({ 
             membershipStatus: users.membershipStatus,
             lastHubspotNotesHash: users.lastHubspotNotesHash
@@ -359,6 +383,10 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               joinDate,
               emailOptIn,
               smsOptIn,
+              smsPromoOptIn,
+              smsTransactionalOptIn,
+              smsRemindersOptIn,
+              stripeDelinquent,
               streetAddress,
               city,
               state,
@@ -383,6 +411,10 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
                 emailOptIn: emailOptIn !== null ? emailOptIn : sql`${users.emailOptIn}`,
                 smsOptIn: smsOptIn !== null ? smsOptIn : sql`${users.smsOptIn}`,
+                smsPromoOptIn: smsPromoOptIn !== null ? smsPromoOptIn : sql`${users.smsPromoOptIn}`,
+                smsTransactionalOptIn: smsTransactionalOptIn !== null ? smsTransactionalOptIn : sql`${users.smsTransactionalOptIn}`,
+                smsRemindersOptIn: smsRemindersOptIn !== null ? smsRemindersOptIn : sql`${users.smsRemindersOptIn}`,
+                stripeDelinquent: stripeDelinquent !== null ? stripeDelinquent : sql`${users.stripeDelinquent}`,
                 streetAddress: sql`COALESCE(${streetAddress}, ${users.streetAddress})`,
                 city: sql`COALESCE(${city}, ${users.city})`,
                 state: sql`COALESCE(${state}, ${users.state})`,

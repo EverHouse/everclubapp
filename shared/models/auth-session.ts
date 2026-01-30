@@ -44,6 +44,12 @@ export const users = pgTable("users", {
   trackmanEmail: varchar("trackman_email"),
   emailOptIn: boolean("email_opt_in"),
   smsOptIn: boolean("sms_opt_in"),
+  // Granular SMS preferences (synced from HubSpot)
+  smsPromoOptIn: boolean("sms_promo_opt_in"),
+  smsTransactionalOptIn: boolean("sms_transactional_opt_in"),
+  smsRemindersOptIn: boolean("sms_reminders_opt_in"),
+  // Stripe delinquent status (synced from HubSpot)
+  stripeDelinquent: boolean("stripe_delinquent"),
   doNotSellMyInfo: boolean("do_not_sell_my_info").default(false),
   dataExportRequestedAt: timestamp("data_export_requested_at"),
   waiverVersion: varchar("waiver_version"),
