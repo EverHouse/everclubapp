@@ -1324,15 +1324,23 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
       // -----------------------------------------------------------------------
       const notesLower = (row.notes || '').toLowerCase();
       const userNameLower = (row.userName || '').toLowerCase();
-      const userEmailLower = (row.userEmail || '').toLowerCase();
+      const userEmailLower = (row.userEmail || '').toLowerCase().trim();
+      
+      // CRITICAL: Resolve email aliases BEFORE checking if they're an instructor
+      // This handles cases like rebecca.bentham@evenhouse.club -> rebecca@evenhouse.club
+      const resolvedEmail = emailMapping.get(userEmailLower) || 
+                           trackmanEmailMapping.get(userEmailLower) || 
+                           userEmailLower;
       
       const isStaffLesson = 
-        // 1. Check for specific instructor emails (dynamically loaded from staff_users)
+        // 1. Check resolved email against instructor list (handles aliases)
+        INSTRUCTOR_EMAILS.includes(resolvedEmail.toLowerCase()) ||
+        // 2. Also check raw email as fallback
         INSTRUCTOR_EMAILS.includes(userEmailLower) ||
-        // 2. Check for lesson keywords in notes
+        // 3. Check for lesson keywords in notes
         notesLower.includes('lesson') ||
         notesLower.includes('private instruction') ||
-        // 3. Check for lesson keywords in userName
+        // 4. Check for lesson keywords in userName
         userNameLower.includes('lesson');
       
       if (isStaffLesson && row.status.toLowerCase() !== 'cancelled' && row.status.toLowerCase() !== 'canceled') {
@@ -3256,11 +3264,13 @@ export async function getImportRuns() {
 export async function rescanUnmatchedBookings(performedBy: string = 'system'): Promise<{
   scanned: number;
   matched: number;
+  lessonsConverted: number;
   resolved: { trackmanId: string; memberEmail: string; matchReason: string }[];
   errors: string[];
 }> {
   const resolved: { trackmanId: string; memberEmail: string; matchReason: string }[] = [];
   const errors: string[] = [];
+  let lessonsConverted = 0;
   
   // Fetch all unresolved unmatched bookings
   const unmatchedBookings = await db.select()
@@ -3268,10 +3278,14 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
     .where(sql`resolved_at IS NULL`);
   
   if (unmatchedBookings.length === 0) {
-    return { scanned: 0, matched: 0, resolved: [], errors: [] };
+    return { scanned: 0, matched: 0, lessonsConverted: 0, resolved: [], errors: [] };
   }
   
   process.stderr.write(`[Trackman Rescan] Starting rescan of ${unmatchedBookings.length} unmatched bookings\n`);
+  
+  // Fetch golf instructor emails for lesson detection
+  const instructorEmails = await getGolfInstructorEmails();
+  process.stderr.write(`[Trackman Rescan] Loaded ${instructorEmails.length} golf instructor emails for lesson detection\n`);
   
   // Fetch all members (active + former) from HubSpot for matching
   const hubSpotMembers = await getAllHubSpotMembers();
@@ -3329,10 +3343,105 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
   
   for (const booking of unmatchedBookings) {
     try {
-      let matchedEmail: string | null = null;
-      let matchReason = '';
       const originalEmail = booking.originalEmail || '';
       const userName = booking.userName || '';
+      const notes = booking.notes || '';
+      
+      // CRITICAL: Resolve email aliases BEFORE checking if they're an instructor
+      // This handles cases like rebecca.bentham@evenhouse.club -> rebecca@evenhouse.club
+      const rawEmailLower = originalEmail.toLowerCase().trim();
+      const resolvedEmail = emailMapping.get(rawEmailLower) || 
+                           trackmanEmailMapping.get(rawEmailLower) || 
+                           rawEmailLower;
+      
+      // Check if this is a golf instructor lesson booking BEFORE member matching
+      const isInstructorEmail = resolvedEmail && (
+        instructorEmails.includes(resolvedEmail.toLowerCase()) ||
+        instructorEmails.includes(rawEmailLower)
+      );
+      const containsLessonKeyword = userName.toLowerCase().includes('lesson') || notes.toLowerCase().includes('lesson');
+      
+      if (isInstructorEmail || containsLessonKeyword) {
+        // This is a lesson booking - convert to availability block
+        const resourceId = parseInt(booking.bayNumber || '') || null;
+        const bookingDate = booking.bookingDate ? 
+          (booking.bookingDate instanceof Date ? booking.bookingDate.toISOString().split('T')[0] : booking.bookingDate) : null;
+        const startTime = booking.startTime?.toString() || null;
+        const endTime = booking.endTime?.toString() || startTime;
+        
+        if (resourceId && resourceId > 0 && bookingDate && startTime) {
+          // Check if block already exists for this time slot
+          const existingBlock = await pool.query(`
+            SELECT ab.id FROM availability_blocks ab
+            JOIN facility_closures fc ON ab.closure_id = fc.id
+            WHERE ab.resource_id = $1
+              AND ab.block_date = $2
+              AND ab.start_time < $4::time
+              AND ab.end_time > $3::time
+              AND fc.notice_type = 'private_event'
+              AND fc.is_active = true
+            LIMIT 1
+          `, [resourceId, bookingDate, startTime, endTime]);
+          
+          if (existingBlock.rows.length === 0) {
+            // Create facility closure and availability block
+            const closureTitle = `Lesson: ${userName || 'Unknown'}`;
+            const closureReason = `Lesson (Converted from Rescan): ${userName || 'Unknown'} [TM:${booking.trackmanBookingId || booking.id}]`;
+            
+            const closureResult = await pool.query(`
+              INSERT INTO facility_closures 
+                (title, start_date, end_date, start_time, end_time, reason, notice_type, is_active, created_by)
+              VALUES ($1, $2, $2, $3, $4, $5, 'private_event', true, $6)
+              RETURNING id
+            `, [
+              closureTitle,
+              bookingDate,
+              startTime,
+              endTime,
+              closureReason,
+              performedBy
+            ]);
+            
+            await pool.query(`
+              INSERT INTO availability_blocks 
+                (closure_id, resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+              VALUES ($1, $2, $3, $4, $5, 'blocked', $6, $7)
+            `, [
+              closureResult.rows[0].id,
+              resourceId,
+              bookingDate,
+              startTime,
+              endTime,
+              `Lesson - ${userName || 'Unknown'}`,
+              performedBy
+            ]);
+            
+            process.stderr.write(`[Trackman Rescan] Created availability block for lesson: ${userName} on ${bookingDate} ${startTime}-${endTime}\n`);
+          } else {
+            process.stderr.write(`[Trackman Rescan] Block already exists for lesson: ${userName} on ${bookingDate} ${startTime}-${endTime}\n`);
+          }
+          
+          // Mark unmatched booking as resolved
+          await db.update(trackmanUnmatchedBookings)
+            .set({
+              resolvedAt: new Date(),
+              resolvedBy: performedBy,
+              matchAttemptReason: 'Converted to Availability Block (Lesson)'
+            })
+            .where(eq(trackmanUnmatchedBookings.id, booking.id));
+          
+          lessonsConverted++;
+          process.stderr.write(`[Trackman Rescan] Converted lesson booking: ${userName} (${originalEmail || 'no email'}) -> Availability Block\n`);
+        } else {
+          process.stderr.write(`[Trackman Rescan] Skipping lesson ${booking.trackmanBookingId}: missing resource/date/time (bay=${resourceId}, date=${bookingDate}, time=${startTime})\n`);
+        }
+        
+        // Skip normal member matching for lesson bookings
+        continue;
+      }
+      
+      let matchedEmail: string | null = null;
+      let matchReason = '';
       
       // Try email mapping first
       if (originalEmail) {
@@ -3476,11 +3585,12 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
     }
   }
   
-  process.stderr.write(`[Trackman Rescan] Completed: scanned ${unmatchedBookings.length}, matched ${matchedCount}\n`);
+  process.stderr.write(`[Trackman Rescan] Completed: scanned ${unmatchedBookings.length}, matched ${matchedCount}, lessons converted ${lessonsConverted}\n`);
   
   return {
     scanned: unmatchedBookings.length,
     matched: matchedCount,
+    lessonsConverted,
     resolved,
     errors
   };

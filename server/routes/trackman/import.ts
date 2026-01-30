@@ -116,14 +116,18 @@ router.post('/api/admin/trackman/rescan', isStaffOrAdmin, async (req, res) => {
       action: 'trackman_rescan',
       resourceType: 'trackman_booking',
       resourceName: 'Unmatched Bookings Rescan',
-      details: { matched: result.matched, unmatched: result.stillUnmatched }
+      details: { matched: result.matched, lessonsConverted: result.lessonsConverted, scanned: result.scanned }
     });
+    
+    // Build message based on what happened
+    const parts: string[] = [];
+    if (result.matched > 0) parts.push(`Matched ${result.matched} booking(s) to members`);
+    if (result.lessonsConverted > 0) parts.push(`Converted ${result.lessonsConverted} lesson(s) to availability blocks`);
+    const message = parts.length > 0 ? parts.join('. ') : 'No new matches or lessons found';
     
     res.json({
       success: true,
-      message: result.matched > 0 
-        ? `Matched ${result.matched} previously unmatched bookings`
-        : 'No new matches found',
+      message,
       ...result
     });
   } catch (error: any) {

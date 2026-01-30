@@ -757,6 +757,128 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
   }
 });
 
+router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { originalEmail, memberEmail, excludeTrackmanId } = req.body;
+    
+    if (!originalEmail) {
+      return res.status(400).json({ error: 'originalEmail is required' });
+    }
+    
+    const resolveToEmail = memberEmail || null;
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+    
+    const unmatchedResult = await pool.query(
+      `SELECT id, trackman_booking_id, user_name, original_email, booking_date, 
+              start_time, end_time, duration_minutes, bay_number, notes
+       FROM trackman_unmatched_bookings 
+       WHERE LOWER(TRIM(original_email)) = LOWER(TRIM($1)) 
+         AND resolved_at IS NULL
+         AND ($2::text IS NULL OR trackman_booking_id != $2)`,
+      [originalEmail, excludeTrackmanId || null]
+    );
+    
+    if (unmatchedResult.rows.length === 0) {
+      return res.json({ success: true, autoResolved: 0, message: 'No additional bookings to auto-resolve' });
+    }
+    
+    let autoResolved = 0;
+    const errors: string[] = [];
+    
+    for (const booking of unmatchedResult.rows) {
+      try {
+        let targetEmail = resolveToEmail;
+        
+        if (!targetEmail) {
+          const emailMappingResult = await pool.query(
+            `SELECT u.email FROM users u
+             JOIN user_linked_emails ule ON u.id = ule.user_id
+             WHERE LOWER(ule.linked_email) = LOWER($1)
+             LIMIT 1`,
+            [originalEmail]
+          );
+          
+          if (emailMappingResult.rows.length > 0) {
+            targetEmail = emailMappingResult.rows[0].email;
+          }
+        }
+        
+        if (!targetEmail) continue;
+        
+        const memberResult = await pool.query(
+          `SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
+          [targetEmail]
+        );
+        
+        if (memberResult.rows.length === 0) continue;
+        
+        const member = memberResult.rows[0];
+        let resourceId = 1;
+        if (booking.bay_number) {
+          const bayNum = parseInt(booking.bay_number.replace(/\D/g, ''));
+          if (bayNum >= 1 && bayNum <= 4) resourceId = bayNum;
+        }
+        
+        await pool.query(
+          `INSERT INTO booking_requests (
+            user_id, user_email, user_name, resource_id, request_date, start_time, end_time,
+            duration_minutes, status, trackman_booking_id, is_unmatched, staff_notes, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', $9, false, $10, NOW(), NOW())
+          ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+            user_id = EXCLUDED.user_id,
+            user_email = EXCLUDED.user_email,
+            user_name = EXCLUDED.user_name,
+            is_unmatched = false,
+            staff_notes = booking_requests.staff_notes || ' ' || EXCLUDED.staff_notes,
+            updated_at = NOW()
+          RETURNING id`,
+          [
+            member.id,
+            member.email,
+            `${member.first_name} ${member.last_name}`,
+            resourceId,
+            booking.booking_date,
+            booking.start_time,
+            booking.end_time,
+            booking.duration_minutes || 60,
+            booking.trackman_booking_id,
+            `[Auto-resolved from same email by ${staffEmail}] ${booking.notes || ''}`
+          ]
+        );
+        
+        await pool.query(
+          `UPDATE trackman_unmatched_bookings SET resolved_at = NOW(), resolved_email = $1, resolved_by = $2 WHERE id = $3`,
+          [member.email, staffEmail, booking.id]
+        );
+        
+        autoResolved++;
+      } catch (bookingErr: any) {
+        errors.push(`Booking ${booking.id}: ${bookingErr.message}`);
+      }
+    }
+    
+    if (autoResolved > 0) {
+      await logFromRequest(req, {
+        action: 'trackman_auto_resolve',
+        resourceType: 'booking',
+        resourceName: `Auto-resolved ${autoResolved} bookings`,
+        details: { originalEmail, autoResolved, errors: errors.length > 0 ? errors : undefined }
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      autoResolved,
+      message: autoResolved > 0 
+        ? `Auto-resolved ${autoResolved} additional booking(s) with same email`
+        : 'No additional bookings to auto-resolve'
+    });
+  } catch (error: any) {
+    console.error('Error auto-resolving bookings:', error);
+    res.status(500).json({ error: error.message || 'Failed to auto-resolve bookings' });
+  }
+});
+
 router.delete('/api/admin/trackman/linked-email', isStaffOrAdmin, async (req, res) => {
   try {
     const { memberEmail, linkedEmail } = req.body;

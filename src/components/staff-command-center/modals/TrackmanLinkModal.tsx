@@ -15,7 +15,7 @@ interface TrackmanLinkModalProps {
   currentMemberName?: string;
   currentMemberEmail?: string;
   isRelink?: boolean;
-  onSuccess?: (options?: { markedAsEvent?: boolean }) => void;
+  onSuccess?: (options?: { markedAsEvent?: boolean; memberEmail?: string; memberName?: string }) => void;
   onOpenBillingModal?: (bookingId: number) => void;
   importedName?: string;
   notes?: string;
@@ -398,7 +398,7 @@ export function TrackmanLinkModal({
       } else {
         showToast(`Booking assigned with ${filledSlotsCount} player${filledSlotsCount > 1 ? 's' : ''}${guestCount > 0 ? ` (${guestCount} guest${guestCount > 1 ? 's' : ''})` : ''}`, 'success');
       }
-      onSuccess?.();
+      onSuccess?.({ memberEmail: owner.email, memberName: owner.name });
       onClose();
       
       if (feesRecalculated && resultBookingId && onOpenBillingModal) {

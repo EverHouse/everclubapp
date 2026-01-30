@@ -8,6 +8,7 @@ import ModalShell from '../../../components/ModalShell';
 import PullToRefresh from '../../../components/PullToRefresh';
 import BookingMembersEditor from '../../../components/admin/BookingMembersEditor';
 import RosterManager from '../../../components/booking/RosterManager';
+import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 
 const formatTime12Hour = (time: string | null | undefined): string => {
   if (!time) return '';
@@ -86,7 +87,7 @@ const TrackmanTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
-  const [resolveModal, setResolveModal] = useState<{ booking: any; memberEmail: string; rememberEmail: boolean } | null>(null);
+  const [assignPlayersModal, setAssignPlayersModal] = useState<{ booking: any; isOpen: boolean } | null>(null);
   const [editMatchedModal, setEditMatchedModal] = useState<{ booking: any; newMemberEmail: string } | null>(null);
   const [managePlayersModal, setManagePlayersModal] = useState<{ 
     bookingId: number;
@@ -116,9 +117,6 @@ const TrackmanTab: React.FC = () => {
   const [viewDetailBooking, setViewDetailBooking] = useState<any>(null);
   const [isRescanning, setIsRescanning] = useState(false);
   const [rescanResult, setRescanResult] = useState<any>(null);
-  const [showCreateVisitor, setShowCreateVisitor] = useState(false);
-  const [newVisitorData, setNewVisitorData] = useState({ firstName: '', lastName: '', email: '', phone: '' });
-  const [isCreatingVisitor, setIsCreatingVisitor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unmatchedSectionRef = useRef<HTMLDivElement>(null);
   const matchedSectionRef = useRef<HTMLDivElement>(null);
@@ -587,111 +585,6 @@ const TrackmanTab: React.FC = () => {
     }
   };
 
-  const handleResolve = async () => {
-    if (!resolveModal) return;
-    try {
-      const res = await fetch(`/api/admin/trackman/unmatched/${resolveModal.booking.id}/resolve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ memberEmail: resolveModal.memberEmail })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const originalEmail = resolveModal.booking?.originalEmail || resolveModal.booking?.original_email;
-        const shouldRemember = resolveModal.rememberEmail && originalEmail && 
-          originalEmail.toLowerCase() !== resolveModal.memberEmail.toLowerCase();
-        
-        if (shouldRemember) {
-          try {
-            await fetch('/api/admin/linked-emails', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                primaryEmail: resolveModal.memberEmail,
-                linkedEmail: originalEmail
-              })
-            });
-          } catch (linkErr) {
-            console.warn('Failed to save email link:', linkErr);
-          }
-        }
-        
-        setResolveModal(null);
-        if (data.autoResolved > 0) {
-          showToast(`Resolved ${data.resolved} booking(s) (${data.autoResolved} auto-resolved with same email)`, 'success', 5000);
-        } else {
-          showToast('Booking resolved successfully', 'success');
-        }
-        await new Promise(resolve => setTimeout(resolve, 300));
-        fetchData();
-      } else {
-        showToast('Failed to resolve booking', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to resolve booking:', err);
-      showToast('Failed to resolve booking', 'error');
-    }
-  };
-
-  const handleCreateVisitorAndResolve = async () => {
-    if (!resolveModal || !newVisitorData.email) return;
-    setIsCreatingVisitor(true);
-    try {
-      const createRes = await fetch('/api/visitors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: newVisitorData.email,
-          firstName: newVisitorData.firstName,
-          lastName: newVisitorData.lastName,
-          phone: newVisitorData.phone || undefined,
-          createStripeCustomer: true
-        })
-      });
-      
-      if (!createRes.ok) {
-        const errorData = await createRes.json();
-        if (createRes.status === 409 && errorData.existingUser) {
-          showToast(`User already exists: ${errorData.existingUser.name || errorData.existingUser.email}`, 'error');
-        } else {
-          showToast(errorData.error || 'Failed to create visitor', 'error');
-        }
-        setIsCreatingVisitor(false);
-        return;
-      }
-      
-      const visitorData = await createRes.json();
-      showToast(`Created visitor: ${visitorData.visitor.firstName || ''} ${visitorData.visitor.lastName || ''} with Stripe account`, 'success');
-      
-      const resolveRes = await fetch(`/api/admin/trackman/unmatched/${resolveModal.booking.id}/resolve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ memberEmail: visitorData.visitor.email })
-      });
-      
-      if (resolveRes.ok) {
-        setResolveModal(null);
-        setSearchQuery('');
-        setShowCreateVisitor(false);
-        setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' });
-        showToast('Booking assigned to new visitor', 'success');
-        await new Promise(resolve => setTimeout(resolve, 300));
-        fetchData();
-      } else {
-        showToast('Visitor created but failed to assign booking', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to create visitor:', err);
-      showToast('Failed to create visitor', 'error');
-    } finally {
-      setIsCreatingVisitor(false);
-    }
-  };
-
   const handleReassignMatched = async () => {
     if (!editMatchedModal) return;
     try {
@@ -972,10 +865,15 @@ const TrackmanTab: React.FC = () => {
         </p>
         
         {rescanResult && (
-          <div className={`mb-4 p-3 rounded-xl ${rescanResult.success && rescanResult.matched > 0 ? 'bg-green-100 dark:bg-green-500/20' : 'bg-blue-100 dark:bg-blue-500/20'}`}>
-            <p className={`text-sm font-medium ${rescanResult.success && rescanResult.matched > 0 ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
+          <div className={`mb-4 p-3 rounded-xl ${rescanResult.success && (rescanResult.matched > 0 || rescanResult.lessonsConverted > 0) ? 'bg-green-100 dark:bg-green-500/20' : 'bg-blue-100 dark:bg-blue-500/20'}`}>
+            <p className={`text-sm font-medium ${rescanResult.success && (rescanResult.matched > 0 || rescanResult.lessonsConverted > 0) ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
               {rescanResult.message}
             </p>
+            {rescanResult.lessonsConverted > 0 && (
+              <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                Lesson bookings were automatically converted to availability blocks
+              </p>
+            )}
             {rescanResult.resolved && rescanResult.resolved.length > 0 && (
               <div className="mt-2 text-xs text-green-600 dark:text-green-400">
                 {rescanResult.resolved.slice(0, 5).map((r: any, i: number) => (
@@ -1059,7 +957,7 @@ const TrackmanTab: React.FC = () => {
                       </td>
                       <td className="py-2 px-3 text-right">
                         <button
-                          onClick={() => { setSearchQuery(''); setResolveModal({ booking, memberEmail: '', rememberEmail: true }); }}
+                          onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
                           className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity"
                         >
                           Resolve
@@ -1907,196 +1805,6 @@ const TrackmanTab: React.FC = () => {
         </div>
       </ModalShell>
 
-      <ModalShell isOpen={!!resolveModal} onClose={() => { setResolveModal(null); setShowCreateVisitor(false); setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' }); }} title="Resolve Booking" showCloseButton={false}>
-        <div className="space-y-4">
-          <div className="p-4 border-b border-primary/10 dark:border-white/25 bg-primary/5 dark:bg-white/5">
-            <div className="p-3 rounded-xl bg-white/80 dark:bg-white/10">
-              <p className="font-semibold text-primary dark:text-white">
-                {resolveModal?.booking?.userName || resolveModal?.booking?.user_name || 'Unknown'}
-              </p>
-              <p className="text-xs text-primary/70 dark:text-white/70 mt-0.5">
-                {resolveModal?.booking?.originalEmail || resolveModal?.booking?.original_email || 'No email'}
-              </p>
-              <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
-                {formatDateDisplayWithDay(resolveModal?.booking?.bookingDate || resolveModal?.booking?.booking_date)} • Bay {resolveModal?.booking?.bayNumber || resolveModal?.booking?.bay_number}
-              </p>
-            </div>
-            {(resolveModal?.booking?.notes || resolveModal?.booking?.note) && (
-              <div className="mt-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30">
-                <p className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs">notes</span>
-                  Notes from Import
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-400 whitespace-pre-wrap">
-                  {resolveModal?.booking?.notes || resolveModal?.booking?.note}
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="p-6 pt-0 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                Select member to assign this booking:
-              </label>
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/70 dark:placeholder:text-white/60 text-base"
-              />
-            </div>
-            <div className="max-h-64 overflow-y-auto space-y-2 -mx-2 px-2">
-              {filteredMembers.slice(0, 20).map((member: any) => (
-                <button
-                  key={member.email}
-                  onClick={() => resolveModal && setResolveModal({ ...resolveModal, memberEmail: member.email })}
-                  className={`w-full p-4 text-left rounded-xl transition-all ${
-                    resolveModal?.memberEmail === member.email
-                      ? 'bg-accent/30 border-2 border-accent shadow-md'
-                      : 'bg-white/70 dark:bg-white/5 border border-primary/10 dark:border-white/25 hover:bg-white dark:hover:bg-white/10 hover:border-primary/20 dark:hover:border-white/20'
-                  }`}
-                >
-                  <p className="font-semibold text-primary dark:text-white text-base">
-                    {member.firstName || member.firstname || ''} {member.lastName || member.lastname || ''}
-                  </p>
-                  <p className="text-sm text-primary/80 dark:text-white/80 mt-0.5">{member.email}</p>
-                </button>
-              ))}
-              {filteredMembers.length === 0 && searchQuery && !isSearching && (
-                <div className="py-4 text-center">
-                  <p className="text-primary/70 dark:text-white/70 mb-3">No members found</p>
-                  {!showCreateVisitor ? (
-                    <button
-                      onClick={() => {
-                        const originalEmail = resolveModal?.booking?.originalEmail || resolveModal?.booking?.original_email || '';
-                        const originalName = resolveModal?.booking?.userName || resolveModal?.booking?.user_name || '';
-                        const nameParts = originalName.split(' ');
-                        setNewVisitorData({
-                          firstName: nameParts[0] || '',
-                          lastName: nameParts.slice(1).join(' ') || '',
-                          email: originalEmail,
-                          phone: ''
-                        });
-                        setShowCreateVisitor(true);
-                      }}
-                      className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors inline-flex items-center gap-2"
-                    >
-                      <span aria-hidden="true" className="material-symbols-outlined text-base">person_add</span>
-                      Create as Visitor
-                    </button>
-                  ) : (
-                    <div className="text-left p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-500/30 space-y-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-primary dark:text-white text-sm">Create New Visitor</h4>
-                        <button
-                          onClick={() => {
-                            setShowCreateVisitor(false);
-                            setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' });
-                          }}
-                          className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
-                        >
-                          <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text"
-                          placeholder="First Name"
-                          value={newVisitorData.firstName}
-                          onChange={(e) => setNewVisitorData({ ...newVisitorData, firstName: e.target.value })}
-                          className="px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Last Name"
-                          value={newVisitorData.lastName}
-                          onChange={(e) => setNewVisitorData({ ...newVisitorData, lastName: e.target.value })}
-                          className="px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
-                        />
-                      </div>
-                      <input
-                        type="email"
-                        placeholder="Email (required)"
-                        value={newVisitorData.email}
-                        onChange={(e) => setNewVisitorData({ ...newVisitorData, email: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Phone (optional)"
-                        value={newVisitorData.phone}
-                        onChange={(e) => setNewVisitorData({ ...newVisitorData, phone: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-sm"
-                      />
-                      <p className="text-xs text-green-700 dark:text-green-300">
-                        This will create a Stripe account for billing and add them to the Visitors directory.
-                      </p>
-                      <button
-                        onClick={handleCreateVisitorAndResolve}
-                        disabled={!newVisitorData.email || isCreatingVisitor}
-                        className="w-full px-4 py-2.5 rounded-full bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                      >
-                        {isCreatingVisitor ? (
-                          <>
-                            <span className="animate-spin" aria-hidden="true">
-                              <span className="material-symbols-outlined text-base">sync</span>
-                            </span>
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <span aria-hidden="true" className="material-symbols-outlined text-base">add_circle</span>
-                            Create Visitor & Assign Booking
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              {filteredMembers.length === 0 && searchQuery && isSearching && (
-                <p className="text-center py-4 text-primary/50 dark:text-white/50">Searching...</p>
-              )}
-            </div>
-            {resolveModal?.memberEmail && (resolveModal.booking?.originalEmail || resolveModal.booking?.original_email) && 
-              (resolveModal.booking?.originalEmail || resolveModal.booking?.original_email).toLowerCase() !== resolveModal.memberEmail.toLowerCase() && (
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={resolveModal.rememberEmail}
-                    onChange={(e) => setResolveModal({ ...resolveModal, rememberEmail: e.target.checked })}
-                    className="mt-0.5 w-4 h-4 rounded border-amber-400 text-amber-500 focus:ring-amber-500/50 focus:ring-offset-0"
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-primary dark:text-white">Remember this email for future bookings</p>
-                    <p className="text-xs text-primary/70 dark:text-white/70 mt-0.5">
-                      Link "{resolveModal.booking?.originalEmail || resolveModal.booking?.original_email}" to this member's account
-                    </p>
-                  </div>
-                </label>
-              </div>
-            )}
-            <div className="flex justify-end gap-3 pt-4 border-t border-primary/10 dark:border-white/25">
-              <button
-                onClick={() => { setResolveModal(null); setShowCreateVisitor(false); setNewVisitorData({ firstName: '', lastName: '', email: '', phone: '' }); }}
-                className="px-5 py-2.5 rounded-full text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResolve}
-                disabled={!resolveModal?.memberEmail}
-                className="px-6 py-2.5 rounded-full bg-accent text-primary text-sm font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-              >
-                Assign & Resolve
-              </button>
-            </div>
-          </div>
-        </div>
-      </ModalShell>
-
       <ModalShell isOpen={!!editMatchedModal} onClose={() => { setEditMatchedModal(null); setEditSearchQuery(''); }} title="Reassign Booking" showCloseButton={false}>
         <div className="space-y-4">
           <div className="p-4 border-b border-primary/10 dark:border-white/25 bg-primary/5 dark:bg-white/5">
@@ -2441,6 +2149,48 @@ const TrackmanTab: React.FC = () => {
           </div>
         </div>
       </ModalShell>
+
+      {/* Assign Players Modal for Unmatched Bookings */}
+      {assignPlayersModal && (
+        <TrackmanLinkModal
+          isOpen={assignPlayersModal.isOpen}
+          onClose={() => setAssignPlayersModal(null)}
+          trackmanBookingId={assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id}
+          bayName={`Bay ${assignPlayersModal.booking.bayNumber || assignPlayersModal.booking.bay_number}`}
+          bookingDate={formatDateDisplayWithDay(assignPlayersModal.booking.bookingDate || assignPlayersModal.booking.booking_date)}
+          timeSlot={`${assignPlayersModal.booking.startTime || assignPlayersModal.booking.start_time} - ${assignPlayersModal.booking.endTime || assignPlayersModal.booking.end_time}`}
+          matchedBookingId={undefined}
+          currentMemberName={undefined}
+          currentMemberEmail={undefined}
+          isRelink={false}
+          onSuccess={async (options) => {
+            const originalEmail = assignPlayersModal.booking.originalEmail || assignPlayersModal.booking.original_email;
+            const memberEmail = options?.memberEmail;
+            if (originalEmail && memberEmail) {
+              try {
+                await fetch('/api/admin/trackman/auto-resolve-same-email', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ 
+                    originalEmail,
+                    memberEmail,
+                    excludeTrackmanId: assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id
+                  })
+                });
+              } catch (err) {
+                console.warn('Auto-resolve same email failed:', err);
+              }
+            }
+            await new Promise(r => setTimeout(r, 300));
+            fetchData();
+          }}
+          importedName={assignPlayersModal.booking.userName || assignPlayersModal.booking.user_name}
+          notes={assignPlayersModal.booking.notes || assignPlayersModal.booking.note}
+          isLegacyReview={false}
+          originalEmail={assignPlayersModal.booking.originalEmail || assignPlayersModal.booking.original_email}
+        />
+      )}
     </div>
     </PullToRefresh>
   );
