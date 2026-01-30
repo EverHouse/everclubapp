@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../data/changelog';
 import { TabType } from '../pages/Admin/layout/types';
+import BugReportModal from './BugReportModal';
 
 interface NavItem {
   id: TabType;
@@ -55,6 +56,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
 }) => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
+  const [showBugReport, setShowBugReport] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -162,7 +164,14 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
           )}
         </nav>
 
-        <div className="px-3 py-4 border-t border-white/10 flex-shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+        <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-3" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+          <button
+            onClick={() => setShowBugReport(true)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            <span className="material-symbols-outlined text-xl">bug_report</span>
+            <span className="text-sm">Report a Bug</span>
+          </button>
           <p className="text-white/40 text-[10px] text-center">
             v{getLatestVersion().version} · Updated {new Date(getLatestVersion().date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
@@ -171,7 +180,15 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
     </div>
   );
 
-  return createPortal(sidebarContent, document.body);
+  return (
+    <>
+      {createPortal(sidebarContent, document.body)}
+      <BugReportModal
+        isOpen={showBugReport}
+        onClose={() => setShowBugReport(false)}
+      />
+    </>
+  );
 };
 
 export default StaffMobileSidebar;

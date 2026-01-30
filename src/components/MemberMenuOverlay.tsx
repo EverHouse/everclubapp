@@ -6,6 +6,7 @@ import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
 import { useBottomNav } from '../contexts/BottomNavContext';
 import { haptic } from '../utils/haptics';
+import BugReportModal from './BugReportModal';
 
 interface MemberMenuOverlayProps {
   isOpen: boolean;
@@ -42,6 +43,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
   const isDark = effectiveTheme === 'dark';
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const originalBgRef = useRef<string>('');
 
@@ -182,12 +184,37 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                 />
               ))}
             </nav>
+            
+            <div className={`mt-4 pt-4 border-t px-2 animate-slide-up-stagger ${isDark ? 'border-white/10' : 'border-black/10'}`} style={{ '--stagger-index': MEMBER_MENU_ITEMS.length } as React.CSSProperties}>
+              <button
+                onClick={() => {
+                  haptic.light();
+                  setShowBugReport(true);
+                }}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-300 leading-tight min-h-[48px] ${
+                  isDark 
+                    ? 'text-[#F2F2EC]/60 hover:text-[#F2F2EC] hover:bg-white/5' 
+                    : 'text-[#293515]/60 hover:text-[#293515] hover:bg-black/5'
+                }`}
+              >
+                <span className="material-symbols-outlined text-xl">bug_report</span>
+                <span>Report a Bug</span>
+              </button>
+            </div>
         </div>
       </div>
     </div>
   );
 
-  return createPortal(menuContent, document.body);
+  return (
+    <>
+      {createPortal(menuContent, document.body)}
+      <BugReportModal
+        isOpen={showBugReport}
+        onClose={() => setShowBugReport(false)}
+      />
+    </>
+  );
 };
 
 interface MemberMenuLinkProps {

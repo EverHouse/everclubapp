@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.52.0",
+    date: "2026-01-30",
+    title: "Bug Report Button Moved to Menu",
+    changes: [
+      "Moved: Report a Bug button relocated from Profile page to hamburger menu",
+      "Improved: Bug reports can now be submitted from any page - just open the menu",
+      "Added: Bug report button in Staff Portal sidebar for easy access"
+    ]
+  },
+  {
     version: "9.51.1",
     date: "2026-01-30",
     title: "Fix Player Removal Not Updating Billing",

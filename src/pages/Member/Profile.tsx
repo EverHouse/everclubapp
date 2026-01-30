@@ -17,7 +17,6 @@ import { isPushSupported, isSubscribedToPush, subscribeToPush, unsubscribeFromPu
 import Toggle from '../../components/Toggle';
 import MemberBottomNav from '../../components/MemberBottomNav';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
-import BugReportModal from '../../components/BugReportModal';
 import ModalShell from '../../components/ModalShell';
 import WaiverModal from '../../components/WaiverModal';
 import BillingSection from '../../components/profile/BillingSection';
@@ -63,7 +62,6 @@ const Profile: React.FC = () => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [showPasswordSetupBanner, setShowPasswordSetupBanner] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
-  const [showBugReport, setShowBugReport] = useState(false);
   const [staffDetails, setStaffDetails] = useState<{phone?: string; job_title?: string} | null>(null);
   const [accountBalance, setAccountBalance] = useState<{ balanceDollars: number; isCredit: boolean } | null>(null);
   const [showAddFunds, setShowAddFunds] = useState(false);
@@ -827,20 +825,7 @@ const Profile: React.FC = () => {
             Sign Out
          </button>
 
-         <button 
-           onClick={() => setShowBugReport(true)} 
-           className={`w-full py-4 rounded-xl font-bold text-sm transition-colors animate-slide-up-stagger flex items-center justify-center gap-2 ${isDark ? 'glass-button text-white/80 hover:text-white hover:bg-white/5' : 'bg-white border border-black/5 text-primary/80 hover:text-primary hover:bg-black/5'}`} 
-           style={{ '--stagger-index': 9 } as React.CSSProperties}
-         >
-            <span className="material-symbols-outlined text-lg">bug_report</span>
-            Report a Bug
-         </button>
       </div>
-
-      <BugReportModal
-        isOpen={showBugReport}
-        onClose={() => setShowBugReport(false)}
-      />
 
       {/* Guest Check-In Modal */}
       <HubSpotFormModal
