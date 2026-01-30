@@ -7,6 +7,7 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: parseInt(process.env.DB_POOL_MAX || '20', 10),
+  ssl: isProduction ? { rejectUnauthorized: false } : undefined
 });
 
 pool.on('error', (err) => {

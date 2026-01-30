@@ -141,11 +141,24 @@ export async function runStartupTasks(): Promise<void> {
 
   try {
     console.log('[Supabase] Enabling realtime for tables...');
-    await enableRealtimeForTable('notifications');
-    await enableRealtimeForTable('booking_sessions');
-    await enableRealtimeForTable('announcements');
-    console.log('[Supabase] Realtime enabled for notifications, booking_sessions, announcements');
-    startupHealth.realtime = 'ok';
+    const realtimeResults = await Promise.all([
+      enableRealtimeForTable('notifications'),
+      enableRealtimeForTable('booking_sessions'),
+      enableRealtimeForTable('announcements')
+    ]);
+    const successCount = realtimeResults.filter(Boolean).length;
+    if (successCount === realtimeResults.length) {
+      console.log('[Supabase] Realtime enabled for notifications, booking_sessions, announcements');
+      startupHealth.realtime = 'ok';
+    } else if (successCount > 0) {
+      console.warn(`[Supabase] Realtime partially enabled (${successCount}/${realtimeResults.length} tables)`);
+      startupHealth.realtime = 'ok';
+      startupHealth.warnings.push(`Supabase realtime: only ${successCount}/${realtimeResults.length} tables enabled`);
+    } else {
+      console.warn('[Supabase] Realtime not enabled for any tables - check Supabase configuration');
+      startupHealth.realtime = 'failed';
+      startupHealth.warnings.push('Supabase realtime: no tables enabled - check configuration');
+    }
   } catch (err: any) {
     console.error('[Supabase] Realtime setup failed:', err.message);
     startupHealth.realtime = 'failed';

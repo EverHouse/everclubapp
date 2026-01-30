@@ -40,7 +40,16 @@ export function getSupabaseAnon(): SupabaseClient {
   });
 }
 
+export function isSupabaseConfigured(): boolean {
+  return !!(process.env.SUPABASE_URL && process.env.SERVICE_ROLE_KEY);
+}
+
 export async function enableRealtimeForTable(tableName: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    console.warn(`[Supabase] Skipping realtime for ${tableName} - Supabase not configured`);
+    return false;
+  }
+
   try {
     const supabase = getSupabaseAdmin();
     
@@ -49,6 +58,10 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
     });
 
     if (error) {
+      if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+        console.warn(`[Supabase] Realtime RPC not available for ${tableName} - this is normal for some Supabase configurations`);
+        return false;
+      }
       console.error(`[Supabase] Failed to enable realtime for ${tableName}:`, error.message);
       return false;
     }
@@ -56,7 +69,11 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
     console.log(`[Supabase] Realtime enabled for table: ${tableName}`);
     return true;
   } catch (err: any) {
-    console.error(`[Supabase] Error enabling realtime for ${tableName}:`, err.message);
+    if (err.message?.includes('fetch failed') || err.message?.includes('ENOTFOUND') || err.message?.includes('ECONNREFUSED')) {
+      console.warn(`[Supabase] Cannot reach Supabase for ${tableName} - check SUPABASE_URL configuration`);
+    } else {
+      console.error(`[Supabase] Error enabling realtime for ${tableName}:`, err.message);
+    }
     return false;
   }
 }

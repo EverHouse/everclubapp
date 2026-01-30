@@ -525,12 +525,22 @@ async function startServer() {
       
       runStartupTasks()
         .then(() => {
-          isReady = true;
-          console.log('[Startup] Startup tasks complete - server is ready');
+          const startupHealth = getStartupHealth();
+          const hasCriticalFailures = startupHealth.criticalFailures.length > 0;
+          if (hasCriticalFailures) {
+            console.error('[Startup] Critical failures detected - server NOT marked as ready:', startupHealth.criticalFailures);
+            isReady = false;
+          } else {
+            isReady = true;
+            console.log('[Startup] Startup tasks complete - server is ready');
+            if (startupHealth.warnings.length > 0) {
+              console.warn('[Startup] Server ready with warnings:', startupHealth.warnings);
+            }
+          }
         })
         .catch((err) => {
-          console.error('[Startup] Startup tasks failed (server still running):', err);
-          isReady = true;
+          console.error('[Startup] Startup tasks failed unexpectedly:', err);
+          isReady = false;
         });
 
       if (!isProduction) {
