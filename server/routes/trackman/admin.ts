@@ -475,8 +475,51 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                VALUES ($1, $2, 'staff_resolution', $3)`,
               [member.email.toLowerCase(), originalEmailForLearning, staffEmail]
             );
-            emailLearningMessage = ` Email ${originalEmailForLearning} learned for future auto-matching.`;
             console.log(`[Email Learning] Linked ${originalEmailForLearning} -> ${member.email} by ${staffEmail}`);
+            
+            // Auto-resolve other unresolved bookings with the same original email
+            const otherUnresolvedResult = await pool.query(
+              `SELECT id, trackman_booking_id 
+               FROM booking_requests 
+               WHERE is_unmatched = true 
+               AND id != $1
+               AND (
+                 trackman_customer_notes ILIKE $2
+                 OR user_email ILIKE $3
+               )`,
+              [id, `%${originalEmailForLearning}%`, `%${originalEmailForLearning.split('@')[0]}%`]
+            );
+            
+            let autoResolvedCount = 0;
+            for (const otherBooking of otherUnresolvedResult.rows) {
+              try {
+                await pool.query(
+                  `UPDATE booking_requests 
+                   SET user_id = $1, 
+                       user_email = $2, 
+                       is_unmatched = false,
+                       staff_notes = COALESCE(staff_notes, '') || $3,
+                       updated_at = NOW()
+                   WHERE id = $4`,
+                  [
+                    member.id, 
+                    member.email, 
+                    ` [Auto-resolved via linked email by ${staffEmail} on ${new Date().toISOString()}]`,
+                    otherBooking.id
+                  ]
+                );
+                autoResolvedCount++;
+              } catch (autoErr: any) {
+                console.error(`[Email Learning] Failed to auto-resolve booking ${otherBooking.id}:`, autoErr.message);
+              }
+            }
+            
+            if (autoResolvedCount > 0) {
+              emailLearningMessage = ` Email ${originalEmailForLearning} learned and ${autoResolvedCount} other booking(s) auto-resolved.`;
+              console.log(`[Email Learning] Auto-resolved ${autoResolvedCount} other bookings for ${originalEmailForLearning}`);
+            } else {
+              emailLearningMessage = ` Email ${originalEmailForLearning} learned for future auto-matching.`;
+            }
           }
         } catch (linkError: any) {
           console.error('[Email Learning] Failed to save email link:', linkError.message);
