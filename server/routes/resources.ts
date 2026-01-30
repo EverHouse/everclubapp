@@ -739,20 +739,15 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
     let resolvedOwnerEmail = ownerEmail.toLowerCase().trim();
     
     // Check user_linked_emails table
-    const [linkedEmail] = await db.select({ userId: userLinkedEmails.userId })
+    const [linkedEmailRecord] = await db.select({ primaryEmail: userLinkedEmails.primaryEmail })
       .from(userLinkedEmails)
       .where(sql`LOWER(${userLinkedEmails.linkedEmail}) = ${resolvedOwnerEmail}`);
     
-    if (linkedEmail) {
-      const [primaryUser] = await db.select({ email: users.email })
-        .from(users)
-        .where(eq(users.id, linkedEmail.userId));
-      if (primaryUser?.email) {
-        resolvedOwnerEmail = primaryUser.email.toLowerCase();
-        logger.info('[link-trackman-to-member] Resolved email alias via user_linked_emails', {
-          extra: { original: ownerEmail, resolved: resolvedOwnerEmail }
-        });
-      }
+    if (linkedEmailRecord?.primaryEmail) {
+      resolvedOwnerEmail = linkedEmailRecord.primaryEmail.toLowerCase();
+      logger.info('[link-trackman-to-member] Resolved email alias via user_linked_emails', {
+        extra: { original: ownerEmail, resolved: resolvedOwnerEmail }
+      });
     }
     
     // Also check manuallyLinkedEmails in users table
