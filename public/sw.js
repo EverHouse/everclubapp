@@ -1,30 +1,59 @@
-const CACHE_NAME = 'even-house-v4';
+const BUILD_VERSION = '__BUILD_VERSION__';
+const CACHE_NAME = `ever-house-${BUILD_VERSION}`;
+const API_CACHE = `api-cache-${BUILD_VERSION}`;
+
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
   '/manifest.webmanifest',
-  '/favicon.ico',
-  '/assets/logos/header-logo.webp',
-  '/assets/logos/monogram-dark.webp',
-  '/assets/logos/monogram-white.webp'
+  '/favicon.ico'
 ];
-const CORE_PAGES = ['/member-home', '/book', '/events', '/wellness', '/cafe', '/profile', '/announcements'];
-const API_CACHE = 'api-cache-v3';
+
 const CACHEABLE_API_ENDPOINTS = ['events', 'wellness-classes', 'cafe-menu', 'hours', 'faqs', 'announcements', 'gallery'];
 
 self.addEventListener('install', function(event) {
+  console.log('[SW] Installing new version:', BUILD_VERSION);
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', function(event) {
+  console.log('[SW] Activating new version:', BUILD_VERSION);
   event.waitUntil(
-    caches.keys().then(keys => 
-      Promise.all(keys.filter(k => k !== CACHE_NAME && k !== API_CACHE).map(k => caches.delete(k)))
-    ).then(() => clients.claim())
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.filter(key => {
+          return key.startsWith('ever-house-') || key.startsWith('api-cache-');
+        }).filter(key => {
+          return key !== CACHE_NAME && key !== API_CACHE;
+        }).map(key => {
+          console.log('[SW] Deleting old cache:', key);
+          return caches.delete(key);
+        })
+      );
+    }).then(() => {
+      console.log('[SW] Claiming clients');
+      return clients.claim();
+    }).then(() => {
+      return clients.matchAll({ type: 'window' }).then(clientList => {
+        clientList.forEach(client => {
+          client.postMessage({ type: 'SW_UPDATED', version: BUILD_VERSION });
+        });
+      });
+    })
   );
+});
+
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Skip waiting requested');
+    self.skipWaiting();
+  }
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: BUILD_VERSION });
+  }
 });
 
 self.addEventListener('fetch', function(event) {
@@ -51,7 +80,6 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Network First for HTML/Navigation - always try to get latest version
   if (request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
       fetch(request)
@@ -65,19 +93,17 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Cache First for static assets (JS/CSS/images)
-  if (url.pathname.startsWith('/assets/') || CORE_PAGES.includes(url.pathname)) {
+  if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      caches.match(request).then(cached => {
-        const fetchPromise = fetch(request).then(response => {
+      fetch(request)
+        .then(response => {
           if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           }
           return response;
-        }).catch(() => cached);
-        return cached || fetchPromise;
-      })
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
@@ -126,4 +152,3 @@ self.addEventListener('notificationclick', function(event) {
       })
   );
 });
-

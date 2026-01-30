@@ -1,7 +1,32 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import fs from 'fs';
+import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteCompression from 'vite-plugin-compression';
+
+function generateBuildVersion(): Plugin {
+  const buildVersion = Date.now().toString();
+  return {
+    name: 'generate-build-version',
+    buildStart() {
+      console.log(`Build version: ${buildVersion}`);
+    },
+    transformIndexHtml(html) {
+      return html.replace(
+        '</head>',
+        `<meta name="build-version" content="${buildVersion}" /></head>`
+      );
+    },
+    writeBundle() {
+      const swPath = path.resolve(__dirname, 'dist/sw.js');
+      if (fs.existsSync(swPath)) {
+        let swContent = fs.readFileSync(swPath, 'utf-8');
+        swContent = swContent.replace('__BUILD_VERSION__', buildVersion);
+        fs.writeFileSync(swPath, swContent);
+      }
+    }
+  };
+}
 
 export default defineConfig({
   server: {
@@ -28,6 +53,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    generateBuildVersion(),
     viteCompression({
       algorithm: 'gzip',
       ext: '.gz',

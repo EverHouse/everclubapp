@@ -31,6 +31,7 @@ import { useUserStore } from './stores/userStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import { StaffBookingToast } from './components/StaffBookingToast';
+import UpdateNotification from './components/UpdateNotification';
 
 const MINIMUM_LOADER_DISPLAY_MS = 2000;
 
@@ -795,6 +796,7 @@ const App: React.FC = () => {
           <InitialLoadingScreen>
             <OfflineBanner />
             <StaffBookingToast />
+            <UpdateNotification />
             <BrowserRouter>
               <NavigationLoader />
               <SmoothScrollProvider>
