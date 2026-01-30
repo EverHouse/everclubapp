@@ -811,6 +811,90 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
     const resolveToEmail = memberEmail || null;
     const staffEmail = (req as any).session?.user?.email || 'admin';
     
+    // First, resolve bookings in booking_requests table (current system)
+    let bookingRequestsResolved = 0;
+    if (resolveToEmail) {
+      const memberResult = await pool.query(
+        `SELECT id, email, first_name, last_name, role FROM users WHERE LOWER(email) = LOWER($1)`,
+        [resolveToEmail]
+      );
+      
+      if (memberResult.rows.length > 0) {
+        const member = memberResult.rows[0];
+        
+        // Find unmatched bookings in booking_requests with same original email in notes/customer_notes
+        const bookingRequestsResult = await pool.query(
+          `SELECT id, trackman_booking_id 
+           FROM booking_requests 
+           WHERE is_unmatched = true 
+           AND ($1::text IS NULL OR trackman_booking_id != $1)
+           AND (
+             trackman_customer_notes ILIKE $2
+             OR staff_notes ILIKE $2
+           )`,
+          [excludeTrackmanId || null, `%${originalEmail}%`]
+        );
+        
+        for (const booking of bookingRequestsResult.rows) {
+          try {
+            // Check if this is for a golf instructor - if so, convert to availability block
+            if (member.role === 'golf_instructor' || 
+                (await pool.query(`SELECT 1 FROM staff_users WHERE LOWER(email) = LOWER($1) AND role = 'golf_instructor' AND is_active = true`, [member.email])).rows.length > 0) {
+              // Convert to availability block instead of regular booking
+              const bookingDetails = await pool.query(
+                `SELECT request_date, start_time, end_time, resource_id FROM booking_requests WHERE id = $1`,
+                [booking.id]
+              );
+              if (bookingDetails.rows.length > 0) {
+                const bd = bookingDetails.rows[0];
+                await pool.query(
+                  `INSERT INTO facility_closures (title, affected_areas, start_date, end_date, is_active, created_by)
+                   VALUES ($1, 'simulators', $2, $2, true, $3)
+                   ON CONFLICT DO NOTHING
+                   RETURNING id`,
+                  [`Lesson: ${member.first_name} ${member.last_name}`, bd.request_date, staffEmail]
+                );
+                await pool.query(
+                  `INSERT INTO availability_blocks (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
+                   VALUES ($1, $2, $3, $4, 'blocked', $5, $6)
+                   ON CONFLICT DO NOTHING`,
+                  [bd.resource_id, bd.request_date, bd.start_time, bd.end_time, `Lesson: ${member.first_name} ${member.last_name} [Auto-resolved by ${staffEmail}]`, staffEmail]
+                );
+              }
+              await pool.query(`DELETE FROM booking_requests WHERE id = $1`, [booking.id]);
+            } else {
+              // Regular member - update the booking
+              await pool.query(
+                `UPDATE booking_requests 
+                 SET user_id = $1, 
+                     user_email = $2, 
+                     user_name = $3,
+                     is_unmatched = false,
+                     staff_notes = COALESCE(staff_notes, '') || $4,
+                     updated_at = NOW()
+                 WHERE id = $5`,
+                [
+                  member.id, 
+                  member.email,
+                  `${member.first_name} ${member.last_name}`,
+                  ` [Auto-resolved via same email by ${staffEmail} on ${new Date().toISOString()}]`,
+                  booking.id
+                ]
+              );
+            }
+            bookingRequestsResolved++;
+          } catch (err: any) {
+            console.error(`[Auto-resolve] Failed to resolve booking ${booking.id}:`, err.message);
+          }
+        }
+        
+        if (bookingRequestsResolved > 0) {
+          console.log(`[Auto-resolve] Resolved ${bookingRequestsResolved} bookings from booking_requests for ${originalEmail}`);
+        }
+      }
+    }
+    
+    // Also check legacy trackman_unmatched_bookings table
     const unmatchedResult = await pool.query(
       `SELECT id, trackman_booking_id, user_name, original_email, booking_date, 
               start_time, end_time, duration_minutes, bay_number, notes
@@ -821,8 +905,12 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
       [originalEmail, excludeTrackmanId || null]
     );
     
-    if (unmatchedResult.rows.length === 0) {
+    if (unmatchedResult.rows.length === 0 && bookingRequestsResolved === 0) {
       return res.json({ success: true, autoResolved: 0, message: 'No additional bookings to auto-resolve' });
+    }
+    
+    if (unmatchedResult.rows.length === 0) {
+      return res.json({ success: true, autoResolved: bookingRequestsResolved, message: `Auto-resolved ${bookingRequestsResolved} booking(s)` });
     }
     
     let autoResolved = 0;
@@ -900,20 +988,22 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
       }
     }
     
-    if (autoResolved > 0) {
+    const totalResolved = autoResolved + bookingRequestsResolved;
+    
+    if (totalResolved > 0) {
       await logFromRequest(req, {
         action: 'trackman_auto_resolve',
         resourceType: 'booking',
-        resourceName: `Auto-resolved ${autoResolved} bookings`,
-        details: { originalEmail, autoResolved, errors: errors.length > 0 ? errors : undefined }
+        resourceName: `Auto-resolved ${totalResolved} bookings`,
+        details: { originalEmail, autoResolved: totalResolved, legacyResolved: autoResolved, bookingRequestsResolved, errors: errors.length > 0 ? errors : undefined }
       });
     }
     
     res.json({ 
       success: true, 
-      autoResolved,
-      message: autoResolved > 0 
-        ? `Auto-resolved ${autoResolved} additional booking(s) with same email`
+      autoResolved: totalResolved,
+      message: totalResolved > 0 
+        ? `Auto-resolved ${totalResolved} additional booking(s) with same email`
         : 'No additional bookings to auto-resolve'
     });
   } catch (error: any) {
