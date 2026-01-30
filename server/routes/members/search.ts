@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { sql, and, or, desc } from 'drizzle-orm';
+import { sql, and, or, desc, eq } from 'drizzle-orm';
 import { db } from '../../db';
-import { users } from '../../../shared/schema';
+import { users, staffUsers } from '../../../shared/schema';
 import { isProduction, pool } from '../../core/db';
 import { isStaffOrAdmin, isAuthenticated } from '../../core/middleware';
 import { redactEmail } from './helpers';
@@ -76,16 +76,61 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
       .limit(maxResults);
     
     const sessionUser = (req as any).session?.user;
-    const isStaff = sessionUser?.isStaff || sessionUser?.role === 'admin' || sessionUser?.role === 'staff';
+    const isStaffUser = sessionUser?.isStaff || sessionUser?.role === 'admin' || sessionUser?.role === 'staff';
     
-    const formattedResults = results.map(user => ({
-      id: user.id,
-      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown',
-      email: isStaff ? user.email : undefined,
-      emailRedacted: redactEmail(user.email || ''),
-      tier: user.tier || undefined,
-      membershipStatus: user.membershipStatus || undefined,
-    }));
+    // Check staff_users table to detect instructors and staff members
+    const resultEmails = results.map(r => r.email?.toLowerCase()).filter((e): e is string => !!e);
+    let staffInfoMap: Map<string, { role: string; isActive: boolean }> = new Map();
+    
+    if (resultEmails.length > 0) {
+      const staffInfo = await db.select({
+        email: staffUsers.email,
+        role: staffUsers.role,
+        isActive: staffUsers.isActive
+      })
+        .from(staffUsers)
+        .where(sql`LOWER(${staffUsers.email}) = ANY(${resultEmails})`);
+      
+      for (const staff of staffInfo) {
+        if (staff.email) {
+          staffInfoMap.set(staff.email.toLowerCase(), {
+            role: staff.role || 'staff',
+            isActive: staff.isActive ?? true
+          });
+        }
+      }
+    }
+    
+    const formattedResults = results.map(user => {
+      const emailLower = user.email?.toLowerCase() || '';
+      const staffInfo = staffInfoMap.get(emailLower);
+      const isActiveStaff = staffInfo && staffInfo.isActive;
+      const isInstructor = isActiveStaff && staffInfo.role === 'golf_instructor';
+      const isStaff = isActiveStaff && !!staffInfo;
+      
+      // Determine userType based on role hierarchy
+      let userType: 'instructor' | 'staff' | 'member' | 'visitor' = 'member';
+      if (isInstructor) {
+        userType = 'instructor';
+      } else if (isStaff) {
+        userType = 'staff';
+      } else if (user.membershipStatus === 'visitor' || user.membershipStatus === 'non-member') {
+        userType = 'visitor';
+      }
+      
+      return {
+        id: user.id,
+        name: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unknown',
+        email: isStaffUser ? user.email : undefined,
+        emailRedacted: redactEmail(user.email || ''),
+        tier: user.tier || undefined,
+        membershipStatus: user.membershipStatus || undefined,
+        isInstructor,
+        isStaff,
+        userType,
+        staffRole: isActiveStaff ? staffInfo.role : undefined,
+      };
+    });
     
     res.json(formattedResults);
   } catch (error: any) {

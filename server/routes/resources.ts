@@ -3,7 +3,7 @@ import { eq, and, or, sql, desc, asc, ne } from 'drizzle-orm';
 import { db } from '../db';
 import { pool } from '../core/db';
 import { bookingRateLimiter } from '../middleware/rateLimiting';
-import { resources, users, facilityClosures, notifications, bookingRequests, bookingParticipants, bookingMembers, bookingGuests } from '../../shared/schema';
+import { resources, users, facilityClosures, notifications, bookingRequests, bookingParticipants, bookingMembers, bookingGuests, staffUsers, availabilityBlocks, trackmanUnmatchedBookings, userLinkedEmails } from '../../shared/schema';
 import { isAuthorizedForMemberBooking } from '../core/bookingAuth';
 import { isStaffOrAdmin } from '../core/middleware';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../core/calendar/index';
@@ -733,6 +733,235 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
     const additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string; email?: string; name?: string; guest_name?: string }> = additional_players || [];
     const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
     const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
+    
+    // Resolve email aliases before instructor check
+    // Check user_linked_emails table and users.manuallyLinkedEmails for alias mappings
+    let resolvedOwnerEmail = ownerEmail.toLowerCase().trim();
+    
+    // Check user_linked_emails table
+    const [linkedEmail] = await db.select({ userId: userLinkedEmails.userId })
+      .from(userLinkedEmails)
+      .where(sql`LOWER(${userLinkedEmails.linkedEmail}) = ${resolvedOwnerEmail}`);
+    
+    if (linkedEmail) {
+      const [primaryUser] = await db.select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, linkedEmail.userId));
+      if (primaryUser?.email) {
+        resolvedOwnerEmail = primaryUser.email.toLowerCase();
+        logger.info('[link-trackman-to-member] Resolved email alias via user_linked_emails', {
+          extra: { original: ownerEmail, resolved: resolvedOwnerEmail }
+        });
+      }
+    }
+    
+    // Also check manuallyLinkedEmails in users table
+    if (resolvedOwnerEmail === ownerEmail.toLowerCase().trim()) {
+      const usersWithAlias = await db.select({ email: users.email, manuallyLinkedEmails: users.manuallyLinkedEmails })
+        .from(users)
+        .where(sql`${users.manuallyLinkedEmails} IS NOT NULL`);
+      
+      for (const user of usersWithAlias) {
+        if (user.manuallyLinkedEmails && user.email) {
+          const linkedList = typeof user.manuallyLinkedEmails === 'string' 
+            ? user.manuallyLinkedEmails.split(',').map(e => e.trim().toLowerCase())
+            : [];
+          if (linkedList.includes(ownerEmail.toLowerCase().trim())) {
+            resolvedOwnerEmail = user.email.toLowerCase();
+            logger.info('[link-trackman-to-member] Resolved email alias via manuallyLinkedEmails', {
+              extra: { original: ownerEmail, resolved: resolvedOwnerEmail }
+            });
+            break;
+          }
+        }
+      }
+    }
+    
+    // Check if the owner is a golf instructor (using resolved email)
+    const instructorCheck = await db.select({
+      id: staffUsers.id,
+      email: staffUsers.email,
+      role: staffUsers.role,
+      isActive: staffUsers.isActive,
+      name: staffUsers.name
+    })
+      .from(staffUsers)
+      .where(and(
+        sql`LOWER(${staffUsers.email}) = ${resolvedOwnerEmail}`,
+        eq(staffUsers.role, 'golf_instructor'),
+        eq(staffUsers.isActive, true)
+      ))
+      .limit(1);
+    
+    const isInstructor = instructorCheck.length > 0;
+    
+    // If instructor, convert to availability block instead of member booking
+    if (isInstructor) {
+      logger.info('[link-trackman-to-member] Detected golf instructor, converting to availability block', {
+        extra: { trackman_booking_id, ownerEmail, ownerName }
+      });
+      
+      // Get the booking data from either existing booking or webhook logs
+      let bookingData: { resourceId: number | null; requestDate: string; startTime: string; endTime: string | null } | null = null;
+      
+      // Check existing booking in booking_requests
+      const [existingBooking] = await db.select({
+        id: bookingRequests.id,
+        resourceId: bookingRequests.resourceId,
+        requestDate: bookingRequests.requestDate,
+        startTime: bookingRequests.startTime,
+        endTime: bookingRequests.endTime
+      })
+        .from(bookingRequests)
+        .where(eq(bookingRequests.trackmanBookingId, trackman_booking_id));
+      
+      if (existingBooking) {
+        bookingData = {
+          resourceId: existingBooking.resourceId,
+          requestDate: existingBooking.requestDate,
+          startTime: existingBooking.startTime,
+          endTime: existingBooking.endTime
+        };
+      } else {
+        // Check unmatched bookings
+        const [unmatchedBooking] = await db.select({
+          id: trackmanUnmatchedBookings.id,
+          bayNumber: trackmanUnmatchedBookings.bayNumber,
+          bookingDate: trackmanUnmatchedBookings.bookingDate,
+          startTime: trackmanUnmatchedBookings.startTime,
+          endTime: trackmanUnmatchedBookings.endTime
+        })
+          .from(trackmanUnmatchedBookings)
+          .where(eq(trackmanUnmatchedBookings.trackmanBookingId, trackman_booking_id));
+        
+        if (unmatchedBooking) {
+          let resourceId: number | null = null;
+          if (unmatchedBooking.bayNumber) {
+            const [resource] = await db.select({ id: resources.id })
+              .from(resources)
+              .where(eq(resources.name, `Bay ${unmatchedBooking.bayNumber}`));
+            resourceId = resource?.id ?? null;
+          }
+          bookingData = {
+            resourceId,
+            requestDate: unmatchedBooking.bookingDate,
+            startTime: unmatchedBooking.startTime,
+            endTime: unmatchedBooking.endTime
+          };
+        } else {
+          // Try webhook logs
+          const webhookResult = await pool.query(
+            `SELECT payload FROM trackman_webhook_events WHERE trackman_booking_id = $1 ORDER BY created_at DESC LIMIT 1`,
+            [trackman_booking_id]
+          );
+          
+          if (webhookResult.rows.length > 0) {
+            const payload = typeof webhookResult.rows[0].payload === 'string' 
+              ? JSON.parse(webhookResult.rows[0].payload) 
+              : webhookResult.rows[0].payload;
+            const data = payload?.data || payload?.booking || {};
+            
+            const startStr = data?.start;
+            const endStr = data?.end;
+            const bayRef = data?.bay?.ref;
+            
+            if (startStr && endStr) {
+              const startDate = new Date(startStr.includes('T') ? startStr : startStr.replace(' ', 'T') + 'Z');
+              const endDate = new Date(endStr.includes('T') ? endStr : endStr.replace(' ', 'T') + 'Z');
+              
+              const requestDate = startDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+              const startTime = startDate.toLocaleTimeString('en-US', { 
+                hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+              }) + ':00';
+              const endTime = endDate.toLocaleTimeString('en-US', { 
+                hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' 
+              }) + ':00';
+              
+              let resourceId = 1;
+              if (bayRef) {
+                const bayNum = parseInt(bayRef);
+                if (bayNum >= 1 && bayNum <= 4) resourceId = bayNum;
+              }
+              
+              bookingData = { resourceId, requestDate, startTime, endTime };
+            }
+          }
+        }
+      }
+      
+      if (!bookingData || !bookingData.resourceId || !bookingData.requestDate || !bookingData.startTime) {
+        return res.status(400).json({ error: 'Cannot find booking data to create availability block' });
+      }
+      
+      // Create facility closure and availability block (same pattern as trackmanImport.ts)
+      const [closure] = await db.insert(facilityClosures).values({
+        title: `Lesson: ${ownerName}`,
+        resourceId: bookingData.resourceId,
+        startDate: bookingData.requestDate,
+        endDate: bookingData.requestDate,
+        startTime: bookingData.startTime,
+        endTime: bookingData.endTime || bookingData.startTime,
+        reason: `Lesson: ${ownerName}`,
+        noticeType: 'private_event',
+        isActive: true,
+        createdBy: (req as any).user?.email || 'staff_link'
+      }).returning();
+      
+      await db.insert(availabilityBlocks).values({
+        closureId: closure.id,
+        resourceId: bookingData.resourceId,
+        blockDate: bookingData.requestDate,
+        startTime: bookingData.startTime,
+        endTime: bookingData.endTime || bookingData.startTime,
+        blockType: 'lesson',
+        notes: `Lesson - ${ownerName}`,
+        createdBy: (req as any).user?.email || 'staff_link'
+      });
+      
+      // Delete the existing booking if it exists
+      if (existingBooking) {
+        await db.delete(bookingRequests).where(eq(bookingRequests.id, existingBooking.id));
+        logger.info('[link-trackman-to-member] Deleted existing booking after converting to availability block', {
+          extra: { bookingId: existingBooking.id, trackman_booking_id }
+        });
+      }
+      
+      // Delete from unmatched bookings table if exists
+      await db.delete(trackmanUnmatchedBookings)
+        .where(eq(trackmanUnmatchedBookings.trackmanBookingId, trackman_booking_id));
+      
+      // Update webhook event to mark as processed
+      await pool.query(
+        `UPDATE trackman_webhook_events SET matched_booking_id = NULL, staff_notes = COALESCE(staff_notes, '') || ' [Converted to lesson block for instructor: ' || $1 || ']' WHERE trackman_booking_id = $2`,
+        [ownerName, trackman_booking_id]
+      );
+      
+      const { broadcastToStaff } = await import('../core/websocket');
+      broadcastToStaff({
+        type: 'availability_block_created',
+        closureId: closure.id,
+        instructorEmail: ownerEmail,
+        instructorName: ownerName
+      });
+      
+      logFromRequest(req, 'convert_trackman_to_lesson_block', 'closure', closure.id.toString(), {
+        trackman_booking_id,
+        instructor_email: ownerEmail,
+        instructor_name: ownerName,
+        resource_id: bookingData.resourceId,
+        date: bookingData.requestDate,
+        start_time: bookingData.startTime,
+        end_time: bookingData.endTime
+      });
+      
+      return res.json({
+        success: true,
+        convertedToAvailabilityBlock: true,
+        closureId: closure.id,
+        instructorName: ownerName,
+        message: `Converted to lesson block for instructor ${ownerName}`
+      });
+    }
     
     const result = await db.transaction(async (tx) => {
       const [existingBooking] = await tx.select()
