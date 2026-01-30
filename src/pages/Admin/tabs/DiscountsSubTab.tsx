@@ -28,6 +28,9 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingCoupon, setEditingCoupon] = useState<StripeCoupon | null>(null);
+  const [editName, setEditName] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
   
   const [newCoupon, setNewCoupon] = useState({
     id: '',
@@ -112,6 +115,38 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
       setFormError(err.message || 'Failed to create coupon');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleEdit = (coupon: StripeCoupon) => {
+    setEditingCoupon(coupon);
+    setEditName(coupon.name || '');
+    setFormError(null);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCoupon) return;
+    
+    setIsUpdating(true);
+    setFormError(null);
+    
+    try {
+      const res = await fetch(`/api/stripe/coupons/${encodeURIComponent(editingCoupon.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: editName }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update coupon');
+      
+      await fetchCoupons();
+      setEditingCoupon(null);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to update coupon');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -294,13 +329,22 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => setDeleteConfirmId(coupon.id)}
-                      className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                      title="Delete coupon"
-                    >
-                      <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleEdit(coupon)}
+                        className="p-2 text-gray-500 hover:text-primary dark:hover:text-lavender transition-colors"
+                        title="Edit coupon name"
+                      >
+                        <span aria-hidden="true" className="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(coupon.id)}
+                        className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        title="Delete coupon"
+                      >
+                        <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -451,6 +495,67 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
             </button>
           </div>
         </div>
+      </ModalShell>
+
+      <ModalShell 
+        isOpen={!!editingCoupon} 
+        onClose={() => setEditingCoupon(null)} 
+        title="Edit Coupon"
+        size="md"
+      >
+        {editingCoupon && (
+          <div className="p-6 space-y-6">
+            {formError && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-lg text-sm">
+                {formError}
+              </div>
+            )}
+
+            <div className="p-4 bg-gray-50 dark:bg-black/30 rounded-xl space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm text-gray-500">{editingCoupon.id}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                  editingCoupon.percentOff 
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                }`}>
+                  {getDiscountLabel(editingCoupon)}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Note: The discount percentage and duration cannot be changed after creation. You can only update the name.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Coupon Name</label>
+              <input
+                type="text"
+                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="e.g., Summer Sale 20% Off"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-white/25">
+              <button 
+                onClick={() => setEditingCoupon(null)} 
+                className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleUpdate} 
+                disabled={isUpdating}
+                className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isUpdating && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        )}
       </ModalShell>
     </div>
   );

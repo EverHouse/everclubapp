@@ -12,6 +12,8 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
       limit: 100,
     });
     
+    console.log(`[Stripe Coupons] Found ${coupons.data.length} coupons:`, coupons.data.map(c => ({ id: c.id, name: c.name })));
+    
     const formattedCoupons = coupons.data.map(coupon => ({
       id: coupon.id,
       name: coupon.name || coupon.id,
@@ -122,6 +124,47 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
       return res.status(400).json({ error: 'A coupon with this ID already exists.' });
     }
     res.status(500).json({ error: error.message || 'Failed to create coupon' });
+  }
+});
+
+router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'Coupon ID is required.' });
+    }
+    
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const stripe = await getStripeClient();
+    
+    const coupon = await stripe.coupons.update(id, {
+      name: name || undefined,
+    });
+    
+    console.log(`[Stripe] Updated coupon ${id} - name: "${name}"`);
+    
+    res.json({
+      success: true,
+      coupon: {
+        id: coupon.id,
+        name: coupon.name || coupon.id,
+        percentOff: coupon.percent_off,
+        amountOff: coupon.amount_off ? coupon.amount_off / 100 : null,
+        amountOffCents: coupon.amount_off,
+        currency: coupon.currency,
+        duration: coupon.duration,
+        durationInMonths: coupon.duration_in_months,
+        valid: coupon.valid,
+      },
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error updating coupon:', error);
+    if (error.code === 'resource_missing') {
+      return res.status(404).json({ error: 'Coupon not found.' });
+    }
+    res.status(500).json({ error: error.message || 'Failed to update coupon' });
   }
 });
 
