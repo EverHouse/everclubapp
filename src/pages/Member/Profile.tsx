@@ -940,20 +940,13 @@ const Profile: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDoNotSellToggle(!doNotSellMyInfo)}
+                      <Toggle
+                        checked={doNotSellMyInfo}
+                        onChange={handleDoNotSellToggle}
                         disabled={privacyLoading}
-                        className={`relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 ${
-                          doNotSellMyInfo 
-                            ? 'bg-accent' 
-                            : isDark ? 'bg-white/20' : 'bg-gray-300'
-                        } ${privacyLoading ? 'opacity-50' : ''}`}
-                        aria-label="Toggle do not sell my personal information"
-                      >
-                        <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                          doNotSellMyInfo ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                      </button>
+                        size="sm"
+                        label="Toggle do not sell my personal information"
+                      />
                     </div>
                   </div>
                   
