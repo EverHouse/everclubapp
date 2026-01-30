@@ -712,6 +712,7 @@ const DataIntegrityTab: React.FC = () => {
         );
 
       case 'Subscription Status Drift':
+      case 'Stripe Subscription Sync':
         return (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
             <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
@@ -788,6 +789,7 @@ const DataIntegrityTab: React.FC = () => {
 
       case 'Stripe-HubSpot Link':
       case 'Missing Stripe-HubSpot Link':
+      case 'Tier Reconciliation':
         return (
           <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
             <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">

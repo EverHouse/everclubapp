@@ -21,7 +21,8 @@ export const changelog: ChangelogEntry[] = [
       "Improved: Fix tools now appear directly on each integrity check instead of separate section",
       "Improved: Preview results show blue styling vs green for executed actions",
       "Improved: Each result explicitly shows 'Preview Only - No Changes Made' label",
-      "Fixed: Ghost booking preview now correctly shows total found instead of undefined"
+      "Fixed: Ghost booking preview now correctly shows total found instead of undefined",
+      "Fixed: Fix tools now properly appear for Stripe Subscription Sync and Tier Reconciliation checks"
     ]
   },
   {
