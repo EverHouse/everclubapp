@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.50.4",
+    date: "2026-01-30",
+    title: "Optimistic UI for Data Integrity Fixes",
+    changes: [
+      "Improved: Issue counts now update immediately when fixes are applied (no waiting for refresh)",
+      "Improved: Total issues counter updates in real-time as fixes complete",
+      "Improved: Check status changes to 'pass' when all issues are resolved"
+    ]
+  },
+  {
     version: "9.50.3",
     date: "2026-01-30",
     title: "Clear Orphaned Stripe IDs Tool",

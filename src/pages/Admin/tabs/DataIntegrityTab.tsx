@@ -247,6 +247,31 @@ const DataIntegrityTab: React.FC = () => {
   const [isRunningDealStageRemediation, setIsRunningDealStageRemediation] = useState(false);
   const [dealStageRemediationResult, setDealStageRemediationResult] = useState<{ success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null>(null);
 
+  const updateIssueCountOptimistically = (checkName: string, reduction: number) => {
+    setResults(prev => prev.map(result => {
+      if (result.checkName === checkName) {
+        const newCount = Math.max(0, result.issueCount - reduction);
+        return {
+          ...result,
+          issueCount: newCount,
+          status: newCount === 0 ? 'pass' : result.status
+        };
+      }
+      return result;
+    }));
+    
+    setMeta(prev => {
+      if (!prev) return prev;
+      const newErrors = Math.max(0, prev.errors - reduction);
+      const newTotalIssues = Math.max(0, prev.totalIssues - reduction);
+      return {
+        ...prev,
+        errors: newErrors,
+        totalIssues: newTotalIssues
+      };
+    });
+  };
+
   useEffect(() => {
     fetchCachedResults();
     fetchCalendarStatus();
@@ -1470,6 +1495,9 @@ const DataIntegrityTab: React.FC = () => {
           dryRun
         });
         showToast(dryRun ? 'Preview complete - no changes made' : data.message, dryRun ? 'info' : 'success');
+        if (!dryRun && data.syncedCount > 0) {
+          updateIssueCountOptimistically('HubSpot Sync Mismatch', data.syncedCount);
+        }
       } else {
         setHubspotSyncResult({ success: false, message: data.error || 'Failed to sync to HubSpot' });
         showToast(data.error || 'Failed to sync to HubSpot', 'error');
@@ -1536,6 +1564,9 @@ const DataIntegrityTab: React.FC = () => {
           dryRun
         });
         showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Subscription status sync complete'), dryRun ? 'info' : 'success');
+        if (!dryRun && data.updatedCount > 0) {
+          updateIssueCountOptimistically('Stripe Subscription Sync', data.updatedCount);
+        }
       } else {
         setSubscriptionStatusResult({ success: false, message: data.error || 'Failed to sync subscription status' });
         showToast(data.error || 'Failed to sync subscription status', 'error');
@@ -1571,7 +1602,7 @@ const DataIntegrityTab: React.FC = () => {
         });
         showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Orphaned Stripe IDs cleared'), dryRun ? 'info' : 'success');
         if (!dryRun && data.clearedCount > 0) {
-          fetchIntegrityData();
+          updateIssueCountOptimistically('Stripe Subscription Sync', data.clearedCount);
         }
       } else {
         setOrphanedStripeResult({ success: false, message: data.error || 'Failed to clear orphaned Stripe IDs' });
@@ -1727,6 +1758,9 @@ const DataIntegrityTab: React.FC = () => {
             dryRun: false
           });
           showToast(data.message || `Created ${data.sessionsCreated} sessions`, 'success');
+          if (data.sessionsCreated > 0) {
+            updateIssueCountOptimistically('Active Bookings Without Sessions', data.sessionsCreated);
+          }
         } else {
           setGhostBookingResult({ success: false, message: data.error || 'Failed to create sessions' });
           showToast(data.error || 'Failed to create sessions', 'error');
