@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.49.1",
+    date: "2026-01-30",
+    title: "Data Integrity UX Improvements",
+    changes: [
+      "Improved: Preview buttons now clearly show 'Preview complete - no changes made' toast",
+      "Improved: Fix tools now appear directly on each integrity check instead of separate section",
+      "Improved: Preview results show blue styling vs green for executed actions",
+      "Improved: Each result explicitly shows 'Preview Only - No Changes Made' label",
+      "Fixed: Ghost booking preview now correctly shows total found instead of undefined"
+    ]
+  },
+  {
     version: "9.49.0",
     date: "2026-01-30",
     title: "Dynamic Tier Features Comparison System",

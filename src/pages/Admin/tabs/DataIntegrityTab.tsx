@@ -197,9 +197,9 @@ const DataIntegrityTab: React.FC = () => {
   const [mindbodyResult, setMindbodyResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const [isSyncingToHubspot, setIsSyncingToHubspot] = useState(false);
-  const [hubspotSyncResult, setHubspotSyncResult] = useState<{ success: boolean; message: string; members?: any[] } | null>(null);
+  const [hubspotSyncResult, setHubspotSyncResult] = useState<{ success: boolean; message: string; members?: any[]; dryRun?: boolean } | null>(null);
   const [isCleaningMindbodyIds, setIsCleaningMindbodyIds] = useState(false);
-  const [mindbodyCleanupResult, setMindbodyCleanupResult] = useState<{ success: boolean; message: string; toClean?: number } | null>(null);
+  const [mindbodyCleanupResult, setMindbodyCleanupResult] = useState<{ success: boolean; message: string; toClean?: number; dryRun?: boolean } | null>(null);
 
   // CSV Upload state
   const [firstVisitFile, setFirstVisitFile] = useState<File | null>(null);
@@ -230,15 +230,15 @@ const DataIntegrityTab: React.FC = () => {
 
   const [showSyncTools, setShowSyncTools] = useState(true);
   const [isRunningSubscriptionSync, setIsRunningSubscriptionSync] = useState(false);
-  const [subscriptionStatusResult, setSubscriptionStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; mismatchCount?: number; updated?: any[] } | null>(null);
+  const [subscriptionStatusResult, setSubscriptionStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; mismatchCount?: number; updated?: any[]; dryRun?: boolean } | null>(null);
   const [isRunningStripeHubspotLink, setIsRunningStripeHubspotLink] = useState(false);
-  const [stripeHubspotLinkResult, setStripeHubspotLinkResult] = useState<{ success: boolean; message: string; stripeOnlyMembers?: any[]; hubspotOnlyMembers?: any[]; linkedCount?: number } | null>(null);
+  const [stripeHubspotLinkResult, setStripeHubspotLinkResult] = useState<{ success: boolean; message: string; stripeOnlyMembers?: any[]; hubspotOnlyMembers?: any[]; linkedCount?: number; dryRun?: boolean } | null>(null);
   const [isRunningPaymentStatusSync, setIsRunningPaymentStatusSync] = useState(false);
-  const [paymentStatusResult, setPaymentStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; updatedCount?: number; updates?: any[] } | null>(null);
+  const [paymentStatusResult, setPaymentStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; updatedCount?: number; updates?: any[]; dryRun?: boolean } | null>(null);
   const [isRunningVisitCountSync, setIsRunningVisitCountSync] = useState(false);
-  const [visitCountResult, setVisitCountResult] = useState<{ success: boolean; message: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: any[] } | null>(null);
+  const [visitCountResult, setVisitCountResult] = useState<{ success: boolean; message: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: any[]; dryRun?: boolean } | null>(null);
   const [isRunningGhostBookingFix, setIsRunningGhostBookingFix] = useState(false);
-  const [ghostBookingResult, setGhostBookingResult] = useState<{ success: boolean; message: string; ghostBookings?: number; fixed?: number } | null>(null);
+  const [ghostBookingResult, setGhostBookingResult] = useState<{ success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean } | null>(null);
   const [isRunningDuplicateDetection, setIsRunningDuplicateDetection] = useState(false);
   const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: any[]; hubspotDuplicates?: any[] } | null>(null);
   const [expandedDuplicates, setExpandedDuplicates] = useState<{ app: boolean; hubspot: boolean }>({ app: false, hubspot: false });
@@ -655,6 +655,288 @@ const DataIntegrityTab: React.FC = () => {
       case 'error': return 'error';
       case 'warning': return 'warning';
       case 'info': return 'info';
+    }
+  };
+
+  const renderCheckFixTools = (checkName: string) => {
+    const getResultStyle = (result: { success: boolean; dryRun?: boolean } | null) => {
+      if (!result) return '';
+      if (!result.success) return 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700';
+      if (result.dryRun) return 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700';
+      return 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700';
+    };
+    
+    const getTextStyle = (result: { success: boolean; dryRun?: boolean } | null) => {
+      if (!result) return '';
+      if (!result.success) return 'text-red-700 dark:text-red-400';
+      if (result.dryRun) return 'text-blue-700 dark:text-blue-400';
+      return 'text-green-700 dark:text-green-400';
+    };
+
+    switch (checkName) {
+      case 'HubSpot Sync Mismatch':
+        return (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+              <strong>Quick Fix:</strong> Sync member data to HubSpot to resolve mismatches
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleSyncMembersToHubspot(true)}
+                disabled={isSyncingToHubspot}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleSyncMembersToHubspot(false)}
+                disabled={isSyncingToHubspot}
+                className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                Sync to HubSpot
+              </button>
+            </div>
+            {hubspotSyncResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(hubspotSyncResult)}`}>
+                {hubspotSyncResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(hubspotSyncResult)}`}>{hubspotSyncResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'Subscription Status Drift':
+        return (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+              <strong>Quick Fix:</strong> Sync membership status from Stripe to correct mismatches
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleSyncSubscriptionStatus(true)}
+                disabled={isRunningSubscriptionSync}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningSubscriptionSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleSyncSubscriptionStatus(false)}
+                disabled={isRunningSubscriptionSync}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningSubscriptionSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                Sync from Stripe
+              </button>
+            </div>
+            {subscriptionStatusResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(subscriptionStatusResult)}`}>
+                {subscriptionStatusResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(subscriptionStatusResult)}`}>{subscriptionStatusResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'Bookings Without Sessions':
+      case 'Active Bookings Without Sessions':
+        return (
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+              <strong>Quick Fix:</strong> Create missing billing sessions for Trackman bookings
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleFixGhostBookings(true)}
+                disabled={isRunningGhostBookingFix}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningGhostBookingFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleFixGhostBookings(false)}
+                disabled={isRunningGhostBookingFix}
+                className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningGhostBookingFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">build</span>
+                Create Sessions
+              </button>
+            </div>
+            {ghostBookingResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(ghostBookingResult)}`}>
+                {ghostBookingResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(ghostBookingResult)}`}>{ghostBookingResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'Stripe-HubSpot Link':
+      case 'Missing Stripe-HubSpot Link':
+        return (
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">
+              <strong>Quick Fix:</strong> Link Stripe customers with HubSpot contacts
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleLinkStripeHubspot(true)}
+                disabled={isRunningStripeHubspotLink}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningStripeHubspotLink && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleLinkStripeHubspot(false)}
+                disabled={isRunningStripeHubspotLink}
+                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningStripeHubspotLink && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">link</span>
+                Link Records
+              </button>
+            </div>
+            {stripeHubspotLinkResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(stripeHubspotLinkResult)}`}>
+                {stripeHubspotLinkResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(stripeHubspotLinkResult)}`}>{stripeHubspotLinkResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'Payment Status Mismatch':
+        return (
+          <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-teal-700 dark:text-teal-300 mb-2">
+              <strong>Quick Fix:</strong> Sync payment status from Stripe to HubSpot
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleSyncPaymentStatus(true)}
+                disabled={isRunningPaymentStatusSync}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningPaymentStatusSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleSyncPaymentStatus(false)}
+                disabled={isRunningPaymentStatusSync}
+                className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningPaymentStatusSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                Sync Status
+              </button>
+            </div>
+            {paymentStatusResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(paymentStatusResult)}`}>
+                {paymentStatusResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(paymentStatusResult)}`}>{paymentStatusResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'Visit Count Mismatch':
+        return (
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-2">
+              <strong>Quick Fix:</strong> Update HubSpot visit counts with actual check-in data
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleSyncVisitCounts(true)}
+                disabled={isRunningVisitCountSync}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningVisitCountSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleSyncVisitCounts(false)}
+                disabled={isRunningVisitCountSync}
+                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningVisitCountSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                Sync Counts
+              </button>
+            </div>
+            {visitCountResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(visitCountResult)}`}>
+                {visitCountResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(visitCountResult)}`}>{visitCountResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'Stale Mind Body IDs':
+        return (
+          <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+              <strong>Quick Fix:</strong> Remove Mind Body IDs that don't exist in HubSpot
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleCleanupMindbodyIds(true)}
+                disabled={isCleaningMindbodyIds}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isCleaningMindbodyIds && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleCleanupMindbodyIds(false)}
+                disabled={isCleaningMindbodyIds}
+                className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isCleaningMindbodyIds && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">cleaning_services</span>
+                Clean Up
+              </button>
+            </div>
+            {mindbodyCleanupResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(mindbodyCleanupResult)}`}>
+                {mindbodyCleanupResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(mindbodyCleanupResult)}`}>{mindbodyCleanupResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
@@ -1097,9 +1379,10 @@ const DataIntegrityTab: React.FC = () => {
         setHubspotSyncResult({ 
           success: true, 
           message: data.message,
-          members: data.members
+          members: data.members,
+          dryRun
         });
-        showToast(data.message, 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : data.message, dryRun ? 'info' : 'success');
       } else {
         setHubspotSyncResult({ success: false, message: data.error || 'Failed to sync to HubSpot' });
         showToast(data.error || 'Failed to sync to HubSpot', 'error');
@@ -1128,9 +1411,10 @@ const DataIntegrityTab: React.FC = () => {
         setMindbodyCleanupResult({ 
           success: true, 
           message: data.message,
-          toClean: data.toClean
+          toClean: data.toClean,
+          dryRun
         });
-        showToast(data.message, 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : data.message, dryRun ? 'info' : 'success');
       } else {
         setMindbodyCleanupResult({ success: false, message: data.error || 'Failed to cleanup Mind Body IDs' });
         showToast(data.error || 'Failed to cleanup Mind Body IDs', 'error');
@@ -1161,9 +1445,10 @@ const DataIntegrityTab: React.FC = () => {
           message: data.message || `Checked ${data.totalChecked} members, found ${data.mismatchCount} mismatches`,
           totalChecked: data.totalChecked,
           mismatchCount: data.mismatchCount,
-          updated: data.updated
+          updated: data.updated,
+          dryRun
         });
-        showToast(data.message || 'Subscription status sync complete', 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Subscription status sync complete'), dryRun ? 'info' : 'success');
       } else {
         setSubscriptionStatusResult({ success: false, message: data.error || 'Failed to sync subscription status' });
         showToast(data.error || 'Failed to sync subscription status', 'error');
@@ -1194,9 +1479,10 @@ const DataIntegrityTab: React.FC = () => {
           message: data.message || 'Stripe-HubSpot link complete',
           stripeOnlyMembers: data.stripeOnlyMembers,
           hubspotOnlyMembers: data.hubspotOnlyMembers,
-          linkedCount: data.linkedCount
+          linkedCount: data.linkedCount,
+          dryRun
         });
-        showToast(data.message || 'Stripe-HubSpot link complete', 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Stripe-HubSpot link complete'), dryRun ? 'info' : 'success');
       } else {
         setStripeHubspotLinkResult({ success: false, message: data.error || 'Failed to link Stripe and HubSpot' });
         showToast(data.error || 'Failed to link Stripe and HubSpot', 'error');
@@ -1227,9 +1513,10 @@ const DataIntegrityTab: React.FC = () => {
           message: data.message || `Checked ${data.totalChecked} members, updated ${data.updatedCount}`,
           totalChecked: data.totalChecked,
           updatedCount: data.updatedCount,
-          updates: data.updates
+          updates: data.updates,
+          dryRun
         });
-        showToast(data.message || 'Payment status sync complete', 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Payment status sync complete'), dryRun ? 'info' : 'success');
       } else {
         setPaymentStatusResult({ success: false, message: data.error || 'Failed to sync payment status' });
         showToast(data.error || 'Failed to sync payment status', 'error');
@@ -1260,9 +1547,10 @@ const DataIntegrityTab: React.FC = () => {
           message: data.message || `Found ${data.mismatchCount} mismatches, updated ${data.updatedCount}`,
           mismatchCount: data.mismatchCount,
           updatedCount: data.updatedCount,
-          sampleMismatches: data.sampleMismatches
+          sampleMismatches: data.sampleMismatches,
+          dryRun
         });
-        showToast(data.message || 'Visit count sync complete', 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Visit count sync complete'), dryRun ? 'info' : 'success');
       } else {
         setVisitCountResult({ success: false, message: data.error || 'Failed to sync visit counts' });
         showToast(data.error || 'Failed to sync visit counts', 'error');
@@ -1290,11 +1578,12 @@ const DataIntegrityTab: React.FC = () => {
       if (res.ok) {
         setGhostBookingResult({
           success: true,
-          message: data.message || `Found ${data.ghostBookings} ghost bookings, fixed ${data.fixed}`,
-          ghostBookings: data.ghostBookings,
-          fixed: data.fixed
+          message: data.message || `Found ${data.totalFound || data.ghostBookings} ghost bookings${data.fixed !== undefined ? `, fixed ${data.fixed}` : ''}`,
+          ghostBookings: data.totalFound || data.ghostBookings,
+          fixed: data.fixed,
+          dryRun
         });
-        showToast(data.message || 'Ghost booking fix complete', 'success');
+        showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Ghost booking fix complete'), dryRun ? 'info' : 'success');
       } else {
         setGhostBookingResult({ success: false, message: data.error || 'Failed to fix ghost bookings' });
         showToast(data.error || 'Failed to fix ghost bookings', 'error');
@@ -2518,6 +2807,8 @@ const DataIntegrityTab: React.FC = () => {
                         </div>
                       ) : (
                         <>
+                          {renderCheckFixTools(result.checkName)}
+                          
                           {result.issues.filter(i => !i.ignored).length > 1 && (
                             <div className="flex justify-end">
                               <button
