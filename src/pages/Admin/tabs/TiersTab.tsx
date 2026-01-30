@@ -577,7 +577,22 @@ const TiersTab: React.FC = () => {
                                 <div className="flex items-center gap-2 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30">
                                     <span aria-hidden="true" className="material-symbols-outlined text-indigo-600 dark:text-indigo-400">link</span>
                                     <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Linked to Stripe</span>
-                                    <span className="text-xs text-indigo-600 dark:text-indigo-400 ml-auto">{selectedTier.stripe_price_id}</span>
+                                    <span className="text-xs text-indigo-600 dark:text-indigo-400 ml-auto truncate max-w-[150px]">{selectedTier.stripe_price_id}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!selectedTier) return;
+                                            setSelectedTier({
+                                                ...selectedTier,
+                                                stripe_price_id: null,
+                                                stripe_product_id: null,
+                                                price_cents: null
+                                            });
+                                        }}
+                                        className="ml-2 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                    >
+                                        Unlink
+                                    </button>
                                 </div>
                             )}
                             <div>
