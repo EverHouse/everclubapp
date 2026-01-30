@@ -1411,7 +1411,7 @@ async function checkDuplicateStripeCustomers(): Promise<IntegrityCheckResult> {
       SELECT u.id as user_id, u.email as primary_email, u.stripe_customer_id, 
              LOWER(ule.linked_email) as normalized_email
       FROM users u
-      JOIN user_linked_emails ule ON ule.user_id = u.id
+      JOIN user_linked_emails ule ON LOWER(ule.primary_email) = LOWER(u.email)
       WHERE u.stripe_customer_id IS NOT NULL
     ),
     all_email_mappings AS (
