@@ -1159,9 +1159,29 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
         await tx.insert(availabilityBlocks).values(blockValues);
       }
       
-      // Delete the bookings from the queue (they're now represented as blocks)
-      // Only delete bookingRequests entries (not unmatched bookings which are handled separately)
-      const regularBookingIds = bookingIds.filter(id => !relatedUnmatchedIds.includes(id));
+      // Handle booking cleanup: Archive unmatched bookings and delete matched ones
+      // For unmatched bookings (placeholder emails), update them to mark as resolved
+      // For regular bookings, delete them since they're now represented as blocks
+      const unmatchedInBookingRequests = bookingIds.filter(id => {
+        const booking = relatedBookings.find(b => b.id === id);
+        return booking?.isUnmatched === true || 
+               (booking?.userEmail && (booking.userEmail.includes('unmatched-') || booking.userEmail.includes('@trackman.local')));
+      });
+      const regularBookingIds = bookingIds.filter(id => !relatedUnmatchedIds.includes(id) && !unmatchedInBookingRequests.includes(id));
+      
+      // Mark unmatched bookings in booking_requests as resolved (no longer needs assignment)
+      if (unmatchedInBookingRequests.length > 0) {
+        await tx.update(bookingRequests)
+          .set({
+            isUnmatched: false,
+            userEmail: 'private-event@resolved',
+            notes: sql`COALESCE(${bookingRequests.notes}, '') || ' [Converted to Private Event]'`,
+            status: 'attended'
+          })
+          .where(sql`id IN (${sql.join(unmatchedInBookingRequests.map(id => sql`${id}`), sql`, `)})`);
+      }
+      
+      // Delete regular (matched) bookings from the queue
       if (regularBookingIds.length > 0) {
         await tx.delete(bookingMembers).where(sql`booking_id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
         await tx.delete(bookingGuests).where(sql`booking_id IN (${sql.join(regularBookingIds.map(id => sql`${id}`), sql`, `)})`);
