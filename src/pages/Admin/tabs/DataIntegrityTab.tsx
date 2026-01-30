@@ -242,6 +242,8 @@ const DataIntegrityTab: React.FC = () => {
   const [isRunningDuplicateDetection, setIsRunningDuplicateDetection] = useState(false);
   const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: any[]; hubspotDuplicates?: any[] } | null>(null);
   const [expandedDuplicates, setExpandedDuplicates] = useState<{ app: boolean; hubspot: boolean }>({ app: false, hubspot: false });
+  const [isRunningDealStageRemediation, setIsRunningDealStageRemediation] = useState(false);
+  const [dealStageRemediationResult, setDealStageRemediationResult] = useState<{ success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null>(null);
 
   useEffect(() => {
     fetchCachedResults();
@@ -937,6 +939,43 @@ const DataIntegrityTab: React.FC = () => {
           </div>
         );
 
+      case 'Deal Stage Drift':
+        return (
+          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
+              <strong>Quick Fix:</strong> Update HubSpot deal stages to match current membership status
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleRemediateDealStages(true)}
+                disabled={isRunningDealStageRemediation}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningDealStageRemediation && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleRemediateDealStages(false)}
+                disabled={isRunningDealStageRemediation}
+                className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningDealStageRemediation && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">sync</span>
+                Remediate Deal Stages
+              </button>
+            </div>
+            {dealStageRemediationResult && (
+              <div className={`mt-2 p-2 rounded ${getResultStyle(dealStageRemediationResult)}`}>
+                {dealStageRemediationResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${getTextStyle(dealStageRemediationResult)}`}>{dealStageRemediationResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return null;
     }
@@ -1596,6 +1635,39 @@ const DataIntegrityTab: React.FC = () => {
       showToast('Failed to fix ghost bookings', 'error');
     } finally {
       setIsRunningGhostBookingFix(false);
+    }
+  };
+
+  const handleRemediateDealStages = async (dryRun: boolean = true) => {
+    setIsRunningDealStageRemediation(true);
+    setDealStageRemediationResult(null);
+    try {
+      const res = await fetch('/api/hubspot/remediate-deal-stages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ dryRun })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDealStageRemediationResult({
+          success: true,
+          message: data.message || `Found ${data.total || 0} deals needing updates${!dryRun ? `, fixed ${data.fixed || 0}` : ''}`,
+          total: data.total,
+          fixed: data.fixed,
+          dryRun
+        });
+        showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Deal stage remediation complete'), dryRun ? 'info' : 'success');
+      } else {
+        setDealStageRemediationResult({ success: false, message: data.error || 'Failed to remediate deal stages' });
+        showToast(data.error || 'Failed to remediate deal stages', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to remediate deal stages:', err);
+      setDealStageRemediationResult({ success: false, message: 'Network error occurred' });
+      showToast('Failed to remediate deal stages', 'error');
+    } finally {
+      setIsRunningDealStageRemediation(false);
     }
   };
 

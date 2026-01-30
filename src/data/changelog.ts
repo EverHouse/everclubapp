@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.49.2",
+    date: "2026-01-30",
+    title: "Data Integrity Fix Tools",
+    changes: [
+      "New: Deal Stage Drift check now has 'Remediate Deal Stages' fix tool",
+      "New: Active Bookings Without Sessions check shows 'Create Sessions' fix tool",
+      "Improved: All fix tools appear directly above the issues list when clicking a check"
+    ]
+  },
+  {
     version: "9.49.1",
     date: "2026-01-30",
     title: "Data Integrity UX Improvements",
