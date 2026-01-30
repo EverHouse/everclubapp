@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.52.1",
+    date: "2026-01-30",
+    title: "Auto-Cleanup Stale Billing Participants",
+    changes: [
+      "Fixed: Check-In & Billing modal now auto-cleans orphaned players when opened",
+      "Fixed: Players removed from roster before the bug fix will now be properly removed from billing",
+      "Improved: Fees recalculate automatically after stale participant cleanup"
+    ]
+  },
+  {
     version: "9.52.0",
     date: "2026-01-30",
     title: "Bug Report Button Moved to Menu",
