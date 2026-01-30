@@ -1,4 +1,6 @@
-const BUILD_VERSION = '__BUILD_VERSION__';
+const RAW_BUILD_VERSION = '__BUILD_VERSION__';
+const IS_DEV = RAW_BUILD_VERSION.includes('BUILD_VERSION');
+const BUILD_VERSION = IS_DEV ? 'development' : RAW_BUILD_VERSION;
 const CACHE_NAME = `ever-house-${BUILD_VERSION}`;
 const API_CACHE = `api-cache-${BUILD_VERSION}`;
 
@@ -15,7 +17,6 @@ self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
   );
 });
 
