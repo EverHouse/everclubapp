@@ -43,103 +43,15 @@ interface MembershipTier {
   unlimited_access: boolean;
 }
 
-interface FeatureConfig {
-  label: string;
-  getValue: (tier: MembershipTier) => { included: boolean; value: string };
+interface TierFeature {
+  id: number;
+  featureKey: string;
+  displayLabel: string;
+  valueType: 'boolean' | 'number' | 'text';
+  sortOrder: number;
+  isActive: boolean;
+  values: Record<string, { tierId: number; value: string | boolean | number | null }>;
 }
-
-const FEATURE_DISPLAY: FeatureConfig[] = [
-  {
-    label: 'Daily Golf Time',
-    getValue: (t) => ({
-      included: t.can_book_simulators && t.daily_sim_minutes > 0,
-      value: t.unlimited_access ? 'Unlimited' : t.daily_sim_minutes > 0 ? `${t.daily_sim_minutes} min` : '—'
-    })
-  },
-  {
-    label: 'Guest Passes',
-    getValue: (t) => ({
-      included: t.guest_passes_per_month > 0,
-      value: t.guest_passes_per_month > 12 ? 'Unlimited' : t.guest_passes_per_month > 0 ? `${t.guest_passes_per_month}/mo` : '—'
-    })
-  },
-  {
-    label: 'Booking Window',
-    getValue: (t) => ({
-      included: t.booking_window_days > 0,
-      value: `${t.booking_window_days} days`
-    })
-  },
-  {
-    label: 'Cafe & Bar Access',
-    getValue: () => ({ included: true, value: '✓' })
-  },
-  {
-    label: 'Lounge Access',
-    getValue: () => ({ included: true, value: '✓' })
-  },
-  {
-    label: 'Work Desks',
-    getValue: () => ({ included: true, value: '✓' })
-  },
-  {
-    label: 'Golf Simulators',
-    getValue: (t) => ({
-      included: t.can_book_simulators,
-      value: t.can_book_simulators ? '✓' : '—'
-    })
-  },
-  {
-    label: 'Putting Green',
-    getValue: () => ({ included: true, value: '✓' })
-  },
-  {
-    label: 'Member Events',
-    getValue: () => ({ included: true, value: '✓' })
-  },
-  {
-    label: 'Conference Room',
-    getValue: (t) => ({
-      included: t.can_book_conference && t.daily_conf_room_minutes > 0,
-      value: t.daily_conf_room_minutes > 0 ? `${t.daily_conf_room_minutes} min` : '—'
-    })
-  },
-  {
-    label: 'Group Lessons',
-    getValue: (t) => ({
-      included: t.has_group_lessons,
-      value: t.has_group_lessons ? '✓' : '—'
-    })
-  },
-  {
-    label: 'Extended Sessions',
-    getValue: (t) => ({
-      included: t.has_extended_sessions,
-      value: t.has_extended_sessions ? '✓' : '—'
-    })
-  },
-  {
-    label: 'Private Lessons',
-    getValue: (t) => ({
-      included: t.has_private_lesson,
-      value: t.has_private_lesson ? '✓' : '—'
-    })
-  },
-  {
-    label: 'Sim Guest Passes',
-    getValue: (t) => ({
-      included: t.has_simulator_guest_passes,
-      value: t.has_simulator_guest_passes ? '✓' : '—'
-    })
-  },
-  {
-    label: 'Discounted Merch',
-    getValue: (t) => ({
-      included: t.has_discounted_merch,
-      value: t.has_discounted_merch ? '✓' : '—'
-    })
-  }
-];
 
 const Membership: React.FC = () => {
   return (
@@ -616,6 +528,7 @@ const DiscountRow: React.FC<{count: string; price: string; icon: string; isActiv
 const CompareFeatures: React.FC = () => {
   const { setPageReady } = usePageReady();
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
+  const [tierFeatures, setTierFeatures] = useState<TierFeature[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTiers, setSelectedTiers] = useState<string[]>(['Social', 'Core', 'Premium']);
 
@@ -626,21 +539,31 @@ const CompareFeatures: React.FC = () => {
   }, [loading, setPageReady]);
 
   useEffect(() => {
-    const fetchTiers = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/membership-tiers?active=true');
-        if (response.ok) {
-          const data = await response.json();
+        const [tiersResponse, featuresResponse] = await Promise.all([
+          fetch('/api/membership-tiers?active=true'),
+          fetch('/api/tier-features')
+        ]);
+
+        if (tiersResponse.ok) {
+          const data = await tiersResponse.json();
           const filteredTiers = data.filter((t: MembershipTier) => t.show_in_comparison !== false);
           setTiers(filteredTiers);
         }
+
+        if (featuresResponse.ok) {
+          const data = await featuresResponse.json();
+          const activeFeatures = (data.features || []).filter((f: TierFeature) => f.isActive);
+          setTierFeatures(activeFeatures);
+        }
       } catch (error) {
-        console.error('Failed to fetch membership tiers:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchTiers();
+    fetchData();
   }, []);
 
   const toggleTier = (tier: string) => {
@@ -722,26 +645,46 @@ const CompareFeatures: React.FC = () => {
              {[...Array(3 - selectedTiers.length)].map((_, i) => <div key={i}></div>)}
           </div>
           
-          {FEATURE_DISPLAY.map((feature, idx) => {
+          {tierFeatures.map((feature) => {
+              const renderValue = (tierData: MembershipTier) => {
+                const tierId = tierData.id;
+                const featureValue = feature.values[tierId];
+                const value = featureValue?.value;
+
+                if (feature.valueType === 'boolean') {
+                  if (value === true) {
+                    return <span className="material-symbols-outlined text-[18px] text-primary/80">check_circle</span>;
+                  }
+                  return <span className="text-[10px] font-bold text-primary/20">—</span>;
+                }
+
+                if (feature.valueType === 'number') {
+                  if (value !== null && value !== undefined && value !== 0) {
+                    return <span className="text-[10px] font-bold text-primary/80 leading-tight">{value}</span>;
+                  }
+                  return <span className="text-[10px] font-bold text-primary/20">—</span>;
+                }
+
+                if (feature.valueType === 'text') {
+                  if (value && String(value).trim() !== '') {
+                    return <span className="text-[10px] font-bold text-primary/80 leading-tight">{value}</span>;
+                  }
+                  return <span className="text-[10px] font-bold text-primary/20">—</span>;
+                }
+
+                return <span className="text-[10px] font-bold text-primary/20">—</span>;
+              };
+
               return (
-                <div key={idx} className="grid grid-cols-[25%_1fr_1fr_1fr] gap-1 items-center py-3 border-b border-primary/5 last:border-0">
-                    <div className="text-[10px] font-bold text-primary/80 pl-1 leading-tight">{feature.label}</div>
+                <div key={feature.id} className="grid grid-cols-[25%_1fr_1fr_1fr] gap-1 items-center py-3 border-b border-primary/5 last:border-0">
+                    <div className="text-[10px] font-bold text-primary/80 pl-1 leading-tight">{feature.displayLabel}</div>
                     {selectedTiers.map(tier => {
                         const tierData = tiersMap[tier];
                         if (!tierData) return null;
-                        const { included, value } = feature.getValue(tierData);
                         
                         return (
-                          <div key={`${tier}-${idx}`} className="flex justify-center text-center">
-                              {included ? (
-                                  value === '✓' ? (
-                                      <span className="material-symbols-outlined text-[18px] text-primary/80">check_circle</span>
-                                  ) : (
-                                      <span className="text-[10px] font-bold text-primary/80 leading-tight">{value}</span>
-                                  )
-                              ) : (
-                                  <span className="text-[10px] font-bold text-primary/20">—</span>
-                              )}
+                          <div key={`${tier}-${feature.id}`} className="flex justify-center text-center">
+                              {renderValue(tierData)}
                           </div>
                         );
                     })}

@@ -208,7 +208,8 @@ router.put('/api/tier-features/:featureId/values/:tierId', isAdmin, async (req, 
     let valueText = null;
 
     if (valueType === 'boolean') {
-      valueBoolean = Boolean(value);
+      // Handle string "false" and other falsy values correctly
+      valueBoolean = value === true || value === 'true' || value === 1 || value === '1';
     } else if (valueType === 'number') {
       valueNumber = value !== null && value !== '' ? Number(value) : null;
     } else {

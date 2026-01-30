@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.49.0",
+    date: "2026-01-30",
+    title: "Dynamic Tier Features Comparison System",
+    isMajor: true,
+    changes: [
+      "New: Flexible tier feature management - add, rename, or remove features that appear in membership comparison",
+      "New: Features support different value types (yes/no checkmarks, numbers, text) for accurate display",
+      "New: Admin can now edit feature labels inline and reorder features",
+      "New: Public membership comparison table is now fully database-driven",
+      "Improved: Features are automatically created for all tiers when added",
+      "Improved: Admin tier editor has cleaner UI with dedicated feature management section"
+    ]
+  },
+  {
     version: "9.48.1",
     date: "2026-01-30",
     title: "Webhook Security Hardening",
