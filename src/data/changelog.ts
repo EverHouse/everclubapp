@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.48.1",
+    date: "2026-01-30",
+    title: "Webhook Security Hardening",
+    changes: [
+      "Fixed: Failed membership payments now immediately set status to 'past due' (prevents continued booking access)",
+      "Fixed: Cancelled/terminated members can no longer be accidentally reactivated by delayed Stripe webhooks",
+      "Fixed: Payment failure handler now only processes once per member (prevents duplicate notifications)",
+      "Improved: Staff booking modal now validates duration range (30-240 minutes)"
+    ]
+  },
+  {
     version: "9.48.0",
     date: "2026-01-30",
     title: "Infrastructure Reliability & Data Protection Audit",

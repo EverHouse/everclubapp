@@ -112,6 +112,8 @@ export const TRAINING_SEED_DATA = [
       { title: 'POS: Pending Authorizations', content: 'Card holds that are awaiting capture. These are pre-authorized amounts that haven\'t been finalized yet.' },
       { title: 'Subscriptions Tab', content: 'View all active Stripe subscriptions. See member name, plan, amount, status, and next billing date. Filter by status: active, past_due, or canceled.' },
       { title: 'Invoices Tab', content: 'View all Stripe invoices. Filter by status: paid, open, void, or uncollectible. Download PDF receipts or open the Stripe-hosted invoice page.' },
+      { title: 'Payment Failure Handling', content: 'When a membership payment fails, the system automatically sets the member to "past due" status, starts a grace period, and notifies both the member and staff. Members in past due status are flagged in their profile.' },
+      { title: 'Grace Period', content: 'After a payment failure, members enter a 3-day grace period. During this time they can update their payment method. Staff are notified and can assist with payment recovery if needed.' },
     ]
   },
   {
