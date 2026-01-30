@@ -87,7 +87,7 @@ const BlocksTab: React.FC = () => {
     
     const [closuresFilterResource, setClosuresFilterResource] = useState<string>('all');
     const [closuresFilterDate, setClosuresFilterDate] = useState<string>('');
-    const [closuresShowPast, setClosuresShowPast] = useState(false);
+    const [showPastAccordion, setShowPastAccordion] = useState(false);
     const [closureForm, setClosureForm] = useState<BlocksClosureForm>({
         start_date: '',
         start_time: '',
@@ -559,14 +559,7 @@ const BlocksTab: React.FC = () => {
     };
 
     const filteredClosures = useMemo(() => {
-        const today = getTodayPacific();
         return closures.filter(closure => {
-            if (!closuresShowPast) {
-                const endDateStr = closure.endDate || closure.startDate;
-                const endDateNormalized = endDateStr.split('T')[0];
-                if (endDateNormalized < today) return false;
-            }
-            
             if (closuresFilterDate) {
                 const startNorm = closure.startDate.split('T')[0];
                 const endNorm = (closure.endDate || closure.startDate).split('T')[0];
@@ -602,7 +595,32 @@ const BlocksTab: React.FC = () => {
             const bStart = b.startDate.split('T')[0];
             return aStart.localeCompare(bStart);
         });
-    }, [closures, closuresShowPast, closuresFilterDate, closuresFilterResource]);
+    }, [closures, closuresFilterDate, closuresFilterResource]);
+
+    const { upcomingClosures, pastClosures } = useMemo(() => {
+        const today = getTodayPacific();
+        const upcoming: BlocksClosure[] = [];
+        const past: BlocksClosure[] = [];
+        
+        for (const closure of filteredClosures) {
+            if (closure.needsReview) continue;
+            const endDateStr = closure.endDate || closure.startDate;
+            const endDateNormalized = endDateStr.split('T')[0];
+            if (endDateNormalized < today) {
+                past.push(closure);
+            } else {
+                upcoming.push(closure);
+            }
+        }
+        
+        past.sort((a, b) => {
+            const aStart = a.startDate.split('T')[0];
+            const bStart = b.startDate.split('T')[0];
+            return bStart.localeCompare(aStart);
+        });
+        
+        return { upcomingClosures: upcoming, pastClosures: past };
+    }, [filteredClosures]);
 
     const getMissingFields = (closure: BlocksClosure): string[] => {
         const missing: string[] = [];
@@ -632,9 +650,7 @@ const BlocksTab: React.FC = () => {
         });
     }, [closures]);
 
-    const configuredClosures = useMemo(() => {
-        return filteredClosures.filter(c => !c.needsReview);
-    }, [filteredClosures]);
+    const configuredClosures = upcomingClosures;
 
     if (isLoading && closuresLoading) {
         return (
@@ -713,16 +729,6 @@ const BlocksTab: React.FC = () => {
                         Clear
                     </button>
                 )}
-                
-                <label className="flex items-center gap-1.5 text-gray-600 dark:text-white/70 text-sm ml-auto whitespace-nowrap flex-shrink-0">
-                    <input
-                        type="checkbox"
-                        checked={closuresShowPast}
-                        onChange={(e) => setClosuresShowPast(e.target.checked)}
-                        className="rounded"
-                    />
-                    Show past
-                </label>
             </div>
 
             <div className="flex items-center gap-3 text-xs my-4">
@@ -1227,6 +1233,118 @@ const BlocksTab: React.FC = () => {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {pastClosures.length > 0 && (
+                <div className="mt-6 rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden">
+                    <button
+                        onClick={() => setShowPastAccordion(!showPastAccordion)}
+                        className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
+                            <span className="font-semibold text-gray-600 dark:text-white/80">Past Notices</span>
+                            <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-full">
+                                {pastClosures.length}
+                            </span>
+                        </div>
+                        <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`}>
+                            expand_more
+                        </span>
+                    </button>
+                    
+                    {showPastAccordion && (
+                        <div className="p-4 space-y-3 bg-gray-50/50 dark:bg-black/20">
+                            {pastClosures.map((closure, index) => {
+                                const blocking = isBlocking(closure.affectedAreas);
+                                const isExpanded = expandedNotices.has(closure.id);
+                                
+                                return (
+                                    <div 
+                                        key={closure.id} 
+                                        className={`rounded-xl overflow-hidden transition-all opacity-70 hover:opacity-100 ${
+                                            blocking 
+                                                ? 'bg-red-50 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/20'
+                                                : 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20'
+                                        }`}
+                                    >
+                                        <div className="p-3">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div 
+                                                    className="flex-1 min-w-0 cursor-pointer"
+                                                    onClick={() => toggleNoticeExpand(closure.id)}
+                                                >
+                                                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${blocking ? 'bg-red-400' : 'bg-amber-400'}`}></span>
+                                                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                                                            blocking 
+                                                                ? 'bg-red-200/60 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                                                                : 'bg-amber-200/60 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                                                        }`}>
+                                                            {blocking 
+                                                                ? (closure.noticeType || 'Closure')
+                                                                : (closure.noticeType && closure.noticeType.toLowerCase() !== 'closure' ? closure.noticeType : 'Notice')
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="font-medium text-sm text-gray-600 dark:text-white/70 mb-1 truncate">{closure.title.replace(/^\[[^\]]+\]\s*:?\s*/i, '')}</h4>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${
+                                                            blocking 
+                                                                ? 'bg-red-100/60 dark:bg-red-500/15 text-red-500 dark:text-red-400'
+                                                                : 'bg-amber-100/60 dark:bg-amber-500/15 text-amber-500 dark:text-amber-400'
+                                                        }`}>
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-[11px]">calendar_today</span>
+                                                            <span>
+                                                                {formatDate(closure.startDate)}
+                                                                {closure.endDate && closure.endDate !== closure.startDate ? ` - ${formatDate(closure.endDate)}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    <button
+                                                        onClick={(e) => handleEditClosure(closure, e)}
+                                                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition-all"
+                                                    >
+                                                        <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => toggleNoticeExpand(closure.id)}
+                                                        className="p-1"
+                                                    >
+                                                        <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                                                            expand_more
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {isExpanded && (
+                                            <div className={`border-t p-3 ${blocking ? 'border-red-200/40 dark:border-red-500/20' : 'border-amber-200/40 dark:border-amber-500/20'}`}>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={(e) => handleEditClosure(closure, e)}
+                                                        className="flex-1 py-2 px-3 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition-all"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDeleteClosure(closure.id, e)}
+                                                        className="py-2 px-3 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 text-sm hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
