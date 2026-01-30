@@ -1918,7 +1918,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         return (
                                             <div 
                                                 key={`unmatched-${item.id}`} 
-                                                className="bg-amber-50/80 dark:bg-amber-500/10 p-4 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/30 animate-slide-up-stagger cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 transition-colors" 
+                                                className="bg-amber-50/80 dark:bg-amber-500/10 p-4 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/30 animate-slide-up-stagger cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:scale-[1.01] shadow-sm hover:shadow-md transition-all duration-200" 
                                                 style={{ '--stagger-index': index + 2 } as React.CSSProperties}
                                                 onClick={() => setTrackmanLinkModal({
                                                     isOpen: true,
@@ -1973,7 +1973,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                             notes: (item as any).notes || (item as any).trackman_customer_notes || (item as any).staff_notes
                                                         });
                                                     }}
-                                                    className="w-full mt-3 py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                                    className="w-full mt-3 py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-all duration-200"
                                                 >
                                                     <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
                                                     Assign Member
@@ -1984,7 +1984,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     
                                     // Pending request card (existing design)
                                     return (
-                                    <div key={`${req.source || 'request'}-${req.id}`} className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 animate-slide-up-stagger" style={{ '--stagger-index': index + 2 } as React.CSSProperties}>
+                                    <div key={`${req.source || 'request'}-${req.id}`} className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 animate-slide-up-stagger shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer" style={{ '--stagger-index': index + 2 } as React.CSSProperties}>
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-0.5">
@@ -2028,14 +2028,14 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => setTrackmanModal({ isOpen: true, booking: req })}
-                                                className="flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                                                className="flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 hover:shadow-md active:scale-95 transition-all duration-200"
                                             >
                                                 <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
                                                 Book on Trackman
                                             </button>
                                             <button
                                                 onClick={() => { setSelectedRequest(req); setActionModal('decline'); }}
-                                                className="flex-1 py-2 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                                className="flex-1 py-2 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-200 dark:hover:bg-red-900/50 hover:shadow-md active:scale-95 transition-all duration-200"
                                             >
                                                 <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
                                                 Deny
@@ -2151,11 +2151,11 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                         ]}
                                                     >
                                                         <div 
-                                                            className={`p-4 rounded-2xl animate-pop-in cursor-pointer hover:opacity-90 transition-opacity ${
-                                                            isUnmatched 
-                                                                ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30' 
-                                                                : 'glass-card border border-primary/10 dark:border-white/25'
-                                                        }`} 
+                                                            className={`p-4 rounded-2xl animate-pop-in cursor-pointer shadow-sm ${
+                                                                isUnmatched 
+                                                                    ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30 hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:shadow-md hover:scale-[1.01]' 
+                                                                    : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
+                                                            } transition-all duration-200`} 
                                                             style={{ '--stagger-index': index } as React.CSSProperties}
                                                             onClick={() => setSelectedCalendarBooking(booking)}
                                                         >
@@ -2222,7 +2222,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                             importedName: (booking as any).user_name || (booking as any).userName,
                                                                             notes: (booking as any).notes || (booking as any).note
                                                                         })}
-                                                                        className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                                                                        className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">person_add</span>
                                                                         Assign Member
@@ -2238,7 +2238,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                             const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
                                                                             setBillingModal({ isOpen: true, bookingId });
                                                                         }}
-                                                                        className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-colors"
+                                                                        className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
                                                                         ${(booking.total_owed || 0).toFixed(0)} Due
@@ -2249,7 +2249,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                             const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
                                                                             setRosterModal({ isOpen: true, bookingId });
                                                                         }}
-                                                                        className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors"
+                                                                        className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">group</span>
                                                                         {(booking as any).filled_player_count || 0}/{(booking as any).declared_player_count || 1} Players
@@ -2257,7 +2257,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         onClick={() => updateBookingStatusOptimistic(booking, 'attended')}
-                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-colors"
+                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
                                                                         Check In
@@ -2404,11 +2404,11 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                         </div>
                     </div>
                     
-                    <div className="flex-1 relative animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
+                    <div className="flex-1 relative animate-slide-up-stagger overflow-x-auto scroll-smooth" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                         <div className="w-full px-1 sm:px-2 pb-4">
                             <div className="w-full">
                             <div className="grid gap-0.5 w-full" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>
-                                <div className="h-8 sm:h-10 sticky top-0 z-20 bg-white dark:bg-[#1a1f1a] flex items-center justify-center text-[10px] sm:text-xs font-bold text-primary dark:text-white rounded-t-lg border border-gray-200 dark:border-white/25">
+                                <div className="h-8 sm:h-10 sticky top-0 z-20 bg-white dark:bg-[#1a1f1a] flex items-center justify-center text-[10px] sm:text-xs font-bold text-primary dark:text-white rounded-t-lg border border-gray-200 dark:border-white/25 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
                                     <span className="hidden sm:inline">Time</span>
                                     <span className="sm:hidden">T</span>
                                 </div>
@@ -2417,15 +2417,18 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
                                     return 0;
                                 }).map(resource => (
-                                    <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 sticky top-0 z-20 ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50' : 'bg-white dark:bg-[#1a1f1a]'}`}>
+                                    <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 sticky top-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
                                         <span className="hidden sm:inline">{resource.type === 'conference_room' ? 'Conf' : resource.name.replace('Simulator Bay ', 'Bay ')}</span>
                                         <span className="sm:hidden">{resource.type === 'conference_room' ? 'CR' : resource.name.replace('Simulator Bay ', 'B')}</span>
                                     </div>
                                 ))}
                                 
-                                {timeSlots.map(slot => (
+                                {timeSlots.map(slot => {
+                                    const slotHour = parseInt(slot.split(':')[0]);
+                                    const isEvenHour = slotHour % 2 === 0;
+                                    return (
                                     <React.Fragment key={slot}>
-                                        <div className="h-7 sm:h-8 flex items-center justify-end pr-0.5 sm:pr-1 text-[9px] sm:text-[10px] text-gray-600 dark:text-white/70 font-medium whitespace-nowrap bg-white dark:bg-surface-dark">
+                                        <div className={`h-7 sm:h-8 flex items-center justify-end pr-0.5 sm:pr-1 text-[9px] sm:text-[10px] text-gray-600 dark:text-white/70 font-medium whitespace-nowrap border-r border-gray-200 dark:border-white/15 ${isEvenHour ? 'bg-white dark:bg-surface-dark' : 'bg-gray-50 dark:bg-white/3'}`}>
                                             <span className="hidden sm:inline">{formatTime12Hour(slot)}</span>
                                             <span className="sm:hidden">{formatTime12Hour(slot).replace(':00', '').replace(' AM', 'a').replace(' PM', 'p')}</span>
                                         </div>
@@ -2517,7 +2520,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                                                 : pendingRequest
                                                                         ? 'bg-blue-50 dark:bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20'
                                                                         : 'bg-white dark:bg-white/5 border border-gray-200 dark:border-white/15 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10'
-                                                    } transition-colors`}
+                                                    } transition-all duration-150`}
                                                 >
                                                     {closure ? (
                                                         <div className="px-0.5 sm:px-1 h-full flex items-center justify-center">
@@ -2608,7 +2611,8 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                             );
                                         })}
                                     </React.Fragment>
-                                ))}
+                                    )
+                                })}
                             </div>
                             </div>
                         </div>
@@ -3200,7 +3204,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         setTrackmanIdDraft((selectedCalendarBooking as any)?.trackman_booking_id || '');
                                         setEditingTrackmanId(true);
                                     }}
-                                    className="p-1 rounded hover:bg-amber-200 dark:hover:bg-amber-500/20 transition-colors"
+                                    className="p-1 rounded hover:bg-amber-200 dark:hover:bg-amber-500/20 hover:shadow-sm transition-all duration-200"
                                     title="Edit Trackman ID"
                                 >
                                     <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-sm">edit</span>
@@ -3251,7 +3255,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         }
                                     }}
                                     disabled={savingTrackmanId}
-                                    className="p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50"
+                                    className="p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50"
                                     title="Save"
                                 >
                                     {savingTrackmanId ? (
@@ -3422,7 +3426,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                             }
                                         }}
                                         disabled={isUnmatchingMember || isCancellingFromModal}
-                                        className="w-full py-2.5 px-4 rounded-lg border border-orange-300 dark:border-orange-500/50 text-orange-600 dark:text-orange-400 font-medium flex items-center justify-center gap-2 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full py-2.5 px-4 rounded-lg border border-orange-300 dark:border-orange-500/50 text-orange-600 dark:text-orange-400 font-medium flex items-center justify-center gap-2 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isUnmatchingMember ? (
                                             <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>

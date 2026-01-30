@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.51.0",
+    date: "2026-01-30",
+    title: "UI Polish - Smoother Animations & Visual Feedback",
+    changes: [
+      "Added: Sidebar sliding indicator animation that smoothly transitions between selected items (matching bottom nav style)",
+      "Improved: Booking cards have smoother hover transitions with subtle scale and shadow depth effects",
+      "Improved: Time slot grid now has visual separation between columns and alternating hour backgrounds for better readability",
+      "Improved: All action buttons (Assign Member, Check In, etc.) now have smooth press feedback with active:scale-95",
+      "Improved: Grid cells have faster transition animations (150ms) for more responsive feel",
+      "Improved: Header rows in booking grid have subtle shadows for visual depth"
+    ]
+  },
+  {
     version: "9.50.5",
     date: "2026-01-30",
     title: "Remove Duplicate Requires Review Section",

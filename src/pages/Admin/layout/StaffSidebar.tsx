@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { TabType } from './types';
@@ -51,11 +51,43 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
 }) => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<Map<TabType, HTMLButtonElement>>(new Map());
+  const [indicatorStyle, setIndicatorStyle] = useState<{ top: number; height: number } | null>(null);
+  
+  const updateIndicatorPosition = useCallback(() => {
+    const activeButton = buttonRefs.current.get(activeTab);
+    const container = navContainerRef.current;
+    if (activeButton && container) {
+      setIndicatorStyle({
+        top: activeButton.offsetTop,
+        height: activeButton.offsetHeight
+      });
+    }
+  }, [activeTab]);
+  
+  useEffect(() => {
+    const timer = setTimeout(updateIndicatorPosition, 50);
+    window.addEventListener('resize', updateIndicatorPosition);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateIndicatorPosition);
+    };
+  }, [activeTab, isAdmin, updateIndicatorPosition]);
+  
+  const setButtonRef = useCallback((id: TabType, el: HTMLButtonElement | null) => {
+    if (el) {
+      buttonRefs.current.set(id, el);
+    } else {
+      buttonRefs.current.delete(id);
+    }
+  }, []);
   
   const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {
     const isActive = activeTab === item.id;
     return (
       <button
+        ref={(el) => setButtonRef(item.id, el)}
         onClick={() => onTabChange(item.id)}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
@@ -65,7 +97,6 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
           }
         `}
       >
-        <div className={`absolute inset-0 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} />
         <span className={`material-symbols-outlined text-xl relative z-10 transition-colors duration-300 ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
           {item.icon}
         </span>
@@ -93,7 +124,16 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         </div>
       </button>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav ref={navContainerRef} className="relative flex-1 overflow-y-auto px-3 py-4">
+        {indicatorStyle && (
+          <div 
+            className="absolute left-3 right-3 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            style={{ 
+              top: indicatorStyle.top,
+              height: indicatorStyle.height
+            }}
+          />
+        )}
         <div className="space-y-1">
           {MAIN_NAV_ITEMS.map(item => (
             <NavButton key={item.id} item={item} />
