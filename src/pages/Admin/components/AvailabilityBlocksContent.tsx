@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { formatDateDisplayWithDay } from '../../../utils/dateUtils';
+import React, { useState, useEffect, useMemo } from 'react';
+import { formatDateDisplayWithDay, getTodayPacific } from '../../../utils/dateUtils';
 import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
 import FloatingActionButton from '../../../components/FloatingActionButton';
@@ -69,6 +69,7 @@ const AvailabilityBlocksContent: React.FC = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     
     const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+    const [showPastAccordion, setShowPastAccordion] = useState(false);
 
     useEffect(() => {
         fetchResources();
@@ -303,7 +304,30 @@ const AvailabilityBlocksContent: React.FC = () => {
         });
     };
 
-    const groupedBlocks = groupBlocksByDate(blocks);
+    const { upcomingBlocks, pastBlocks } = useMemo(() => {
+        const today = getTodayPacific();
+        const upcoming: AvailabilityBlock[] = [];
+        const past: AvailabilityBlock[] = [];
+        
+        blocks.forEach(block => {
+            const blockDate = block.block_date?.includes('T') 
+                ? block.block_date.split('T')[0] 
+                : block.block_date;
+            if (blockDate < today) {
+                past.push(block);
+            } else {
+                upcoming.push(block);
+            }
+        });
+        
+        return { upcomingBlocks: upcoming, pastBlocks: past };
+    }, [blocks]);
+
+    const groupedUpcoming = groupBlocksByDate(upcomingBlocks);
+    const groupedPast = useMemo(() => {
+        const grouped = groupBlocksByDate(pastBlocks);
+        return grouped.reverse();
+    }, [pastBlocks]);
 
     return (
         <div className="animate-pop-in">
@@ -344,15 +368,20 @@ const AvailabilityBlocksContent: React.FC = () => {
                 <div className="flex items-center justify-center py-12">
                     <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-600 dark:text-gray-500">progress_activity</span>
                 </div>
-            ) : blocks.length === 0 ? (
+            ) : upcomingBlocks.length === 0 && pastBlocks.length === 0 ? (
                 <div className="text-center py-12 text-gray-600 dark:text-gray-500">
                     <span aria-hidden="true" className="material-symbols-outlined text-4xl mb-2 block">event_busy</span>
                     <p>No availability blocks found</p>
                     <p className="text-sm mt-1">Use the + button to add a new block</p>
                 </div>
+            ) : upcomingBlocks.length === 0 ? (
+                <div className="text-center py-8 text-gray-600 dark:text-gray-500 mb-4">
+                    <span aria-hidden="true" className="material-symbols-outlined text-3xl mb-2 block">event_available</span>
+                    <p>No upcoming blocks</p>
+                </div>
             ) : (
                 <div className="space-y-3">
-                    {groupedBlocks.map(({ date, blocks: dayBlocks }, groupIndex) => {
+                    {groupedUpcoming.map(({ date, blocks: dayBlocks }, groupIndex) => {
                         const isExpanded = expandedDays.has(date);
                         return (
                             <div 
@@ -429,6 +458,92 @@ const AvailabilityBlocksContent: React.FC = () => {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {pastBlocks.length > 0 && (
+                <div className="mt-6 rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden">
+                    <button
+                        onClick={() => setShowPastAccordion(!showPastAccordion)}
+                        className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
+                            <span className="font-semibold text-gray-600 dark:text-white/80">Past Blocks</span>
+                            <span className="text-xs bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-2 py-0.5 rounded-full">
+                                {pastBlocks.length}
+                            </span>
+                        </div>
+                        <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`}>
+                            expand_more
+                        </span>
+                    </button>
+                    
+                    {showPastAccordion && (
+                        <div className="p-4 space-y-3 bg-gray-50/50 dark:bg-black/20">
+                            {groupedPast.map(({ date, blocks: dayBlocks }, groupIndex) => {
+                                const isExpanded = expandedDays.has(`past-${date}`);
+                                return (
+                                    <div 
+                                        key={`past-${date}`} 
+                                        className="bg-white/60 dark:bg-surface-dark/60 rounded-xl border border-gray-200/60 dark:border-white/10 overflow-hidden opacity-70 hover:opacity-100 transition-opacity"
+                                    >
+                                        <button
+                                            onClick={() => {
+                                                setExpandedDays(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (newSet.has(`past-${date}`)) {
+                                                        newSet.delete(`past-${date}`);
+                                                    } else {
+                                                        newSet.add(`past-${date}`);
+                                                    }
+                                                    return newSet;
+                                                });
+                                            }}
+                                            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center">
+                                                    <span aria-hidden="true" className="material-symbols-outlined text-sm text-gray-500 dark:text-gray-400">calendar_today</span>
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm text-gray-600 dark:text-white/70">{formatDateDisplayWithDay(date)}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{dayBlocks.length} block{dayBlocks.length !== 1 ? 's' : ''}</p>
+                                                </div>
+                                            </div>
+                                            <span aria-hidden="true" className={`material-symbols-outlined text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                                                expand_more
+                                            </span>
+                                        </button>
+                                        
+                                        {isExpanded && (
+                                            <div className="border-t border-gray-200/40 dark:border-white/10 p-3 space-y-2 bg-gray-50/50 dark:bg-black/10">
+                                                {dayBlocks.map((block) => (
+                                                    <div 
+                                                        key={block.id}
+                                                        className="flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-surface-dark border border-gray-100 dark:border-white/10"
+                                                    >
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-medium text-sm text-gray-700 dark:text-white/80">{block.resource_name}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                                {formatTime(block.start_time)} - {formatTime(block.end_time)}
+                                                            </p>
+                                                        </div>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(block); }} 
+                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                        >
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
