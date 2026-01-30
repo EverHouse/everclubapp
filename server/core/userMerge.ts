@@ -486,7 +486,7 @@ export async function executeMerge(
     await client.query(
       `DELETE FROM group_members 
        WHERE LOWER(member_email) = $1 
-       AND group_id IN (SELECT group_id FROM group_members WHERE LOWER(member_email) = $2)`,
+       AND billing_group_id IN (SELECT billing_group_id FROM group_members WHERE LOWER(member_email) = $2)`,
       [secondaryEmail, primaryEmail]
     );
     
