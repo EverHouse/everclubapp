@@ -16,6 +16,7 @@ import {
 } from '../../../shared/schema';
 import { isProduction } from '../../core/db';
 import { isStaffOrAdmin, isAuthenticated, isAdmin } from '../../core/middleware';
+import { syncSmsPreferencesToHubSpot } from '../../core/hubspot/contacts';
 
 const router = Router();
 
@@ -42,6 +43,9 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
       companyName: users.companyName,
       emailOptIn: users.emailOptIn,
       smsOptIn: users.smsOptIn,
+      smsPromoOptIn: users.smsPromoOptIn,
+      smsTransactionalOptIn: users.smsTransactionalOptIn,
+      smsRemindersOptIn: users.smsRemindersOptIn,
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -158,10 +162,72 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
       companyName: user.companyName,
       emailOptIn: user.emailOptIn,
       smsOptIn: user.smsOptIn,
+      smsPromoOptIn: user.smsPromoOptIn,
+      smsTransactionalOptIn: user.smsTransactionalOptIn,
+      smsRemindersOptIn: user.smsRemindersOptIn,
     });
   } catch (error: any) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch member details' });
+  }
+});
+
+router.put('/api/members/:email/sms-preferences', isAuthenticated, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const normalizedEmail = decodeURIComponent(email).toLowerCase();
+    const requestingUser = (req as any).user;
+    
+    // Users can only update their own SMS preferences (unless staff/admin)
+    if (requestingUser?.email?.toLowerCase() !== normalizedEmail && 
+        !['staff', 'admin'].includes(requestingUser?.role)) {
+      return res.status(403).json({ error: 'Not authorized to update this member\'s preferences' });
+    }
+    
+    const { smsPromoOptIn, smsTransactionalOptIn, smsRemindersOptIn } = req.body;
+    
+    // Build update object with only provided fields
+    const updateData: Record<string, any> = { updatedAt: new Date() };
+    if (typeof smsPromoOptIn === 'boolean') updateData.smsPromoOptIn = smsPromoOptIn;
+    if (typeof smsTransactionalOptIn === 'boolean') updateData.smsTransactionalOptIn = smsTransactionalOptIn;
+    if (typeof smsRemindersOptIn === 'boolean') updateData.smsRemindersOptIn = smsRemindersOptIn;
+    
+    if (Object.keys(updateData).length === 1) {
+      return res.status(400).json({ error: 'No valid preference updates provided' });
+    }
+    
+    const result = await db.update(users)
+      .set(updateData)
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`)
+      .returning({
+        email: users.email,
+        smsPromoOptIn: users.smsPromoOptIn,
+        smsTransactionalOptIn: users.smsTransactionalOptIn,
+        smsRemindersOptIn: users.smsRemindersOptIn
+      });
+    
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    // Sync preferences back to HubSpot in the background
+    syncSmsPreferencesToHubSpot(normalizedEmail, {
+      smsPromoOptIn: result[0].smsPromoOptIn,
+      smsTransactionalOptIn: result[0].smsTransactionalOptIn,
+      smsRemindersOptIn: result[0].smsRemindersOptIn
+    }).catch(err => {
+      console.error(`[Profile] Failed to sync SMS preferences to HubSpot for ${normalizedEmail}:`, err);
+    });
+    
+    res.json({
+      success: true,
+      smsPromoOptIn: result[0].smsPromoOptIn,
+      smsTransactionalOptIn: result[0].smsTransactionalOptIn,
+      smsRemindersOptIn: result[0].smsRemindersOptIn
+    });
+  } catch (error: any) {
+    if (!isProduction) console.error('SMS preferences update error:', error);
+    res.status(500).json({ error: 'Failed to update SMS preferences' });
   }
 });
 

@@ -2,6 +2,87 @@ import { getHubSpotClient } from '../integrations';
 import { isProduction } from '../db';
 import { retryableHubSpotRequest } from './request';
 
+export interface SmsPreferences {
+  smsPromoOptIn: boolean | null;
+  smsTransactionalOptIn: boolean | null;
+  smsRemindersOptIn: boolean | null;
+}
+
+/**
+ * Sync SMS preferences from our database back to HubSpot
+ * Maps our fields to HubSpot's SMS consent properties
+ */
+export async function syncSmsPreferencesToHubSpot(
+  email: string,
+  preferences: SmsPreferences
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  try {
+    const hubspot = await getHubSpotClient();
+
+    // Search for contact by email
+    const searchResponse = await retryableHubSpotRequest(() =>
+      hubspot.crm.contacts.searchApi.doSearch({
+        filterGroups: [{
+          filters: [{
+            propertyName: 'email',
+            operator: 'EQ' as any,
+            value: normalizedEmail
+          }]
+        }],
+        properties: ['email'],
+        limit: 1
+      })
+    );
+
+    if (!searchResponse.results || searchResponse.results.length === 0) {
+      if (!isProduction) {
+        console.log(`[HubSpot SMS Sync] Contact not found for ${normalizedEmail}`);
+      }
+      return { success: false, error: 'Contact not found in HubSpot' };
+    }
+
+    const contactId = searchResponse.results[0].id;
+
+    // Map our fields to HubSpot SMS consent properties
+    const properties: Record<string, string> = {};
+    
+    if (preferences.smsPromoOptIn !== null) {
+      properties.hs_sms_promotional = preferences.smsPromoOptIn ? 'true' : 'false';
+    }
+    if (preferences.smsTransactionalOptIn !== null) {
+      properties.hs_sms_customer_updates = preferences.smsTransactionalOptIn ? 'true' : 'false';
+    }
+    if (preferences.smsRemindersOptIn !== null) {
+      properties.hs_sms_reminders = preferences.smsRemindersOptIn ? 'true' : 'false';
+    }
+
+    if (Object.keys(properties).length === 0) {
+      return { success: true }; // Nothing to update
+    }
+
+    // Update contact with SMS preferences
+    await retryableHubSpotRequest(() =>
+      hubspot.crm.contacts.basicApi.update(contactId, { properties })
+    );
+
+    if (!isProduction) {
+      console.log(`[HubSpot SMS Sync] Updated SMS preferences for contact ${contactId}`);
+    }
+
+    return { success: true };
+
+  } catch (error: any) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[HubSpot SMS Sync] Error syncing SMS preferences:', error);
+    return {
+      success: false,
+      error: errorMsg || 'Failed to sync SMS preferences to HubSpot'
+    };
+  }
+}
+
 export interface SyncDayPassPurchaseInput {
   email: string;
   firstName?: string;

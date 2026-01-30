@@ -47,6 +47,10 @@ const Profile: React.FC = () => {
   const [pushLoading, setPushLoading] = useState(false);
   const [emailOptIn, setEmailOptIn] = useState<boolean | null>(null);
   const [smsOptIn, setSmsOptIn] = useState<boolean | null>(null);
+  const [smsPromoOptIn, setSmsPromoOptIn] = useState<boolean | null>(null);
+  const [smsTransactionalOptIn, setSmsTransactionalOptIn] = useState<boolean | null>(null);
+  const [smsRemindersOptIn, setSmsRemindersOptIn] = useState<boolean | null>(null);
+  const [showSmsDetails, setShowSmsDetails] = useState(false);
   const [prefsLoading, setPrefsLoading] = useState(false);
   
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -242,6 +246,9 @@ const Profile: React.FC = () => {
         .then(data => {
           setEmailOptIn(data.emailOptIn);
           setSmsOptIn(data.smsOptIn);
+          setSmsPromoOptIn(data.smsPromoOptIn ?? null);
+          setSmsTransactionalOptIn(data.smsTransactionalOptIn ?? null);
+          setSmsRemindersOptIn(data.smsRemindersOptIn ?? null);
           setDoNotSellMyInfo(data.doNotSellMyInfo || false);
           setDataExportRequestedAt(data.dataExportRequestedAt);
         })
@@ -278,6 +285,50 @@ const Profile: React.FC = () => {
       if (type === 'email') setEmailOptIn(previousEmail);
       else setSmsOptIn(previousSms);
       showToast('Failed to update preferences', 'error');
+    } finally {
+      setPrefsLoading(false);
+    }
+  };
+
+  const handleSmsPreferenceToggle = async (type: 'promo' | 'transactional' | 'reminders', newValue: boolean) => {
+    if (!user?.email || prefsLoading) return;
+    
+    const previousPromo = smsPromoOptIn;
+    const previousTransactional = smsTransactionalOptIn;
+    const previousReminders = smsRemindersOptIn;
+    
+    if (type === 'promo') setSmsPromoOptIn(newValue);
+    else if (type === 'transactional') setSmsTransactionalOptIn(newValue);
+    else setSmsRemindersOptIn(newValue);
+    
+    setPrefsLoading(true);
+    try {
+      const body: Record<string, boolean> = {};
+      if (type === 'promo') body.smsPromoOptIn = newValue;
+      else if (type === 'transactional') body.smsTransactionalOptIn = newValue;
+      else body.smsRemindersOptIn = newValue;
+      
+      const res = await fetch(`/api/members/${encodeURIComponent(user.email)}/sms-preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include'
+      });
+      
+      if (res.ok) {
+        showToast('SMS preferences updated', 'success');
+      } else {
+        // Rollback on failure
+        if (type === 'promo') setSmsPromoOptIn(previousPromo);
+        else if (type === 'transactional') setSmsTransactionalOptIn(previousTransactional);
+        else setSmsRemindersOptIn(previousReminders);
+        showToast('Failed to update SMS preferences', 'error');
+      }
+    } catch {
+      if (type === 'promo') setSmsPromoOptIn(previousPromo);
+      else if (type === 'transactional') setSmsTransactionalOptIn(previousTransactional);
+      else setSmsRemindersOptIn(previousReminders);
+      showToast('Failed to update SMS preferences', 'error');
     } finally {
       setPrefsLoading(false);
     }
@@ -562,13 +613,81 @@ const Profile: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <Toggle
-                    checked={smsOptIn ?? false}
-                    onChange={(val) => handlePreferenceToggle('sms', val)}
-                    disabled={prefsLoading}
-                    label="SMS Updates"
-                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowSmsDetails(!showSmsDetails)}
+                      className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+                      title="SMS Preferences"
+                    >
+                      <span className={`material-symbols-outlined text-lg ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                        {showSmsDetails ? 'expand_less' : 'tune'}
+                      </span>
+                    </button>
+                    <Toggle
+                      checked={smsOptIn ?? false}
+                      onChange={(val) => handlePreferenceToggle('sms', val)}
+                      disabled={prefsLoading}
+                      label="SMS Updates"
+                    />
+                  </div>
                 </div>
+                
+                {/* Granular SMS Preferences - expandable */}
+                {showSmsDetails && (
+                  <div className={`ml-8 mr-4 mb-4 p-3 rounded-xl space-y-3 ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                    <p className={`text-xs font-medium mb-2 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>
+                      Fine-tune your SMS preferences:
+                    </p>
+                    
+                    {/* Promotional SMS */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className={`text-sm ${isDark ? '' : 'text-primary'}`}>Promotional</span>
+                        <p className={`text-xs ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                          Deals, events, and special offers
+                        </p>
+                      </div>
+                      <Toggle
+                        checked={smsPromoOptIn ?? false}
+                        onChange={(val) => handleSmsPreferenceToggle('promo', val)}
+                        disabled={prefsLoading}
+                        label="Promotional SMS"
+                      />
+                    </div>
+                    
+                    {/* Transactional SMS */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className={`text-sm ${isDark ? '' : 'text-primary'}`}>Account Updates</span>
+                        <p className={`text-xs ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                          Booking confirmations and billing
+                        </p>
+                      </div>
+                      <Toggle
+                        checked={smsTransactionalOptIn ?? false}
+                        onChange={(val) => handleSmsPreferenceToggle('transactional', val)}
+                        disabled={prefsLoading}
+                        label="Account Updates SMS"
+                      />
+                    </div>
+                    
+                    {/* Reminders SMS */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className={`text-sm ${isDark ? '' : 'text-primary'}`}>Reminders</span>
+                        <p className={`text-xs ${isDark ? 'opacity-60' : 'text-primary/60'}`}>
+                          Session and appointment reminders
+                        </p>
+                      </div>
+                      <Toggle
+                        checked={smsRemindersOptIn ?? false}
+                        onChange={(val) => handleSmsPreferenceToggle('reminders', val)}
+                        disabled={prefsLoading}
+                        label="Reminders SMS"
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
             

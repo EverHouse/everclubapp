@@ -165,6 +165,9 @@ router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
     const result = await db.select({ 
       emailOptIn: users.emailOptIn, 
       smsOptIn: users.smsOptIn,
+      smsPromoOptIn: users.smsPromoOptIn,
+      smsTransactionalOptIn: users.smsTransactionalOptIn,
+      smsRemindersOptIn: users.smsRemindersOptIn,
       doNotSellMyInfo: users.doNotSellMyInfo,
       dataExportRequestedAt: users.dataExportRequestedAt
     })
@@ -172,7 +175,7 @@ router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
       .where(eq(users.email, targetEmail.toLowerCase()));
     
     if (result.length === 0) {
-      return res.json({ emailOptIn: null, smsOptIn: null, doNotSellMyInfo: false, dataExportRequestedAt: null });
+      return res.json({ emailOptIn: null, smsOptIn: null, smsPromoOptIn: null, smsTransactionalOptIn: null, smsRemindersOptIn: null, doNotSellMyInfo: false, dataExportRequestedAt: null });
     }
     
     res.json(result[0]);
