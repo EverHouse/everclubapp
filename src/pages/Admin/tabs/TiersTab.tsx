@@ -574,25 +574,36 @@ const TiersTab: React.FC = () => {
                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Stripe Pricing</h4>
                         <div className="space-y-3">
                             {selectedTier?.stripe_price_id && (
-                                <div className="flex items-center gap-2 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-indigo-600 dark:text-indigo-400">link</span>
-                                    <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Linked to Stripe</span>
-                                    <span className="text-xs text-indigo-600 dark:text-indigo-400 ml-auto truncate max-w-[150px]">{selectedTier.stripe_price_id}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!selectedTier) return;
-                                            setSelectedTier({
-                                                ...selectedTier,
-                                                stripe_price_id: null,
-                                                stripe_product_id: null,
-                                                price_cents: null
-                                            });
-                                        }}
-                                        className="ml-2 px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                    >
-                                        Unlink
-                                    </button>
+                                <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span aria-hidden="true" className="material-symbols-outlined text-indigo-600 dark:text-indigo-400">link</span>
+                                        <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Linked to Stripe</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!selectedTier) return;
+                                                setSelectedTier({
+                                                    ...selectedTier,
+                                                    stripe_price_id: null,
+                                                    stripe_product_id: null,
+                                                    price_cents: null
+                                                });
+                                            }}
+                                            className="ml-auto px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                        >
+                                            Unlink
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <span className="text-indigo-500 dark:text-indigo-400">Product:</span>
+                                            <span className="ml-1 text-indigo-700 dark:text-indigo-300 font-mono">{selectedTier.stripe_product_id || '—'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-indigo-500 dark:text-indigo-400">Price:</span>
+                                            <span className="ml-1 text-indigo-700 dark:text-indigo-300 font-mono">{selectedTier.stripe_price_id}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                             <div>
