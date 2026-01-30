@@ -614,36 +614,52 @@ router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
     }
     
     const results = await pool.query(`
-      SELECT id, email, first_name, last_name, phone, stripe_customer_id, role, membership_status
-      FROM users
-      WHERE ${roleCondition}
-      AND archived_at IS NULL
+      SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.stripe_customer_id, u.role, u.membership_status,
+             su.role as staff_role, su.is_active as is_staff_active
+      FROM users u
+      LEFT JOIN staff_users su ON LOWER(u.email) = LOWER(su.email) AND su.is_active = true
+      WHERE ${roleCondition.replace(/role/g, 'u.role').replace(/membership_status/g, 'u.membership_status').replace(/archived_at/g, 'u.archived_at')}
+      AND u.archived_at IS NULL
       AND (
-        LOWER(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) LIKE $1
-        OR LOWER(COALESCE(first_name, '')) LIKE $1
-        OR LOWER(COALESCE(last_name, '')) LIKE $1
-        OR LOWER(COALESCE(email, '')) LIKE $1
+        LOWER(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) LIKE $1
+        OR LOWER(COALESCE(u.first_name, '')) LIKE $1
+        OR LOWER(COALESCE(u.last_name, '')) LIKE $1
+        OR LOWER(COALESCE(u.email, '')) LIKE $1
       )
-      ORDER BY first_name, last_name
+      ORDER BY u.first_name, u.last_name
       LIMIT $2
     `, [searchTerm, maxResults]);
     
-    const visitors = results.rows.map((row: any) => ({
-      id: row.id,
-      email: row.email,
-      firstName: row.first_name || '',
-      lastName: row.last_name || '',
-      name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
-      phone: row.phone,
-      hasStripeCustomer: !!row.stripe_customer_id,
-      role: row.role,
-      membershipStatus: row.membership_status,
-      userType: row.role === 'staff' || row.role === 'admin' 
-        ? 'staff' 
-        : (row.membership_status === 'active' || row.membership_status === 'trialing' || row.membership_status === 'past_due')
-          ? 'member'
-          : 'visitor'
-    }));
+    const visitors = results.rows.map((row: any) => {
+      // Determine user type based on staff_users role and users table data
+      const isGolfInstructor = row.staff_role === 'golf_instructor' && row.is_staff_active;
+      const isStaff = row.role === 'staff' || row.role === 'admin' || row.staff_role === 'staff' || row.staff_role === 'admin';
+      const isMember = row.membership_status === 'active' || row.membership_status === 'trialing' || row.membership_status === 'past_due';
+      
+      let userType = 'visitor';
+      if (isGolfInstructor) {
+        userType = 'instructor';
+      } else if (isStaff) {
+        userType = 'staff';
+      } else if (isMember) {
+        userType = 'member';
+      }
+      
+      return {
+        id: row.id,
+        email: row.email,
+        firstName: row.first_name || '',
+        lastName: row.last_name || '',
+        name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        phone: row.phone,
+        hasStripeCustomer: !!row.stripe_customer_id,
+        role: row.role,
+        membershipStatus: row.membership_status,
+        staffRole: row.staff_role,
+        isInstructor: isGolfInstructor,
+        userType
+      };
+    });
     
     res.json(visitors);
   } catch (error: any) {

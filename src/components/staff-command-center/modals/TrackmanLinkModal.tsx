@@ -29,6 +29,9 @@ interface VisitorSearchResult {
   firstName: string;
   lastName: string;
   name?: string;
+  userType?: 'visitor' | 'member' | 'staff' | 'instructor';
+  isInstructor?: boolean;
+  staffRole?: string;
 }
 
 interface SlotState {
@@ -540,9 +543,31 @@ export function TrackmanLinkModal({
                       onClick={() => handleSelectExistingVisitor(v)}
                       className="w-full p-2 text-left rounded-lg hover:bg-primary/5 dark:hover:bg-white/10 transition-colors"
                     >
-                      <p className="font-medium text-xs text-primary dark:text-white">
-                        {v.firstName} {v.lastName}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-xs text-primary dark:text-white">
+                          {v.firstName} {v.lastName}
+                        </p>
+                        {v.userType === 'instructor' && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded">
+                            Instructor
+                          </span>
+                        )}
+                        {v.userType === 'staff' && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">
+                            Staff
+                          </span>
+                        )}
+                        {v.userType === 'member' && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded">
+                            Member
+                          </span>
+                        )}
+                        {v.userType === 'visitor' && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded">
+                            Visitor
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-primary/60 dark:text-white/60">{v.email}</p>
                     </button>
                   ))}
