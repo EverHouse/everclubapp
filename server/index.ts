@@ -7,6 +7,7 @@ import expressStaticGzip from 'express-static-gzip';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
 import type { Server } from 'http';
 import { globalRateLimiter } from './middleware/rateLimiting';
 import { getSession, registerAuthRoutes } from './replit_integrations/auth';
@@ -485,9 +486,26 @@ async function startServer() {
     process.exit(1);
   }
   
-  httpServer = app.listen(PORT, '0.0.0.0', () => {
+  httpServer = http.createServer((req, res) => {
+    if (req.url === '/healthz' || req.url === '/_health') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('OK');
+      return;
+    }
+    
+    if (req.url === '/' && req.headers['user-agent'] && 
+        !req.headers['user-agent'].includes('Mozilla')) {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('OK');
+      return;
+    }
+    
+    app(req, res);
+  });
+  
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`[Startup] API Server running on port ${PORT}`);
-    console.log(`[Startup] Health check ready at /healthz`);
+    console.log(`[Startup] Health check ready at /healthz (native handler)`);
     
     setImmediate(() => {
       initWebSocketServer(httpServer);
