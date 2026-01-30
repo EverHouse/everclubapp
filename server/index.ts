@@ -196,11 +196,21 @@ const getAllowedOrigins = (): string[] | boolean | CorsOriginFunction => {
     try {
       const url = new URL(origin);
       const hostname = url.hostname;
+      // Allow Replit domains
       if (hostname.endsWith('.replit.app') || hostname.endsWith('.replit.dev') || hostname.endsWith('.repl.co')) {
         callback(null, true);
         return;
       }
+      // Allow localhost for development
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        callback(null, true);
+        return;
+      }
+      // Allow production domains
+      if (hostname === 'everhouse.app' || 
+          hostname === 'everclub.app' ||
+          hostname.endsWith('.everhouse.app') ||
+          hostname.endsWith('.everclub.app')) {
         callback(null, true);
         return;
       }

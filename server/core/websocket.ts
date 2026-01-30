@@ -171,16 +171,27 @@ function isAllowedOrigin(origin: string | undefined): boolean {
     const url = new URL(origin);
     const hostname = url.hostname;
     
+    // Allow Replit domains
     if (hostname.endsWith('.replit.app') || 
         hostname.endsWith('.replit.dev') || 
         hostname.endsWith('.repl.co')) {
       return true;
     }
     
+    // Allow localhost for development
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return true;
     }
     
+    // Allow production domains
+    if (hostname === 'everhouse.app' || 
+        hostname === 'everclub.app' ||
+        hostname.endsWith('.everhouse.app') ||
+        hostname.endsWith('.everclub.app')) {
+      return true;
+    }
+    
+    // Allow domains from ALLOWED_ORIGINS env var
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
     if (allowedOrigins.some(allowed => origin.includes(allowed))) {
       return true;
