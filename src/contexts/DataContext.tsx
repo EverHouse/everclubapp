@@ -869,8 +869,6 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
       setEventsLoaded(true);
     });
-    
-    setTimeout(() => setEventsLoaded(true), 2000);
   }, []);
 
   // Auth Logic - verify member email

@@ -262,6 +262,8 @@ export const bookingSessions = pgTable("booking_sessions", {
   endTime: time("end_time").notNull(),
   source: bookingSourceEnum("source").default("member_request"),
   createdBy: varchar("created_by"),
+  needsReview: boolean("needs_review").default(false),
+  reviewReason: text("review_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

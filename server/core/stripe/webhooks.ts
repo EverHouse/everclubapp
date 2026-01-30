@@ -491,8 +491,11 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
     const snapshot = snapshotResult.rows[0];
     
     if (Math.abs(snapshot.total_cents - amount) > 1) {
-      console.error(`[Stripe Webhook] Amount mismatch: snapshot=${snapshot.total_cents}, payment=${amount} - rejecting`);
-      throw new Error(`Amount mismatch: expected ${snapshot.total_cents}, got ${amount}`);
+      console.error(`[Stripe Webhook] CRITICAL: Amount mismatch: snapshot=${snapshot.total_cents}, payment=${amount} - flagging for review`);
+      await client.query(
+        `UPDATE booking_sessions SET needs_review = true, review_reason = $1 WHERE id = $2`,
+        [`Amount mismatch: expected ${snapshot.total_cents} cents, received ${amount} cents from Stripe`, snapshot.session_id]
+      );
     }
     
     // Full fee recalculation verification - detect potential fee drift
@@ -622,8 +625,13 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
     
     const dbTotal = participantFees.reduce((sum, pf) => sum + pf.amountCents, 0);
     if (Math.abs(dbTotal - amount) > 1) {
-      console.error(`[Stripe Webhook] Fallback total mismatch: db=${dbTotal}, payment=${amount} - rejecting`);
-      throw new Error(`Amount mismatch: expected ${dbTotal}, got ${amount}`);
+      console.error(`[Stripe Webhook] CRITICAL: Fallback total mismatch: db=${dbTotal}, payment=${amount} - flagging for review`);
+      if (sessionId) {
+        await client.query(
+          `UPDATE booking_sessions SET needs_review = true, review_reason = $1 WHERE id = $2`,
+          [`Fallback amount mismatch: expected ${dbTotal} cents, received ${amount} cents from Stripe`, sessionId]
+        );
+      }
     }
     
     console.log(`[Stripe Webhook] Fallback validated ${validatedParticipantIds.length} participants using DB cached fees`);
