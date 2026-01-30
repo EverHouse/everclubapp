@@ -579,7 +579,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
   try {
-    const { query, limit = '10' } = req.query;
+    const { query, limit = '10', includeStaff = 'false', includeMembers = 'false' } = req.query;
     
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return res.json([]);
@@ -587,11 +587,36 @@ router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
     
     const searchTerm = `%${query.trim().toLowerCase()}%`;
     const maxResults = Math.min(parseInt(limit as string) || 10, 50);
+    const shouldIncludeStaff = includeStaff === 'true';
+    const shouldIncludeMembers = includeMembers === 'true';
+    
+    // Build role/status filter based on flags
+    // Default: only visitors
+    // includeStaff: also search staff/admin users (for booking assignment)
+    // includeMembers: also search active members
+    let roleCondition = `(role = 'visitor' OR membership_status = 'visitor')`;
+    if (shouldIncludeStaff && shouldIncludeMembers) {
+      roleCondition = `(
+        role = 'visitor' OR membership_status = 'visitor'
+        OR role IN ('staff', 'admin')
+        OR membership_status IN ('active', 'trialing', 'past_due')
+      )`;
+    } else if (shouldIncludeStaff) {
+      roleCondition = `(
+        role = 'visitor' OR membership_status = 'visitor'
+        OR role IN ('staff', 'admin')
+      )`;
+    } else if (shouldIncludeMembers) {
+      roleCondition = `(
+        role = 'visitor' OR membership_status = 'visitor'
+        OR membership_status IN ('active', 'trialing', 'past_due')
+      )`;
+    }
     
     const results = await pool.query(`
-      SELECT id, email, first_name, last_name, phone, stripe_customer_id
+      SELECT id, email, first_name, last_name, phone, stripe_customer_id, role, membership_status
       FROM users
-      WHERE (role = 'visitor' OR membership_status = 'visitor')
+      WHERE ${roleCondition}
       AND archived_at IS NULL
       AND (
         LOWER(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) LIKE $1
@@ -610,7 +635,14 @@ router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
       lastName: row.last_name || '',
       name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
       phone: row.phone,
-      hasStripeCustomer: !!row.stripe_customer_id
+      hasStripeCustomer: !!row.stripe_customer_id,
+      role: row.role,
+      membershipStatus: row.membership_status,
+      userType: row.role === 'staff' || row.role === 'admin' 
+        ? 'staff' 
+        : (row.membership_status === 'active' || row.membership_status === 'trialing' || row.membership_status === 'past_due')
+          ? 'member'
+          : 'visitor'
     }));
     
     res.json(visitors);

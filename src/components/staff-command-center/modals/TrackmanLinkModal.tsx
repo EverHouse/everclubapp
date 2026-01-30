@@ -126,7 +126,7 @@ export function TrackmanLinkModal({
       
       setIsCheckingDuplicates(true);
       try {
-        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5`, { credentials: 'include' });
+        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5&includeStaff=true&includeMembers=true`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const matches = data.filter((v: any) => {
@@ -158,7 +158,7 @@ export function TrackmanLinkModal({
       }
       setIsSearchingVisitors(true);
       try {
-        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10`, { credentials: 'include' });
+        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10&includeStaff=true&includeMembers=true`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setVisitorSearchResults(data);
