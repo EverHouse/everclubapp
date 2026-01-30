@@ -8,7 +8,7 @@ export const UpdateNotification: React.FC = () => {
 
   return (
     <div 
-      className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-50 animate-pop-in"
+      className="fixed top-4 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-50 animate-pop-in"
       role="alert"
       aria-live="polite"
     >
