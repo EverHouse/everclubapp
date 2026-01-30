@@ -37,14 +37,29 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('[Vite Proxy] API proxy error (backend may be starting):', err.message);
+          });
+        },
       },
       '/healthz': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('[Vite Proxy] Health check proxy error (backend may be starting):', err.message);
+          });
+        },
       },
       '/ws': {
         target: 'ws://localhost:3001',
         ws: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('[Vite Proxy] WebSocket proxy error (backend may be starting):', err.message);
+          });
+        },
       }
     },
     watch: {

@@ -262,7 +262,9 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
         try {
           const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
           await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
-        } catch (e) { /* silent */ }
+        } catch (e: any) {
+          console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, e?.message || e);
+        }
       } else {
         const customer = await stripe.customers.create({ email: member.email });
         customerId = customer.id;
@@ -274,7 +276,9 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
         try {
           const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
           await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
-        } catch (e) { /* silent */ }
+        } catch (e: any) {
+          console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, e?.message || e);
+        }
       }
     }
     

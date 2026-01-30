@@ -81,15 +81,24 @@ export const fetchAndCache = async <T>(
       return fetchAndCache(key, url, onUpdate, retryCount + 1);
     }
   } catch (e: any) {
-    if (e.name !== 'AbortError') {
-      console.error(`[sync] Failed to fetch ${key}:`, e);
+    const isAbort = e.name === 'AbortError';
+    const isNetworkError = e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError');
+    
+    if (!isAbort) {
+      const errorType = isNetworkError ? 'network' : 'unknown';
+      console.warn(`[sync] Failed to fetch ${key} (${errorType}):`, e.message || e);
     }
     
     failedFetches[key] = (failedFetches[key] || 0) + 1;
     
     if (retryCount < MAX_RETRIES && failedFetches[key] <= MAX_RETRIES) {
-      await delay(RETRY_DELAY * (retryCount + 1));
+      const backoffDelay = RETRY_DELAY * Math.pow(2, retryCount);
+      await delay(backoffDelay);
       return fetchAndCache(key, url, onUpdate, retryCount + 1);
+    }
+    
+    if (failedFetches[key] > MAX_RETRIES) {
+      console.warn(`[sync] ${key} fetch failed ${failedFetches[key]} times, using cached data`);
     }
   }
   return getCached<T>(key);

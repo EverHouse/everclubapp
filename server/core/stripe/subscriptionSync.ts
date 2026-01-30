@@ -265,7 +265,9 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               try {
                 const { syncMemberToHubSpot } = await import('../hubspot/stages');
                 await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe' });
-              } catch (e) { /* silent */ }
+              } catch (e: any) {
+                console.warn(`[Stripe Sync] Failed to sync to HubSpot for ${email}:`, e?.message || e);
+              }
               
               result.updated++;
               result.details.push({
@@ -312,7 +314,9 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
             try {
               const { syncMemberToHubSpot } = await import('../hubspot/stages');
               await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe', memberSince: new Date() });
-            } catch (e) { /* silent */ }
+            } catch (e: any) {
+              console.warn(`[Stripe Sync] Failed to sync new user to HubSpot for ${email}:`, e?.message || e);
+            }
             
             result.created++;
             result.details.push({

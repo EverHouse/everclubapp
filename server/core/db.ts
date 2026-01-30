@@ -7,6 +7,11 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: parseInt(process.env.DB_POOL_MAX || '20', 10),
+  // SSL Note: rejectUnauthorized: false disables certificate verification.
+  // This is acceptable for Replit's managed Postgres (Neon-backed) where the connection
+  // is already secured. However, if migrating to an external database provider,
+  // you should use proper CA certificate verification:
+  //   ssl: { ca: fs.readFileSync('/path/to/ca-cert.pem'), rejectUnauthorized: true }
   ssl: isProduction ? { rejectUnauthorized: false } : undefined
 });
 

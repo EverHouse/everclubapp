@@ -905,7 +905,9 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
               try {
                 const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
                 await syncMemberToHubSpot({ email: member.email, status: expectedAppStatus, billingProvider: 'stripe' });
-              } catch (e) { /* silent */ }
+              } catch (e: any) {
+                console.warn(`[DataTools] Failed to sync status to HubSpot for ${member.email}:`, e?.message || e);
+              }
               
               await db.insert(billingAuditLog).values({
                 memberEmail: member.email,
