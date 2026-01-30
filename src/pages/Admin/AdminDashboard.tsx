@@ -112,7 +112,7 @@ const AdminDashboard: React.FC = () => {
       case 'faqs': return 'FAQs';
       case 'inquiries': return 'Inquiries';
       case 'gallery': return 'Gallery';
-      case 'tiers': return 'Membership Config';
+      case 'tiers': return 'Stripe Config';
       case 'blocks': return 'Notices';
       case 'changelog': return 'Changelog';
       case 'bugs': return 'Bug Reports';

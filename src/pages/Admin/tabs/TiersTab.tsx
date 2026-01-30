@@ -94,7 +94,7 @@ const TiersTab: React.FC = () => {
     const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
     const SUB_TABS: { key: SubTab; label: string; icon: string }[] = [
-        { key: 'tiers', label: 'Tiers', icon: 'layers' },
+        { key: 'tiers', label: 'Memberships', icon: 'layers' },
         { key: 'products', label: 'Products', icon: 'inventory_2' },
         { key: 'fees', label: 'Fees & Passes', icon: 'receipt_long' },
         { key: 'discounts', label: 'Discounts', icon: 'percent' },

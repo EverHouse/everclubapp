@@ -37,7 +37,7 @@ const RESOURCES_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { id: 'tiers', icon: 'settings', label: 'Membership Config' },
+  { id: 'tiers', icon: 'settings', label: 'Stripe Config' },
   { id: 'gallery', icon: 'photo_library', label: 'Gallery' },
   { id: 'faqs', icon: 'help_outline', label: 'FAQs' },
   { id: 'inquiries', icon: 'mail', label: 'Inquiries' },
