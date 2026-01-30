@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ModalShell from '../../../components/ModalShell';
 import Toggle from '../../../components/Toggle';
 import FloatingActionButton from '../../../components/FloatingActionButton';
@@ -7,6 +7,16 @@ import DiscountsSubTab from './DiscountsSubTab';
 import { apiRequest } from '../../../lib/apiRequest';
 
 type SubTab = 'tiers' | 'products' | 'fees' | 'discounts';
+
+interface TierFeature {
+    id: number;
+    featureKey: string;
+    displayLabel: string;
+    valueType: 'boolean' | 'number' | 'text';
+    sortOrder: number;
+    isActive: boolean;
+    values: Record<string, { tierId: number; value: string | boolean | number | null }>;
+}
 
 interface MembershipTier {
     id: number;
@@ -74,10 +84,14 @@ const TiersTab: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [newFeatureKey, setNewFeatureKey] = useState('');
     const [syncing, setSyncing] = useState(false);
     const [stripePrices, setStripePrices] = useState<StripePrice[]>([]);
     const [loadingPrices, setLoadingPrices] = useState(false);
+    const [tierFeatures, setTierFeatures] = useState<TierFeature[]>([]);
+    const [featuresLoading, setFeaturesLoading] = useState(false);
+    const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
+    const [newFeatureForm, setNewFeatureForm] = useState({ key: '', label: '', type: 'boolean' as 'boolean' | 'number' | 'text' });
+    const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
     const SUB_TABS: { key: SubTab; label: string; icon: string }[] = [
         { key: 'tiers', label: 'Tiers', icon: 'layers' },
@@ -129,6 +143,110 @@ const TiersTab: React.FC = () => {
             console.error('Failed to fetch Stripe prices:', err);
         } finally {
             setLoadingPrices(false);
+        }
+    };
+
+    const fetchTierFeatures = async () => {
+        setFeaturesLoading(true);
+        try {
+            const res = await fetch('/api/tier-features', { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                setTierFeatures(data.features || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch tier features:', err);
+        } finally {
+            setFeaturesLoading(false);
+        }
+    };
+
+    const updateFeatureValue = useCallback(async (featureId: number, tierId: number, value: any) => {
+        try {
+            const res = await fetch(`/api/tier-features/${featureId}/values/${tierId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ value })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTierFeatures(prev => prev.map(f => 
+                    f.id === featureId 
+                        ? { ...f, values: { ...f.values, [tierId]: { tierId, value: data.value } } }
+                        : f
+                ));
+            }
+        } catch (err) {
+            console.error('Failed to update feature value:', err);
+        }
+    }, []);
+
+    const debouncedUpdateFeatureValue = useCallback((featureId: number, tierId: number, value: any) => {
+        const key = `${featureId}-${tierId}`;
+        if (debounceTimers.current[key]) {
+            clearTimeout(debounceTimers.current[key]);
+        }
+        debounceTimers.current[key] = setTimeout(() => {
+            updateFeatureValue(featureId, tierId, value);
+            delete debounceTimers.current[key];
+        }, 500);
+    }, [updateFeatureValue]);
+
+    const updateFeatureLabel = async (featureId: number, displayLabel: string) => {
+        try {
+            const res = await fetch(`/api/tier-features/${featureId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ displayLabel })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setTierFeatures(prev => prev.map(f => 
+                    f.id === featureId ? { ...f, displayLabel: data.displayLabel } : f
+                ));
+            }
+        } catch (err) {
+            console.error('Failed to update feature label:', err);
+        }
+    };
+
+    const createFeature = async () => {
+        if (!newFeatureForm.key.trim() || !newFeatureForm.label.trim()) return;
+        try {
+            const res = await fetch('/api/tier-features', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    featureKey: newFeatureForm.key.trim(),
+                    displayLabel: newFeatureForm.label.trim(),
+                    valueType: newFeatureForm.type,
+                    sortOrder: tierFeatures.length
+                })
+            });
+            if (res.ok) {
+                await fetchTierFeatures();
+                setNewFeatureForm({ key: '', label: '', type: 'boolean' });
+            }
+        } catch (err) {
+            console.error('Failed to create feature:', err);
+        }
+    };
+
+    const deleteFeature = async (featureId: number) => {
+        if (!confirm('Are you sure you want to delete this feature? This will remove it from all tiers.')) return;
+        try {
+            const res = await fetch(`/api/tier-features/${featureId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setTierFeatures(prev => prev.filter(f => f.id !== featureId));
+            }
+        } catch (err) {
+            console.error('Failed to delete feature:', err);
         }
     };
 
@@ -185,6 +303,12 @@ const TiersTab: React.FC = () => {
             document.body.style.top = '';
         };
     }, [isEditing]);
+
+    useEffect(() => {
+        if (isEditing || isCreating) {
+            fetchTierFeatures();
+        }
+    }, [isEditing, isCreating]);
 
     const openEdit = (tier: MembershipTier) => {
         setSelectedTier({
@@ -252,38 +376,6 @@ const TiersTab: React.FC = () => {
                 highlighted_features: [...current, feature]
             });
         }
-    };
-
-    const handleAddFeature = () => {
-        if (!selectedTier || !newFeatureKey.trim()) return;
-        const key = newFeatureKey.trim();
-        setSelectedTier({
-            ...selectedTier,
-            all_features: { ...selectedTier.all_features, [key]: true }
-        });
-        setNewFeatureKey('');
-    };
-
-    const handleRemoveFeature = (key: string) => {
-        if (!selectedTier) return;
-        const newFeatures = { ...selectedTier.all_features };
-        delete newFeatures[key];
-        setSelectedTier({
-            ...selectedTier,
-            all_features: newFeatures,
-            highlighted_features: selectedTier.highlighted_features.filter(f => f !== key)
-        });
-    };
-
-    const handleToggleFeature = (key: string) => {
-        if (!selectedTier) return;
-        setSelectedTier({
-            ...selectedTier,
-            all_features: {
-                ...selectedTier.all_features,
-                [key]: !selectedTier.all_features[key]
-            }
-        });
     };
 
     const handleSyncStripe = async () => {
@@ -610,55 +702,140 @@ const TiersTab: React.FC = () => {
                     </div>
 
                     <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">All Features</h4>
-                        <div className="space-y-2 mb-3">
-                            {selectedTier && Object.entries(selectedTier.all_features || {}).map(([key, enabled]) => (
-                                <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25">
-                                    <div className="flex items-center gap-3">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Tier Features</h4>
+                        {featuresLoading ? (
+                            <div className="flex items-center justify-center py-6">
+                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-400">progress_activity</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+                                    {tierFeatures.filter(f => f.isActive).map(feature => {
+                                        const tierId = selectedTier?.id;
+                                        const currentValue = tierId && feature.values[tierId] ? feature.values[tierId].value : 
+                                            (feature.valueType === 'boolean' ? false : feature.valueType === 'number' ? 0 : '');
+                                        
+                                        return (
+                                            <div key={feature.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-gray-400 text-lg shrink-0">
+                                                        {feature.valueType === 'boolean' ? 'check_circle' : feature.valueType === 'number' ? 'tag' : 'text_fields'}
+                                                    </span>
+                                                    {editingLabelId === feature.id ? (
+                                                        <input
+                                                            type="text"
+                                                            className="flex-1 border border-primary bg-white dark:bg-black/30 px-2 py-1 rounded text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                                            defaultValue={feature.displayLabel}
+                                                            autoFocus
+                                                            onBlur={(e) => {
+                                                                if (e.target.value.trim() && e.target.value !== feature.displayLabel) {
+                                                                    updateFeatureLabel(feature.id, e.target.value.trim());
+                                                                }
+                                                                setEditingLabelId(null);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    (e.target as HTMLInputElement).blur();
+                                                                } else if (e.key === 'Escape') {
+                                                                    setEditingLabelId(null);
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <span 
+                                                            className="text-sm text-primary dark:text-white font-medium truncate cursor-pointer hover:text-primary/80"
+                                                            onClick={() => setEditingLabelId(feature.id)}
+                                                            title="Click to edit label"
+                                                        >
+                                                            {feature.displayLabel}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {feature.valueType === 'boolean' && selectedTier?.id && (
+                                                        <Toggle
+                                                            checked={currentValue === true}
+                                                            onChange={(val) => updateFeatureValue(feature.id, selectedTier.id, val)}
+                                                            label={feature.displayLabel}
+                                                        />
+                                                    )}
+                                                    {feature.valueType === 'number' && selectedTier?.id && (
+                                                        <input
+                                                            type="number"
+                                                            className="w-20 border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 px-2 py-1 rounded-lg text-sm text-primary dark:text-white text-right focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                                            defaultValue={typeof currentValue === 'number' ? currentValue : 0}
+                                                            onChange={(e) => debouncedUpdateFeatureValue(feature.id, selectedTier.id, parseFloat(e.target.value) || 0)}
+                                                        />
+                                                    )}
+                                                    {feature.valueType === 'text' && selectedTier?.id && (
+                                                        <input
+                                                            type="text"
+                                                            className="w-32 border border-gray-200 dark:border-white/20 bg-white dark:bg-black/30 px-2 py-1 rounded-lg text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                                            defaultValue={typeof currentValue === 'string' ? currentValue : ''}
+                                                            onChange={(e) => debouncedUpdateFeatureValue(feature.id, selectedTier.id, e.target.value)}
+                                                            placeholder="Value..."
+                                                        />
+                                                    )}
+                                                    {!selectedTier?.id && (
+                                                        <span className="text-xs text-gray-400 italic">Save tier first</span>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Delete ${feature.displayLabel}`}
+                                                        onClick={() => deleteFeature(feature.id)}
+                                                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                    >
+                                                        <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {tierFeatures.filter(f => f.isActive).length === 0 && (
+                                        <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                                            No features defined yet. Add one below.
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="border-t border-gray-200 dark:border-white/10 pt-3 mt-3">
+                                    <p className="text-[10px] uppercase font-bold text-gray-600 dark:text-gray-500 mb-2">Add New Feature</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
+                                            placeholder="Feature key (e.g., priority_support)"
+                                            value={newFeatureForm.key}
+                                            onChange={e => setNewFeatureForm(prev => ({ ...prev, key: e.target.value }))}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
+                                            placeholder="Display label"
+                                            value={newFeatureForm.label}
+                                            onChange={e => setNewFeatureForm(prev => ({ ...prev, label: e.target.value }))}
+                                        />
+                                        <select
+                                            className="border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                            value={newFeatureForm.type}
+                                            onChange={e => setNewFeatureForm(prev => ({ ...prev, type: e.target.value as 'boolean' | 'number' | 'text' }))}
+                                        >
+                                            <option value="boolean">Boolean</option>
+                                            <option value="number">Number</option>
+                                            <option value="text">Text</option>
+                                        </select>
                                         <button
                                             type="button"
-                                            role="checkbox"
-                                            aria-checked={enabled}
-                                            aria-label={`Toggle ${key}`}
-                                            onClick={() => handleToggleFeature(key)}
-                                            className={`w-6 h-6 rounded-md flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                                                enabled 
-                                                    ? 'bg-primary text-white shadow-sm' 
-                                                    : 'bg-white dark:bg-[#39393D] border-2 border-gray-300 dark:border-gray-600'
-                                            }`}
+                                            onClick={createFeature}
+                                            disabled={!newFeatureForm.key.trim() || !newFeatureForm.label.trim()}
+                                            className="px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                         >
-                                            {enabled && <span aria-hidden="true" className="material-symbols-outlined text-base font-bold">check</span>}
+                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">add</span>
                                         </button>
-                                        <span className={`text-sm ${enabled ? 'text-primary dark:text-white font-medium' : 'text-gray-600 line-through'}`}>{key}</span>
                                     </div>
-                                    <button
-                                        type="button"
-                                        aria-label={`Remove ${key}`}
-                                        onClick={() => handleRemoveFeature(key)}
-                                        className="text-gray-600 hover:text-red-500 transition-colors p-1 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded"
-                                    >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">close</span>
-                                    </button>
                                 </div>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm"
-                                placeholder="Add new feature..."
-                                value={newFeatureKey}
-                                onChange={e => setNewFeatureKey(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleAddFeature()}
-                            />
-                            <button
-                                type="button"
-                                onClick={handleAddFeature}
-                                className="px-3 py-2 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
-                            >
-                                <span aria-hidden="true" className="material-symbols-outlined text-sm">add</span>
-                            </button>
-                        </div>
+                            </>
+                        )}
                     </div>
 
                     <div>
@@ -732,25 +909,21 @@ const TiersTab: React.FC = () => {
                             </div>
                         )}
 
-                        {selectedTier && (selectedTier.highlighted_features?.length || 0) < 4 && Object.keys(selectedTier.all_features || {}).length > 0 && (
+                        {selectedTier && (selectedTier.highlighted_features?.length || 0) < 4 && tierFeatures.filter(f => f.isActive).length > 0 && (
                             <div className="mt-3">
                                 <p className="text-[10px] uppercase font-bold text-gray-600 dark:text-gray-500 mb-2">Quick add from features:</p>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {Object.entries(selectedTier.all_features || {}).map(([key, featureData]) => {
-                                        let label = key;
-                                        if (typeof featureData === 'object' && featureData !== null && 'label' in (featureData as object)) {
-                                            label = String((featureData as Record<string, unknown>).label);
-                                        }
-                                        const isAlreadyHighlighted = selectedTier.highlighted_features?.includes(label);
+                                    {tierFeatures.filter(f => f.isActive).map(feature => {
+                                        const isAlreadyHighlighted = selectedTier.highlighted_features?.includes(feature.displayLabel);
                                         if (isAlreadyHighlighted) return null;
                                         return (
                                             <button 
-                                                key={key}
+                                                key={feature.id}
                                                 type="button"
-                                                onClick={() => handleHighlightToggle(label)}
+                                                onClick={() => handleHighlightToggle(feature.displayLabel)}
                                                 className="px-2.5 py-1 text-xs rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 hover:bg-primary/10 hover:text-primary dark:hover:text-white transition-colors"
                                             >
-                                                + {label}
+                                                + {feature.displayLabel}
                                             </button>
                                         );
                                     })}
