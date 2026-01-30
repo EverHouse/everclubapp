@@ -118,21 +118,8 @@ async function gracefulShutdown(signal: string) {
 
 const app = express();
 
-app.use((req, res, next) => {
-  if (req.path === '/' || req.path === '/healthz') {
-    const userAgent = req.get('User-Agent') || '';
-    const isHealthCheck = !userAgent.includes('Mozilla') && 
-                          !userAgent.includes('Safari') && 
-                          !userAgent.includes('Chrome');
-    if (isHealthCheck) {
-      return res.status(200).send('OK');
-    }
-  }
-  next();
-});
-
-app.get('/healthz', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+app.get('/healthz', (_req, res) => {
+  res.status(200).send('OK');
 });
 
 app.get('/api/ready', async (req, res) => {
@@ -163,26 +150,18 @@ app.get('/api/ready', async (req, res) => {
 });
 
 app.get('/', (req, res, next) => {
+  const userAgent = req.get('User-Agent') || '';
+  const isBot = !userAgent || (!userAgent.includes('Mozilla') && !userAgent.includes('Safari'));
+  
+  if (isBot) {
+    return res.status(200).send('OK');
+  }
+  
   if (!isProduction) {
     return next();
   }
   
-  const acceptHeader = req.get('Accept') || '';
-  const userAgent = req.get('User-Agent') || '';
-  
-  const wantsHtml = acceptHeader.includes('text/html');
-  const acceptsAnything = acceptHeader.includes('*/*');
-  const hasBrowserUserAgent = userAgent.includes('Mozilla') || 
-                               userAgent.includes('Safari') || 
-                               userAgent.includes('Chrome') ||
-                               userAgent.includes('Edge') ||
-                               userAgent.includes('Firefox');
-  
-  if (wantsHtml || acceptsAnything || hasBrowserUserAgent) {
-    return next();
-  }
-  
-  return res.status(200).json({ status: 'ok', service: 'even-house-staff-portal' });
+  return next();
 });
 
 app.set('trust proxy', 1);
@@ -508,60 +487,63 @@ async function startServer() {
   
   httpServer = app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Startup] API Server running on port ${PORT}`);
-    console.log(`[Startup] Health check ready - startup tasks will run after server is listening`);
-  });
+    console.log(`[Startup] Health check ready at /healthz`);
+    
+    setImmediate(() => {
+      initWebSocketServer(httpServer);
+      
+      runStartupTasks()
+        .then(() => {
+          isReady = true;
+          console.log('[Startup] Startup tasks complete - server is ready');
+        })
+        .catch((err) => {
+          console.error('[Startup] Startup tasks failed (server still running):', err);
+          isReady = true;
+        });
 
-  initWebSocketServer(httpServer);
+      if (!isProduction) {
+        setTimeout(async () => {
+          try {
+            await autoSeedResources();
+          } catch (err) {
+            console.error('[Startup] Auto-seed resources failed:', err);
+          }
+          
+          try {
+            await autoSeedCafeMenu();
+          } catch (err) {
+            console.error('[Startup] Auto-seed cafe menu failed:', err);
+          }
+        }, 30000);
+      }
+
+      startBackgroundSyncScheduler();
+      startDailyReminderScheduler();
+      startMorningClosureScheduler();
+      startWeeklyCleanupScheduler();
+      startInviteExpiryScheduler();
+      startIntegrityScheduler();
+      startWaiverReviewScheduler();
+      startStripeReconciliationScheduler();
+      startFeeSnapshotReconciliationScheduler();
+      startGracePeriodScheduler();
+      startBookingExpiryScheduler();
+      startCommunicationLogsScheduler();
+      startWebhookLogCleanupScheduler();
+      startSessionCleanupScheduler();
+      startUnresolvedTrackmanScheduler();
+      startHubSpotQueueScheduler();
+      startMemberSyncScheduler();
+      startDuplicateCleanupScheduler();
+      startGuestPassResetScheduler();
+    });
+  });
 
   httpServer.on('error', (err: any) => {
     console.error(`[Startup] Server failed to start:`, err);
     process.exit(1);
   });
-
-  try {
-    await runStartupTasks();
-    isReady = true;
-    console.log('[Startup] Startup tasks complete - server is ready');
-  } catch (err) {
-    console.error('[Startup] Startup tasks failed (server still running):', err);
-    isReady = true;
-  }
-
-  if (!isProduction) {
-    setTimeout(async () => {
-      try {
-        await autoSeedResources();
-      } catch (err) {
-        console.error('[Startup] Auto-seed resources failed:', err);
-      }
-      
-      try {
-        await autoSeedCafeMenu();
-      } catch (err) {
-        console.error('[Startup] Auto-seed cafe menu failed:', err);
-      }
-    }, 30000);
-  }
-
-  startBackgroundSyncScheduler();
-  startDailyReminderScheduler();
-  startMorningClosureScheduler();
-  startWeeklyCleanupScheduler();
-  startInviteExpiryScheduler();
-  startIntegrityScheduler();
-  startWaiverReviewScheduler();
-  startStripeReconciliationScheduler();
-  startFeeSnapshotReconciliationScheduler();
-  startGracePeriodScheduler();
-  startBookingExpiryScheduler();
-  startCommunicationLogsScheduler();
-  startWebhookLogCleanupScheduler();
-  startSessionCleanupScheduler();
-  startUnresolvedTrackmanScheduler();
-  startHubSpotQueueScheduler();
-  startMemberSyncScheduler();
-  startDuplicateCleanupScheduler();
-  startGuestPassResetScheduler();
 }
 
 startServer().catch((err) => {
