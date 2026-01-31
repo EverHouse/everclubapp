@@ -7,6 +7,7 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 import { AnimatedPage } from '../../components/motion';
+import SEO from '../../components/SEO';
 
 interface Event {
   id: number;
@@ -142,6 +143,12 @@ const WhatsOn: React.FC = () => {
 
   return (
     <AnimatedPage>
+      <SEO
+        title="What's On | Ever House"
+        description="Discover upcoming events, wellness classes, and curated experiences at Ever House. Join us for culture, conversation, and community in Tustin, Orange County."
+        url="/whats-on"
+        image="/images/events-crowd-optimized.webp"
+      />
     <div 
       className="flex flex-col min-h-screen bg-[#EAEBE6] overflow-x-hidden"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
@@ -216,7 +223,7 @@ const WhatsOn: React.FC = () => {
                         <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
                           isEvent ? 'bg-[#CCB8E4] text-[#293515]' : 'bg-[#293515] text-white'
                         }`}>
-                          {isEvent ? 'Event' : 'Class'}
+                          {isEvent ? 'Event' : 'Wellness'}
                         </span>
                         {isEvent && item.eventbrite_url && (
                           <span className="px-1.5 py-0.5 rounded bg-[#F05537] text-white text-[8px] font-bold uppercase">Tickets</span>
@@ -270,7 +277,7 @@ const WhatsOn: React.FC = () => {
                       )
                     ) : (
                       <div className="w-full bg-[#F2F2EC] py-3 rounded-xl flex items-center justify-center px-4">
-                        <span className="text-xs font-medium text-primary/60">Members Only Class</span>
+                        <span className="text-xs font-medium text-primary/60">Members Only Wellness</span>
                       </div>
                     )}
                   </div>

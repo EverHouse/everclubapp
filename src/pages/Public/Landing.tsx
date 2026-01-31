@@ -8,6 +8,7 @@ import { playSound } from '../../utils/sounds';
 import ModalShell from '../../components/ModalShell';
 import EditorialSection from '../../components/layout/EditorialSection';
 import { AnimatedPage } from '../../components/motion';
+import SEO from '../../components/SEO';
 
 interface MembershipTier {
   id: number;
@@ -270,6 +271,12 @@ const Landing: React.FC = () => {
 
   return (
     <AnimatedPage>
+      <SEO
+        title="Ever House | Orange County's Premier Indoor Golf & Social Club"
+        description="A new kind of members club rooted in golf, built for community. Experience indoor golf simulators, coworking spaces, wellness programs, and curated events in Tustin, Orange County."
+        url="/"
+        image="/images/hero-lounge-optimized.webp"
+      />
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-[#F2F2EC]">
       {/* Fixed brand green status bar fill for iOS PWA */}
       <div 

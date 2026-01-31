@@ -15,7 +15,6 @@ import { CheckinBillingModal } from '../../../components/staff-command-center/mo
 import { CompleteRosterModal } from '../../../components/staff-command-center/modals/CompleteRosterModal';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
-import { TrackmanNotesModal } from '../../../components/staff-command-center/modals/TrackmanNotesModal';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
 import { AnimatedPage } from '../../../components/motion';
 import FloatingActionButton from '../../../components/FloatingActionButton';
@@ -690,8 +689,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
     const [approvedBookings, setApprovedBookings] = useState<BookingRequest[]>([]);
     const [closures, setClosures] = useState<CalendarClosure[]>([]);
     const [availabilityBlocks, setAvailabilityBlocks] = useState<AvailabilityBlock[]>([]);
-    const [isRescanningMatches, setIsRescanningMatches] = useState(false);
-    const [isAutoMatchingVisitors, setIsAutoMatchingVisitors] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState<BookingRequest | null>(null);
     const [actionModal, setActionModal] = useState<'approve' | 'decline' | null>(null);
@@ -766,7 +763,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         showSuccess: boolean;
     }>({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
     const [staffManualBookingModalOpen, setStaffManualBookingModalOpen] = useState(false);
-    const [trackmanNotesModalOpen, setTrackmanNotesModalOpen] = useState(false);
     const [staffManualBookingDefaults, setStaffManualBookingDefaults] = useState<{
         resourceId?: number;
         startTime?: string;
@@ -1845,81 +1841,6 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                     Queue ({queueItems.length})
                                 </h3>
                             <div className="flex items-center gap-2">
-                                {unmatchedWebhookBookings.length > 0 && (
-                                    <button
-                                        onClick={async () => {
-                                            setIsRescanningMatches(true);
-                                            try {
-                                                const res = await fetch('/api/admin/trackman/rescan', {
-                                                    method: 'POST',
-                                                    credentials: 'include'
-                                                });
-                                                if (res.ok) {
-                                                    const data = await res.json();
-                                                    showToast(`Rescanned ${data.scanned || 0} bookings, matched ${data.matched || 0}`, 'success');
-                                                    handleRefresh();
-                                                } else {
-                                                    showToast('Failed to rescan matches', 'error');
-                                                }
-                                            } catch (err) {
-                                                showToast('Failed to rescan matches', 'error');
-                                            } finally {
-                                                setIsRescanningMatches(false);
-                                            }
-                                        }}
-                                        disabled={isRescanningMatches}
-                                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 rounded-lg transition-colors disabled:opacity-50"
-                                        title="Re-check for member matches"
-                                    >
-                                        <span className={`material-symbols-outlined text-sm ${isRescanningMatches ? 'animate-spin' : ''}`}>
-                                            {isRescanningMatches ? 'progress_activity' : 'refresh'}
-                                        </span>
-                                        <span className="hidden sm:inline">Re-scan</span>
-                                    </button>
-                                )}
-                                {unmatchedWebhookBookings.length > 0 && (
-                                    <button
-                                        onClick={async () => {
-                                            if (isAutoMatchingVisitors) return;
-                                            setIsAutoMatchingVisitors(true);
-                                            try {
-                                                const res = await fetch('/api/admin/trackman/auto-match-visitors', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    credentials: 'include'
-                                                });
-                                                if (res.ok) {
-                                                    const data = await res.json();
-                                                    showToast(`Auto-matched ${data.matched || 0} bookings to visitors (${data.failed || 0} unmatched)`, 'success');
-                                                    handleRefresh();
-                                                } else {
-                                                    const err = await res.json();
-                                                    showToast(err.error || 'Failed to auto-match visitors', 'error');
-                                                }
-                                            } catch (err) {
-                                                showToast('Failed to auto-match visitors', 'error');
-                                            } finally {
-                                                setIsAutoMatchingVisitors(false);
-                                            }
-                                        }}
-                                        disabled={isAutoMatchingVisitors}
-                                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/20 hover:bg-purple-200 dark:hover:bg-purple-500/30 rounded-lg transition-colors disabled:opacity-50"
-                                        title="Auto-match unmatched bookings to visitors"
-                                    >
-                                        <span className={`material-symbols-outlined text-sm ${isAutoMatchingVisitors ? 'animate-spin' : ''}`}>
-                                            {isAutoMatchingVisitors ? 'progress_activity' : 'person_search'}
-                                        </span>
-                                        <span className="hidden sm:inline">Auto-Match</span>
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setTrackmanNotesModalOpen(true)}
-                                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 rounded-lg transition-colors shadow-sm"
-                                    title="Generate Trackman customer notes for auto-matching"
-                                >
-                                    <span className="material-symbols-outlined text-sm">note_add</span>
-                                    <span>Notes</span>
-                                </button>
                                 <button
                                     onClick={() => onTabChange('trackman')}
                                     className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
@@ -3725,11 +3646,6 @@ return null;
               </div>
             </ModalShell>
                 </div>
-
-                <TrackmanNotesModal
-                  isOpen={trackmanNotesModalOpen}
-                  onClose={() => setTrackmanNotesModalOpen(false)}
-                />
 
                 {/* FAB for Staff Manual Booking */}
                 <FloatingActionButton

@@ -643,7 +643,7 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
         </div>
         {isMembershipInactive ? (
           <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
-            <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Class</span>
+            <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Wellness</span>
           </div>
         ) : isEnrolled ? (
           <button 

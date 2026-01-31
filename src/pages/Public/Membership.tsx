@@ -6,6 +6,7 @@ import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { AnimatedPage } from '../../components/motion';
+import SEO from '../../components/SEO';
 
 const MEMBERSHIP_FIELDS = [
   { name: 'firstname', label: 'First Name', type: 'text' as const, required: true, placeholder: 'Jane' },
@@ -129,6 +130,12 @@ const MembershipOverview: React.FC = () => {
 
   return (
     <AnimatedPage>
+      <SEO
+        title="Membership | Ever House"
+        description="Join Ever House - Orange County's premier indoor golf and social club. Choose from Social, Core, Premium, or Corporate membership tiers with exclusive benefits including golf simulators, coworking, wellness, and events."
+        url="/membership"
+        image="/images/hero-lounge-optimized.webp"
+      />
     <div className="px-4 pt-4 pb-0 flex flex-col gap-8 bg-[#F2F2EC] min-h-screen overflow-x-hidden">
       <div className="text-center px-2 animate-content-enter">
         <p className="text-primary/40 text-[10px] font-bold uppercase tracking-[0.3em] mb-2">Est. 2025</p>
