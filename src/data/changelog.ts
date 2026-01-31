@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.59.2",
+    date: "2026-01-31",
+    title: "URL Routing Cleanup",
+    changes: [
+      "Fixed: All backend notification URLs now use correct BrowserRouter paths (removed hash router pattern)",
+      "Fixed: Push notifications for bookings, wellness, events, and tours now link correctly",
+      "Fixed: Stripe redirect URLs (billing portal, checkout, day passes) now use proper routes",
+      "Fixed: Staff command center WebSocket status indicator now shows 'Live' correctly",
+      "Fixed: Staff notification click-throughs now navigate to correct admin pages"
+    ]
+  },
+  {
     version: "9.59.1",
     date: "2026-01-31",
     title: "Staff FAB Quick Actions Stay In-Place",
