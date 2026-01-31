@@ -1415,10 +1415,10 @@ const WellnessAdminContent: React.FC = () => {
     const wellnessValidation = {
         instructor: !formData.instructor?.trim() || formData.instructor === 'TBD',
         category: !formData.category || formData.category === 'Wellness',
-        spots: formData.spots === 0 || formData.spots === undefined
+        capacity: !formData.capacity || formData.capacity <= 0
     };
 
-    const isWellnessFormValid = !wellnessValidation.instructor && !wellnessValidation.category && !wellnessValidation.spots;
+    const isWellnessFormValid = !wellnessValidation.instructor && !wellnessValidation.category && !wellnessValidation.capacity;
 
     useEffect(() => {
         fetchClasses();
@@ -1568,7 +1568,7 @@ const WellnessAdminContent: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!formData.title || !formData.time || !formData.endTime || !formData.instructor || !formData.date || !formData.spots) {
+        if (!formData.title || !formData.time || !formData.endTime || !formData.instructor || !formData.date || !formData.capacity) {
             setError('Please fill in all required fields');
             return;
         }
@@ -1602,9 +1602,11 @@ const WellnessAdminContent: React.FC = () => {
 
             const { imageFile, endTime, ...restFormData } = formData;
             const duration = calculateDuration(formData.time!, endTime!);
+            const spotsDisplay = formData.capacity ? `${formData.capacity} spots` : 'Unlimited';
             const payload = {
                 ...restFormData,
                 duration,
+                spots: spotsDisplay,
                 image_url: imageUrl || null,
                 external_url: formData.external_url || null,
                 visibility: formData.visibility || 'public',
@@ -2015,25 +2017,6 @@ const WellnessAdminContent: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Spots *</label>
-                        <input
-                            type="text"
-                            value={formData.spots || ''}
-                            onChange={(e) => setFormData({ ...formData, spots: e.target.value })}
-                            onBlur={() => markTouched('spots')}
-                            placeholder="12 spots"
-                            className={`w-full p-3 rounded-lg border bg-gray-50 dark:bg-black/30 text-primary dark:text-white ${
-                                touchedFields.has('spots') && wellnessValidation.spots 
-                                    ? 'border-red-500 dark:border-red-500' 
-                                    : 'border-gray-200 dark:border-white/25'
-                            }`}
-                        />
-                        {touchedFields.has('spots') && wellnessValidation.spots && (
-                            <p className="text-xs text-red-500 mt-1">Number of spots is required</p>
-                        )}
-                    </div>
-
-                    <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                         <textarea
                             value={formData.description || ''}
@@ -2171,18 +2154,26 @@ const WellnessAdminContent: React.FC = () => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Class Capacity
+                                Spots *
                             </label>
                             <input
                                 type="number"
                                 min="1"
-                                placeholder="Leave blank for unlimited"
+                                placeholder="e.g., 12"
                                 value={formData.capacity || ''}
                                 onChange={(e) => setFormData({ ...formData, capacity: e.target.value ? parseInt(e.target.value) : null })}
-                                className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-white/10 text-gray-900 dark:text-white placeholder-gray-400"
+                                onBlur={() => markTouched('capacity')}
+                                className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-white/10 text-gray-900 dark:text-white placeholder-gray-400 ${
+                                    touchedFields.has('capacity') && wellnessValidation.capacity 
+                                        ? 'border-red-500 dark:border-red-500' 
+                                        : 'border-gray-200 dark:border-white/25'
+                                }`}
                             />
+                            {touchedFields.has('capacity') && wellnessValidation.capacity && (
+                                <p className="text-xs text-red-500 mt-1">Number of spots is required</p>
+                            )}
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Maximum number of enrollments allowed. Leave blank for unlimited.
+                                Maximum enrollments allowed. Users can join waitlist when full.
                             </p>
                         </div>
 
