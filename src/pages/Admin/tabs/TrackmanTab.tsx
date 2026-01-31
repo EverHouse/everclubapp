@@ -23,8 +23,6 @@ const ITEMS_PER_PAGE = 20;
 const formatImportLabel = (filename: string, createdAt?: string): string => {
   if (!filename) return 'Trackman Import';
   
-  // Try to extract date range from common Trackman export filename patterns
-  // Patterns like: "2026-02-01_to_2026-02-28" or "Feb01-Feb28" or just dates
   const dateRangeMatch = filename.match(/(\d{4}-\d{2}-\d{2})[_\s-]*(to|thru|through)?[_\s-]*(\d{4}-\d{2}-\d{2})?/i);
   
   if (dateRangeMatch) {
@@ -45,16 +43,12 @@ const formatImportLabel = (filename: string, createdAt?: string): string => {
     return `${formatShort(startDate)}, ${startYear}`;
   }
   
-  // If no date pattern found, try to clean up the filename
-  // Remove file extension and common prefixes
   let cleaned = filename.replace(/\.(csv|xlsx?)$/i, '').replace(/^(trackman[_\s-]*|import[_\s-]*)/i, '');
   
-  // If it's still a technical-looking name, just show "Trackman Import"
   if (!cleaned || cleaned.length > 40 || /^[a-f0-9-]{20,}$/i.test(cleaned)) {
     return 'Trackman Import';
   }
   
-  // Capitalize and clean up underscores/hyphens
   return cleaned.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim() || 'Trackman Import';
 };
 
@@ -63,30 +57,22 @@ const TrackmanTab: React.FC = () => {
   const dataContext = useData();
   const toastContext = useToast();
   
-  // Defensive checks for context availability
   const setPageReady = pageReadyContext?.setPageReady || (() => {});
   const actualUser = dataContext?.actualUser;
   const showToast = toastContext?.showToast || (() => {});
   const [unmatchedBookings, setUnmatchedBookings] = useState<any[]>([]);
   const [unmatchedTotalCount, setUnmatchedTotalCount] = useState<number>(0);
   const [unmatchedPage, setUnmatchedPage] = useState(1);
-  const [matchedBookings, setMatchedBookings] = useState<any[]>([]);
-  const [matchedTotalCount, setMatchedTotalCount] = useState<number>(0);
-  const [matchedPage, setMatchedPage] = useState(1);
-  const [showMatchedBookings, setShowMatchedBookings] = useState(false);
   const [needsPlayersBookings, setNeedsPlayersBookings] = useState<any[]>([]);
   const [needsPlayersTotalCount, setNeedsPlayersTotalCount] = useState<number>(0);
   const [needsPlayersPage, setNeedsPlayersPage] = useState(1);
   const [needsPlayersSearchQuery, setNeedsPlayersSearchQuery] = useState('');
-  const [potentialMatches, setPotentialMatches] = useState<any[]>([]);
-  const [potentialMatchesTotalCount, setPotentialMatchesTotalCount] = useState<number>(0);
   const [fuzzyMatchModal, setFuzzyMatchModal] = useState<{ booking: any; matches: any[]; isLoading: boolean; selectedEmail: string; rememberEmail: boolean } | null>(null);
   const [importRuns, setImportRuns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
   const [assignPlayersModal, setAssignPlayersModal] = useState<{ booking: any; isOpen: boolean } | null>(null);
-  const [editMatchedModal, setEditMatchedModal] = useState<{ booking: any; newMemberEmail: string } | null>(null);
   const [managePlayersModal, setManagePlayersModal] = useState<{ 
     bookingId: number;
     bookingContext: {
@@ -104,20 +90,12 @@ const TrackmanTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [editSearchQuery, setEditSearchQuery] = useState('');
-  const [editSearchResults, setEditSearchResults] = useState<any[]>([]);
-  const [isEditSearching, setIsEditSearching] = useState(false);
   const [unmatchedSearchQuery, setUnmatchedSearchQuery] = useState('');
-  const [matchedSearchQuery, setMatchedSearchQuery] = useState('');
   const [fuzzySearchQuery, setFuzzySearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [isLinkingMatch, setIsLinkingMatch] = useState<number | null>(null);
   const [viewDetailBooking, setViewDetailBooking] = useState<any>(null);
-  const [isRescanning, setIsRescanning] = useState(false);
-  const [rescanResult, setRescanResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unmatchedSectionRef = useRef<HTMLDivElement>(null);
-  const matchedSectionRef = useRef<HTMLDivElement>(null);
   const needsPlayersSectionRef = useRef<HTMLDivElement>(null);
 
   const fetchUnmatched = async (page: number, search?: string) => {
@@ -136,22 +114,6 @@ const TrackmanTab: React.FC = () => {
     }
   };
 
-  const fetchMatched = async (page: number, search?: string) => {
-    try {
-      const offset = (page - 1) * ITEMS_PER_PAGE;
-      const cacheBuster = `_t=${Date.now()}`;
-      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
-      const res = await fetch(`/api/admin/trackman/matched?limit=${ITEMS_PER_PAGE}&offset=${offset}${searchParam}&${cacheBuster}`, { credentials: 'include' });
-      if (res.ok) {
-        const result = await res.json();
-        setMatchedBookings(result.data || []);
-        setMatchedTotalCount(result.totalCount || 0);
-      }
-    } catch (err) {
-      console.error('Failed to fetch matched bookings:', err);
-    }
-  };
-
   const fetchNeedsPlayers = async (page: number, search?: string) => {
     try {
       const offset = (page - 1) * ITEMS_PER_PAGE;
@@ -167,21 +129,6 @@ const TrackmanTab: React.FC = () => {
       console.error('Failed to fetch needs-players bookings:', err);
     }
   };
-
-  const fetchPotentialMatches = async () => {
-    try {
-      const cacheBuster = `_t=${Date.now()}`;
-      const res = await fetch(`/api/admin/trackman/potential-matches?${cacheBuster}`, { credentials: 'include' });
-      if (res.ok) {
-        const result = await res.json();
-        setPotentialMatches(result.data || []);
-        setPotentialMatchesTotalCount(result.totalCount || 0);
-      }
-    } catch (err) {
-      console.error('Failed to fetch potential matches:', err);
-    }
-  };
-
 
   const handleOpenFuzzyMatchModal = async (booking: any) => {
     setFuzzyMatchModal({ booking, matches: [], isLoading: true, selectedEmail: '', rememberEmail: true });
@@ -254,26 +201,18 @@ const TrackmanTab: React.FC = () => {
     try {
       const cacheBuster = `_t=${Date.now()}`;
       const unmatchedOffset = (unmatchedPage - 1) * ITEMS_PER_PAGE;
-      const matchedOffset = (matchedPage - 1) * ITEMS_PER_PAGE;
       const needsPlayersOffset = (needsPlayersPage - 1) * ITEMS_PER_PAGE;
-      const [unmatchedRes, matchedRes, runsRes, membersRes, needsPlayersRes, potentialMatchesRes] = await Promise.all([
+      const [unmatchedRes, runsRes, membersRes, needsPlayersRes] = await Promise.all([
         fetch(`/api/admin/trackman/unmatched?resolved=false&limit=${ITEMS_PER_PAGE}&offset=${unmatchedOffset}&${cacheBuster}`, { credentials: 'include' }),
-        fetch(`/api/admin/trackman/matched?limit=${ITEMS_PER_PAGE}&offset=${matchedOffset}&${cacheBuster}`, { credentials: 'include' }),
         fetch(`/api/admin/trackman/import-runs?${cacheBuster}`, { credentials: 'include' }),
         fetch('/api/hubspot/contacts?status=all', { credentials: 'include' }),
-        fetch(`/api/admin/trackman/needs-players?limit=${ITEMS_PER_PAGE}&offset=${needsPlayersOffset}&${cacheBuster}`, { credentials: 'include' }),
-        fetch(`/api/admin/trackman/potential-matches?${cacheBuster}`, { credentials: 'include' })
+        fetch(`/api/admin/trackman/needs-players?limit=${ITEMS_PER_PAGE}&offset=${needsPlayersOffset}&${cacheBuster}`, { credentials: 'include' })
       ]);
       
       if (unmatchedRes.ok) {
         const result = await unmatchedRes.json();
         setUnmatchedBookings(result.data || []);
         setUnmatchedTotalCount(result.totalCount || 0);
-      }
-      if (matchedRes.ok) {
-        const result = await matchedRes.json();
-        setMatchedBookings(result.data || []);
-        setMatchedTotalCount(result.totalCount || 0);
       }
       if (runsRes.ok) {
         const data = await runsRes.json();
@@ -289,11 +228,6 @@ const TrackmanTab: React.FC = () => {
         setNeedsPlayersBookings(result.data || []);
         setNeedsPlayersTotalCount(result.totalCount || 0);
       }
-      if (potentialMatchesRes.ok) {
-        const result = await potentialMatchesRes.json();
-        setPotentialMatches(result.data || []);
-        setPotentialMatchesTotalCount(result.totalCount || 0);
-      }
     } catch (err) {
       console.error('Failed to fetch Trackman data:', err);
     } finally {
@@ -303,14 +237,12 @@ const TrackmanTab: React.FC = () => {
   };
 
   const unmatchedTotalPages = Math.ceil(unmatchedTotalCount / ITEMS_PER_PAGE);
-  const matchedTotalPages = Math.ceil(matchedTotalCount / ITEMS_PER_PAGE);
   const needsPlayersTotalPages = Math.ceil(needsPlayersTotalCount / ITEMS_PER_PAGE);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Debounced search for unmatched bookings
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
       setUnmatchedPage(1);
@@ -319,16 +251,6 @@ const TrackmanTab: React.FC = () => {
     return () => clearTimeout(debounceTimer);
   }, [unmatchedSearchQuery]);
 
-  // Debounced search for matched bookings
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      setMatchedPage(1);
-      fetchMatched(1, matchedSearchQuery);
-    }, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [matchedSearchQuery]);
-
-  // Debounced search for needs-players bookings
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
       setNeedsPlayersPage(1);
@@ -346,9 +268,8 @@ const TrackmanTab: React.FC = () => {
     setIsImporting(true);
     setImportResult(null);
     
-    // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
     
     try {
       const formData = new FormData();
@@ -397,87 +318,6 @@ const TrackmanTab: React.FC = () => {
     if (file) handleFileUpload(file);
   };
 
-  const handleRescan = async () => {
-    setIsRescanning(true);
-    setRescanResult(null);
-    
-    try {
-      const res = await fetch('/api/admin/trackman/rescan', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      setRescanResult(data);
-      
-      if (data.success && data.matched > 0) {
-        showToast(`Found ${data.matched} new matches!`, 'success');
-        fetchData();
-      } else if (data.success) {
-        showToast('No new matches found', 'info');
-      } else {
-        showToast(data.error || 'Rescan failed', 'error');
-      }
-    } catch (err: any) {
-      setRescanResult({ success: false, error: err.message });
-      showToast('Rescan failed', 'error');
-    } finally {
-      setIsRescanning(false);
-    }
-  };
-
-  const handleReassignMatched = async () => {
-    if (!editMatchedModal) return;
-    try {
-      const res = await fetch(`/api/admin/trackman/matched/${editMatchedModal.booking.id}/reassign`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ newMemberEmail: editMatchedModal.newMemberEmail })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setEditMatchedModal(null);
-        setEditSearchQuery('');
-        showToast(`Booking reassigned from ${data.oldEmail} to ${data.newEmail}`, 'success');
-        await new Promise(resolve => setTimeout(resolve, 300));
-        fetchData();
-      } else {
-        const data = await res.json();
-        showToast(data.error || 'Failed to reassign booking', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to reassign booking:', err);
-      showToast('Failed to reassign booking', 'error');
-    }
-  };
-
-  const handleLinkPotentialMatch = async (unmatchedId: number, appBookingId: number, memberEmail: string) => {
-    setIsLinkingMatch(unmatchedId);
-    try {
-      const res = await fetch(`/api/admin/trackman/unmatched/${unmatchedId}/resolve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ memberEmail })
-      });
-      if (res.ok) {
-        showToast('Booking linked successfully', 'success');
-        await new Promise(resolve => setTimeout(resolve, 300));
-        fetchData();
-      } else {
-        const data = await res.json();
-        showToast(data.error || 'Failed to link booking', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to link booking:', err);
-      showToast('Failed to link booking', 'error');
-    } finally {
-      setIsLinkingMatch(null);
-    }
-  };
-
-  // Live search for members (includes former members for booking resolution)
   useEffect(() => {
     const searchMembers = async () => {
       if (!searchQuery || searchQuery.length < 2) {
@@ -489,7 +329,6 @@ const TrackmanTab: React.FC = () => {
         const res = await fetch(`/api/members/search?query=${encodeURIComponent(searchQuery)}&limit=20&includeFormer=true`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          // API returns { name, email, tier, id } - map to expected format
           setSearchResults(data.map((m: any) => {
             const nameParts = (m.name || '').split(' ');
             return {
@@ -509,48 +348,8 @@ const TrackmanTab: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Live search for edit modal
-  useEffect(() => {
-    const searchMembers = async () => {
-      if (!editSearchQuery || editSearchQuery.length < 2) {
-        setEditSearchResults([]);
-        return;
-      }
-      setIsEditSearching(true);
-      try {
-        const res = await fetch(`/api/members/search?query=${encodeURIComponent(editSearchQuery)}&limit=20&includeFormer=true`, { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          // API returns { name, email, tier, id } - map to expected format
-          setEditSearchResults(data.map((m: any) => {
-            const nameParts = (m.name || '').split(' ');
-            return {
-              ...m,
-              firstName: nameParts[0] || '',
-              lastName: nameParts.slice(1).join(' ') || '',
-            };
-          }));
-        }
-      } catch (err) {
-        console.error('Member search error:', err);
-      } finally {
-        setIsEditSearching(false);
-      }
-    };
-    const timeoutId = setTimeout(searchMembers, 300);
-    return () => clearTimeout(timeoutId);
-  }, [editSearchQuery]);
-
-  // Use live search results if available, otherwise fall back to pre-loaded members
   const filteredMembers = searchQuery.length >= 2 ? searchResults : members.filter(m => {
     const query = searchQuery.toLowerCase();
-    const name = `${m.firstName || m.firstname || ''} ${m.lastName || m.lastname || ''}`.toLowerCase();
-    const email = (m.email || '').toLowerCase();
-    return name.includes(query) || email.includes(query);
-  });
-
-  const editFilteredMembers = editSearchQuery.length >= 2 ? editSearchResults : members.filter(m => {
-    const query = editSearchQuery.toLowerCase();
     const name = `${m.firstName || m.firstname || ''} ${m.lastName || m.lastname || ''}`.toLowerCase();
     const email = (m.email || '').toLowerCase();
     return name.includes(query) || email.includes(query);
@@ -681,52 +480,10 @@ const TrackmanTab: React.FC = () => {
             <span aria-hidden="true" className="material-symbols-outlined">warning</span>
             Unmatched Bookings ({unmatchedTotalCount})
           </h2>
-          {unmatchedTotalCount > 0 && (
-            <button
-              onClick={handleRescan}
-              disabled={isRescanning}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isRescanning ? (
-                <>
-                  <span className="material-symbols-outlined text-sm animate-spin">refresh</span>
-                  Scanning...
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-sm">sync</span>
-                  Re-scan for Matches
-                </>
-              )}
-            </button>
-          )}
         </div>
         <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
-          These bookings have no owner assigned. The email or name from Trackman didn't match any member in our system. Click "Resolve" to link each booking to the correct member, or use "Re-scan for Matches" to check against newly synced members.
+          These bookings have no owner assigned. The email or name from Trackman didn't match any member in our system. Click "Resolve" to link each booking to the correct member.
         </p>
-        
-        {rescanResult && (
-          <div className={`mb-4 p-3 rounded-xl ${rescanResult.success && (rescanResult.matched > 0 || rescanResult.lessonsConverted > 0) ? 'bg-green-100 dark:bg-green-500/20' : 'bg-blue-100 dark:bg-blue-500/20'}`}>
-            <p className={`text-sm font-medium ${rescanResult.success && (rescanResult.matched > 0 || rescanResult.lessonsConverted > 0) ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
-              {rescanResult.message}
-            </p>
-            {rescanResult.lessonsConverted > 0 && (
-              <p className="mt-1 text-xs text-green-600 dark:text-green-400">
-                Lesson bookings were automatically converted to availability blocks
-              </p>
-            )}
-            {rescanResult.resolved && rescanResult.resolved.length > 0 && (
-              <div className="mt-2 text-xs text-green-600 dark:text-green-400">
-                {rescanResult.resolved.slice(0, 5).map((r: any, i: number) => (
-                  <p key={i}>{r.memberEmail} ({r.matchReason})</p>
-                ))}
-                {rescanResult.resolved.length > 5 && (
-                  <p>... and {rescanResult.resolved.length - 5} more</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
         
         <div className="mb-4">
           <div className="relative">
@@ -836,105 +593,6 @@ const TrackmanTab: React.FC = () => {
         )}
       </div>
 
-      {potentialMatches.length > 0 && (
-        <div className="glass-card p-6 rounded-2xl border border-primary/10 dark:border-white/25">
-          <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined">compare_arrows</span>
-            Potential Matches ({potentialMatchesTotalCount})
-          </h2>
-          <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
-            These Trackman bookings weren't auto-matched, but the system found app bookings from the same time that might be the same session. Click "Link" to connect them - this matches the Trackman data to the member's existing booking in our system.
-          </p>
-          
-          <div className="space-y-4 max-h-[500px] overflow-y-auto">
-            {potentialMatches.map((item: any) => {
-              const trackman = item.unmatchedBooking || item;
-              const unmatchedId = trackman.id || item.id;
-              const formatTime = (t: string | null | undefined) => t?.substring(0, 5) || '--:--';
-              
-              return (
-                <div key={unmatchedId} className="p-4 bg-white/50 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10">
-                  <div className="mb-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300">
-                        Trackman Booking
-                      </span>
-                    </div>
-                    <p className="font-bold text-primary dark:text-white">
-                      {trackman.userName || trackman.user_name || 'Unknown Customer'}
-                    </p>
-                    <p className="text-xs text-primary/80 dark:text-white/80">
-                      {trackman.originalEmail || trackman.original_email || 'No email from Trackman'}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
-                        <span className="material-symbols-outlined text-sm">calendar_today</span>
-                        {trackman.bookingDate || trackman.booking_date 
-                          ? formatDateDisplayWithDay(trackman.bookingDate || trackman.booking_date) 
-                          : 'Unknown date'}
-                      </span>
-                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
-                        <span className="material-symbols-outlined text-sm">schedule</span>
-                        {formatTime(trackman.startTime || trackman.start_time)} - {formatTime(trackman.endTime || trackman.end_time)}
-                      </span>
-                      <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
-                        <span className="material-symbols-outlined text-sm">sports_golf</span>
-                        Bay {trackman.bayNumber || trackman.bay_number || '?'}
-                      </span>
-                      {(trackman.playerCount || trackman.player_count) && (
-                        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded-lg text-blue-700 dark:text-blue-300">
-                          <span className="material-symbols-outlined text-sm">group</span>
-                          {trackman.playerCount || trackman.player_count} players
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {item.potentialAppBookings && item.potentialAppBookings.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-primary/10 dark:border-white/10">
-                      <p className="text-xs font-medium text-primary/60 dark:text-white/60 mb-2 uppercase tracking-wide">
-                        Matching App Bookings ({item.potentialAppBookings.length}):
-                      </p>
-                      <div className="space-y-2">
-                        {item.potentialAppBookings.map((match: any) => (
-                          <div key={match.id} className="flex items-center justify-between gap-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-primary dark:text-white truncate">
-                                {match.memberName || match.userName}
-                              </p>
-                              <p className="text-xs text-primary/70 dark:text-white/70 truncate">
-                                {match.userEmail}
-                              </p>
-                              {(match.startTime || match.endTime) && (
-                                <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
-                                  {formatTime(match.startTime)} - {formatTime(match.endTime)}
-                                </p>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleLinkPotentialMatch(unmatchedId, match.id, match.userEmail)}
-                              disabled={isLinkingMatch === unmatchedId}
-                              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors disabled:opacity-50 shrink-0 flex items-center gap-1"
-                            >
-                              {isLinkingMatch === unmatchedId ? (
-                                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                              ) : (
-                                <span className="material-symbols-outlined text-sm">link</span>
-                              )}
-                              Link
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {needsPlayersBookings.length > 0 && (
         <div ref={needsPlayersSectionRef} className="glass-card p-6 rounded-2xl border border-primary/10 dark:border-white/25">
           <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
@@ -1042,217 +700,6 @@ const TrackmanTab: React.FC = () => {
           )}
         </div>
       )}
-
-      <div ref={matchedSectionRef} className="glass-card p-6 rounded-2xl border border-primary/10 dark:border-white/25">
-        <button
-          onClick={() => setShowMatchedBookings(!showMatchedBookings)}
-          className="w-full flex items-center justify-between"
-        >
-          <h2 className="text-lg font-bold text-primary dark:text-white flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined">check_circle</span>
-            Matched Bookings ({matchedTotalCount})
-          </h2>
-          <span aria-hidden="true" className={`material-symbols-outlined text-primary/60 dark:text-white/60 transition-transform ${showMatchedBookings ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
-        </button>
-        
-        {showMatchedBookings && (
-          <div className="mt-4">
-            <p className="text-sm text-primary/70 dark:text-white/70 mb-4">
-              These bookings are complete - the owner is assigned and all player slots are filled. The "1/1 assigned" badge means all players are accounted for. Click "Edit" if a match was wrong and needs to be reassigned to a different member.
-            </p>
-            
-            <div className="mb-4">
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 text-lg">search</span>
-                <input
-                  type="text"
-                  placeholder="Search by name or email..."
-                  value={matchedSearchQuery}
-                  onChange={(e) => setMatchedSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-accent text-sm"
-                />
-                {matchedSearchQuery && (
-                  <button
-                    onClick={() => setMatchedSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 dark:text-white/40 hover:text-primary dark:hover:text-white"
-                  >
-                    <span className="material-symbols-outlined text-lg">close</span>
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            {matchedBookings.length === 0 ? (
-              <div className="py-8 text-center border-2 border-dashed border-primary/10 dark:border-white/25 rounded-xl">
-                <span aria-hidden="true" className="material-symbols-outlined text-4xl text-primary/20 dark:text-white/20 mb-2">inbox</span>
-                <p className="text-primary/70 dark:text-white/70">No matched bookings yet</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="overflow-x-auto max-h-[500px] overflow-y-auto rounded-lg border border-primary/10 dark:border-white/10">
-                  <table className="w-full text-sm">
-                    <thead className="bg-white/80 dark:bg-white/10 sticky top-0 z-10">
-                      <tr className="border-b border-primary/10 dark:border-white/10">
-                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Date/Time</th>
-                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Trackman Name</th>
-                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden md:table-cell">Assigned To</th>
-                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Bay</th>
-                        <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden lg:table-cell">Players</th>
-                        <th className="text-right py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-primary/5 dark:divide-white/5">
-                      {matchedBookings
-                        .filter((booking: any) => {
-                          if (!matchedSearchQuery.trim()) return true;
-                          const query = matchedSearchQuery.toLowerCase();
-                          const name = (booking.userName || booking.user_name || '').toLowerCase();
-                          const email = (booking.userEmail || booking.user_email || '').toLowerCase();
-                          const memberName = (booking.member?.fullName || '').toLowerCase();
-                          return name.includes(query) || email.includes(query) || memberName.includes(query);
-                        })
-                        .map((booking: any) => (
-                        <tr key={booking.id} className="bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-colors">
-                          <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
-                            <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.requestDate || booking.request_date)}</div>
-                            <div className="text-xs text-primary/60 dark:text-white/60">{(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)}</div>
-                          </td>
-                          <td className="py-2 px-3 text-primary dark:text-white">
-                            <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
-                          </td>
-                          <td className="py-2 px-3 hidden md:table-cell">
-                            <span className="text-green-600 dark:text-green-400 truncate max-w-[180px] inline-block">{booking.member?.fullName || booking.userEmail || booking.user_email}</span>
-                          </td>
-                          <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.resourceId || booking.resource_id}</td>
-                          <td className="py-2 px-3 hidden lg:table-cell">
-                            {booking.slotInfo && (
-                              <span className="text-xs text-accent bg-accent/10 px-2 py-1 rounded-full inline-flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs">group</span>
-                                {booking.slotInfo.filledSlots}/{booking.slotInfo.totalSlots}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-right whitespace-nowrap">
-                            <div className="flex gap-1 justify-end">
-                              <button
-                                onClick={() => setViewDetailBooking(booking)}
-                                className="px-2 py-1 bg-accent/20 text-accent rounded text-xs font-bold hover:bg-accent/30 transition-colors"
-                                title="View Details"
-                              >
-                                <span className="material-symbols-outlined text-sm">visibility</span>
-                              </button>
-                              <button
-                                onClick={() => { setEditSearchQuery(''); setEditMatchedModal({ booking, newMemberEmail: '' }); }}
-                                className="px-2 py-1 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded text-xs font-bold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
-                                title="Edit Assignment"
-                              >
-                                <span className="material-symbols-outlined text-sm">edit</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {matchedTotalPages > 1 && (
-                  <div className="flex items-center justify-between pt-3 border-t border-primary/10 dark:border-white/10">
-                    <p className="text-xs text-primary/60 dark:text-white/60">
-                      Page {matchedPage} of {matchedTotalPages} ({matchedTotalCount} total)
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setMatchedPage(p => Math.max(1, p - 1)); fetchMatched(matchedPage - 1, matchedSearchQuery); matchedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-                        disabled={matchedPage <= 1}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 dark:bg-white/10 text-primary dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => { setMatchedPage(p => Math.min(matchedTotalPages, p + 1)); fetchMatched(matchedPage + 1, matchedSearchQuery); matchedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-                        disabled={matchedPage >= matchedTotalPages}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 dark:bg-white/10 text-primary dark:text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <ModalShell isOpen={!!editMatchedModal} onClose={() => { setEditMatchedModal(null); setEditSearchQuery(''); }} title="Reassign Booking" showCloseButton={false}>
-        <div className="space-y-4">
-          <div className="p-4 border-b border-primary/10 dark:border-white/25 bg-primary/5 dark:bg-white/5">
-            <div className="p-3 rounded-xl bg-white/80 dark:bg-white/10">
-              <p className="font-semibold text-primary dark:text-white">
-                {editMatchedModal?.booking?.userName || editMatchedModal?.booking?.user_name || 'Unknown'}
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
-                Currently assigned to: {editMatchedModal?.booking?.member?.fullName || editMatchedModal?.booking?.userEmail || editMatchedModal?.booking?.user_email}
-              </p>
-              <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
-                {formatDateDisplayWithDay(editMatchedModal?.booking?.requestDate || editMatchedModal?.booking?.request_date)} • Bay {editMatchedModal?.booking?.resourceId || editMatchedModal?.booking?.resource_id}
-              </p>
-            </div>
-          </div>
-          <div className="p-6 pt-0 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">
-                Select new member to reassign this booking:
-              </label>
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={editSearchQuery}
-                onChange={(e) => setEditSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/70 dark:placeholder:text-white/60 text-base"
-              />
-            </div>
-            <div className="max-h-64 overflow-y-auto space-y-2 -mx-2 px-2">
-              {editFilteredMembers.slice(0, 20).map((member: any) => (
-                <button
-                  key={member.email}
-                  onClick={() => editMatchedModal && setEditMatchedModal({ ...editMatchedModal, newMemberEmail: member.email })}
-                  className={`w-full p-4 text-left rounded-xl transition-all ${
-                    editMatchedModal?.newMemberEmail === member.email
-                      ? 'bg-accent/30 border-2 border-accent shadow-md'
-                      : 'bg-white/70 dark:bg-white/5 border border-primary/10 dark:border-white/25 hover:bg-white dark:hover:bg-white/10 hover:border-primary/20 dark:hover:border-white/20'
-                  }`}
-                >
-                  <p className="font-semibold text-primary dark:text-white text-base">
-                    {member.firstName || member.firstname || ''} {member.lastName || member.lastname || ''}
-                  </p>
-                  <p className="text-sm text-primary/80 dark:text-white/80 mt-0.5">{member.email}</p>
-                </button>
-              ))}
-              {editFilteredMembers.length === 0 && editSearchQuery && (
-                <p className="text-center py-4 text-primary/70 dark:text-white/70">No members found</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-primary/10 dark:border-white/25">
-              <button
-                onClick={() => { setEditMatchedModal(null); setEditSearchQuery(''); }}
-                className="px-5 py-2.5 rounded-full text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReassignMatched}
-                disabled={!editMatchedModal?.newMemberEmail}
-                className="px-6 py-2.5 rounded-full bg-accent text-primary text-sm font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-              >
-                Reassign Booking
-              </button>
-            </div>
-          </div>
-        </div>
-      </ModalShell>
 
       {managePlayersModal && (
         <ModalShell
@@ -1531,7 +978,6 @@ const TrackmanTab: React.FC = () => {
         </div>
       </ModalShell>
 
-      {/* Assign Players Modal for Unmatched Bookings */}
       {assignPlayersModal && (
         <TrackmanLinkModal
           isOpen={assignPlayersModal.isOpen}

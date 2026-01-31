@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { ModalShell } from '../../ModalShell';
+import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { MemberSearchInput, type SelectedMember } from '../../shared/MemberSearchInput';
 import { getTodayPacific, formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
 
@@ -320,15 +320,77 @@ export function StaffManualBookingModal({
   const selectedResource = resources.find(r => r.id === resourceId);
   const endTime = calculateEndTime(startTime, durationMinutes);
 
+  const stickyFooterContent = mode === 'lesson' ? (
+    <div className="p-4 flex gap-3">
+      <button
+        onClick={handleCopyLessonNotes}
+        className="flex-1 py-3 px-4 bg-primary/10 dark:bg-[#CCB8E4]/20 hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 text-primary dark:text-[#CCB8E4] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+      >
+        <span className="material-symbols-outlined">
+          {lessonCopied ? 'check' : 'content_copy'}
+        </span>
+        {lessonCopied ? 'Copied!' : 'Copy Notes'}
+      </button>
+      <button
+        onClick={handleOpenTrackman}
+        className="flex-1 py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+      >
+        <span className="material-symbols-outlined">open_in_new</span>
+        Open Trackman
+      </button>
+    </div>
+  ) : step === 1 ? (
+    <div className="p-4">
+      {error && (
+        <div className="p-3 mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+        </div>
+      )}
+      <button
+        onClick={handleFinalize}
+        disabled={!canFinalize()}
+        className="w-full py-3 px-4 bg-primary hover:bg-primary/90 dark:bg-[#CCB8E4] dark:hover:bg-[#CCB8E4]/90 text-white dark:text-[#1a1d15] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        <span className="material-symbols-outlined">check_circle</span>
+        Finalize & Generate Notes
+      </button>
+    </div>
+  ) : (
+    <div className="p-4 space-y-3">
+      {error && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+        </div>
+      )}
+      <button
+        onClick={handleSubmit}
+        disabled={isSubmitting || !externalId.trim()}
+        className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isSubmitting ? (
+          <>
+            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            Creating Booking...
+          </>
+        ) : (
+          <>
+            <span className="material-symbols-outlined">check</span>
+            Submit Booking
+          </>
+        )}
+      </button>
+    </div>
+  );
+
   return (
-    <ModalShell
+    <SlideUpDrawer
       isOpen={isOpen}
       onClose={handleClose}
       title={mode === 'lesson' ? 'Lesson / Staff Block' : (step === 1 ? 'Create Manual Booking' : 'Complete Trackman Booking')}
-      size="md"
-      overflowVisible={step === 1 && mode === 'member'}
+      maxHeight="full"
+      stickyFooter={stickyFooterContent}
     >
-      <div className={`p-4 space-y-5 ${step === 2 && mode === 'member' ? 'max-h-[calc(100dvh-180px)] overflow-y-auto' : ''}`}>
+      <div className="p-4 space-y-5">
         {/* Mode Selector */}
         <div className="flex p-1 bg-gray-100 dark:bg-white/10 rounded-lg">
           <button
@@ -424,24 +486,6 @@ export function StaffManualBookingModal({
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleCopyLessonNotes}
-                className="flex-1 py-3 px-4 bg-primary/10 dark:bg-[#CCB8E4]/20 hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 text-primary dark:text-[#CCB8E4] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <span className="material-symbols-outlined">
-                  {lessonCopied ? 'check' : 'content_copy'}
-                </span>
-                {lessonCopied ? 'Copied!' : 'Copy Notes'}
-              </button>
-              <button
-                onClick={handleOpenTrackman}
-                className="flex-1 py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <span className="material-symbols-outlined">open_in_new</span>
-                Open Trackman
-              </button>
-            </div>
           </div>
         ) : step === 1 ? (
           <>
@@ -594,20 +638,6 @@ export function StaffManualBookingModal({
               </div>
             </div>
 
-            {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleFinalize}
-              disabled={!canFinalize()}
-              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 dark:bg-[#CCB8E4] dark:hover:bg-[#CCB8E4]/90 text-white dark:text-[#1a1d15] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined">check_circle</span>
-              Finalize & Generate Notes
-            </button>
           </>
         ) : (
           <>
@@ -700,33 +730,10 @@ export function StaffManualBookingModal({
               </p>
             </div>
 
-            {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !externalId.trim()}
-              className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                  Creating Booking...
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined">check</span>
-                  Submit Booking
-                </>
-              )}
-            </button>
           </>
         )}
       </div>
-    </ModalShell>
+    </SlideUpDrawer>
   );
 }
 

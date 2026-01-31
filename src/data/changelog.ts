@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.57.0",
+    date: "2026-01-31",
+    title: "Trackman Admin Cleanup & Mobile UX",
+    changes: [
+      "Cleanup: Removed Matched Bookings section from Trackman admin (555 lines of code removed)",
+      "Cleanup: Removed Potential Matches section - matching was often inaccurate",
+      "Cleanup: Removed Re-scan button - redundant with calendar sync",
+      "Improved: Create Manual Booking now uses slide-up drawer with sticky action button",
+      "Improved: Trackman admin page is now significantly simpler and faster to load"
+    ]
+  },
+  {
     version: "9.56.0",
     date: "2026-01-31",
     title: "Mobile UX: Slide-Up Drawers",
