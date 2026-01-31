@@ -6,7 +6,7 @@ import { notifyMember } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
 import { formatDatePacific, formatTimePacific } from '../../utils/dateUtils';
 import { checkUnifiedAvailability } from '../../core/bookingService/availabilityGuard';
-import { cancelPaymentIntent } from '../../core/stripe';
+import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
 import {
   TrackmanWebhookPayload,
   TrackmanV2WebhookPayload,
@@ -239,6 +239,119 @@ export async function cancelBookingByTrackmanId(
       }
     } catch (cancelIntentsErr) {
       logger.warn('[Trackman Webhook] Failed to cancel pending payment intents', { error: cancelIntentsErr as Error });
+    }
+    
+    // Refund already-paid participant fees
+    if (booking.session_id) {
+      try {
+        const paidParticipants = await pool.query(
+          `SELECT id, stripe_payment_intent_id, cached_fee_cents, display_name
+           FROM booking_participants 
+           WHERE session_id = $1 
+           AND payment_status = 'paid' 
+           AND stripe_payment_intent_id IS NOT NULL 
+           AND stripe_payment_intent_id != ''
+           AND stripe_payment_intent_id NOT LIKE 'balance-%'
+           AND refunded_at IS NULL`,
+          [booking.session_id]
+        );
+        
+        if (paidParticipants.rows.length > 0) {
+          const stripe = await getStripeClient();
+          for (const participant of paidParticipants.rows) {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(participant.stripe_payment_intent_id, {
+                expand: ['latest_charge.refunds']
+              });
+              
+              // Check if already refunded in Stripe to prevent double-refund
+              const charge = pi.latest_charge as any;
+              const alreadyRefunded = charge?.refunds?.data?.length > 0;
+              
+              if (alreadyRefunded) {
+                logger.info('[Trackman Webhook] Payment already refunded in Stripe, marking participant', {
+                  extra: { participantId: participant.id, paymentIntentId: participant.stripe_payment_intent_id }
+                });
+                // Update participant
+                await pool.query(
+                  `UPDATE booking_participants 
+                   SET refunded_at = NOW(), payment_status = 'waived'
+                   WHERE id = $1`,
+                  [participant.id]
+                );
+                // Update stripe_payment_intents for consistency
+                await pool.query(
+                  `UPDATE stripe_payment_intents 
+                   SET status = 'refunded', updated_at = NOW()
+                   WHERE stripe_payment_intent_id = $1 AND status != 'refunded'`,
+                  [participant.stripe_payment_intent_id]
+                );
+                // Update booking_fee_snapshots for consistency
+                await pool.query(
+                  `UPDATE booking_fee_snapshots 
+                   SET status = 'refunded'
+                   WHERE stripe_payment_intent_id = $1 AND status != 'refunded'`,
+                  [participant.stripe_payment_intent_id]
+                );
+                continue;
+              }
+              
+              if (pi.status === 'succeeded' && pi.latest_charge) {
+                const refund = await stripe.refunds.create({
+                  charge: typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge.id,
+                  reason: 'requested_by_customer',
+                  metadata: {
+                    type: 'booking_cancelled_via_trackman',
+                    bookingId: bookingId.toString(),
+                    participantId: participant.id.toString()
+                  }
+                });
+                
+                // Mark participant as refunded
+                await pool.query(
+                  `UPDATE booking_participants 
+                   SET refunded_at = NOW(), payment_status = 'waived'
+                   WHERE id = $1`,
+                  [participant.id]
+                );
+                
+                // Update stripe_payment_intents status for consistency
+                await pool.query(
+                  `UPDATE stripe_payment_intents 
+                   SET status = 'refunded', updated_at = NOW()
+                   WHERE stripe_payment_intent_id = $1`,
+                  [participant.stripe_payment_intent_id]
+                );
+                
+                // Update booking_fee_snapshots status if exists
+                await pool.query(
+                  `UPDATE booking_fee_snapshots 
+                   SET status = 'refunded'
+                   WHERE stripe_payment_intent_id = $1`,
+                  [participant.stripe_payment_intent_id]
+                );
+                
+                logger.info('[Trackman Webhook] Refunded participant fee', {
+                  extra: { 
+                    bookingId, 
+                    participantId: participant.id,
+                    displayName: participant.display_name,
+                    amount: participant.cached_fee_cents / 100,
+                    refundId: refund.id
+                  }
+                });
+              }
+            } catch (refundErr: any) {
+              logger.error('[Trackman Webhook] Failed to refund participant', {
+                error: refundErr as Error,
+                extra: { participantId: participant.id, paymentIntentId: participant.stripe_payment_intent_id }
+              });
+            }
+          }
+        }
+      } catch (refundParticipantsErr) {
+        logger.error('[Trackman Webhook] Failed to process participant refunds', { error: refundParticipantsErr as Error });
+      }
     }
     
     const refundedPasses = await refundGuestPassesForCancelledBooking(bookingId, memberEmail);
