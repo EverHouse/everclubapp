@@ -176,6 +176,30 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
         }
     };
 
+    const handleDeleteEnrollment = async (enrollmentId: number, userEmail: string) => {
+        if (!classId) return;
+        setDeletingId(enrollmentId);
+        try {
+            const res = await fetch(`/api/wellness-enrollments/${classId}/${encodeURIComponent(userEmail)}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            if (res.ok) {
+                showToast('Enrollment removed successfully', 'success');
+                setConfirmDeleteId(null);
+                onRefresh?.();
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Failed to remove enrollment', 'error');
+            }
+        } catch (err) {
+            console.error('Failed to delete enrollment:', err);
+            showToast('Failed to remove enrollment', 'error');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     const handleEmailChange = (value: string) => {
         setNewEmail(value);
         if (value.trim().length > 0) {
@@ -455,41 +479,43 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shrink-0 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                                                            RSVP
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shrink-0 ${
+                                                            type === 'rsvp' 
+                                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                                                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                                                        }`}>
+                                                            {type === 'rsvp' ? 'RSVP' : 'Enrolled'}
                                                         </span>
-                                                        {type === 'rsvp' && (
-                                                            confirmDeleteId === primary.id ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <button
-                                                                        onClick={() => handleDeleteRsvp(primary.id)}
-                                                                        disabled={deletingId === primary.id}
-                                                                        className="p-1.5 rounded-lg bg-red-500 text-white text-xs font-medium min-w-[44px] min-h-[32px] flex items-center justify-center disabled:opacity-50"
-                                                                        aria-label="Confirm remove"
-                                                                    >
-                                                                        {deletingId === primary.id ? (
-                                                                            <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                                                                        ) : (
-                                                                            'Yes'
-                                                                        )}
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => setConfirmDeleteId(null)}
-                                                                        className="p-1.5 rounded-lg border border-gray-300 dark:border-white/25 text-gray-600 dark:text-gray-400 text-xs font-medium min-w-[44px] min-h-[32px]"
-                                                                        aria-label="Cancel remove"
-                                                                    >
-                                                                        No
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
+                                                        {confirmDeleteId === primary.id ? (
+                                                            <div className="flex items-center gap-1">
                                                                 <button
-                                                                    onClick={() => setConfirmDeleteId(primary.id)}
-                                                                    className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
-                                                                    aria-label="Remove RSVP"
+                                                                    onClick={() => type === 'rsvp' ? handleDeleteRsvp(primary.id) : handleDeleteEnrollment(primary.id, primary.userEmail)}
+                                                                    disabled={deletingId === primary.id}
+                                                                    className="p-1.5 rounded-lg bg-red-500 text-white text-xs font-medium min-w-[44px] min-h-[32px] flex items-center justify-center disabled:opacity-50"
+                                                                    aria-label="Confirm remove"
                                                                 >
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
+                                                                    {deletingId === primary.id ? (
+                                                                        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                                                    ) : (
+                                                                        'Yes'
+                                                                    )}
                                                                 </button>
-                                                            )
+                                                                <button
+                                                                    onClick={() => setConfirmDeleteId(null)}
+                                                                    className="p-1.5 rounded-lg border border-gray-300 dark:border-white/25 text-gray-600 dark:text-gray-400 text-xs font-medium min-w-[44px] min-h-[32px]"
+                                                                    aria-label="Cancel remove"
+                                                                >
+                                                                    No
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => setConfirmDeleteId(primary.id)}
+                                                                className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                                                                aria-label={type === 'rsvp' ? 'Remove RSVP' : 'Remove enrollment'}
+                                                            >
+                                                                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </div>
