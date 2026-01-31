@@ -1175,9 +1175,64 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
   }
 });
 
+// Get overlapping facility closures/notices for a given time range
+// Used to allow linking to existing notices instead of creating duplicates
+router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { startDate, endDate, startTime, endTime, resourceId } = req.query;
+    
+    if (!startDate || !startTime || !endTime) {
+      return res.status(400).json({ error: 'Missing required parameters: startDate, startTime, endTime' });
+    }
+    
+    const queryDate = startDate as string;
+    const queryEndDate = (endDate as string) || queryDate;
+    const queryStartTime = startTime as string;
+    const queryEndTime = endTime as string;
+    
+    // Find closures that overlap with the given time range
+    // Overlap condition: closure start < query end AND closure end > query start
+    const result = await pool.query(`
+      SELECT 
+        fc.id,
+        fc.title,
+        fc.reason,
+        fc.notice_type,
+        fc.start_date,
+        fc.end_date,
+        fc.start_time,
+        fc.end_time,
+        fc.affected_areas,
+        fc.google_calendar_id,
+        fc.created_at,
+        fc.created_by,
+        CASE 
+          WHEN fc.google_calendar_id IS NOT NULL THEN 'Google Calendar'
+          WHEN fc.created_by = 'system_cleanup' THEN 'Auto-generated'
+          ELSE 'Manual'
+        END as source
+      FROM facility_closures fc
+      WHERE fc.is_active = true
+        AND fc.start_date <= $2
+        AND fc.end_date >= $1
+        AND (
+          -- Time overlap check for same-day closures
+          (fc.start_time IS NULL AND fc.end_time IS NULL)
+          OR (fc.start_time < $4 AND fc.end_time > $3)
+        )
+      ORDER BY fc.start_date, fc.start_time
+      LIMIT 20
+    `, [queryDate, queryEndDate, queryStartTime, queryEndTime]);
+    
+    res.json(result.rows);
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to fetch overlapping notices', error, 'OVERLAPPING_NOTICES_ERROR');
+  }
+});
+
 router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
   try {
-    const { booking_id, trackman_booking_id } = req.body;
+    const { booking_id, trackman_booking_id, existingClosureId } = req.body;
     
     if (!booking_id && !trackman_booking_id) {
       return res.status(400).json({ error: 'Missing required field: booking_id or trackman_booking_id' });
@@ -1323,16 +1378,40 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
     // Use transaction to ensure atomicity and prevent race conditions
     // All duplicate detection happens inside the transaction
     const result = await db.transaction(async (tx) => {
-      // Check for existing private_event closures with EXACT time match (inside transaction for safety)
-      const existingClosures = await tx.select()
-        .from(facilityClosures)
-        .where(and(
-          eq(facilityClosures.startDate, bookingDate),
-          eq(facilityClosures.startTime, startTime),
-          eq(facilityClosures.endTime, endTime),
-          eq(facilityClosures.noticeType, 'private_event'),
-          eq(facilityClosures.isActive, true)
-        ));
+      let closure: any = null;
+      let linkedToExisting = false;
+      
+      // If existingClosureId provided, link to that existing closure instead of creating new
+      if (existingClosureId) {
+        const [existingClosure] = await tx.select()
+          .from(facilityClosures)
+          .where(and(
+            eq(facilityClosures.id, existingClosureId),
+            eq(facilityClosures.isActive, true)
+          ));
+        
+        if (existingClosure) {
+          closure = existingClosure;
+          linkedToExisting = true;
+        }
+      }
+      
+      // If no existing closure linked, check for exact time match or create new
+      if (!closure) {
+        // Check for existing private_event closures with EXACT time match (inside transaction for safety)
+        const existingClosures = await tx.select()
+          .from(facilityClosures)
+          .where(and(
+            eq(facilityClosures.startDate, bookingDate),
+            eq(facilityClosures.startTime, startTime),
+            eq(facilityClosures.endTime, endTime),
+            eq(facilityClosures.noticeType, 'private_event'),
+            eq(facilityClosures.isActive, true)
+          ));
+        
+        closure = existingClosures[0]; // Use existing closure only if exact match
+        if (closure) linkedToExisting = true;
+      }
       
       // Check for existing blocks on these resources with overlapping times
       const existingBlocks = resourceIds.length > 0 ? await tx.select()
@@ -1348,9 +1427,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       const blockedResourceIds = new Set(existingBlocks.map(b => b.resourceId));
       const unblockResourceIds = resourceIds.filter(id => !blockedResourceIds.has(id));
       
-      let closure = existingClosures[0]; // Use existing closure only if exact match
-      
-      // Only create new closure if none exists with exact time/type match
+      // Only create new closure if none exists with exact time/type match and no existing closure linked
       if (!closure) {
         const [newClosure] = await tx.insert(facilityClosures).values({
           title: eventTitle,
@@ -1395,13 +1472,15 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       const regularBookingIds = bookingIds.filter(id => !relatedUnmatchedIds.includes(id) && !unmatchedInBookingRequests.includes(id));
       
       // Mark unmatched bookings in booking_requests as resolved (no longer needs assignment)
+      // Also set closure_id to link the booking to the closure
       if (unmatchedInBookingRequests.length > 0) {
         await tx.update(bookingRequests)
           .set({
             isUnmatched: false,
             userEmail: 'private-event@resolved',
             notes: sql`COALESCE(${bookingRequests.notes}, '') || ' [Converted to Private Event]'`,
-            status: 'attended'
+            status: 'attended',
+            closureId: closure?.id || null
           })
           .where(sql`id IN (${sql.join(unmatchedInBookingRequests.map(id => sql`${id}`), sql`, `)})`);
       }
@@ -1425,7 +1504,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
           .where(sql`id IN (${sql.join(relatedUnmatchedIds.map(id => sql`${id}`), sql`, `)})`);
       }
       
-      return { closure, bookingIds, resourceIds, reusedExistingClosure: existingClosures.length > 0, newBlocksCreated: unblockResourceIds.length, resolvedUnmatchedCount: relatedUnmatchedIds.length };
+      return { closure, bookingIds, resourceIds, linkedToExisting, newBlocksCreated: unblockResourceIds.length, resolvedUnmatchedCount: relatedUnmatchedIds.length };
     });
     
     // Broadcast updates after successful transaction
@@ -1450,14 +1529,14 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       grouped_booking_count: result.bookingIds.length,
       resource_ids: result.resourceIds,
       closure_id: result.closure?.id,
-      reused_existing_closure: result.reusedExistingClosure,
+      linked_to_existing: result.linkedToExisting,
       new_blocks_created: result.newBlocksCreated
     });
     
     // Build response message based on what happened
     let message = `Converted ${result.bookingIds.length} booking(s) to private event`;
-    if (result.reusedExistingClosure) {
-      message += ' (linked to existing closure)';
+    if (result.linkedToExisting) {
+      message += ' (linked to existing notice)';
     }
     if (result.newBlocksCreated === 0) {
       message += ' - all blocks already existed';
@@ -1471,7 +1550,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       closureId: result.closure?.id,
       convertedBookingIds: result.bookingIds,
       resourceIds: result.resourceIds,
-      reusedExistingClosure: result.reusedExistingClosure,
+      linkedToExisting: result.linkedToExisting,
       newBlocksCreated: result.newBlocksCreated
     });
   } catch (error: any) {

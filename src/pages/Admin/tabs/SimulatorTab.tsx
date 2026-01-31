@@ -15,6 +15,7 @@ import { CheckinBillingModal } from '../../../components/staff-command-center/mo
 import { CompleteRosterModal } from '../../../components/staff-command-center/modals/CompleteRosterModal';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
+import { TrackmanNotesModal } from '../../../components/staff-command-center/modals/TrackmanNotesModal';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
 import { AnimatedPage } from '../../../components/motion';
 import FloatingActionButton from '../../../components/FloatingActionButton';
@@ -765,6 +766,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
         showSuccess: boolean;
     }>({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
     const [staffManualBookingModalOpen, setStaffManualBookingModalOpen] = useState(false);
+    const [trackmanNotesModalOpen, setTrackmanNotesModalOpen] = useState(false);
     const [staffManualBookingDefaults, setStaffManualBookingDefaults] = useState<{
         resourceId?: number;
         startTime?: string;
@@ -1910,6 +1912,14 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                         <span className="hidden sm:inline">Auto-Match</span>
                                     </button>
                                 )}
+                                <button
+                                    onClick={() => setTrackmanNotesModalOpen(true)}
+                                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 rounded-lg transition-colors shadow-sm"
+                                    title="Generate Trackman customer notes for auto-matching"
+                                >
+                                    <span className="material-symbols-outlined text-sm">note_add</span>
+                                    <span>Notes</span>
+                                </button>
                                 <button
                                     onClick={() => onTabChange('trackman')}
                                     className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
@@ -3715,6 +3725,11 @@ return null;
               </div>
             </ModalShell>
                 </div>
+
+                <TrackmanNotesModal
+                  isOpen={trackmanNotesModalOpen}
+                  onClose={() => setTrackmanNotesModalOpen(false)}
+                />
 
                 {/* FAB for Staff Manual Booking */}
                 <FloatingActionButton
