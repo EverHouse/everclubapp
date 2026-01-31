@@ -1514,8 +1514,10 @@ const WellnessAdminContent: React.FC = () => {
         const startTime24 = convertTo24Hour(cls.time);
         const endTime = calculateEndTime(cls.time, cls.duration);
         const dateStr = cls.date || '';
+        const parsedCapacity = cls.capacity || (cls.spots ? parseInt(cls.spots.replace(/[^0-9]/g, '')) || null : null);
         setFormData({
             ...cls,
+            capacity: parsedCapacity,
             time: startTime24,
             date: dateStr.includes('T') ? dateStr.split('T')[0] : dateStr,
             endTime

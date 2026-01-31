@@ -391,9 +391,16 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
   try {
     const { title, time, instructor, duration, category, spots, status, description, date, image_url, external_url, block_bookings, block_simulators, block_conference_room, capacity, waitlist_enabled } = req.body;
     
-    if (!title || !time || !instructor || !duration || !category || !spots || !date) {
+    if (!title || !time || !instructor || !duration || !category || !date) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    
+    if (!capacity && !spots) {
+      return res.status(400).json({ error: 'Number of spots is required' });
+    }
+    
+    const finalSpots = spots || (capacity ? `${capacity} spots` : 'Unlimited');
+    const finalCapacity = capacity || (spots ? parseInt(spots.toString().replace(/[^0-9]/g, '')) || null : null);
     
     const convertTo24Hour = (timeStr: string): string => {
       const match12h = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -431,7 +438,7 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
     }
     
     const calendarTitle = `${title} with ${instructor}`;
-    const calendarDescription = [`Category: ${category}`, description, `Duration: ${duration}`, `Spots: ${spots}`].filter(Boolean).join('\n');
+    const calendarDescription = [`Category: ${category}`, description, `Duration: ${duration}`, `Spots: ${finalSpots}`].filter(Boolean).join('\n');
     const startTime24 = convertTo24Hour(time);
     const endTime24 = calculateEndTime(startTime24, duration);
     
@@ -460,7 +467,7 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO wellness_classes (title, time, instructor, duration, category, spots, status, description, date, google_calendar_id, image_url, external_url, block_bookings, block_simulators, block_conference_room, capacity, waitlist_enabled)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
-      [title, time, instructor, duration, category, spots, status || 'available', description || null, date, googleCalendarId, image_url || null, external_url || null, block_bookings || false, newBlockSimulators, newBlockConferenceRoom, capacity || null, waitlist_enabled || false]
+      [title, time, instructor, duration, category, finalSpots, status || 'available', description || null, date, googleCalendarId, image_url || null, external_url || null, block_bookings || false, newBlockSimulators, newBlockConferenceRoom, finalCapacity, waitlist_enabled || false]
     );
     
     const createdClass = result.rows[0];
@@ -497,6 +504,9 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, time, instructor, duration, category, spots, status, description, date, is_active, image_url, external_url, block_bookings, block_simulators, block_conference_room, capacity, waitlist_enabled, apply_to_recurring } = req.body;
+    
+    const finalSpots = spots || (capacity ? `${capacity} spots` : null);
+    const finalCapacity = capacity || (spots ? parseInt(spots.toString().replace(/[^0-9]/g, '')) || null : null);
     
     const existing = await pool.query('SELECT google_calendar_id, title, time, instructor, duration, category, date, block_bookings, block_simulators, block_conference_room, recurring_event_id FROM wellness_classes WHERE id = $1', [id]);
     
@@ -539,7 +549,7 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
         reviewed_by = $19,
         reviewed_at = NOW()
        WHERE id = $18 RETURNING *`,
-      [title, time, instructor, duration, category, spots, status, description, date, is_active, image_url, external_url, newBlockBookings, newBlockSimulators, newBlockConferenceRoom, capacity || null, newWaitlistEnabled, id, reviewedBy]
+      [title, time, instructor, duration, category, finalSpots, status, description, date, is_active, image_url, external_url, newBlockBookings, newBlockSimulators, newBlockConferenceRoom, finalCapacity, newWaitlistEnabled, id, reviewedBy]
     );
     
     if (result.rows.length === 0) {
