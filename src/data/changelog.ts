@@ -13,6 +13,27 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.55.0",
+    date: "2026-01-31",
+    title: "Staff Management & Private Event Linking",
+    isMajor: true,
+    changes: [
+      "Added: 'Assign to Staff' button in Trackman modal - quickly assign bookings to staff/instructors without creating visitor records",
+      "Added: 'Team' tab in Directory page - view all staff with role badges (Instructor/Admin/Staff) and booking history",
+      "Added: 'Link to Existing Notice' feature - when marking a booking as private event, choose to link to an existing calendar notice instead of creating duplicates",
+      "Added: 'Generate Trackman Notes' tool - search members and copy formatted notes (M|email|first|last) for manual Trackman bookings",
+      "Improved: Staff search now includes all staff_users records, not just those with specific users.role values",
+      "Improved: Booking assignment validates archived members - prevents assigning to archived accounts",
+      "Improved: Empty email handling - unmatched booking queries now check for both NULL and empty strings",
+      "Fixed: Golf instructors no longer show as 'Visitor' in search results",
+      "Fixed: 9 staff accounts corrected from non-member to proper staff status (Tim, Laily, Ryan, Mara, Adam, Nick, Sam, Alyssa, Members)",
+      "Fixed: Team management page now restricted to admin-only access",
+      "Cleanup: Removed duplicate unmatch button from booking details modal",
+      "Cleanup: Deleted 25 incorrect 'Lesson: Tim Silverman' facility closure notices",
+      "Technical: Added closure_id foreign key to booking_requests for notice linking"
+    ]
+  },
+  {
     version: "9.54.0",
     date: "2026-01-31",
     title: "Eliminate Placeholder Email Generation",
