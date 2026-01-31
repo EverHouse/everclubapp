@@ -53,7 +53,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     if (status === 'approved') {
       const bookingId = parseInt(id, 10);
       
-      const { updated, bayName, approvalMessage } = await db.transaction(async (tx) => {
+      const { updated, bayName, approvalMessage, isConferenceRoom } = await db.transaction(async (tx) => {
         const [req_data] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
         
         if (!req_data) {
@@ -170,7 +170,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         
         let createdSessionId: number | null = null;
         let createdParticipantIds: number[] = [];
-        if (!isConferenceRoom && !updatedRow.sessionId) {
+        if (!updatedRow.sessionId) {
           try {
             let ownerUserId = updatedRow.userId;
             if (!ownerUserId && updatedRow.userEmail) {
@@ -236,9 +236,10 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         }
         
         const isReschedule = !!updatedRow.rescheduleBookingId;
+        const resourceTypeName = isConferenceRoom ? 'conference room' : 'simulator';
         const approvalMessage = isReschedule
           ? `Reschedule approved - your booking is now ${formatNotificationDateTime(updatedRow.requestDate, updatedRow.startTime)}`
-          : `Your simulator booking for ${formatNotificationDateTime(updatedRow.requestDate, updatedRow.startTime)} has been approved.`;
+          : `Your ${resourceTypeName} booking for ${formatNotificationDateTime(updatedRow.requestDate, updatedRow.startTime)} has been approved.`;
         
         await tx.insert(notifications).values({
           userEmail: updatedRow.userEmail,
@@ -257,7 +258,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             eq(notifications.type, 'booking')
           ));
         
-        return { updated: updatedRow, bayName, approvalMessage };
+        return { updated: updatedRow, bayName, approvalMessage, isConferenceRoom };
       });
       
       if (updated.rescheduleBookingId) {
@@ -390,7 +391,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       
       broadcastAvailabilityUpdate({
         resourceId: updated.resourceId || undefined,
-        resourceType: 'simulator',
+        resourceType: isConferenceRoom ? 'conference_room' : 'simulator',
         date: updated.requestDate,
         action: 'booked'
       });
@@ -408,11 +409,19 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     if (status === 'declined') {
       const bookingId = parseInt(id, 10);
       
-      const { updated, declineMessage, isReschedule } = await db.transaction(async (tx) => {
+      const { updated, declineMessage, isReschedule, resourceTypeName } = await db.transaction(async (tx) => {
         const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
         
         if (!existing) {
           throw { statusCode: 404, error: 'Booking request not found' };
+        }
+        
+        let resourceTypeName = 'simulator';
+        if (existing.resourceId) {
+          const [resource] = await tx.select({ type: resources.type }).from(resources).where(eq(resources.id, existing.resourceId));
+          if (resource?.type === 'conference_room') {
+            resourceTypeName = 'conference room';
+          }
         }
         
         const [updatedRow] = await tx.update(bookingRequests)
@@ -448,8 +457,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           notificationTitle = 'Reschedule Declined';
         } else {
           declineMessage = suggested_time 
-            ? `Your simulator booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined. Suggested alternative: ${formatTime12Hour(suggested_time)}`
-            : `Your simulator booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined.`;
+            ? `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined. Suggested alternative: ${formatTime12Hour(suggested_time)}`
+            : `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined.`;
           notificationTitle = 'Booking Request Declined';
         }
         
@@ -470,7 +479,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             eq(notifications.type, 'booking')
           ));
         
-        return { updated: updatedRow, declineMessage, isReschedule };
+        return { updated: updatedRow, declineMessage, isReschedule, resourceTypeName };
       });
       
       sendPushNotification(updated.userEmail, {
@@ -503,7 +512,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       const bookingId = parseInt(id, 10);
       const { cancelled_by } = req.body;
       
-      const { updated, bookingData, pushInfo, overageRefundResult } = await db.transaction(async (tx) => {
+      const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom } = await db.transaction(async (tx) => {
         const [existing] = await tx.select({
           id: bookingRequests.id,
           calendarEventId: bookingRequests.calendarEventId,
@@ -516,13 +525,20 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           trackmanBookingId: bookingRequests.trackmanBookingId,
           overagePaymentIntentId: bookingRequests.overagePaymentIntentId,
           overagePaid: bookingRequests.overagePaid,
-          overageFeeCents: bookingRequests.overageFeeCents
+          overageFeeCents: bookingRequests.overageFeeCents,
+          sessionId: bookingRequests.sessionId
         })
           .from(bookingRequests)
           .where(eq(bookingRequests.id, bookingId));
         
         if (!existing) {
           throw { statusCode: 404, error: 'Booking request not found' };
+        }
+        
+        let isConferenceRoom = false;
+        if (existing.resourceId) {
+          const [resource] = await tx.select({ type: resources.type }).from(resources).where(eq(resources.id, existing.resourceId));
+          isConferenceRoom = resource?.type === 'conference_room';
         }
         
         let overageRefundResult: { cancelled?: boolean; refunded?: boolean; amount?: number; error?: string } = {};
@@ -801,7 +817,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           });
         }
         
-        return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult };
+        return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom };
       });
       
       if (bookingData?.calendarEventId) {
@@ -861,7 +877,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       
       broadcastAvailabilityUpdate({
         resourceId: bookingData.resourceId || undefined,
-        resourceType: 'simulator',
+        resourceType: isConfRoom ? 'conference_room' : 'simulator',
         date: bookingData.requestDate,
         action: 'cancelled'
       });

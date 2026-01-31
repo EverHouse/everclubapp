@@ -994,12 +994,14 @@ const BookGolf: React.FC = () => {
 
   // Fetch fee estimate from unified API when booking params change
   useEffect(() => {
-    if (activeTab !== 'simulator' || !duration || !selectedDateObj?.date) {
+    if (!duration || !selectedDateObj?.date) {
       setEstimatedFees(prev => ({ ...prev, overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0, guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0, isLoading: false }));
       return;
     }
     
-    const guestCount = playerSlots.filter(slot => slot.type === 'guest').length;
+    // For conference room: no guests, just time-based overage
+    const guestCount = activeTab === 'simulator' ? playerSlots.filter(slot => slot.type === 'guest').length : 0;
+    const effectivePlayerCount = activeTab === 'simulator' ? playerCount : 1;
     
     if (feeEstimateTimeoutRef.current) {
       clearTimeout(feeEstimateTimeoutRef.current);
@@ -1012,8 +1014,9 @@ const BookGolf: React.FC = () => {
         const params = new URLSearchParams({
           durationMinutes: duration.toString(),
           guestCount: guestCount.toString(),
-          playerCount: playerCount.toString(),
-          date: selectedDateObj.date
+          playerCount: effectivePlayerCount.toString(),
+          date: selectedDateObj.date,
+          resourceType: activeTab === 'conference' ? 'conference_room' : 'simulator'
         });
         
         // When admin is viewing as a member, pass target email for accurate calculation
@@ -1440,7 +1443,8 @@ const BookGolf: React.FC = () => {
                   const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
                   
                   return availableDurations.map(mins => {
-                    const perPersonMins = Math.floor(mins / playerCount);
+                    // For simulators: split time among players; for conference: full time to user
+                    const perPersonMins = activeTab === 'simulator' ? Math.floor(mins / playerCount) : mins;
                     const isLowTime = activeTab === 'simulator' && playerCount >= 3 && mins <= 60;
                     const recommendedMins = playerCount * 30;
                     
@@ -1450,7 +1454,7 @@ const BookGolf: React.FC = () => {
                       : Math.max(0, (usedMinutesForDay + myUsageMinutes) - dailyAllowance);
                     const overageBlocks = Math.ceil(overageMinutes / 30);
                     const overageFee = overageBlocks * 25;
-                    const hasOverage = overageMinutes > 0 && activeTab === 'simulator';
+                    const hasOverage = overageMinutes > 0;
                     
                     return (
                       <button
@@ -1824,70 +1828,68 @@ const BookGolf: React.FC = () => {
 
       {canBook && (
         <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-300 gap-2">
-          {/* Fee Breakdown - always show for simulator bookings */}
-          {activeTab === 'simulator' && (
-            <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`material-symbols-outlined text-lg ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>receipt_long</span>
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Estimated Fees</span>
-              </div>
-              <div className="space-y-1">
-                {estimatedFees.overageFee > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      {effectiveUser?.tier?.toLowerCase() === 'social' 
-                        ? `Simulator time (${estimatedFees.overageMinutes} min)`
-                        : `Your time (${estimatedFees.overageMinutes} min overage)`}
-                    </span>
-                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.overageFee}</span>
-                  </div>
-                )}
-                {estimatedFees.guestsUsingPasses > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      {estimatedFees.guestsUsingPasses} guest{estimatedFees.guestsUsingPasses > 1 ? 's' : ''} (using pass{estimatedFees.guestsUsingPasses > 1 ? 'es' : ''})
-                    </span>
-                    <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>$0</span>
-                  </div>
-                )}
-                {estimatedFees.guestsCharged > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      {estimatedFees.guestsCharged} guest{estimatedFees.guestsCharged > 1 ? 's' : ''} @ $25
-                    </span>
-                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
-                  </div>
-                )}
-                {estimatedFees.guestCount > 0 && guestPassInfo && (
-                  <div className="flex justify-between items-center">
-                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                      Passes remaining after booking
-                    </span>
-                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                      {estimatedFees.passesRemainingAfter} of {guestPassInfo.passes_total}
-                    </span>
-                  </div>
-                )}
-                {estimatedFees.totalFee === 0 && estimatedFees.guestCount === 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      Included in your membership
-                    </span>
-                    <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>No charge</span>
-                  </div>
-                )}
-                <div className={`flex justify-between items-center pt-1 border-t ${isDark ? 'border-white/20' : 'border-black/10'}`}>
-                  <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Total due at check-in</span>
-                  <span className={`text-base font-bold ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>${estimatedFees.totalFee}</span>
-                </div>
-                {estimatedFees.totalFee > 0 && (
-                  <p className={`text-xs text-center mt-2 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                    Pay online once booking is confirmed, or at check-in
-                  </p>
-                )}
-              </div>
+          {/* Fee Breakdown - show for both simulator and conference room bookings */}
+          <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`material-symbols-outlined text-lg ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>receipt_long</span>
+              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Estimated Fees</span>
             </div>
-          )}
+            <div className="space-y-1">
+              {estimatedFees.overageFee > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                    {effectiveUser?.tier?.toLowerCase() === 'social' 
+                      ? `${activeTab === 'conference' ? 'Conference room' : 'Simulator'} time (${estimatedFees.overageMinutes} min)`
+                      : `Your time (${estimatedFees.overageMinutes} min overage)`}
+                  </span>
+                  <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.overageFee}</span>
+                </div>
+              )}
+              {activeTab === 'simulator' && estimatedFees.guestsUsingPasses > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                    {estimatedFees.guestsUsingPasses} guest{estimatedFees.guestsUsingPasses > 1 ? 's' : ''} (using pass{estimatedFees.guestsUsingPasses > 1 ? 'es' : ''})
+                  </span>
+                  <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>$0</span>
+                </div>
+              )}
+              {activeTab === 'simulator' && estimatedFees.guestsCharged > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                    {estimatedFees.guestsCharged} guest{estimatedFees.guestsCharged > 1 ? 's' : ''} @ $25
+                  </span>
+                  <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
+                </div>
+              )}
+              {activeTab === 'simulator' && estimatedFees.guestCount > 0 && guestPassInfo && (
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                    Passes remaining after booking
+                  </span>
+                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                    {estimatedFees.passesRemainingAfter} of {guestPassInfo.passes_total}
+                  </span>
+                </div>
+              )}
+              {estimatedFees.totalFee === 0 && (activeTab === 'conference' || estimatedFees.guestCount === 0) && (
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                    Included in your membership
+                  </span>
+                  <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>No charge</span>
+                </div>
+              )}
+              <div className={`flex justify-between items-center pt-1 border-t ${isDark ? 'border-white/20' : 'border-black/10'}`}>
+                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Total due at check-in</span>
+                <span className={`text-base font-bold ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>${estimatedFees.totalFee}</span>
+              </div>
+              {estimatedFees.totalFee > 0 && (
+                <p className={`text-xs text-center mt-2 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                  Pay online once booking is confirmed, or at check-in
+                </p>
+              )}
+            </div>
+          </div>
           <button 
             onClick={() => { haptic.heavy(); handleConfirm(); }}
             disabled={isBooking}
