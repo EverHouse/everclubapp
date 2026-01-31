@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow, getWellnessIcon, getEventIcon, formatTimeLeft } from '../helpers';
 import type { Tour, DBEvent, WellnessClass, TabType, NextScheduleItem, NextActivityItem } from '../types';
+import { tabToPath } from '../../../pages/Admin/layout/types';
 
 interface TodayScheduleSectionProps {
   upcomingTours: Tour[];
@@ -14,7 +15,6 @@ interface TodayScheduleSectionProps {
   nextScheduleItem: NextScheduleItem | null;
   nextActivityItem: NextActivityItem | null;
   today: string;
-  onTabChange: (tab: TabType) => void;
   variant: 'desktop' | 'desktop-top' | 'desktop-cards' | 'desktop-wellness' | 'desktop-events' | 'mobile' | 'mobile-top' | 'mobile-cards';
 }
 
@@ -27,16 +27,17 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
   nextScheduleItem,
   nextActivityItem,
   today,
-  onTabChange,
   variant
 }) => {
   const navigate = useNavigate();
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) navigate(tabToPath[tab]);
+  }, [navigate]);
   const isDesktop = variant.startsWith('desktop');
   const isDesktopGrid = variant === 'desktop-wellness' || variant === 'desktop-events';
   
   const navigateToWellnessTab = () => {
-    onTabChange('wellness');
-    navigate('/admin?tab=events&subtab=wellness');
+    navigate('/admin/calendar?subtab=wellness');
   };
   
   const NextTourWidget = () => {
@@ -57,7 +58,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
 
     return (
       <button 
-        onClick={() => onTabChange('tours')}
+        onClick={() => navigateToTab('tours')}
         className={`${isDesktop ? 'h-full' : ''} bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl ${isDesktop ? 'p-4' : 'p-3'} text-left hover:bg-white/80 dark:hover:bg-white/10 transition-colors ${isDesktop ? 'flex flex-col' : ''}`}
       >
         <h3 className={`font-bold text-primary dark:text-white ${isDesktop ? 'mb-3' : 'text-sm mb-2'}`}>Next Tour</h3>
@@ -136,7 +137,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
       if (isWellness || useFallbackWellness) {
         navigateToWellnessTab();
       } else {
-        onTabChange('events');
+        navigateToTab('events');
       }
     };
 
@@ -197,7 +198,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
     <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
         <h3 className="font-bold text-primary dark:text-white">Upcoming Events</h3>
-        <button onClick={() => onTabChange('events')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+        <button onClick={() => navigateToTab('events')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       {upcomingEvents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -215,7 +216,7 @@ export const TodayScheduleSection: React.FC<TodayScheduleSectionProps> = ({
                 ? formatTime12Hour(event.start_time)
                 : 'All Day';
             return (
-              <GlassListRow key={event.id} onClick={() => onTabChange('events')}>
+              <GlassListRow key={event.id} onClick={() => navigateToTab('events')}>
                 <DateBlock dateStr={dateStr} today={today} />
                 <span className="material-symbols-outlined text-lg text-primary dark:text-[#CCB8E4]">{getEventIcon(event.category || '')}</span>
                 <div className="flex-1 min-w-0">

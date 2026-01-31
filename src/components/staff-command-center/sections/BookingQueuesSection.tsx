@@ -1,9 +1,11 @@
 import React, { useMemo, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour, getNowTimePacific, getTodayPacific, formatRelativeTime } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow } from '../helpers';
 import { useAsyncAction } from '../../../hooks/useAsyncAction';
 import type { BookingRequest, TabType } from '../types';
+import { tabToPath } from '../../../pages/Admin/layout/types';
 
 interface BookingQueuesSectionProps {
   pendingRequests: BookingRequest[];
@@ -11,7 +13,6 @@ interface BookingQueuesSectionProps {
   unmatchedBookings?: BookingRequest[];
   today: string;
   actionInProgress: string | null;
-  onTabChange: (tab: TabType) => void;
   onOpenTrackman: (booking?: BookingRequest) => void;
   onApprove: (request: BookingRequest) => void;
   onDeny: (request: BookingRequest) => void;
@@ -29,7 +30,6 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   unmatchedBookings = [],
   today,
   actionInProgress,
-  onTabChange,
   onOpenTrackman,
   onApprove,
   onDeny,
@@ -40,6 +40,10 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
   onEditBooking,
   variant
 }) => {
+  const navigate = useNavigate();
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) navigate(tabToPath[tab]);
+  }, [navigate]);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const { execute: executeApprove } = useAsyncAction(
@@ -253,7 +257,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             </span>
           )}
         </div>
-        <button onClick={() => onTabChange('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+        <button onClick={() => navigateToTab('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
       </div>
       {pendingRequests.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -340,7 +344,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       >
         <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
           <h3 className="font-bold text-primary dark:text-white">Today's Bookings</h3>
-          <button onClick={() => onTabChange('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+          <button onClick={() => navigateToTab('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
         </div>
         {mergedUpcomingBookings.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-8">
@@ -357,7 +361,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
               return (
                 <GlassListRow 
                   key={`${isUnmatched ? 'unmatched-' : ''}${booking.id}`}
-                  onClick={() => onTabChange('simulator')}
+                  onClick={() => navigateToTab('simulator')}
                   className={`flex-col !items-stretch !gap-2 animate-slide-up-stagger ${cardClass}`}
                   style={{ '--stagger-index': index } as React.CSSProperties}
                 >

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { TabType } from './types';
+import { TabType, tabToPath } from './types';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../../../data/changelog';
 
@@ -13,7 +13,6 @@ interface NavItem {
 
 interface StaffSidebarProps {
   activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
   isAdmin?: boolean;
 }
 
@@ -46,11 +45,17 @@ const ADMIN_ITEMS: NavItem[] = [
 
 export const StaffSidebar: React.FC<StaffSidebarProps> = ({ 
   activeTab, 
-  onTabChange,
   isAdmin = false 
 }) => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
+  
+  const navigateToTab = useCallback((tab: TabType) => {
+    startNavigation();
+    if (tabToPath[tab]) {
+      navigate(tabToPath[tab]);
+    }
+  }, [navigate, startNavigation]);
   const navContainerRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Map<TabType, HTMLButtonElement>>(new Map());
   const [indicatorStyle, setIndicatorStyle] = useState<{ top: number; height: number } | null>(null);
@@ -88,7 +93,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
     return (
       <button
         ref={(el) => setButtonRef(item.id, el)}
-        onClick={() => onTabChange(item.id)}
+        onClick={() => navigateToTab(item.id)}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
           ${isActive 

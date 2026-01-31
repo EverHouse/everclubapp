@@ -6,7 +6,7 @@ import { formatDateDisplayWithDay, formatDateTimePacific, getTodayPacific } from
 import PullToRefresh from '../../../components/PullToRefresh';
 import { useToast } from '../../../components/Toast';
 import FloatingActionButton from '../../../components/FloatingActionButton';
-import ModalShell from '../../../components/ModalShell';
+import { SlideUpDrawer } from '../../../components/SlideUpDrawer';
 import TierBadge from '../../../components/TierBadge';
 import { AnimatedPage } from '../../../components/motion';
 
@@ -298,20 +298,14 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
     };
 
     return (
-        <ModalShell isOpen={isOpen} onClose={onClose} showCloseButton={false}>
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 className="font-bold text-lg text-primary dark:text-white">{title}</h3>
-                        {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
-                    </div>
-                    <button 
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                    >
-                        <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-gray-400">close</span>
-                    </button>
-                </div>
+        <SlideUpDrawer 
+            isOpen={isOpen} 
+            onClose={onClose}
+            title={title}
+            subtitle={subtitle}
+            maxHeight="large"
+        >
+            <div className="p-5">
 
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
@@ -549,7 +543,7 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                     </>
                 )}
             </div>
-        </ModalShell>
+        </SlideUpDrawer>
     );
 };
 
@@ -1024,23 +1018,15 @@ const EventsAdminContent: React.FC = () => {
                 </div>
             )}
 
-            <ModalShell isOpen={showDeleteConfirm} onClose={() => { setShowDeleteConfirm(false); setEventToDelete(null); setEventCascadePreview(null); }} title="Archive Event" showCloseButton={false}>
-                <div className="p-6">
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">
-                        Are you sure you want to archive <span className="font-bold text-primary dark:text-white">"{eventToDelete?.title}"</span>?
-                    </p>
-                    {eventCascadePreview && eventCascadePreview.rsvps > 0 && (
-                        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
-                            <p className="text-amber-700 dark:text-amber-400 text-sm font-medium flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px]">warning</span>
-                                This event has {eventCascadePreview.rsvps} RSVP{eventCascadePreview.rsvps !== 1 ? 's' : ''}
-                            </p>
-                        </div>
-                    )}
-                    <div className="flex gap-3 justify-end">
+            <SlideUpDrawer 
+                isOpen={showDeleteConfirm} 
+                onClose={() => { setShowDeleteConfirm(false); setEventToDelete(null); setEventCascadePreview(null); }} 
+                title="Archive Event"
+                stickyFooter={
+                    <div className="flex gap-3 p-4">
                         <button 
                             onClick={() => { setShowDeleteConfirm(false); setEventToDelete(null); setEventCascadePreview(null); }} 
-                            className="px-4 py-2 text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                             disabled={deletingEventId !== null}
                         >
                             Cancel
@@ -1048,17 +1034,55 @@ const EventsAdminContent: React.FC = () => {
                         <button 
                             onClick={confirmDelete} 
                             disabled={deletingEventId !== null}
-                            className="px-6 py-2 bg-red-500 text-white rounded-lg font-bold shadow-md hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                            className="flex-1 py-3 rounded-xl bg-red-500 text-white font-medium shadow-md hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {deletingEventId !== null && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
                             {deletingEventId !== null ? 'Archiving...' : 'Archive'}
                         </button>
                     </div>
+                }
+            >
+                <div className="p-5">
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                        Are you sure you want to archive <span className="font-bold text-primary dark:text-white">"{eventToDelete?.title}"</span>?
+                    </p>
+                    {eventCascadePreview && eventCascadePreview.rsvps > 0 && (
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+                            <p className="text-amber-700 dark:text-amber-400 text-sm font-medium flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">warning</span>
+                                This event has {eventCascadePreview.rsvps} RSVP{eventCascadePreview.rsvps !== 1 ? 's' : ''}
+                            </p>
+                        </div>
+                    )}
                 </div>
-            </ModalShell>
+            </SlideUpDrawer>
 
-            <ModalShell isOpen={isEditing} onClose={() => { setIsEditing(false); setError(null); }} title={editId ? 'Edit Event' : 'Create Event'} showCloseButton={false}>
-                <div className="p-6 space-y-4 overflow-hidden">
+            <SlideUpDrawer 
+                isOpen={isEditing} 
+                onClose={() => { setIsEditing(false); setError(null); }} 
+                title={editId ? 'Edit Event' : 'Create Event'}
+                maxHeight="large"
+                stickyFooter={
+                    <div className="flex gap-3 p-4">
+                        <button 
+                            onClick={() => { setIsEditing(false); setError(null); setTouchedFields(new Set()); }} 
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium" 
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSave} 
+                            disabled={isSaving || !isEventFormValid} 
+                            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isSaving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                            {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-5 space-y-4">
                     {error && (
                         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg text-sm">
                             {error}
@@ -1236,15 +1260,8 @@ const EventsAdminContent: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="flex gap-3 justify-end pt-2">
-                        <button onClick={() => { setIsEditing(false); setError(null); setTouchedFields(new Set()); }} className="px-4 py-2 text-gray-500 dark:text-gray-400 font-bold" disabled={isSaving}>Cancel</button>
-                        <button onClick={handleSave} disabled={isSaving || !isEventFormValid} className="px-6 py-2 bg-primary text-white rounded-lg font-bold shadow-md disabled:opacity-50 flex items-center gap-2">
-                            {isSaving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
-                            {isSaving ? 'Saving...' : 'Save'}
-                        </button>
-                    </div>
                 </div>
-            </ModalShell>
+            </SlideUpDrawer>
 
             {isLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -1962,8 +1979,31 @@ const WellnessAdminContent: React.FC = () => {
                 onRefresh={() => selectedClass && handleViewEnrollments(selectedClass)}
             />
 
-            <ModalShell isOpen={isEditing} onClose={() => { setIsEditing(false); setError(null); }} title={editId ? 'Edit Class' : 'Add Class'} showCloseButton={false}>
-                <div className="p-6 space-y-4 overflow-hidden">
+            <SlideUpDrawer 
+                isOpen={isEditing} 
+                onClose={() => { setIsEditing(false); setError(null); }} 
+                title={editId ? 'Edit Class' : 'Add Class'}
+                maxHeight="large"
+                stickyFooter={
+                    <div className="flex gap-3 p-4">
+                        <button
+                            onClick={() => { setIsEditing(false); setError(null); setTouchedFields(new Set()); }}
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={isUploading || !isWellnessFormValid}
+                            className="flex-1 py-3 rounded-xl bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isUploading && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
+                            {isUploading ? 'Saving...' : editId ? 'Save Changes' : 'Add Class'}
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-5 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title *</label>
                         <input
@@ -2235,47 +2275,26 @@ const WellnessAdminContent: React.FC = () => {
                         <p className="text-red-600 text-sm">{error}</p>
                     )}
 
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={() => { setIsEditing(false); setError(null); setTouchedFields(new Set()); }}
-                            className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={isUploading || !isWellnessFormValid}
-                            className="flex-1 py-3 px-4 rounded-lg bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {isUploading && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
-                            {isUploading ? 'Saving...' : editId ? 'Save Changes' : 'Add Class'}
-                        </button>
-                    </div>
                 </div>
-            </ModalShell>
+            </SlideUpDrawer>
 
-            <ModalShell 
+            <SlideUpDrawer 
                 isOpen={showDeleteConfirm} 
                 onClose={() => { setShowDeleteConfirm(false); setClassToDelete(null); }} 
                 title="Delete Class"
-                size="sm"
-            >
-                <div className="p-6">
-                    <p className="text-gray-600 dark:text-gray-300 mb-6">
-                        Are you sure you want to delete <span className="font-semibold text-primary dark:text-white">"{classToDelete?.title}"</span>? This action cannot be undone.
-                    </p>
-                    <div className="flex gap-3">
+                stickyFooter={
+                    <div className="flex gap-3 p-4">
                         <button
                             onClick={() => { setShowDeleteConfirm(false); setClassToDelete(null); }}
                             disabled={deletingClassId !== null}
-                            className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={deletingClassId !== null}
-                            className="flex-1 py-3 px-4 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            className="flex-1 py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {deletingClassId !== null ? (
                                 <>
@@ -2290,8 +2309,14 @@ const WellnessAdminContent: React.FC = () => {
                             )}
                         </button>
                     </div>
+                }
+            >
+                <div className="p-5">
+                    <p className="text-gray-600 dark:text-gray-300">
+                        Are you sure you want to delete <span className="font-semibold text-primary dark:text-white">"{classToDelete?.title}"</span>? This action cannot be undone.
+                    </p>
                 </div>
-            </ModalShell>
+            </SlideUpDrawer>
         </div>
     );
 };

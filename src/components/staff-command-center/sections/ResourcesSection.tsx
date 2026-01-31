@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour, isFacilityOpen, formatDateDisplayWithDay } from '../../../utils/dateUtils';
 import type { BayStatus, Closure, Announcement, TabType, RecentActivity, StaffNotification } from '../types';
 import { AlertsCard } from './AlertsCard';
+import { tabToPath } from '../../../pages/Admin/layout/types';
 
 interface ResourcesSectionProps {
   bayStatuses: BayStatus[];
   closures: Closure[];
   upcomingClosure?: Closure | null;
   announcements: Announcement[];
-  onTabChange: (tab: TabType) => void;
   variant: 'desktop' | 'mobile' | 'mobile-notice-only' | 'mobile-facility-only';
   recentActivity?: RecentActivity[];
   notifications?: StaffNotification[];
@@ -21,12 +21,14 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
   closures,
   upcomingClosure,
   announcements,
-  onTabChange,
   variant,
   recentActivity = [],
   notifications = []
 }) => {
   const navigate = useNavigate();
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) navigate(tabToPath[tab]);
+  }, [navigate]);
 
   const isBlocking = (areas: string | null | undefined): boolean => {
     return areas !== 'none' && areas !== '' && areas !== null && areas !== undefined;
@@ -56,13 +58,13 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
     <div className={`${variant === 'desktop' ? 'h-full' : ''} bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${variant === 'desktop' ? 'flex flex-col' : ''}`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4">
         <h3 className="font-bold text-primary dark:text-white">Internal Notice Board</h3>
-        <button onClick={() => onTabChange('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
+        <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (
         upcomingClosure ? (
           <div className={`space-y-3 ${variant === 'desktop' ? 'flex-1' : ''}`}>
             <button 
-              onClick={() => onTabChange('blocks')}
+              onClick={() => navigateToTab('blocks')}
               className={`w-full text-left rounded-lg p-3 transition-colors ${
                 isBlocking(upcomingClosure.affectedAreas)
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
@@ -114,7 +116,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
             return (
               <button 
                 key={closure.id}
-                onClick={() => onTabChange('blocks')}
+                onClick={() => navigateToTab('blocks')}
                 className={`w-full text-left rounded-lg p-3 transition-colors ${
                   blocking
                     ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
@@ -154,7 +156,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
           {announcements.slice(0, 3).map(announcement => (
             <button 
               key={announcement.id}
-              onClick={() => onTabChange('announcements')}
+              onClick={() => navigateToTab('announcements')}
               className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
             >
               <p className="text-sm font-medium text-purple-800 dark:text-purple-200">{announcement.title}</p>
@@ -251,8 +253,11 @@ export const NoticeBoardWidget: React.FC<{
   closures: Closure[];
   upcomingClosure?: Closure | null;
   announcements: Announcement[];
-  onTabChange: (tab: TabType) => void;
-}> = ({ closures, upcomingClosure, announcements, onTabChange }) => {
+}> = ({ closures, upcomingClosure, announcements }) => {
+  const navigate = useNavigate();
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) navigate(tabToPath[tab]);
+  }, [navigate]);
   const isBlocking = (areas: string | null | undefined): boolean => {
     return areas !== 'none' && areas !== '' && areas !== null && areas !== undefined;
   };
@@ -281,13 +286,13 @@ export const NoticeBoardWidget: React.FC<{
     <div className="h-full min-h-[140px] bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-primary dark:text-white">Internal Notice Board</h3>
-        <button onClick={() => onTabChange('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
+        <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (
         upcomingClosure ? (
           <div className="space-y-3 flex-1">
             <button 
-              onClick={() => onTabChange('blocks')}
+              onClick={() => navigateToTab('blocks')}
               className={`w-full text-left rounded-lg p-3 transition-colors ${
                 isBlocking(upcomingClosure.affectedAreas)
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
@@ -339,7 +344,7 @@ export const NoticeBoardWidget: React.FC<{
             return (
               <button 
                 key={closure.id} 
-                onClick={() => onTabChange('blocks')}
+                onClick={() => navigateToTab('blocks')}
                 className={`w-full text-left rounded-lg p-3 transition-colors ${
                   blocking
                     ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
@@ -379,7 +384,7 @@ export const NoticeBoardWidget: React.FC<{
           {announcements.slice(0, 3).map(announcement => (
             <button 
               key={announcement.id}
-              onClick={() => onTabChange('announcements')}
+              onClick={() => navigateToTab('announcements')}
               className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
             >
               <p className="text-sm font-medium text-purple-800 dark:text-purple-200">{announcement.title}</p>

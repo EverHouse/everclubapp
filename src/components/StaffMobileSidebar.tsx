@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../data/changelog';
-import { TabType } from '../pages/Admin/layout/types';
+import { TabType, tabToPath } from '../pages/Admin/layout/types';
 import BugReportModal from './BugReportModal';
 
 interface NavItem {
@@ -16,7 +16,6 @@ interface StaffMobileSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
   isAdmin?: boolean;
 }
 
@@ -51,12 +50,18 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
   isOpen,
   onClose,
   activeTab,
-  onTabChange,
   isAdmin = false,
 }) => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
   const [showBugReport, setShowBugReport] = useState(false);
+
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) {
+      startNavigation();
+      navigate(tabToPath[tab]);
+    }
+  }, [navigate, startNavigation]);
 
   useEffect(() => {
     if (isOpen) {
@@ -70,7 +75,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
   }, [isOpen]);
 
   const handleNavClick = (tab: TabType) => {
-    onTabChange(tab);
+    navigateToTab(tab);
     onClose();
   };
 

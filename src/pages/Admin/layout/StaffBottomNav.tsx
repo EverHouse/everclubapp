@@ -1,20 +1,26 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from '../../../components/layout/SafeAreaBottomOverlay';
-import { TabType, NavItemData, NAV_ITEMS } from './types';
+import { TabType, NavItemData, NAV_ITEMS, tabToPath } from './types';
 
 interface StaffBottomNavProps {
   activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
   isAdmin?: boolean;
   pendingRequestsCount?: number;
 }
 
 export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({ 
   activeTab, 
-  onTabChange, 
   isAdmin, 
   pendingRequestsCount = 0 
 }) => {
+  const navigate = useNavigate();
+  
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) {
+      navigate(tabToPath[tab]);
+    }
+  }, [navigate]);
   const navRef = useRef<HTMLDivElement>(null);
   
   const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
@@ -43,7 +49,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
           <button
             type="button"
             key={item.id}
-            onClick={() => onTabChange(item.id)}
+            onClick={() => navigateToTab(item.id)}
             style={{ touchAction: 'manipulation' }}
             aria-label={item.label}
             aria-current={activeTab === item.id ? 'page' : undefined}

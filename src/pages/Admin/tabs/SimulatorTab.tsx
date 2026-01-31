@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
 import { getTodayPacific, addDaysToPacificDate, formatDateDisplayWithDay, formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime } from '../../../utils/dateUtils';
@@ -9,7 +10,7 @@ import { SwipeableListItem } from '../../../components/SwipeableListItem';
 import ModalShell from '../../../components/ModalShell';
 import { useToast } from '../../../components/Toast';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { TabType } from '../layout/types';
+import { TabType, tabToPath } from '../layout/types';
 import BookingMembersEditor from '../../../components/admin/BookingMembersEditor';
 import { CheckinBillingModal } from '../../../components/staff-command-center/modals/CheckinBillingModal';
 import { CompleteRosterModal } from '../../../components/staff-command-center/modals/CompleteRosterModal';
@@ -666,9 +667,16 @@ const ManualBookingModal: React.FC<{
     );
 };
 
-const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTabChange }) => {
+const SimulatorTab: React.FC = () => {
+    const navigate = useNavigate();
     const { setPageReady } = usePageReady();
     const { user, actualUser, members } = useData();
+    
+    const navigateToTab = useCallback((tab: TabType) => {
+        if (tabToPath[tab]) {
+            navigate(tabToPath[tab]);
+        }
+    }, [navigate]);
     
     // Create a Set of active member emails for fast lookup
     const activeMemberEmails = useMemo(() => 
@@ -1812,7 +1820,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                     </div>
                     <div className="flex items-center">
                         <button
-                            onClick={() => onTabChange('trackman')}
+                            onClick={() => navigateToTab('trackman')}
                             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
                             title="Import bookings from Trackman CSV"
                         >
@@ -1844,7 +1852,7 @@ const SimulatorTab: React.FC<{ onTabChange: (tab: TabType) => void }> = ({ onTab
                                 </h3>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => onTabChange('trackman')}
+                                    onClick={() => navigateToTab('trackman')}
                                     className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
                                     title="Import bookings from Trackman CSV"
                                 >

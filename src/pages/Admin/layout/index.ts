@@ -3,3 +3,4 @@ export * from './StaffBottomNav';
 export * from './StaffSidebar';
 export * from './hooks/usePendingCounts';
 export * from './hooks/useUnreadNotifications';
+export { tabToPath, pathToTab, getTabFromPathname } from './types';

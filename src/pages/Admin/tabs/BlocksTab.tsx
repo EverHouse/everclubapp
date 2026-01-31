@@ -4,7 +4,7 @@ import { useData } from '../../../contexts/DataContext';
 import { useToast } from '../../../components/Toast';
 import { getTodayPacific, formatDateDisplayWithDay } from '../../../utils/dateUtils';
 import PullToRefresh from '../../../components/PullToRefresh';
-import ModalShell from '../../../components/ModalShell';
+import { SlideUpDrawer } from '../../../components/SlideUpDrawer';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import AvailabilityBlocksContent from '../components/AvailabilityBlocksContent';
 import { AnimatedPage } from '../../../components/motion';
@@ -117,16 +117,6 @@ const BlocksTab: React.FC = () => {
 
     const isClosureFormValid = !closureValidation.notice_type && !closureValidation.affected_areas && !closureValidation.visibility;
 
-    useEffect(() => {
-        if (isClosureModalOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, [isClosureModalOpen]);
 
     const fetchClosures = async () => {
         try {
@@ -1368,9 +1358,35 @@ const BlocksTab: React.FC = () => {
                 </div>
             )}
 
-            <ModalShell isOpen={isClosureModalOpen} onClose={() => { setIsClosureModalOpen(false); resetClosureForm(); }} title={editingClosureId ? 'Edit Notice' : 'New Notice'} showCloseButton={false}>
-                <div className="p-6 space-y-4 overflow-hidden">
-                    <div className="space-y-3 mb-5">
+            <SlideUpDrawer 
+                isOpen={isClosureModalOpen} 
+                onClose={() => { setIsClosureModalOpen(false); resetClosureForm(); }} 
+                title={editingClosureId ? 'Edit Notice' : 'New Notice'}
+                maxHeight="large"
+                stickyFooter={
+                    <div className="flex gap-3 p-4">
+                        <button 
+                            onClick={() => { setIsClosureModalOpen(false); resetClosureForm(); }}
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSaveClosure}
+                            disabled={!closureForm.start_date || closureSaving || !isClosureFormValid}
+                            className={`flex-1 py-3 rounded-xl font-medium text-white transition-colors ${
+                                isBlocking(closureForm.affected_areas)
+                                    ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300'
+                                    : 'bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300'
+                            }`}
+                        >
+                            {closureSaving ? 'Saving...' : editingClosureId ? 'Update' : 'Create'}
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-5 space-y-4">
+                    <div className="space-y-3">
                         <div>
                             <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1 block">Reason Category *</label>
                             <select
@@ -1589,28 +1605,8 @@ const BlocksTab: React.FC = () => {
                             />
                         </div>
                     </div>
-
-                    <div className="flex gap-3 pt-2">
-                        <button 
-                            onClick={() => { setIsClosureModalOpen(false); resetClosureForm(); }}
-                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            onClick={handleSaveClosure}
-                            disabled={!closureForm.start_date || closureSaving || !isClosureFormValid}
-                            className={`flex-1 py-3 rounded-xl font-medium text-white transition-colors ${
-                                isBlocking(closureForm.affected_areas)
-                                    ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300'
-                                    : 'bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300'
-                            }`}
-                        >
-                            {closureSaving ? 'Saving...' : editingClosureId ? 'Update' : 'Create'}
-                        </button>
-                    </div>
                 </div>
-            </ModalShell>
+            </SlideUpDrawer>
 
             <FloatingActionButton
                 icon="add"

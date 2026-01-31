@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useData, Announcement } from '../../contexts/DataContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useToast } from '../Toast';
-import ModalShell from '../ModalShell';
+import { SlideUpDrawer } from '../SlideUpDrawer';
 
 interface AnnouncementManagerProps {
     triggerCreate?: number;
@@ -81,12 +81,29 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
 
     return (
         <div className="animate-pop-in">
-            <ModalShell isOpen={isEditing} onClose={() => setIsEditing(false)} showCloseButton={false}>
-                <div className="p-6 space-y-4">
-                    <h3 className="font-bold text-lg text-primary dark:text-white flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-accent" />
-                        {editId ? 'Edit Announcement' : 'New Announcement'}
-                    </h3>
+            <SlideUpDrawer 
+                isOpen={isEditing} 
+                onClose={() => setIsEditing(false)} 
+                title={editId ? 'Edit Announcement' : 'New Announcement'}
+                maxHeight="large"
+                stickyFooter={
+                    <div className="flex gap-3 p-4">
+                        <button 
+                            onClick={() => setIsEditing(false)} 
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSave} 
+                            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium shadow-md hover:bg-primary/90 transition-colors"
+                        >
+                            Post
+                        </button>
+                    </div>
+                }
+            >
+                <div className="p-5 space-y-4">
                     <input className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" placeholder="Title" value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} />
                     <textarea className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" placeholder="Description" rows={3} value={newItem.desc || ''} onChange={e => setNewItem({...newItem, desc: e.target.value})} />
                     
@@ -152,12 +169,8 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                             />
                         )}
                     </div>
-                    <div className="flex gap-3 justify-end pt-2">
-                        <button onClick={() => setIsEditing(false)} className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">Cancel</button>
-                        <button onClick={handleSave} className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors">Post</button>
-                    </div>
                 </div>
-            </ModalShell>
+            </SlideUpDrawer>
 
             <div className="space-y-4 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                 {announcements.length > 0 && (

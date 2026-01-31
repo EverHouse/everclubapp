@@ -93,7 +93,7 @@ export interface BayStatus {
 export type TabType = 'home' | 'cafe' | 'events' | 'announcements' | 'directory' | 'simulator' | 'team' | 'faqs' | 'inquiries' | 'gallery' | 'tiers' | 'blocks' | 'changelog' | 'training' | 'updates' | 'tours' | 'bugs' | 'trackman' | 'wellness';
 
 export interface StaffCommandCenterProps {
-  onTabChange: (tab: TabType) => void;
+  onTabChange?: (tab: TabType) => void;
   isAdmin?: boolean;
   wsConnected?: boolean;
 }

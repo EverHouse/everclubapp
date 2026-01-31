@@ -115,6 +115,27 @@ const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const DataIntegrity = lazy(() => import('./pages/Admin/DataIntegrity'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 
+const StaffCommandCenter = lazy(() => import('./components/StaffCommandCenter'));
+const SimulatorTab = lazy(() => import('./pages/Admin/tabs/SimulatorTab'));
+const DirectoryTab = lazy(() => import('./pages/Admin/tabs/DirectoryTab'));
+const EventsTab = lazy(() => import('./pages/Admin/tabs/EventsTab'));
+const BlocksTab = lazy(() => import('./pages/Admin/tabs/BlocksTab'));
+const UpdatesTab = lazy(() => import('./pages/Admin/tabs/UpdatesTab'));
+const AnnouncementsTab = lazy(() => import('./pages/Admin/tabs/AnnouncementsTab'));
+const TeamTab = lazy(() => import('./pages/Admin/tabs/TeamTab'));
+const CafeTab = lazy(() => import('./pages/Admin/tabs/CafeTab'));
+const TiersTab = lazy(() => import('./pages/Admin/tabs/TiersTab'));
+const TrackmanTab = lazy(() => import('./pages/Admin/tabs/TrackmanTab'));
+const DataIntegrityTab = lazy(() => import('./pages/Admin/tabs/DataIntegrityTab'));
+const FinancialsTab = lazy(() => import('./pages/Admin/tabs/FinancialsTab'));
+const GalleryAdmin = lazy(() => import('./pages/Admin/GalleryAdmin'));
+const FaqsAdmin = lazy(() => import('./pages/Admin/FaqsAdmin'));
+const InquiriesAdmin = lazy(() => import('./pages/Admin/InquiriesAdmin'));
+const BugReportsAdmin = lazy(() => import('./pages/Admin/BugReportsAdmin'));
+const SettingsTab = lazy(() => import('./pages/Admin/tabs/SettingsTab'));
+const ChangelogTab = lazy(() => import('./pages/Admin/tabs/ChangelogTab'));
+const ToursTab = lazy(() => import('./pages/Admin/tabs/ToursTab'));
+
 import { prefetchRoute, prefetchAdjacentRoutes, prefetchOnIdle } from './lib/prefetch';
 
 const useDebugLayout = () => {
@@ -348,8 +369,30 @@ const AnimatedRoutes: React.FC = () => {
               <AdminProtectedRoute>
                 <DirectionalPageTransition><PageErrorBoundary pageName="AdminDashboard"><AdminDashboard /></PageErrorBoundary></DirectionalPageTransition>
               </AdminProtectedRoute>
-            } />
-            <Route path="/admin/data-integrity" element={
+            }>
+              <Route index element={<StaffCommandCenter />} />
+              <Route path="bookings" element={<SimulatorTab />} />
+              <Route path="directory" element={<DirectoryTab />} />
+              <Route path="calendar" element={<EventsTab />} />
+              <Route path="notices" element={<BlocksTab />} />
+              <Route path="updates" element={<UpdatesTab />} />
+              <Route path="news" element={<AnnouncementsTab />} />
+              <Route path="team" element={<TeamTab />} />
+              <Route path="cafe" element={<CafeTab />} />
+              <Route path="tiers" element={<TiersTab />} />
+              <Route path="trackman" element={<TrackmanTab />} />
+              <Route path="data-integrity" element={<DataIntegrityTab />} />
+              <Route path="financials" element={<FinancialsTab />} />
+              <Route path="gallery" element={<GalleryAdmin />} />
+              <Route path="faqs" element={<FaqsAdmin />} />
+              <Route path="inquiries" element={<InquiriesAdmin />} />
+              <Route path="bugs" element={<BugReportsAdmin />} />
+              <Route path="settings" element={<SettingsTab />} />
+              <Route path="changelog" element={<ChangelogTab />} />
+              <Route path="tours" element={<ToursTab />} />
+              <Route path="training" element={null} />
+            </Route>
+            <Route path="/admin/data-integrity-legacy" element={
               <AdminProtectedRoute>
                 <DirectionalPageTransition><PageErrorBoundary pageName="DataIntegrity"><DataIntegrity /></PageErrorBoundary></DirectionalPageTransition>
               </AdminProtectedRoute>

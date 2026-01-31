@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { useBottomNav } from '../../contexts/BottomNavContext';
 import { useIsMobile } from '../../hooks/useBreakpoint';
@@ -25,7 +26,8 @@ import { TrackmanBookingModal } from './modals/TrackmanBookingModal';
 import { TrackmanLinkModal } from './modals/TrackmanLinkModal';
 import { StaffManualBookingModal, type StaffManualBookingData } from './modals/StaffManualBookingModal';
 import { SlideUpDrawer } from '../SlideUpDrawer';
-import type { StaffCommandCenterProps, BookingRequest, RecentActivity } from './types';
+import { tabToPath } from '../../pages/Admin/layout/types';
+import type { StaffCommandCenterProps, BookingRequest, RecentActivity, TabType } from './types';
 
 interface OptimisticUpdateRef {
   bookingId: number | string;
@@ -34,11 +36,20 @@ interface OptimisticUpdateRef {
   timestamp: number;
 }
 
-const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, isAdmin, wsConnected = false }) => {
+const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: onTabChangeProp, isAdmin, wsConnected = false }) => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const { isAtBottom } = useBottomNav();
   const isMobile = useIsMobile();
   const { actualUser } = useData();
+  
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab as keyof typeof tabToPath]) {
+      navigate(tabToPath[tab as keyof typeof tabToPath]);
+    } else if (onTabChangeProp) {
+      onTabChangeProp(tab);
+    }
+  }, [navigate, onTabChangeProp]);
   
   const { data, refresh, updatePendingRequests, updateBayStatuses, updateTodaysBookings, updateRecentActivity } = useCommandCenterData(actualUser?.email);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -423,7 +434,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             </div>
             {pendingCount > 0 && (
               <button 
-                onClick={() => onTabChange('simulator')}
+                onClick={() => navigateToTab('simulator')}
                 className="flex lg:hidden items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-medium"
               >
                 <span className="material-symbols-outlined text-xs">pending_actions</span>
@@ -438,7 +449,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
           <div className="hidden lg:flex items-center gap-4 mb-4 animate-content-enter-delay-1">
             {pendingCount > 0 && (
               <button 
-                onClick={() => onTabChange('simulator')}
+                onClick={() => navigateToTab('simulator')}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
               >
                 <span className="material-symbols-outlined text-sm">pending_actions</span>
@@ -447,7 +458,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             )}
             {unmatchedBookings.length > 0 && (
               <button 
-                onClick={() => onTabChange('simulator')}
+                onClick={() => navigateToTab('simulator')}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
               >
                 <span className="material-symbols-outlined text-sm">link_off</span>
@@ -470,7 +481,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               nextScheduleItem={data.nextScheduleItem}
               nextActivityItem={data.nextActivityItem}
               today={today}
-              onTabChange={onTabChange}
               variant="desktop-top"
             />
             <ResourcesSection
@@ -478,7 +488,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               closures={data.closures}
               upcomingClosure={data.upcomingClosure}
               announcements={data.announcements}
-              onTabChange={onTabChange}
               variant="desktop"
               recentActivity={data.recentActivity}
               notifications={data.notifications}
@@ -493,7 +502,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               unmatchedBookings={unmatchedBookings}
               today={today}
               actionInProgress={actionInProgress}
-              onTabChange={onTabChange}
               onOpenTrackman={handleOpenTrackman}
               onApprove={handleApprove}
               onDeny={handleDeny}
@@ -522,14 +530,12 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               nextScheduleItem={data.nextScheduleItem}
               nextActivityItem={data.nextActivityItem}
               today={today}
-              onTabChange={onTabChange}
               variant="desktop-wellness"
             />
             <NoticeBoardWidget
               closures={data.closures}
               upcomingClosure={data.upcomingClosure}
               announcements={data.announcements}
-              onTabChange={onTabChange}
             />
           </div>
 
@@ -541,7 +547,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               unmatchedBookings={unmatchedBookings}
               today={today}
               actionInProgress={actionInProgress}
-              onTabChange={onTabChange}
               onOpenTrackman={handleOpenTrackman}
               onApprove={handleApprove}
               onDeny={handleDeny}
@@ -570,13 +575,12 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
               nextScheduleItem={data.nextScheduleItem}
               nextActivityItem={data.nextActivityItem}
               today={today}
-              onTabChange={onTabChange}
               variant="desktop-events"
             />
             <AlertsCard 
               notifications={data.notifications} 
               onAlertClick={() => {
-                onTabChange('updates');
+                navigateToTab('updates');
                 setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
               }}
             />
@@ -596,7 +600,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             nextScheduleItem={data.nextScheduleItem}
             nextActivityItem={data.nextActivityItem}
             today={today}
-            onTabChange={onTabChange}
             variant="mobile-top"
           />
           {/* Internal Notice Board (first under widgets on mobile) */}
@@ -605,7 +608,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             closures={data.closures}
             upcomingClosure={data.upcomingClosure}
             announcements={data.announcements}
-            onTabChange={onTabChange}
             variant="mobile-notice-only"
             recentActivity={data.recentActivity}
           />
@@ -613,7 +615,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
           <AlertsCard 
             notifications={data.notifications} 
             onAlertClick={() => {
-              onTabChange('updates');
+              navigateToTab('updates');
               setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
             }}
           />
@@ -623,7 +625,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             closures={data.closures}
             upcomingClosure={data.upcomingClosure}
             announcements={data.announcements}
-            onTabChange={onTabChange}
             variant="mobile-facility-only"
             recentActivity={data.recentActivity}
           />
@@ -634,7 +635,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             unmatchedBookings={unmatchedBookings}
             today={today}
             actionInProgress={actionInProgress}
-            onTabChange={onTabChange}
             onOpenTrackman={handleOpenTrackman}
             onApprove={handleApprove}
             onDeny={handleDeny}
@@ -664,10 +664,9 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             nextScheduleItem={data.nextScheduleItem}
             nextActivityItem={data.nextActivityItem}
             today={today}
-            onTabChange={onTabChange}
             variant="mobile-cards"
           />
-          <QuickActionsGrid onTabChange={onTabChange} isAdmin={isAdmin} variant="mobile" onNewMember={() => setAddMemberModalOpen(true)} onScanQr={() => setQrScannerOpen(true)} />
+          <QuickActionsGrid isAdmin={isAdmin} variant="mobile" onNewMember={() => setAddMemberModalOpen(true)} onScanQr={() => setQrScannerOpen(true)} />
           
           <div className="mt-6 mb-8 text-center">
             <p className="text-primary/40 dark:text-white/40 text-[10px]">
@@ -766,7 +765,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             <button
               onClick={() => { 
                 setFabOpen(false); 
-                onTabChange('updates');
+                navigateToTab('updates');
                 setTimeout(() => window.dispatchEvent(new CustomEvent('open-new-announcement')), 100);
               }}
               className="flex flex-col items-center gap-2 p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-xl transition-colors"
@@ -780,7 +779,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange, is
             <button
               onClick={() => { 
                 setFabOpen(false); 
-                onTabChange('blocks');
+                navigateToTab('blocks');
                 setTimeout(() => window.dispatchEvent(new CustomEvent('open-new-closure')), 100);
               }}
               className="flex flex-col items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-xl transition-colors"

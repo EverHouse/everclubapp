@@ -1,20 +1,23 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TabType, QuickLink } from '../types';
 import { EMPLOYEE_RESOURCES_LINKS, ADMIN_LINKS, ADMIN_ROUTE_LINKS } from '../helpers';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
+import { tabToPath } from '../../../pages/Admin/layout/types';
 
 interface QuickActionsGridProps {
-  onTabChange: (tab: TabType) => void;
   isAdmin?: boolean;
   variant: 'desktop' | 'mobile';
   onNewMember?: () => void;
   onScanQr?: () => void;
 }
 
-export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange, isAdmin, variant, onNewMember, onScanQr }) => {
+export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, variant, onNewMember, onScanQr }) => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
+  const navigateToTab = useCallback((tab: TabType) => {
+    if (tabToPath[tab]) navigate(tabToPath[tab]);
+  }, [navigate]);
 
   if (variant === 'desktop') {
     return (
@@ -37,7 +40,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
               {EMPLOYEE_RESOURCES_LINKS.map(link => (
                 <button
                   key={link.id}
-                  onClick={() => onTabChange(link.id)}
+                  onClick={() => navigateToTab(link.id)}
                   className="flex flex-col items-center p-3 bg-[#CCB8E4]/30 dark:bg-[#CCB8E4]/20 rounded-xl hover:bg-[#CCB8E4]/50 dark:hover:bg-[#CCB8E4]/30 transition-colors"
                 >
                   <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">{link.icon}</span>
@@ -54,7 +57,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
                 {ADMIN_LINKS.map(link => (
                   <button
                     key={link.id}
-                    onClick={() => onTabChange(link.id)}
+                    onClick={() => navigateToTab(link.id)}
                     className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
                   >
                     <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">{link.icon}</span>
@@ -100,7 +103,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ onTabChange,
             {ADMIN_LINKS.map(link => (
               <button
                 key={link.id}
-                onClick={() => onTabChange(link.id)}
+                onClick={() => navigateToTab(link.id)}
                 className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 transition-colors"
               >
                 <span className="material-symbols-outlined text-xl text-primary dark:text-white mb-1">{link.icon}</span>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
 import BackToTop from '../../components/BackToTop';
@@ -10,32 +10,10 @@ import ModalShell from '../../components/ModalShell';
 import MenuOverlay from '../../components/MenuOverlay';
 import PageErrorBoundary from '../../components/PageErrorBoundary';
 import { useStaffWebSocket } from '../../hooks/useStaffWebSocket';
-import StaffCommandCenter from '../../components/StaffCommandCenter';
 import StaffMobileSidebar from '../../components/StaffMobileSidebar';
 import { useConfirmDialog } from '../../components/ConfirmDialog';
 
-import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications } from './layout';
-
-// Lazy load admin tabs - reduces initial bundle size by deferring tab code until needed
-const FaqsAdmin = lazy(() => import('./FaqsAdmin'));
-const InquiriesAdmin = lazy(() => import('./InquiriesAdmin'));
-const GalleryAdmin = lazy(() => import('./GalleryAdmin'));
-const BugReportsAdmin = lazy(() => import('./BugReportsAdmin'));
-const ChangelogTab = lazy(() => import('./tabs/ChangelogTab'));
-const ToursTab = lazy(() => import('./tabs/ToursTab'));
-const BlocksTab = lazy(() => import('./tabs/BlocksTab'));
-const UpdatesTab = lazy(() => import('./tabs/UpdatesTab'));
-const CafeTab = lazy(() => import('./tabs/CafeTab'));
-const AnnouncementsTab = lazy(() => import('./tabs/AnnouncementsTab'));
-const TeamTab = lazy(() => import('./tabs/TeamTab'));
-const TiersTab = lazy(() => import('./tabs/TiersTab'));
-const TrackmanTab = lazy(() => import('./tabs/TrackmanTab'));
-const DirectoryTab = lazy(() => import('./tabs/DirectoryTab'));
-const EventsTab = lazy(() => import('./tabs/EventsTab'));
-const SimulatorTab = lazy(() => import('./tabs/SimulatorTab'));
-const DataIntegrityTab = lazy(() => import('./tabs/DataIntegrityTab'));
-const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
-const FinancialsTab = lazy(() => import('./tabs/FinancialsTab'));
+import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications, getTabFromPathname, tabToPath } from './layout';
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
@@ -47,11 +25,12 @@ const TabLoadingFallback = () => (
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { actualUser } = useData();
-  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const activeTab = getTabFromPathname(location.pathname);
   
   const { pendingRequestsCount, refetch: refetchPendingCounts } = usePendingCounts();
   const { unreadNotifCount } = useUnreadNotifications(actualUser?.email);
@@ -68,23 +47,15 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabType | null;
-    const validTabs: TabType[] = ['home', 'cafe', 'events', 'announcements', 'directory', 'simulator', 'team', 'faqs', 'inquiries', 'gallery', 'tiers', 'blocks', 'changelog', 'training', 'updates', 'tours', 'bugs', 'trackman', 'data-integrity', 'settings', 'financials'];
-    if (tabParam && validTabs.includes(tabParam)) {
-      setActiveTab(tabParam);
-    } else if (!tabParam) {
-      setActiveTab('home');
+    if (tabParam && tabToPath[tabParam]) {
+      navigate(tabToPath[tabParam], { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-    if (tab === 'home') {
-      setSearchParams({});
-    } else {
-      setSearchParams({ tab });
-    }
+  const navigateToTab = useCallback((tab: TabType) => {
+    navigate(tabToPath[tab]);
     window.scrollTo(0, 0);
-  };
+  }, [navigate]);
 
   useEffect(() => {
     const state = location.state as { showPasswordSetup?: boolean } | null;
@@ -147,7 +118,7 @@ const AdminDashboard: React.FC = () => {
       <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 w-[88px] justify-end">
         <button 
           onClick={() => {
-            handleTabChange('updates');
+            navigateToTab('updates');
             setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
           }}
           className="flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity relative"
@@ -176,7 +147,6 @@ const AdminDashboard: React.FC = () => {
       
       <StaffSidebar 
         activeTab={activeTab} 
-        onTabChange={handleTabChange} 
         isAdmin={actualUser?.role === 'admin'} 
       />
       
@@ -184,7 +154,6 @@ const AdminDashboard: React.FC = () => {
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         activeTab={activeTab}
-        onTabChange={handleTabChange}
         isAdmin={actualUser?.role === 'admin'}
       />
       
@@ -192,31 +161,15 @@ const AdminDashboard: React.FC = () => {
 
       <main className="flex-1 px-4 md:px-8 pt-[max(112px,calc(env(safe-area-inset-top)+96px))] relative z-0 lg:ml-64 w-full lg:w-auto">
         <div key={activeTab} className="animate-content-enter">
-          {activeTab === 'home' && <StaffCommandCenter onTabChange={handleTabChange} isAdmin={actualUser?.role === 'admin'} wsConnected={staffWsConnected} />}
-          {activeTab === 'training' && <StaffTrainingGuide />}
-          <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
-            <Suspense fallback={<TabLoadingFallback />}>
-              {activeTab === 'cafe' && <CafeTab />}
-              {activeTab === 'events' && <EventsTab />}
-              {activeTab === 'announcements' && <AnnouncementsTab />}
-              {activeTab === 'directory' && <DirectoryTab />}
-              {activeTab === 'simulator' && <SimulatorTab onTabChange={handleTabChange} />}
-              {activeTab === 'team' && <TeamTab />}
-              {activeTab === 'faqs' && <FaqsAdmin />}
-              {activeTab === 'inquiries' && <InquiriesAdmin />}
-              {activeTab === 'gallery' && <GalleryAdmin />}
-              {activeTab === 'tiers' && actualUser?.role === 'admin' && <TiersTab />}
-              {activeTab === 'blocks' && <BlocksTab />}
-              {activeTab === 'changelog' && <ChangelogTab />}
-              {activeTab === 'bugs' && actualUser?.role === 'admin' && <BugReportsAdmin />}
-              {activeTab === 'updates' && <UpdatesTab />}
-              {activeTab === 'tours' && <ToursTab />}
-              {activeTab === 'trackman' && <TrackmanTab />}
-              {activeTab === 'data-integrity' && actualUser?.role === 'admin' && <DataIntegrityTab />}
-              {activeTab === 'settings' && actualUser?.role === 'admin' && <SettingsTab />}
-              {activeTab === 'financials' && <FinancialsTab />}
-            </Suspense>
-          </PageErrorBoundary>
+          {activeTab === 'training' ? (
+            <StaffTrainingGuide />
+          ) : (
+            <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
+              <Suspense fallback={<TabLoadingFallback />}>
+                <Outlet context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
+              </Suspense>
+            </PageErrorBoundary>
+          )}
         </div>
         <BottomSentinel />
       </main>
@@ -224,7 +177,6 @@ const AdminDashboard: React.FC = () => {
       <div className="lg:hidden">
         <StaffBottomNav 
           activeTab={activeTab} 
-          onTabChange={handleTabChange} 
           isAdmin={actualUser?.role === 'admin'}
           pendingRequestsCount={pendingRequestsCount}
         />
