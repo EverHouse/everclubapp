@@ -832,39 +832,45 @@ const TiersTab: React.FC = () => {
 
                                 <div className="border-t border-gray-200 dark:border-white/10 pt-3 mt-3">
                                     <p className="text-[10px] uppercase font-bold text-gray-600 dark:text-gray-500 mb-2">Add New Feature</p>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
-                                            placeholder="Feature key (e.g., priority_support)"
-                                            value={newFeatureForm.key}
-                                            onChange={e => setNewFeatureForm(prev => ({ ...prev, key: e.target.value }))}
-                                        />
-                                        <input
-                                            type="text"
-                                            className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
-                                            placeholder="Display label"
-                                            value={newFeatureForm.label}
-                                            onChange={e => setNewFeatureForm(prev => ({ ...prev, label: e.target.value }))}
-                                        />
-                                        <select
-                                            className="border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                            value={newFeatureForm.type}
-                                            onChange={e => setNewFeatureForm(prev => ({ ...prev, type: e.target.value as 'boolean' | 'number' | 'text' }))}
-                                        >
-                                            <option value="boolean">Boolean</option>
-                                            <option value="number">Number</option>
-                                            <option value="text">Text</option>
-                                        </select>
+                                    <div className="flex gap-2 items-start">
+                                        <div className="flex-1">
+                                            <input
+                                                type="text"
+                                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm"
+                                                placeholder="Feature name (e.g., Priority Support)"
+                                                value={newFeatureForm.label}
+                                                onChange={e => {
+                                                    const label = e.target.value;
+                                                    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+                                                    setNewFeatureForm(prev => ({ ...prev, label, key }));
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <select
+                                                className="border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 px-2 py-1.5 rounded-lg text-primary dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                                value={newFeatureForm.type}
+                                                onChange={e => setNewFeatureForm(prev => ({ ...prev, type: e.target.value as 'boolean' | 'number' | 'text' }))}
+                                            >
+                                                <option value="boolean">Yes/No</option>
+                                                <option value="number">Number</option>
+                                                <option value="text">Custom Text</option>
+                                            </select>
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={createFeature}
-                                            disabled={!newFeatureForm.key.trim() || !newFeatureForm.label.trim()}
+                                            disabled={!newFeatureForm.label.trim()}
                                             className="px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                         >
                                             <span aria-hidden="true" className="material-symbols-outlined text-sm">add</span>
                                         </button>
                                     </div>
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1.5">
+                                        {newFeatureForm.type === 'boolean' && 'Shows a checkmark or dash for each tier'}
+                                        {newFeatureForm.type === 'number' && 'Enter a number value for each tier (e.g., 60 minutes)'}
+                                        {newFeatureForm.type === 'text' && 'Enter custom text for each tier (e.g., "Unlimited")'}
+                                    </p>
                                 </div>
                             </>
                         )}
