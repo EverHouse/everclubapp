@@ -714,7 +714,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div className="flex-1 flex items-center justify-end gap-1">
         {isMemberRoute && user && (
           <button 
-            onClick={() => isStaffOrAdmin && !isViewingAs ? navigate('/admin?tab=updates') : navigate('/updates?tab=activity')}
+            onClick={() => isStaffOrAdmin && !isViewingAs ? navigate('/admin/updates') : navigate('/updates?tab=activity')}
             className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg relative`}
             aria-label={isStaffOrAdmin && !isViewingAs ? "Updates" : "Notifications"}
           >

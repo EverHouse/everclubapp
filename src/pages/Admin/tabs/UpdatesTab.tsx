@@ -103,20 +103,20 @@ const UpdatesTab: React.FC = () => {
         if (notif.type === 'booking' || notif.type === 'booking_request' || 
             notif.type === 'booking_cancelled' || notif.type === 'booking_approved' ||
             notif.type === 'booking_declined') {
-            return '/admin?tab=simulator';
+            return '/admin/bookings';
         }
         if (notif.type === 'event_rsvp' || notif.type === 'event_rsvp_cancelled') {
-            return '/admin?tab=events';
+            return '/admin/calendar';
         }
         if (notif.type === 'tour_scheduled' || notif.type === 'tour_reminder') {
-            return '/admin?tab=tours';
+            return '/admin/tours';
         }
         if (notif.type === 'wellness_booking' || notif.type === 'wellness_enrollment' || 
             notif.type === 'wellness_cancellation') {
-            return '/admin?tab=events';
+            return '/admin/calendar';
         }
         if (notif.type === 'closure') {
-            return '/admin?tab=blocks';
+            return '/admin/notices';
         }
         return null;
     };

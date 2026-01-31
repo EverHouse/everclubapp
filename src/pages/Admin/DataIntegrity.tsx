@@ -5,7 +5,7 @@ const DataIntegrity: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate('/admin?tab=data-integrity', { replace: true });
+    navigate('/admin/data-integrity', { replace: true });
   }, [navigate]);
 
   return null;
