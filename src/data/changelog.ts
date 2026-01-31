@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.53.0",
+    date: "2026-01-31",
+    title: "Placeholder Account Cleanup Tool",
+    changes: [
+      "Added: New 'Placeholder Account Cleanup' section on Data Integrity page",
+      "Added: Scan for placeholder emails in Stripe customers and HubSpot contacts",
+      "Added: Bulk delete placeholder accounts with one click (golfnow-*, unmatched-*, @visitors.evenhouse.club, etc.)",
+      "Added: Preview list shows all accounts before deletion with confirmation dialog",
+      "Fixed: Placeholder emails are now blocked from creating Stripe customers across all payment flows",
+      "Technical: Added safeguards to prevent fake/system emails from creating billing records"
+    ]
+  },
+  {
     version: "9.52.1",
     date: "2026-01-30",
     title: "Auto-Cleanup Stale Billing Participants",

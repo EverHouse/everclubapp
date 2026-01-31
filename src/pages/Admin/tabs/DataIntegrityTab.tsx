@@ -247,6 +247,22 @@ const DataIntegrityTab: React.FC = () => {
   const [isRunningDealStageRemediation, setIsRunningDealStageRemediation] = useState(false);
   const [dealStageRemediationResult, setDealStageRemediationResult] = useState<{ success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null>(null);
 
+  const [showPlaceholderCleanup, setShowPlaceholderCleanup] = useState(true);
+  const [isLoadingPlaceholders, setIsLoadingPlaceholders] = useState(false);
+  const [isDeletingPlaceholders, setIsDeletingPlaceholders] = useState(false);
+  const [placeholderAccounts, setPlaceholderAccounts] = useState<{
+    stripeCustomers: Array<{ id: string; email: string; name: string | null; created: number }>;
+    hubspotContacts: Array<{ id: string; email: string; name: string }>;
+    totals: { stripe: number; hubspot: number; total: number };
+  } | null>(null);
+  const [placeholderDeleteResult, setPlaceholderDeleteResult] = useState<{
+    stripeDeleted: number;
+    stripeFailed: number;
+    hubspotDeleted: number;
+    hubspotFailed: number;
+  } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const updateIssueCountOptimistically = (checkName: string, reduction: number) => {
     setResults(prev => prev.map(result => {
       if (result.checkName === checkName) {
@@ -1842,6 +1858,72 @@ const DataIntegrityTab: React.FC = () => {
     }
   };
 
+  const handleScanPlaceholders = async () => {
+    setIsLoadingPlaceholders(true);
+    setPlaceholderAccounts(null);
+    setPlaceholderDeleteResult(null);
+    try {
+      const res = await fetch('/api/data-integrity/placeholder-accounts', {
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPlaceholderAccounts({
+          stripeCustomers: data.stripeCustomers || [],
+          hubspotContacts: data.hubspotContacts || [],
+          totals: data.totals || { stripe: 0, hubspot: 0, total: 0 }
+        });
+        showToast(`Found ${data.totals?.total || 0} placeholder accounts`, data.totals?.total > 0 ? 'info' : 'success');
+      } else {
+        showToast(data.error || 'Failed to scan for placeholders', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to scan placeholders:', err);
+      showToast('Failed to scan for placeholders', 'error');
+    } finally {
+      setIsLoadingPlaceholders(false);
+    }
+  };
+
+  const handleDeletePlaceholders = async () => {
+    if (!placeholderAccounts) return;
+    
+    setIsDeletingPlaceholders(true);
+    setPlaceholderDeleteResult(null);
+    setShowDeleteConfirm(false);
+    try {
+      const res = await fetch('/api/data-integrity/placeholder-accounts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          stripeCustomerIds: placeholderAccounts.stripeCustomers.map(c => c.id),
+          hubspotContactIds: placeholderAccounts.hubspotContacts.map(c => c.id)
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPlaceholderDeleteResult({
+          stripeDeleted: data.stripeDeleted || 0,
+          stripeFailed: data.stripeFailed || 0,
+          hubspotDeleted: data.hubspotDeleted || 0,
+          hubspotFailed: data.hubspotFailed || 0
+        });
+        const totalDeleted = (data.stripeDeleted || 0) + (data.hubspotDeleted || 0);
+        const totalFailed = (data.stripeFailed || 0) + (data.hubspotFailed || 0);
+        showToast(`Deleted ${totalDeleted} placeholder accounts${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`, totalFailed > 0 ? 'warning' : 'success');
+        setPlaceholderAccounts(null);
+      } else {
+        showToast(data.error || 'Failed to delete placeholder accounts', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to delete placeholders:', err);
+      showToast('Failed to delete placeholder accounts', 'error');
+    } finally {
+      setIsDeletingPlaceholders(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-slide-up-stagger pb-32" style={{ '--stagger-index': 0 } as React.CSSProperties}>
       <div className="mb-6 flex flex-col gap-3">
@@ -2053,6 +2135,178 @@ const DataIntegrityTab: React.FC = () => {
               </>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400">Failed to load history</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
+        <button
+          onClick={() => setShowPlaceholderCleanup(!showPlaceholderCleanup)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">cleaning_services</span>
+            <span className="font-bold text-primary dark:text-white">Placeholder Account Cleanup</span>
+            {placeholderAccounts && placeholderAccounts.totals.total > 0 && (
+              <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
+                {placeholderAccounts.totals.total} accounts found
+              </span>
+            )}
+          </div>
+          <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showPlaceholderCleanup ? 'rotate-180' : ''}`}>
+            expand_more
+          </span>
+        </button>
+        
+        {showPlaceholderCleanup && (
+          <div className="mt-4 space-y-4">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[18px] mt-0.5">warning</span>
+                <div className="text-sm text-amber-700 dark:text-amber-300">
+                  <p className="font-medium mb-1">About Placeholder Accounts</p>
+                  <p className="text-xs">This tool scans for and removes auto-generated accounts with placeholder emails (e.g., golfnow-*, unmatched-*, @visitors.evenhouse.club, @trackman.local). These are temporary records created during imports that can be safely cleaned up.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={handleScanPlaceholders}
+                disabled={isLoadingPlaceholders || isDeletingPlaceholders}
+                className="flex-1 py-2 px-4 bg-primary dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-lg font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isLoadingPlaceholders ? (
+                  <>
+                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">search</span>
+                    Scan for Placeholders
+                  </>
+                )}
+              </button>
+            </div>
+
+            {placeholderDeleteResult && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <span aria-hidden="true" className="material-symbols-outlined text-green-600 dark:text-green-400 text-[18px]">check_circle</span>
+                  <div className="text-sm">
+                    <p className="font-medium text-green-700 dark:text-green-300">Deletion Complete</p>
+                    <div className="text-xs text-green-600 dark:text-green-400 mt-1 space-y-0.5">
+                      <p>Stripe: {placeholderDeleteResult.stripeDeleted} deleted{placeholderDeleteResult.stripeFailed > 0 ? `, ${placeholderDeleteResult.stripeFailed} failed` : ''}</p>
+                      <p>HubSpot: {placeholderDeleteResult.hubspotDeleted} deleted{placeholderDeleteResult.hubspotFailed > 0 ? `, ${placeholderDeleteResult.hubspotFailed} failed` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {placeholderAccounts && (
+              <>
+                {placeholderAccounts.totals.total === 0 ? (
+                  <div className="flex items-center gap-2 text-green-600 dark:text-green-400 p-4 bg-green-50 dark:bg-green-500/10 rounded-lg">
+                    <span aria-hidden="true" className="material-symbols-outlined">check_circle</span>
+                    <span className="text-sm">No placeholder accounts found</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {placeholderAccounts.stripeCustomers.length > 0 && (
+                        <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-semibold text-primary dark:text-white">Stripe Customers</span>
+                            <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full">
+                              {placeholderAccounts.stripeCustomers.length}
+                            </span>
+                          </div>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {placeholderAccounts.stripeCustomers.map((customer) => (
+                              <div key={customer.id} className="text-sm p-2 bg-white dark:bg-white/5 rounded border border-gray-200 dark:border-white/10">
+                                <p className="font-medium text-primary dark:text-white truncate">{customer.email}</p>
+                                {customer.name && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{customer.name}</p>}
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                                  Created: {new Date(customer.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {placeholderAccounts.hubspotContacts.length > 0 && (
+                        <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-sm font-semibold text-primary dark:text-white">HubSpot Contacts</span>
+                            <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full">
+                              {placeholderAccounts.hubspotContacts.length}
+                            </span>
+                          </div>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {placeholderAccounts.hubspotContacts.map((contact) => (
+                              <div key={contact.id} className="text-sm p-2 bg-white dark:bg-white/5 rounded border border-gray-200 dark:border-white/10">
+                                <p className="font-medium text-primary dark:text-white truncate">{contact.email}</p>
+                                {contact.name && contact.name !== contact.email && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{contact.name}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-200 dark:border-white/10">
+                      {!showDeleteConfirm ? (
+                        <button
+                          onClick={() => setShowDeleteConfirm(true)}
+                          disabled={isDeletingPlaceholders}
+                          className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                        >
+                          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">delete_forever</span>
+                          Delete All {placeholderAccounts.totals.total} Placeholder Accounts
+                        </button>
+                      ) : (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                          <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                            <span className="font-semibold">Are you sure?</span> This will permanently delete {placeholderAccounts.stripeCustomers.length} Stripe customers and {placeholderAccounts.hubspotContacts.length} HubSpot contacts.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleDeletePlaceholders}
+                              disabled={isDeletingPlaceholders}
+                              className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                              {isDeletingPlaceholders ? (
+                                <>
+                                  <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                                  Deleting...
+                                </>
+                              ) : (
+                                <>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">delete_forever</span>
+                                  Confirm Delete
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(false)}
+                              disabled={isDeletingPlaceholders}
+                              className="py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         )}

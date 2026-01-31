@@ -99,7 +99,9 @@ export type AuditAction =
   | 'export_report'
   | 'login_as_staff'
   | 'update_settings'
-  | 'bulk_action';
+  | 'bulk_action'
+  // Data cleanup actions
+  | 'placeholder_accounts_deleted';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
@@ -119,7 +121,8 @@ export type ResourceType =
   | 'closure'
   | 'trackman'
   | 'group'
-  | 'waiver';
+  | 'waiver'
+  | 'system';
 
 interface AuditLogParams {
   staffEmail: string;

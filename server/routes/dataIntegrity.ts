@@ -3,7 +3,11 @@ import { isAdmin } from '../core/middleware';
 import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, syncPush, syncPull, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults, runDataCleanup } from '../core/dataIntegrity';
 import { isProduction } from '../core/db';
 import { broadcastDataIntegrityUpdate } from '../core/websocket';
-import { syncAllCustomerMetadata } from '../core/stripe/customers';
+import { syncAllCustomerMetadata, isPlaceholderEmail } from '../core/stripe/customers';
+import { getStripeClient } from '../core/stripe/client';
+import { getHubSpotClientWithFallback } from '../core/integrations';
+import { retryableHubSpotRequest } from '../core/hubspot/request';
+import { logFromRequest } from '../core/auditLog';
 import type { Request } from 'express';
 
 const router = Router();
@@ -309,6 +313,168 @@ router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {
   } catch (error: any) {
     if (!isProduction) console.error('[DataIntegrity] Data cleanup error:', error);
     res.status(500).json({ error: 'Failed to run data cleanup', details: error.message });
+  }
+});
+
+router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res) => {
+  try {
+    console.log('[DataIntegrity] Scanning for placeholder accounts...');
+    
+    const stripeCustomers: { id: string; email: string; name: string | null; created: number }[] = [];
+    const hubspotContacts: { id: string; email: string; name: string }[] = [];
+    
+    const stripe = await getStripeClient();
+    let hasMore = true;
+    let startingAfter: string | undefined;
+    
+    while (hasMore) {
+      const customers = await stripe.customers.list({
+        limit: 100,
+        starting_after: startingAfter,
+      });
+      
+      for (const customer of customers.data) {
+        if (customer.email && isPlaceholderEmail(customer.email)) {
+          stripeCustomers.push({
+            id: customer.id,
+            email: customer.email,
+            name: customer.name,
+            created: customer.created,
+          });
+        }
+      }
+      
+      hasMore = customers.has_more;
+      if (customers.data.length > 0) {
+        startingAfter = customers.data[customers.data.length - 1].id;
+      }
+    }
+    
+    try {
+      const { client: hubspot } = await getHubSpotClientWithFallback();
+      let after: string | undefined;
+      let hsHasMore = true;
+      
+      while (hsHasMore) {
+        const contactsResponse = await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.basicApi.getPage(100, after, ['email', 'firstname', 'lastname'])
+        );
+        
+        for (const contact of contactsResponse.results) {
+          const email = contact.properties.email;
+          if (email && isPlaceholderEmail(email)) {
+            const firstName = contact.properties.firstname || '';
+            const lastName = contact.properties.lastname || '';
+            hubspotContacts.push({
+              id: contact.id,
+              email,
+              name: [firstName, lastName].filter(Boolean).join(' ') || email,
+            });
+          }
+        }
+        
+        after = contactsResponse.paging?.next?.after;
+        hsHasMore = !!after;
+      }
+    } catch (hubspotError: any) {
+      console.warn('[DataIntegrity] HubSpot scan failed:', hubspotError.message);
+    }
+    
+    res.json({
+      success: true,
+      stripeCustomers,
+      hubspotContacts,
+      totals: {
+        stripe: stripeCustomers.length,
+        hubspot: hubspotContacts.length,
+        total: stripeCustomers.length + hubspotContacts.length,
+      },
+    });
+  } catch (error: any) {
+    if (!isProduction) console.error('[DataIntegrity] Placeholder scan error:', error);
+    res.status(500).json({ error: 'Failed to scan for placeholder accounts', details: error.message });
+  }
+});
+
+router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (req: Request, res) => {
+  try {
+    const { stripeCustomerIds, hubspotContactIds } = req.body;
+    
+    if (!Array.isArray(stripeCustomerIds) && !Array.isArray(hubspotContactIds)) {
+      return res.status(400).json({ error: 'Must provide stripeCustomerIds or hubspotContactIds arrays' });
+    }
+    
+    console.log(`[DataIntegrity] Deleting ${stripeCustomerIds?.length || 0} Stripe customers and ${hubspotContactIds?.length || 0} HubSpot contacts...`);
+    
+    const results = {
+      stripeDeleted: 0,
+      stripeFailed: 0,
+      stripeErrors: [] as string[],
+      hubspotDeleted: 0,
+      hubspotFailed: 0,
+      hubspotErrors: [] as string[],
+    };
+    
+    if (stripeCustomerIds?.length > 0) {
+      const stripe = await getStripeClient();
+      
+      for (const customerId of stripeCustomerIds) {
+        try {
+          await stripe.customers.del(customerId);
+          results.stripeDeleted++;
+        } catch (error: any) {
+          results.stripeFailed++;
+          results.stripeErrors.push(`${customerId}: ${error.message}`);
+        }
+      }
+    }
+    
+    if (hubspotContactIds?.length > 0) {
+      try {
+        const { client: hubspot } = await getHubSpotClientWithFallback();
+        
+        for (const contactId of hubspotContactIds) {
+          try {
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.archive(contactId)
+            );
+            results.hubspotDeleted++;
+          } catch (error: any) {
+            results.hubspotFailed++;
+            results.hubspotErrors.push(`${contactId}: ${error.message}`);
+          }
+        }
+      } catch (hubspotError: any) {
+        console.error('[DataIntegrity] HubSpot client failed:', hubspotError.message);
+        results.hubspotErrors.push(`HubSpot connection failed: ${hubspotError.message}`);
+      }
+    }
+    
+    logFromRequest(
+      req,
+      'placeholder_accounts_deleted',
+      'system',
+      undefined,
+      'Placeholder Accounts Cleanup',
+      {
+        stripeDeleted: results.stripeDeleted,
+        stripeFailed: results.stripeFailed,
+        hubspotDeleted: results.hubspotDeleted,
+        hubspotFailed: results.hubspotFailed,
+      }
+    );
+    
+    const totalDeleted = results.stripeDeleted + results.hubspotDeleted;
+    const totalFailed = results.stripeFailed + results.hubspotFailed;
+    
+    res.json({
+      success: true,
+      message: `Deleted ${totalDeleted} placeholder accounts. ${totalFailed > 0 ? `${totalFailed} failed.` : ''}`,
+      ...results,
+    });
+  } catch (error: any) {
+    if (!isProduction) console.error('[DataIntegrity] Placeholder delete error:', error);
+    res.status(500).json({ error: 'Failed to delete placeholder accounts', details: error.message });
   }
 });
 
