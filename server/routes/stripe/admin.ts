@@ -443,8 +443,8 @@ router.post('/api/public/day-pass/checkout', async (req: Request, res: Response)
         },
       ],
       customer_email: email,
-      success_url: `${domain}/#/day-pass/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${domain}/#/day-pass`,
+      success_url: `${domain}/day-pass/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${domain}/day-pass`,
       metadata: {
         productType: tier.slug,
         tierName: tier.name,

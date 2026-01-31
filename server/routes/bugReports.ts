@@ -125,7 +125,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
           type: 'system',
           relatedId: parseInt(id),
           relatedType: 'bug_report',
-          url: '/#/profile'
+          url: '/member/profile'
         });
       }
     }

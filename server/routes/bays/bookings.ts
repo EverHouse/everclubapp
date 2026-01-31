@@ -1027,7 +1027,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       sendPushNotificationToStaff({
         title: 'Booking Cancelled',
         body: staffMessage,
-        url: '/#/staff'
+        url: '/admin/bookings'
       }).catch(err => console.error('Staff push notification failed:', err));
       
       if (existing.calendarEventId) {

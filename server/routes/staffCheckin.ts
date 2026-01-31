@@ -621,7 +621,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           type: 'booking',
           relatedId: bookingId,
           relatedType: 'booking',
-          url: '/#/bookings'
+          url: '/sims'
         });
       }
 

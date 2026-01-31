@@ -1022,7 +1022,7 @@ router.post('/api/wellness-enrollments', async (req, res) => {
         isWaitlisted ? 'New Waitlist Entry' : 'New Wellness Enrollment',
         staffMessage,
         'wellness_enrollment',
-        { relatedId: class_id, relatedType: 'wellness_class', url: '/#/staff/calendar' }
+        { relatedId: class_id, relatedType: 'wellness_class', url: '/admin/calendar' }
       );
       
       return enrollmentResult[0];
@@ -1031,7 +1031,7 @@ router.post('/api/wellness-enrollments', async (req, res) => {
     sendPushNotification(user_email, {
       title: isWaitlisted ? 'Added to Waitlist' : 'Class Booked!',
       body: memberMessage,
-      url: '/#/member-wellness'
+      url: '/member-wellness'
     }).catch(err => console.error('Push notification failed:', err));
     
     // Send real-time WebSocket notification to member
@@ -1128,7 +1128,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
         'Wellness Enrollment Cancelled',
         staffMessage,
         'wellness_cancellation',
-        { relatedId: parseInt(class_id), relatedType: 'wellness_class', url: '/#/staff/calendar' }
+        { relatedId: parseInt(class_id), relatedType: 'wellness_class', url: '/admin/calendar' }
       );
     });
     
@@ -1139,7 +1139,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
       type: 'wellness',
       relatedId: parseInt(class_id),
       relatedType: 'wellness',
-      url: '/#/wellness'
+      url: '/member-wellness'
     });
     
     // If a regular enrollment was cancelled and there are waitlisted users, promote the first one
@@ -1182,7 +1182,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
           sendPushNotification(promotedEmail, {
             title: 'Spot Available - You\'re In!',
             body: promotedMessage,
-            url: '/#/member-wellness'
+            url: '/member-wellness'
           }).catch(err => console.error('Push notification failed:', err));
           
           // Send real-time WebSocket notification
@@ -1198,7 +1198,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
             'Waitlist Promotion',
             `${promotedName} was automatically promoted from waitlist for ${cls.title} on ${formattedDate}`,
             'wellness_enrollment',
-            { relatedId: parseInt(class_id), relatedType: 'wellness_class', url: '/#/staff/calendar' }
+            { relatedId: parseInt(class_id), relatedType: 'wellness_class', url: '/admin/calendar' }
           );
         }
       } catch (promoteError) {

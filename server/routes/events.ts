@@ -896,7 +896,7 @@ router.post('/api/rsvps', async (req, res) => {
         'New Event RSVP',
         staffMessage,
         'event_rsvp',
-        { relatedId: event_id, relatedType: 'event', url: '/#/staff/calendar' }
+        { relatedId: event_id, relatedType: 'event', url: '/admin/calendar' }
       );
       
       return rsvpResult[0];
@@ -905,7 +905,7 @@ router.post('/api/rsvps', async (req, res) => {
     sendPushNotification(user_email, {
       title: 'RSVP Confirmed!',
       body: memberMessage,
-      url: '/#/member-events'
+      url: '/member-events'
     }).catch(err => console.error('Push notification failed:', err));
     
     // Send real-time WebSocket notification to member
@@ -961,7 +961,7 @@ router.delete('/api/rsvps/:event_id/:user_email', async (req, res) => {
         'Event RSVP Cancelled',
         staffMessage,
         'event_rsvp_cancelled',
-        { relatedId: parseInt(event_id), relatedType: 'event', url: '/#/staff/calendar' }
+        { relatedId: parseInt(event_id), relatedType: 'event', url: '/admin/calendar' }
       );
       
       await notifyMember({
@@ -971,7 +971,7 @@ router.delete('/api/rsvps/:event_id/:user_email', async (req, res) => {
         type: 'event',
         relatedId: parseInt(event_id),
         relatedType: 'event',
-        url: '/#/events'
+        url: '/member-events'
       });
     });
     

@@ -431,7 +431,7 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
     
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: member.stripe_customer_id,
-      return_url: `${baseUrl}/#/member/billing`,
+      return_url: `${baseUrl}/member/billing`,
     });
     
     res.json({ url: portalSession.url });
@@ -537,8 +537,8 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
         memberEmail: email,
         amountCents: amountCents.toString()
       },
-      success_url: `${baseUrl}/#/member/profile?funds_added=true`,
-      cancel_url: `${baseUrl}/#/member/profile`
+      success_url: `${baseUrl}/member/profile?funds_added=true`,
+      cancel_url: `${baseUrl}/member/profile`
     });
     
     res.json({ checkoutUrl: session.url });

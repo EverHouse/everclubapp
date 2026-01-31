@@ -119,7 +119,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         ? `Your membership has been ${changeType} from ${oldTierDisplay} to ${newTierDisplay}`
         : `Your membership tier has been cleared (was ${oldTierDisplay})`,
       type: 'system',
-      url: '/#/profile'
+      url: '/member/profile'
     });
     
     broadcastTierUpdate({
@@ -219,7 +219,7 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
         title: 'Membership Paused',
         message: `Your membership has been paused for ${durationDays} days starting ${start.toLocaleDateString()}.`,
         type: 'system',
-        url: '/#/profile'
+        url: '/member/profile'
       });
       
       return res.json({ 

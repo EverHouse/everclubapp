@@ -245,7 +245,7 @@ router.post('/api/push/test', async (req, res) => {
     await sendPushNotification(user_email, {
       title: 'Test Notification',
       body: 'This is a test push notification from Ever House!',
-      url: '/#/dashboard'
+      url: '/admin'
     });
     
     res.json({ success: true });
@@ -296,7 +296,7 @@ export async function sendDailyReminders() {
       
       for (const evt of eventReminders) {
         const message = `Reminder: ${evt.title} is tomorrow${evt.startTime ? ` at ${formatTime12Hour(evt.startTime)}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
-        sendPushNotification(evt.userEmail, { title: 'Event Tomorrow', body: message, url: '/#/member-events' })
+        sendPushNotification(evt.userEmail, { title: 'Event Tomorrow', body: message, url: '/member-events' })
           .catch(() => { results.pushFailed++; });
         // Send WebSocket notification for real-time updates
         sendNotificationToUser(evt.userEmail, {
@@ -339,7 +339,7 @@ export async function sendDailyReminders() {
       
       for (const booking of bookingReminders) {
         const message = `Reminder: Your simulator booking is tomorrow at ${formatTime12Hour(booking.startTime)}${booking.resourceId ? ` on Bay ${booking.resourceId}` : ''}.`;
-        sendPushNotification(booking.userEmail, { title: 'Booking Tomorrow', body: message, url: '/#/sims' })
+        sendPushNotification(booking.userEmail, { title: 'Booking Tomorrow', body: message, url: '/sims' })
           .catch(() => { results.pushFailed++; });
         // Send WebSocket notification for real-time updates
         sendNotificationToUser(booking.userEmail, {
@@ -384,7 +384,7 @@ export async function sendDailyReminders() {
       
       for (const cls of wellnessReminders) {
         const message = `Reminder: ${cls.title} with ${cls.instructor} is tomorrow at ${cls.time}.`;
-        sendPushNotification(cls.userEmail, { title: 'Class Tomorrow', body: message, url: '/#/member-wellness' })
+        sendPushNotification(cls.userEmail, { title: 'Class Tomorrow', body: message, url: '/member-wellness' })
           .catch(() => { results.pushFailed++; });
         // Send WebSocket notification for real-time updates
         sendNotificationToUser(cls.userEmail, {

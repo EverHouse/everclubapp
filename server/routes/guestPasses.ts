@@ -185,7 +185,7 @@ router.post('/api/guest-passes/:email/use', async (req, res) => {
     sendPushNotification(email, {
       title: 'Guest Pass Used',
       body: message,
-      url: '/#/profile'
+      url: '/member/profile'
     }).catch(err => console.error('Push notification failed:', err));
     
     broadcastMemberStatsUpdated(email, { guestPasses: remaining });
@@ -277,7 +277,7 @@ export async function useGuestPass(
       sendPushNotification(memberEmail, {
         title: 'Guest Pass Used',
         body: message,
-        url: '/#/profile'
+        url: '/member/profile'
       }).catch(err => console.error('Push notification failed:', err));
     }
     
@@ -325,7 +325,7 @@ export async function refundGuestPass(
       sendPushNotification(memberEmail, {
         title: 'Guest Pass Refunded',
         body: message,
-        url: '/#/profile'
+        url: '/member/profile'
       }).catch(err => console.error('Push notification failed:', err));
       
       // Send WebSocket notification

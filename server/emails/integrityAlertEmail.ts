@@ -195,7 +195,7 @@ function getIntegrityAlertEmailHtml(
           <!-- CTA Button -->
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
-              <a href="https://everhouse.app/admin?tab=data-integrity" style="display: inline-block; background-color: ${CLUB_COLORS.deepGreen}; color: #ffffff; font-size: 16px; font-weight: 500; text-decoration: none; padding: 14px 32px; border-radius: 12px;">
+              <a href="https://everhouse.app/admin/data-integrity" style="display: inline-block; background-color: ${CLUB_COLORS.deepGreen}; color: #ffffff; font-size: 16px; font-weight: 500; text-decoration: none; padding: 14px 32px; border-radius: 12px;">
                 View in Admin Panel
               </a>
             </td>

@@ -1393,7 +1393,7 @@ router.post('/api/bookings/:id/invite/accept', async (req: Request, res: Respons
       type: 'booking_invite',
       relatedId: bookingId,
       relatedType: 'booking',
-      url: '/#/bookings'
+      url: '/sims'
     });
 
     res.json({ success: true, message: 'Invite accepted successfully' });
@@ -1493,7 +1493,7 @@ router.post('/api/bookings/:id/invite/decline', async (req: Request, res: Respon
       type: 'booking_invite',
       relatedId: bookingId,
       relatedType: 'booking',
-      url: '/#/bookings'
+      url: '/sims'
     });
 
     res.json({ success: true, message: 'Invite declined successfully' });

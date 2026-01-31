@@ -56,7 +56,7 @@ router.post('/api/checkout/sessions', async (req, res) => {
     let sessionParams: any = {
       mode: 'subscription',
       ui_mode: 'embedded',
-      return_url: `${baseUrl}/#/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      return_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       metadata: {
         company_name: companyName || '',
         job_title: jobTitle || '',

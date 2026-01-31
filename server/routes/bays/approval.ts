@@ -331,7 +331,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       sendPushNotification(updated.userEmail, {
         title: updated.rescheduleBookingId ? 'Reschedule Approved!' : 'Booking Approved!',
         body: approvalMessage,
-        url: '/#/sims'
+        url: '/sims'
       }).catch(err => console.error('Push notification failed:', err));
       
       (async () => {
@@ -485,7 +485,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       sendPushNotification(updated.userEmail, {
         title: isReschedule ? 'Reschedule Declined' : 'Booking Request Update',
         body: declineMessage,
-        url: '/#/sims'
+        url: '/sims'
       }).catch(err => console.error('Push notification failed:', err));
       
       bookingEvents.publish('booking_declined', {
@@ -839,26 +839,26 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           sendPushNotificationToStaff({
             title: 'Booking Cancelled',
             body: pushInfo.staffMessage || pushInfo.message,
-            url: '/#/staff'
+            url: '/admin/bookings'
           }).catch(err => console.error('Staff push notification failed:', err));
           if (pushInfo.email) {
             sendPushNotification(pushInfo.email, {
               title: 'Booking Cancelled',
               body: pushInfo.memberMessage || pushInfo.message,
-              url: '/#/sims'
+              url: '/sims'
             }).catch(err => console.error('Member push notification failed:', err));
           }
         } else if (pushInfo.type === 'staff') {
           sendPushNotificationToStaff({
             title: 'Booking Cancelled',
             body: pushInfo.message,
-            url: '/#/staff'
+            url: '/admin/bookings'
           }).catch(err => console.error('Staff push notification failed:', err));
         } else if (pushInfo.email) {
           sendPushNotification(pushInfo.email, {
             title: 'Booking Cancelled',
             body: pushInfo.message,
-            url: '/#/sims'
+            url: '/sims'
           }).catch(err => console.error('Member push notification failed:', err));
         }
       }

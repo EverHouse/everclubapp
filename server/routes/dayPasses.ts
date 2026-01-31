@@ -103,8 +103,8 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
         product_slug: productSlug,
         purchaser_email: email,
       },
-      success_url: `${baseUrl}/#/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/#/checkout/cancel`,
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/checkout/cancel`,
     });
 
     console.log(`[DayPasses] Created Checkout Session ${session.id} for ${productSlug}: $${((product.priceCents || 0) / 100).toFixed(2)}`);
