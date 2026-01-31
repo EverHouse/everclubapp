@@ -681,7 +681,7 @@ router.post('/api/booking-requests', async (req, res) => {
         {
           relatedId: row.id,
           relatedType: 'booking_request',
-          url: '/#/admin',
+          url: '/admin/bookings',
           sendPush: true
         }
       ).catch(err => console.error('Staff notification failed:', err));

@@ -387,7 +387,7 @@ export async function cancelBookingByTrackmanId(
       await sendPushNotificationToStaff({
         title: notificationTitle,
         body: notificationMessage,
-        url: '/admin?tab=simulator',
+        url: '/admin/bookings',
         tag: `booking-cancelled-${bookingId}`
       });
       

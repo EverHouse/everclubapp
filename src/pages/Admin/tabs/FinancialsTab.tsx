@@ -1541,7 +1541,7 @@ const QuickInvoiceCard: React.FC = () => {
         Create a formal invoice for services, merchandise, or custom charges.
       </p>
       <a
-        href="/admin?tab=billing"
+        href="/admin/financials"
         className="block w-full py-3 rounded-full bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-center hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
       >
         Open Invoice Creator

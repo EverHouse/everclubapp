@@ -185,7 +185,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
         return (
           <button
             key={`conf-${variant}-${bay.id}`}
-            onClick={() => navigate(`/admin?tab=simulator&resourceType=conference&bay=${bay.id}`)}
+            onClick={() => navigate(`/admin/bookings?resourceType=conference&bay=${bay.id}`)}
             className="w-full flex items-center gap-2 py-2 mb-2 border-b border-primary/5 dark:border-white/10 text-left hover:opacity-80 transition-opacity"
           >
             <span className={`w-2 h-2 rounded-full ${dotColor}`} />
@@ -209,7 +209,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
           return (
             <button
               key={`bay-${variant}-${bay.id}`}
-              onClick={() => navigate(`/admin?tab=simulator&bay=${bay.id}`)}
+              onClick={() => navigate(`/admin/bookings?bay=${bay.id}`)}
               className={`p-3 rounded-xl border text-left hover:opacity-80 transition-opacity ${isClosed ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-white dark:bg-white/10 border-primary/5 dark:border-white/10'}`}
             >
               <div className="flex items-center gap-2 mb-1">

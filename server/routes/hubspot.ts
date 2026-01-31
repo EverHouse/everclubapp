@@ -855,7 +855,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
         {
           relatedId: insertResult[0]?.id,
           relatedType: 'inquiry',
-          url: '/#/admin/inquiries'
+          url: '/admin/inquiries'
         }
       ).catch(err => console.error('Staff inquiry notification failed:', err));
     } catch (dbError: any) {

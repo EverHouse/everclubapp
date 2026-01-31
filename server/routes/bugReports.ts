@@ -39,7 +39,7 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
       'New Bug Report',
       `${report.userName || report.userEmail} submitted a bug report: "${description.substring(0, 100)}${description.length > 100 ? '...' : ''}"`,
       'system',
-      { relatedId: report.id, relatedType: 'bug_report', url: '/#/admin/bug-reports' }
+      { relatedId: report.id, relatedType: 'bug_report', url: '/admin/bugs' }
     );
     
     res.status(201).json(report);

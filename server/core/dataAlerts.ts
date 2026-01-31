@@ -62,7 +62,7 @@ export async function alertOnImportFailure(
     console.log(`[DataAlerts] Creating import failure alert: ${title}`);
   }
 
-  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
 }
 
 export async function alertOnLowMatchRate(
@@ -87,7 +87,7 @@ export async function alertOnLowMatchRate(
     console.log(`[DataAlerts] Creating low match rate alert: ${matchRate.toFixed(1)}%`);
   }
 
-  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
 }
 
 export interface IntegrityCheckSummary {
@@ -119,7 +119,7 @@ export async function alertOnCriticalIntegrityIssues(
     console.log(`[DataAlerts] Creating critical integrity alert: ${totalCriticalIssues} issues`);
   }
 
-  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
 }
 
 export async function alertOnHighIntegrityIssues(
@@ -145,7 +145,7 @@ export async function alertOnHighIntegrityIssues(
     console.log(`[DataAlerts] Creating high priority integrity alert: ${totalHighIssues} issues`);
   }
 
-  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
 }
 
 export async function alertOnSyncFailure(
@@ -188,7 +188,7 @@ export async function alertOnSyncFailure(
     console.log(`[DataAlerts] Creating sync failure alert: ${service} - ${operation}`);
   }
 
-  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
   recordAlertSent(alertKey);
 }
 
@@ -216,7 +216,7 @@ export async function alertOnHubSpotSyncComplete(
       console.log(`[DataAlerts] Creating HubSpot sync error alert: ${errors} errors`);
     }
 
-    await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+    await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
     recordAlertSent(alertKey);
   }
 }
@@ -244,7 +244,7 @@ export async function alertOnScheduledTaskFailure(
     console.log(`[DataAlerts] Creating scheduled task failure alert: ${taskName}`);
   }
   
-  await notifyAllStaff(title, message, 'system', { url: '/#/admin/data-integrity' });
+  await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
   recordAlertSent(alertKey);
 }
 
@@ -276,7 +276,7 @@ export async function alertOnTrackmanImportIssues(result: TrackmanImportResult):
         console.log(`[DataAlerts] Creating Trackman import error alert: ${result.errors.length} errors`);
       }
       
-      await notifyAllStaff(title, message, 'system', { url: '/#/admin/trackman' });
+      await notifyAllStaff(title, message, 'system', { url: '/admin/trackman' });
       recordAlertSent(alertKey);
     }
   }
@@ -298,7 +298,7 @@ export async function alertOnTrackmanImportIssues(result: TrackmanImportResult):
           console.log(`[DataAlerts] Creating Trackman low match rate alert: ${matchRate.toFixed(1)}%`);
         }
         
-        await notifyAllStaff(title, message, 'system', { url: '/#/admin/trackman' });
+        await notifyAllStaff(title, message, 'system', { url: '/admin/trackman' });
         recordAlertSent(alertKey);
       }
     }
