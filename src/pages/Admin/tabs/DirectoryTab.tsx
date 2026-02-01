@@ -1133,7 +1133,7 @@ const DirectoryTab: React.FC = () => {
                 </p>
             </div>
 
-            <div key={memberTab} className="flex-1 flex flex-col min-h-0 overflow-hidden animate-content-enter">
+            <div key={memberTab} className="flex flex-col animate-content-enter">
                 {formerLoading && memberTab === 'former' && (
                     <DirectoryTabSkeleton />
                 )}
@@ -1573,7 +1573,7 @@ const DirectoryTab: React.FC = () => {
 
                 {!formerLoading && Array.isArray(filteredList) && filteredList.length > 0 && (memberTab === 'active' || memberTab === 'former') && (
                     <>
-                        <div className="md:hidden flex-1 min-h-0 relative">
+                        <div className="md:hidden relative">
                             {filteredList.length > VIRTUALIZATION_THRESHOLD && filteredList.length > 0 ? (
                                 <List
                                     height={600}
@@ -1599,7 +1599,7 @@ const DirectoryTab: React.FC = () => {
                                     }}
                                 </List>
                             ) : (
-                                <div className="h-full overflow-y-auto pt-2 pb-24">
+                                <div className="pt-2 pb-24">
                                     <div className="space-y-3 px-1">
                                         {filteredList.map((m, index) => (
                                             <div 
@@ -1659,7 +1659,7 @@ const DirectoryTab: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="hidden md:block flex-1 min-h-0 relative">
+                        <div className="hidden md:block relative">
                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20">
                                 <SortableHeader field="name" label="Name" width="15%" />
                                 <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '20%' }}>Tier & Tags</div>
@@ -1695,7 +1695,7 @@ const DirectoryTab: React.FC = () => {
                                     }}
                                 </List>
                             ) : (
-                                <div className="overflow-y-auto max-h-[500px]">
+                                <div>
                                     {filteredList.map(m => (
                                         <div 
                                             key={m.email}
