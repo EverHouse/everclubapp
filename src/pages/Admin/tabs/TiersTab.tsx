@@ -223,6 +223,52 @@ const TiersTab: React.FC = () => {
         },
     });
 
+    const [isReordering, setIsReordering] = useState(false);
+
+    const handleReorderFeature = async (featureId: number, direction: 'up' | 'down') => {
+        if (isReordering) return;
+        
+        const sortedFeatures = [...tierFeatures].sort((a, b) => a.sortOrder - b.sortOrder);
+        const currentIndex = sortedFeatures.findIndex(f => f.id === featureId);
+        if (currentIndex === -1) return;
+        
+        const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (swapIndex < 0 || swapIndex >= sortedFeatures.length) return;
+        
+        const currentFeature = sortedFeatures[currentIndex];
+        const swapFeature = sortedFeatures[swapIndex];
+        
+        const previousData = queryClient.getQueryData(['tier-features']);
+        
+        queryClient.setQueryData(['tier-features'], (old: TierFeature[] | undefined) => {
+            if (!old) return old;
+            return old.map(f => {
+                if (f.id === currentFeature.id) return { ...f, sortOrder: swapFeature.sortOrder };
+                if (f.id === swapFeature.id) return { ...f, sortOrder: currentFeature.sortOrder };
+                return f;
+            }).sort((a, b) => a.sortOrder - b.sortOrder);
+        });
+        
+        setIsReordering(true);
+        try {
+            await fetchWithCredentials(`/api/tier-features/${currentFeature.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sortOrder: swapFeature.sortOrder }),
+            });
+            await fetchWithCredentials(`/api/tier-features/${swapFeature.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sortOrder: currentFeature.sortOrder }),
+            });
+        } catch (error) {
+            queryClient.setQueryData(['tier-features'], previousData);
+            console.error('Failed to reorder features:', error);
+        } finally {
+            setIsReordering(false);
+        }
+    };
+
     const createFeatureMutation = useMutation({
         mutationFn: async (featureData: { featureKey: string; displayLabel: string; valueType: string; sortOrder: number }) => {
             return postWithCredentials<TierFeature>('/api/tier-features', featureData);
@@ -727,40 +773,60 @@ const TiersTab: React.FC = () => {
                         
                         {tierFeatures.length > 0 && selectedTier && (
                             <div className="space-y-3">
-                                {tierFeatures.map(feature => (
+                                {tierFeatures.map((feature, index) => (
                                     <div key={feature.id} className="p-3 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25">
                                         <div className="flex items-center justify-between mb-2">
-                                            {editingLabelId === feature.id ? (
-                                                <input
-                                                    className="flex-1 mr-2 text-sm font-medium border-b border-primary bg-transparent text-primary dark:text-white outline-none"
-                                                    value={feature.displayLabel}
-                                                    onChange={e => {
-                                                        const newLabel = e.target.value;
-                                                        queryClient.setQueryData(['tier-features'], (old: TierFeature[] | undefined) => {
-                                                            if (!old) return old;
-                                                            return old.map(f => f.id === feature.id ? { ...f, displayLabel: newLabel } : f);
-                                                        });
-                                                    }}
-                                                    onBlur={() => {
-                                                        updateFeatureLabelMutation.mutate({ featureId: feature.id, displayLabel: feature.displayLabel });
-                                                        setEditingLabelId(null);
-                                                    }}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex flex-col">
+                                                    <button
+                                                        onClick={() => handleReorderFeature(feature.id, 'up')}
+                                                        disabled={index === 0 || isReordering}
+                                                        className="text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
+                                                        aria-label="Move feature up"
+                                                    >
+                                                        <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">keyboard_arrow_up</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReorderFeature(feature.id, 'down')}
+                                                        disabled={index === tierFeatures.length - 1 || isReordering}
+                                                        className="text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
+                                                        aria-label="Move feature down"
+                                                    >
+                                                        <span aria-hidden="true" className="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
+                                                    </button>
+                                                </div>
+                                                {editingLabelId === feature.id ? (
+                                                    <input
+                                                        className="flex-1 mr-2 text-sm font-medium border-b border-primary bg-transparent text-primary dark:text-white outline-none"
+                                                        value={feature.displayLabel}
+                                                        onChange={e => {
+                                                            const newLabel = e.target.value;
+                                                            queryClient.setQueryData(['tier-features'], (old: TierFeature[] | undefined) => {
+                                                                if (!old) return old;
+                                                                return old.map(f => f.id === feature.id ? { ...f, displayLabel: newLabel } : f);
+                                                            });
+                                                        }}
+                                                        onBlur={() => {
                                                             updateFeatureLabelMutation.mutate({ featureId: feature.id, displayLabel: feature.displayLabel });
                                                             setEditingLabelId(null);
-                                                        }
-                                                    }}
-                                                    autoFocus
-                                                />
-                                            ) : (
-                                                <span 
-                                                    className="text-sm font-medium text-primary dark:text-white cursor-pointer hover:text-primary/70"
-                                                    onClick={() => setEditingLabelId(feature.id)}
-                                                >
-                                                    {feature.displayLabel}
-                                                </span>
-                                            )}
+                                                        }}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') {
+                                                                updateFeatureLabelMutation.mutate({ featureId: feature.id, displayLabel: feature.displayLabel });
+                                                                setEditingLabelId(null);
+                                                            }
+                                                        }}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <span 
+                                                        className="text-sm font-medium text-primary dark:text-white cursor-pointer hover:text-primary/70"
+                                                        onClick={() => setEditingLabelId(feature.id)}
+                                                    >
+                                                        {feature.displayLabel}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] text-gray-400 uppercase">{feature.valueType}</span>
                                                 <button
