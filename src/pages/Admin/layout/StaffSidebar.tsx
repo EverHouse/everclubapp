@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { TabType, tabToPath } from './types';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../../../data/changelog';
@@ -48,15 +48,13 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   isAdmin = false 
 }) => {
   const navigate = useNavigate();
+  const location = useLocation(); // Subscribe to route changes for portal reactivity
   const { startNavigation } = useNavigationLoading();
   
   const navigateToTab = useCallback((tab: TabType) => {
     startNavigation();
     if (tabToPath[tab]) {
-      // Use setTimeout to break out of React's event batching from portal clicks
-      setTimeout(() => {
-        navigate(tabToPath[tab]);
-      }, 0);
+      navigate(tabToPath[tab]);
     }
   }, [navigate, startNavigation]);
   const navContainerRef = useRef<HTMLDivElement>(null);
@@ -96,13 +94,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
     return (
       <button
         ref={(el) => setButtonRef(item.id, el)}
-        onMouseDown={(e) => {
-          console.log('[Sidebar] MouseDown on:', item.id, 'target:', e.target, 'currentTarget:', e.currentTarget);
-        }}
-        onClick={(e) => {
-          console.log('[Sidebar] Click on:', item.id, 'navigating...');
-          navigateToTab(item.id);
-        }}
+        onClick={() => navigateToTab(item.id)}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
           ${isActive 

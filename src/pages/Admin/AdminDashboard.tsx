@@ -33,6 +33,9 @@ const AdminDashboard: React.FC = () => {
   
   const activeTab = getTabFromPathname(location.pathname);
   
+  // Debug: Log when component renders and what the current path/tab is
+  console.log('[AdminDashboard] Render - pathname:', location.pathname, 'activeTab:', activeTab);
+  
   const { pendingRequestsCount, refetch: refetchPendingCounts } = usePendingCounts();
   const { unreadNotifCount } = useUnreadNotifications(actualUser?.email);
 
@@ -163,13 +166,13 @@ const AdminDashboard: React.FC = () => {
       {createPortal(headerContent, document.body)}
 
       <main className="flex-1 px-4 md:px-8 pt-[max(112px,calc(env(safe-area-inset-top)+96px))] relative z-0 lg:ml-64 w-full lg:w-auto">
-        <div key={location.pathname} className="animate-content-enter">
+        <div className="animate-content-enter">
           {activeTab === 'training' ? (
-            <StaffTrainingGuide />
+            <StaffTrainingGuide key="training" />
           ) : (
-            <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
+            <PageErrorBoundary key={location.pathname} pageName={`Admin Tab: ${activeTab}`}>
               <Suspense fallback={<TabLoadingFallback />}>
-                <Outlet context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
+                <Outlet key={location.pathname} context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
               </Suspense>
             </PageErrorBoundary>
           )}
