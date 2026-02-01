@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { isAdmin } from '../core/middleware';
 import { runAllIntegrityChecks, getIntegritySummary, getIntegrityHistory, resolveIssue, getAuditLog, syncPush, syncPull, createIgnoreRule, createBulkIgnoreRules, removeIgnoreRule, getIgnoredIssues, getCachedIntegrityResults, runDataCleanup } from '../core/dataIntegrity';
-import { isProduction } from '../core/db';
+import { isProduction, pool } from '../core/db';
 import { broadcastDataIntegrityUpdate } from '../core/websocket';
 import { syncAllCustomerMetadata, isPlaceholderEmail } from '../core/stripe/customers';
 import { getStripeClient } from '../core/stripe/client';
@@ -323,6 +323,37 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
     
     const stripeCustomers: { id: string; email: string; name: string | null; created: number }[] = [];
     const hubspotContacts: { id: string; email: string; name: string }[] = [];
+    const localDatabaseUsers: { id: string; email: string; name: string; status: string; createdAt: string }[] = [];
+    
+    // Scan local database for placeholder accounts
+    try {
+      const localResult = await pool.query(`
+        SELECT id, email, first_name, last_name, membership_status, created_at
+        FROM users 
+        WHERE email LIKE '%@visitors.evenhouse.club%'
+           OR email LIKE '%@trackman.local%'
+           OR email LIKE 'unmatched-%'
+           OR email LIKE 'golfnow-%'
+           OR email LIKE 'classpass-%'
+           OR email LIKE 'lesson-%'
+           OR email LIKE 'anonymous-%'
+           OR email LIKE '%@placeholder.%'
+           OR email LIKE '%@test.local%'
+        ORDER BY created_at DESC
+      `);
+      
+      for (const row of localResult.rows) {
+        localDatabaseUsers.push({
+          id: row.id,
+          email: row.email,
+          name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email,
+          status: row.membership_status,
+          createdAt: row.created_at?.toISOString() || '',
+        });
+      }
+    } catch (dbError: any) {
+      console.warn('[DataIntegrity] Local database scan failed:', dbError.message);
+    }
     
     const stripe = await getStripeClient();
     let hasMore = true;
@@ -385,10 +416,12 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
       success: true,
       stripeCustomers,
       hubspotContacts,
+      localDatabaseUsers,
       totals: {
         stripe: stripeCustomers.length,
         hubspot: hubspotContacts.length,
-        total: stripeCustomers.length + hubspotContacts.length,
+        localDatabase: localDatabaseUsers.length,
+        total: stripeCustomers.length + hubspotContacts.length + localDatabaseUsers.length,
       },
     });
   } catch (error: any) {
@@ -399,13 +432,13 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
 
 router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (req: Request, res) => {
   try {
-    const { stripeCustomerIds, hubspotContactIds } = req.body;
+    const { stripeCustomerIds, hubspotContactIds, localDatabaseUserIds } = req.body;
     
-    if (!Array.isArray(stripeCustomerIds) && !Array.isArray(hubspotContactIds)) {
-      return res.status(400).json({ error: 'Must provide stripeCustomerIds or hubspotContactIds arrays' });
+    if (!Array.isArray(stripeCustomerIds) && !Array.isArray(hubspotContactIds) && !Array.isArray(localDatabaseUserIds)) {
+      return res.status(400).json({ error: 'Must provide stripeCustomerIds, hubspotContactIds, or localDatabaseUserIds arrays' });
     }
     
-    console.log(`[DataIntegrity] Deleting ${stripeCustomerIds?.length || 0} Stripe customers and ${hubspotContactIds?.length || 0} HubSpot contacts...`);
+    console.log(`[DataIntegrity] Deleting ${stripeCustomerIds?.length || 0} Stripe customers, ${hubspotContactIds?.length || 0} HubSpot contacts, and ${localDatabaseUserIds?.length || 0} local database users...`);
     
     const results = {
       stripeDeleted: 0,
@@ -414,6 +447,9 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
       hubspotDeleted: 0,
       hubspotFailed: 0,
       hubspotErrors: [] as string[],
+      localDatabaseDeleted: 0,
+      localDatabaseFailed: 0,
+      localDatabaseErrors: [] as string[],
     };
     
     if (stripeCustomerIds?.length > 0) {
@@ -451,6 +487,27 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
       }
     }
     
+    // Delete local database placeholder users
+    if (localDatabaseUserIds?.length > 0) {
+      for (const userId of localDatabaseUserIds) {
+        try {
+          const deleteResult = await pool.query(
+            'DELETE FROM users WHERE id = $1 RETURNING email',
+            [userId]
+          );
+          if (deleteResult.rowCount && deleteResult.rowCount > 0) {
+            results.localDatabaseDeleted++;
+          } else {
+            results.localDatabaseFailed++;
+            results.localDatabaseErrors.push(`${userId}: User not found`);
+          }
+        } catch (error: any) {
+          results.localDatabaseFailed++;
+          results.localDatabaseErrors.push(`${userId}: ${error.message}`);
+        }
+      }
+    }
+    
     logFromRequest(
       req,
       'placeholder_accounts_deleted',
@@ -462,11 +519,13 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
         stripeFailed: results.stripeFailed,
         hubspotDeleted: results.hubspotDeleted,
         hubspotFailed: results.hubspotFailed,
+        localDatabaseDeleted: results.localDatabaseDeleted,
+        localDatabaseFailed: results.localDatabaseFailed,
       }
     );
     
-    const totalDeleted = results.stripeDeleted + results.hubspotDeleted;
-    const totalFailed = results.stripeFailed + results.hubspotFailed;
+    const totalDeleted = results.stripeDeleted + results.hubspotDeleted + results.localDatabaseDeleted;
+    const totalFailed = results.stripeFailed + results.hubspotFailed + results.localDatabaseFailed;
     
     res.json({
       success: true,

@@ -247,13 +247,16 @@ const DataIntegrityTab: React.FC = () => {
   const [placeholderAccounts, setPlaceholderAccounts] = useState<{
     stripeCustomers: Array<{ id: string; email: string; name: string | null; created: number }>;
     hubspotContacts: Array<{ id: string; email: string; name: string }>;
-    totals: { stripe: number; hubspot: number; total: number };
+    localDatabaseUsers: Array<{ id: string; email: string; name: string; status: string; createdAt: string }>;
+    totals: { stripe: number; hubspot: number; localDatabase: number; total: number };
   } | null>(null);
   const [placeholderDeleteResult, setPlaceholderDeleteResult] = useState<{
     stripeDeleted: number;
     stripeFailed: number;
     hubspotDeleted: number;
     hubspotFailed: number;
+    localDatabaseDeleted: number;
+    localDatabaseFailed: number;
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -881,13 +884,14 @@ const DataIntegrityTab: React.FC = () => {
   // Scan Placeholders Mutation
   const scanPlaceholdersMutation = useMutation({
     mutationFn: () => 
-      fetchWithCredentials<{ success: boolean; stripeCustomers?: any[]; hubspotContacts?: any[]; totals?: { stripe: number; hubspot: number; total: number } }>('/api/data-integrity/placeholder-accounts'),
+      fetchWithCredentials<{ success: boolean; stripeCustomers?: any[]; hubspotContacts?: any[]; localDatabaseUsers?: any[]; totals?: { stripe: number; hubspot: number; localDatabase: number; total: number } }>('/api/data-integrity/placeholder-accounts'),
     onSuccess: (data) => {
       if (data.success) {
         setPlaceholderAccounts({
           stripeCustomers: data.stripeCustomers || [],
           hubspotContacts: data.hubspotContacts || [],
-          totals: data.totals || { stripe: 0, hubspot: 0, total: 0 }
+          localDatabaseUsers: data.localDatabaseUsers || [],
+          totals: data.totals || { stripe: 0, hubspot: 0, localDatabase: 0, total: 0 }
         });
         showToast(`Found ${data.totals?.total || 0} placeholder accounts`, data.totals?.total && data.totals.total > 0 ? 'info' : 'success');
       } else {
@@ -902,18 +906,20 @@ const DataIntegrityTab: React.FC = () => {
 
   // Delete Placeholders Mutation
   const deletePlaceholdersMutation = useMutation({
-    mutationFn: (params: { stripeCustomerIds: string[]; hubspotContactIds: string[] }) => 
-      postWithCredentials<{ success: boolean; stripeDeleted?: number; stripeFailed?: number; hubspotDeleted?: number; hubspotFailed?: number }>('/api/data-integrity/placeholder-accounts/delete', params),
+    mutationFn: (params: { stripeCustomerIds: string[]; hubspotContactIds: string[]; localDatabaseUserIds: string[] }) => 
+      postWithCredentials<{ success: boolean; stripeDeleted?: number; stripeFailed?: number; hubspotDeleted?: number; hubspotFailed?: number; localDatabaseDeleted?: number; localDatabaseFailed?: number }>('/api/data-integrity/placeholder-accounts/delete', params),
     onSuccess: (data) => {
       if (data.success) {
         setPlaceholderDeleteResult({
           stripeDeleted: data.stripeDeleted || 0,
           stripeFailed: data.stripeFailed || 0,
           hubspotDeleted: data.hubspotDeleted || 0,
-          hubspotFailed: data.hubspotFailed || 0
+          hubspotFailed: data.hubspotFailed || 0,
+          localDatabaseDeleted: data.localDatabaseDeleted || 0,
+          localDatabaseFailed: data.localDatabaseFailed || 0
         });
-        const totalDeleted = (data.stripeDeleted || 0) + (data.hubspotDeleted || 0);
-        const totalFailed = (data.stripeFailed || 0) + (data.hubspotFailed || 0);
+        const totalDeleted = (data.stripeDeleted || 0) + (data.hubspotDeleted || 0) + (data.localDatabaseDeleted || 0);
+        const totalFailed = (data.stripeFailed || 0) + (data.hubspotFailed || 0) + (data.localDatabaseFailed || 0);
         showToast(`Deleted ${totalDeleted} placeholder accounts${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`, totalFailed > 0 ? 'warning' : 'success');
         setPlaceholderAccounts(null);
       } else {
@@ -1152,7 +1158,8 @@ const DataIntegrityTab: React.FC = () => {
     setShowDeleteConfirm(false);
     deletePlaceholdersMutation.mutate({
       stripeCustomerIds: placeholderAccounts.stripeCustomers.map(c => c.id),
-      hubspotContactIds: placeholderAccounts.hubspotContacts.map(c => c.id)
+      hubspotContactIds: placeholderAccounts.hubspotContacts.map(c => c.id),
+      localDatabaseUserIds: placeholderAccounts.localDatabaseUsers.map(u => u.id)
     });
   };
 
@@ -2392,7 +2399,7 @@ const DataIntegrityTab: React.FC = () => {
             
             {placeholderAccounts && (
               <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-4 gap-2 text-center">
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2">
                     <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{placeholderAccounts.totals.stripe}</p>
                     <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 uppercase">Stripe</p>
@@ -2400,6 +2407,10 @@ const DataIntegrityTab: React.FC = () => {
                   <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2">
                     <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{placeholderAccounts.totals.hubspot}</p>
                     <p className="text-[10px] text-orange-600/70 dark:text-orange-400/70 uppercase">HubSpot</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2">
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{placeholderAccounts.totals.localDatabase}</p>
+                    <p className="text-[10px] text-green-600/70 dark:text-green-400/70 uppercase">Database</p>
                   </div>
                   <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2">
                     <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{placeholderAccounts.totals.total}</p>
@@ -2448,10 +2459,10 @@ const DataIntegrityTab: React.FC = () => {
             {placeholderDeleteResult && (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
                 <p className="text-sm text-green-700 dark:text-green-400">
-                  Deleted: Stripe {placeholderDeleteResult.stripeDeleted}, HubSpot {placeholderDeleteResult.hubspotDeleted}
-                  {(placeholderDeleteResult.stripeFailed > 0 || placeholderDeleteResult.hubspotFailed > 0) && (
+                  Deleted: Stripe {placeholderDeleteResult.stripeDeleted}, HubSpot {placeholderDeleteResult.hubspotDeleted}, Database {placeholderDeleteResult.localDatabaseDeleted}
+                  {(placeholderDeleteResult.stripeFailed > 0 || placeholderDeleteResult.hubspotFailed > 0 || placeholderDeleteResult.localDatabaseFailed > 0) && (
                     <span className="text-red-600 dark:text-red-400">
-                      {' '}• Failed: Stripe {placeholderDeleteResult.stripeFailed}, HubSpot {placeholderDeleteResult.hubspotFailed}
+                      {' '}• Failed: Stripe {placeholderDeleteResult.stripeFailed}, HubSpot {placeholderDeleteResult.hubspotFailed}, Database {placeholderDeleteResult.localDatabaseFailed}
                     </span>
                   )}
                 </p>
