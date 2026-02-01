@@ -13,6 +13,22 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.62.0",
+    date: "2026-02-01",
+    title: "System Health Monitoring & Error Resilience",
+    isMajor: true,
+    changes: [
+      "New: System Health dashboard in Data Integrity page shows live status of all external services (Database, Stripe, HubSpot, Resend, Google Calendar)",
+      "New: Each service displays connection status, response latency, and error details when issues occur",
+      "New: Color-coded health indicators (green/yellow/red) for quick status assessment",
+      "New: FeatureErrorBoundary component allows individual page sections to fail gracefully without crashing the entire page",
+      "Improved: API errors now include request IDs for easier debugging and support",
+      "Improved: Retry logic with exponential backoff added for HubSpot, Stripe, and database operations",
+      "Technical: Added comprehensive health check API endpoint with parallel service verification",
+      "Technical: Cleaned up unused date utility functions and dashboard imports"
+    ]
+  },
+  {
     version: "9.61.3",
     date: "2026-02-01",
     title: "Directory Page Scroll Improvements",
