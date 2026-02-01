@@ -556,7 +556,7 @@ export async function createUnmatchedBookingRequest(
         endTime,
         durationMinutes,
         resourceId,
-        customerEmail || 'unmatched@trackman.import',
+        customerEmail || '',
         customerName || 'Unknown (Trackman)',
         trackmanBookingId,
         externalBookingId || null,

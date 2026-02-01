@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.60.2",
+    date: "2026-02-01",
+    title: "Trackman Import Fix: No More Placeholder Emails",
+    changes: [
+      "Fixed: Trackman imports (both webhook and CSV) no longer create placeholder email addresses for unmatched bookings",
+      "Data: Unmatched bookings now use empty email field instead of fake 'unmatched@trackman.local' addresses",
+      "Note: Existing placeholder emails from before this fix will remain until staff assigns them to members"
+    ]
+  },
+  {
     version: "9.60.1",
     date: "2026-02-01",
     title: "Member Profile Drawer Polish",

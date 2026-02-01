@@ -2542,7 +2542,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         
         try {
           const unmatchedInsertResult = await db.insert(bookingRequests).values({
-            userEmail: null,
+            userEmail: '',
             userName: row.userName,
             resourceId: parsedBayId,
             requestDate: bookingDate,
