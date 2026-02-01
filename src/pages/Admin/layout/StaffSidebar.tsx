@@ -53,7 +53,10 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   const navigateToTab = useCallback((tab: TabType) => {
     startNavigation();
     if (tabToPath[tab]) {
-      navigate(tabToPath[tab]);
+      // Use setTimeout to break out of React's event batching from portal clicks
+      setTimeout(() => {
+        navigate(tabToPath[tab]);
+      }, 0);
     }
   }, [navigate, startNavigation]);
   const navContainerRef = useRef<HTMLDivElement>(null);
