@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.62.4",
+    date: "2026-02-01",
+    title: "Directory Deletion Now Updates Immediately",
+    changes: [
+      "Fixed: Deleting a member or visitor from the directory now immediately refreshes the list",
+      "Fixed: Previously, deleted members would still appear until page refresh - now they disappear right away"
+    ]
+  },
+  {
     version: "9.62.3",
     date: "2026-02-01",
     title: "Member Profile Drawer UX Improvements",
