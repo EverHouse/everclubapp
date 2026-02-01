@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { loadStripe, Stripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useBottomNav } from '../../../contexts/BottomNavContext';
-import { useScrollLock } from '../../../hooks/useScrollLock';
 import { useToast } from '../../Toast';
 import { SimpleCheckoutForm } from '../../stripe/StripePaymentForm';
-import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
+import { SlideUpDrawer } from '../../SlideUpDrawer';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
@@ -137,8 +135,6 @@ export function NewUserDrawer({
   
   const [createdUser, setCreatedUser] = useState<{ id: string; email: string; name: string } | null>(null);
 
-  useScrollLock(isOpen);
-
   useEffect(() => {
     if (isOpen) {
       setDrawerOpen(true);
@@ -211,180 +207,145 @@ export function NewUserDrawer({
     return ['form', 'payment', 'success'].indexOf(visitorStep);
   };
 
-  if (!isOpen) return null;
+  return (
+    <SlideUpDrawer
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Add New User"
+      maxHeight="full"
+    >
+      <div className="px-4 pt-2 pb-4">
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => handleModeChange('member')}
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+              mode === 'member'
+                ? 'bg-emerald-600 text-white'
+                : isDark
+                  ? 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm mr-1.5 align-middle">badge</span>
+            New Member
+          </button>
+          <button
+            onClick={() => handleModeChange('visitor')}
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+              mode === 'visitor'
+                ? 'bg-emerald-600 text-white'
+                : isDark
+                  ? 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm mr-1.5 align-middle">person_add</span>
+            New Visitor
+          </button>
+        </div>
 
-  return createPortal(
-    <div className="fixed inset-0 z-[10000]">
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      
-      <div 
-        className={`absolute right-0 top-0 bottom-0 w-full max-w-lg transform transition-transform duration-300 ease-out ${
-          isDark ? 'bg-surface-dark' : 'bg-white'
-        } shadow-2xl overflow-hidden flex flex-col`}
-        style={{ 
-          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
-        }}
-      >
-        <div className={`flex-shrink-0 px-4 py-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Add New User
-            </h2>
-            <button
-              onClick={handleClose}
-              className={`p-2 rounded-full transition-colors ${
-                isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
-              }`}
-              aria-label="Close drawer"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-          </div>
-
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => handleModeChange('member')}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
-                mode === 'member'
-                  ? isDark 
-                    ? 'bg-emerald-600 text-white' 
-                    : 'bg-emerald-600 text-white'
-                  : isDark
-                    ? 'bg-white/5 text-gray-400 hover:bg-white/10'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm mr-1.5 align-middle">badge</span>
-              New Member
-            </button>
-            <button
-              onClick={() => handleModeChange('visitor')}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
-                mode === 'visitor'
-                  ? isDark 
-                    ? 'bg-emerald-600 text-white' 
-                    : 'bg-emerald-600 text-white'
-                  : isDark
-                    ? 'bg-white/5 text-gray-400 hover:bg-white/10'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm mr-1.5 align-middle">person_add</span>
-              New Visitor
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {stepLabels.map((label, index) => (
-              <React.Fragment key={label}>
-                <div className="flex items-center gap-1.5">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                    index <= getStepIndex()
-                      ? isDark 
-                        ? 'bg-emerald-600 text-white' 
-                        : 'bg-emerald-600 text-white'
-                      : isDark
-                        ? 'bg-white/10 text-gray-500'
-                        : 'bg-gray-200 text-gray-400'
-                  }`}>
-                    {index < getStepIndex() ? (
-                      <span className="material-symbols-outlined text-sm">check</span>
-                    ) : (
-                      index + 1
-                    )}
-                  </div>
-                  <span className={`text-xs ${
-                    index <= getStepIndex()
-                      ? isDark ? 'text-white' : 'text-gray-900'
-                      : isDark ? 'text-gray-500' : 'text-gray-400'
-                  }`}>
-                    {label}
-                  </span>
+        <div className="flex items-center gap-2 mb-4">
+          {stepLabels.map((label, index) => (
+            <React.Fragment key={label}>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                  index <= getStepIndex()
+                    ? 'bg-emerald-600 text-white'
+                    : isDark
+                      ? 'bg-white/10 text-gray-500'
+                      : 'bg-gray-200 text-gray-400'
+                }`}>
+                  {index < getStepIndex() ? (
+                    <span className="material-symbols-outlined text-sm">check</span>
+                  ) : (
+                    index + 1
+                  )}
                 </div>
-                {index < stepLabels.length - 1 && (
-                  <div className={`flex-1 h-0.5 ${
-                    index < getStepIndex()
-                      ? 'bg-emerald-600'
-                      : isDark ? 'bg-white/10' : 'bg-gray-200'
-                  }`} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          {error && (
-            <div className={`mb-4 p-3 rounded-lg ${
-              isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-            }`}>
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">error</span>
-                <span className="text-sm">{error}</span>
+                <span className={`text-xs ${
+                  index <= getStepIndex()
+                    ? isDark ? 'text-white' : 'text-gray-900'
+                    : isDark ? 'text-gray-500' : 'text-gray-400'
+                }`}>
+                  {label}
+                </span>
               </div>
-            </div>
-          )}
-
-          {mode === 'member' ? (
-            <MemberFlow
-              step={memberStep}
-              form={memberForm}
-              setForm={setMemberForm}
-              tiers={tiers}
-              discounts={discounts}
-              isDark={isDark}
-              isLoading={isLoading}
-              setIsLoading={setIsLoading}
-              setError={setError}
-              setStep={setMemberStep}
-              onSuccess={(user) => {
-                setCreatedUser(user);
-                setMemberStep('success');
-                onSuccess?.({ ...user, mode: 'member' });
-              }}
-              createdUser={createdUser}
-              onClose={handleClose}
-              showToast={showToast}
-            />
-          ) : (
-            <VisitorFlow
-              step={visitorStep}
-              form={visitorForm}
-              setForm={setVisitorForm}
-              products={dayPassProducts}
-              isDark={isDark}
-              isLoading={isLoading}
-              setIsLoading={setIsLoading}
-              setError={setError}
-              setStep={setVisitorStep}
-              onSuccess={(user) => {
-                setCreatedUser(user);
-                setVisitorStep('success');
-                onSuccess?.({ ...user, mode: 'visitor' });
-              }}
-              createdUser={createdUser}
-              onClose={handleClose}
-              showToast={showToast}
-              onBookNow={() => {
-                if (createdUser) {
-                  onBookNow?.({
-                    id: createdUser.id,
-                    email: createdUser.email,
-                    name: createdUser.name,
-                    phone: visitorForm.phone,
-                  });
-                  handleClose();
-                }
-              }}
-            />
-          )}
+              {index < stepLabels.length - 1 && (
+                <div className={`flex-1 h-0.5 ${
+                  index < getStepIndex()
+                    ? 'bg-emerald-600'
+                    : isDark ? 'bg-white/10' : 'bg-gray-200'
+                }`} />
+              )}
+            </React.Fragment>
+          ))}
         </div>
+
+        {error && (
+          <div className={`mb-4 p-3 rounded-lg ${
+            isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg">error</span>
+              <span className="text-sm">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {mode === 'member' ? (
+          <MemberFlow
+            step={memberStep}
+            form={memberForm}
+            setForm={setMemberForm}
+            tiers={tiers}
+            discounts={discounts}
+            isDark={isDark}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            setError={setError}
+            setStep={setMemberStep}
+            onSuccess={(user) => {
+              setCreatedUser(user);
+              setMemberStep('success');
+              onSuccess?.({ ...user, mode: 'member' });
+            }}
+            createdUser={createdUser}
+            onClose={handleClose}
+            showToast={showToast}
+          />
+        ) : (
+          <VisitorFlow
+            step={visitorStep}
+            form={visitorForm}
+            setForm={setVisitorForm}
+            products={dayPassProducts}
+            isDark={isDark}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+            setError={setError}
+            setStep={setVisitorStep}
+            onSuccess={(user) => {
+              setCreatedUser(user);
+              setVisitorStep('success');
+              onSuccess?.({ ...user, mode: 'visitor' });
+            }}
+            createdUser={createdUser}
+            onClose={handleClose}
+            showToast={showToast}
+            onBookNow={() => {
+              if (createdUser) {
+                onBookNow?.({
+                  id: createdUser.id,
+                  email: createdUser.email,
+                  name: createdUser.name,
+                  phone: visitorForm.phone,
+                });
+                handleClose();
+              }
+            }}
+          />
+        )}
       </div>
-    </div>,
-    document.body
+    </SlideUpDrawer>
   );
 }
 

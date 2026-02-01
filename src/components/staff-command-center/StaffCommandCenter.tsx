@@ -29,7 +29,6 @@ import { TrackmanLinkModal } from './modals/TrackmanLinkModal';
 import { StaffManualBookingModal, type StaffManualBookingData } from './modals/StaffManualBookingModal';
 import { NewUserDrawer } from './drawers/NewUserDrawer';
 import type { SelectedMember } from '../shared/MemberSearchInput';
-import { SlideUpDrawer } from '../SlideUpDrawer';
 import { tabToPath } from '../../pages/Admin/layout/types';
 import type { StaffCommandCenterProps, BookingRequest, RecentActivity, TabType } from './types';
 
@@ -719,111 +718,118 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       />
 
       {createPortal(
-        <div 
-          className="fixed right-5 z-[9998]" 
-          style={{ 
-            bottom: isMobile 
-              ? (isAtBottom 
-                  ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
-                  : 'calc(140px + env(safe-area-inset-bottom, 0px))')
-              : '24px',
-            transition: 'bottom 0.3s ease-out'
-          }}
-        >
-          <button
-            onClick={() => setFabOpen(!fabOpen)}
-            aria-label={fabOpen ? 'Close quick actions menu' : 'Open quick actions menu'}
-            aria-expanded={fabOpen}
-            aria-haspopup="menu"
-            className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 ${
-              fabOpen 
-                ? 'bg-red-500/80 text-white backdrop-blur-xl rotate-45' 
-                : 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl'
-            } border border-white/30`}
-            title="Quick Actions"
+        <>
+          {fabOpen && (
+            <div 
+              className="fixed inset-0 z-[9997]" 
+              onClick={() => setFabOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+          <div 
+            className="fixed right-5 z-[9998] flex flex-col items-end gap-3" 
+            style={{ 
+              bottom: isMobile 
+                ? (isAtBottom 
+                    ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
+                    : 'calc(140px + env(safe-area-inset-bottom, 0px))')
+                : '24px',
+              transition: 'bottom 0.3s ease-out'
+            }}
           >
-            <span className="material-symbols-outlined text-2xl" aria-hidden="true">add</span>
-          </button>
-        </div>,
-        document.body
-      )}
+            {fabOpen && (
+              <div className="flex flex-col items-end gap-2" role="menu">
+                <button
+                  onClick={() => { 
+                    setFabOpen(false); 
+                    setQrScannerOpen(true);
+                  }}
+                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-5"
+                  role="menuitem"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">QR Scanner</span>
+                  <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-xl text-white dark:text-primary">qr_code_scanner</span>
+                  </div>
+                </button>
 
-      <SlideUpDrawer
-        isOpen={fabOpen}
-        onClose={() => setFabOpen(false)}
-        title="Quick Actions"
-        maxHeight="small"
-      >
-        <div className="p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => { 
-                setFabOpen(false); 
-                setNewUserDrawerMode('member');
-                setNewUserDrawerOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl transition-colors"
-            >
-              <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-white">person_add</span>
+                <button
+                  onClick={() => { 
+                    setFabOpen(false); 
+                    setManualBookingModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-4"
+                  role="menuitem"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">Manual Booking</span>
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-xl text-white">edit_calendar</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { 
+                    setFabOpen(false); 
+                    setNoticeDrawerOpen(true);
+                  }}
+                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-3"
+                  role="menuitem"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New Notice</span>
+                  <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-xl text-white">notifications</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { 
+                    setFabOpen(false); 
+                    setAnnouncementDrawerOpen(true);
+                  }}
+                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-2"
+                  role="menuitem"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">Announcement</span>
+                  <div className="w-10 h-10 rounded-full bg-[#CCB8E4] flex items-center justify-center">
+                    <span className="material-symbols-outlined text-xl text-[#293515]">campaign</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { 
+                    setFabOpen(false); 
+                    setNewUserDrawerMode('member');
+                    setNewUserDrawerOpen(true);
+                  }}
+                  className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-1"
+                  role="menuitem"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">New User</span>
+                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-xl text-white">person_add</span>
+                  </div>
+                </button>
               </div>
-              <span className="text-sm font-medium text-green-700 dark:text-green-400">New User</span>
-            </button>
+            )}
 
             <button
-              onClick={() => { 
-                setFabOpen(false); 
-                setAnnouncementDrawerOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-4 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-xl transition-colors"
+              onClick={() => setFabOpen(!fabOpen)}
+              aria-label={fabOpen ? 'Close quick actions menu' : 'Open quick actions menu'}
+              aria-expanded={fabOpen}
+              aria-haspopup="menu"
+              className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 ${
+                fabOpen 
+                  ? 'bg-red-500/80 text-white backdrop-blur-xl rotate-45' 
+                  : 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl'
+              } border border-white/30`}
+              title="Quick Actions"
             >
-              <div className="w-12 h-12 rounded-full bg-[#CCB8E4] flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-[#293515]">campaign</span>
-              </div>
-              <span className="text-sm font-medium text-purple-700 dark:text-[#CCB8E4]">New Announcement</span>
-            </button>
-
-            <button
-              onClick={() => { 
-                setFabOpen(false); 
-                setNoticeDrawerOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-xl transition-colors"
-            >
-              <div className="w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-white">notifications</span>
-              </div>
-              <span className="text-sm font-medium text-amber-700 dark:text-amber-400">New Notice</span>
-            </button>
-
-            <button
-              onClick={() => { 
-                setFabOpen(false); 
-                setManualBookingModalOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-colors"
-            >
-              <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-white">edit_calendar</span>
-              </div>
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-400">Manual Booking</span>
-            </button>
-
-            <button
-              onClick={() => { 
-                setFabOpen(false); 
-                setQrScannerOpen(true);
-              }}
-              className="flex flex-col items-center gap-2 p-4 bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 rounded-xl transition-colors col-span-2"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
-                <span className="material-symbols-outlined text-2xl text-white dark:text-primary">qr_code_scanner</span>
-              </div>
-              <span className="text-sm font-medium text-primary dark:text-white">QR Scanner</span>
+              <span className="material-symbols-outlined text-2xl" aria-hidden="true">add</span>
             </button>
           </div>
-        </div>
-      </SlideUpDrawer>
+        </>,
+        document.body
+      )}
       
       <CheckinBillingModal
         isOpen={billingModal.isOpen}

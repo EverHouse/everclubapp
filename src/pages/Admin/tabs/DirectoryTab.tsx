@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData, MemberProfile } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
+import { useBottomNav } from '../../../contexts/BottomNavContext';
+import { useIsMobile } from '../../../hooks/useBreakpoint';
 import TierBadge from '../../../components/TierBadge';
 import TagBadge from '../../../components/TagBadge';
 import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
@@ -338,6 +340,8 @@ const DirectoryTab: React.FC = () => {
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     
     const isAdmin = actualUser?.role === 'admin';
+    const { isAtBottom, drawerOpen } = useBottomNav();
+    const isMobile = useIsMobile();
 
     React.useEffect(() => {
         setPageReady(true);
@@ -1762,6 +1766,30 @@ const DirectoryTab: React.FC = () => {
                 onSuccess={() => { setAddMemberModalOpen(false); refreshMembers(); }}
                 defaultMode="member"
             />
+
+            {!drawerOpen && createPortal(
+                <div 
+                    className="fixed right-5 z-[9998]" 
+                    style={{ 
+                        bottom: isMobile 
+                            ? (isAtBottom 
+                                ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
+                                : 'calc(140px + env(safe-area-inset-bottom, 0px))')
+                            : '24px',
+                        transition: 'bottom 0.3s ease-out'
+                    }}
+                >
+                    <button
+                        onClick={() => setAddMemberModalOpen(true)}
+                        aria-label="Add new user"
+                        className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 bg-green-600 text-white backdrop-blur-xl border border-white/30"
+                        title="Add New User"
+                    >
+                        <span className="material-symbols-outlined text-2xl" aria-hidden="true">person_add</span>
+                    </button>
+                </div>,
+                document.body
+            )}
 
             {assignTierModalOpen && memberToAssignTier && createPortal(
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
