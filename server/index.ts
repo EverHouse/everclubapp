@@ -44,27 +44,8 @@ process.on('SIGINT', () => {
   console.log('[Process] Received SIGINT signal');
   gracefulShutdown('SIGINT');
 });
-import { startIntegrityScheduler } from './schedulers/integrityScheduler';
-import { startWaiverReviewScheduler } from './schedulers/waiverReviewScheduler';
-import { startStripeReconciliationScheduler } from './schedulers/stripeReconciliationScheduler';
-import { startFeeSnapshotReconciliationScheduler } from './schedulers/feeSnapshotReconciliationScheduler';
-import { startGracePeriodScheduler } from './schedulers/gracePeriodScheduler';
-import { startBookingExpiryScheduler } from './schedulers/bookingExpiryScheduler';
-import { startBackgroundSyncScheduler } from './schedulers/backgroundSyncScheduler';
-import { startDailyReminderScheduler } from './schedulers/dailyReminderScheduler';
-import { startMorningClosureScheduler } from './schedulers/morningClosureScheduler';
-import { startWeeklyCleanupScheduler } from './schedulers/weeklyCleanupScheduler';
-import { startInviteExpiryScheduler } from './schedulers/inviteExpiryScheduler';
-import { startCommunicationLogsScheduler } from './schedulers/communicationLogsScheduler';
-import { startWebhookLogCleanupScheduler } from './schedulers/webhookLogCleanupScheduler';
-import { startHubSpotQueueScheduler } from './schedulers/hubspotQueueScheduler';
-import { startSessionCleanupScheduler } from './schedulers/sessionCleanupScheduler';
-import { startUnresolvedTrackmanScheduler } from './schedulers/unresolvedTrackmanScheduler';
-import { startGuestPassResetScheduler } from './schedulers/guestPassResetScheduler';
-import { startMemberSyncScheduler } from './schedulers/memberSyncScheduler';
-import { startDuplicateCleanupScheduler } from './schedulers/duplicateCleanupScheduler';
+import { initSchedulers, stopSchedulers } from './schedulers';
 import { processStripeWebhook } from './core/stripe';
-import { startJobProcessor, stopJobProcessor } from './core/jobQueue';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,7 +69,7 @@ async function gracefulShutdown(signal: string) {
   }, 30000);
   
   try {
-    stopJobProcessor();
+    stopSchedulers();
     closeWebSocketServer();
     console.log('[Shutdown] WebSocket server closed');
     
@@ -548,26 +529,7 @@ async function startServer() {
         }, 30000);
       }
 
-      startBackgroundSyncScheduler();
-      startDailyReminderScheduler();
-      startMorningClosureScheduler();
-      startWeeklyCleanupScheduler();
-      startInviteExpiryScheduler();
-      startIntegrityScheduler();
-      startWaiverReviewScheduler();
-      startStripeReconciliationScheduler();
-      startFeeSnapshotReconciliationScheduler();
-      startGracePeriodScheduler();
-      startBookingExpiryScheduler();
-      startCommunicationLogsScheduler();
-      startWebhookLogCleanupScheduler();
-      startSessionCleanupScheduler();
-      startUnresolvedTrackmanScheduler();
-      startHubSpotQueueScheduler();
-      startMemberSyncScheduler();
-      startDuplicateCleanupScheduler();
-      startGuestPassResetScheduler();
-      startJobProcessor(5000);
+      initSchedulers();
     });
   });
 
