@@ -204,7 +204,8 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--safari-toolbar-padding));
 }
 
-/* Safe area bottom filler - transparent to allow content to show through frosted toolbar */
+/* Safe area bottom filler - matches page background for Safari translucent toolbar */
+/* Uses a high z-index but pointer-events: none so it doesn't block interactions */
 body::after {
   content: '';
   position: fixed;
@@ -212,9 +213,18 @@ body::after {
   left: 0;
   right: 0;
   height: env(safe-area-inset-bottom, 0px);
-  background-color: transparent;
+  background-color: #F2F2EC;
   pointer-events: none;
-  z-index: -1;
+  z-index: 9998;
+}
+
+html.dark body::after,
+html.page-dark body::after {
+  background-color: #0f120a;
+}
+
+html.page-public body::after {
+  background-color: #F2F2EC;
 }
 
 #root {
