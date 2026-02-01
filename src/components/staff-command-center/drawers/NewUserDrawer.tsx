@@ -165,9 +165,17 @@ export function NewUserDrawer({
 
       if (tiersRes.ok) {
         const tiersData = await tiersRes.json();
-        const subscriptionTiers = tiersData.filter((t: MembershipTier) => 
-          t.productType === 'subscription' && t.stripePriceId
-        );
+        // API returns snake_case, map to camelCase interface
+        const subscriptionTiers = tiersData
+          .filter((t: any) => t.product_type === 'subscription' && t.stripe_price_id)
+          .map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            priceCents: t.price_cents,
+            stripePriceId: t.stripe_price_id,
+            productType: t.product_type,
+          }));
         setTiers(subscriptionTiers);
       }
 
@@ -986,7 +994,7 @@ function VisitorFlow({
   const [stripeError, setStripeError] = useState<string | null>(null);
   const paymentInitiatedRef = useRef(false);
 
-  const selectedProduct = products.find(p => p.slug === form.productSlug);
+  const selectedProduct = products.find(p => p.id === form.productId);
 
   useEffect(() => {
     if (step === 'payment' && selectedProduct && !paymentInitiatedRef.current) {
@@ -1012,7 +1020,7 @@ function VisitorFlow({
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          productSlug: form.productSlug,
+          productSlug: form.productId,  // productId contains the slug
           email: form.email,
           firstName: form.firstName,
           lastName: form.lastName,

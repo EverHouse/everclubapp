@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.61.1",
+    date: "2026-02-01",
+    title: "Bug Fixes for New User Drawer",
+    changes: [
+      "Fixed: Membership tier dropdown now correctly shows subscription products from Stripe",
+      "Fixed: Day pass product selection now updates the amount to charge when a product is selected",
+      "Fixed: Day pass payment now works correctly with the selected product",
+      "Improved: Staff navigation sidebar now always stays above page content"
+    ]
+  },
+  {
     version: "9.61.0",
     date: "2026-02-01",
     title: "New User Drawer: Unified Member & Visitor Creation",
