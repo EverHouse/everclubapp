@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.59.5",
+    date: "2026-02-01",
+    title: "Financials Page Navigation Fix",
+    changes: [
+      "Fixed: Navigating away from Financials page now works correctly even if data is still loading",
+      "Fixed: All async data fetches in Financials tab now properly cancel when navigating away",
+      "Improved: Navigation between staff portal pages is now more responsive"
+    ]
+  },
+  {
     version: "9.59.4",
     date: "2026-02-01",
     title: "Staff Navigation Fix",

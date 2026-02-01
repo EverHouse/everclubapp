@@ -223,20 +223,25 @@ const MobilePaymentsView: React.FC = () => {
   }, [activeSection]);
 
   useEffect(() => {
-    fetch('/api/bookings/overdue-payments', { credentials: 'include' })
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
+    fetch('/api/bookings/overdue-payments', { credentials: 'include', signal })
       .then(res => res.json())
-      .then(data => setOverdueCount(data.length || 0))
+      .then(data => { if (!signal.aborted) setOverdueCount(data.length || 0); })
       .catch(() => {});
     
-    fetch('/api/payments/failed', { credentials: 'include' })
+    fetch('/api/payments/failed', { credentials: 'include', signal })
       .then(res => res.json())
-      .then(data => setFailedCount(Array.isArray(data) ? data.length : 0))
+      .then(data => { if (!signal.aborted) setFailedCount(Array.isArray(data) ? data.length : 0); })
       .catch(() => {});
 
-    fetch('/api/payments/pending-authorizations', { credentials: 'include' })
+    fetch('/api/payments/pending-authorizations', { credentials: 'include', signal })
       .then(res => res.json())
-      .then(data => setPendingCount(Array.isArray(data) ? data.length : 0))
+      .then(data => { if (!signal.aborted) setPendingCount(Array.isArray(data) ? data.length : 0); })
       .catch(() => {});
+
+    return () => abortController.abort();
   }, []);
 
   const quickActions = [
@@ -426,19 +431,21 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const abortController = new AbortController();
     const fetchSummary = async () => {
       try {
-        const res = await fetch('/api/payments/daily-summary', { credentials: 'include' });
+        const res = await fetch('/api/payments/daily-summary', { credentials: 'include', signal: abortController.signal });
         if (!res.ok) throw new Error('Failed to fetch summary');
         const data = await res.json();
-        setSummary(data);
+        if (!abortController.signal.aborted) setSummary(data);
       } catch (err: any) {
-        setError(err.message);
+        if (!abortController.signal.aborted && err.name !== 'AbortError') setError(err.message);
       } finally {
-        setIsLoading(false);
+        if (!abortController.signal.aborted) setIsLoading(false);
       }
     };
     fetchSummary();
+    return () => abortController.abort();
   }, []);
 
   const formatCurrency = (cents: number) => {
@@ -563,22 +570,23 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const fetchAuthorizations = async () => {
-    try {
-      const res = await fetch('/api/payments/pending-authorizations', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setAuthorizations(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch pending authorizations:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const abortController = new AbortController();
+    const fetchAuthorizations = async () => {
+      try {
+        const res = await fetch('/api/payments/pending-authorizations', { credentials: 'include', signal: abortController.signal });
+        if (res.ok && !abortController.signal.aborted) {
+          const data = await res.json();
+          setAuthorizations(Array.isArray(data) ? data : []);
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') console.error('Failed to fetch pending authorizations:', err);
+      } finally {
+        if (!abortController.signal.aborted) setLoading(false);
+      }
+    };
     fetchAuthorizations();
+    return () => abortController.abort();
   }, []);
 
   const getTimeUntilExpiry = (expiresAt: string) => {
@@ -962,22 +970,27 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
   const [cancelingPaymentId, setCancelingPaymentId] = useState<string | null>(null);
   const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const fetchFailedPayments = async () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
     try {
-      const res = await fetch('/api/payments/failed', { credentials: 'include' });
-      if (res.ok) {
+      const res = await fetch('/api/payments/failed', { credentials: 'include', signal: abortControllerRef.current.signal });
+      if (res.ok && !abortControllerRef.current.signal.aborted) {
         const data = await res.json();
         setFailedPayments(Array.isArray(data) ? data : []);
       }
-    } catch (err) {
-      console.error('Failed to fetch failed payments:', err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') console.error('Failed to fetch failed payments:', err);
     } finally {
-      setLoading(false);
+      if (!abortControllerRef.current?.signal.aborted) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchFailedPayments();
+    return () => abortControllerRef.current?.abort();
   }, []);
 
   const handleRetryPayment = async (paymentIntentId: string) => {
@@ -1257,24 +1270,28 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchRefundable = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
     setLoading(true);
     try {
-      const res = await fetch('/api/payments/refundable', { credentials: 'include' });
-      if (res.ok) {
+      const res = await fetch('/api/payments/refundable', { credentials: 'include', signal: abortControllerRef.current.signal });
+      if (res.ok && !abortControllerRef.current.signal.aborted) {
         const data = await res.json();
         setPayments(data);
       }
-    } catch (err) {
-      console.error('Failed to fetch refundable payments:', err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') console.error('Failed to fetch refundable payments:', err);
     } finally {
-      setLoading(false);
+      if (!abortControllerRef.current?.signal.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchRefundable();
+    return () => abortControllerRef.current?.abort();
   }, [fetchRefundable]);
 
   const handleRefund = async () => {
@@ -1564,6 +1581,7 @@ const SubscriptionsSubTab: React.FC = () => {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSyncFromStripe = async () => {
     setIsSyncing(true);
@@ -1593,6 +1611,7 @@ const SubscriptionsSubTab: React.FC = () => {
 
   useEffect(() => {
     fetchSubscriptions();
+    return () => abortControllerRef.current?.abort();
   }, [statusFilter]);
 
   useEffect(() => {
@@ -1610,6 +1629,10 @@ const SubscriptionsSubTab: React.FC = () => {
   }, [subscriptions, searchQuery]);
 
   const fetchSubscriptions = async (cursor?: string) => {
+    if (!cursor) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+    }
     if (cursor) {
       setIsLoadingMore(true);
     } else {
@@ -1624,8 +1647,9 @@ const SubscriptionsSubTab: React.FC = () => {
       params.append('limit', '50');
       
       const url = `/api/financials/subscriptions${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url, { credentials: 'include' });
+      const res = await fetch(url, { credentials: 'include', signal: abortControllerRef.current?.signal });
       if (!res.ok) throw new Error('Failed to fetch subscriptions');
+      if (abortControllerRef.current?.signal.aborted) return;
       const data = await res.json();
       
       if (cursor) {
@@ -1636,10 +1660,12 @@ const SubscriptionsSubTab: React.FC = () => {
       setHasMore(data.hasMore || false);
       setNextCursor(data.nextCursor || null);
     } catch (err: any) {
-      setError(err.message);
+      if (err.name !== 'AbortError') setError(err.message);
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (!abortControllerRef.current?.signal.aborted) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     }
   };
   
@@ -2010,9 +2036,11 @@ const InvoicesSubTab: React.FC = () => {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [appliedStartDate, setAppliedStartDate] = useState('');
   const [appliedEndDate, setAppliedEndDate] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     fetchInvoices();
+    return () => abortControllerRef.current?.abort();
   }, [statusFilter, appliedStartDate, appliedEndDate]);
 
   useEffect(() => {
@@ -2031,6 +2059,10 @@ const InvoicesSubTab: React.FC = () => {
   }, [invoices, searchQuery]);
 
   const fetchInvoices = async (cursor?: string) => {
+    if (!cursor) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+    }
     if (cursor) {
       setIsLoadingMore(true);
     } else {
@@ -2047,8 +2079,9 @@ const InvoicesSubTab: React.FC = () => {
       params.append('limit', '50');
       
       const url = `/api/financials/invoices${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url, { credentials: 'include' });
+      const res = await fetch(url, { credentials: 'include', signal: abortControllerRef.current?.signal });
       if (!res.ok) throw new Error('Failed to fetch invoices');
+      if (abortControllerRef.current?.signal.aborted) return;
       const data = await res.json();
       
       if (cursor) {
@@ -2059,10 +2092,12 @@ const InvoicesSubTab: React.FC = () => {
       setHasMore(data.hasMore || false);
       setNextCursor(data.nextCursor || null);
     } catch (err: any) {
-      setError(err.message);
+      if (err.name !== 'AbortError') setError(err.message);
     } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
+      if (!abortControllerRef.current?.signal.aborted) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     }
   };
 
