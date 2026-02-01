@@ -93,7 +93,13 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
     return (
       <button
         ref={(el) => setButtonRef(item.id, el)}
-        onClick={() => navigateToTab(item.id)}
+        onMouseDown={(e) => {
+          console.log('[Sidebar] MouseDown on:', item.id, 'target:', e.target, 'currentTarget:', e.currentTarget);
+        }}
+        onClick={(e) => {
+          console.log('[Sidebar] Click on:', item.id, 'navigating...');
+          navigateToTab(item.id);
+        }}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
           ${isActive 
@@ -112,7 +118,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   };
 
   const sidebarContent = (
-    <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515]" style={{ zIndex: 'var(--z-nav, 8500)' }}>
+    <aside className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-[#293515] isolate" style={{ zIndex: 9999 }}>
       <button 
         onClick={() => { startNavigation(); navigate('/'); }}
         className="flex items-center gap-3 px-4 py-5 flex-shrink-0 hover:opacity-80 transition-opacity w-full text-left"
