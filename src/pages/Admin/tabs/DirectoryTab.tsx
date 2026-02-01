@@ -28,7 +28,7 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
     { value: 'tier', label: 'Tier' },
 ];
 
-const VIRTUALIZATION_THRESHOLD = 99999; // Temporarily disabled virtualization for debugging
+const VIRTUALIZATION_THRESHOLD = 20;
 const VISITORS_PAGE_SIZE = 100;
 
 interface MobileRowProps {
@@ -40,8 +40,10 @@ interface MobileRowProps {
     handleViewAs: (m: MemberProfile) => void;
 }
 
-const MobileRowComponent = ({ index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal, handleViewAs }: ListChildComponentProps & MobileRowProps) => {
-    const m = data?.[index];
+const MobileRowComponent = (props: ListChildComponentProps & MobileRowProps) => {
+    const { index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal, handleViewAs } = props || {};
+    if (!data || !Array.isArray(data)) return null;
+    const m = data[index];
     if (!m) return null;
     return (
         <div style={{ ...style, paddingBottom: 12 }}>
@@ -106,8 +108,10 @@ interface DesktopRowProps {
     openAssignTierModal: (m: MemberProfile) => void;
 }
 
-const DesktopRowComponent = ({ index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal }: ListChildComponentProps & DesktopRowProps) => {
-    const m = data?.[index];
+const DesktopRowComponent = (props: ListChildComponentProps & DesktopRowProps) => {
+    const { index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal } = props || {};
+    if (!data || !Array.isArray(data)) return null;
+    const m = data[index];
     if (!m) return null;
     return (
         <div 
@@ -1562,10 +1566,10 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
-                {!formerLoading && filteredList.length > 0 && (memberTab === 'active' || memberTab === 'former') && (
+                {!formerLoading && Array.isArray(filteredList) && filteredList.length > 0 && (memberTab === 'active' || memberTab === 'former') && (
                     <>
                         <div className="md:hidden flex-1 min-h-0 relative">
-                            {filteredList.length > VIRTUALIZATION_THRESHOLD ? (
+                            {filteredList.length > VIRTUALIZATION_THRESHOLD && filteredList.length > 0 ? (
                                 <List
                                     height={600}
                                     width="100%"
@@ -1574,17 +1578,20 @@ const DirectoryTab: React.FC = () => {
                                     itemData={filteredList}
                                     className="scrollbar-hide"
                                 >
-                                    {(props) => (
-                                        <MobileRowComponent
-                                            {...props}
-                                            data={filteredList}
-                                            memberTab={memberTab as 'active' | 'former'}
-                                            isAdmin={isAdmin}
-                                            openDetailsModal={openDetailsModal}
-                                            openAssignTierModal={openAssignTierModal}
-                                            handleViewAs={handleViewAs}
-                                        />
-                                    )}
+                                    {(rowProps) => {
+                                        if (!rowProps || typeof rowProps.index !== 'number') return null;
+                                        return (
+                                            <MobileRowComponent
+                                                {...rowProps}
+                                                data={filteredList}
+                                                memberTab={memberTab as 'active' | 'former'}
+                                                isAdmin={isAdmin}
+                                                openDetailsModal={openDetailsModal}
+                                                openAssignTierModal={openAssignTierModal}
+                                                handleViewAs={handleViewAs}
+                                            />
+                                        );
+                                    }}
                                 </List>
                             ) : (
                                 <div className="h-full overflow-y-auto pt-2 pb-24">
@@ -1659,7 +1666,7 @@ const DirectoryTab: React.FC = () => {
                                     <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>Status</div>
                                 )}
                             </div>
-                            {filteredList.length > VIRTUALIZATION_THRESHOLD ? (
+                            {filteredList.length > VIRTUALIZATION_THRESHOLD && filteredList.length > 0 ? (
                                 <List
                                     height={500}
                                     width="100%"
@@ -1668,16 +1675,19 @@ const DirectoryTab: React.FC = () => {
                                     itemData={filteredList}
                                     className="scrollbar-hide"
                                 >
-                                    {(props) => (
-                                        <DesktopRowComponent
-                                            {...props}
-                                            data={filteredList}
-                                            memberTab={memberTab as 'active' | 'former'}
-                                            isAdmin={isAdmin}
-                                            openDetailsModal={openDetailsModal}
-                                            openAssignTierModal={openAssignTierModal}
-                                        />
-                                    )}
+                                    {(rowProps) => {
+                                        if (!rowProps || typeof rowProps.index !== 'number') return null;
+                                        return (
+                                            <DesktopRowComponent
+                                                {...rowProps}
+                                                data={filteredList}
+                                                memberTab={memberTab as 'active' | 'former'}
+                                                isAdmin={isAdmin}
+                                                openDetailsModal={openDetailsModal}
+                                                openAssignTierModal={openAssignTierModal}
+                                            />
+                                        );
+                                    }}
                                 </List>
                             ) : (
                                 <div className="overflow-y-auto max-h-[500px]">
