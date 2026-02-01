@@ -110,12 +110,18 @@ const AvailabilityBlocksContent: React.FC = () => {
             if (res.ok) {
                 const data = await res.json();
                 setBlocks(data);
+            } else if (res.status === 401) {
+                setError('Session expired. Please refresh the page to log in again.');
+            } else if (res.status === 429) {
+                setError('Too many requests. Please wait a moment and try again.');
+            } else if (res.status >= 500) {
+                setError('Server error. The system may be temporarily unavailable.');
             } else {
-                setError('Failed to fetch availability blocks');
+                setError('Failed to fetch availability blocks. Try refreshing the page.');
             }
         } catch (err) {
             console.error('Failed to fetch blocks:', err);
-            setError('Failed to fetch availability blocks');
+            setError('Network error. Check your connection and try again.');
         } finally {
             setIsLoading(false);
         }
@@ -359,8 +365,34 @@ const AvailabilityBlocksContent: React.FC = () => {
             </div>
 
             {error && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm">
-                    {error}
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
+                    <div className="flex items-start gap-3">
+                        <span aria-hidden="true" className="material-symbols-outlined text-red-500 dark:text-red-400 text-xl flex-shrink-0">error</span>
+                        <div className="flex-1">
+                            <p className="text-red-700 dark:text-red-400 text-sm font-medium">{error}</p>
+                            <div className="flex gap-2 mt-3">
+                                <button
+                                    onClick={() => fetchBlocks()}
+                                    className="px-3 py-1.5 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-700/40 transition-colors"
+                                >
+                                    Try Again
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if ('caches' in window) {
+                                            caches.keys().then(keys => {
+                                                keys.forEach(key => caches.delete(key));
+                                            });
+                                        }
+                                        window.location.reload();
+                                    }}
+                                    className="px-3 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                                >
+                                    Clear Cache & Reload
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

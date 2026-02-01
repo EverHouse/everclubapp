@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.60.4",
+    date: "2026-02-01",
+    title: "Stability Improvements",
+    changes: [
+      "Fixed: Rate limiting no longer incorrectly blocks page navigation",
+      "Fixed: Directory page virtualization disabled to prevent React Query compatibility errors",
+      "Improved: Facility Blocks page shows specific error messages (session expired, server error, network issues)",
+      "Improved: Facility Blocks page includes 'Try Again' and 'Clear Cache & Reload' recovery buttons when errors occur"
+    ]
+  },
+  {
     version: "9.60.3",
     date: "2026-02-01",
     title: "Bug Fixes",

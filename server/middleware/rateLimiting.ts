@@ -21,7 +21,16 @@ export const globalRateLimiter = rateLimit({
     res.status(429).json({ error: 'Too many requests. Please slow down.' });
   },
   skip: (req) => {
-    return req.path === '/healthz' || req.path === '/api/health';
+    // Skip rate limiting for health checks and non-API routes
+    // Non-API routes should not be rate limited (they are proxied or static assets)
+    if (req.path === '/healthz' || req.path === '/api/health') {
+      return true;
+    }
+    // Only rate limit /api/ routes - skip everything else
+    if (!req.path.startsWith('/api/') && !req.path.startsWith('/api')) {
+      return true;
+    }
+    return false;
   }
 });
 
