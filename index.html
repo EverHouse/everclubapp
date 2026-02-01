@@ -53,23 +53,6 @@
     <div id="app-splash"></div>
     <div id="root"></div>
     <div id="nav-overlay-root" style="position:fixed;inset:0;pointer-events:none;z-index:9999;"></div>
-    <!-- Safari safe area fill - real DOM element that Safari samples for translucent toolbar color -->
-    <div id="safari-safe-area-fill" style="position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,34px);background-color:#F2F2EC;pointer-events:none;z-index:999999;"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // Update Safari safe area fill color based on theme
-      (function() {
-        var fill = document.getElementById('safari-safe-area-fill');
-        if (!fill) return;
-        var updateColor = function() {
-          var isDark = document.documentElement.classList.contains('dark');
-          fill.style.backgroundColor = isDark ? '#0f120a' : '#F2F2EC';
-        };
-        updateColor();
-        // Watch for theme changes
-        var observer = new MutationObserver(updateColor);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-      })();
-    </script>
   </body>
 </html>

@@ -204,7 +204,28 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--safari-toolbar-padding));
 }
 
-/* Safari safe area handled by #safari-safe-area-fill in index.html (real DOM element) */
+/* Safe area bottom filler - matches page background for Safari translucent toolbar */
+/* Uses a high z-index but pointer-events: none so it doesn't block interactions */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: #F2F2EC;
+  pointer-events: none;
+  z-index: 9998;
+}
+
+html.dark body::after,
+html.page-dark body::after {
+  background-color: #0f120a;
+}
+
+html.page-public body::after {
+  background-color: #F2F2EC;
+}
 
 #root {
   background-color: inherit;
