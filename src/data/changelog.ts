@@ -19,6 +19,7 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "iOS Safari: Removed theme-color meta tag to enable translucent bottom toolbar (frosted glass effect)",
       "iOS Safari: Green header now extends behind the status bar at top of screen",
+      "iOS Safari: Added bottom padding so page content scrolls behind frosted toolbar",
       "PWA: No changes - installed app continues to show solid green status bar via manifest"
     ]
   },

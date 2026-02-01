@@ -178,26 +178,43 @@ html.page-dark, html.page-dark body {
   color: #F2F2EC !important;
 }
 
-/* Safari bottom toolbar color fix - fixed element that extends into safe area */
+/* iOS Safari translucent toolbar support */
+/* Only apply extra scroll padding on iOS Safari (not in standalone PWA mode) */
+/* Safari toolbar height varies: collapsed ~44px, expanded ~96px */
+:root {
+  --safari-toolbar-padding: 0px;
+}
+
+/* iOS Safari detection: -webkit-touch-callout is iOS-only */
+@supports (-webkit-touch-callout: none) {
+  :root {
+    --safari-toolbar-padding: 50px;
+  }
+}
+
+/* Disable extra padding for standalone PWA (no Safari toolbar) */
+@media (display-mode: standalone) {
+  :root {
+    --safari-toolbar-padding: 0px;
+  }
+}
+
+/* Apply toolbar padding to body - only affects iOS Safari browser */
+body {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--safari-toolbar-padding));
+}
+
+/* Safe area bottom filler - transparent to allow content to show through frosted toolbar */
 body::after {
   content: '';
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: env(safe-area-inset-bottom, 34px);
-  background-color: inherit;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: transparent;
   pointer-events: none;
   z-index: -1;
-}
-
-html.page-public body::after,
-html.page-light body::after {
-  background-color: #F2F2EC;
-}
-
-html.page-dark body::after {
-  background-color: #0f120a;
 }
 
 #root {
