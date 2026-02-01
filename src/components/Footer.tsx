@@ -8,62 +8,70 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
-  <footer className="bg-[#293515] text-[#E7E7DC] py-16 px-6 text-center rounded-t-[2.5rem] mt-8 -mx-4 sm:-mx-6 w-[calc(100%+2rem)] sm:w-[calc(100%+3rem)]">
-     <div className="flex justify-center mb-8">
-       <Logo type="mascot" variant="white" className="h-16 w-auto" />
-     </div>
-     
-     <div className="space-y-6 text-sm font-medium mb-10 flex flex-col items-center">
-        <div className="relative flex flex-col items-center">
-            <span className="material-symbols-outlined text-lg absolute -left-8 top-0.5 text-[#E7E7DC]/70">location_on</span>
-            <p className="text-[#E7E7DC]">15771 Red Hill Ave, Ste 500</p>
-            <p className="text-[#E7E7DC]/70 text-xs">Tustin, CA 92780</p>
-        </div>
+  <>
+    <footer className="bg-[#293515] text-[#E7E7DC] py-16 px-6 text-center rounded-t-[2.5rem] mt-8 -mx-4 sm:-mx-6 w-[calc(100%+2rem)] sm:w-[calc(100%+3rem)]">
+       <div className="flex justify-center mb-8">
+         <Logo type="mascot" variant="white" className="h-16 w-auto" />
+       </div>
+       
+       <div className="space-y-6 text-sm font-medium mb-10 flex flex-col items-center">
+          <div className="relative flex flex-col items-center">
+              <span className="material-symbols-outlined text-lg absolute -left-8 top-0.5 text-[#E7E7DC]/70">location_on</span>
+              <p className="text-[#E7E7DC]">15771 Red Hill Ave, Ste 500</p>
+              <p className="text-[#E7E7DC]/70 text-xs">Tustin, CA 92780</p>
+          </div>
 
-        <div className="relative flex items-center">
-            <span className="material-symbols-outlined text-lg absolute -left-8 text-[#E7E7DC]/70">call</span>
-            <a href="tel:9495455855" className="hover:underline">(949) 545-5855</a>
-        </div>
+          <div className="relative flex items-center">
+              <span className="material-symbols-outlined text-lg absolute -left-8 text-[#E7E7DC]/70">call</span>
+              <a href="tel:9495455855" className="hover:underline">(949) 545-5855</a>
+          </div>
 
-        <div className="relative flex flex-col items-center text-xs">
-            <span className="font-bold uppercase tracking-wider text-[#E7E7DC] mb-2">Hours</span>
-            <div className="space-y-1 text-[#E7E7DC]/70 text-center">
-                <p>Mon: Closed</p>
-                <p>Tue–Thu: 8:30 AM–8 PM</p>
-                <p>Fri–Sat: 8:30 AM–10 PM</p>
-                <p>Sun: 8:30 AM–6 PM</p>
-            </div>
-        </div>
-     </div>
+          <div className="relative flex flex-col items-center text-xs">
+              <span className="font-bold uppercase tracking-wider text-[#E7E7DC] mb-2">Hours</span>
+              <div className="space-y-1 text-[#E7E7DC]/70 text-center">
+                  <p>Mon: Closed</p>
+                  <p>Tue–Thu: 8:30 AM–8 PM</p>
+                  <p>Fri–Sat: 8:30 AM–10 PM</p>
+                  <p>Sun: 8:30 AM–6 PM</p>
+              </div>
+          </div>
+       </div>
 
-     <div className="flex justify-center gap-4 mb-10">
-        <SocialLink href="https://www.instagram.com/evenhouseclub/" icon="instagram" />
-        <SocialLink href="https://www.linkedin.com/company/even-house" icon="linkedin" />
-        <SocialLink href="https://www.tiktok.com/@evenhouseclub" icon="tiktok" />
-     </div>
-     
-     {!hideCta && (
-       <a 
-         href="/membership" 
-         className="w-full max-w-sm mx-auto mb-10 py-4 px-6 rounded-2xl bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
-       >
-         Apply for Membership
-         <span className="material-symbols-outlined text-lg">arrow_forward</span>
-       </a>
-     )}
-     
-     <div className="w-full max-w-xs mx-auto h-px bg-[#E7E7DC]/10 mb-8"></div>
-     
-     <div className="flex justify-center gap-6 mb-6 text-xs">
-        <Link to="/privacy" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Privacy Policy</Link>
-        <Link to="/terms" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Terms of Service</Link>
-     </div>
-     
-     <div className="flex flex-col items-center gap-2">
-        <p className="text-[10px] opacity-40">© {new Date().getFullYear()} Ever House. All rights reserved.</p>
-        <p className="text-[10px] opacity-30">v{APP_VERSION} · Updated {formatLastUpdated()}</p>
-     </div>
-  </footer>
+       <div className="flex justify-center gap-4 mb-10">
+          <SocialLink href="https://www.instagram.com/evenhouseclub/" icon="instagram" />
+          <SocialLink href="https://www.linkedin.com/company/even-house" icon="linkedin" />
+          <SocialLink href="https://www.tiktok.com/@evenhouseclub" icon="tiktok" />
+       </div>
+       
+       {!hideCta && (
+         <a 
+           href="/membership" 
+           className="w-full max-w-sm mx-auto mb-10 py-4 px-6 rounded-2xl bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
+         >
+           Apply for Membership
+           <span className="material-symbols-outlined text-lg">arrow_forward</span>
+         </a>
+       )}
+       
+       <div className="w-full max-w-xs mx-auto h-px bg-[#E7E7DC]/10 mb-8"></div>
+       
+       <div className="flex justify-center gap-6 mb-6 text-xs">
+          <Link to="/privacy" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Privacy Policy</Link>
+          <Link to="/terms" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Terms of Service</Link>
+       </div>
+       
+       <div className="flex flex-col items-center gap-2">
+          <p className="text-[10px] opacity-40">© {new Date().getFullYear()} Ever House. All rights reserved.</p>
+          <p className="text-[10px] opacity-30">v{APP_VERSION} · Updated {formatLastUpdated()}</p>
+       </div>
+    </footer>
+    {/* Safe area filler - shows page background (bone) below green footer for Safari toolbar */}
+    <div 
+      className="bg-[#F2F2EC] -mx-4 sm:-mx-6 w-[calc(100%+2rem)] sm:w-[calc(100%+3rem)]" 
+      style={{ height: 'env(safe-area-inset-bottom, 0px)' }}
+      aria-hidden="true"
+    />
+  </>
 );
 
 const InstagramIcon = () => (
