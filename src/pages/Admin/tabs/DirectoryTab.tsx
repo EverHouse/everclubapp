@@ -28,7 +28,7 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
     { value: 'tier', label: 'Tier' },
 ];
 
-const VIRTUALIZATION_THRESHOLD = 20;
+const VIRTUALIZATION_THRESHOLD = 99999; // Temporarily disabled virtualization for debugging
 const VISITORS_PAGE_SIZE = 100;
 
 interface MobileRowProps {
