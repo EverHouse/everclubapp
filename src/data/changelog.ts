@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.62.2",
+    date: "2026-02-01",
+    title: "Billing Emails Now Handled by Stripe",
+    changes: [
+      "Changed: All billing-related emails (payment failures, renewal notices, grace period reminders) are now handled by Stripe instead of Resend",
+      "Changed: Resend is now only used for login codes (OTP), welcome emails, and staff notifications",
+      "Fixed: Development environment email guard added to prevent accidental emails to members",
+      "Technical: Added BILLING_EMAILS_DISABLED flag to membershipEmails.ts and paymentEmails.ts"
+    ]
+  },
+  {
     version: "9.62.1",
     date: "2026-02-01",
     title: "Resend Email Webhook Integration",
