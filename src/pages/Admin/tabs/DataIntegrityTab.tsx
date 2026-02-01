@@ -891,7 +891,12 @@ const DataIntegrityTab: React.FC = () => {
           stripeCustomers: data.stripeCustomers || [],
           hubspotContacts: data.hubspotContacts || [],
           localDatabaseUsers: data.localDatabaseUsers || [],
-          totals: data.totals || { stripe: 0, hubspot: 0, localDatabase: 0, total: 0 }
+          totals: {
+            stripe: data.totals?.stripe || 0,
+            hubspot: data.totals?.hubspot || 0,
+            localDatabase: data.totals?.localDatabase || 0,
+            total: data.totals?.total || 0
+          }
         });
         showToast(`Found ${data.totals?.total || 0} placeholder accounts`, data.totals?.total && data.totals.total > 0 ? 'info' : 'success');
       } else {
