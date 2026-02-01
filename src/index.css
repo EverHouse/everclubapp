@@ -204,25 +204,7 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--safari-toolbar-padding));
 }
 
-/* Safari safe area filler - CRITICAL for Safari translucent toolbar on iOS */
-/* This creates a fixed element at the very bottom that Safari samples for toolbar color */
-/* Using #nav-overlay-root::before since it has highest z-index and is always present */
-#nav-overlay-root::before {
-  content: '';
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 34px);
-  background-color: #F2F2EC;
-  pointer-events: none;
-  z-index: 99999;
-}
-
-/* Dark mode: use dark background for Safari toolbar */
-html.dark #nav-overlay-root::before {
-  background-color: #0f120a;
-}
+/* Safari safe area handled by #safari-safe-area-fill in index.html (real DOM element) */
 
 #root {
   background-color: inherit;
