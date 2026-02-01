@@ -111,7 +111,7 @@ export function useAvailabilityBlocks(date: string, resourceId?: number) {
 export function useCalendarClosures() {
   return useQuery({
     queryKey: bookingsKeys.closures(),
-    queryFn: () => fetchWithCredentials<CalendarClosure[]>('/api/calendar-closures'),
+    queryFn: () => fetchWithCredentials<CalendarClosure[]>('/api/closures'),
     staleTime: 1000 * 60 * 5,
   });
 }
