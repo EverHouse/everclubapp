@@ -7,7 +7,7 @@ import { useBottomNav } from '../../../contexts/BottomNavContext';
 import { useScrollLock } from '../../../hooks/useScrollLock';
 import { useToast } from '../../Toast';
 import { SimpleCheckoutForm } from '../../stripe/StripePaymentForm';
-import { getApiErrorMessage, getNetworkErrorMessage } from '../../../../utils/errorHandling';
+import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
