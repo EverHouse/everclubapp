@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.59.4",
+    date: "2026-02-01",
+    title: "Staff Navigation Fix",
+    changes: [
+      "Fixed: Rapid navigation between staff portal pages now works correctly",
+      "Fixed: Clicking a new page before the current one finishes loading no longer causes the page to get stuck"
+    ]
+  },
+  {
     version: "9.59.3",
     date: "2026-02-01",
     title: "iOS Safari Translucent Toolbar",
