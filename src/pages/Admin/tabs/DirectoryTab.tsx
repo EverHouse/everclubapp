@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { List, RowComponentProps as ListChildComponentProps } from 'react-window';
+// Note: react-window List removed due to compatibility issues with React Query
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData, MemberProfile } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
@@ -28,7 +28,8 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
     { value: 'tier', label: 'Tier' },
 ];
 
-const VIRTUALIZATION_THRESHOLD = 20;
+// Virtualization disabled - react-window causes Object.values errors with React Query
+const VIRTUALIZATION_THRESHOLD = Infinity;
 const VISITORS_PAGE_SIZE = 100;
 
 interface MobileRowProps {
