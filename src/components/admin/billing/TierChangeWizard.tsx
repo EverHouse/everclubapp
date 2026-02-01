@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ModalShell } from '../../ModalShell';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface Tier {
   id: number;
@@ -47,9 +48,19 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
       setPreview(null);
       setError(null);
       fetch('/api/admin/tier-change/tiers', { credentials: 'include' })
-        .then(r => r.json())
-        .then(data => setTiers(data.tiers || []))
-        .catch(() => setError('Failed to load tiers'));
+        .then(r => {
+          if (!r.ok) {
+            setError(getApiErrorMessage(r, 'load tiers'));
+            return;
+          }
+          return r.json();
+        })
+        .then(data => {
+          if (data && data.tiers) {
+            setTiers(data.tiers);
+          }
+        })
+        .catch(() => setError(getNetworkErrorMessage()));
     }
   }, [isOpen]);
 
@@ -63,12 +74,21 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
         credentials: 'include',
         body: JSON.stringify({ subscriptionId, newPriceId: selectedPriceId, immediate })
       })
-        .then(r => r.json())
-        .then(data => {
-          if (data.preview) setPreview(data.preview);
-          else if (data.error) setError(data.error);
+        .then(r => {
+          if (!r.ok) {
+            setError(getApiErrorMessage(r, 'preview'));
+            return;
+          }
+          return r.json();
         })
-        .catch(() => setError('Failed to preview'))
+        .then(data => {
+          if (data && data.preview) {
+            setPreview(data.preview);
+          } else if (data && data.error) {
+            setError(data.error);
+          }
+        })
+        .catch(() => setError(getNetworkErrorMessage()))
         .finally(() => setPreviewLoading(false));
     } else {
       setPreview(null);
@@ -85,15 +105,19 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
         credentials: 'include',
         body: JSON.stringify({ memberEmail, subscriptionId, newPriceId: selectedPriceId, immediate })
       });
+      if (!res.ok) {
+        setError(getApiErrorMessage(res, 'change tier'));
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         onSuccess();
         onClose();
       } else {
         setError(data.error || 'Failed to change tier');
       }
     } catch {
-      setError('Failed to change tier');
+      setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
     }

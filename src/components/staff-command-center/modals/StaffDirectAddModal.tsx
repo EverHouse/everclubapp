@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface StaffDirectAddModalProps {
   isOpen: boolean;
@@ -136,16 +137,15 @@ export const StaffDirectAddModal: React.FC<StaffDirectAddModalProps> = ({
         body: JSON.stringify(body)
       });
 
-      if (res.ok) {
-        onSuccess();
-        onClose();
-        resetForm();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to add player');
+      if (!res.ok) {
+        setError(getApiErrorMessage(res, 'add player'));
+        return;
       }
+      onSuccess();
+      onClose();
+      resetForm();
     } catch (err) {
-      setError('Failed to add player');
+      setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePageReady } from '../../../contexts/PageReadyContext';
 import { useData, MemberProfile } from '../../../contexts/DataContext';
 import { formatDateDisplayWithDay, formatDateTimePacific, getTodayPacific } from '../../../utils/dateUtils';
+import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
 import PullToRefresh from '../../../components/PullToRefresh';
 import { useToast } from '../../../components/Toast';
 import FloatingActionButton from '../../../components/FloatingActionButton';
@@ -616,7 +617,7 @@ const EventsAdminContent: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['events-needs-review'] });
         },
         onError: () => {
-            setError('Failed to save event. Please try again.');
+            setError(getNetworkErrorMessage());
         }
     });
 
@@ -630,7 +631,7 @@ const EventsAdminContent: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['admin-events'] });
         },
         onError: () => {
-            setError('Failed to archive event');
+            setError(getNetworkErrorMessage());
             showToast('Failed to archive event', 'error');
             setTimeout(() => setError(null), 3000);
         }
@@ -1430,7 +1431,7 @@ const WellnessAdminContent: React.FC = () => {
             setTimeout(() => setSuccess(null), 3000);
         },
         onError: (error: Error) => {
-            setError(error.message || 'Failed to save class');
+            setError(error.message || getNetworkErrorMessage());
         }
     });
 
@@ -1443,7 +1444,7 @@ const WellnessAdminContent: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
         },
         onError: () => {
-            setError('Failed to delete class');
+            setError(getNetworkErrorMessage());
             setTimeout(() => setError(null), 3000);
         }
     });
@@ -1590,7 +1591,7 @@ const WellnessAdminContent: React.FC = () => {
                     const uploadData = await uploadRes.json();
                     imageUrl = uploadData.url;
                 } else {
-                    setError('Failed to upload image');
+                    setError(getApiErrorMessage(uploadRes, 'upload image'));
                     setIsUploading(false);
                     return;
                 }
@@ -1618,7 +1619,7 @@ const WellnessAdminContent: React.FC = () => {
 
             saveClassMutation.mutate({ url, method, payload });
         } catch (err) {
-            setError('Failed to save class');
+            setError(getNetworkErrorMessage());
         } finally {
             setIsUploading(false);
         }

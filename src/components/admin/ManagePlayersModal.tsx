@@ -3,6 +3,7 @@ import SlideUpDrawer from '../SlideUpDrawer';
 import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useData } from '../../contexts/DataContext';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface BookingMember {
   id: number;
@@ -163,10 +164,10 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
         setGuests(data.guests || []);
         setValidation(data.validation || null);
       } else {
-        setError('Failed to load booking members');
+        setError(getApiErrorMessage(res, 'load booking members'));
       }
     } catch (err) {
-      setError('Failed to load booking members');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
     }
@@ -206,11 +207,10 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
         setRememberEmail(true);
         setHasChanges(true);
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to link member');
+        setError(getApiErrorMessage(res, 'link member'));
       }
     } catch (err) {
-      setError('Failed to link member');
+      setError(getNetworkErrorMessage());
     } finally {
       setLinkingSlotId(null);
     }
@@ -260,11 +260,10 @@ const ManagePlayersModal: React.FC<ManagePlayersModalProps> = ({
         await fetchBookingMembers();
         setHasChanges(true);
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to unlink member');
+        setError(getApiErrorMessage(res, 'unlink member'));
       }
     } catch (err) {
-      setError('Failed to unlink member');
+      setError(getNetworkErrorMessage());
     } finally {
       setUnlinkingSlotId(null);
     }

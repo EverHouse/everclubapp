@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface FamilyMemberInfo {
   id: number;
@@ -85,11 +86,10 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       } else if (res.status === 404) {
         setFamilyGroup(null);
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to load billing group');
+        setError(getApiErrorMessage(res, 'load billing group'));
       }
     } catch (err) {
-      setError('Failed to load billing group');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
     }
@@ -136,11 +136,10 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
         setGroupName('');
         showSuccess('Billing group created successfully');
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to create billing group');
+        setError(getApiErrorMessage(res, 'create billing group'));
       }
     } catch (err) {
-      setError('Failed to create billing group');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsCreatingGroup(false);
     }
@@ -170,11 +169,10 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
         setSelectedRelationship('');
         showSuccess('Group member added successfully');
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to add group member');
+        setError(getApiErrorMessage(res, 'add group member'));
       }
     } catch (err) {
-      setError('Failed to add group member');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsAddingMember(false);
     }
@@ -192,11 +190,10 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
         await fetchFamilyGroup();
         showSuccess('Group member removed');
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to remove group member');
+        setError(getApiErrorMessage(res, 'remove group member'));
       }
     } catch (err) {
-      setError('Failed to remove group member');
+      setError(getNetworkErrorMessage());
     } finally {
       setRemovingMemberId(null);
     }
@@ -220,11 +217,10 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
         setEditedGroupName('');
         showSuccess('Group name updated');
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to update group name');
+        setError(getApiErrorMessage(res, 'update group name'));
       }
     } catch (err) {
-      setError('Failed to update group name');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsSavingGroupName(false);
     }
@@ -245,11 +241,10 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
         setShowDeleteConfirm(false);
         showSuccess('Billing group deleted');
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to delete billing group');
+        setError(getApiErrorMessage(res, 'delete billing group'));
       }
     } catch (err) {
-      setError('Failed to delete billing group');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsDeletingGroup(false);
     }

@@ -8,6 +8,7 @@ import { CompedBillingSection } from './billing/CompedBillingSection';
 import { TierChangeWizard } from './billing/TierChangeWizard';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
 import GroupBillingManager from './GroupBillingManager';
+import { getApiErrorMessage, getNetworkErrorMessage, extractApiError } from '@/utils/errorHandling';
 
 interface GuestHistoryItem {
   id: number;
@@ -532,11 +533,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         const data = await res.json();
         setBillingInfo(data);
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to load billing info');
+        setError(await extractApiError(res, 'load billing info'));
       }
     } catch (err) {
-      setError('Failed to load billing info');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
     }
@@ -581,8 +581,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       });
       
       if (!res.ok) {
-        const error = await res.json();
-        setError('Failed to update tier: ' + (error.error || 'Unknown error'));
+        setError(await extractApiError(res, 'update tier'));
       } else {
         setIsEditingTier(false);
         if (onTierUpdate) onTierUpdate(manualTier);
@@ -591,7 +590,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
       }
     } catch (err) {
       console.error('Error updating tier:', err);
-      setError('Failed to update tier. Please try again.');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsSavingTier(false);
     }
@@ -611,11 +610,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         await fetchBillingInfo();
         showSuccess('Billing source updated');
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to update billing source');
+        setError(getApiErrorMessage(res, 'update billing source'));
       }
     } catch (err) {
-      setError('Failed to update billing source');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsUpdatingSource(false);
     }
@@ -638,11 +636,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         const resumeDate = new Date(data.resumeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
         showSuccess(`Subscription paused for ${durationDays} days. Billing resumes on ${resumeDate}.`);
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to pause subscription');
+        setError(getApiErrorMessage(res, 'pause subscription'));
       }
     } catch (err) {
-      setError('Failed to pause subscription');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsPausing(false);
     }
@@ -660,11 +657,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         await fetchBillingInfo();
         showSuccess('Subscription resumed');
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to resume subscription');
+        setError(getApiErrorMessage(res, 'resume subscription'));
       }
     } catch (err) {
-      setError('Failed to resume subscription');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsResuming(false);
     }
@@ -683,11 +679,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setShowCancelModal(false);
         showSuccess('Subscription will be canceled at period end');
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to cancel subscription');
+        setError(getApiErrorMessage(res, 'cancel subscription'));
       }
     } catch (err) {
-      setError('Failed to cancel subscription');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsCanceling(false);
     }
@@ -708,11 +703,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setShowCreditModal(false);
         showSuccess(`Credit of $${(amountCents / 100).toFixed(2)} applied`);
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to apply credit');
+        setError(getApiErrorMessage(res, 'apply credit'));
       }
     } catch (err) {
-      setError('Failed to apply credit');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsApplyingCredit(false);
     }
@@ -733,11 +727,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setShowDiscountModal(false);
         showSuccess(`${percentOff}% discount applied`);
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to apply discount');
+        setError(getApiErrorMessage(res, 'apply discount'));
       }
     } catch (err) {
-      setError('Failed to apply discount');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsApplyingDiscount(false);
     }
@@ -757,11 +750,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           window.open(data.url, '_blank');
         }
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to get payment link');
+        setError(getApiErrorMessage(res, 'get payment link'));
       }
     } catch (err) {
-      setError('Failed to get payment link');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsGettingPaymentLink(false);
     }
@@ -783,11 +775,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           window.open(data.url, '_blank');
         }
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to open billing portal');
+        setError(getApiErrorMessage(res, 'open billing portal'));
       }
     } catch (err) {
-      setError('Failed to open billing portal');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsOpeningBillingPortal(false);
     }
@@ -806,11 +797,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         await fetchBillingInfo();
         showSuccess(data.created ? 'Created new Stripe customer' : 'Linked existing Stripe customer');
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to sync to Stripe');
+        setError(getApiErrorMessage(res, 'sync to Stripe'));
       }
     } catch (err) {
-      setError('Failed to sync to Stripe');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsSyncingToStripe(false);
     }
@@ -869,7 +859,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setError('Sync completed but no changes were made');
       }
     } catch (err) {
-      setError('Failed to sync Stripe data');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsSyncingStripeData(false);
     }
@@ -904,11 +894,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         setSelectedCoupon('');
         showSuccess(data.message || 'Subscription created successfully');
       } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to create subscription');
+        setError(getApiErrorMessage(res, 'create subscription'));
       }
     } catch (err) {
-      setError('Failed to create subscription');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsCreatingSubscription(false);
     }

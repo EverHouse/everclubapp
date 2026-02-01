@@ -5,6 +5,7 @@ import Input from '../../components/Input';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { AnimatedPage } from '../../components/motion';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 const Contact: React.FC = () => {
   const navigate = useNavigate();
@@ -49,14 +50,15 @@ const Contact: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit form');
+        setError(getApiErrorMessage(response, 'submit form'));
+        return;
       }
 
       setIsSubmitted(true);
       setFormData({ topic: 'Membership Inquiry', fullName: '', email: '', message: '' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError('Something went wrong. Please try again or contact us directly.');
+      setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
     }

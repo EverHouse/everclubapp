@@ -3,6 +3,7 @@ import { useToast } from '../../Toast';
 import BookingMembersEditor from '../../admin/BookingMembersEditor';
 import { CheckinBillingModal } from './CheckinBillingModal';
 import SlideUpDrawer from '../../SlideUpDrawer';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface BookingContext {
   bookingId: number;
@@ -80,10 +81,10 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
         });
         setRosterComplete(data.validation?.emptySlots === 0);
       } else {
-        setError('Failed to load booking details');
+        setError(getApiErrorMessage(res, 'load booking details'));
       }
     } catch (err) {
-      setError('Failed to load booking details');
+      setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
     }
@@ -118,11 +119,10 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
           }
         }
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to check in');
+        setError(getApiErrorMessage(res, 'check in'));
       }
     } catch (err) {
-      setError('Failed to check in');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsCheckingIn(false);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../../Toast';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface AddUserModalProps {
   isOpen: boolean;
@@ -231,21 +232,21 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
         })
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        showToast(`${firstName.trim()} ${lastName.trim()} added successfully`, 'success');
-        onSuccess?.();
-        onClose();
-      } else {
-        const data = await res.json();
+      if (!res.ok) {
         if (res.status === 409) {
+          const data = await res.json();
           setError(`This email already exists in the system. Check the directory for ${data.existingUser?.name || email}.`);
         } else {
-          setError(data.error || 'Failed to add user');
+          setError(getApiErrorMessage(res, 'add user'));
         }
+        return;
       }
+      const data = await res.json();
+      showToast(`${firstName.trim()} ${lastName.trim()} added successfully`, 'success');
+      onSuccess?.();
+      onClose();
     } catch (err) {
-      setError('Failed to add user');
+      setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
     }

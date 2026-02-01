@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../Toast';
 import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 import SlideUpDrawer from '../../SlideUpDrawer';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 function formatTime12Hour(time: string | undefined): string {
   if (!time) return '';
@@ -104,10 +105,10 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         const data = await res.json();
         setContext(data);
       } else {
-        setError('Failed to load billing context');
+        setError(getApiErrorMessage(res, 'load billing context'));
       }
     } catch (err) {
-      setError('Failed to load billing context');
+      setError(getNetworkErrorMessage());
     } finally {
       setLoading(false);
     }
@@ -259,11 +260,10 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         onCheckinComplete();
         onClose();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to check in');
+        setError(getApiErrorMessage(res, 'check in'));
       }
     } catch (err) {
-      setError('Failed to check in');
+      setError(getNetworkErrorMessage());
     } finally {
       setActionInProgress(null);
     }
@@ -282,11 +282,10 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         onCheckinComplete();
         onClose();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to check in');
+        setError(getApiErrorMessage(res, 'check in'));
       }
     } catch (err) {
-      setError('Failed to check in');
+      setError(getNetworkErrorMessage());
     } finally {
       setActionInProgress(null);
     }

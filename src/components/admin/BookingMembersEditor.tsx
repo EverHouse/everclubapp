@@ -4,6 +4,7 @@ import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
 import { useData } from '../../contexts/DataContext';
 import { useToast } from '../Toast';
 import { StripePaymentForm } from '../stripe/StripePaymentForm';
+import { getApiErrorMessage, getNetworkErrorMessage } from '@/utils/errorHandling';
 
 interface BookingMember {
   id: number;
@@ -258,10 +259,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         }
         setFinancialSummary(data.financialSummary || null);
       } else {
-        setError('Failed to load booking members');
+        setError(getApiErrorMessage(res, 'load booking members'));
       }
     } catch (err) {
-      setError('Failed to load booking members');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsLoading(false);
     }
@@ -293,11 +294,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
           setError(data.error);
         }
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to link member');
+        setError(getApiErrorMessage(res, 'link member'));
       }
     } catch (err) {
-      setError('Failed to link member');
+      setError(getNetworkErrorMessage());
     } finally {
       setLinkingSlotId(null);
     }
@@ -315,11 +315,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         await fetchBookingMembers();
         onMemberLinked?.();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to unlink member');
+        setError(getApiErrorMessage(res, 'unlink member'));
       }
     } catch (err) {
-      setError('Failed to unlink member');
+      setError(getNetworkErrorMessage());
     } finally {
       setUnlinkingSlotId(null);
     }
@@ -362,11 +361,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
           });
         }
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to add guest');
+        setError(getApiErrorMessage(res, 'add guest'));
       }
     } catch (err) {
-      setError('Failed to add guest');
+      setError(getNetworkErrorMessage());
     } finally {
       setIsAddingGuest(false);
     }
@@ -391,11 +389,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         setMemberMatchWarning(null);
         onMemberLinked?.();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to link member');
+        setError(getApiErrorMessage(res, 'link member'));
       }
     } catch (err) {
-      setError('Failed to link member');
+      setError(getNetworkErrorMessage());
     } finally {
       setLinkingSlotId(null);
     }

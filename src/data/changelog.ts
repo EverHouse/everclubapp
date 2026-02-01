@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.60.5",
+    date: "2026-02-01",
+    title: "Comprehensive Error Handling Improvements",
+    changes: [
+      "Improved: All billing operations now show clear, actionable error messages (session expired, too many requests, server issues, network problems)",
+      "Improved: Check-in flow shows helpful error guidance instead of generic 'Failed' messages",
+      "Improved: Booking player management has consistent error messaging across all operations",
+      "Improved: Event management and class scheduling show specific error context",
+      "Improved: Group billing, tier changes, and member creation all use standardized error handling",
+      "Technical: Added shared error handling utility for consistent user experience across the app"
+    ]
+  },
+  {
     version: "9.60.4",
     date: "2026-02-01",
     title: "Stability Improvements",
