@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.62.6",
+    date: "2026-02-02",
+    title: "Real-Time Connection Stability Improvements",
+    changes: [
+      "Fixed: Staff dashboard no longer creates multiple simultaneous connections - now uses a single shared connection",
+      "Fixed: Pages no longer crash with 'Failed to fetch' errors when loading before login is complete",
+      "Improved: Data loading now waits until your session is verified, preventing errors during app startup",
+      "Improved: Background syncing is more reliable and won't attempt updates before you're logged in"
+    ]
+  },
+  {
     version: "9.62.5",
     date: "2026-02-02",
     title: "Private Events Display Fix",
