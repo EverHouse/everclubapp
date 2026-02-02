@@ -13,6 +13,22 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.63.0",
+    date: "2026-02-02",
+    title: "Corporate Volume Pricing & 30-Day Cancellation Notice",
+    isMajor: true,
+    changes: [
+      "New: Corporate memberships now use tiered volume pricing - larger teams get lower per-seat rates",
+      "New: Volume tiers: $350/seat (1-4), $325/seat (5-9), $299/seat (10-19), $275/seat (20-49), $249/seat (50+)",
+      "New: Subscription prices automatically adjust when employees are added or removed",
+      "New: 30-day notice period for membership cancellations - cancellation takes effect 30 days after request or at billing period end (whichever is later)",
+      "New: Members can request cancellation from their billing page with optional reason",
+      "New: Staff are automatically notified when members request cancellation",
+      "New: Staff can undo pending cancellations if members change their mind",
+      "New: Cancellation status now visible in member billing info"
+    ]
+  },
+  {
     version: "9.62.8",
     date: "2026-02-02",
     title: "Security & Error Recovery Improvements",
