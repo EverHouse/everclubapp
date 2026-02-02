@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.65.3",
+    date: "2026-02-02",
+    title: "Safari Toolbar Fix",
+    changes: [
+      "Fixed: Green loading screen no longer appears between page navigations (only shows on initial app startup)",
+      "Fixed: Safari toolbar should no longer flash green when switching pages",
+      "Improved: Page transitions are now instant without any loading overlay"
+    ]
+  },
+  {
     version: "9.65.2",
     date: "2026-02-02",
     title: "Notification System Fixes",

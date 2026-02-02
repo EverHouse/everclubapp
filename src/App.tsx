@@ -25,7 +25,6 @@ import MemberBottomNav from './components/MemberBottomNav';
 import { NavigationLoadingProvider, useNavigationLoading } from './contexts/NavigationLoadingContext';
 import { PageReadyProvider } from './contexts/PageReadyContext';
 import WalkingGolferLoader from './components/WalkingGolferLoader';
-import NavigationLoader from './components/NavigationLoader';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
 import { useNotificationStore } from './stores/notificationStore';
 import { useEdgeSwipe } from './hooks/useEdgeSwipe';
@@ -808,7 +807,6 @@ const App: React.FC = () => {
               <StaffBookingToast />
               <UpdateNotification />
               <BrowserRouter>
-                <NavigationLoader />
                 <SmoothScrollProvider>
                   <ScrollToTop />
                   <Layout>
