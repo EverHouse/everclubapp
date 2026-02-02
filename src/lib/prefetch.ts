@@ -17,7 +17,7 @@ const routeAPIs: Record<string, string[]> = {
   '/member-events': ['/api/events'],
   '/member-wellness': ['/api/wellness-classes'],
   '/updates': ['/api/announcements', '/api/closures'],
-  '/dashboard': ['/api/events', '/api/announcements'],
+  '/dashboard': ['/api/member/dashboard-data'],
 };
 
 export const prefetchRoute = (path: string) => {

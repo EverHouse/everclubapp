@@ -132,6 +132,18 @@ interface BannerAnnouncement {
   linkTarget?: string;
 }
 
+interface DashboardData {
+  bookings: DBBooking[];
+  rsvps: DBRSVP[];
+  wellnessEnrollments: DBWellnessEnrollment[];
+  bookingRequests: DBBookingRequest[];
+  conferenceRoomBookings: any[];
+  wellnessClasses: { id: number; title: string; date: string; time: string }[];
+  events: { id: number; title: string; event_date: string; start_time: string }[];
+  guestPasses: GuestPasses | null;
+  bannerAnnouncement: BannerAnnouncement | null;
+}
+
 const formatDate = (dateStr: string): string => {
   return formatDateShort(dateStr);
 };
@@ -165,100 +177,30 @@ const Dashboard: React.FC = () => {
   const isStaffOrAdminProfile = user?.role === 'admin' || user?.role === 'staff';
   const { permissions: tierPermissions } = useTierPermissions(user?.tier);
 
-  const conferenceRoomParams = new URLSearchParams();
-  if (user?.name) conferenceRoomParams.set('member_name', user.name);
-  if (user?.email) conferenceRoomParams.set('member_email', user.email);
-  const conferenceRoomUrl = `/api/conference-room-bookings${conferenceRoomParams.toString() ? '?' + conferenceRoomParams.toString() : ''}`;
-
-  const { data: dbBookings = [], isLoading: bookingsLoading, error: bookingsError, refetch: refetchBookings } = useQuery({
-    queryKey: ['member', 'bookings', user?.email],
-    queryFn: () => fetchWithCredentials<DBBooking[]>(`/api/bookings?user_email=${encodeURIComponent(user?.email || '')}`),
+  // Combined dashboard data query - replaces 9 separate API calls
+  const { data: dashboardData, isLoading, error: dashboardError, refetch: refetchDashboardData } = useQuery({
+    queryKey: ['member', 'dashboard-data'],
+    queryFn: () => fetchWithCredentials<DashboardData>('/api/member/dashboard-data'),
     enabled: !!user?.email,
     refetchOnWindowFocus: true,
-    staleTime: 30000,
+    staleTime: 300000, // 5 minutes - makes returning to dashboard instant
   });
 
-  const { data: dbRSVPs = [], isLoading: rsvpsLoading, error: rsvpsError, refetch: refetchRSVPs } = useQuery({
-    queryKey: ['member', 'rsvps', user?.email],
-    queryFn: () => fetchWithCredentials<DBRSVP[]>(`/api/rsvps?user_email=${encodeURIComponent(user?.email || '')}`),
-    enabled: !!user?.email,
-    refetchOnWindowFocus: true,
-    staleTime: 30000,
-  });
-
-  const { data: dbWellnessEnrollments = [], isLoading: wellnessLoading, error: wellnessError, refetch: refetchWellness } = useQuery({
-    queryKey: ['member', 'wellness-enrollments', user?.email],
-    queryFn: () => fetchWithCredentials<DBWellnessEnrollment[]>(`/api/wellness-enrollments?user_email=${encodeURIComponent(user?.email || '')}`),
-    enabled: !!user?.email,
-    refetchOnWindowFocus: true,
-    staleTime: 30000,
-  });
-
-  const { data: dbBookingRequests = [], isLoading: requestsLoading, error: requestsError, refetch: refetchRequests } = useQuery({
-    queryKey: ['member', 'booking-requests', user?.email],
-    queryFn: () => fetchWithCredentials<DBBookingRequest[]>(`/api/booking-requests?user_email=${encodeURIComponent(user?.email || '')}`),
-    enabled: !!user?.email,
-    refetchOnWindowFocus: true,
-    staleTime: 30000,
-  });
-
-  const { data: dbConferenceRoomBookings = [], isLoading: conferenceLoading, error: conferenceError, refetch: refetchConference } = useQuery({
-    queryKey: ['member', 'conference-room-bookings', user?.email, user?.name],
-    queryFn: () => fetchWithCredentials<any[]>(conferenceRoomUrl),
-    enabled: !!user?.email,
-    refetchOnWindowFocus: true,
-    staleTime: 30000,
-  });
-
-  const { data: allWellnessClasses = [], isLoading: classesLoading, error: classesError } = useQuery({
-    queryKey: ['wellness-classes'],
-    queryFn: () => fetchWithCredentials<{ id: number; title: string; date: string; time: string }[]>('/api/wellness-classes'),
-    enabled: !!user?.email,
-    refetchOnWindowFocus: true,
-    staleTime: 60000,
-  });
-
-  const { data: allEvents = [], isLoading: eventsLoading, error: eventsError } = useQuery({
-    queryKey: ['events'],
-    queryFn: () => fetchWithCredentials<{ id: number; title: string; event_date: string; start_time: string }[]>('/api/events'),
-    enabled: !!user?.email,
-    refetchOnWindowFocus: true,
-    staleTime: 60000,
-  });
-
-  const { data: guestPasses, refetch: refetchGuestPasses } = useQuery({
-    queryKey: ['member', 'guest-passes', user?.email, user?.tier],
-    queryFn: () => fetchWithCredentials<GuestPasses>(`/api/guest-passes/${encodeURIComponent(user?.email || '')}?tier=${encodeURIComponent(user?.tier || 'Social')}`),
-    enabled: !!user?.email && !isStaffOrAdminProfile,
-    refetchOnWindowFocus: true,
-    staleTime: 60000,
-  });
-
-  const { data: bannerAnnouncement } = useQuery({
-    queryKey: ['announcements', 'banner'],
-    queryFn: () => fetchWithCredentials<BannerAnnouncement>('/api/announcements/banner'),
-    enabled: !!user?.email,
-    staleTime: 300000,
-  });
-
-  const isLoading = bookingsLoading || rsvpsLoading || wellnessLoading || requestsLoading || 
-                    conferenceLoading || classesLoading || eventsLoading;
+  // Extract individual data with fallbacks
+  const dbBookings = dashboardData?.bookings ?? [];
+  const dbRSVPs = dashboardData?.rsvps ?? [];
+  const dbWellnessEnrollments = dashboardData?.wellnessEnrollments ?? [];
+  const dbBookingRequests = dashboardData?.bookingRequests ?? [];
+  const dbConferenceRoomBookings = dashboardData?.conferenceRoomBookings ?? [];
+  const allWellnessClasses = dashboardData?.wellnessClasses ?? [];
+  const allEvents = dashboardData?.events ?? [];
+  const guestPasses = isStaffOrAdminProfile ? null : dashboardData?.guestPasses;
+  const bannerAnnouncement = dashboardData?.bannerAnnouncement;
   
-  const failedItems: string[] = [];
-  if (bookingsError) failedItems.push('bookings');
-  if (rsvpsError) failedItems.push('event RSVPs');
-  if (wellnessError) failedItems.push('wellness enrollments');
-  if (requestsError) failedItems.push('booking requests');
-  if (conferenceError) failedItems.push('conference room bookings');
-  if (classesError) failedItems.push('wellness classes');
-  if (eventsError) failedItems.push('events');
-  
-  const error = failedItems.length > 0 ? `Failed to load: ${failedItems.join(', ')}. Pull down to refresh.` : null;
+  const error = dashboardError ? 'Failed to load dashboard data. Pull down to refresh.' : null;
 
   const refetchAllData = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['member'] });
-    queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
-    queryClient.invalidateQueries({ queryKey: ['events'] });
+    queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
   }, [queryClient]);
 
   useEffect(() => {
@@ -278,7 +220,7 @@ const Dashboard: React.FC = () => {
     const handleMemberStatsUpdated = (event: CustomEvent) => {
       const detail = event.detail;
       if (detail?.memberEmail?.toLowerCase() === user?.email?.toLowerCase() && detail?.guestPasses !== undefined) {
-        queryClient.invalidateQueries({ queryKey: ['member', 'guest-passes'] });
+        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
       }
     };
 
@@ -1249,7 +1191,7 @@ const Dashboard: React.FC = () => {
         member_email: user?.email || ''
       }}
       onSuccess={async () => {
-        queryClient.invalidateQueries({ queryKey: ['member', 'guest-passes'] });
+        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
       }}
     />
 

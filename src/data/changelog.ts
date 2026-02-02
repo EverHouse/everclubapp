@@ -13,12 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "9.67.1",
+    version: "9.68.0",
     date: "2026-02-02",
-    title: "Data Integrity Check Improvement",
+    title: "Page Load Performance Boost",
     changes: [
-      "Fixed: Stripe subscription sync check now excludes MindBody-billed members - no longer flags them as missing Stripe subscriptions",
-      "Improved: Clearer error messages in data integrity checks to distinguish billing providers"
+      "Performance: Dashboard now loads all data in a single request instead of 9 separate calls - significantly faster initial load",
+      "Performance: Dashboard data cached for 5 minutes - returning to the dashboard is now instant",
+      "Performance: Navigation prefetching improved - data starts loading when you hover over menu items",
+      "Fixed: Stripe subscription sync check now properly excludes MindBody-billed members"
     ]
   },
   {
