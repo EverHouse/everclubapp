@@ -1,7 +1,7 @@
 # Ever House Members App
 
 ## Overview
-The Ever House Members App is a private members club application for golf and wellness centers. Its primary purpose is to facilitate golf simulator bookings, wellness service appointments, and club event management. The application aims to improve member engagement and streamline operational workflows, providing a cohesive digital experience. The project envisions becoming a central digital hub for private members clubs, offering comprehensive tools for membership management, facility booking, and community building, thereby boosting member satisfaction and operational efficiency.
+The Ever House Members App is a private members club application designed for golf and wellness centers. It facilitates golf simulator bookings, wellness service appointments, and club event management. The application aims to enhance member engagement, streamline operational workflows, and provide a unified digital experience. The project aspires to become a central digital hub for private members clubs, offering comprehensive tools for membership management, facility booking, and community building to boost member satisfaction and operational efficiency.
 
 ## User Preferences
 - **CRITICAL: Communication Style** - The founder is non-technical. Always explain changes in plain English, focusing on how they affect the member/staff experience or business operations. Avoid jargon like "ORM," "WebSocket," "orchestration," "middleware," etc. If a technical term is necessary, explain it simply first (e.g., "the notification system" instead of "WebSocket server").
@@ -18,75 +18,64 @@ The Ever House Members App is a private members club application for golf and we
 - Do not make changes to the file `Y`.
 
 ## System Architecture
-The application utilizes a React 19 frontend with Vite, styled using Tailwind CSS, and an Express.js backend with a PostgreSQL database.
+The application uses a React 19 frontend with Vite and Tailwind CSS, connected to an Express.js backend with a PostgreSQL database.
 
 ### UI/UX Decisions
-- **Design System**: Liquid Glass (iOS-inspired glassmorphism) with an EH monogram logo, WCAG AA contrast compliance, and `aria-label` attributes for accessibility.
-- **Typography**: Playfair Display for headlines and Inter for body/UI.
+- **Design System**: Liquid Glass (iOS-inspired glassmorphism) with WCAG AA compliance and `aria-label` attributes.
+- **Typography**: Playfair Display for headlines and Inter for body text.
 - **Color Palette**: Deep Green, Lavender, Bone, Background Dark.
-- **Navigation**: Unified header and Member Bottom Nav. Admin uses route-based navigation (/admin/bookings, /admin/directory, etc.) with React Router nested routes.
-- **Responsive Design**: Optimized for iPhone, iPad, and Desktop. Tables use responsive pattern: cards on mobile (<md), tables on desktop (>=md).
+- **Navigation**: Unified header and Member Bottom Nav; Admin uses route-based navigation with React Router.
+- **Responsive Design**: Optimized for mobile, tablet, and desktop, with responsive table patterns.
 - **Theme System**: Supports Light, Dark, and System themes, persisted locally.
-- **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax scrolling, and entry/exit animations.
-- **Drawer UX**: MemberProfileDrawer hides bottom navigation and floating action button on mobile. All modals converted to SlideUpDrawer with drag-to-dismiss gesture support and sticky action buttons.
-- **Staff FAB**: Floating action button with slide-up drawer menu for quick actions: New User, Announcement, Notice, Manual Booking, QR Scanner.
-- **ConfirmDialog**: Custom Liquid Glass styled confirmation dialogs replacing all browser confirm() calls. Supports danger, warning, and info variants.
+- **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax, and entry/exit animations.
+- **Drawer UX**: SlideUpDrawer for modals with drag-to-dismiss.
+- **Staff FAB**: Floating action button for quick staff actions (New User, Announcement, Booking, QR Scanner).
+- **ConfirmDialog**: Custom Liquid Glass styled confirmation dialogs.
 
 ### Technical Implementations
 - **Core Stack**: React 19 (Vite), React Router DOM, Express.js (REST API), PostgreSQL, Tailwind CSS.
-- **Timezone Handling**: All date/time operations prioritize the 'America/Los_Angeles' timezone.
-- **Backend Structure**: Modular API routes, loader modules for startup tasks, readiness/health checks, and graceful shutdown.
-- **Member Management**: Supports member tiers, tags, directory, and unified billing groups with primary payers.
-- **Tier Features System**: Flexible, database-driven comparison table with `tier_features` and `tier_feature_values` tables. Features can have boolean (checkmarks), number, or text values. Admin can add/rename/delete features which automatically appear across all tiers.
-- **Booking System**: Features "Request & Hold," conflict detection, staff/member initiated bookings, multi-member bookings, calendar management, and uses database transactions with row-level locking and a trigger to prevent double-bookings.
-- **Check-In Notifications**: In-app and WebSocket notifications for check-in status and refunds.
-- **Trackman Integration**: Unified 1:1 sync for CSV imports and webhooks with origin tracking, UPSERT logic, and placeholder handling. Webhook integration supports real-time booking synchronization, delta billing, idempotency, and cross-midnight durations.
-- **Linked Email Addresses**: Supports alternate email addresses and auto-learns associations during Trackman imports.
-- **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware. Staff roles: `admin`, `staff`, `golf_instructor`. Golf instructors get special handling in Trackman imports (their bookings are converted to availability blocks instead of member bookings).
-- **Notifications**: In-app real-time notifications and a sequential notice dismissal system with 3-channel delivery.
-- **Real-Time Sync**: Instant updates via WebSocket, with Supabase Realtime as a parallel channel.
-- **PWA Features**: Service Worker caching, offline support, iOS-style interactions, and automatic cache invalidation on deploys. The service worker uses a build timestamp version to automatically clear old caches when a new version is deployed, showing users an "Update Available" notification with a refresh button. Push notification permissions are preserved across updates. The service worker now clears all existing caches during the install phase (before activation) to prevent stale content from causing errors on installed PWAs. The Error Boundary includes a "Clear Cache & Reload" button for users to recover from broken states without needing to delete and re-add the PWA. A global `window.clearPWACaches()` function is available for support scenarios.
-- **Stale Asset Detection**: PageErrorBoundary detects chunk load failures (from deployments) and auto-reloads the page once, with loop prevention via sessionStorage. Shows "App Updated" UI if reload already attempted.
-- **Error Resilience**: Background sync uses exponential backoff for retries and falls back to cached data on network failures. All API error handlers log failures with context (no silent swallowing).
-- **Performance Optimizations**: List virtualization, skeleton loaders, optimized CSS, lazy-loaded admin tabs, optimistic updates, and memoized context functions. State management uses Zustand stores for atomic state (notificationStore for real-time updates) and TanStack Query for data fetching, reducing unnecessary re-renders from the legacy DataContext.
-- **Notification Store**: Dedicated Zustand store (`notificationStore.ts`) for notification state management. All notification updates flow through this store to prevent cascading re-renders. The userStore delegates notification handling to this store.
-- **Admin Tools**: Admin-configurable features, data integrity dashboard, and data migration tools.
-- **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, data export, and admin audit log for staff access to member data.
-- **Waiver Management**: Tracks waiver versions and requires signing on login.
-- **Unified Fee Service**: Single authoritative source for all fee calculations, using `computeFeeBreakdown()` and `effectivePlayerCount = MAX(declared, actual)`. Roster changes invalidate cached fees.
-- **Webhook Safety**: Stripe webhooks process once via transactional dedup. Deferred action pattern for external calls and resource-based ordering guards.
+- **Timezone Handling**: All date/time operations are prioritized for 'America/Los_Angeles' timezone.
+- **Backend Structure**: Modular API routes, loader modules, health checks, graceful shutdown.
+- **Member Management**: Supports tiers, tags, directory, and unified billing groups.
+- **Tier Features System**: Database-driven, flexible comparison table for tier features.
+- **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, transactional with row-level locking.
+- **Trackman Integration**: Unified 1:1 sync with CSV imports and webhooks for real-time booking and delta billing.
+- **Linked Email Addresses**: Supports alternate emails and auto-learns associations from Trackman imports.
+- **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware.
+- **Notifications**: In-app real-time notifications and sequential notice dismissal, with 3-channel delivery.
+- **Real-Time Sync**: Instant updates via WebSocket and Supabase Realtime.
+- **PWA Features**: Service Worker caching, offline support, iOS-style interactions, automatic cache invalidation, and "Update Available" notifications.
+- **Stale Asset Detection**: PageErrorBoundary handles chunk load failures and auto-reloads.
+- **Error Resilience**: Exponential backoff for retries, fallbacks to cached data, and comprehensive API error logging.
+- **Performance Optimizations**: List virtualization, skeleton loaders, lazy-loaded components, optimistic updates, and memoized context functions.
+- **State Management**: Zustand stores for atomic state (e.g., notificationStore) and TanStack Query for data fetching.
+- **Admin Tools**: Admin-configurable features, data integrity dashboard, and migration tools.
+- **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, data export, and admin audit log.
+- **Waiver Management**: Tracks waiver versions and enforces signing on login.
+- **Unified Fee Service**: Centralized `computeFeeBreakdown()` for all fee calculations.
+- **Webhook Safety**: Transactional dedup for Stripe webhooks, deferred action pattern, resource-based ordering.
 - **Roster Protection**: Optimistic locking with `roster_version` and row-level locking.
-- **Billing Management**: Staff Payments Dashboard, unified payment history, member billing management, self-service portal, tier change wizard with proration, dunning for failed payments, and refund processing.
-- **Payment Recovery (Dunning)**: Tracks failed payments, retries, and notifies members.
-- **Grace Period System**: 3-day grace period for billing failures, with manual staff intervention for payment links.
-- **Day Pass System**: Non-members can purchase day passes with visitor matching, HubSpot sync, and QR code delivery.
-- **QR Code System**: QR codes for day passes and digital access cards for members, with staff scanning functionality.
-- **Corporate Membership**: Supports unified billing groups, volume pricing, corporate checkout, HubSpot company sync, and individual tracking.
-- **Data Integrity Architecture**: Stripe as the source of truth for billing, transaction rollback, webhook idempotency, and automatic status sync. Dual-source active tracking using HubSpot and Stripe.
-- **Stripe Member Auto-Fix**: Login flow automatically verifies Stripe subscription status and corrects `membership_status` if the database is out of sync.
-- **Stripe Subscription → HubSpot Sync**: Automated sync of `membership_status` and tier to HubSpot contact upon Stripe subscription creation.
-- **Member Balance Display**: Balance shows all fees where `payment_status = 'pending'` and `cached_fee_cents > 0`. Booking cancellations automatically clear fees.
-- **Stripe Customer Metadata Sync**: Customer metadata (userId, tier) is synced to Stripe.
-- **Stripe Transaction Cache**: Transactions are cached locally in `stripe_transaction_cache`.
+- **Billing Management**: Staff Payments Dashboard, unified payment history, member billing, self-service portal, tier change wizard with proration, dunning, and refund processing.
+- **Payment Recovery (Dunning)**: Tracks failed payments, retries, and member notifications.
+- **Grace Period System**: 3-day grace period for billing failures.
+- **Day Pass System**: Non-member day pass purchases with visitor matching and QR code delivery.
+- **QR Code System**: QR codes for day passes and digital access cards for members, with staff scanning.
+- **Corporate Membership**: Unified billing groups, volume pricing, corporate checkout, HubSpot sync, individual tracking.
+- **Data Integrity Architecture**: Stripe as source of truth for billing, transaction rollback, webhook idempotency, and dual-source active tracking with HubSpot.
+- **Stripe Member Auto-Fix**: Login flow verifies Stripe subscription status and corrects `membership_status`.
+- **Stripe Subscription → HubSpot Sync**: Automated sync of `membership_status` and tier to HubSpot contact.
+- **Member Balance Display**: Shows pending fees; booking cancellations clear fees.
+- **Stripe Customer Metadata Sync**: User ID and tier synced to Stripe customer metadata.
+- **Stripe Transaction Cache**: Local caching of Stripe transactions.
 - **Scheduled Maintenance**: Daily tasks for session cleanup, webhook log cleanup, Stripe reconciliation, and grace period checks.
-
-### Security Implementation (Audit: Feb 2026)
-- **Rate Limiting**: Comprehensive limiters - global (600/min), auth (10/15min per email+IP), payment (20/min), booking (30/min), checkout (5/min), sensitive actions (10/min).
-- **SQL Injection Prevention**: All queries use parameterized placeholders ($1, $2) or Drizzle ORM with safe SQL tagged templates.
-- **Webhook Signatures**: Stripe (via stripe-replit-sync library), HubSpot (HMAC-SHA256 with timing-safe comparison), Resend (Svix library).
-- **Session Security**: httpOnly: true, secure: true in production, sameSite: 'none', 30-day expiry, PostgreSQL session store.
-- **CORS**: Origin whitelist via getAllowedOrigins(), credentials enabled.
-- **Push Notifications**: All routes require isAuthenticated/isStaffOrAdmin middleware.
-- **Dependency Override**: fast-xml-parser forced to 5.3.4 via npm override to fix CVE-2026-25128 (HIGH severity DoS). No patched 4.x exists. @google-cloud/storage tested compatible.
-- **Known Residual**: 4 moderate esbuild/drizzle-kit vulnerabilities (dev-only, do not affect production).
+- **Security Implementation**: Rate limiting, SQL injection prevention (parameterized queries/Drizzle ORM), webhook signature verification (Stripe, HubSpot, Resend), secure session management (httpOnly, secure, sameSite=none), CORS origin whitelist, authentication middleware for push notifications, and dependency overrides for CVEs.
 
 ## External Dependencies
-- **Stripe Payments**: For in-app payment collection, subscription management, and webhook processing.
-- **Resend**: For email-based OTP verification and automated alerts.
-- **HubSpot CRM**: For contact and member management, two-way data sync, and communication preferences. Enhanced bidirectional sync includes: Stripe delinquent status tracking, granular SMS preferences (promotional, transactional, reminders), and linked emails extraction from merged HubSpot contacts (stored in `user_linked_emails` with source `hubspot_merge`).
-- **HubSpot Forms**: For application form submissions.
-- **Eventbrite**: For syncing members-only events.
-- **Google Calendar**: For integration with various club calendars.
-- **Apple Messages for Business**: For direct messaging.
-- **Amarie Aesthetics MedSpa**: For direct booking links.
-- **Supabase**: For backend admin client, Realtime subscriptions, and session token generation.
+- **Stripe Payments**: Payment collection, subscription management, webhooks.
+- **Resend**: Email-based OTP verification and automated alerts.
+- **HubSpot CRM**: Contact and member management, two-way data sync, communication preferences, and forms.
+- **Eventbrite**: Members-only event synchronization.
+- **Google Calendar**: Integration with various club calendars.
+- **Apple Messages for Business**: Direct messaging.
+- **Amarie Aesthetics MedSpa**: Direct booking links.
+- **Supabase**: Backend admin client, Realtime subscriptions, and session token generation.
