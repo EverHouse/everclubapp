@@ -3,10 +3,10 @@ import { db } from '../db';
 import { membershipTiers } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
+import { getCorporateVolumePrice } from '../core/stripe/groupBilling';
 
 const router = Router();
 
-const CORPORATE_BASE_RATE_CENTS = 35000;
 const CORPORATE_MIN_SEATS = 5;
 
 router.post('/api/checkout/sessions', async (req, res) => {
@@ -53,15 +53,16 @@ router.post('/api/checkout/sessions', async (req, res) => {
     };
 
     if (isCorporate) {
+      const corporatePricePerSeat = getCorporateVolumePrice(CORPORATE_MIN_SEATS);
       sessionParams.line_items = [
         {
           price_data: {
             currency: 'usd',
             product_data: {
               name: `${tierData.name} - Corporate Membership`,
-              description: `${CORPORATE_MIN_SEATS} employee seats at $${(CORPORATE_BASE_RATE_CENTS / 100).toFixed(2)}/seat/month. Volume discounts applied as employees are added.`,
+              description: `${CORPORATE_MIN_SEATS} employee seats at $${(corporatePricePerSeat / 100).toFixed(2)}/seat/month. Volume discounts applied as employees are added.`,
             },
-            unit_amount: CORPORATE_BASE_RATE_CENTS,
+            unit_amount: corporatePricePerSeat,
             recurring: {
               interval: 'month',
             },
