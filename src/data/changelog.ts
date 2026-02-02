@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.65.4",
+    date: "2026-02-02",
+    title: "Safari Toolbar Color Fix",
+    changes: [
+      "Fixed: Safari toolbar no longer shows green color - now matches page background",
+      "Fixed: Initial loading splash uses correct theme colors (light bone for public pages, theme-aware for portals)",
+      "Improved: Loading screen mascot switches between green and white versions based on background"
+    ]
+  },
+  {
     version: "9.65.3",
     date: "2026-02-02",
     title: "Safari Toolbar Fix",

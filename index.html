@@ -21,6 +21,19 @@
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         var isDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark) || (!themeMode && prefersDark);
         if (isDark) document.documentElement.classList.add('dark');
+        
+        // Set splash color based on page type and theme
+        // Public pages always use light bone, member/staff portals respect theme
+        var path = window.location.pathname;
+        var isPortal = path.startsWith('/member') || path.startsWith('/admin') || path.startsWith('/profile') || path.startsWith('/history') || path.startsWith('/book') || path.startsWith('/wellness') || path.startsWith('/events') || path.startsWith('/updates');
+        var splash = document.getElementById('app-splash');
+        if (splash) {
+          if (isPortal && isDark) {
+            splash.style.backgroundColor = '#1a1a1a';
+          } else {
+            splash.style.backgroundColor = '#F2F2EC';
+          }
+        }
       })();
     </script>
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -36,7 +49,7 @@
       #app-splash {
         position: fixed;
         inset: 0;
-        background-color: #293515;
+        background-color: #F2F2EC;
         z-index: 99999;
         display: flex;
         align-items: center;
