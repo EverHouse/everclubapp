@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.62.8",
+    date: "2026-02-02",
+    title: "Security & Error Recovery Improvements",
+    changes: [
+      "Security: Push notification routes now properly verify you're logged in before subscribing",
+      "Security: Staff-only notification controls now require staff authentication",
+      "Fixed: App no longer gets stuck in reload loops when errors occur - stops after 2 attempts and shows recovery options",
+      "Improved: Error screens now show 'Clear Cache & Refresh' and 'Contact Support' options when something goes wrong"
+    ]
+  },
+  {
     version: "9.62.6",
     date: "2026-02-02",
     title: "Real-Time Connection Stability Improvements",
