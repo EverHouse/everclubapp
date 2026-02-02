@@ -13,12 +13,20 @@ export default {
         serif: ["Playfair Display", "Georgia", "serif"],
       },
       colors: {
-        primary: "#293515",
+        primary: {
+          DEFAULT: "#293515",
+          dark: "#0f120a",
+          light: "#3d4b20"
+        },
         secondary: "#E7E7DC",
         accent: "#CCB8E4",
         "accent-dark": "#8B6FA8",
         lavender: "#CCB8E4",
         "lavender-dark": "#8B6FA8",
+        bone: {
+          DEFAULT: "#F2F2EC",
+          dark: "#e5e5df"
+        },
         surface: {
           light: "#FFFFFF",
           dark: "rgba(255, 255, 255, 0.05)",

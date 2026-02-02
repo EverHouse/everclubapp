@@ -183,7 +183,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                 <div className="relative">
                   <img 
                     src={screenshotPreview} 
-                    alt="Screenshot preview" 
+                    alt="Bug report screenshot preview showing the issue encountered" 
                     className="w-full h-40 object-cover rounded-xl"
                   />
                   <button

@@ -145,7 +145,7 @@ export function ModalShell({
             )}
             
             <div 
-              className={`modal-keyboard-aware ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'} ${title || showCloseButton ? 'max-h-[calc(100dvh-180px)]' : 'max-h-[calc(100dvh-100px)]'}`}
+              className={`modal-keyboard-aware ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'} max-h-[85dvh]`}
               style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
             >
               {children}

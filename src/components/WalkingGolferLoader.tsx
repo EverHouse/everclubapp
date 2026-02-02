@@ -71,7 +71,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
         <div className="walking-mascot">
           <img 
             src="/assets/logos/walking-mascot-white.gif" 
-            alt="Loading..." 
+            alt="Animated golfer mascot character" 
             className="mascot-image"
           />
         </div>

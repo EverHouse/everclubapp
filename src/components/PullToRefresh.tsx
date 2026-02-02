@@ -460,7 +460,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             <div className="ptr-mascot">
               <img 
                 src="/assets/logos/walking-mascot-white.gif" 
-                alt="Refreshing..." 
+                alt="Animated loading indicator" 
                 className="ptr-mascot-image"
               />
             </div>

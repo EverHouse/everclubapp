@@ -128,7 +128,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         >
           <img 
             src="/assets/logos/mascot-white.webp" 
-            alt="Ever House" 
+            alt="Ever House Club logo" 
             className="h-10 w-auto object-contain"
           />
           <div>
