@@ -176,7 +176,7 @@ erDiagram
     resources {
         integer id PK
         varchar name UK
-        varchar type
+        varchar resource_type
         boolean is_active
     }
     
@@ -250,7 +250,7 @@ erDiagram
         varchar primary_email UK
         varchar primary_stripe_customer_id
         varchar group_name
-        text type
+        text group_type
     }
     
     stripe_payment_intents {
@@ -334,7 +334,7 @@ erDiagram
     resources {
         integer id PK
         varchar name UK
-        varchar type
+        varchar resource_type
     }
     
     trackman_bay_slots {
@@ -380,30 +380,30 @@ erDiagram
     job_queue {
         integer id PK
         varchar job_type
-        jsonb payload
+        json payload
         varchar status
         integer attempts
     }
     
     rate_limits {
         integer id PK
-        varchar key UK
-        integer count
+        varchar key_name UK
+        integer request_count
         timestamp window_start
     }
     
     notifications {
         integer id PK
         varchar user_email
-        varchar type
+        varchar notification_type
         varchar title
         boolean is_read
     }
     
     app_settings {
         integer id PK
-        varchar key UK
-        text value
+        varchar setting_key UK
+        text setting_value
         varchar category
     }
     
@@ -412,7 +412,7 @@ erDiagram
         varchar staff_email
         varchar action
         varchar resource_type
-        jsonb details
+        json details
     }
     
     webhook_processed_events {
@@ -494,7 +494,7 @@ erDiagram
     resources {
         integer id PK
         varchar name UK
-        varchar type
+        varchar resource_type
     }
     
     availability_blocks {
