@@ -35,23 +35,6 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
   const exitTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const onFadeCompleteRef = React.useRef(onFadeComplete);
   
-  // Determine theme using DOM check (works regardless of Router context)
-  // This runs on mount and checks current state
-  const [themeState] = React.useState(() => {
-    const path = window.location.pathname;
-    const isPortal = path.startsWith('/member') || path.startsWith('/admin') || path.startsWith('/profile') || 
-                     path.startsWith('/history') || path.startsWith('/book') || path.startsWith('/wellness') || 
-                     path.startsWith('/events') || path.startsWith('/updates');
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    return { isPortal, isDarkMode };
-  });
-  
-  // Public pages always light, portals respect theme
-  const useDarkBackground = themeState.isPortal && themeState.isDarkMode;
-  const backgroundColor = useDarkBackground ? '#1a1a1a' : '#F2F2EC';
-  const mascotSrc = useDarkBackground ? '/assets/logos/walking-mascot-white.gif' : '/assets/logos/walking-mascot-green.gif';
-  const textColor = useDarkBackground ? 'white' : '#1B4332';
-  
   React.useEffect(() => {
     onFadeCompleteRef.current = onFadeComplete;
   }, [onFadeComplete]);
@@ -82,17 +65,17 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
   const loaderContent = (
     <div 
       className={`loader-overlay ${isExiting ? 'loader-exit' : ''}`}
-      style={{ pointerEvents: isExiting ? 'none' : 'auto', backgroundColor }}
+      style={{ pointerEvents: isExiting ? 'none' : 'auto' }}
     >
       <div className={`loader-content ${isExiting ? 'content-exit' : ''}`}>
         <div className="walking-mascot">
           <img 
-            src={mascotSrc}
+            src="/assets/logos/walking-mascot-white.gif" 
             alt="Loading..." 
             className="mascot-image"
           />
         </div>
-        <p className="tagline-text" style={{ color: textColor }}>{tagline}</p>
+        <p className="tagline-text">{tagline}</p>
       </div>
 
       <style>{`
@@ -103,6 +86,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
           display: flex;
           justify-content: center;
           align-items: center;
+          background-color: #293515;
           will-change: transform, height, clip-path;
         }
 
@@ -152,6 +136,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
 
         .tagline-text {
           font-family: 'Playfair Display', serif;
+          color: white;
           font-size: 1rem;
           text-align: center;
           margin: 0;

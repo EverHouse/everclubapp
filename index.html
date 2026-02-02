@@ -6,6 +6,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="EH Members" />
+    <!-- Safari toolbar color: respects device light/dark mode -->
+    <meta name="theme-color" content="#F2F2EC" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
     <script>
       (function() {
         // Fix URL-encoded hash for dev preview routes (screenshot tool encodes # as %23)
@@ -22,18 +25,6 @@
         var isDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark) || (!themeMode && prefersDark);
         if (isDark) document.documentElement.classList.add('dark');
         
-        // Set splash color based on page type and theme
-        // Public pages always use light bone, member/staff portals respect theme
-        var path = window.location.pathname;
-        var isPortal = path.startsWith('/member') || path.startsWith('/admin') || path.startsWith('/profile') || path.startsWith('/history') || path.startsWith('/book') || path.startsWith('/wellness') || path.startsWith('/events') || path.startsWith('/updates');
-        var splash = document.getElementById('app-splash');
-        if (splash) {
-          if (isPortal && isDark) {
-            splash.style.backgroundColor = '#1a1a1a';
-          } else {
-            splash.style.backgroundColor = '#F2F2EC';
-          }
-        }
       })();
     </script>
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -49,7 +40,7 @@
       #app-splash {
         position: fixed;
         inset: 0;
-        background-color: #F2F2EC;
+        background-color: #293515;
         z-index: 99999;
         display: flex;
         align-items: center;

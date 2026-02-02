@@ -17,9 +17,8 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-02-02",
     title: "Safari Toolbar Color Fix",
     changes: [
-      "Fixed: Safari toolbar no longer shows green color - now matches page background",
-      "Fixed: Initial loading splash uses correct theme colors (light bone for public pages, theme-aware for portals)",
-      "Improved: Loading screen mascot switches between green and white versions based on background"
+      "Fixed: Safari toolbar now respects device theme mode (light bone in light mode, dark in dark mode)",
+      "Preserved: Green loading screen with white mascot unchanged"
     ]
   },
   {
