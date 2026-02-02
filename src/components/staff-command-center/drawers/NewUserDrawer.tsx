@@ -50,6 +50,17 @@ interface GroupMember {
   email: string;
   phone: string;
   dob: string;
+  tierId: number | null;
+}
+
+interface ExistingBillingGroup {
+  id: number;
+  primaryEmail: string;
+  primaryName: string;
+  groupName: string | null;
+  groupType: 'family' | 'corporate';
+  isActive: boolean;
+  primaryStripeSubscriptionId: string | null;
 }
 
 interface MemberFormData {
@@ -62,6 +73,9 @@ interface MemberFormData {
   discountCode: string;
   addGroupMembers: boolean;
   groupMembers: GroupMember[];
+  joinExistingGroup: boolean;
+  existingGroupId: number | null;
+  existingGroupType: 'family' | 'corporate' | null;
 }
 
 interface VisitorFormData {
@@ -95,6 +109,9 @@ const initialMemberForm: MemberFormData = {
   discountCode: '',
   addGroupMembers: false,
   groupMembers: [],
+  joinExistingGroup: false,
+  existingGroupId: null,
+  existingGroupType: null,
 };
 
 const initialVisitorForm: VisitorFormData = {
@@ -129,6 +146,7 @@ export function NewUserDrawer({
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [dayPassProducts, setDayPassProducts] = useState<DayPassProduct[]>([]);
   const [discounts, setDiscounts] = useState<{ id: string; code: string; percentOff: number }[]>([]);
+  const [existingBillingGroups, setExistingBillingGroups] = useState<ExistingBillingGroup[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,15 +175,15 @@ export function NewUserDrawer({
 
   const fetchInitialData = async () => {
     try {
-      const [tiersRes, productsRes, discountsRes] = await Promise.all([
+      const [tiersRes, productsRes, discountsRes, billingGroupsRes] = await Promise.all([
         fetch('/api/membership-tiers?active=true', { credentials: 'include' }),
         fetch('/api/day-passes/products', { credentials: 'include' }),
         fetch('/api/stripe/coupons', { credentials: 'include' }),
+        fetch('/api/group-billing/groups', { credentials: 'include' }),
       ]);
 
       if (tiersRes.ok) {
         const tiersData = await tiersRes.json();
-        // API returns snake_case, map to camelCase interface
         const subscriptionTiers = tiersData
           .filter((t: any) => t.product_type === 'subscription' && t.stripe_price_id)
           .map((t: any) => ({
@@ -187,6 +205,22 @@ export function NewUserDrawer({
       if (discountsRes.ok) {
         const discountsData = await discountsRes.json();
         setDiscounts(discountsData.coupons || []);
+      }
+
+      if (billingGroupsRes.ok) {
+        const groupsData = await billingGroupsRes.json();
+        const activeGroups = (groupsData || [])
+          .filter((g: any) => g.isActive && g.stripeSubscriptionId)
+          .map((g: any) => ({
+            id: g.id,
+            primaryEmail: g.primaryEmail,
+            primaryName: g.primaryName,
+            groupName: g.groupName,
+            groupType: g.members?.some((m: any) => m.relationship === 'corporate') ? 'corporate' : 'family',
+            isActive: g.isActive,
+            primaryStripeSubscriptionId: g.stripeSubscriptionId,
+          }));
+        setExistingBillingGroups(activeGroups);
       }
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
@@ -306,6 +340,7 @@ export function NewUserDrawer({
             setForm={setMemberForm}
             tiers={tiers}
             discounts={discounts}
+            existingBillingGroups={existingBillingGroups}
             isDark={isDark}
             isLoading={isLoading}
             setIsLoading={setIsLoading}
@@ -363,6 +398,7 @@ interface MemberFlowProps {
   setForm: React.Dispatch<React.SetStateAction<MemberFormData>>;
   tiers: MembershipTier[];
   discounts: { id: string; code: string; percentOff: number }[];
+  existingBillingGroups: ExistingBillingGroup[];
   isDark: boolean;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
@@ -380,6 +416,7 @@ function MemberFlow({
   setForm,
   tiers,
   discounts,
+  existingBillingGroups,
   isDark,
   isLoading,
   setIsLoading,
@@ -428,9 +465,16 @@ function MemberFlow({
 
       const discount = discounts.find(d => d.code === form.discountCode);
       const discountPercent = discount?.percentOff || 0;
-      const primaryPrice = Math.round(selectedTier.priceCents * (1 - discountPercent / 100));
-      const groupMemberPrice = Math.round(selectedTier.priceCents * 0.8);
-      const totalPrice = primaryPrice + (form.groupMembers.length * groupMemberPrice);
+      const primaryPrice = form.joinExistingGroup
+        ? Math.round(selectedTier.priceCents * 0.8)
+        : Math.round(selectedTier.priceCents * (1 - discountPercent / 100));
+      
+      const groupMembersTotal = form.groupMembers.reduce((sum, member) => {
+        const memberTier = tiers.find(t => t.id === member.tierId) || selectedTier;
+        return sum + Math.round(memberTier.priceCents * 0.8);
+      }, 0);
+      
+      const totalPrice = primaryPrice + groupMembersTotal;
 
       const res = await fetch('/api/stripe/staff/quick-charge', {
         method: 'POST',
@@ -440,7 +484,9 @@ function MemberFlow({
           memberEmail: form.email,
           memberName: `${form.firstName} ${form.lastName}`,
           amountCents: totalPrice,
-          description: `${selectedTier.name} Membership Setup`,
+          description: form.joinExistingGroup 
+            ? `${selectedTier.name} Membership (Group Add-on)` 
+            : `${selectedTier.name} Membership Setup`,
           isNewCustomer: true,
           firstName: form.firstName,
           lastName: form.lastName,
@@ -476,7 +522,38 @@ function MemberFlow({
         body: JSON.stringify({ paymentIntentId: paymentIntentIdResult || paymentIntentId })
       });
 
-      showToast('Payment successful!', 'success');
+      if (form.joinExistingGroup && form.existingGroupId && selectedTier) {
+        try {
+          const endpoint = form.existingGroupType === 'corporate'
+            ? `/api/group-billing/groups/${form.existingGroupId}/corporate-members`
+            : `/api/family-billing/groups/${form.existingGroupId}/members`;
+          
+          const payload = form.existingGroupType === 'corporate'
+            ? { memberEmail: form.email, memberTier: selectedTier.slug }
+            : { memberEmail: form.email, memberTier: selectedTier.slug, relationship: 'family' };
+          
+          const groupRes = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+          
+          if (!groupRes.ok) {
+            const groupData = await groupRes.json();
+            console.error('Failed to add member to group:', groupData.error);
+            showToast('Payment successful but failed to add to group. Contact support.', 'error');
+          } else {
+            showToast('Payment successful! Member added to billing group.', 'success');
+          }
+        } catch (groupErr) {
+          console.error('Error adding member to group:', groupErr);
+          showToast('Payment successful but failed to add to group. Contact support.', 'error');
+        }
+      } else {
+        showToast('Payment successful!', 'success');
+      }
+
       onSuccess({ 
         id: 'member-' + Date.now(), 
         email: form.email, 
@@ -523,6 +600,10 @@ function MemberFlow({
       setError('Please enter a valid email address');
       return;
     }
+    if (form.joinExistingGroup && !form.existingGroupId) {
+      setError('Please select a billing group to join');
+      return;
+    }
     setError(null);
     setStep('preview');
   };
@@ -530,7 +611,7 @@ function MemberFlow({
   const addGroupMember = () => {
     setForm(prev => ({
       ...prev,
-      groupMembers: [...prev.groupMembers, { firstName: '', lastName: '', email: '', phone: '', dob: '' }],
+      groupMembers: [...prev.groupMembers, { firstName: '', lastName: '', email: '', phone: '', dob: '', tierId: prev.tierId }],
     }));
   };
 
@@ -545,7 +626,7 @@ function MemberFlow({
     setForm(prev => ({
       ...prev,
       groupMembers: prev.groupMembers.map((m, i) => 
-        i === index ? { ...m, [field]: value } : m
+        i === index ? { ...m, [field]: field === 'tierId' ? (value ? parseInt(value, 10) : null) : value } : m
       ),
     }));
   };
@@ -578,15 +659,48 @@ function MemberFlow({
     const discount = discounts.find(d => d.code === form.discountCode);
     const tierPrice = selectedTier?.priceCents || 0;
     const discountPercent = discount?.percentOff || 0;
-    const primaryPrice = Math.round(tierPrice * (1 - discountPercent / 100));
-    const groupMemberPrice = Math.round(tierPrice * 0.8);
-    const totalPrice = primaryPrice + (form.groupMembers.length * groupMemberPrice);
+    const primaryPrice = form.joinExistingGroup 
+      ? Math.round(tierPrice * 0.8)
+      : Math.round(tierPrice * (1 - discountPercent / 100));
+    
+    const groupMembersPricing = form.groupMembers.map((member) => {
+      const memberTier = tiers.find(t => t.id === member.tierId) || selectedTier;
+      const memberTierPrice = memberTier?.priceCents || tierPrice;
+      return {
+        ...member,
+        tierName: memberTier?.name || selectedTier?.name || 'Unknown',
+        price: Math.round(memberTierPrice * 0.8),
+      };
+    });
+    
+    const groupMembersTotal = groupMembersPricing.reduce((sum, m) => sum + m.price, 0);
+    const totalPrice = primaryPrice + groupMembersTotal;
+    
+    const selectedGroup = form.joinExistingGroup 
+      ? existingBillingGroups.find(g => g.id === form.existingGroupId) 
+      : null;
 
     return (
       <div className="space-y-4">
         <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
           Review Charges
         </h3>
+
+        {form.joinExistingGroup && selectedGroup && (
+          <div className={`p-3 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'}`}>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-blue-500">group</span>
+              <div>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Adding to: {selectedGroup.groupName || selectedGroup.primaryName}
+                </p>
+                <p className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                  Billing through {selectedGroup.primaryEmail}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="space-y-3">
@@ -597,7 +711,7 @@ function MemberFlow({
                 </p>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   {selectedTier?.name} Membership
-                  {discount && ` (${discount.percentOff}% off)`}
+                  {form.joinExistingGroup ? ' (20% family discount)' : discount ? ` (${discount.percentOff}% off)` : ''}
                 </p>
               </div>
               <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -605,18 +719,18 @@ function MemberFlow({
               </span>
             </div>
 
-            {form.groupMembers.map((member, index) => (
+            {groupMembersPricing.map((member, index) => (
               <div key={index} className="flex justify-between items-center">
                 <div>
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {member.firstName || 'Sub-member'} {member.lastName || index + 1}
                   </p>
                   <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {selectedTier?.name} (Family 20% off)
+                    {member.tierName} (Family 20% off)
                   </p>
                 </div>
                 <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ${(groupMemberPrice / 100).toFixed(2)}/mo
+                  ${(member.price / 100).toFixed(2)}/mo
                 </span>
               </div>
             ))}
@@ -658,10 +772,19 @@ function MemberFlow({
 
   if (step === 'payment') {
     const discount = discounts.find(d => d.code === form.discountCode);
+    const tierPrice = selectedTier?.priceCents || 0;
     const discountPercent = discount?.percentOff || 0;
-    const primaryPrice = Math.round((selectedTier?.priceCents || 0) * (1 - discountPercent / 100));
-    const groupMemberPrice = Math.round((selectedTier?.priceCents || 0) * 0.8);
-    const totalPrice = primaryPrice + (form.groupMembers.length * groupMemberPrice);
+    const primaryPrice = form.joinExistingGroup 
+      ? Math.round(tierPrice * 0.8)
+      : Math.round(tierPrice * (1 - discountPercent / 100));
+    
+    const groupMembersTotal = form.groupMembers.reduce((sum, member) => {
+      const memberTier = tiers.find(t => t.id === member.tierId) || selectedTier;
+      const memberTierPrice = memberTier?.priceCents || tierPrice;
+      return sum + Math.round(memberTierPrice * 0.8);
+    }, 0);
+    
+    const totalPrice = primaryPrice + groupMembersTotal;
 
     const stripeOptions: StripeElementsOptions = clientSecret ? {
       clientSecret,
@@ -857,91 +980,169 @@ function MemberFlow({
         </select>
       </div>
 
-      <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.addGroupMembers}
-            onChange={(e) => {
-              setForm(prev => ({
-                ...prev,
-                addGroupMembers: e.target.checked,
-                groupMembers: e.target.checked ? [{ firstName: '', lastName: '', email: '', phone: '', dob: '' }] : [],
-              }));
-            }}
-            className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-          />
-          <div>
-            <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Add Group Members?
-            </span>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Family members get 20% off their membership
-            </p>
-          </div>
-        </label>
+      {existingBillingGroups.length > 0 && (
+        <div className={`p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'}`}>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.joinExistingGroup}
+              onChange={(e) => {
+                setForm(prev => ({
+                  ...prev,
+                  joinExistingGroup: e.target.checked,
+                  existingGroupId: e.target.checked ? null : null,
+                  existingGroupType: null,
+                  addGroupMembers: false,
+                  groupMembers: [],
+                }));
+              }}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <div>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Add to Existing Billing Group?
+              </span>
+              <p className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                Add this member to an existing family or corporate billing group
+              </p>
+            </div>
+          </label>
 
-        {form.addGroupMembers && (
-          <div className="mt-4 space-y-4">
-            {form.groupMembers.map((member, index) => (
-              <div key={index} className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Sub-Member {index + 1}
-                  </span>
-                  <button
-                    onClick={() => removeGroupMember(index)}
-                    className="text-red-500 hover:text-red-600"
-                  >
-                    <span className="material-symbols-outlined text-sm">close</span>
-                  </button>
+          {form.joinExistingGroup && (
+            <div className="mt-4">
+              <label className={labelClass}>Select Billing Group</label>
+              <select
+                value={form.existingGroupId ?? ''}
+                onChange={(e) => {
+                  const groupId = e.target.value ? parseInt(e.target.value, 10) : null;
+                  const selectedGroup = existingBillingGroups.find(g => g.id === groupId);
+                  setForm(prev => ({
+                    ...prev,
+                    existingGroupId: groupId,
+                    existingGroupType: selectedGroup?.groupType || null,
+                  }));
+                }}
+                className={inputClass}
+              >
+                <option value="">Select a group...</option>
+                {existingBillingGroups.map(group => (
+                  <option key={group.id} value={group.id}>
+                    {group.groupName || group.primaryName} ({group.primaryEmail}) - {group.groupType}
+                  </option>
+                ))}
+              </select>
+              {form.existingGroupId && (
+                <p className={`mt-2 text-sm ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                  <span className="material-symbols-outlined text-sm align-middle mr-1">info</span>
+                  Member will be billed through the group's primary account with 20% family discount
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!form.joinExistingGroup && (
+        <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.addGroupMembers}
+              onChange={(e) => {
+                setForm(prev => ({
+                  ...prev,
+                  addGroupMembers: e.target.checked,
+                  groupMembers: e.target.checked ? [{ firstName: '', lastName: '', email: '', phone: '', dob: '', tierId: prev.tierId }] : [],
+                }));
+              }}
+              className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <div>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Add Group Members?
+              </span>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Family members get 20% off their membership
+              </p>
+            </div>
+          </label>
+
+          {form.addGroupMembers && (
+            <div className="mt-4 space-y-4">
+              {form.groupMembers.map((member, index) => (
+                <div key={index} className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Sub-Member {index + 1}
+                    </span>
+                    <button
+                      onClick={() => removeGroupMember(index)}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                  <div className="mb-2">
+                    <select
+                      value={member.tierId ?? ''}
+                      onChange={(e) => updateGroupMember(index, 'tierId', e.target.value)}
+                      className={`${inputClass} text-sm py-2`}
+                    >
+                      <option value="">Select tier...</option>
+                      {tiers.map(tier => (
+                        <option key={tier.id} value={tier.id}>
+                          {tier.name} - ${(tier.priceCents * 0.8 / 100).toFixed(2)}/mo (20% off)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={member.firstName}
+                      onChange={(e) => updateGroupMember(index, 'firstName', e.target.value)}
+                      placeholder="First name"
+                      className={`${inputClass} text-sm py-2`}
+                    />
+                    <input
+                      type="text"
+                      value={member.lastName}
+                      onChange={(e) => updateGroupMember(index, 'lastName', e.target.value)}
+                      placeholder="Last name"
+                      className={`${inputClass} text-sm py-2`}
+                    />
+                    <input
+                      type="email"
+                      value={member.email}
+                      onChange={(e) => updateGroupMember(index, 'email', e.target.value)}
+                      placeholder="Email"
+                      className={`${inputClass} text-sm py-2`}
+                    />
+                    <input
+                      type="tel"
+                      value={member.phone}
+                      onChange={(e) => updateGroupMember(index, 'phone', e.target.value)}
+                      placeholder="Phone"
+                      className={`${inputClass} text-sm py-2`}
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={member.firstName}
-                    onChange={(e) => updateGroupMember(index, 'firstName', e.target.value)}
-                    placeholder="First name"
-                    className={`${inputClass} text-sm py-2`}
-                  />
-                  <input
-                    type="text"
-                    value={member.lastName}
-                    onChange={(e) => updateGroupMember(index, 'lastName', e.target.value)}
-                    placeholder="Last name"
-                    className={`${inputClass} text-sm py-2`}
-                  />
-                  <input
-                    type="email"
-                    value={member.email}
-                    onChange={(e) => updateGroupMember(index, 'email', e.target.value)}
-                    placeholder="Email"
-                    className={`${inputClass} text-sm py-2`}
-                  />
-                  <input
-                    type="tel"
-                    value={member.phone}
-                    onChange={(e) => updateGroupMember(index, 'phone', e.target.value)}
-                    placeholder="Phone"
-                    className={`${inputClass} text-sm py-2`}
-                  />
-                </div>
-              </div>
-            ))}
-            <button
-              onClick={addGroupMember}
-              className={`w-full py-2 rounded-lg border-2 border-dashed transition-colors ${
-                isDark 
-                  ? 'border-white/20 text-gray-400 hover:border-white/40' 
-                  : 'border-gray-300 text-gray-600 hover:border-gray-400'
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm mr-1 align-middle">add</span>
-              Add Another Member
-            </button>
-          </div>
-        )}
-      </div>
+              ))}
+              <button
+                onClick={addGroupMember}
+                className={`w-full py-2 rounded-lg border-2 border-dashed transition-colors ${
+                  isDark 
+                    ? 'border-white/20 text-gray-400 hover:border-white/40' 
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm mr-1 align-middle">add</span>
+                Add Another Member
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <button
         onClick={handleReviewCharges}
