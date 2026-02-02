@@ -99,12 +99,32 @@ export const checkoutRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const email = req.body?.email || 'unknown';
-    return `checkout:${email}:${req.ip || 'unknown'}`;
+    const email = req.body?.email;
+    const sessionId = req.params?.sessionId;
+    if (email) {
+      return `checkout:${email}:${req.ip || 'unknown'}`;
+    }
+    if (sessionId) {
+      return `checkout:session:${sessionId}`;
+    }
+    return `checkout:${req.ip || 'unknown'}`;
   },
   validate: false,
   handler: (req: Request, res: Response) => {
     console.warn(`[RateLimit] Checkout limit exceeded for ${req.body?.email || 'unknown'} on ${req.path}`);
     res.status(429).json({ error: 'Too many checkout attempts. Please wait a minute before trying again.' });
+  }
+});
+
+export const memberLookupRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientKey,
+  validate: false,
+  handler: (req: Request, res: Response) => {
+    console.warn(`[RateLimit] Member lookup limit exceeded for ${getClientKey(req)} on ${req.path}`);
+    res.status(429).json({ error: 'Too many member lookup requests. Please wait a moment.' });
   }
 });

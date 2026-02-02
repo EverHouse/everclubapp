@@ -18,6 +18,7 @@ import { db } from '../db';
 import { hubspotProductMappings, discountRules, hubspotDeals } from '../../shared/schema';
 import { eq, and, ne } from 'drizzle-orm';
 import { MINDBODY_TO_STAGE_MAP, HUBSPOT_STAGE_IDS } from '../core/hubspot/constants';
+import { getSessionUser } from '../types/session';
 import pLimit from 'p-limit';
 
 const router = Router();
@@ -104,8 +105,9 @@ router.post('/api/hubspot/deals/:dealId/line-items', isStaffOrAdmin, async (req,
   try {
     const { dealId } = req.params;
     const { productId, quantity, discountPercent, discountReason } = req.body;
-    const staffEmail = (req as any).user?.email || 'system';
-    const staffName = (req as any).user?.name || 'System';
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'system';
+    const staffName = sessionUser?.name || 'System';
     
     if (!productId) {
       return res.status(400).json({ error: 'Product ID is required' });
@@ -135,8 +137,9 @@ router.post('/api/hubspot/deals/:dealId/line-items', isStaffOrAdmin, async (req,
 router.delete('/api/hubspot/line-items/:lineItemId', isStaffOrAdmin, async (req, res) => {
   try {
     const { lineItemId } = req.params;
-    const staffEmail = (req as any).user?.email || 'system';
-    const staffName = (req as any).user?.name || 'System';
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'system';
+    const staffName = sessionUser?.name || 'System';
     
     const success = await removeLineItemFromDeal(lineItemId, staffEmail, staffName);
     
@@ -186,8 +189,9 @@ router.get('/api/hubspot/member-discount/:email', isStaffOrAdmin, async (req, re
 router.post('/api/hubspot/sync-deal-stage', isStaffOrAdmin, async (req, res) => {
   try {
     const { memberEmail, mindbodyStatus } = req.body;
-    const staffEmail = (req as any).user?.email || 'system';
-    const staffName = (req as any).user?.name || 'System';
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'system';
+    const staffName = sessionUser?.name || 'System';
     
     if (!memberEmail || !mindbodyStatus) {
       return res.status(400).json({ error: 'Member email and Mindbody status are required' });
@@ -245,8 +249,9 @@ router.post('/api/hubspot/sync-communication-logs', isStaffOrAdmin, async (req, 
 
 router.post('/api/hubspot/remediate-deal-stages', isStaffOrAdmin, async (req, res) => {
   try {
-    const staffEmail = (req as any).user?.email || 'system';
-    const staffName = (req as any).user?.name || 'Remediation Script';
+    const sessionUser = getSessionUser(req);
+    const staffEmail = sessionUser?.email || 'system';
+    const staffName = sessionUser?.name || 'Remediation Script';
     const dryRun = req.body.dryRun === true;
     
     console.log(`[HubSpotDeals] Deal stage remediation started (dryRun: ${dryRun})`);

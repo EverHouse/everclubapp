@@ -9,6 +9,7 @@ import { getHubSpotClientWithFallback } from '../core/integrations';
 import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { logFromRequest } from '../core/auditLog';
 import { getSystemHealth } from '../core/healthCheck';
+import { getSessionUser } from '../types/session';
 import type { Request } from 'express';
 
 const router = Router();
@@ -94,7 +95,7 @@ router.post('/api/data-integrity/resolve', isAdmin, async (req: Request, res) =>
       return res.status(400).json({ error: 'resolution_method is required for resolved action' });
     }
     
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     const result = await resolveIssue({
       issueKey: issue_key,
@@ -206,7 +207,7 @@ router.post('/api/data-integrity/ignore', isAdmin, async (req: Request, res) => 
       return res.status(400).json({ error: 'reason is required' });
     }
     
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     const result = await createIgnoreRule({
       issueKey: issue_key,
@@ -263,7 +264,7 @@ router.post('/api/data-integrity/ignore-bulk', isAdmin, async (req: Request, res
       return res.status(400).json({ error: 'reason is required' });
     }
     
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     const result = await createBulkIgnoreRules({
       issueKeys: issue_keys,

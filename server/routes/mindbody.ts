@@ -3,6 +3,7 @@ import { db } from "../db";
 import { legacyPurchases, users, billingAuditLog } from "@shared/schema";
 import { eq, desc, sql, isNull, and, or, ilike } from "drizzle-orm";
 import { isStaffOrAdmin, isAdmin } from "../core/middleware";
+import { getSessionUser } from "../types/session";
 
 const router = Router();
 
@@ -121,7 +122,7 @@ router.post("/api/admin/mindbody/link", isStaffOrAdmin, async (req: Request, res
       })
       .where(eq(users.id, targetMember.id));
 
-    const performingUser = (req as any).user;
+    const performingUser = getSessionUser(req);
     await db.insert(billingAuditLog).values({
       memberEmail: normalizedEmail,
       actionType: 'mindbody_link',

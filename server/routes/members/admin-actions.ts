@@ -807,7 +807,7 @@ router.post('/api/admin/tier-change/preview', isStaffOrAdmin, async (req, res) =
 router.post('/api/admin/tier-change/commit', isStaffOrAdmin, async (req, res) => {
   try {
     const { memberEmail, subscriptionId, newPriceId, immediate = true } = req.body;
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     if (!memberEmail || !subscriptionId || !newPriceId) {
       return res.status(400).json({ error: 'memberEmail, subscriptionId, and newPriceId required' });

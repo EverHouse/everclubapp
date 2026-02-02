@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.66.0",
+    date: "2026-02-02",
+    title: "Security Hardening Update",
+    isMajor: true,
+    changes: [
+      "Security: Added authorization checks to member profile endpoints - users can only view their own profile unless staff/admin",
+      "Security: Implemented rate limiting on checkout and member lookup endpoints to prevent abuse",
+      "Security: Added Zod input validation for checkout requests to prevent malformed data",
+      "Security: Standardized session access patterns across all API routes for consistent authentication",
+      "Security: Enhanced audit logging for corporate checkout pricing calculations",
+      "Improved: All sensitive operations now log unauthorized access attempts for security monitoring"
+    ]
+  },
+  {
     version: "9.65.4",
     date: "2026-02-02",
     title: "Safari Toolbar Color Fix",

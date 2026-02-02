@@ -4,23 +4,31 @@ import { membershipTiers } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
 import { getCorporateVolumePrice } from '../core/stripe/groupBilling';
+import { logSystemAction } from '../core/auditLog';
+import { checkoutRateLimiter } from '../middleware/rateLimiting';
+import { z } from 'zod';
 
 const router = Router();
 
 const CORPORATE_MIN_SEATS = 5;
 
-router.post('/api/checkout/sessions', async (req, res) => {
-  try {
-    const { 
-      tier: tierSlug, 
-      email, 
-      companyName, 
-      jobTitle 
-    } = req.body;
+const checkoutSessionSchema = z.object({
+  tier: z.string().min(1, 'Tier slug is required').max(100),
+  email: z.string().email('Invalid email format').optional(),
+  companyName: z.string().max(200).optional(),
+  jobTitle: z.string().max(100).optional(),
+});
 
-    if (!tierSlug) {
-      return res.status(400).json({ error: 'Tier slug is required' });
+router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
+  try {
+    const parseResult = checkoutSessionSchema.safeParse(req.body);
+    
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      return res.status(400).json({ error: firstError.message || 'Invalid input' });
     }
+    
+    const { tier: tierSlug, email, companyName, jobTitle } = parseResult.data;
 
     const [tierData] = await db
       .select()
@@ -54,6 +62,22 @@ router.post('/api/checkout/sessions', async (req, res) => {
 
     if (isCorporate) {
       const corporatePricePerSeat = getCorporateVolumePrice(CORPORATE_MIN_SEATS);
+      
+      await logSystemAction({
+        action: 'checkout_pricing_calculated',
+        resourceType: 'checkout',
+        resourceId: email || 'unknown',
+        details: {
+          tier: tierSlug,
+          tierType: 'corporate',
+          seatCount: CORPORATE_MIN_SEATS,
+          pricePerSeatCents: corporatePricePerSeat,
+          totalMonthlyCents: corporatePricePerSeat * CORPORATE_MIN_SEATS,
+          companyName: companyName || null,
+          serverControlled: true,
+        },
+      });
+      
       sessionParams.line_items = [
         {
           price_data: {
@@ -98,11 +122,14 @@ router.post('/api/checkout/sessions', async (req, res) => {
   }
 });
 
-router.get('/api/checkout/session/:sessionId', async (req, res) => {
+const sessionIdSchema = z.string().min(1).regex(/^cs_/, 'Invalid session ID format');
+
+router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, res) => {
   try {
     const { sessionId } = req.params;
     
-    if (!sessionId || typeof sessionId !== 'string' || !sessionId.startsWith('cs_')) {
+    const parseResult = sessionIdSchema.safeParse(sessionId);
+    if (!parseResult.success) {
       return res.status(400).json({ error: 'Invalid session ID' });
     }
     

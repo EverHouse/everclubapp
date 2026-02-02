@@ -899,7 +899,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
         reason: `Lesson: ${ownerName}`,
         noticeType: 'private_event',
         isActive: true,
-        createdBy: (req as any).user?.email || 'staff_link'
+        createdBy: getSessionUser(req)?.email || 'staff_link'
       }).returning();
       
       await db.insert(availabilityBlocks).values({
@@ -910,7 +910,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
         endTime: bookingData.endTime || bookingData.startTime,
         blockType: 'blocked',
         notes: `Lesson - ${ownerName}`,
-        createdBy: (req as any).user?.email || 'staff_link'
+        createdBy: getSessionUser(req)?.email || 'staff_link'
       });
       
       // Delete the existing booking if it exists
@@ -1066,7 +1066,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
         isPrimary: true,
         trackmanBookingId: trackman_booking_id,
         linkedAt: new Date(),
-        linkedBy: (req as any).user?.email || 'staff'
+        linkedBy: getSessionUser(req)?.email || 'staff'
       });
       
       let slotNumber = 2;
@@ -1079,7 +1079,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
             isPrimary: false,
             trackmanBookingId: trackman_booking_id,
             linkedAt: new Date(),
-            linkedBy: (req as any).user?.email || 'staff'
+            linkedBy: getSessionUser(req)?.email || 'staff'
           });
         } else if (player.type === 'guest_placeholder') {
           await tx.insert(bookingGuests).values({
@@ -1609,7 +1609,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
         isPrimary: true,
         trackmanBookingId: existingBooking.trackmanBookingId,
         linkedAt: new Date(),
-        linkedBy: (req as any).user?.email || 'staff'
+        linkedBy: getSessionUser(req)?.email || 'staff'
       });
       
       let slotNumber = 2;
@@ -1622,7 +1622,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
             isPrimary: false,
             trackmanBookingId: existingBooking.trackmanBookingId,
             linkedAt: new Date(),
-            linkedBy: (req as any).user?.email || 'staff'
+            linkedBy: getSessionUser(req)?.email || 'staff'
           });
         } else if (player.type === 'guest_placeholder') {
           await tx.insert(bookingGuests).values({

@@ -17,13 +17,55 @@ import {
 import { isProduction } from '../../core/db';
 import { isStaffOrAdmin, isAuthenticated, isAdmin } from '../../core/middleware';
 import { syncSmsPreferencesToHubSpot } from '../../core/hubspot/contacts';
+import { getSessionUser } from '../../types/session';
+import { logSystemAction } from '../../core/auditLog';
+import { memberLookupRateLimiter } from '../../middleware/rateLimiting';
+import { z } from 'zod';
 
 const router = Router();
 
-router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
+const emailParamSchema = z.string().min(1).max(320).transform(val => {
+  const decoded = decodeURIComponent(val).toLowerCase();
+  return decoded;
+}).refine(val => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+  message: 'Invalid email format'
+});
+
+const smsPreferencesSchema = z.object({
+  smsPromoOptIn: z.boolean().optional(),
+  smsTransactionalOptIn: z.boolean().optional(),
+  smsRemindersOptIn: z.boolean().optional(),
+});
+
+router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimiter, async (req, res) => {
   try {
     const { email } = req.params;
-    const normalizedEmail = decodeURIComponent(email).toLowerCase();
+    
+    const parseResult = emailParamSchema.safeParse(email);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    const normalizedEmail = parseResult.data;
+    
+    const sessionUser = getSessionUser(req);
+    const requestingUserEmail = sessionUser?.email?.toLowerCase();
+    const requestingUserRole = sessionUser?.role;
+    
+    if (requestingUserEmail !== normalizedEmail && 
+        !['staff', 'admin'].includes(requestingUserRole || '')) {
+      await logSystemAction({
+        action: 'unauthorized_access_attempt',
+        resourceType: 'authorization',
+        resourceId: normalizedEmail,
+        details: {
+          endpoint: '/api/members/:email/details',
+          requestingUser: requestingUserEmail || 'unknown',
+          targetUser: normalizedEmail,
+          reason: 'User attempted to access another member\'s profile',
+        },
+      });
+      return res.status(403).json({ error: 'Not authorized to view this profile' });
+    }
     
     const userResult = await db.select({
       id: users.id,
@@ -175,16 +217,26 @@ router.get('/api/members/:email/details', isAuthenticated, async (req, res) => {
 router.put('/api/members/:email/sms-preferences', isAuthenticated, async (req, res) => {
   try {
     const { email } = req.params;
-    const normalizedEmail = decodeURIComponent(email).toLowerCase();
-    const requestingUser = (req as any).user;
     
-    // Users can only update their own SMS preferences (unless staff/admin)
-    if (requestingUser?.email?.toLowerCase() !== normalizedEmail && 
-        !['staff', 'admin'].includes(requestingUser?.role)) {
+    const emailParseResult = emailParamSchema.safeParse(email);
+    if (!emailParseResult.success) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    const normalizedEmail = emailParseResult.data;
+    
+    const bodyParseResult = smsPreferencesSchema.safeParse(req.body);
+    if (!bodyParseResult.success) {
+      return res.status(400).json({ error: 'Invalid preferences format' });
+    }
+    
+    const sessionUser = getSessionUser(req);
+    
+    if (sessionUser?.email?.toLowerCase() !== normalizedEmail && 
+        !['staff', 'admin'].includes(sessionUser?.role || '')) {
       return res.status(403).json({ error: 'Not authorized to update this member\'s preferences' });
     }
     
-    const { smsPromoOptIn, smsTransactionalOptIn, smsRemindersOptIn } = req.body;
+    const { smsPromoOptIn, smsTransactionalOptIn, smsRemindersOptIn } = bodyParseResult.data;
     
     // Build update object with only provided fields
     const updateData: Record<string, any> = { updatedAt: new Date() };

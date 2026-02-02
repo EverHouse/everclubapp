@@ -95,7 +95,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, staffNotes } = req.body;
-    const user = (req as any).user;
+    const user = getSessionUser(req);
     
     const updateData: any = {
       updatedAt: new Date(),

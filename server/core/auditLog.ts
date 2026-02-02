@@ -103,7 +103,10 @@ export type AuditAction =
   // Data cleanup actions
   | 'placeholder_accounts_deleted'
   // Health check actions
-  | 'health_check_viewed';
+  | 'health_check_viewed'
+  // Checkout/pricing security actions
+  | 'checkout_pricing_calculated'
+  | 'unauthorized_access_attempt';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
@@ -124,7 +127,9 @@ export type ResourceType =
   | 'trackman'
   | 'group'
   | 'waiver'
-  | 'system';
+  | 'system'
+  | 'checkout'
+  | 'authorization';
 
 interface AuditLogParams {
   staffEmail: string;

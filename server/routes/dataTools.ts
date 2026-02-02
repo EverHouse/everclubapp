@@ -7,13 +7,14 @@ import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { getHubSpotClient } from '../core/integrations';
 import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { logFromRequest } from '../core/auditLog';
+import { getSessionUser } from '../types/session';
 
 const router = Router();
 
 router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     if (!email || typeof email !== 'string') {
       return res.status(400).json({ error: 'Email is required' });
@@ -230,7 +231,7 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
 router.post('/api/data-tools/link-guest-fee', isAdmin, async (req: Request, res: Response) => {
   try {
     const { guestFeeId, bookingId } = req.body;
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     if (!guestFeeId || !bookingId) {
       return res.status(400).json({ error: 'guestFeeId and bookingId are required' });
@@ -359,7 +360,7 @@ router.get('/api/data-tools/bookings-search', isStaffOrAdmin, async (req: Reques
 router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, res: Response) => {
   try {
     const { bookingId, attendanceStatus, notes } = req.body;
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     if (!bookingId || !attendanceStatus) {
       return res.status(400).json({ error: 'bookingId and attendanceStatus are required' });
@@ -424,7 +425,7 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
 router.post('/api/data-tools/mindbody-reimport', isAdmin, async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.body;
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'startDate and endDate are required' });
@@ -548,7 +549,7 @@ router.get('/api/data-tools/staff-activity', isAdmin, async (req: Request, res: 
 // Clean up stale mindbody_client_id values by comparing against HubSpot
 router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true } = req.body;
     
     console.log(`[DataTools] Starting mindbody_client_id cleanup (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -686,7 +687,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
 // Create HubSpot contacts for members who don't have one yet
 router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { emails, dryRun = true } = req.body;
     
     console.log(`[DataTools] Starting HubSpot sync for members without contacts (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -790,7 +791,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
 
 router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true } = req.body;
     
     console.log(`[DataTools] Starting subscription status sync (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -976,7 +977,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
 
 router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true } = req.body;
     
     console.log(`[DataTools] Clearing orphaned Stripe customer IDs (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -1093,7 +1094,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
 
 router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true } = req.body;
     
     console.log(`[DataTools] Starting Stripe-HubSpot link tool (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -1253,7 +1254,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
 
 router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true } = req.body;
     
     console.log(`[DataTools] Starting visit count sync to HubSpot (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -1454,7 +1455,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
 
 router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     
     console.log(`[DataTools] Starting duplicate detection by ${staffEmail}`);
     
@@ -1583,7 +1584,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
 
 router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true } = req.body;
     
     console.log(`[DataTools] Starting payment status sync to HubSpot (dryRun: ${dryRun}) by ${staffEmail}`);
@@ -1784,7 +1785,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
 
 router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: Request, res: Response) => {
   try {
-    const staffEmail = (req as any).user?.email || 'unknown';
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     const { dryRun = true, startDate, endDate, limit = 100 } = req.body;
     
     console.log(`[DataTools] Starting Trackman ghost booking fix (dryRun: ${dryRun}) by ${staffEmail}`);
