@@ -125,5 +125,25 @@ export const passRedemptionLogs = pgTable(
 
 export type PassRedemptionLog = typeof passRedemptionLogs.$inferSelect;
 
+// --- Guest Pass Holds Table ---
+// Tracks reserved guest passes for pending bookings to prevent double-spend
+export const guestPassHolds = pgTable(
+  "guest_pass_holds",
+  {
+    id: serial("id").primaryKey(),
+    memberEmail: varchar("member_email", { length: 255 }).notNull(),
+    bookingId: integer("booking_id").notNull(),
+    passesHeld: integer("passes_held").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_guest_pass_holds_member_email").on(table.memberEmail),
+    index("idx_guest_pass_holds_booking_id").on(table.bookingId),
+  ],
+);
+
+export type GuestPassHold = typeof guestPassHolds.$inferSelect;
+
 // Note: billingGroups, groupMembers, and familyAddOnProducts are defined in hubspot-billing.ts
 // to avoid duplicate exports. Import them from there or from the main schema.

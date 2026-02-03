@@ -139,7 +139,10 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
            WHERE resource_id = $1 
            AND request_date = $2 
            AND status IN ('pending', 'approved', 'confirmed', 'attended')
-           AND (start_time < $4 AND end_time > $3)
+           AND (
+             (start_time < $4 AND end_time > $3) OR
+             (end_time < start_time AND (start_time < $4 OR end_time > $3))
+           )
            FOR UPDATE`,
           [resource_id, request_date, start_time, end_time]
         );

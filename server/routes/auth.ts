@@ -778,18 +778,28 @@ router.post('/api/auth/verify-otp', async (req, res) => {
       });
     }
     
-    const result = await db.select()
-      .from(magicLinks)
-      .where(and(
-        eq(magicLinks.email, normalizedEmail),
-        eq(magicLinks.token, normalizedCode),
-        eq(magicLinks.used, false),
-        gt(magicLinks.expiresAt, new Date())
-      ))
-      .orderBy(sql`${magicLinks.createdAt} DESC`)
-      .limit(1);
+    // SECURITY FIX: Use atomic UPDATE with CTE to prevent OTP replay race condition
+    // This preserves the "latest token" semantics while preventing concurrent requests
+    // from both succeeding with the same code
+    const atomicResult = await pool.query(
+      `WITH latest_token AS (
+        SELECT id FROM magic_links
+        WHERE email = $1
+        AND token = $2
+        AND used = false
+        AND expires_at > NOW()
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE magic_links
+      SET used = true
+      WHERE id = (SELECT id FROM latest_token)
+      RETURNING *`,
+      [normalizedEmail, normalizedCode]
+    );
     
-    if (result.length === 0) {
+    if (atomicResult.rows.length === 0) {
       await recordOtpVerifyFailure(normalizedEmail);
       return res.status(400).json({ 
         error: 'Invalid or expired code. Please try again or request a new code.'
@@ -798,11 +808,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
     
     await clearOtpVerifyAttempts(normalizedEmail);
     
-    const otpRecord = result[0];
-    
-    await db.update(magicLinks)
-      .set({ used: true })
-      .where(eq(magicLinks.id, otpRecord.id));
+    const otpRecord = atomicResult.rows[0];
     
     const role = await getUserRole(normalizedEmail);
     const sessionTtl = 7 * 24 * 60 * 60 * 1000;

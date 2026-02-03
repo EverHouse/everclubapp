@@ -20,6 +20,7 @@ import { PaymentStatusService } from '../../core/billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
 import { getCalendarNameForBayAsync } from './helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent, CALENDAR_CONFIG } from '../../core/calendar/index';
+import { releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 
 const router = Router();
 
@@ -482,6 +483,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         return { updated: updatedRow, declineMessage, isReschedule, resourceTypeName };
       });
       
+      await releaseGuestPassHold(bookingId);
+      
       sendPushNotification(updated.userEmail, {
         title: isReschedule ? 'Reschedule Declined' : 'Booking Request Update',
         body: declineMessage,
@@ -819,6 +822,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         
         return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom };
       });
+      
+      await releaseGuestPassHold(bookingId);
       
       if (bookingData?.calendarEventId) {
         try {

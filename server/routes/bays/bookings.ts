@@ -18,6 +18,7 @@ import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/in
 import { getGuestPassesRemaining } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 import { PRICING } from '../../core/billing/pricingConfig';
+import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 
 const router = Router();
 
@@ -490,7 +491,8 @@ router.post('/api/booking-requests', async (req, res) => {
            AND request_date = $2 
            AND status IN ('pending', 'approved', 'confirmed', 'attended')
            AND (
-             (start_time < $4 AND end_time > $3)
+             (start_time < $4 AND end_time > $3) OR
+             (end_time < start_time AND (start_time < $4 OR end_time > $3))
            )
            FOR UPDATE`,
           [resource_id, request_date, start_time, end_time]
@@ -561,6 +563,20 @@ router.post('/api/booking-requests', async (req, res) => {
           sanitizedParticipants.length > 0 ? JSON.stringify(sanitizedParticipants) : '[]'
         ]
       );
+      
+      const guestCount = sanitizedParticipants.filter((p: any) => p.type === 'guest').length;
+      if (guestCount > 0) {
+        const bookingId = insertResult.rows[0].id;
+        const holdResult = await createGuestPassHold(
+          user_email.toLowerCase(),
+          bookingId,
+          guestCount,
+          client
+        );
+        if (!holdResult.success) {
+          console.log(`[Booking] Guest pass hold not created (non-blocking): ${holdResult.error}`);
+        }
+      }
       
       await client.query('COMMIT');
       
@@ -867,6 +883,8 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       })
       .where(eq(bookingRequests.id, bookingId))
       .returning();
+    
+    await releaseGuestPassHold(bookingId);
     
     logFromRequest(req, 'cancel_booking', 'booking', id, {
       member_email: existing.userEmail

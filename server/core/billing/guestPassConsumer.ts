@@ -155,6 +155,26 @@ export async function consumeGuestPassForParticipant(
     
     await client.query('COMMIT');
     
+    try {
+      const bookingResult = await pool.query(
+        `SELECT id FROM booking_requests WHERE session_id = $1 LIMIT 1`,
+        [sessionId]
+      );
+      if (bookingResult.rows.length > 0) {
+        const bookingId = bookingResult.rows[0].id;
+        await pool.query(
+          `DELETE FROM guest_pass_holds 
+           WHERE booking_id = $1 AND LOWER(member_email) = $2 AND passes_held <= 1;
+           UPDATE guest_pass_holds 
+           SET passes_held = passes_held - 1
+           WHERE booking_id = $1 AND LOWER(member_email) = $2 AND passes_held > 1`,
+          [bookingId, ownerEmailLower]
+        );
+      }
+    } catch (holdErr) {
+      console.log(`[GuestPassConsumer] Hold cleanup failed (non-blocking):`, holdErr);
+    }
+    
     console.log(`[GuestPassConsumer] Pass consumed for ${guestName} by ${ownerEmailLower}, ${passesRemaining} remaining`);
     
     return {
