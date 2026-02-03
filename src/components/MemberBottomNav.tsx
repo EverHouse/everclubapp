@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from './layout/SafeAreaBottomOverlay';
 import { prefetchRoute, prefetchAdjacentRoutes } from '../lib/prefetch';
@@ -25,20 +25,15 @@ interface MemberBottomNavProps {
 
 const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTheme }) => {
   const navigate = useNavigate();
-  const navigatingRef = useRef(false);
-  const lastTapRef = useRef(0);
   
   useEffect(() => {
     prefetchAdjacentRoutes(currentPath);
-    navigatingRef.current = false;
   }, [currentPath]);
   
   const handleNavigation = useCallback((path: string, label: string) => {
-    if (navigatingRef.current) return;
     if (path === currentPath) return;
     
     haptic.light();
-    navigatingRef.current = true;
     if (import.meta.env.DEV) {
       console.log(`[MemberNav] navigating to "${label}"`);
     }
@@ -77,15 +72,6 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 type="button"
                 key={item.path}
                 onClick={() => handleNavigation(item.path, item.label)}
-                onPointerUp={(e) => {
-                  if (e.pointerType === 'touch') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (Date.now() - lastTapRef.current < 350) return;
-                    lastTapRef.current = Date.now();
-                    handleNavigation(item.path, item.label);
-                  }
-                }}
                 onMouseEnter={() => prefetchRoute(item.path)}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                 className={`
