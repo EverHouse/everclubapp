@@ -1,5 +1,5 @@
 import { getStripeSync, getStripeClient } from './client';
-import { syncCompanyToHubSpot, queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot } from '../hubspot';
+import { syncCompanyToHubSpot, queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot, handleTierChange, queueTierSync } from '../hubspot';
 import { pool } from '../db';
 import { db } from '../../db';
 import { groupMembers } from '../../../shared/models/hubspot-billing';
@@ -1770,10 +1770,44 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
             tier: tierName || undefined,
             memberSince: new Date()
           });
-          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot: status=${subscription.status}, tier=${tierName}, billing=stripe, memberSince=now`);
+          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot contact: status=${subscription.status}, tier=${tierName}, billing=stripe`);
+          
+          // Also sync deal line items for new Stripe subscription - Stripe-billed only
+          if (tierName) {
+            const hubspotResult = await handleTierChange(
+              customerEmail,
+              'None',
+              tierName,
+              'stripe-webhook',
+              'Stripe Subscription'
+            );
+            
+            if (!hubspotResult.success && hubspotResult.error) {
+              console.warn(`[Stripe Webhook] HubSpot deal sync failed for new member ${customerEmail}, queuing for retry`);
+              await queueTierSync({
+                email: customerEmail,
+                newTier: tierName,
+                oldTier: 'None',
+                changedBy: 'stripe-webhook',
+                changedByName: 'Stripe Subscription'
+              });
+            } else {
+              console.log(`[Stripe Webhook] Created HubSpot deal line item for ${customerEmail} tier=${tierName}`);
+            }
+          }
         }
-      } catch (hubspotError) {
-        console.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', hubspotError);
+      } catch (hubspotError: any) {
+        console.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', hubspotError.message);
+        // Queue tier sync for retry if we have a tier
+        if (tierName) {
+          await queueTierSync({
+            email: customerEmail,
+            newTier: tierName,
+            oldTier: 'None',
+            changedBy: 'stripe-webhook',
+            changedByName: 'Stripe Subscription'
+          });
+        }
       }
       
       email = customerEmail;
@@ -2064,13 +2098,37 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
         
         console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
         
-        // Sync tier change to HubSpot
+        // Sync tier change to HubSpot (contact properties + deal line items) - Stripe-billed only
         try {
-          const { syncMemberToHubSpot } = await import('../hubspot/stages');
-          await syncMemberToHubSpot({ email, tier: newTierName, billingProvider: 'stripe' });
-          console.log(`[Stripe Webhook] Synced ${email} tier=${newTierName} to HubSpot`);
-        } catch (hubspotError) {
-          console.error('[Stripe Webhook] HubSpot sync failed for tier change:', hubspotError);
+          const hubspotResult = await handleTierChange(
+            email,
+            currentTier || 'None',
+            newTierName,
+            'stripe-webhook',
+            'Stripe Subscription'
+          );
+          
+          if (!hubspotResult.success && hubspotResult.error) {
+            console.warn(`[Stripe Webhook] HubSpot tier sync failed for ${email}, queuing for retry: ${hubspotResult.error}`);
+            await queueTierSync({
+              email,
+              newTier: newTierName,
+              oldTier: currentTier || 'None',
+              changedBy: 'stripe-webhook',
+              changedByName: 'Stripe Subscription'
+            });
+          } else {
+            console.log(`[Stripe Webhook] Synced ${email} tier=${newTierName} to HubSpot (deal line items updated)`);
+          }
+        } catch (hubspotError: any) {
+          console.error('[Stripe Webhook] HubSpot sync failed for tier change, queuing for retry:', hubspotError.message);
+          await queueTierSync({
+            email,
+            newTier: newTierName,
+            oldTier: currentTier || 'None',
+            changedBy: 'stripe-webhook',
+            changedByName: 'Stripe Subscription'
+          });
         }
         
         await notifyMember({
