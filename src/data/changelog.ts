@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.5.3",
+    date: "2026-02-03",
+    title: "Golf Bay Booking Touch Handling Fix",
+    changes: [
+      "Fixed: Time slot and accordion buttons now properly capture touch events to prevent accidental navigation",
+      "Improved: Added touch event isolation to prevent taps from bubbling to bottom navigation",
+      "Improved: Better iOS touch handling with manipulation mode and tap highlight removal"
+    ]
+  },
+  {
     version: "69.5.2",
     date: "2026-02-03",
     title: "Golf Bay Booking Form Stability Fix",

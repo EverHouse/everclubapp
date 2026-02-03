@@ -1514,10 +1514,13 @@ const BookGolf: React.FC = () => {
                     >
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           haptic.light();
                           setExpandedHour(isExpanded ? null : hourGroup.hour24);
                         }}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                         className={`w-full p-4 rounded-xl border text-left transition-all active:scale-[0.99] flex items-center justify-between ${
                           hasSelectedSlot
                             ? 'bg-accent/20 border-accent/50'
@@ -1553,18 +1556,20 @@ const BookGolf: React.FC = () => {
                           <button
                             type="button"
                             key={slot.id}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               haptic.light();
                               setSelectedSlot(slot);
                               setSelectedResource(null);
                             }}
+                            onTouchEnd={(e) => e.stopPropagation()}
                             aria-pressed={selectedSlot?.id === slot.id}
                             className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
                               selectedSlot?.id === slot.id
                               ? 'bg-accent text-[#293515] border-accent shadow-glow'
                               : (isDark ? 'glass-card text-white hover:bg-white/10 border-white/25' : 'bg-white text-primary hover:bg-black/5 border-black/10 shadow-sm')
                             }`}
-                            style={{ '--stagger-index': slotIndex } as React.CSSProperties}
+                            style={{ '--stagger-index': slotIndex, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
                           >
                             <div className="font-bold text-sm">{slot.start}</div>
                             <div className={`text-[10px] font-bold uppercase tracking-wide ${selectedSlot?.id === slot.id ? 'opacity-80' : 'opacity-40'}`}>
