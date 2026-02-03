@@ -48,21 +48,32 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   isAdmin = false 
 }) => {
   const navigate = useNavigate();
-  const location = useLocation(); // Subscribe to route changes for portal reactivity
+  const location = useLocation();
   const { startNavigation } = useNavigationLoading();
+  const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+  
+  useEffect(() => {
+    if (optimisticTab && activeTab === optimisticTab) {
+      setOptimisticTab(null);
+    }
+  }, [activeTab, optimisticTab]);
+  
+  const displayActiveTab = optimisticTab || activeTab;
   
   const navigateToTab = useCallback((tab: TabType) => {
+    if (tab === activeTab) return;
     startNavigation();
+    setOptimisticTab(tab);
     if (tabToPath[tab]) {
       navigate(tabToPath[tab]);
     }
-  }, [navigate, startNavigation]);
+  }, [navigate, startNavigation, activeTab]);
   const navContainerRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Map<TabType, HTMLButtonElement>>(new Map());
   const [indicatorStyle, setIndicatorStyle] = useState<{ top: number; height: number } | null>(null);
   
   const updateIndicatorPosition = useCallback(() => {
-    const activeButton = buttonRefs.current.get(activeTab);
+    const activeButton = buttonRefs.current.get(displayActiveTab);
     const container = navContainerRef.current;
     if (activeButton && container) {
       setIndicatorStyle({
@@ -70,7 +81,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         height: activeButton.offsetHeight
       });
     }
-  }, [activeTab]);
+  }, [displayActiveTab]);
   
   useEffect(() => {
     const timer = setTimeout(updateIndicatorPosition, 50);
@@ -79,7 +90,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
       clearTimeout(timer);
       window.removeEventListener('resize', updateIndicatorPosition);
     };
-  }, [activeTab, isAdmin, updateIndicatorPosition]);
+  }, [displayActiveTab, isAdmin, updateIndicatorPosition]);
   
   const setButtonRef = useCallback((id: TabType, el: HTMLButtonElement | null) => {
     if (el) {
@@ -90,11 +101,12 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   }, []);
   
   const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {
-    const isActive = activeTab === item.id;
+    const isActive = displayActiveTab === item.id;
     return (
       <button
         ref={(el) => setButtonRef(item.id, el)}
         onClick={() => navigateToTab(item.id)}
+        style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
           ${isActive 

@@ -55,13 +55,24 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
   const [showBugReport, setShowBugReport] = useState(false);
+  const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+
+  useEffect(() => {
+    if (optimisticTab && activeTab === optimisticTab) {
+      setOptimisticTab(null);
+    }
+  }, [activeTab, optimisticTab]);
+
+  const displayActiveTab = optimisticTab || activeTab;
 
   const navigateToTab = useCallback((tab: TabType) => {
+    if (tab === activeTab) return;
     if (tabToPath[tab]) {
       startNavigation();
+      setOptimisticTab(tab);
       navigate(tabToPath[tab]);
     }
-  }, [navigate, startNavigation]);
+  }, [navigate, startNavigation, activeTab]);
 
   useEffect(() => {
     if (isOpen) {
@@ -86,10 +97,11 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
   };
 
   const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {
-    const isActive = activeTab === item.id;
+    const isActive = displayActiveTab === item.id;
     return (
       <button
         onClick={() => handleNavClick(item.id)}
+        style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
           ${isActive 
