@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.3.0",
+    date: "2026-02-03",
+    title: "Team Page Moved to Admin",
+    changes: [
+      "Changed: 'Team' renamed to 'Manage Team' and moved to Admin section",
+      "Changed: Manage Team is now only visible to admins, not regular staff"
+    ]
+  },
+  {
     version: "69.2.9",
     date: "2026-02-03",
     title: "MindBody Integrity Checks Added",
