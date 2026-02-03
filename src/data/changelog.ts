@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.5.0",
+    date: "2026-02-03",
+    title: "Notice Description Syncs to Google Calendar",
+    changes: [
+      "New: Description field in Edit Notice form now syncs to Google Calendar event",
+      "New: Staff can add custom notes that appear below the auto-generated metadata",
+      "Improved: Description field placeholder clarifies it shows on Internal Calendar"
+    ]
+  },
+  {
     version: "69.4.0",
     date: "2026-02-03",
     title: "Conference Room Booking Improvements",
