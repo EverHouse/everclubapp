@@ -7,6 +7,7 @@ import PullToRefresh from '../../../components/PullToRefresh';
 import ModalShell from '../../../components/ModalShell';
 import { AnimatedPage } from '../../../components/motion';
 import { useTourData, useSyncTours, useCheckInTour, useUpdateTourStatus } from '../../../hooks/queries';
+import { ToursTabSkeleton } from '../../../components/skeletons';
 
 interface Tour {
   id: number;
@@ -101,11 +102,7 @@ const ToursTab: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-      </div>
-    );
+    return <ToursTabSkeleton />;
   }
 
   const statusConfig: Record<string, { label: string; icon: string; colors: string }> = {

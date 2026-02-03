@@ -22,6 +22,7 @@ import { StaffManualBookingModal, type StaffManualBookingData } from '../../../c
 import { AnimatedPage } from '../../../components/motion';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
+import { SimulatorTabSkeleton } from '../../../components/skeletons';
 import {
     useResources,
     useBays,
@@ -1818,9 +1819,7 @@ const SimulatorTab: React.FC = () => {
                 </div>
 
             {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-primary dark:text-white">progress_activity</span>
-                </div>
+                <SimulatorTabSkeleton />
             ) : (
                 <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr] xl:grid-cols-[450px_1fr] lg:items-start flex-1">
                     <div 

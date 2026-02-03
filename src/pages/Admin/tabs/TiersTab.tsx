@@ -8,6 +8,7 @@ import ProductsSubTab from './ProductsSubTab';
 import DiscountsSubTab from './DiscountsSubTab';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
+import { TiersTabSkeleton } from '../../../components/skeletons';
 
 type SubTab = 'tiers' | 'products' | 'fees' | 'discounts';
 
@@ -402,11 +403,7 @@ const TiersTab: React.FC = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-12">
-                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary/70">progress_activity</span>
-            </div>
-        );
+        return <TiersTabSkeleton />;
     }
 
     return (

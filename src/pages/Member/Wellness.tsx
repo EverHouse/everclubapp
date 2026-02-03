@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
@@ -13,6 +14,7 @@ import { EmptyEvents } from '../../components/EmptyState';
 import { playSound } from '../../utils/sounds';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
 import { bookingEvents } from '../../lib/bookingEvents';
+import { WellnessCardSkeleton, SkeletonList } from '../../components/skeletons';
 
 interface WellnessEnrollment {
   class_id: number;
@@ -197,85 +199,125 @@ const Wellness: React.FC = () => {
 const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: boolean; userEmail?: string; userStatus?: string; refreshKey?: number; onRefreshComplete?: () => void}> = ({ onBook, isDark = true, userEmail, userStatus, refreshKey = 0, onRefreshComplete }) => {
   const { showToast } = useToast();
   const { setPageReady } = usePageReady();
+  const queryClient = useQueryClient();
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [classes, setClasses] = useState<WellnessClass[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [enrollments, setEnrollments] = useState<WellnessEnrollment[]>([]);
   const [loadingCancel, setLoadingCancel] = useState<number | null>(null);
   const [loadingRsvp, setLoadingRsvp] = useState<number | null>(null);
-  const [categories, setCategories] = useState<string[]>(['All', 'Classes', 'MedSpa', 'Recovery', 'Therapy', 'Nutrition', 'Personal Training', 'Mindfulness', 'Outdoors', 'General']);
+  const categories = ['All', 'Classes', 'MedSpa', 'Recovery', 'Therapy', 'Nutrition', 'Personal Training', 'Mindfulness', 'Outdoors', 'General'];
+  
+  const onRefreshCompleteRef = useRef(onRefreshComplete);
+  onRefreshCompleteRef.current = onRefreshComplete;
+  const prevRefreshKeyRef = useRef(refreshKey);
 
-  const fetchClasses = useCallback(async () => {
-    const { ok, data } = await apiRequest<any[]>('/api/wellness-classes?active_only=true');
-    
-    if (ok && data) {
-      const formatted = data.map((c: any) => {
-        const spotsRemaining = c.spots_remaining !== null ? parseInt(c.spots_remaining, 10) : null;
-        const enrolledCount = parseInt(c.enrolled_count, 10) || 0;
-        const waitlistCount = parseInt(c.waitlist_count, 10) || 0;
-        const capacity = c.capacity !== null ? parseInt(c.capacity, 10) : null;
-        return {
-          id: c.id,
-          title: c.title,
-          date: c.date,
-          time: c.time,
-          instructor: c.instructor,
-          duration: c.duration,
-          category: c.category,
-          spots: c.spots,
-          spotsRemaining,
-          enrolledCount,
-          status: spotsRemaining !== null && spotsRemaining <= 0 ? 'Full' : (c.status || 'Open'),
-          description: c.description,
-          capacity,
-          waitlistEnabled: c.waitlist_enabled || false,
-          waitlistCount
-        };
+  const { data: classes = [], isLoading: classesLoading, refetch: refetchClasses } = useQuery({
+    queryKey: ['wellness-classes'],
+    queryFn: async () => {
+      const { ok, data } = await apiRequest<any[]>('/api/wellness-classes?active_only=true');
+      if (ok && data) {
+        return data.map((c: any) => {
+          const spotsRemaining = c.spots_remaining !== null ? parseInt(c.spots_remaining, 10) : null;
+          const enrolledCount = parseInt(c.enrolled_count, 10) || 0;
+          const waitlistCount = parseInt(c.waitlist_count, 10) || 0;
+          const capacity = c.capacity !== null ? parseInt(c.capacity, 10) : null;
+          return {
+            id: c.id,
+            title: c.title,
+            date: c.date,
+            time: c.time,
+            instructor: c.instructor,
+            duration: c.duration,
+            category: c.category,
+            spots: c.spots,
+            spotsRemaining,
+            enrolledCount,
+            status: spotsRemaining !== null && spotsRemaining <= 0 ? 'Full' : (c.status || 'Open'),
+            description: c.description,
+            capacity,
+            waitlistEnabled: c.waitlist_enabled || false,
+            waitlistCount
+          };
+        });
+      }
+      throw new Error('Failed to fetch classes');
+    },
+    staleTime: 60000,
+  });
+
+  const { data: enrollments = [], isLoading: enrollmentsLoading, refetch: refetchEnrollments } = useQuery({
+    queryKey: ['wellness-enrollments', userEmail],
+    queryFn: async () => {
+      if (!userEmail) return [];
+      const { ok, data } = await apiRequest<WellnessEnrollment[]>(`/api/wellness-enrollments?user_email=${encodeURIComponent(userEmail)}`);
+      if (ok && data) return data;
+      return [];
+    },
+    enabled: !!userEmail,
+    staleTime: 60000,
+  });
+
+  const isLoading = classesLoading || enrollmentsLoading;
+
+  useEffect(() => {
+    if (refreshKey > prevRefreshKeyRef.current) {
+      Promise.all([refetchClasses(), refetchEnrollments()]).then(() => {
+        onRefreshCompleteRef.current?.();
       });
-      setClasses(formatted);
-    } else {
-      showToast('Unable to load data. Please try again.', 'error');
     }
-    
-    setIsLoading(false);
-  }, [showToast]);
+    prevRefreshKeyRef.current = refreshKey;
+  }, [refreshKey, refetchClasses, refetchEnrollments]);
 
-  const fetchEnrollments = useCallback(async () => {
-    if (!userEmail) return;
-    const { ok, data } = await apiRequest<WellnessEnrollment[]>(`/api/wellness-enrollments?user_email=${encodeURIComponent(userEmail)}`);
-    if (ok && data) {
-      setEnrollments(data);
+  useEffect(() => {
+    const refetch = () => {
+      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
+    };
+    const unsubscribe = bookingEvents.subscribe(refetch);
+    return unsubscribe;
+  }, [queryClient, userEmail]);
+
+  useEffect(() => {
+    const handleWaitlistUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
+    };
+    window.addEventListener('waitlist-update', handleWaitlistUpdate);
+    return () => window.removeEventListener('waitlist-update', handleWaitlistUpdate);
+  }, [queryClient, userEmail]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setPageReady(true);
     }
-  }, [userEmail]);
+  }, [isLoading, setPageReady]);
 
-  const handleCancel = useCallback(async (classData: WellnessClass) => {
+  const handleCancel = async (classData: WellnessClass) => {
     if (!userEmail) return;
     
     setLoadingCancel(classData.id);
     
-    // Optimistic UI: remove enrollment and update counts immediately
-    const previousEnrollments = [...enrollments];
-    const previousClasses = [...classes];
-    
     const enrollmentToCancel = enrollments.find(e => e.class_id === classData.id);
     const isWaitlistCancel = enrollmentToCancel?.is_waitlisted;
 
-    setEnrollments(prev => prev.filter(e => e.class_id !== classData.id));
-    setClasses(prev => prev.map(c => {
-      if (c.id === classData.id) {
-        if (isWaitlistCancel) {
-          return { ...c, waitlistCount: Math.max(0, (c.waitlistCount || 1) - 1) };
-        } else {
-          return { 
-            ...c, 
-            enrolledCount: Math.max(0, c.enrolledCount - 1),
-            spotsRemaining: c.spotsRemaining !== null ? c.spotsRemaining + 1 : null
-          };
+    queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
+      old.filter(e => e.class_id !== classData.id)
+    );
+    queryClient.setQueryData<WellnessClass[]>(['wellness-classes'], (old = []) => 
+      old.map(c => {
+        if (c.id === classData.id) {
+          if (isWaitlistCancel) {
+            return { ...c, waitlistCount: Math.max(0, (c.waitlistCount || 1) - 1) };
+          } else {
+            return { 
+              ...c, 
+              enrolledCount: Math.max(0, c.enrolledCount - 1),
+              spotsRemaining: c.spotsRemaining !== null ? c.spotsRemaining + 1 : null
+            };
+          }
         }
-      }
-      return c;
-    }));
+        return c;
+      })
+    );
     
     const { ok, error } = await apiRequest(`/api/wellness-enrollments/${classData.id}/${encodeURIComponent(userEmail)}`, {
       method: 'DELETE'
@@ -283,42 +325,41 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     
     if (ok) {
       showToast(`Cancelled enrollment for ${classData.title}`, 'success');
-      fetchClasses(); // Sync spots remaining
+      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
     } else {
-      // Revert on failure
-      setEnrollments(previousEnrollments);
-      setClasses(previousClasses);
+      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
       showToast(error || 'Unable to cancel. Please try again.', 'error');
-      console.error('Wellness cancellation error:', error);
     }
     setLoadingCancel(null);
-  }, [userEmail, showToast, fetchClasses, enrollments, classes]);
+  };
 
-  const handleRsvp = useCallback(async (classData: WellnessClass) => {
+  const handleRsvp = async (classData: WellnessClass) => {
     if (!userEmail) return;
     
     setLoadingRsvp(classData.id);
     
-    // Optimistic UI: add enrollment and update counts immediately
-    const previousEnrollments = [...enrollments];
-    const previousClasses = [...classes];
     const isWaitlistJoin = classData.spotsRemaining !== null && classData.spotsRemaining <= 0 && classData.waitlistEnabled;
     
-    setEnrollments(prev => [...prev, { class_id: classData.id, user_email: userEmail, is_waitlisted: isWaitlistJoin }]);
-    setClasses(prev => prev.map(c => {
-      if (c.id === classData.id) {
-        if (isWaitlistJoin) {
-          return { ...c, waitlistCount: (c.waitlistCount || 0) + 1 };
-        } else {
-          return { 
-            ...c, 
-            enrolledCount: c.enrolledCount + 1,
-            spotsRemaining: c.spotsRemaining !== null ? Math.max(0, c.spotsRemaining - 1) : null
-          };
+    queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
+      [...old, { class_id: classData.id, user_email: userEmail, is_waitlisted: isWaitlistJoin }]
+    );
+    queryClient.setQueryData<WellnessClass[]>(['wellness-classes'], (old = []) => 
+      old.map(c => {
+        if (c.id === classData.id) {
+          if (isWaitlistJoin) {
+            return { ...c, waitlistCount: (c.waitlistCount || 0) + 1 };
+          } else {
+            return { 
+              ...c, 
+              enrolledCount: c.enrolledCount + 1,
+              spotsRemaining: c.spotsRemaining !== null ? Math.max(0, c.spotsRemaining - 1) : null
+            };
+          }
         }
-      }
-      return c;
-    }));
+        return c;
+      })
+    );
     
     const { ok, data, error } = await apiRequest<{isWaitlisted?: boolean; message?: string}>('/api/wellness-enrollments', {
       method: 'POST',
@@ -333,65 +374,18 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
       playSound('bookingConfirmed');
       const isWaitlisted = data?.isWaitlisted;
       showToast(isWaitlisted ? `Added to waitlist for ${classData.title}` : `RSVP confirmed for ${classData.title}!`, 'success');
-      fetchClasses();
-      fetchEnrollments();
+      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
     } else {
-      setEnrollments(previousEnrollments);
-      setClasses(previousClasses);
+      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
+      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
       showToast(error || 'Unable to RSVP. Please try again.', 'error');
-      console.error('Wellness RSVP error:', error);
     }
     setLoadingRsvp(null);
-  }, [userEmail, showToast, fetchClasses, fetchEnrollments, enrollments, classes]);
+  };
 
-  const isEnrolled = useCallback((classId: number) => {
-    return enrollments.some(e => e.class_id === classId);
-  }, [enrollments]);
-
-  const isOnWaitlist = useCallback((classId: number) => {
-    const enrollment = enrollments.find(e => e.class_id === classId);
-    return enrollment?.is_waitlisted || false;
-  }, [enrollments]);
-
-  const getWaitlistPosition = useCallback((classId: number) => {
-    const cls = classes.find(c => c.id === classId);
-    return cls?.waitlistCount || 0;
-  }, [classes]);
-
-  useEffect(() => {
-    const loadData = async () => {
-      await Promise.all([fetchClasses(), fetchEnrollments()]);
-      if (refreshKey > 0 && onRefreshComplete) {
-        onRefreshComplete();
-      }
-    };
-    loadData();
-  }, [fetchClasses, fetchEnrollments, refreshKey, onRefreshComplete]);
-
-  // Subscribe to real-time updates for wellness enrollments
-  useEffect(() => {
-    const unsubscribe = bookingEvents.subscribe(() => {
-      fetchClasses();
-      fetchEnrollments();
-    });
-    return unsubscribe;
-  }, [fetchClasses, fetchEnrollments]);
-
-  // Listen for waitlist-update custom events (from WebSocket) for real-time availability
-  useEffect(() => {
-    const handleWaitlistUpdate = () => {
-      fetchClasses();
-      fetchEnrollments();
-    };
-    window.addEventListener('waitlist-update', handleWaitlistUpdate);
-    return () => window.removeEventListener('waitlist-update', handleWaitlistUpdate);
-  }, [fetchClasses, fetchEnrollments]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      setPageReady(true);
-    }
-  }, [isLoading, setPageReady]);
+  const isEnrolled = (classId: number) => enrollments.some(e => e.class_id === classId);
+  const isOnWaitlist = (classId: number) => enrollments.find(e => e.class_id === classId)?.is_waitlisted || false;
 
   const sortedClasses = classes
     .filter(cls => selectedFilter === 'All' || cls.category === selectedFilter)
@@ -403,11 +397,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
 
   if (isLoading) {
     return (
-      <div className="animate-pulse space-y-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className={`h-32 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`} />
-        ))}
-      </div>
+      <SkeletonList count={4} Component={WellnessCardSkeleton} isDark={isDark} className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3" />
     );
   }
 

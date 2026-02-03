@@ -12,149 +12,10 @@ interface GalleryImage {
   title?: string;
 }
 
-const taglines = [
-  "Your second home.",
-  "Rooted in golf, built for community.",
-  "Where design meets lifestyle.",
-  "Elevate your everyday experience.",
-  "Come in, settle down, stay awhile.",
-  "A place to focus, meet, and connect.",
-  "Step onto the green.",
-  "Golf all year.",
-  "Where every day feels like a day on the course.",
-  "Practice with purpose.",
-  "Tour-level data, right here at home.",
-  "Inspire. Engage. Elevate.",
-  "Effortless balance.",
-  "Play through.",
-  "Refined leisure.",
-  "Always open.",
-  "A welcoming community.",
-  "More than a sport.",
-  "Productivity meets leisure."
-];
-
-const MascotLoader: React.FC<{ isVisible: boolean; onFadeComplete?: () => void }> = ({ isVisible, onFadeComplete }) => {
-  const [isExiting, setIsExiting] = useState(false);
-  const [shouldRender, setShouldRender] = useState(isVisible);
-  const [tagline] = useState(() => taglines[Math.floor(Math.random() * taglines.length)]);
-
-  useEffect(() => {
-    if (!isVisible && shouldRender && !isExiting) {
-      setIsExiting(true);
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-        onFadeComplete?.();
-      }, 700);
-      return () => clearTimeout(timer);
-    }
-  }, [isVisible, shouldRender, isExiting, onFadeComplete]);
-
-  if (!shouldRender) return null;
-
-  return createPortal(
-    <div className={`gallery-loader-overlay ${isExiting ? 'gallery-loader-exit' : ''}`}>
-      <div className={`gallery-loader-content ${isExiting ? 'gallery-content-exit' : ''}`}>
-        <div className="gallery-mascot">
-          <img 
-            src="/assets/logos/walking-mascot-white.gif" 
-            alt="Loading gallery..." 
-            style={{ width: '120px', height: 'auto' }}
-          />
-        </div>
-        <p className="gallery-tagline">{tagline}</p>
-      </div>
-
-      <style>{`
-        .gallery-loader-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 99999;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          background-color: #293515;
-          will-change: clip-path;
-        }
-
-        .gallery-loader-exit {
-          animation: galleryMinimizeToStatusBar 0.55s cubic-bezier(0.32, 0, 0.67, 0) forwards;
-          pointer-events: none;
-        }
-
-        @keyframes galleryMinimizeToStatusBar {
-          0% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100%);
-            opacity: 1;
-          }
-        }
-
-        .gallery-loader-content {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1.5rem;
-          will-change: opacity, transform;
-        }
-
-        .gallery-content-exit {
-          animation: galleryContentFadeOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
-        }
-
-        @keyframes galleryContentFadeOut {
-          0% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-30px);
-          }
-        }
-
-        .gallery-mascot {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .gallery-tagline {
-          font-family: 'Playfair Display', serif;
-          color: white;
-          font-size: 1rem;
-          text-align: center;
-          margin: 0;
-          padding: 0 2rem;
-          opacity: 0;
-          animation: galleryTaglineFadeIn 0.6s ease-out 0.3s forwards;
-        }
-
-        @keyframes galleryTaglineFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </div>,
-    document.body
-  );
-};
-
 const Gallery: React.FC = () => {
   const { setPageReady } = usePageReady();
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [imagesLoaded, setImagesLoaded] = useState(true);
-  const [showLoader, setShowLoader] = useState(false);
   const [filter, setFilter] = useState('All');
   const [viewerState, setViewerState] = useState<{images: string[], index: number} | null>(null);
 
@@ -178,53 +39,6 @@ const Gallery: React.FC = () => {
     };
     fetchGallery();
   }, []);
-
-  useEffect(() => {
-    if (isLoadingData) return;
-
-    let hasCompleted = false;
-
-    const markComplete = () => {
-      if (!hasCompleted) {
-        hasCompleted = true;
-        setImagesLoaded(true);
-        setShowLoader(false);
-      }
-    };
-
-    if (images.length === 0) {
-      markComplete();
-      return;
-    }
-
-    let loadedCount = 0;
-    const totalImages = images.length;
-
-    const timeoutId = setTimeout(() => {
-      markComplete();
-    }, 8000);
-
-    images.forEach((imageData) => {
-      const img = new Image();
-      img.onload = () => {
-        loadedCount++;
-        if (loadedCount >= totalImages) {
-          markComplete();
-        }
-      };
-      img.onerror = () => {
-        loadedCount++;
-        if (loadedCount >= totalImages) {
-          markComplete();
-        }
-      };
-      img.src = imageData.img;
-    });
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [isLoadingData, images]);
 
   const categories = useMemo(() => {
     const cats = new Set(images.map(img => img.category));
@@ -284,8 +98,6 @@ const Gallery: React.FC = () => {
 
   return (
     <>
-      <MascotLoader isVisible={showLoader} />
-      
       <AnimatedPage>
       <div 
         className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden"
@@ -394,6 +206,8 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, index, onItem
         src={img} 
         className={`w-full h-auto object-cover transform group-hover:scale-105 transition-all duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'}`}
         alt="Gallery"
+        loading="lazy"
+        decoding="async"
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
       />

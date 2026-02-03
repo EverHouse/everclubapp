@@ -13,6 +13,7 @@ import { SlideUpDrawer } from '../../../components/SlideUpDrawer';
 import TierBadge from '../../../components/TierBadge';
 import { AnimatedPage } from '../../../components/motion';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
+import { EventsTabSkeleton } from '../../../components/skeletons';
 
 interface Participant {
     id: number;
@@ -1197,9 +1198,7 @@ const EventsAdminContent: React.FC = () => {
             </SlideUpDrawer>
 
             {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-600 dark:text-gray-500">progress_activity</span>
-                </div>
+                <EventsTabSkeleton />
             ) : filteredEvents.length === 0 ? (
                 <EmptyState
                     icon="event"
@@ -1758,9 +1757,7 @@ const WellnessAdminContent: React.FC = () => {
             )}
 
             {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-gray-600 dark:text-gray-500">progress_activity</span>
-                </div>
+                <EventsTabSkeleton />
             ) : filteredClasses.length === 0 ? (
                 <EmptyState
                     icon="spa"

@@ -12,6 +12,7 @@ import BookingMembersEditor from '../../../components/admin/BookingMembersEditor
 import RosterManager from '../../../components/booking/RosterManager';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import { TrackmanTabSkeleton } from '../../../components/skeletons';
 
 const formatTime12Hour = (time: string | null | undefined): string => {
   if (!time) return '';
@@ -332,12 +333,7 @@ const TrackmanTab: React.FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <WalkingGolferSpinner size="lg" variant="dark" />
-        <p className="text-sm text-primary/70 dark:text-white/70">Loading import data...</p>
-      </div>
-    );
+    return <TrackmanTabSkeleton />;
   }
 
   return (

@@ -307,6 +307,8 @@ const Landing: React.FC = () => {
             alt="Ever House Lounge" 
             className="absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform animate-hero-bg"
             loading="eager"
+            fetchPriority="high"
+            decoding="sync"
             style={{ 
               transform: `translateY(${parallaxOffset}px) scale(1.05)`
             }}
@@ -612,7 +614,13 @@ const FeatureCard: React.FC<{image: string; icon: string; title: string; stagger
     className="relative h-[240px] rounded-[2rem] overflow-hidden group animate-slide-up-stagger backdrop-blur-xl bg-black/20 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]" 
     style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
   >
-     <div className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-700 group-hover:scale-110" style={{backgroundImage: `url('${image}')`}}></div>
+     <img 
+       src={image} 
+       alt={title}
+       loading="lazy"
+       decoding="async"
+       className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-110"
+     />
      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
      <div className="absolute bottom-0 left-0 right-0 p-4">
         <div className="mb-2 w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-[0_0_12px_rgba(255,255,255,0.1)]">
