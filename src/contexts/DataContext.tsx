@@ -339,10 +339,20 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   // Optimization: Only fetch first page (200 members) initially for faster load
   // Full member list loads on-demand via fetchMembersPaginated when accessing directory
   // Wait for session to be checked before fetching to avoid "Failed to fetch" errors
+  // Use ref to prevent refetching when actualUser object changes but role stays the same
+  const initialMembersFetchedRef = useRef(false);
+  const prevUserRoleRef = useRef<string | null>(null);
+  
   useEffect(() => {
     const fetchInitialMembers = async () => {
       if (!sessionChecked) return;
       if (!actualUser || (actualUser.role !== 'admin' && actualUser.role !== 'staff')) return;
+      
+      // Skip if we already fetched for this role (prevents refetch when actualUser object changes)
+      const currentRole = actualUser.role;
+      if (initialMembersFetchedRef.current && prevUserRoleRef.current === currentRole) {
+        return;
+      }
       
       try {
         // Fetch all active members from database (up to 500)
@@ -370,6 +380,8 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             billingProvider: contact.billingProvider || contact.billing_provider || null
           }));
           setMembers(formatted);
+          initialMembersFetchedRef.current = true;
+          prevUserRoleRef.current = currentRole;
           
           // Store pagination info for incremental loading
           if (data.total && data.totalPages) {
