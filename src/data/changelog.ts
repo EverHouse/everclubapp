@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.69.5",
+    date: "2026-02-03",
+    title: "Cancellation Handling & Audit Trail",
+    changes: [
+      "New: Staff tier assignments now appear in Staff Activity feed (audit logging)",
+      "New: When membership is cancelled, HubSpot deal moves from Won to Lost",
+      "New: Cancelled members have deal line items removed from HubSpot",
+      "Note: Works for both Stripe and MindBody-billed members"
+    ]
+  },
+  {
     version: "9.69.4",
     date: "2026-02-03",
     title: "Stripe Subscription Tier Sync",
