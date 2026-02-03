@@ -24,9 +24,11 @@ interface UseStaffWebSocketOptions {
   debounceMs?: number;
 }
 
+let globalConnectionId = 0;
+
 export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
   const { onBookingEvent, debounceMs = 500 } = options;
-  const { actualUser, sessionChecked, sessionVersion } = useData();
+  const { actualUser, sessionChecked } = useData();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -37,18 +39,17 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<BookingEvent | null>(null);
   
-  // Track which user has an active socket connection (set on socket open, cleared on close)
+  const mountIdRef = useRef<number>(0);
+  const connectionIdRef = useRef<number>(0);
   const activeConnectionUserRef = useRef<string | null>(null);
-  // Track if we intentionally disconnected (to prevent auto-reconnect)
   const intentionalDisconnectRef = useRef(false);
+  const hasInitializedRef = useRef(false);
   
-  // Store options in refs to avoid dependency changes causing socket teardown
   const onBookingEventRef = useRef(onBookingEvent);
   onBookingEventRef.current = onBookingEvent;
   const debounceMsRef = useRef(debounceMs);
   debounceMsRef.current = debounceMs;
 
-  // Store user info and session state in refs for use in callbacks
   const userEmailRef = useRef(actualUser?.email);
   const userRoleRef = useRef(actualUser?.role);
   const sessionCheckedRef = useRef(sessionChecked);
@@ -84,28 +85,42 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
     }, debounceMsRef.current);
   }, [processPendingEvents]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback((reason: string) => {
     const email = userEmailRef.current;
     const role = userRoleRef.current;
+    const currentMountId = mountIdRef.current;
     
     if (!email) {
+      console.log('[StaffWebSocket] Skipping connect: no email');
       return;
     }
     
     if (isConnectingRef.current) {
+      console.log('[StaffWebSocket] Skipping connect: already connecting');
       return;
     }
     
-    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[StaffWebSocket] Skipping connect: socket already open');
+      return;
+    }
+    
+    if (wsRef.current?.readyState === WebSocket.CONNECTING) {
+      console.log('[StaffWebSocket] Skipping connect: socket already connecting');
       return;
     }
 
     const isStaff = role === 'staff' || role === 'admin';
     if (!isStaff) {
+      console.log('[StaffWebSocket] Skipping connect: not staff');
       return;
     }
 
-    console.log('[StaffWebSocket] Connecting as staff:', email);
+    globalConnectionId++;
+    const thisConnectionId = globalConnectionId;
+    connectionIdRef.current = thisConnectionId;
+    
+    console.log(`[StaffWebSocket] Connecting (id=${thisConnectionId}, mount=${currentMountId}, reason=${reason}):`, email);
     isConnectingRef.current = true;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -116,15 +131,18 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (connectionIdRef.current !== thisConnectionId) {
+          console.log(`[StaffWebSocket] Stale connection opened (id=${thisConnectionId}, current=${connectionIdRef.current}), closing`);
+          ws.close();
+          return;
+        }
+        
         const currentEmail = userEmailRef.current;
-        console.log('[StaffWebSocket] Connected, sending auth for:', currentEmail);
+        console.log(`[StaffWebSocket] Connected (id=${thisConnectionId}):`, currentEmail);
         isConnectingRef.current = false;
         setIsConnected(true);
-        // Mark this user as having an active connection
         activeConnectionUserRef.current = currentEmail || null;
-        // Reset intentional disconnect flag on successful connect
         intentionalDisconnectRef.current = false;
-        // Reset reconnection attempt counter on successful connect
         reconnectAttemptRef.current = 0;
         ws.send(JSON.stringify({ 
           type: 'auth', 
@@ -181,13 +199,11 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             });
           }
           
-          // Handle directory updates (staff only - member directory syncs)
           if (message.type === 'directory_update') {
             console.log('[StaffWebSocket] Received directory_update:', message.action);
             window.dispatchEvent(new CustomEvent('directory-update', { detail: message }));
           }
 
-          // Handle availability updates (booking slots)
           if (message.type === 'availability_update') {
             console.log('[StaffWebSocket] Received availability_update');
             handleBookingEvent({
@@ -201,22 +217,18 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             });
           }
 
-          // Handle cafe menu updates
           if (message.type === 'cafe_menu_update') {
             window.dispatchEvent(new CustomEvent('cafe-menu-update', { detail: message }));
           }
 
-          // Handle closure/notice updates
           if (message.type === 'closure_update') {
             window.dispatchEvent(new CustomEvent('closure-update', { detail: message }));
           }
 
-          // Handle billing updates (payment status changes)
           if (message.type === 'billing_update') {
             console.log('[StaffWebSocket] Received billing_update:', message.action);
             window.dispatchEvent(new CustomEvent('billing-update', { detail: message }));
             
-            // Also trigger booking update to refresh booking lists
             if (message.action === 'booking_payment_updated' && message.bookingId) {
               handleBookingEvent({
                 eventType: 'payment_updated',
@@ -230,19 +242,16 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             }
           }
 
-          // Handle tier assignment updates
           if (message.type === 'tier_update') {
             console.log('[StaffWebSocket] Received tier_update:', message.action);
             window.dispatchEvent(new CustomEvent('tier-update', { detail: message }));
           }
 
-          // Handle member stats updates (guest passes, visits)
           if (message.type === 'member_stats_updated') {
             console.log('[StaffWebSocket] Received member_stats_updated for:', message.memberEmail);
             window.dispatchEvent(new CustomEvent('member-stats-updated', { detail: message }));
           }
 
-          // Handle Trackman booking auto-confirmed events
           if (message.type === 'booking_auto_confirmed') {
             console.log('[StaffWebSocket] Received booking_auto_confirmed:', message.data?.memberName);
             window.dispatchEvent(new CustomEvent('booking-auto-confirmed', { detail: message }));
@@ -258,7 +267,6 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             });
           }
 
-          // Handle booking confirmed events (from simulate confirm or manual confirmation)
           if (message.type === 'booking_confirmed') {
             console.log('[StaffWebSocket] Received booking_confirmed:', message.data?.bookingId);
             window.dispatchEvent(new CustomEvent('booking-confirmed', { detail: message }));
@@ -273,13 +281,11 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             });
           }
 
-          // Handle day pass updates
           if (message.type === 'day_pass_update') {
             console.log('[StaffWebSocket] Received day_pass_update:', message.action);
             window.dispatchEvent(new CustomEvent('day-pass-update', { detail: message }));
           }
 
-          // Handle tour updates (scheduled, rescheduled, cancelled, checked in)
           if (message.type === 'tour_update') {
             console.log('[StaffWebSocket] Received tour_update:', message.action);
             window.dispatchEvent(new CustomEvent('tour-update', { detail: message }));
@@ -290,42 +296,43 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
       };
 
       ws.onclose = () => {
-        console.log('[StaffWebSocket] Connection closed');
+        const wasThisConnection = connectionIdRef.current === thisConnectionId;
+        console.log(`[StaffWebSocket] Connection closed (id=${thisConnectionId}, current=${connectionIdRef.current}, wasActive=${wasThisConnection})`);
+        
+        if (!wasThisConnection) {
+          return;
+        }
+        
         isConnectingRef.current = false;
         setIsConnected(false);
         wsRef.current = null;
-        // Clear active connection marker
         activeConnectionUserRef.current = null;
         
-        // Only reconnect if this wasn't an intentional disconnect
         if (!intentionalDisconnectRef.current) {
           const currentEmail = userEmailRef.current;
           const currentRole = userRoleRef.current;
           if (currentEmail && (currentRole === 'staff' || currentRole === 'admin')) {
-            // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
             const baseDelay = 2000;
             const maxDelay = 30000;
             const delay = Math.min(baseDelay * Math.pow(2, reconnectAttemptRef.current), maxDelay);
             reconnectAttemptRef.current++;
             console.log(`[StaffWebSocket] Scheduling reconnect in ${delay / 1000}s (attempt ${reconnectAttemptRef.current})`);
             reconnectTimeoutRef.current = setTimeout(() => {
-              // Re-check session readiness before reconnecting
               if (!sessionCheckedRef.current) {
                 console.log('[StaffWebSocket] Session not ready, delaying reconnect');
-                // Schedule another attempt
                 reconnectTimeoutRef.current = setTimeout(() => {
-                  connect();
+                  connect('session_ready_retry');
                 }, 1000);
                 return;
               }
-              connect();
+              connect('auto_reconnect');
             }, delay);
           }
         }
       };
 
       ws.onerror = (error) => {
-        console.error('[StaffWebSocket] Connection error:', error);
+        console.error(`[StaffWebSocket] Connection error (id=${thisConnectionId}):`, error);
         isConnectingRef.current = false;
         setIsConnected(false);
       };
@@ -336,9 +343,8 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
     }
   }, [handleBookingEvent]);
 
-  // Cleanup function that tears down socket and timers
   const cleanup = useCallback(() => {
-    // Mark as intentional to prevent auto-reconnect in onclose
+    console.log(`[StaffWebSocket] Cleanup called (mount=${mountIdRef.current})`);
     intentionalDisconnectRef.current = true;
     
     if (initTimerRef.current) {
@@ -361,73 +367,74 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
     activeConnectionUserRef.current = null;
   }, []);
 
-  // Effect to manage connection based on auth state and user identity
   useEffect(() => {
-    // Wait for auth check to complete before doing anything
+    mountIdRef.current++;
+    const thisMountId = mountIdRef.current;
+    console.log(`[StaffWebSocket] Effect running (mount=${thisMountId}, sessionChecked=${sessionChecked}, email=${actualUser?.email})`);
+    
     if (!sessionChecked) {
+      console.log(`[StaffWebSocket] Waiting for session check (mount=${thisMountId})`);
       return;
     }
     
     const userEmail = actualUser?.email;
     const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
     
-    // If user is not a staff member or has no email, clean up any existing connection
     if (!userEmail || !isStaff) {
       if (activeConnectionUserRef.current || wsRef.current) {
-        console.log('[StaffWebSocket] User logged out or no longer staff, cleaning up');
+        console.log(`[StaffWebSocket] User logged out or no longer staff, cleaning up (mount=${thisMountId})`);
         cleanup();
       }
-      // Reset intentional disconnect when user logs out so new login can connect
       intentionalDisconnectRef.current = false;
+      hasInitializedRef.current = false;
       return;
     }
     
-    // If we already have an active connection for this user, skip
-    if (activeConnectionUserRef.current === userEmail) {
+    if (activeConnectionUserRef.current === userEmail && wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log(`[StaffWebSocket] Already connected to ${userEmail}, skipping (mount=${thisMountId})`);
       return;
     }
     
-    // If we have a connection for a different user, clean it up first
     if (activeConnectionUserRef.current && activeConnectionUserRef.current !== userEmail) {
-      console.log('[StaffWebSocket] User changed from', activeConnectionUserRef.current, 'to', userEmail);
+      console.log(`[StaffWebSocket] User changed from ${activeConnectionUserRef.current} to ${userEmail} (mount=${thisMountId})`);
       cleanup();
     }
     
-    // If there's already a socket connecting/connected, skip
     if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+      console.log(`[StaffWebSocket] Socket already open/connecting, skipping (mount=${thisMountId})`);
       return;
     }
     
-    // If we're already connecting, skip
     if (isConnectingRef.current) {
+      console.log(`[StaffWebSocket] Already connecting, skipping (mount=${thisMountId})`);
+      return;
+    }
+    
+    if (initTimerRef.current) {
+      console.log(`[StaffWebSocket] Init timer already pending, skipping (mount=${thisMountId})`);
       return;
     }
 
-    console.log('[StaffWebSocket] Auth ready and staff user detected, connecting:', userEmail);
-    // Reset intentional disconnect flag for new connection attempt
+    console.log(`[StaffWebSocket] Scheduling connection for ${userEmail} (mount=${thisMountId})`);
     intentionalDisconnectRef.current = false;
+    hasInitializedRef.current = true;
     
-    // Mark as connecting immediately to prevent duplicate connection attempts
-    isConnectingRef.current = true;
-    
-    // Connect after a brief delay to ensure session cookies are fully ready
     initTimerRef.current = setTimeout(() => {
-      // Reset the flag so connect() can proceed
-      isConnectingRef.current = false;
-      connect();
+      initTimerRef.current = null;
+      if (mountIdRef.current !== thisMountId) {
+        console.log(`[StaffWebSocket] Stale init timer (mount=${thisMountId}, current=${mountIdRef.current}), skipping`);
+        return;
+      }
+      connect('initial');
     }, 300);
     
-    // No cleanup return - we handle cleanup explicitly when user identity changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionChecked, actualUser?.email, actualUser?.role, sessionVersion]);
+  }, [sessionChecked, actualUser?.email, actualUser?.role, cleanup, connect]);
   
-  // Separate effect for component unmount cleanup only
   useEffect(() => {
     return () => {
       cleanup();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cleanup]);
 
   return {
     isConnected,

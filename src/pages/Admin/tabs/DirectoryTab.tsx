@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import EmptyState from '../../../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
-// Note: react-window List removed due to compatibility issues with React Query
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData, MemberProfile } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
@@ -31,148 +30,40 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
     { value: 'tier', label: 'Tier' },
 ];
 
-// Virtualization disabled - react-window causes Object.values errors with React Query
-const VIRTUALIZATION_THRESHOLD = Infinity;
+const VIRTUALIZATION_THRESHOLD = 75;
+const ITEMS_PER_PAGE = 50;
 const VISITORS_PAGE_SIZE = 100;
 
-interface ListChildComponentProps {
-    index: number;
-    style: React.CSSProperties;
-    data: unknown;
+function useIncrementalLoad<T>(items: T[], threshold: number = VIRTUALIZATION_THRESHOLD) {
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+    
+    const needsVirtualization = items.length > threshold;
+    const visibleItems = needsVirtualization ? items.slice(0, visibleCount) : items;
+    const hasMore = needsVirtualization && visibleCount < items.length;
+    
+    useEffect(() => {
+        setVisibleCount(ITEMS_PER_PAGE);
+    }, [items.length]);
+    
+    useEffect(() => {
+        if (!needsVirtualization || !loadMoreRef.current) return;
+        
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting && hasMore) {
+                    setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, items.length));
+                }
+            },
+            { rootMargin: '200px' }
+        );
+        
+        observer.observe(loadMoreRef.current);
+        return () => observer.disconnect();
+    }, [needsVirtualization, hasMore, items.length]);
+    
+    return { visibleItems, hasMore, loadMoreRef, totalCount: items.length, visibleCount };
 }
-
-interface MobileRowProps {
-    data: MemberProfile[];
-    memberTab: 'active' | 'former';
-    isAdmin: boolean;
-    openDetailsModal: (m: MemberProfile) => void;
-    openAssignTierModal: (m: MemberProfile) => void;
-    handleViewAs: (m: MemberProfile) => void;
-}
-
-const MobileRowComponent = (props: ListChildComponentProps & MobileRowProps) => {
-    const { index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal, handleViewAs } = props || {};
-    if (!data || !Array.isArray(data)) return null;
-    const m = data[index];
-    if (!m) return null;
-    return (
-        <div style={{ ...style, paddingBottom: 12 }}>
-            <div 
-                onClick={() => openDetailsModal(m)}
-                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors h-full" 
-            >
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
-                            {memberTab === 'former' && m.status && (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(m.status)}`}>
-                                    {formatStatusLabel(m.status)}
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
-                        {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
-                        {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
-                    </div>
-                </div>
-                <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                        {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
-                            <TagBadge key={tag} tag={tag} size="sm" />
-                        ))}
-                        {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
-                            >
-                                <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
-                                Assign Tier
-                            </button>
-                        )}
-                    </div>
-                    {isAdmin && memberTab === 'active' && (
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-200 active:scale-95"
-                        >
-                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
-                            View As
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-interface DesktopRowProps {
-    data: MemberProfile[];
-    memberTab: 'active' | 'former';
-    isAdmin: boolean;
-    openDetailsModal: (m: MemberProfile) => void;
-    openAssignTierModal: (m: MemberProfile) => void;
-}
-
-const DesktopRowComponent = (props: ListChildComponentProps & DesktopRowProps) => {
-    const { index, style, data, memberTab, isAdmin, openDetailsModal, openAssignTierModal } = props || {};
-    if (!data || !Array.isArray(data)) return null;
-    const m = data[index];
-    if (!m) return null;
-    return (
-        <div 
-            style={style}
-            onClick={() => openDetailsModal(m)}
-            className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-        >
-            <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
-            <div style={{ width: '20%' }} className="p-4">
-                <div className="flex items-center gap-1 flex-wrap">
-                    <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                    {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
-                        <TagBadge key={tag} tag={tag} size="sm" />
-                    ))}
-                    {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
-                        >
-                            <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
-                            Assign
-                        </button>
-                    )}
-                </div>
-            </div>
-            <div style={{ width: '8%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
-                {m.lifetimeVisits || 0}
-            </div>
-            <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                {formatJoinDate(m.joinDate)}
-            </div>
-            <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                {formatJoinDate(m.lastBookingDate)}
-            </div>
-            <div style={{ width: memberTab === 'former' ? '22%' : '37%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
-            {memberTab === 'former' && (
-                <div style={{ width: '15%' }} className="p-4">
-                    {m.status ? (
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
-                            {formatStatusLabel(m.status)}
-                        </span>
-                    ) : (
-                        <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                            Unknown
-                        </span>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
 
 type SortField = 'name' | 'tier' | 'visits' | 'joinDate' | 'lastVisit';
 type SortDirection = 'asc' | 'desc';
@@ -811,6 +702,8 @@ const DirectoryTab: React.FC = () => {
         
         return filtered;
     }, [regularMembers, tierFilter, tagFilter, statusFilter, billingFilter, memberTab, searchQuery, sortField, sortDirection, showMissingTierOnly]);
+    
+    const { visibleItems, hasMore, loadMoreRef, totalCount, visibleCount } = useIncrementalLoad(filteredList);
     
     const handleViewAs = async (member: MemberProfile) => {
         if (!isAdmin) return;
@@ -1567,89 +1460,63 @@ const DirectoryTab: React.FC = () => {
                 {!formerLoading && Array.isArray(filteredList) && filteredList.length > 0 && (memberTab === 'active' || memberTab === 'former') && (
                     <>
                         <div className="md:hidden relative">
-                            {filteredList.length > VIRTUALIZATION_THRESHOLD && filteredList.length > 0 ? (
-                                <List
-                                    height={600}
-                                    width="100%"
-                                    itemCount={filteredList.length}
-                                    itemSize={140}
-                                    itemData={filteredList}
-                                    className="scrollbar-hide"
-                                >
-                                    {(rowProps) => {
-                                        if (!rowProps || typeof rowProps.index !== 'number') return null;
-                                        return (
-                                            <MobileRowComponent
-                                                {...rowProps}
-                                                data={filteredList}
-                                                memberTab={memberTab as 'active' | 'former'}
-                                                isAdmin={isAdmin}
-                                                openDetailsModal={openDetailsModal}
-                                                openAssignTierModal={openAssignTierModal}
-                                                handleViewAs={handleViewAs}
-                                            />
-                                        );
-                                    }}
-                                </List>
-                            ) : (
-                                <div className="pt-2 pb-24">
-                                    <div className="space-y-3 px-1">
-                                        {filteredList.map((m, index) => (
-                                            <div 
-                                                key={m.email}
-                                                onClick={() => openDetailsModal(m)}
-                                                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-up-stagger"
-                                                style={{ '--stagger-index': index } as React.CSSProperties}
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
-                                                            {memberTab === 'former' && m.status && (
-                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(m.status)}`}>
-                                                                    {formatStatusLabel(m.status)}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
-                                                        {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
-                                                        {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                                                        {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
-                                                            <TagBadge key={tag} tag={tag} size="sm" />
-                                                        ))}
-                                                        {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
-                                                            >
-                                                                <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
-                                                                Assign Tier
-                                                            </button>
+                            <div className="pt-2 pb-24">
+                                <div className="space-y-3 px-1">
+                                    {visibleItems.map((m, index) => (
+                                        <div 
+                                            key={m.email}
+                                            onClick={() => openDetailsModal(m)}
+                                            className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors animate-slide-up-stagger"
+                                            style={{ '--stagger-index': Math.min(index, 10) } as React.CSSProperties}
+                                        >
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
+                                                        {memberTab === 'former' && m.status && (
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(m.status)}`}>
+                                                                {formatStatusLabel(m.status)}
+                                                            </span>
                                                         )}
                                                     </div>
-                                                    {isAdmin && memberTab === 'active' && (
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
-                                                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-200 active:scale-95"
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
+                                                    {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
+                                                    {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                                    {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
+                                                        <TagBadge key={tag} tag={tag} size="sm" />
+                                                    ))}
+                                                    {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
                                                         >
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
-                                                            View As
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">add_circle</span>
+                                                            Assign Tier
                                                         </button>
                                                     )}
                                                 </div>
+                                                {isAdmin && memberTab === 'active' && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
+                                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-200 active:scale-95"
+                                                    >
+                                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">visibility</span>
+                                                        View As
+                                                    </button>
+                                                )}
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
+                            </div>
                         </div>
 
                         <div className="hidden md:block relative">
@@ -1664,83 +1531,65 @@ const DirectoryTab: React.FC = () => {
                                     <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>Status</div>
                                 )}
                             </div>
-                            {filteredList.length > VIRTUALIZATION_THRESHOLD && filteredList.length > 0 ? (
-                                <List
-                                    height={500}
-                                    width="100%"
-                                    itemCount={filteredList.length}
-                                    itemSize={52}
-                                    itemData={filteredList}
-                                    className="scrollbar-hide"
-                                >
-                                    {(rowProps) => {
-                                        if (!rowProps || typeof rowProps.index !== 'number') return null;
-                                        return (
-                                            <DesktopRowComponent
-                                                {...rowProps}
-                                                data={filteredList}
-                                                memberTab={memberTab as 'active' | 'former'}
-                                                isAdmin={isAdmin}
-                                                openDetailsModal={openDetailsModal}
-                                                openAssignTierModal={openAssignTierModal}
-                                            />
-                                        );
-                                    }}
-                                </List>
-                            ) : (
-                                <div>
-                                    {filteredList.map(m => (
-                                        <div 
-                                            key={m.email}
-                                            onClick={() => openDetailsModal(m)}
-                                            className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-                                        >
-                                            <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
-                                            <div style={{ width: '20%' }} className="p-4">
-                                                <div className="flex items-center gap-1 flex-wrap">
-                                                    <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
-                                                    {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
-                                                        <TagBadge key={tag} tag={tag} size="sm" />
-                                                    ))}
-                                                    {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
-                                                        >
-                                                            <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
-                                                            Assign
-                                                        </button>
-                                                    )}
-                                                </div>
+                            <div>
+                                {visibleItems.map(m => (
+                                    <div 
+                                        key={m.email}
+                                        onClick={() => openDetailsModal(m)}
+                                        className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+                                    >
+                                        <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
+                                        <div style={{ width: '20%' }} className="p-4">
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                                {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
+                                                    <TagBadge key={tag} tag={tag} size="sm" />
+                                                ))}
+                                                {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                                        className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
+                                                    >
+                                                        <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                        Assign
+                                                    </button>
+                                                )}
                                             </div>
-                                            <div style={{ width: '8%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
-                                                {m.lifetimeVisits || 0}
-                                            </div>
-                                            <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                                {formatJoinDate(m.joinDate)}
-                                            </div>
-                                            <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                                {formatJoinDate(m.lastBookingDate)}
-                                            </div>
-                                            <div style={{ width: memberTab === 'former' ? '22%' : '37%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
-                                            {memberTab === 'former' && (
-                                                <div style={{ width: '15%' }} className="p-4">
-                                                    {m.status ? (
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
-                                                            {formatStatusLabel(m.status)}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                                                            Unknown
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                        <div style={{ width: '8%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                                            {m.lifetimeVisits || 0}
+                                        </div>
+                                        <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                            {formatJoinDate(m.joinDate)}
+                                        </div>
+                                        <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                            {formatJoinDate(m.lastBookingDate)}
+                                        </div>
+                                        <div style={{ width: memberTab === 'former' ? '22%' : '37%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
+                                        {memberTab === 'former' && (
+                                            <div style={{ width: '15%' }} className="p-4">
+                                                {m.status ? (
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getStatusColor(m.status)}`}>
+                                                        {formatStatusLabel(m.status)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                                                        Unknown
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
+                        
+                        {hasMore && (
+                            <div ref={loadMoreRef} className="py-4 flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                                <span>Loading more... ({visibleCount} of {totalCount})</span>
+                            </div>
+                        )}
                     </>
                 )}
             </div>

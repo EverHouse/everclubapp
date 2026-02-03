@@ -104,6 +104,15 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const sessionCheckDone = useRef(false);
   const loginInProgressRef = useRef(false);
   const actualUserRef = useRef<MemberProfile | null>(null);
+  
+  // CRITICAL: Once session loading is complete, NEVER set isLoading back to true
+  // This prevents blank screens during navigation between pages
+  const sessionLoadingComplete = useRef(false);
+  
+  // Track previous values to skip unnecessary effect runs
+  const prevActualUserIdRef = useRef<string | null>(null);
+  const prevActualUserRoleRef = useRef<string | null>(null);
+  const prevActualUserEmailRef = useRef<string | null>(null);
   const formerMembersFetched = useRef(false);
   const formerMembersLastFetch = useRef<number>(0);
   const FORMER_MEMBERS_CACHE_MS = 10 * 60 * 1000; // 10 minutes
@@ -125,16 +134,28 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const isViewingAs = viewAsUser !== null;
   const user = viewAsUser || actualUser;
 
+  // Helper to safely set isLoading - only during initial load, NEVER after
+  const safeSetIsLoadingFalse = useCallback(() => {
+    if (!sessionLoadingComplete.current) {
+      sessionLoadingComplete.current = true;
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (storeUser && !actualUser) {
       setActualUser(storeUser as MemberProfile);
-      setIsLoading(false);
+      safeSetIsLoadingFalse();
     }
-  }, [storeUser, actualUser]);
+  }, [storeUser, actualUser, safeSetIsLoadingFalse]);
 
   // Keep ref in sync with actualUser state for use in callbacks
+  // Also update previous value refs for comparison in effects
   useEffect(() => {
     actualUserRef.current = actualUser;
+    prevActualUserIdRef.current = actualUser?.id || null;
+    prevActualUserRoleRef.current = actualUser?.role || null;
+    prevActualUserEmailRef.current = actualUser?.email || null;
   }, [actualUser]);
 
   useEffect(() => {
@@ -171,7 +192,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           };
           setActualUser(devTestStaff);
           setSessionChecked(true);
-          setIsLoading(false);
+          safeSetIsLoadingFalse();
           setCafeMenuLoaded(true);
           setEventsLoaded(true);
           setAnnouncementsLoaded(true);
@@ -195,7 +216,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         };
         setActualUser(devTestMember);
         setSessionChecked(true);
-        setIsLoading(false);
+        safeSetIsLoadingFalse();
         setCafeMenuLoaded(true);
         setEventsLoaded(true);
         setAnnouncementsLoaded(true);
@@ -245,7 +266,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             // Reset ref now that probe completed successfully
             loginInProgressRef.current = false;
             setSessionChecked(true);
-            setIsLoading(false);
+            safeSetIsLoadingFalse();
             return;
           }
         }
@@ -260,7 +281,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           // Reset the ref now that probe is complete
           loginInProgressRef.current = false;
           setSessionChecked(true);
-          setIsLoading(false);
+          safeSetIsLoadingFalse();
           return;
         }
       } catch (sessionErr) {
@@ -271,7 +292,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       if (currentStoreUser) {
         setActualUser(currentStoreUser as MemberProfile);
         setSessionChecked(true);
-        setIsLoading(false);
+        safeSetIsLoadingFalse();
         return;
       }
       
@@ -288,11 +309,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       // Reset the ref now that probe is complete
       loginInProgressRef.current = false;
       setSessionChecked(true);
-      setIsLoading(false);
+      safeSetIsLoadingFalse();
     };
     
     initializeUser();
-  }, []);
+  }, [safeSetIsLoadingFalse]);
   
   // View As Functions - only for admins (not staff)
   // Uses flushSync to ensure state updates are synchronous before navigation
@@ -341,16 +362,19 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   // Wait for session to be checked before fetching to avoid "Failed to fetch" errors
   // Use ref to prevent refetching when actualUser object changes but role stays the same
   const initialMembersFetchedRef = useRef(false);
-  const prevUserRoleRef = useRef<string | null>(null);
+  const membersFetchUserRoleRef = useRef<string | null>(null);
   
   useEffect(() => {
     const fetchInitialMembers = async () => {
       if (!sessionChecked) return;
-      if (!actualUser || (actualUser.role !== 'admin' && actualUser.role !== 'staff')) return;
+      
+      // Use ref to get stable reference - avoid depending on actualUser object
+      const currentUser = actualUserRef.current;
+      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'staff')) return;
       
       // Skip if we already fetched for this role (prevents refetch when actualUser object changes)
-      const currentRole = actualUser.role;
-      if (initialMembersFetchedRef.current && prevUserRoleRef.current === currentRole) {
+      const currentRole = currentUser.role;
+      if (initialMembersFetchedRef.current && membersFetchUserRoleRef.current === currentRole) {
         return;
       }
       
@@ -381,7 +405,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           }));
           setMembers(formatted);
           initialMembersFetchedRef.current = true;
-          prevUserRoleRef.current = currentRole;
+          membersFetchUserRoleRef.current = currentRole;
           
           // Store pagination info for incremental loading
           if (data.total && data.totalPages) {
@@ -398,7 +422,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
     };
     fetchInitialMembers();
-  }, [sessionChecked, actualUser]);
+    // Only depend on sessionChecked - use actualUserRef.current inside the effect
+    // This prevents refetches when actualUser object reference changes
+  }, [sessionChecked]);
 
   // Function to fetch former/inactive members on demand with 10-minute cache
   // Uses actualUserRef to avoid stale closure issues when session loads after mount
@@ -597,17 +623,23 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   }, []);
 
   // Start background sync only after session is checked and user is authenticated
+  // Use ref to check user - only run once when session becomes checked
+  const backgroundSyncStartedRef = useRef(false);
   useEffect(() => {
-    if (sessionChecked && actualUser) {
+    if (sessionChecked && actualUserRef.current && !backgroundSyncStartedRef.current) {
+      backgroundSyncStartedRef.current = true;
       startBackgroundSync();
     }
-  }, [sessionChecked, actualUser]);
+  }, [sessionChecked]);
 
   // Fetch cafe menu (React Query is the primary source via useCafeMenu hook)
   // This provides fallback data for any components still using DataContext
   // Wait for session to be checked before fetching to avoid "Failed to fetch" errors
+  // Only run once when sessionChecked becomes true - use ref for user check
+  const cafeMenuFetchedRef = useRef(false);
   useEffect(() => {
-    if (!sessionChecked) return;
+    if (!sessionChecked || cafeMenuFetchedRef.current) return;
+    cafeMenuFetchedRef.current = true;
     
     const fetchCafeMenu = async () => {
       try {
@@ -628,7 +660,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
       } catch (err) {
         // Only log errors if user is logged in (authenticated API call failed)
-        if (actualUser) {
+        if (actualUserRef.current) {
           console.error('Failed to fetch cafe menu:', err);
         }
       } finally {
@@ -636,7 +668,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
     };
     fetchCafeMenu();
-  }, [sessionChecked, actualUser]);
+  }, [sessionChecked]);
 
   // Function to refresh announcements
   const refreshAnnouncements = useCallback(async () => {
@@ -655,8 +687,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
   // Fetch announcements from API (active only - already filtered and priority-sorted by API)
   // Wait for session to be checked before fetching to avoid "Failed to fetch" errors
+  // Only run once when sessionChecked becomes true - use ref for user check
+  const announcementsFetchedRef = useRef(false);
   useEffect(() => {
-    if (!sessionChecked) return;
+    if (!sessionChecked || announcementsFetchedRef.current) return;
+    announcementsFetchedRef.current = true;
     
     const fetchAnnouncements = async () => {
       try {
@@ -669,7 +704,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
       } catch (err) {
         // Only log errors if user is logged in (authenticated API call failed)
-        if (actualUser) {
+        if (actualUserRef.current) {
           console.error('Failed to fetch announcements:', err);
         }
       } finally {
@@ -677,7 +712,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
     };
     fetchAnnouncements();
-  }, [sessionChecked, actualUser]);
+  }, [sessionChecked]);
 
   // Listen for real-time announcement updates via WebSocket
   useEffect(() => {
@@ -762,15 +797,18 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
   // Listen for member stats updates (visit counts, guest passes) - refresh current user if it's their data
   // Use a ref to avoid dependency on refreshUser which changes every render
+  // Read from actualUserRef inside the function to avoid dependency on actualUser
   const refreshUserRef = useRef<() => Promise<void>>();
   useEffect(() => {
     refreshUserRef.current = async () => {
-      if (!actualUser?.email) return;
+      // Read from ref instead of closing over actualUser
+      const currentEmail = actualUserRef.current?.email;
+      if (!currentEmail) return;
       try {
         const res = await fetch('/api/auth/verify-member', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: actualUser.email })
+          body: JSON.stringify({ email: currentEmail })
         });
         if (res.ok) {
           const { member } = await res.json();
@@ -795,12 +833,14 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         console.error('Failed to refresh user data:', err);
       }
     };
-  }, [actualUser?.email]);
+  }, []); // Empty deps - function reads from ref
 
+  // Member stats update listener - use ref to avoid dependency on actualUser
   useEffect(() => {
     const handleMemberStatsUpdate = (event: CustomEvent) => {
       const memberEmail = event.detail?.memberEmail;
-      const currentEmail = actualUser?.email;
+      // Use ref to read current email value without dependency
+      const currentEmail = actualUserRef.current?.email;
       if (!currentEmail) return; // Guard: don't refresh if logged out
       if (memberEmail && currentEmail.toLowerCase() === memberEmail.toLowerCase()) {
         refreshUserRef.current?.();
@@ -811,14 +851,16 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     return () => {
       window.removeEventListener('member-stats-updated', handleMemberStatsUpdate as EventListener);
     };
-  }, [actualUser?.email]);
+  }, []); // Empty deps - handler reads from refs
 
   // Listen for tier assignment updates via WebSocket
+  // Use ref to check user values without dependency on actualUser
   useEffect(() => {
     const handleTierUpdate = (event: CustomEvent) => {
       const memberEmail = event.detail?.memberEmail;
-      const currentEmail = actualUser?.email;
-      const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
+      // Use ref to read current values without causing re-registration
+      const currentEmail = actualUserRef.current?.email;
+      const isStaff = actualUserRef.current?.role === 'staff' || actualUserRef.current?.role === 'admin';
       
       // If the current user's tier was updated, refresh their profile
       if (currentEmail && memberEmail && currentEmail.toLowerCase() === memberEmail.toLowerCase()) {
@@ -835,12 +877,13 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     return () => {
       window.removeEventListener('tier-update', handleTierUpdate as EventListener);
     };
-  }, [actualUser?.email, actualUser?.role, refreshMembers]);
+  }, [refreshMembers]); // Only refreshMembers in deps - user values come from ref
 
   // Listen for billing updates via WebSocket (staff only - refresh billing data)
+  // Use ref to check role without causing re-registration
   useEffect(() => {
     const handleBillingUpdate = () => {
-      const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
+      const isStaff = actualUserRef.current?.role === 'staff' || actualUserRef.current?.role === 'admin';
       if (isStaff) {
         // Dispatch a custom event that billing components can listen to for refreshing their data
         window.dispatchEvent(new CustomEvent('billing-data-refresh'));
@@ -851,12 +894,15 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     return () => {
       window.removeEventListener('billing-update', handleBillingUpdate as EventListener);
     };
-  }, [actualUser?.role]);
+  }, []); // Empty deps - handler reads from ref
 
   // Fetch events (Admin uses React Query, Member/Events still consumes from DataContext)
   // Wait for session to be checked before fetching to avoid "Failed to fetch" errors
+  // Only run once when sessionChecked becomes true - use ref for user check
+  const eventsFetchedRef = useRef(false);
   useEffect(() => {
-    if (!sessionChecked) return;
+    if (!sessionChecked || eventsFetchedRef.current) return;
+    eventsFetchedRef.current = true;
     
     const normalizeCategory = (cat: string | null | undefined): string => {
       if (!cat) return 'Social';
@@ -898,7 +944,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
       } catch (err) {
         // Only log errors if user is logged in (authenticated API call failed)
-        if (actualUser) {
+        if (actualUserRef.current) {
           console.error('Failed to fetch events:', err);
         }
       } finally {
@@ -906,7 +952,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       }
     };
     fetchEvents();
-  }, [sessionChecked, actualUser]);
+  }, [sessionChecked]);
 
   // Auth Logic - verify member email
   const login = useCallback(async (email: string) => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useCallback, useState } from 'react';
+import React, { createContext, useContext, useRef, useCallback, useState, useMemo } from 'react';
 import { useStaffWebSocket, type BookingEvent } from '../hooks/useStaffWebSocket';
 import { useData } from './DataContext';
 
@@ -13,10 +13,19 @@ interface StaffWebSocketContextType {
 
 const StaffWebSocketContext = createContext<StaffWebSocketContextType | null>(null);
 
+let providerMountCount = 0;
+
 export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { actualUser, sessionChecked } = useData();
   const callbacksRef = useRef<Map<string, EventCallback>>(new Map());
   const [lastEventFromContext, setLastEventFromContext] = useState<BookingEvent | null>(null);
+  const mountIdRef = useRef<number>(0);
+
+  if (mountIdRef.current === 0) {
+    providerMountCount++;
+    mountIdRef.current = providerMountCount;
+    console.log(`[StaffWebSocketContext] Provider mounted (id=${mountIdRef.current})`);
+  }
 
   const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
 
@@ -31,11 +40,14 @@ export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = (
     });
   }, []);
 
-  const { isConnected, lastEvent } = useStaffWebSocket(
-    sessionChecked && isStaff
-      ? { onBookingEvent: handleBookingEvent, debounceMs: 500 }
-      : {}
-  );
+  const hookOptions = useMemo(() => {
+    if (!sessionChecked || !isStaff) {
+      return {};
+    }
+    return { onBookingEvent: handleBookingEvent, debounceMs: 500 };
+  }, [sessionChecked, isStaff, handleBookingEvent]);
+
+  const { isConnected, lastEvent } = useStaffWebSocket(hookOptions);
 
   const registerCallback = useCallback((id: string, callback: EventCallback) => {
     callbacksRef.current.set(id, callback);
@@ -45,12 +57,12 @@ export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = (
     callbacksRef.current.delete(id);
   }, []);
 
-  const contextValue: StaffWebSocketContextType = {
+  const contextValue = useMemo<StaffWebSocketContextType>(() => ({
     isConnected,
     lastEvent: lastEventFromContext || lastEvent,
     registerCallback,
     unregisterCallback,
-  };
+  }), [isConnected, lastEventFromContext, lastEvent, registerCallback, unregisterCallback]);
 
   return (
     <StaffWebSocketContext.Provider value={contextValue}>
@@ -69,13 +81,19 @@ export function useStaffWebSocketContext() {
 
 export function useStaffWebSocketCallback(id: string, callback: EventCallback | undefined) {
   const { registerCallback, unregisterCallback } = useStaffWebSocketContext();
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
 
-  useEffect(() => {
+  const stableCallback = useCallback((event: BookingEvent) => {
+    callbackRef.current?.(event);
+  }, []);
+
+  React.useEffect(() => {
     if (callback) {
-      registerCallback(id, callback);
+      registerCallback(id, stableCallback);
     }
     return () => {
       unregisterCallback(id);
     };
-  }, [id, callback, registerCallback, unregisterCallback]);
+  }, [id, callback, stableCallback, registerCallback, unregisterCallback]);
 }
