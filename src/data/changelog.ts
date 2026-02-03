@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.2.2",
+    date: "2026-02-03",
+    title: "MindBody Member Credits Fix",
+    changes: [
+      "Fixed: Staff can now apply Stripe credits to MindBody-billed members",
+      "Fixed: Credit application no longer restricted to Stripe-billing-only members",
+      "Improved: Any member with a Stripe customer ID (or who can have one created) can now receive credits"
+    ]
+  },
+  {
     version: "69.2.1",
     date: "2026-02-03",
     title: "Check-In Date Display Fix",
