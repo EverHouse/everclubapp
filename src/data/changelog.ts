@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.2.8",
+    date: "2026-02-03",
+    title: "Data Integrity Billing Provider Filters",
+    changes: [
+      "Fixed: Stripe Subscription Sync now correctly excludes MindBody/family/comped members",
+      "Fixed: Tier Reconciliation check excludes non-Stripe-billed members",
+      "Fixed: Stuck Transitional Members check excludes non-Stripe-billed members",
+      "Fixed: Preview no longer shows 450 false mismatches for MindBody-billed members"
+    ]
+  },
+  {
     version: "69.2.7",
     date: "2026-02-03",
     title: "Data Integrity Sync Fix",

@@ -800,10 +800,11 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
     const stripe = await getStripeClient();
     
     const membersWithStripe = await pool.query(
-      `SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id
+      `SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id, billing_provider
        FROM users 
        WHERE stripe_customer_id IS NOT NULL
          AND role = 'member'
+         AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
        ORDER BY email
        LIMIT 500`
     );

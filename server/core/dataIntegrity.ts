@@ -912,7 +912,7 @@ async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
     WHERE stripe_customer_id IS NOT NULL
       AND membership_status IS NOT NULL
       AND role = 'member'
-      AND (billing_provider IS NULL OR billing_provider != 'mindbody')
+      AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
     LIMIT 100
   `);
   const appMembers = appMembersResult.rows as any[];
@@ -1137,6 +1137,7 @@ async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
       AND membership_status IN ('pending', 'non-member')
       AND updated_at < NOW() - INTERVAL '24 hours'
       AND role = 'member'
+      AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
     ORDER BY updated_at ASC
     LIMIT 50
   `);
@@ -1204,10 +1205,11 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
   }
   
   const appMembersResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id, hubspot_id
+    SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id, hubspot_id, billing_provider
     FROM users 
     WHERE stripe_customer_id IS NOT NULL
       AND role = 'member'
+      AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
     ORDER BY RANDOM()
     LIMIT 100
   `);
