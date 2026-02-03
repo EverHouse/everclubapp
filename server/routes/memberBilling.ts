@@ -228,11 +228,17 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
 
     console.log(`[MemberBilling] Updated billing provider for ${email} to ${billingProvider}`);
     
-    // Sync billing provider to HubSpot
+    // Sync billing provider AND current membership status to HubSpot
+    // This ensures HubSpot reflects the app's status, not external system's status
     try {
       const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
-      await syncMemberToHubSpot({ email, billingProvider: billingProvider || 'manual' });
-      console.log(`[MemberBilling] Synced billing provider ${billingProvider} to HubSpot for ${email}`);
+      // Include current membership status so HubSpot uses app as source of truth
+      await syncMemberToHubSpot({ 
+        email, 
+        billingProvider: billingProvider || 'manual',
+        status: member.membership_status || 'active'
+      });
+      console.log(`[MemberBilling] Synced billing provider ${billingProvider} and status ${member.membership_status} to HubSpot for ${email}`);
     } catch (hubspotError) {
       console.error('[MemberBilling] HubSpot sync failed for billing provider change:', hubspotError);
     }

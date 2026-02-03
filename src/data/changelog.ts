@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.3.3",
+    date: "2026-02-03",
+    title: "HubSpot Billing Source Sync Improvement",
+    changes: [
+      "Fixed: When staff changes billing provider, membership status now syncs to HubSpot too",
+      "Fixed: This ensures HubSpot reflects app's status even if MindBody shows cancelled"
+    ]
+  },
+  {
     version: "69.3.2",
     date: "2026-02-03",
     title: "MindBody Member Billing Separation",
