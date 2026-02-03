@@ -90,10 +90,11 @@ interface IgnoredIssueEntry {
 
 interface IntegrityCheckResult {
   checkName: string;
-  status: 'pass' | 'warning' | 'fail';
+  status: 'pass' | 'warning' | 'fail' | 'error';
   issueCount: number;
   issues: IntegrityIssue[];
   lastRun: Date;
+  message?: string;
 }
 
 interface IntegrityMeta {
@@ -1348,11 +1349,13 @@ const DataIntegrityTab: React.FC = () => {
     });
   };
 
-  const getStatusColor = (status: 'pass' | 'warning' | 'fail') => {
+  const getStatusColor = (status: 'pass' | 'warning' | 'fail' | 'error') => {
     switch (status) {
       case 'pass': return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
       case 'warning': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
       case 'fail': return 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400';
+      case 'error': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+      default: return 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400';
     }
   };
 

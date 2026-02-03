@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.5.1",
+    date: "2026-02-03",
+    title: "Data Integrity Check Reliability Improvement",
+    changes: [
+      "Fixed: One failing data integrity check no longer crashes all other checks",
+      "New: Failed checks now show 'error' status with purple badge instead of crashing the page",
+      "New: Staff receive alerts when integrity checks fail to run (database/API errors)",
+      "Improved: Data Integrity page is more resilient to temporary connection issues"
+    ]
+  },
+  {
     version: "69.5.0",
     date: "2026-02-03",
     title: "Notice Description Syncs to Google Calendar",
