@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from './layout/SafeAreaBottomOverlay';
 import { prefetchRoute, prefetchAdjacentRoutes } from '../lib/prefetch';
@@ -25,18 +25,27 @@ interface MemberBottomNavProps {
 
 const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTheme }) => {
   const navigate = useNavigate();
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
   
   useEffect(() => {
     prefetchAdjacentRoutes(currentPath);
   }, [currentPath]);
   
+  useEffect(() => {
+    if (optimisticPath && currentPath === optimisticPath) {
+      setOptimisticPath(null);
+    }
+  }, [currentPath, optimisticPath]);
+  
   const handleNavigation = useCallback((path: string, label: string) => {
     if (path === currentPath) return;
     haptic.light();
+    setOptimisticPath(path);
     navigate(path);
   }, [navigate, currentPath]);
   
-  const activeIndex = MEMBER_NAV_ITEMS.findIndex(item => item.path === currentPath);
+  const activePath = optimisticPath || currentPath;
+  const activeIndex = MEMBER_NAV_ITEMS.findIndex(item => item.path === activePath);
   const itemCount = MEMBER_NAV_ITEMS.length;
   
   const blobWidth = 100 / itemCount;
@@ -59,7 +68,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
           )}
           
           {MEMBER_NAV_ITEMS.map((item) => {
-            const isActive = currentPath === item.path;
+            const isActive = activePath === item.path;
             const isGolfIcon = item.icon === 'sports_golf';
             const shouldFill = isActive && !isGolfIcon;
             

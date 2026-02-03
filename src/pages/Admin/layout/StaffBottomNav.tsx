@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from '../../../components/layout/SafeAreaBottomOverlay';
 import { TabType, NavItemData, NAV_ITEMS, tabToPath } from './types';
@@ -15,16 +15,26 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
   pendingRequestsCount = 0 
 }) => {
   const navigate = useNavigate();
+  const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+  
+  useEffect(() => {
+    if (optimisticTab && activeTab === optimisticTab) {
+      setOptimisticTab(null);
+    }
+  }, [activeTab, optimisticTab]);
   
   const navigateToTab = useCallback((tab: TabType) => {
+    if (tab === activeTab) return;
     if (tabToPath[tab]) {
+      setOptimisticTab(tab);
       navigate(tabToPath[tab]);
     }
-  }, [navigate]);
+  }, [navigate, activeTab]);
   const navRef = useRef<HTMLDivElement>(null);
   
+  const displayActiveTab = optimisticTab || activeTab;
   const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
-  const activeIndex = visibleItems.findIndex(item => item.id === activeTab);
+  const activeIndex = visibleItems.findIndex(item => item.id === displayActiveTab);
   const itemCount = visibleItems.length;
   
   const blobWidth = 100 / itemCount;
@@ -45,22 +55,24 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
         />
         )}
         
-        {visibleItems.map((item) => (
+        {visibleItems.map((item) => {
+          const isActive = displayActiveTab === item.id;
+          return (
           <button
             type="button"
             key={item.id}
             onClick={() => navigateToTab(item.id)}
-            style={{ touchAction: 'manipulation' }}
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             aria-label={item.label}
-            aria-current={activeTab === item.id ? 'page' : undefined}
+            aria-current={isActive ? 'page' : undefined}
             className={`
               flex-1 flex flex-col items-center gap-1 py-2 px-1 min-h-[48px] relative z-10 cursor-pointer
               transition-colors duration-300 ease-out active:scale-95
-              ${activeTab === item.id ? 'text-white' : 'text-white/60 hover:text-white'}
+              ${isActive ? 'text-white' : 'text-white/60 hover:text-white'}
             `}
           >
             <div className="relative">
-              <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${activeTab === item.id ? 'filled scale-110' : ''}`} aria-hidden="true">
+              <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${isActive ? 'filled scale-110' : ''}`} aria-hidden="true">
                 {item.icon}
               </span>
               {item.id === 'simulator' && pendingRequestsCount > 0 && (
@@ -69,11 +81,12 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
                 </span>
               )}
             </div>
-            <span className={`text-[11px] tracking-wide transition-colors duration-300 ${activeTab === item.id ? 'font-semibold' : 'font-medium'}`}>
+            <span className={`text-[11px] tracking-wide transition-colors duration-300 ${isActive ? 'font-semibold' : 'font-medium'}`}>
               {item.label}
             </span>
           </button>
-        ))}
+          );
+        })}
       </div>
     </nav>
   );

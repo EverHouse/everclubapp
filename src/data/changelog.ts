@@ -22,6 +22,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Directory page slow loading - now uses incremental loading for large member lists",
       "Fixed: WebSocket reconnection loops during navigation - now maintains single connection per session",
       "Fixed: Navigation delays and blank screens - pages now render immediately with loading placeholders",
+      "Fixed: Bottom nav now highlights immediately when tapped (no more waiting for page to load)",
       "Improved: Admin tabs (Tiers, Trackman, Tours, Events) now show skeleton placeholders instead of blocking spinners",
       "Improved: Public pages (Landing, Gallery) load faster with optimized images",
       "Removed: 133 lines of unused loading code from Gallery page"
