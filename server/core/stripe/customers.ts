@@ -11,7 +11,8 @@ const PLACEHOLDER_EMAIL_PATTERNS = [
   'lesson-',
   'anonymous-',
   '@placeholder.',
-  '@test.local'
+  '@test.local',
+  '@example.com'
 ];
 
 export function isPlaceholderEmail(email: string): boolean {

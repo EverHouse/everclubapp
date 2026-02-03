@@ -348,6 +348,7 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
            OR email LIKE 'anonymous-%'
            OR email LIKE '%@placeholder.%'
            OR email LIKE '%@test.local%'
+           OR email LIKE '%@example.com%'
         ORDER BY created_at DESC
       `);
       
