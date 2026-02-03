@@ -40,17 +40,21 @@ async function createEventAvailabilityBlocks(
   const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
   
   for (const resourceId of resourceIds) {
-    await pool.query(
-      `INSERT INTO availability_blocks (resource_id, block_date, start_time, end_time, block_type, notes, created_by, event_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT DO NOTHING`,
-      [resourceId, eventDate, startTime, endTime || startTime, 'event', blockNotes, createdBy || 'system', eventId]
-    );
+    await db.insert(availabilityBlocks).values({
+      resourceId,
+      blockDate: eventDate,
+      startTime,
+      endTime: endTime || startTime,
+      blockType: 'event',
+      notes: blockNotes,
+      createdBy: createdBy || 'system',
+      eventId,
+    }).onConflictDoNothing();
   }
 }
 
 async function removeEventAvailabilityBlocks(eventId: number): Promise<void> {
-  await pool.query('DELETE FROM availability_blocks WHERE event_id = $1', [eventId]);
+  await db.delete(availabilityBlocks).where(eq(availabilityBlocks.eventId, eventId));
 }
 
 async function updateEventAvailabilityBlocks(
@@ -63,10 +67,44 @@ async function updateEventAvailabilityBlocks(
   createdBy?: string,
   eventTitle?: string
 ): Promise<void> {
-  await removeEventAvailabilityBlocks(eventId);
-  if (blockSimulators || blockConferenceRoom) {
-    await createEventAvailabilityBlocks(eventId, eventDate, startTime, endTime, blockSimulators, blockConferenceRoom, createdBy, eventTitle);
+  // Get resource IDs outside transaction (data gathering, not part of atomic operation)
+  const resourceIds: number[] = [];
+  
+  if (blockSimulators) {
+    const bayIds = await getAllActiveBayIds();
+    resourceIds.push(...bayIds);
   }
+  
+  if (blockConferenceRoom) {
+    const conferenceRoomId = await getConferenceRoomId();
+    if (conferenceRoomId && !resourceIds.includes(conferenceRoomId)) {
+      resourceIds.push(conferenceRoomId);
+    }
+  }
+  
+  // Perform atomic delete and insert within transaction
+  await db.transaction(async (tx) => {
+    // Remove old blocks atomically
+    await tx.delete(availabilityBlocks).where(eq(availabilityBlocks.eventId, eventId));
+    
+    // Create new blocks if needed
+    if (blockSimulators || blockConferenceRoom) {
+      const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
+      
+      for (const resourceId of resourceIds) {
+        await tx.insert(availabilityBlocks).values({
+          resourceId,
+          blockDate: eventDate,
+          startTime,
+          endTime: endTime || startTime,
+          blockType: 'event',
+          notes: blockNotes,
+          createdBy: createdBy || 'system',
+          eventId,
+        }).onConflictDoNothing();
+      }
+    }
+  });
 }
 
 const router = Router();

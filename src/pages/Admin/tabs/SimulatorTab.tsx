@@ -142,11 +142,10 @@ const ManualBookingModal: React.FC<{
     onClose: () => void;
     onSuccess: (booking?: ManualBookingResult) => void;
     defaultMemberEmail?: string;
-    rescheduleFromId?: number;
     defaultResourceId?: number;
     defaultDate?: string;
     defaultStartTime?: string;
-}> = ({ resources, onClose, onSuccess, defaultMemberEmail, rescheduleFromId, defaultResourceId, defaultDate, defaultStartTime }) => {
+}> = ({ resources, onClose, onSuccess, defaultMemberEmail, defaultResourceId, defaultDate, defaultStartTime }) => {
     const { showToast } = useToast();
     const [memberEmail, setMemberEmail] = useState(defaultMemberEmail || '');
     const [searchQuery, setSearchQuery] = useState('');
@@ -370,14 +369,13 @@ const ManualBookingModal: React.FC<{
                     booking_source: bookingSource,
                     notes: notes || undefined,
                     staff_notes: staffNotes || undefined,
-                    trackman_booking_id: trackmanBookingId || undefined,
-                    reschedule_from_id: rescheduleFromId
+                    trackman_booking_id: trackmanBookingId || undefined
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                showToast(rescheduleFromId ? 'Booking rescheduled successfully!' : 'Booking created successfully!', 'success');
+                showToast('Booking created successfully!', 'success');
                 
                 const selectedResource = resources.find(r => r.id === resourceId);
                 const endTimeCalc = (() => {
@@ -428,7 +426,7 @@ const ManualBookingModal: React.FC<{
     const bookingSources = ['Trackman', 'YGB', 'Mindbody', 'Texted Concierge', 'Called', 'Other'];
 
     return (
-        <ModalShell isOpen={true} onClose={onClose} title={rescheduleFromId ? 'Reschedule Booking' : 'Manual Booking'} showCloseButton={true}>
+        <ModalShell isOpen={true} onClose={onClose} title="Manual Booking" showCloseButton={true}>
             <div className="p-6 space-y-4">
                 {error && (
                         <div className="mb-4 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg">
@@ -830,8 +828,6 @@ const SimulatorTab: React.FC = () => {
     const [conflictDetails, setConflictDetails] = useState<string | null>(null);
     const [showTrackmanConfirm, setShowTrackmanConfirm] = useState(false);
     const [showManualBooking, setShowManualBooking] = useState(false);
-    const [rescheduleEmail, setRescheduleEmail] = useState<string | null>(null);
-    const [rescheduleBookingId, setRescheduleBookingId] = useState<number | null>(null);
     const [prefillResourceId, setPrefillResourceId] = useState<number | null>(null);
     const [prefillDate, setPrefillDate] = useState<string | null>(null);
     const [prefillStartTime, setPrefillStartTime] = useState<string | null>(null);
@@ -1952,11 +1948,6 @@ const SimulatorTab: React.FC = () => {
                                                 <span className={`px-2 py-1 rounded text-xs font-bold ${getStatusBadge(req.status)}`}>
                                                     {formatStatusLabel(req.status)}
                                                 </span>
-                                                {req.reschedule_booking_id && (
-                                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-600 dark:text-blue-400">
-                                                        Reschedule
-                                                    </span>
-                                                )}
                                                 {req.created_at && (
                                                     <span className="text-[10px] text-amber-600 dark:text-amber-400">
                                                         Requested {formatRelativeTime(req.created_at)}
@@ -2079,19 +2070,7 @@ const SimulatorTab: React.FC = () => {
                                                 return (
                                                     <SwipeableListItem
                                                         key={`upcoming-${booking.id}`}
-                                                        leftActions={[
-                                                            {
-                                                                id: 'reschedule',
-                                                                icon: 'schedule',
-                                                                label: 'Reschedule',
-                                                                color: 'primary',
-                                                                onClick: () => {
-                                                                    setRescheduleEmail(booking.user_email);
-                                                                    setRescheduleBookingId(booking.id as number);
-                                                                    setShowManualBooking(true);
-                                                                }
-                                                            }
-                                                        ]}
+                                                        leftActions={[]}
                                                         rightActions={[
                                                             {
                                                                 id: 'cancel',
@@ -2818,16 +2797,12 @@ const SimulatorTab: React.FC = () => {
             {showManualBooking && (
                 <ManualBookingModal 
                     resources={resources}
-                    defaultMemberEmail={rescheduleEmail || undefined}
-                    rescheduleFromId={rescheduleBookingId || undefined}
                     defaultResourceId={prefillResourceId || undefined}
                     defaultDate={prefillDate || undefined}
                     defaultStartTime={prefillStartTime || undefined}
-                    onClose={() => { setShowManualBooking(false); setRescheduleEmail(null); setRescheduleBookingId(null); setPrefillResourceId(null); setPrefillDate(null); setPrefillStartTime(null); }}
+                    onClose={() => { setShowManualBooking(false); setPrefillResourceId(null); setPrefillDate(null); setPrefillStartTime(null); }}
                     onSuccess={(booking) => {
                         setShowManualBooking(false);
-                        setRescheduleEmail(null);
-                        setRescheduleBookingId(null);
                         setPrefillResourceId(null);
                         setPrefillDate(null);
                         setPrefillStartTime(null);
@@ -3289,30 +3264,16 @@ const SimulatorTab: React.FC = () => {
                     )}
                     
                     <div className="flex flex-col gap-2 pt-3">
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    if (!selectedCalendarBooking) return;
-                                    setRescheduleEmail(selectedCalendarBooking.user_email);
-                                    setRescheduleBookingId(selectedCalendarBooking.id as number);
-                                    setSelectedCalendarBooking(null);
-                                    setShowManualBooking(true);
-                                }}
-                                className="flex-1 py-3 px-4 rounded-lg bg-primary text-white font-medium flex items-center justify-center gap-2 hover:bg-primary/90"
-                            >
-                                <span aria-hidden="true" className="material-symbols-outlined text-sm">schedule</span>
-                                Reschedule
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (!selectedCalendarBooking) return;
-                                    const confirmed = await confirm({
-                                        title: 'Cancel Booking',
-                                        message: `Cancel booking for ${selectedCalendarBooking.user_name || selectedCalendarBooking.user_email}?`,
-                                        confirmText: 'Cancel Booking',
-                                        variant: 'warning'
-                                    });
-                                    if (!confirmed) return;
+                        <button
+                            onClick={async () => {
+                                if (!selectedCalendarBooking) return;
+                                const confirmed = await confirm({
+                                    title: 'Cancel Booking',
+                                    message: `Cancel booking for ${selectedCalendarBooking.user_name || selectedCalendarBooking.user_email}?`,
+                                    confirmText: 'Cancel Booking',
+                                    variant: 'warning'
+                                });
+                                if (!confirmed) return;
                                     
                                     setIsCancellingFromModal(true);
                                     try {
@@ -3368,7 +3329,6 @@ const SimulatorTab: React.FC = () => {
                                 )}
                                 Cancel
                             </button>
-                        </div>
                         {(() => {
                             const isTrackmanBooking = !!(selectedCalendarBooking as any)?.trackman_booking_id || (selectedCalendarBooking?.notes && selectedCalendarBooking.notes.includes('[Trackman Import ID:'));
                             const emailLower = selectedCalendarBooking?.user_email?.toLowerCase() || '';

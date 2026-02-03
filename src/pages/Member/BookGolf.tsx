@@ -233,8 +233,6 @@ const BookGolf: React.FC = () => {
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
   const searchTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
   
-  const [rescheduleBookingId, setRescheduleBookingId] = useState<number | null>(null);
-  const [originalBooking, setOriginalBooking] = useState<BookingRequest | null>(null);
   const [existingDayBooking, setExistingDayBooking] = useState<BookingRequest | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showGuardianConsent, setShowGuardianConsent] = useState(false);
@@ -318,7 +316,7 @@ const BookGolf: React.FC = () => {
   // Availability Query
   const resourceIds = resources.map(r => r.dbId);
   const { data: availableSlots = [], isLoading: availabilityLoading } = useQuery({
-    queryKey: bookGolfKeys.availability(resourceIds, selectedDateObj?.date || '', duration, rescheduleBookingId || undefined),
+    queryKey: bookGolfKeys.availability(resourceIds, selectedDateObj?.date || '', duration, undefined),
     queryFn: async () => {
       if (!selectedDateObj?.date || resourceIds.length === 0) return [];
       
@@ -327,8 +325,7 @@ const BookGolf: React.FC = () => {
         {
           resource_ids: resourceIds,
           date: selectedDateObj.date,
-          duration,
-          ignore_booking_id: rescheduleBookingId || undefined
+          duration
         }
       );
       
@@ -403,7 +400,7 @@ const BookGolf: React.FC = () => {
     queryFn: () => fetchWithCredentials<ExistingBookingCheck>(
       `/api/bookings/check-existing?date=${selectedDateObj!.date}&resource_type=${activeTab}`
     ),
-    enabled: !!selectedDateObj?.date && activeTab === 'simulator' && !rescheduleBookingId,
+    enabled: !!selectedDateObj?.date && activeTab === 'simulator',
   });
 
   // Fee Estimate Query (debounced via staleTime)
@@ -520,43 +517,18 @@ const BookGolf: React.FC = () => {
     }
   }, [isLoading, setPageReady]);
 
-  useEffect(() => {
-    const rescheduleParam = searchParams.get('reschedule');
-    if (rescheduleParam) {
-      const bookingId = parseInt(rescheduleParam, 10);
-      if (!isNaN(bookingId)) {
-        setRescheduleBookingId(bookingId);
-      }
-    }
-  }, [searchParams]);
-
-  // Find original booking when rescheduling
-  useEffect(() => {
-    if (rescheduleBookingId && myRequests.length > 0 && dates.length > 0) {
-      const booking = myRequests.find(b => b.id === rescheduleBookingId);
-      if (booking) {
-        setOriginalBooking(booking);
-        const dateParam = searchParams.get('date');
-        const matchingDate = dateParam ? dates.find(d => d.date === dateParam) : null;
-        if (matchingDate) {
-          setSelectedDateObj(matchingDate);
-        }
-      }
-    }
-  }, [rescheduleBookingId, myRequests, dates, searchParams]);
-
   // Listen for real-time booking updates
   useEffect(() => {
     const handleBookingUpdate = () => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.myRequests(effectiveUser?.email || '') });
-      if (selectedDateObj?.date && activeTab === 'simulator' && !rescheduleBookingId) {
+      if (selectedDateObj?.date && activeTab === 'simulator') {
         queryClient.invalidateQueries({ queryKey: bookGolfKeys.existingBookings(selectedDateObj.date, activeTab) });
       }
     };
     
     window.addEventListener('booking-update', handleBookingUpdate);
     return () => window.removeEventListener('booking-update', handleBookingUpdate);
-  }, [queryClient, effectiveUser?.email, selectedDateObj?.date, activeTab, rescheduleBookingId]);
+  }, [queryClient, effectiveUser?.email, selectedDateObj?.date, activeTab]);
 
 
   // Reset playerSlots when playerCount changes
@@ -665,47 +637,8 @@ const BookGolf: React.FC = () => {
     }
   }, [selectedSlot, selectedResource]);
 
-  const cancelRescheduleMode = useCallback(() => {
-    setRescheduleBookingId(null);
-    setOriginalBooking(null);
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('reschedule');
-    newParams.delete('date');
-    setSearchParams(newParams, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  const isBookingWithin30Minutes = useCallback((booking: BookingRequest): boolean => {
-    if (!booking) return false;
-    const { year, month, day, hour, minute } = getPacificDateParts();
-    const nowPacific = new Date(year, month - 1, day, hour, minute);
-    
-    const [bookingYear, bookingMonth, bookingDay] = booking.request_date.split('-').map(Number);
-    const [bookingHour, bookingMinute] = booking.start_time.split(':').map(Number);
-    const bookingStart = new Date(bookingYear, bookingMonth - 1, bookingDay, bookingHour, bookingMinute);
-    
-    const diffMs = bookingStart.getTime() - nowPacific.getTime();
-    const diffMinutes = diffMs / (1000 * 60);
-    return diffMinutes <= 30;
-  }, []);
-
-  const hasPendingRescheduleRequest = useMemo(() => {
-    if (!rescheduleBookingId) return false;
-    return myRequests.some(r => 
-      r.reschedule_booking_id === rescheduleBookingId && 
-      r.status === 'pending'
-    );
-  }, [myRequests, rescheduleBookingId]);
-
-  const rescheduleTimeError = useMemo(() => {
-    if (!rescheduleBookingId || !originalBooking) return null;
-    if (isBookingWithin30Minutes(originalBooking)) {
-      return 'Cannot reschedule a booking that starts within 30 minutes.';
-    }
-    return null;
-  }, [rescheduleBookingId, originalBooking, isBookingWithin30Minutes]);
-
   useEffect(() => {
-    if (!selectedDateObj?.date || !myRequests.length || activeTab !== 'simulator' || rescheduleBookingId) {
+    if (!selectedDateObj?.date || !myRequests.length || activeTab !== 'simulator') {
       setExistingDayBooking(null);
       return;
     }
@@ -717,7 +650,7 @@ const BookGolf: React.FC = () => {
     );
     
     setExistingDayBooking(existingBayBooking || null);
-  }, [selectedDateObj, myRequests, activeTab, rescheduleBookingId]);
+  }, [selectedDateObj, myRequests, activeTab]);
 
   const memberBayBookingForDay = useMemo(() => {
     if (!selectedDateObj?.date || !myRequests.length) return null;
@@ -761,9 +694,6 @@ const BookGolf: React.FC = () => {
       if (isSimulator && isConferenceBooking) return false;
       if (!isSimulator && !isConferenceBooking) return false;
       
-      // If rescheduling, exclude the booking being rescheduled from usage calculation
-      if (rescheduleBookingId && r.id === rescheduleBookingId) return false;
-      
       return true;
     });
     
@@ -789,7 +719,7 @@ const BookGolf: React.FC = () => {
       remainingMinutes: remaining, 
       isAtDailyLimit: false  // Never block - show fees instead
     };
-  }, [selectedDateObj?.date, myRequests, activeTab, tierPermissions, rescheduleBookingId]);
+  }, [selectedDateObj?.date, myRequests, activeTab, tierPermissions]);
 
   const doTimesOverlap = (
     start1: string, end1: string,
@@ -895,7 +825,6 @@ const BookGolf: React.FC = () => {
         declared_player_count: activeTab === 'simulator' ? playerCount : undefined,
         member_notes: memberNotes.trim() || undefined,
         request_participants: requestParticipants,
-        ...(rescheduleBookingId ? { reschedule_booking_id: rescheduleBookingId } : {}),
         ...(consent ? {
           guardian_name: consent.guardianName,
           guardian_relationship: consent.guardianRelationship,
@@ -923,9 +852,6 @@ const BookGolf: React.FC = () => {
         setShowConfirmation(false);
         setSelectedSlot(null);
         setSelectedResource(null);
-        if (rescheduleBookingId) {
-          cancelRescheduleMode();
-        }
       }, 2500);
     } catch (err: any) {
       haptic.error();
@@ -978,9 +904,7 @@ const BookGolf: React.FC = () => {
     selectedSlot && 
     selectedResource && 
     !isBooking && 
-    !rescheduleTimeError &&
-    !hasPendingRescheduleRequest &&
-    (activeTab !== 'simulator' || !isAtDailyLimit || rescheduleBookingId)
+    (activeTab !== 'simulator' || !isAtDailyLimit)
   );
 
 
@@ -1042,43 +966,6 @@ const BookGolf: React.FC = () => {
         <h1 className={`text-3xl font-bold leading-tight drop-shadow-md ${isDark ? 'text-white' : 'text-primary'}`}>Book</h1>
         <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Reserve simulators or conference room.</p>
       </section>
-
-      {rescheduleBookingId && originalBooking && (
-        <section className={`mb-4 rounded-xl p-4 border ${isDark ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'}`}>
-          <div className="flex items-start gap-3">
-            <span className={`material-symbols-outlined text-2xl ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>event_repeat</span>
-            <div className="flex-1">
-              <h4 className={`font-bold ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
-                Rescheduling Booking
-              </h4>
-              <p className={`text-sm mt-1 ${isDark ? 'text-blue-300/80' : 'text-blue-700'}`}>
-                {originalBooking.bay_name} on {formatDateShort(originalBooking.request_date)} at {formatTime12Hour(originalBooking.start_time)}
-              </p>
-            </div>
-            <button
-              onClick={cancelRescheduleMode}
-              className={`text-sm font-medium flex items-center gap-1 ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'}`}
-            >
-              <span className="material-symbols-outlined text-sm">close</span>
-              Cancel
-            </button>
-          </div>
-          {rescheduleTimeError && (
-            <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
-              <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>
-                {rescheduleTimeError}
-              </p>
-            </div>
-          )}
-          {hasPendingRescheduleRequest && (
-            <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-yellow-500/20' : 'bg-yellow-100'}`}>
-              <p className={`text-sm font-medium ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
-                You already have a pending reschedule request for this booking.
-              </p>
-            </div>
-          )}
-        </section>
-      )}
 
       {effectiveUser?.status && effectiveUser.status.toLowerCase() !== 'active' ? (
         <section className={`rounded-2xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
@@ -1467,7 +1354,7 @@ const BookGolf: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'simulator' && existingBookingCheck?.hasExisting && !rescheduleBookingId && (
+          {activeTab === 'simulator' && existingBookingCheck?.hasExisting && (
             <div className={`p-4 rounded-xl mb-4 border ${isDark ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'}`}>
               <p className={`font-medium ${isDark ? 'text-amber-200' : 'text-amber-800'}`}>
                 You already have a booking on this day
@@ -1482,7 +1369,7 @@ const BookGolf: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'simulator' && existingDayBooking && !rescheduleBookingId && !existingBookingCheck?.hasExisting && (
+          {activeTab === 'simulator' && existingDayBooking && !existingBookingCheck?.hasExisting && (
             <section className={`rounded-xl p-4 border ${isDark ? 'bg-accent/10 border-accent/30' : 'bg-accent/5 border-accent/30'}`}>
               <div className="flex items-start gap-3">
                 <span className={`material-symbols-outlined text-2xl text-accent`}>event_available</span>
@@ -1495,33 +1382,20 @@ const BookGolf: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={() => {
-                    haptic.medium();
-                    const newParams = new URLSearchParams(searchParams);
-                    newParams.set('reschedule', existingDayBooking.id.toString());
-                    newParams.set('date', existingDayBooking.request_date);
-                    setSearchParams(newParams, { replace: true });
-                  }}
-                  className="flex-1 py-3 rounded-xl font-bold text-sm bg-accent text-brand-green hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-lg">event_repeat</span>
-                  Reschedule
-                </button>
+              <div className="mt-4">
                 <button
                   onClick={() => {
                     haptic.light();
                     setShowCancelConfirm(true);
                   }}
-                  className={`flex-1 py-3 rounded-xl font-bold text-sm border transition-colors flex items-center justify-center gap-2 ${
+                  className={`w-full py-3 rounded-xl font-bold text-sm border transition-colors flex items-center justify-center gap-2 ${
                     isDark 
                       ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' 
                       : 'border-red-300 text-red-600 hover:bg-red-50'
                   }`}
                 >
                   <span className="material-symbols-outlined text-lg">event_busy</span>
-                  Cancel
+                  Cancel Booking
                 </button>
               </div>
             </section>
@@ -1611,7 +1485,7 @@ const BookGolf: React.FC = () => {
             </div>
           )}
 
-          {(!existingDayBooking || activeTab !== 'simulator' || rescheduleBookingId) && !existingBookingCheck?.hasExisting && (activeTab !== 'simulator' || !isAtDailyLimit || rescheduleBookingId) && (
+          {(!existingDayBooking || activeTab !== 'simulator') && !existingBookingCheck?.hasExisting && (activeTab !== 'simulator' || !isAtDailyLimit) && (
           <>
           <section ref={timeSlotsRef} className="min-h-[120px]">
             <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 pl-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Available Times</h3>
@@ -1831,7 +1705,7 @@ const BookGolf: React.FC = () => {
               </>
             ) : (
               <>
-                <span>{rescheduleBookingId ? 'Request Reschedule' : 'Request Booking'}</span>
+                <span>Request Booking</span>
                 <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </>
             )}
@@ -1844,7 +1718,7 @@ const BookGolf: React.FC = () => {
           <div className={`backdrop-blur-md px-6 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 animate-pop-in w-max max-w-[90%] border pointer-events-auto ${isDark ? 'bg-black/80 text-white border-white/25' : 'bg-white/95 text-primary border-black/10'}`}>
             <span className="material-symbols-outlined text-xl text-green-500">schedule_send</span>
             <div>
-              <p>{rescheduleBookingId ? 'Reschedule request sent!' : 'Request sent!'}</p>
+              <p>Request sent!</p>
               <p className="text-[10px] font-normal opacity-80 mt-0.5">Staff will review shortly.</p>
             </div>
           </div>

@@ -373,7 +373,7 @@ router.post('/api/booking-requests', async (req, res) => {
     
     const { 
       user_email, user_name, resource_id, resource_preference, request_date, start_time, 
-      duration_minutes, notes, user_tier, reschedule_booking_id, declared_player_count, member_notes,
+      duration_minutes, notes, user_tier, declared_player_count, member_notes,
       guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants
     } = req.body;
     
@@ -406,56 +406,6 @@ router.post('/api/booking-requests', async (req, res) => {
     
     if (typeof duration_minutes !== 'number' || !Number.isInteger(duration_minutes) || duration_minutes <= 0 || duration_minutes > 480) {
       return res.status(400).json({ error: 'Invalid duration. Must be a whole number between 1 and 480 minutes.' });
-    }
-    
-    let originalBooking: any = null;
-    
-    if (reschedule_booking_id) {
-      const [origBooking] = await db.select()
-        .from(bookingRequests)
-        .where(eq(bookingRequests.id, reschedule_booking_id));
-      
-      if (!origBooking) {
-        return res.status(400).json({ error: 'Original booking not found' });
-      }
-      
-      if (origBooking.userEmail.toLowerCase() !== requestEmail) {
-        return res.status(400).json({ error: 'Original booking does not belong to you' });
-      }
-      
-      const validStatuses = ['approved', 'confirmed', 'pending_approval'];
-      if (!validStatuses.includes(origBooking.status || '')) {
-        return res.status(400).json({ error: 'Original booking cannot be rescheduled (already cancelled, declined, attended, or no-show)' });
-      }
-      
-      const bookingDateStr = origBooking.requestDate;
-      const bookingTimeStr = origBooking.startTime?.substring(0, 5) || '00:00';
-      
-      const bookingDateTime = createPacificDate(bookingDateStr, bookingTimeStr);
-      const now = new Date();
-      
-      if (bookingDateTime.getTime() <= now.getTime()) {
-        return res.status(400).json({ error: 'Cannot reschedule a booking that has already started or passed' });
-      }
-      
-      const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
-      if (bookingDateTime.getTime() <= thirtyMinutesFromNow.getTime()) {
-        return res.status(400).json({ error: 'Cannot reschedule a booking within 30 minutes of its start time' });
-      }
-      
-      const existingReschedule = await db.select({ id: bookingRequests.id, status: bookingRequests.status })
-        .from(bookingRequests)
-        .where(and(
-          eq(bookingRequests.rescheduleBookingId, reschedule_booking_id),
-          ne(bookingRequests.status, 'declined'),
-          ne(bookingRequests.status, 'cancelled')
-        ));
-      
-      if (existingReschedule.length > 0) {
-        return res.status(400).json({ error: 'A reschedule request already exists for this booking' });
-      }
-      
-      originalBooking = origBooking;
     }
     
     const [hours, mins] = start_time.split(':').map(Number);
@@ -505,16 +455,14 @@ router.post('/api/booking-requests', async (req, res) => {
         }
       }
       
-      if (!reschedule_booking_id) {
-        const limitCheck = await checkDailyBookingLimit(user_email, request_date, duration_minutes, user_tier);
-        if (!limitCheck.allowed) {
-          await client.query('ROLLBACK');
-          client.release();
-          return res.status(403).json({ 
-            error: limitCheck.reason,
-            remainingMinutes: limitCheck.remainingMinutes
-          });
-        }
+      const limitCheck = await checkDailyBookingLimit(user_email, request_date, duration_minutes, user_tier);
+      if (!limitCheck.allowed) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(403).json({ 
+          error: limitCheck.reason,
+          remainingMinutes: limitCheck.remainingMinutes
+        });
       }
       
       let sanitizedParticipants: any[] = [];
@@ -534,14 +482,31 @@ router.post('/api/booking-requests', async (req, res) => {
           .filter((p: any) => p.email || p.userId);
       }
       
+      // FIX: Lookup userId for participants with email but no userId
+      // This prevents paid members from being charged guest fees when added by email
+      for (const participant of sanitizedParticipants) {
+        if (participant.email && !participant.userId) {
+          try {
+            const [existingUser] = await db.select({ id: users.id }).from(users)
+              .where(eq(sql`LOWER(${users.email})`, participant.email.toLowerCase()))
+              .limit(1);
+            if (existingUser) {
+              participant.userId = existingUser.id;
+            }
+          } catch (err) {
+            console.error(`[Booking] Failed to lookup user for email ${participant.email}:`, err);
+          }
+        }
+      }
+      
       const insertResult = await client.query(
         `INSERT INTO booking_requests (
           user_email, user_name, resource_id, resource_preference, 
           request_date, start_time, duration_minutes, end_time, notes,
-          reschedule_booking_id, declared_player_count, member_notes,
+          declared_player_count, member_notes,
           guardian_name, guardian_relationship, guardian_phone, guardian_consent_at,
           request_participants, status, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'pending', NOW(), NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'pending', NOW(), NOW())
         RETURNING *`,
         [
           user_email.toLowerCase(),
@@ -553,7 +518,6 @@ router.post('/api/booking-requests', async (req, res) => {
           duration_minutes,
           end_time,
           notes || null,
-          reschedule_booking_id || null,
           declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null,
           member_notes ? String(member_notes).slice(0, 280) : null,
           guardian_consent && guardian_name ? guardian_name : null,
@@ -642,27 +606,8 @@ router.post('/api/booking-requests', async (req, res) => {
     
     const playerCount = declared_player_count && declared_player_count > 1 ? ` (${declared_player_count} players)` : '';
     
-    let staffMessage: string;
-    let staffTitle: string;
-    
-    if (originalBooking) {
-      const origFormattedDate = formatDateDisplayWithDay(originalBooking.requestDate);
-      const origFormattedTime = formatTime12Hour(originalBooking.startTime?.substring(0, 5) || '');
-      staffTitle = 'Reschedule Request';
-      staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} moving from ${origFormattedDate} at ${origFormattedTime} to ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
-      
-      db.insert(notifications).values({
-        userEmail: row.userEmail,
-        title: 'Reschedule Request Submitted',
-        message: `${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`,
-        type: 'booking',
-        relatedId: row.id,
-        relatedType: 'booking_request'
-      }).catch(err => console.error('Member notification failed:', err));
-    } else {
-      staffTitle = 'New Golf Booking Request';
-      staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
-    }
+    const staffTitle = 'New Golf Booking Request';
+    const staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
     
     // Send response FIRST before any post-commit async operations
     // This ensures the client gets a success response even if notifications fail
@@ -870,6 +815,12 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     
     const wasApproved = existing.status === 'approved';
     
+    // Calculate time until booking starts using Pacific timezone
+    const bookingStart = createPacificDate(existing.requestDate, existing.startTime?.substring(0, 5) || '00:00');
+    const nowPacific = new Date();
+    const hoursUntilStart = (bookingStart.getTime() - nowPacific.getTime()) / (1000 * 60 * 60);
+    const shouldSkipRefund = hoursUntilStart < 1;
+    
     let staffNotes = '';
     if (existing.trackmanBookingId) {
       staffNotes = '[Cancelled in app - needs Trackman cancellation]';
@@ -892,8 +843,9 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     
     let refundedAmountCents = 0;
     let refundType: 'none' | 'overage' | 'guest_fees' | 'both' = 'none';
+    let refundSkippedDueToLateCancel = false;
     
-    if (existing.overagePaymentIntentId) {
+    if (!shouldSkipRefund && existing.overagePaymentIntentId) {
       try {
         if (existing.overagePaid) {
           const stripe = await getStripeClient();
@@ -942,53 +894,58 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     }
     
     // Refund participant payments (guest fees paid via Stripe)
-    try {
-      const sessionResult = await pool.query(
-        `SELECT bs.id as session_id FROM booking_sessions bs 
-         JOIN booking_requests br ON bs.booking_id = br.id
-         WHERE br.id = $1`,
-        [bookingId]
-      );
-      
-      if (sessionResult.rows[0]?.session_id) {
-        const paidParticipants = await pool.query(
-          `SELECT id, stripe_payment_intent_id, cached_fee_cents, display_name
-           FROM booking_participants 
-           WHERE session_id = $1 
-           AND payment_status = 'paid' 
-           AND stripe_payment_intent_id IS NOT NULL 
-           AND stripe_payment_intent_id != ''
-           AND stripe_payment_intent_id NOT LIKE 'balance-%'`,
-          [sessionResult.rows[0].session_id]
+    // Skip refunds if within 1 hour of booking start time (late cancellation policy)
+    if (!shouldSkipRefund) {
+      try {
+        const sessionResult = await pool.query(
+          `SELECT bs.id as session_id FROM booking_sessions bs 
+           JOIN booking_requests br ON bs.booking_id = br.id
+           WHERE br.id = $1`,
+          [bookingId]
         );
         
-        if (paidParticipants.rows.length > 0) {
-          const stripe = await getStripeClient();
-          for (const participant of paidParticipants.rows) {
-            try {
-              const pi = await stripe.paymentIntents.retrieve(participant.stripe_payment_intent_id);
-              if (pi.status === 'succeeded' && pi.latest_charge) {
-                const refund = await stripe.refunds.create({
-                  charge: pi.latest_charge as string,
-                  reason: 'requested_by_customer',
-                  metadata: {
-                    type: 'booking_cancelled',
-                    bookingId: bookingId.toString(),
-                    participantId: participant.id.toString()
-                  }
-                });
-                refundedAmountCents += refund.amount;
-                refundType = refundType === 'overage' ? 'both' : 'guest_fees';
-                console.log(`[Member Cancel] Refunded guest fee for ${participant.display_name}: $${(participant.cached_fee_cents / 100).toFixed(2)}, refund: ${refund.id}`);
+        if (sessionResult.rows[0]?.session_id) {
+          const paidParticipants = await pool.query(
+            `SELECT id, stripe_payment_intent_id, cached_fee_cents, display_name
+             FROM booking_participants 
+             WHERE session_id = $1 
+             AND payment_status = 'paid' 
+             AND stripe_payment_intent_id IS NOT NULL 
+             AND stripe_payment_intent_id != ''
+             AND stripe_payment_intent_id NOT LIKE 'balance-%'`,
+            [sessionResult.rows[0].session_id]
+          );
+          
+          if (paidParticipants.rows.length > 0) {
+            const stripe = await getStripeClient();
+            for (const participant of paidParticipants.rows) {
+              try {
+                const pi = await stripe.paymentIntents.retrieve(participant.stripe_payment_intent_id);
+                if (pi.status === 'succeeded' && pi.latest_charge) {
+                  const refund = await stripe.refunds.create({
+                    charge: pi.latest_charge as string,
+                    reason: 'requested_by_customer',
+                    metadata: {
+                      type: 'booking_cancelled',
+                      bookingId: bookingId.toString(),
+                      participantId: participant.id.toString()
+                    }
+                  });
+                  refundedAmountCents += refund.amount;
+                  refundType = refundType === 'overage' ? 'both' : 'guest_fees';
+                  console.log(`[Member Cancel] Refunded guest fee for ${participant.display_name}: $${(participant.cached_fee_cents / 100).toFixed(2)}, refund: ${refund.id}`);
+                }
+              } catch (refundErr: any) {
+                console.error(`[Member Cancel] Failed to refund participant ${participant.id}:`, refundErr.message);
               }
-            } catch (refundErr: any) {
-              console.error(`[Member Cancel] Failed to refund participant ${participant.id}:`, refundErr.message);
             }
           }
         }
+      } catch (participantRefundErr) {
+        console.error('[Member Cancel] Failed to process participant refunds (non-blocking):', participantRefundErr);
       }
-    } catch (participantRefundErr) {
-      console.error('[Member Cancel] Failed to process participant refunds (non-blocking):', participantRefundErr);
+    } else {
+      refundSkippedDueToLateCancel = true;
     }
     
     // Clear pending fees for cancelled booking
@@ -1100,7 +1057,19 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
       req
     });
     
-    res.json({ success: true, message: 'Booking cancelled successfully' });
+    if (refundSkippedDueToLateCancel) {
+      res.json({ 
+        success: true, 
+        message: 'Booking cancelled successfully. Fees were forfeited due to cancellation within 1 hour of booking start time.',
+        refundSkipped: true
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        message: 'Booking cancelled successfully',
+        refundSkipped: false
+      });
+    }
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to cancel booking', error);
   }

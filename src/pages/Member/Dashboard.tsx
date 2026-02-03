@@ -1031,7 +1031,6 @@ const Dashboard: React.FC = () => {
                       }, `EvenHouse_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
                     }] : []),
                     ...(!isLinkedMember ? [
-                      { icon: 'event_repeat', label: 'Reschedule', onClick: () => { startNavigation(); navigate(`/book?reschedule=${item.dbId}&date=${item.rawDate}`); } },
                       { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(item.dbId, item.type) }
                     ] : []),
                     ...(isLinkedMember && isConfirmed ? [{

@@ -29,6 +29,7 @@ export type JobType =
   | 'sync_company_to_hubspot'
   | 'sync_day_pass_to_hubspot'
   | 'upsert_transaction_cache'
+  | 'update_member_tier'
   | 'generic_async_task';
 
 interface QueueJobOptions {
@@ -206,6 +207,10 @@ async function executeJob(job: { id: number; jobType: string; payload: any; retr
       case 'upsert_transaction_cache':
         const { upsertTransactionCache } = await import('./stripe/transactionCache');
         await upsertTransactionCache(payload);
+        break;
+      case 'update_member_tier':
+        const { processMemberTierUpdate } = await import('./memberTierUpdateProcessor');
+        await processMemberTierUpdate(payload);
         break;
       case 'generic_async_task':
         console.log(`[JobQueue] Executing generic task: ${payload.description || 'no description'}`);

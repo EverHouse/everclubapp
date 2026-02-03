@@ -61,11 +61,21 @@ const BlocksTab: React.FC = () => {
     const { actualUser } = useData();
     const { showToast } = useToast();
     const queryClient = useQueryClient();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const subtabParam = searchParams.get('subtab');
-    const [activeSubTab, setActiveSubTab] = useState<'notices' | 'blocks'>(
-        subtabParam === 'blocks' ? 'blocks' : 'notices'
-    );
+    const activeSubTab: 'notices' | 'blocks' = subtabParam === 'blocks' ? 'blocks' : 'notices';
+    
+    const setActiveSubTab = (tab: 'notices' | 'blocks') => {
+        setSearchParams(params => {
+            const newParams = new URLSearchParams(params);
+            if (tab === 'notices') {
+                newParams.delete('subtab');
+            } else {
+                newParams.set('subtab', tab);
+            }
+            return newParams;
+        });
+    };
     
     const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
     const [editingClosureId, setEditingClosureId] = useState<number | null>(null);
@@ -340,14 +350,6 @@ const BlocksTab: React.FC = () => {
             showToast('Failed to sync calendar', 'error');
         }
     });
-
-    useEffect(() => {
-        if (subtabParam === 'blocks') {
-            setActiveSubTab('blocks');
-        } else if (subtabParam === 'notices' || subtabParam === null) {
-            setActiveSubTab('notices');
-        }
-    }, [subtabParam]);
 
     useEffect(() => {
         const handleOpenNewClosure = () => {

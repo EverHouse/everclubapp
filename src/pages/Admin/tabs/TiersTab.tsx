@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import EmptyState from '../../../components/EmptyState';
 import SlideUpDrawer from '../../../components/SlideUpDrawer';
@@ -80,7 +81,21 @@ const BOOLEAN_FIELDS = [
 
 const TiersTab: React.FC = () => {
     const queryClient = useQueryClient();
-    const [activeSubTab, setActiveSubTab] = useState<SubTab>('tiers');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const subtabParam = searchParams.get('subtab');
+    const activeSubTab: SubTab = subtabParam === 'products' ? 'products' : subtabParam === 'fees' ? 'fees' : subtabParam === 'discounts' ? 'discounts' : 'tiers';
+    
+    const setActiveSubTab = (tab: SubTab) => {
+        setSearchParams(params => {
+            const newParams = new URLSearchParams(params);
+            if (tab === 'tiers') {
+                newParams.delete('subtab');
+            } else {
+                newParams.set('subtab', tab);
+            }
+            return newParams;
+        });
+    };
     const [isEditing, setIsEditing] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [selectedTier, setSelectedTier] = useState<MembershipTier | null>(null);

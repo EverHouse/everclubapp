@@ -49,7 +49,11 @@ export async function tryAutoApproveBooking(
        WHERE LOWER(br.user_email) = LOWER($1)
          AND br.request_date = $2
          AND ABS(EXTRACT(EPOCH FROM (br.start_time::time - $3::time))) <= 600
-         AND br.end_time::time > $3::time
+         AND (
+           (br.start_time < br.end_time AND $3::time < br.end_time)
+           OR
+           (br.start_time >= br.end_time AND ($3::time < br.end_time OR $3::time >= br.start_time))
+         )
          AND br.status = 'pending'
          AND br.trackman_booking_id IS NULL
        ORDER BY ABS(EXTRACT(EPOCH FROM (br.start_time::time - $3::time))), br.created_at DESC
@@ -618,12 +622,17 @@ async function tryLinkCancelledBooking(
   try {
     // Match cancelled booking within 10-min tolerance (600 seconds)
     // Also require end_time > webhook start_time to prevent matching previous slot
+    // Handle cross-midnight bookings: if start_time >= end_time, booking spans midnight
     const result = await pool.query(
       `SELECT id, user_email, staff_notes, session_id FROM booking_requests 
        WHERE LOWER(user_email) = LOWER($1)
          AND request_date = $2
          AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 600
-         AND end_time::time > $3::time
+         AND (
+           (start_time < end_time AND $3::time < end_time)
+           OR
+           (start_time >= end_time AND ($3::time < end_time OR $3::time >= start_time))
+         )
          AND status = 'cancelled'
          AND updated_at >= NOW() - INTERVAL '24 hours'
          AND trackman_booking_id IS NULL

@@ -236,15 +236,12 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           }
         }
         
-        const isReschedule = !!updatedRow.rescheduleBookingId;
         const resourceTypeName = isConferenceRoom ? 'conference room' : 'simulator';
-        const approvalMessage = isReschedule
-          ? `Reschedule approved - your booking is now ${formatNotificationDateTime(updatedRow.requestDate, updatedRow.startTime)}`
-          : `Your ${resourceTypeName} booking for ${formatNotificationDateTime(updatedRow.requestDate, updatedRow.startTime)} has been approved.`;
+        const approvalMessage = `Your ${resourceTypeName} booking for ${formatNotificationDateTime(updatedRow.requestDate, updatedRow.startTime)} has been approved.`;
         
         await tx.insert(notifications).values({
           userEmail: updatedRow.userEmail,
-          title: isReschedule ? 'Reschedule Approved' : 'Booking Request Approved',
+          title: 'Booking Request Approved',
           message: approvalMessage,
           type: 'booking_approved',
           relatedId: updatedRow.id,
@@ -262,75 +259,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         return { updated: updatedRow, bayName, approvalMessage, isConferenceRoom };
       });
       
-      if (updated.rescheduleBookingId) {
-        try {
-          const [originalBooking] = await db.select({
-            id: bookingRequests.id,
-            calendarEventId: bookingRequests.calendarEventId,
-            resourceId: bookingRequests.resourceId
-          })
-            .from(bookingRequests)
-            .where(eq(bookingRequests.id, updated.rescheduleBookingId));
-          
-          if (originalBooking) {
-            await db.update(bookingRequests)
-              .set({ status: 'cancelled', updatedAt: new Date() })
-              .where(eq(bookingRequests.id, originalBooking.id));
-            
-            // Handle all payment intents for the original booking - refund succeeded, cancel pending
-            try {
-              const stripe = await getStripeClient();
-              const allSnapshots = await pool.query(
-                `SELECT id, stripe_payment_intent_id FROM booking_fee_snapshots 
-                 WHERE booking_id = $1 AND stripe_payment_intent_id IS NOT NULL`,
-                [originalBooking.id]
-              );
-              
-              for (const snapshot of allSnapshots.rows) {
-                try {
-                  const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
-                  
-                  if (pi.status === 'succeeded') {
-                    const refund = await stripe.refunds.create({
-                      payment_intent: snapshot.stripe_payment_intent_id,
-                      reason: 'requested_by_customer'
-                    });
-                    console.log(`[Reschedule] Refunded payment ${snapshot.stripe_payment_intent_id} for booking ${originalBooking.id}: ${refund.id}`);
-                    await pool.query(`UPDATE booking_fee_snapshots SET status = 'refunded' WHERE id = $1`, [snapshot.id]);
-                  } else if (['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'].includes(pi.status)) {
-                    await stripe.paymentIntents.cancel(snapshot.stripe_payment_intent_id);
-                    console.log(`[Reschedule] Cancelled payment intent ${snapshot.stripe_payment_intent_id} for original booking ${originalBooking.id}`);
-                    await pool.query(`UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE id = $1`, [snapshot.id]);
-                  }
-                } catch (piErr: any) {
-                  console.error(`[Reschedule] Failed to handle payment ${snapshot.stripe_payment_intent_id}:`, piErr.message);
-                }
-              }
-            } catch (cancelIntentsErr) {
-              console.error('[Reschedule] Failed to handle payment intents (non-blocking):', cancelIntentsErr);
-            }
-            
-            if (originalBooking.calendarEventId) {
-              try {
-                const calendarName = await getCalendarNameForBayAsync(originalBooking.resourceId);
-                if (calendarName) {
-                  const calendarId = await getCalendarIdByName(calendarName);
-                  if (calendarId) {
-                    await deleteCalendarEvent(originalBooking.calendarEventId, calendarId);
-                  }
-                }
-              } catch (calError) {
-                console.error('Failed to delete original booking calendar event (non-blocking):', calError);
-              }
-            }
-          }
-        } catch (rescheduleError) {
-          console.error('Failed to cancel original booking during reschedule approval:', rescheduleError);
-        }
-      }
-      
       sendPushNotification(updated.userEmail, {
-        title: updated.rescheduleBookingId ? 'Reschedule Approved!' : 'Booking Approved!',
+        title: 'Booking Approved!',
         body: approvalMessage,
         url: '/sims'
       }).catch(err => console.error('Push notification failed:', err));
@@ -399,7 +329,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       
       sendNotificationToUser(updated.userEmail, {
         type: 'notification',
-        title: updated.rescheduleBookingId ? 'Reschedule Approved' : 'Booking Approved',
+        title: 'Booking Approved',
         message: approvalMessage,
         data: { bookingId: parseInt(id, 10), eventType: 'booking_approved' }
       }, { action: 'booking_approved', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
@@ -410,7 +340,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     if (status === 'declined') {
       const bookingId = parseInt(id, 10);
       
-      const { updated, declineMessage, isReschedule, resourceTypeName } = await db.transaction(async (tx) => {
+      const { updated, declineMessage, resourceTypeName } = await db.transaction(async (tx) => {
         const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
         
         if (!existing) {
@@ -437,35 +367,13 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           .where(eq(bookingRequests.id, bookingId))
           .returning();
         
-        const isReschedule = !!updatedRow.rescheduleBookingId;
-        let declineMessage: string;
-        let notificationTitle: string;
-        
-        if (isReschedule) {
-          const [originalBooking] = await tx.select({
-            requestDate: bookingRequests.requestDate,
-            startTime: bookingRequests.startTime
-          })
-            .from(bookingRequests)
-            .where(eq(bookingRequests.id, updatedRow.rescheduleBookingId!));
-          
-          if (originalBooking) {
-            const origDateTime = formatNotificationDateTime(originalBooking.requestDate, originalBooking.startTime);
-            declineMessage = `Reschedule declined - your original booking for ${origDateTime} remains active`;
-          } else {
-            declineMessage = `Reschedule declined - your original booking remains active`;
-          }
-          notificationTitle = 'Reschedule Declined';
-        } else {
-          declineMessage = suggested_time 
-            ? `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined. Suggested alternative: ${formatTime12Hour(suggested_time)}`
-            : `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined.`;
-          notificationTitle = 'Booking Request Declined';
-        }
+        const declineMessage = suggested_time 
+          ? `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined. Suggested alternative: ${formatTime12Hour(suggested_time)}`
+          : `Your ${resourceTypeName} booking request for ${formatDateDisplayWithDay(updatedRow.requestDate)} was declined.`;
         
         await tx.insert(notifications).values({
           userEmail: updatedRow.userEmail,
-          title: notificationTitle,
+          title: 'Booking Request Declined',
           message: declineMessage,
           type: 'booking_declined',
           relatedId: updatedRow.id,
@@ -480,13 +388,13 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             eq(notifications.type, 'booking')
           ));
         
-        return { updated: updatedRow, declineMessage, isReschedule, resourceTypeName };
+        return { updated: updatedRow, declineMessage, resourceTypeName };
       });
       
       await releaseGuestPassHold(bookingId);
       
       sendPushNotification(updated.userEmail, {
-        title: isReschedule ? 'Reschedule Declined' : 'Booking Request Update',
+        title: 'Booking Request Update',
         body: declineMessage,
         url: '/sims'
       }).catch(err => console.error('Push notification failed:', err));
@@ -503,7 +411,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       
       sendNotificationToUser(updated.userEmail, {
         type: 'notification',
-        title: isReschedule ? 'Reschedule Declined' : 'Booking Declined',
+        title: 'Booking Declined',
         message: declineMessage,
         data: { bookingId: parseInt(id, 10), eventType: 'booking_declined' }
       }, { action: 'booking_declined', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });

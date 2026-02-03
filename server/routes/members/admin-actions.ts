@@ -365,6 +365,9 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await pool.query('DELETE FROM booking_members WHERE user_email = $1', [normalizedEmail]);
     deletionLog.push('booking_members');
     
+    await pool.query("DELETE FROM sessions WHERE sess->'user'->>'email' = $1", [normalizedEmail]);
+    deletionLog.push('sessions');
+    
     let stripeDeleted = false;
     if (deleteFromStripe === 'true' && stripeCustomerId) {
       try {
@@ -623,13 +626,6 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
       ? `${sessionUser.firstName} ${sessionUser.lastName || ''}`.trim() 
       : 'Bulk Update';
     
-    const results: {
-      updated: { email: string; name: string; oldTier: string; newTier: string; hubspotSynced?: boolean }[];
-      unchanged: { email: string; name: string; tier: string }[];
-      notFound: { email: string; tier: string }[];
-      errors: { email: string; error: string }[];
-    } = { updated: [], unchanged: [], notFound: [], errors: [] };
-    
     const { normalizeTierName: normalizeTierNameUtil } = await import('../../utils/tierUtils');
     function normalizeCsvTier(csvTier: string): string | null {
       if (!csvTier) return null;
@@ -644,8 +640,92 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
       'VIP': 5
     };
     
+    // Validation and data preparation phase (fast)
+    const results: {
+      updated: { email: string; name: string; oldTier: string; newTier: string }[];
+      unchanged: { email: string; name: string; tier: string }[];
+      notFound: { email: string; tier: string }[];
+      errors: { email: string; error: string }[];
+      queued: number;
+      jobIds: number[];
+    } = { updated: [], unchanged: [], notFound: [], errors: [], queued: 0, jobIds: [] };
+    
+    // For dry-run, do quick validation
+    if (dryRun) {
+      for (const member of members) {
+        const { email, tier: csvTier } = member;
+        
+        if (!email) {
+          results.errors.push({ email: 'unknown', error: 'Email missing' });
+          continue;
+        }
+        
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedTier = normalizeCsvTier(csvTier);
+        
+        if (!normalizedTier) {
+          results.errors.push({ email: normalizedEmail, error: `Invalid tier: ${csvTier}` });
+          continue;
+        }
+        
+        try {
+          const userResult = await db.select({
+            id: users.id,
+            email: users.email,
+            tier: users.tier,
+            firstName: users.firstName,
+            lastName: users.lastName
+          })
+            .from(users)
+            .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
+          
+          if (userResult.length === 0) {
+            results.notFound.push({ email: normalizedEmail, tier: normalizedTier });
+            continue;
+          }
+          
+          const user = userResult[0];
+          const actualTier = user.tier;
+          const oldTierDisplay = actualTier || null;
+          const memberName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || normalizedEmail;
+          
+          if (actualTier === normalizedTier) {
+            results.unchanged.push({ email: normalizedEmail, name: memberName, tier: normalizedTier });
+            continue;
+          }
+          
+          results.updated.push({ 
+            email: normalizedEmail, 
+            name: memberName, 
+            oldTier: oldTierDisplay || 'None',
+            newTier: normalizedTier
+          });
+        } catch (error: any) {
+          console.error(`[BulkTierUpdate] Error validating ${normalizedEmail}:`, error);
+          results.errors.push({ email: normalizedEmail, error: error.message });
+        }
+      }
+      
+      return res.json({
+        success: true,
+        dryRun: true,
+        summary: {
+          total: members.length,
+          updated: results.updated.length,
+          unchanged: results.unchanged.length,
+          notFound: results.notFound.length,
+          errors: results.errors.length
+        },
+        results
+      });
+    }
+    
+    // For non-dry-run: queue the updates as background jobs
+    const { queueJobs } = await import('../../core/jobQueue');
+    const jobsToQueue: Array<{ jobType: 'update_member_tier'; payload: any; options?: any }> = [];
+    
     for (const member of members) {
-      const { email, tier: csvTier, name } = member;
+      const { email, tier: csvTier } = member;
       
       if (!email) {
         results.errors.push({ email: 'unknown', error: 'Email missing' });
@@ -665,7 +745,6 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
           id: users.id,
           email: users.email,
           tier: users.tier,
-          tierId: users.tierId,
           firstName: users.firstName,
           lastName: users.lastName
         })
@@ -687,78 +766,65 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
           continue;
         }
         
-        if (dryRun) {
-          results.updated.push({ 
-            email: normalizedEmail, 
-            name: memberName, 
-            oldTier: oldTierDisplay, 
-            newTier: normalizedTier,
-            hubspotSynced: false
-          });
-          continue;
-        }
-        
+        // Queue this member's tier update
         const tierId = tierIdMap[normalizedTier];
-        await db.update(users)
-          .set({ 
-            tier: normalizedTier, 
-            tierId: tierId,
-            membershipTier: csvTier,
-            updatedAt: new Date() 
-          })
-          .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
-        
-        let hubspotSynced = false;
-        if (syncToHubspot && normalizedTier) {
-          const hubspotResult = await handleTierChange(
-            normalizedEmail,
-            oldTierDisplay || 'None',
-            normalizedTier,
+        jobsToQueue.push({
+          jobType: 'update_member_tier',
+          payload: {
+            email: normalizedEmail,
+            newTier: normalizedTier,
+            oldTier: oldTierDisplay,
             performedBy,
-            performedByName
-          );
-          hubspotSynced = hubspotResult.success;
-          
-          if (!hubspotResult.success && hubspotResult.error) {
-            console.warn(`[BulkTierUpdate] HubSpot sync failed for ${normalizedEmail}, queuing for retry: ${hubspotResult.error}`);
-            await queueTierSync({
-              email: normalizedEmail,
-              newTier: normalizedTier,
-              oldTier: oldTierDisplay || 'None',
-              changedBy: performedBy,
-              changedByName: performedByName
-            });
+            performedByName,
+            syncToHubspot,
+            tierId,
+            csvTier
+          },
+          options: {
+            priority: 1,
+            maxRetries: 3
           }
-        }
+        });
         
         results.updated.push({ 
           email: normalizedEmail, 
           name: memberName, 
-          oldTier: oldTierDisplay || 'None', 
-          newTier: normalizedTier,
-          hubspotSynced
+          oldTier: oldTierDisplay || 'None',
+          newTier: normalizedTier
         });
-        
-        if (syncToHubspot) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
       } catch (error: any) {
-        console.error(`[BulkTierUpdate] Error processing ${normalizedEmail}:`, error);
-        results.errors.push({ email: normalizedEmail, error: error.message });
+        console.error(`[BulkTierUpdate] Error processing ${email}:`, error);
+        results.errors.push({ email: email?.toLowerCase().trim() || 'unknown', error: error.message });
       }
+    }
+    
+    // Queue all jobs at once
+    let jobIds: number[] = [];
+    if (jobsToQueue.length > 0) {
+      jobIds = await queueJobs(jobsToQueue);
+      results.queued = jobIds.length;
+      results.jobIds = jobIds;
+      console.log(`[BulkTierUpdate] Queued ${jobIds.length} member tier update jobs (IDs: ${jobIds.join(', ')})`);
     }
     
     res.json({
       success: true,
-      dryRun,
+      dryRun: false,
+      message: `Queued ${results.queued} member tier update${results.queued !== 1 ? 's' : ''} for background processing`,
       summary: {
         total: members.length,
-        updated: results.updated.length,
+        queued: results.queued,
         unchanged: results.unchanged.length,
         notFound: results.notFound.length,
         errors: results.errors.length
       },
-      results
+      jobIds,
+      results: {
+        queued: results.updated,
+        unchanged: results.unchanged,
+        notFound: results.notFound,
+        errors: results.errors
+      }
     });
   } catch (error: any) {
     console.error('Bulk tier update error:', error);

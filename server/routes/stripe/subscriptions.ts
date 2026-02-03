@@ -242,16 +242,41 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
       return res.status(500).json({ error: subscriptionResult.error || 'Failed to create subscription' });
     }
     
-    await pool.query(
-      `UPDATE users SET 
-        billing_provider = 'stripe',
-        tier = $1,
-        stripe_subscription_id = $2,
-        membership_status = 'active',
-        updated_at = NOW()
-      WHERE id = $3`,
-      [tierName, subscriptionResult.subscription?.subscriptionId, member.id]
-    );
+    // Store subscription for potential rollback in case of database failure
+    const stripeSubscription = subscriptionResult.subscription;
+    
+    try {
+      await pool.query(
+        `UPDATE users SET 
+          billing_provider = 'stripe',
+          tier = $1,
+          stripe_subscription_id = $2,
+          membership_status = 'active',
+          updated_at = NOW()
+        WHERE id = $3`,
+        [tierName, stripeSubscription?.subscriptionId, member.id]
+      );
+    } catch (dbError) {
+      // Database update failed after Stripe subscription was created
+      // Roll back the Stripe subscription to prevent charging the customer without granting access
+      if (stripeSubscription?.subscriptionId) {
+        try {
+          await cancelSubscription(stripeSubscription.subscriptionId);
+          console.error(`[Stripe] Rolled back subscription ${stripeSubscription.subscriptionId} due to database update failure:`, dbError);
+        } catch (cancelError) {
+          console.error(`[Stripe] CRITICAL: Failed to cancel subscription ${stripeSubscription.subscriptionId} during rollback. Customer was charged but access was not granted:`, cancelError);
+          throw new Error(
+            `Failed to complete subscription setup. Database error: ${dbError instanceof Error ? dbError.message : String(dbError)}. ` +
+            `Rollback attempt failed: ${cancelError instanceof Error ? cancelError.message : String(cancelError)}. ` +
+            `Subscription ${stripeSubscription.subscriptionId} may need manual cancellation in Stripe.`
+          );
+        }
+      }
+      throw new Error(
+        `Failed to activate membership in database: ${dbError instanceof Error ? dbError.message : String(dbError)}. ` +
+        `Stripe subscription ${stripeSubscription?.subscriptionId} has been cancelled to prevent unauthorized charges.`
+      );
+    }
     
     await logFromRequest(req, {
       action: 'subscription_created',

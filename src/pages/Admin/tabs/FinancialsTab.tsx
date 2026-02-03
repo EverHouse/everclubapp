@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import EmptyState from '../../../components/EmptyState';
@@ -165,7 +166,21 @@ interface InvoiceListItem {
 }
 
 const FinancialsTab: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'POS' | 'Subscriptions' | 'Invoices'>('POS');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subtabParam = searchParams.get('subtab');
+  const activeTab: 'POS' | 'Subscriptions' | 'Invoices' = subtabParam === 'subscriptions' ? 'Subscriptions' : subtabParam === 'invoices' ? 'Invoices' : 'POS';
+  
+  const setActiveTab = (tab: 'POS' | 'Subscriptions' | 'Invoices') => {
+    setSearchParams(params => {
+      const newParams = new URLSearchParams(params);
+      if (tab === 'POS') {
+        newParams.delete('subtab');
+      } else {
+        newParams.set('subtab', tab.toLowerCase());
+      }
+      return newParams;
+    });
+  };
   const isMobile = useIsMobile();
 
   return (
