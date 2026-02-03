@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "9.69.4",
+    date: "2026-02-03",
+    title: "Stripe Subscription Tier Sync",
+    changes: [
+      "New: Stripe subscription changes now update HubSpot deal line items (Stripe-billed members only)",
+      "New: Stripe webhook tier sync queues for retry on HubSpot failures (Stripe-billed only)",
+      "Note: MindBody-billed members are unaffected - use staff tier assignment in member profile"
+    ]
+  },
+  {
     version: "9.69.3",
     date: "2026-02-03",
     title: "Tier Sync Reliability",
