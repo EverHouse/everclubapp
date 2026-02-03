@@ -35,6 +35,12 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
 const VIRTUALIZATION_THRESHOLD = Infinity;
 const VISITORS_PAGE_SIZE = 100;
 
+interface ListChildComponentProps {
+    index: number;
+    style: React.CSSProperties;
+    data: unknown;
+}
+
 interface MobileRowProps {
     data: MemberProfile[];
     memberTab: 'active' | 'former';
