@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.3.1",
+    date: "2026-02-03",
+    title: "Account Balance in Profile Drawer",
+    changes: [
+      "Added: Staff can now see member account balance directly in the Directory profile drawer",
+      "Added: Staff can apply credits to members from the profile drawer (no need to go to Billing tab)",
+      "Fixed: HubSpot sync now sets lifecycle stage to 'member' for active members"
+    ]
+  },
+  {
     version: "69.3.0",
     date: "2026-02-03",
     title: "Team Page Moved to Admin",

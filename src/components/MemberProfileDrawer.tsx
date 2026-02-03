@@ -183,6 +183,11 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [mergePreview, setMergePreview] = useState<any>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [accountBalance, setAccountBalance] = useState<{ balanceCents: number; balanceDollars: number } | null>(null);
+  const [showApplyCreditModal, setShowApplyCreditModal] = useState(false);
+  const [isApplyingCredit, setIsApplyingCredit] = useState(false);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditDescription, setCreditDescription] = useState('');
 
   useEffect(() => {
     setDisplayedTier(member?.rawTier || member?.tier || '');
@@ -208,12 +213,13 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     if (!member?.email) return;
     setIsLoading(true);
     try {
-      const [historyRes, notesRes, commsRes, guestsRes, purchasesRes] = await Promise.all([
+      const [historyRes, notesRes, commsRes, guestsRes, purchasesRes, balanceRes] = await Promise.all([
         fetch(`/api/members/${encodeURIComponent(member.email)}/history`, { credentials: 'include' }),
         fetch(`/api/members/${encodeURIComponent(member.email)}/notes`, { credentials: 'include' }),
         fetch(`/api/members/${encodeURIComponent(member.email)}/communications`, { credentials: 'include' }),
         fetch(`/api/members/${encodeURIComponent(member.email)}/guests`, { credentials: 'include' }),
         fetch(`/api/members/${encodeURIComponent(member.email)}/unified-purchases`, { credentials: 'include' }),
+        fetch(`/api/my-billing/account-balance?user_email=${encodeURIComponent(member.email)}`, { credentials: 'include' }),
       ]);
 
       if (historyRes.ok) {
@@ -235,6 +241,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       if (purchasesRes.ok) {
         const purchasesData = await purchasesRes.json();
         setPurchases(purchasesData);
+      }
+      if (balanceRes.ok) {
+        const balanceData = await balanceRes.json();
+        setAccountBalance(balanceData);
       }
     } catch (err) {
       console.error('Failed to fetch member data:', err);
@@ -270,6 +280,44 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       console.error('Failed to remove linked email:', err);
     } finally {
       setRemovingEmail(null);
+    }
+  };
+
+  const handleApplyCredit = async () => {
+    if (!member?.email || !creditAmount || isApplyingCredit) return;
+    const amountCents = Math.round(parseFloat(creditAmount) * 100);
+    if (isNaN(amountCents) || amountCents <= 0) return;
+    
+    setIsApplyingCredit(true);
+    try {
+      const res = await fetch(`/api/member-billing/${encodeURIComponent(member.email)}/credit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          amountCents, 
+          description: creditDescription || 'Staff applied credit' 
+        }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setAccountBalance(prev => ({
+          balanceCents: Math.abs(data.endingBalance || 0),
+          balanceDollars: Math.abs(data.endingBalance || 0) / 100,
+        }));
+        setShowApplyCreditModal(false);
+        setCreditAmount('');
+        setCreditDescription('');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || 'Failed to apply credit');
+      }
+    } catch (err) {
+      console.error('Failed to apply credit:', err);
+      alert('Failed to apply credit');
+    } finally {
+      setIsApplyingCredit(false);
     }
   };
 
@@ -507,6 +555,85 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Attended Visits</p>
               </div>
             </div>
+
+            {isAdmin && !visitorMode && (
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                    Account Balance
+                  </h4>
+                  <span className={`text-xl font-bold font-serif ${(accountBalance?.balanceDollars || 0) > 0 ? 'text-green-500' : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>
+                    ${(accountBalance?.balanceDollars || 0).toFixed(2)}
+                  </span>
+                </div>
+                <p className={`text-xs mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Available credit applied to guest fees & overages
+                </p>
+                
+                {showApplyCreditModal ? (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={creditAmount}
+                          onChange={(e) => setCreditAmount(e.target.value)}
+                          placeholder="Amount ($)"
+                          className={`w-full px-3 py-2 rounded-lg border text-sm ${
+                            isDark
+                              ? 'bg-white/10 border-white/20 text-white placeholder:text-gray-500'
+                              : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={creditDescription}
+                      onChange={(e) => setCreditDescription(e.target.value)}
+                      placeholder="Reason (optional)"
+                      className={`w-full px-3 py-2 rounded-lg border text-sm ${
+                        isDark
+                          ? 'bg-white/10 border-white/20 text-white placeholder:text-gray-500'
+                          : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
+                      }`}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setShowApplyCreditModal(false);
+                          setCreditAmount('');
+                          setCreditDescription('');
+                        }}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
+                          isDark ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleApplyCredit}
+                        disabled={isApplyingCredit || !creditAmount || parseFloat(creditAmount) <= 0}
+                        className="flex-1 px-3 py-2 bg-brand-green text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isApplyingCredit ? 'Applying...' : 'Apply Credit'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowApplyCreditModal(true)}
+                    className="w-full py-2.5 bg-brand-green text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  >
+                    <span className="material-symbols-outlined text-lg">add</span>
+                    Apply Credit
+                  </button>
+                )}
+              </div>
+            )}
 
             {(member?.dateOfBirth || member?.companyName || hasAddress || member?.emailOptIn !== null || member?.smsOptIn !== null) && (
               <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
