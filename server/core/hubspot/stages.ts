@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { isProduction } from '../db';
 import { getHubSpotClient } from '../integrations';
-import { hubspotDeals, billingAuditLog } from '../../../shared/schema';
+import { hubspotDeals, billingAuditLog, hubspotLineItems } from '../../../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './request';
 import { validateMembershipPipeline, isValidStage } from './pipeline';
@@ -358,6 +358,57 @@ export async function syncDealStageFromMindbodyStatus(
       if (!isProduction) console.log(`[HubSpotDeals] Recovery: Member ${memberEmail} status changed to Active, deal moved to ${targetStage}`);
     } else if (isChurned) {
       if (!isProduction) console.log(`[HubSpotDeals] Churned: Member ${memberEmail} marked as former_member, deal moved to ${targetStage}`);
+      
+      // Remove all line items and update contact for churned members (MindBody cancelled/terminated)
+      if (deal.hubspotDealId) {
+        try {
+          const lineItems = await db.select()
+            .from(hubspotLineItems)
+            .where(eq(hubspotLineItems.hubspotDealId, deal.hubspotDealId));
+          
+          let lineItemsRemoved = 0;
+          const hubspot = await getHubSpotClient();
+          
+          for (const lineItem of lineItems) {
+            if (lineItem.hubspotLineItemId) {
+              try {
+                await retryableHubSpotRequest(() =>
+                  hubspot.crm.lineItems.basicApi.archive(lineItem.hubspotLineItemId!)
+                );
+                
+                await db.delete(hubspotLineItems)
+                  .where(eq(hubspotLineItems.hubspotLineItemId, lineItem.hubspotLineItemId));
+                
+                lineItemsRemoved++;
+              } catch (removeError: any) {
+                console.error(`[HubSpotDeals] Failed to remove line item ${lineItem.hubspotLineItemId}:`, removeError);
+              }
+            }
+          }
+          
+          // Clear membership tier on contact for churned members
+          if (deal.hubspotContactId) {
+            try {
+              await retryableHubSpotRequest(() =>
+                hubspot.crm.contacts.basicApi.update(deal.hubspotContactId!, {
+                  properties: {
+                    membership_tier: ''
+                  }
+                })
+              );
+              if (!isProduction) console.log(`[HubSpotDeals] Cleared membership_tier for churned member ${memberEmail}`);
+            } catch (tierClearError: any) {
+              console.warn(`[HubSpotDeals] Failed to clear membership_tier for ${memberEmail}:`, tierClearError);
+            }
+          }
+          
+          if (lineItemsRemoved > 0) {
+            console.log(`[HubSpotDeals] Removed ${lineItemsRemoved} line items for churned MindBody member ${memberEmail}`);
+          }
+        } catch (lineItemError: any) {
+          console.error(`[HubSpotDeals] Error removing line items for churned member:`, lineItemError);
+        }
+      }
     } else {
       if (!isProduction) console.log(`[HubSpotDeals] Payment Issue: Member ${memberEmail} marked as inactive, deal moved to ${targetStage}`);
     }

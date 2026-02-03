@@ -1,5 +1,5 @@
 import { getStripeSync, getStripeClient } from './client';
-import { syncCompanyToHubSpot, queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot, handleTierChange, queueTierSync } from '../hubspot';
+import { syncCompanyToHubSpot, queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot, handleTierChange, queueTierSync, handleMembershipCancellation } from '../hubspot';
 import { pool } from '../db';
 import { db } from '../../db';
 import { groupMembers } from '../../../shared/models/hubspot-billing';
@@ -2333,6 +2333,18 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       console.log(`[Stripe Webhook] Synced ${email} status=cancelled to HubSpot`);
     } catch (hubspotError) {
       console.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', hubspotError);
+    }
+    
+    // Remove deal line items and move deal to Closed Lost - Stripe-billed only
+    try {
+      const cancellationResult = await handleMembershipCancellation(email, 'stripe-webhook', 'Stripe Subscription');
+      if (cancellationResult.success) {
+        console.log(`[Stripe Webhook] HubSpot cancellation processed: ${cancellationResult.lineItemsRemoved} line items removed, deal moved to lost: ${cancellationResult.dealMovedToLost}`);
+      } else {
+        console.error(`[Stripe Webhook] HubSpot cancellation failed: ${cancellationResult.error}`);
+      }
+    } catch (cancellationError) {
+      console.error('[Stripe Webhook] HubSpot cancellation handling failed:', cancellationError);
     }
 
     await notifyMember({

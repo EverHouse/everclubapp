@@ -1000,3 +1000,149 @@ export async function syncTierToHubSpot(params: {
     throw error;
   }
 }
+
+export interface CancellationResult {
+  success: boolean;
+  lineItemsRemoved: number;
+  dealMovedToLost: boolean;
+  error?: string;
+}
+
+export async function handleMembershipCancellation(
+  memberEmail: string,
+  performedBy: string,
+  performedByName?: string
+): Promise<CancellationResult> {
+  const normalizedEmail = memberEmail.toLowerCase().trim();
+  
+  try {
+    const existingDeal = await db.select()
+      .from(hubspotDeals)
+      .where(and(
+        eq(hubspotDeals.memberEmail, normalizedEmail),
+        eq(hubspotDeals.isPrimary, true)
+      ))
+      .limit(1);
+    
+    if (existingDeal.length === 0) {
+      const fallbackDeal = await db.select()
+        .from(hubspotDeals)
+        .where(eq(hubspotDeals.memberEmail, normalizedEmail))
+        .limit(1);
+      
+      if (fallbackDeal.length === 0) {
+        console.log(`[HubSpotDeals] No deal found for cancelled member ${normalizedEmail} - skipping HubSpot sync`);
+        return { success: true, lineItemsRemoved: 0, dealMovedToLost: false };
+      }
+      
+      existingDeal.push(fallbackDeal[0]);
+    }
+    
+    const deal = existingDeal[0];
+    const hubspotDealId = deal.hubspotDealId;
+    
+    if (!hubspotDealId) {
+      console.log(`[HubSpotDeals] Deal has no HubSpot ID for ${normalizedEmail} - skipping HubSpot sync`);
+      return { success: true, lineItemsRemoved: 0, dealMovedToLost: false };
+    }
+    
+    const existingLineItems = await db.select()
+      .from(hubspotLineItems)
+      .where(eq(hubspotLineItems.hubspotDealId, hubspotDealId));
+    
+    let lineItemsRemoved = 0;
+    const hubspot = await getHubSpotClient();
+    
+    for (const lineItem of existingLineItems) {
+      if (lineItem.hubspotLineItemId) {
+        try {
+          await retryableHubSpotRequest(() =>
+            hubspot.crm.lineItems.basicApi.archive(lineItem.hubspotLineItemId!)
+          );
+          
+          await db.delete(hubspotLineItems)
+            .where(eq(hubspotLineItems.hubspotLineItemId, lineItem.hubspotLineItemId));
+          
+          lineItemsRemoved++;
+          
+          if (!isProduction) {
+            console.log(`[HubSpotDeals] Removed line item ${lineItem.hubspotLineItemId} for cancelled member ${normalizedEmail}`);
+          }
+        } catch (removeError: any) {
+          console.error(`[HubSpotDeals] Failed to remove line item ${lineItem.hubspotLineItemId}:`, removeError);
+        }
+      }
+    }
+    
+    let dealMovedToLost = false;
+    const { HUBSPOT_STAGE_IDS } = await import('./constants');
+    
+    if (deal.pipelineStage !== HUBSPOT_STAGE_IDS.CLOSED_LOST) {
+      try {
+        await retryableHubSpotRequest(() =>
+          hubspot.crm.deals.basicApi.update(hubspotDealId, {
+            properties: {
+              dealstage: HUBSPOT_STAGE_IDS.CLOSED_LOST
+            }
+          })
+        );
+        
+        await db.update(hubspotDeals)
+          .set({
+            pipelineStage: HUBSPOT_STAGE_IDS.CLOSED_LOST,
+            lastStageSyncAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(hubspotDeals.id, deal.id));
+        
+        dealMovedToLost = true;
+        console.log(`[HubSpotDeals] Moved deal ${hubspotDealId} to Closed Lost for ${normalizedEmail}`);
+      } catch (stageError: any) {
+        console.error(`[HubSpotDeals] Failed to move deal to Closed Lost:`, stageError);
+      }
+    }
+    
+    if (deal.hubspotContactId) {
+      try {
+        await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.basicApi.update(deal.hubspotContactId!, {
+            properties: {
+              membership_status: 'cancelled',
+              membership_tier: ''
+            }
+          })
+        );
+        console.log(`[HubSpotDeals] Updated contact status to cancelled for ${normalizedEmail}`);
+      } catch (contactError: any) {
+        console.warn(`[HubSpotDeals] Failed to update contact status:`, contactError);
+      }
+    }
+    
+    await db.insert(billingAuditLog).values({
+      memberEmail: normalizedEmail,
+      hubspotDealId,
+      actionType: 'membership_cancelled',
+      previousValue: deal.pipelineStage || 'unknown',
+      newValue: HUBSPOT_STAGE_IDS.CLOSED_LOST,
+      actionDetails: {
+        lineItemsRemoved,
+        dealMovedToLost,
+        previousStage: deal.pipelineStage
+      },
+      performedBy,
+      performedByName
+    });
+    
+    console.log(`[HubSpotDeals] Cancellation processed for ${normalizedEmail}: ${lineItemsRemoved} line items removed, deal moved to lost: ${dealMovedToLost}`);
+    
+    return {
+      success: true,
+      lineItemsRemoved,
+      dealMovedToLost
+    };
+    
+  } catch (error: any) {
+    console.error('[HubSpotDeals] Error handling membership cancellation:', error);
+    return { success: false, lineItemsRemoved: 0, dealMovedToLost: false, error: error.message || 'Failed to handle cancellation' };
+  }
+}

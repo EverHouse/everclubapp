@@ -53,10 +53,12 @@ export {
   syncTierToHubSpot,
   getMemberPaymentStatus,
   handleTierChange,
+  handleMembershipCancellation,
   type AddMemberInput,
   type AddMemberResult,
   type CreateMemberLocallyResult,
-  type TierChangeResult
+  type TierChangeResult,
+  type CancellationResult
 } from './members';
 
 export {

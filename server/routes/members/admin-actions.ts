@@ -146,6 +146,21 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       assignedBy: performedBy
     });
     
+    await logFromRequest(req, {
+      action: 'change_tier',
+      resourceType: 'member',
+      resourceId: member.id.toString(),
+      resourceName: `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.email,
+      details: {
+        memberEmail: normalizedEmail,
+        previousTier: oldTierDisplay || 'None',
+        newTier: newTierDisplay || 'None',
+        billingProvider: member.billingProvider || 'unknown',
+        hubspotSynced: hubspotResult.success,
+        stripeSynced: stripeSync.success
+      }
+    });
+    
     res.json({
       success: true,
       message: isFirstTier 
