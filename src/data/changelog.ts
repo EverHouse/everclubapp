@@ -13,6 +13,28 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.0.0",
+    date: "2026-02-03",
+    title: "Security Hardening & Bug Fix Release",
+    isMajor: true,
+    changes: [
+      "Removed: Reschedule feature - members now cancel and request new bookings (prevents limit bypass exploit)",
+      "Security: Fixed OTP replay race condition - magic links can only be used once",
+      "Security: Fixed guest pass double-spend - passes are now reserved atomically during booking",
+      "Security: Added 1-hour cancellation policy - no refunds for late cancellations",
+      "Fixed: Members added by email no longer charged as guests - system now looks up existing accounts",
+      "Fixed: Event RSVPs now enforce capacity limits - no more overbooking",
+      "Fixed: Wellness waitlist race condition - concurrent cancellations now promote correct users",
+      "Fixed: Day pass refunds now actually refund money to customers (not just database status)",
+      "Fixed: Failed subscription DB updates now roll back Stripe charges",
+      "Fixed: Bulk tier updates now run in background - no more timeouts for large updates",
+      "Fixed: Deleted members now have sessions cleared - no stale logins",
+      "Fixed: Cross-midnight bookings handled correctly in Trackman webhooks",
+      "Fixed: Event time updates are now atomic - no availability gaps",
+      "Improved: Admin page subtabs now saved in URL - shareable links work correctly"
+    ]
+  },
+  {
     version: "68.0.0",
     date: "2026-02-03",
     title: "Comprehensive Performance & Responsiveness Overhaul",
