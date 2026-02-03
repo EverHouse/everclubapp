@@ -166,9 +166,9 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'training' ? (
             <StaffTrainingGuide key="training" />
           ) : (
-            <PageErrorBoundary key={location.pathname} pageName={`Admin Tab: ${activeTab}`}>
+            <PageErrorBoundary pageName={`Admin Tab: ${activeTab}`}>
               <Suspense fallback={<TabLoadingFallback />}>
-                <Outlet key={location.pathname} context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
+                <Outlet context={{ navigateToTab, isAdmin: actualUser?.role === 'admin', wsConnected: staffWsConnected }} />
               </Suspense>
             </PageErrorBoundary>
           )}

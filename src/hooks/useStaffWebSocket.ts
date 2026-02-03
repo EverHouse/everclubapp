@@ -407,8 +407,13 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
     // Reset intentional disconnect flag for new connection attempt
     intentionalDisconnectRef.current = false;
     
+    // Mark as connecting immediately to prevent duplicate connection attempts
+    isConnectingRef.current = true;
+    
     // Connect after a brief delay to ensure session cookies are fully ready
     initTimerRef.current = setTimeout(() => {
+      // Reset the flag so connect() can proceed
+      isConnectingRef.current = false;
       connect();
     }, 300);
     
