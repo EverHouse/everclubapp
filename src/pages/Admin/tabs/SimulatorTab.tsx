@@ -1006,9 +1006,6 @@ const SimulatorTab: React.FC = () => {
     const handleTrackmanConfirm = useCallback(async (bookingId: number | string, trackmanExternalId: string) => {
         const apiId = typeof bookingId === 'string' ? parseInt(String(bookingId).replace('cal_', '')) : bookingId;
         const booking = requests.find(r => r.id === bookingId);
-        
-        const previousRequests = [...requests];
-        setRequests(prev => prev.filter(r => r.id !== bookingId));
 
         try {
             const res = await fetch(`/api/booking-requests/${apiId}`, {
@@ -1026,11 +1023,9 @@ const SimulatorTab: React.FC = () => {
                 handleRefresh();
             } else {
                 const error = await res.json().catch(() => ({}));
-                setRequests(previousRequests);
                 throw new Error(error.error || 'Failed to confirm booking');
             }
         } catch (err: any) {
-            setRequests(previousRequests);
             throw err;
         }
     }, [requests, showToast, handleRefresh]);
@@ -1997,7 +1992,6 @@ const SimulatorTab: React.FC = () => {
                                                         if (res.ok) {
                                                             const totalFee = (data.totalFeeCents || data.overageFeeCents || 0) / 100;
                                                             showToast(`Confirmed! Total fees: $${totalFee.toFixed(2)}`, 'success');
-                                                            setRequests(prev => prev.filter(r => r.id !== req.id));
                                                             handleRefresh();
                                                         } else {
                                                             showToast(data.error || 'Failed to confirm', 'error');

@@ -16,6 +16,23 @@ import { broadcastMemberStatsUpdated } from '../core/websocket';
 
 const router = Router();
 
+async function getMemberDisplayName(email: string): Promise<string> {
+  try {
+    const normalizedEmail = email.toLowerCase();
+    const result = await db.select({ firstName: users.firstName, lastName: users.lastName })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`)
+      .limit(1);
+    
+    if (result.length > 0 && (result[0].firstName || result[0].lastName)) {
+      return [result[0].firstName, result[0].lastName].filter(Boolean).join(' ');
+    }
+  } catch (error) {
+    console.error('[StaffCheckin] Error looking up member name:', error);
+  }
+  return email.split('@')[0];
+}
+
 interface ParticipantFee {
   participantId: number;
   displayName: string;
@@ -572,7 +589,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             const { user_email, display_name, cached_fee_cents } = participantEmailResult.rows[0];
             const recipientEmail = user_email || booking.owner_email;
             const feeAmount = (cached_fee_cents || 0) / 100;
-            const memberName = display_name || recipientEmail.split('@')[0];
+            const memberName = display_name || await getMemberDisplayName(recipientEmail);
             
             await notifyFeeWaived(recipientEmail, feeAmount, reason, bookingId);
             
@@ -655,7 +672,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             [pendingParticipants.rows.map(p => p.id)]
           );
           const totalWaived = (parseInt(totalWaivedResult.rows[0]?.total_cents) || 0) / 100;
-          const ownerName = booking.owner_email.split('@')[0];
+          const ownerName = await getMemberDisplayName(booking.owner_email);
           
           await notifyFeeWaived(
             booking.owner_email,

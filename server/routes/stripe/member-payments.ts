@@ -33,7 +33,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     }
 
     const bookingResult = await pool.query(
-      `SELECT br.id, br.session_id, br.user_email, br.user_name, br.status, u.id as user_id
+      `SELECT br.id, br.session_id, br.user_email, br.user_name, br.status, u.id as user_id, u.first_name, u.last_name
        FROM booking_requests br
        LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
        WHERE br.id = $1`,
@@ -207,7 +207,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     };
 
     // Get or create Stripe customer for balance-aware payment
-    const memberName = booking.user_name || booking.user_email.split('@')[0];
+    const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || booking.user_name || booking.user_email.split('@')[0];
     const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(
       booking.user_id || booking.user_email,
       booking.user_email,
