@@ -514,7 +514,7 @@ const TrackmanTab: React.FC = () => {
                     <div>
                       <span className="text-xs text-primary/50 dark:text-white/50">Time</span>
                       <p className="text-primary dark:text-white font-medium text-sm">
-                        {(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)}
+                        {formatTime12Hour(booking.startTime || booking.start_time)} - {formatTime12Hour(booking.endTime || booking.end_time)}
                       </p>
                     </div>
                   </div>
@@ -559,7 +559,7 @@ const TrackmanTab: React.FC = () => {
                     <tr key={booking.id} className="bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-colors animate-slide-up-stagger" style={{ '--stagger-index': idx } as React.CSSProperties}>
                       <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
                         <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}</div>
-                        <div className="text-xs text-primary/60 dark:text-white/60">{(booking.startTime || booking.start_time)?.substring(0, 5)} - {(booking.endTime || booking.end_time)?.substring(0, 5)}</div>
+                        <div className="text-xs text-primary/60 dark:text-white/60">{formatTime12Hour(booking.startTime || booking.start_time)} - {formatTime12Hour(booking.endTime || booking.end_time)}</div>
                       </td>
                       <td className="py-2 px-3 text-primary dark:text-white">
                         <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
