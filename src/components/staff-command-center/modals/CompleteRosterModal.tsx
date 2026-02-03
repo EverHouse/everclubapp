@@ -139,7 +139,9 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr + 'T00:00:00');
+    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const date = new Date(datePart + 'T00:00:00');
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 

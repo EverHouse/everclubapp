@@ -151,7 +151,9 @@ function hasAllMembersKeyword(notes: string): boolean {
 
 function formatBookingDate(dateStr: string): string {
   try {
-    const date = new Date(dateStr + 'T00:00:00');
+    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const date = new Date(datePart + 'T00:00:00');
+    if (isNaN(date.getTime())) return dateStr;
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;

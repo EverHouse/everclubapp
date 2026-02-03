@@ -93,7 +93,9 @@ function hasAllMembersKeyword(notes: string): boolean {
 
 function formatDate(dateStr: string): string {
   try {
-    const date = new Date(dateStr + 'T00:00:00');
+    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const date = new Date(datePart + 'T00:00:00');
+    if (isNaN(date.getTime())) return dateStr;
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;

@@ -14,7 +14,10 @@ function formatTime12Hour(time: string | undefined): string {
 
 function formatBookingDate(dateStr: string | undefined): string {
   if (!dateStr) return '';
-  const date = new Date(dateStr + 'T00:00:00');
+  // Handle both YYYY-MM-DD and ISO formats (with T and timezone)
+  const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const date = new Date(datePart + 'T00:00:00');
+  if (isNaN(date.getTime())) return '';
   return date.toLocaleDateString('en-US', { 
     weekday: 'short', 
     month: 'short', 
@@ -404,7 +407,8 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     
     let formattedDate = 'Booking';
     if (context.bookingDate) {
-      const dateObj = new Date(context.bookingDate + 'T12:00:00');
+      const datePart = context.bookingDate.includes('T') ? context.bookingDate.split('T')[0] : context.bookingDate;
+      const dateObj = new Date(datePart + 'T12:00:00');
       if (!isNaN(dateObj.getTime())) {
         formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }

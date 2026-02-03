@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.2.1",
+    date: "2026-02-03",
+    title: "Check-In Date Display Fix",
+    changes: [
+      "Fixed: 'Invalid Date' no longer appears in check-in billing modal for external bookings",
+      "Fixed: Date formatting now properly handles ISO timestamps with timezone info",
+      "Fixed: Same date parsing issue resolved across BookingMembersEditor, ManagePlayersModal, and CompleteRosterModal"
+    ]
+  },
+  {
     version: "69.2.0",
     date: "2026-02-03",
     title: "Guest Pass Atomicity Hardening",
