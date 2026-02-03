@@ -67,6 +67,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Member Balance Display**: Shows pending fees; booking cancellations clear fees.
 - **Stripe Customer Metadata Sync**: User ID and tier synced to Stripe customer metadata.
 - **Stripe Transaction Cache**: Local caching of Stripe transactions.
+- **Tier Data Automation**: Member creation requires valid tier, real-time sync queues tier changes to HubSpot, auto-fix copies tiers from alternate emails every 4 hours.
 - **Scheduled Maintenance**: Daily tasks for session cleanup, webhook log cleanup, Stripe reconciliation, and grace period checks.
 - **Security Implementation**: Rate limiting, SQL injection prevention (parameterized queries/Drizzle ORM), webhook signature verification (Stripe, HubSpot, Resend), secure session management (httpOnly, secure, sameSite=none), CORS origin whitelist, authentication middleware for push notifications, and dependency overrides for CVEs.
 
