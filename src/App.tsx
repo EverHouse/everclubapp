@@ -280,16 +280,18 @@ const ScrollToTop = () => {
 };
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading } = useData();
-  if (isLoading) return <div className="min-h-screen" />;
+  const { user, sessionChecked } = useData();
+  // Only block rendering until initial session check completes
+  if (!sessionChecked) return <div className="min-h-screen" />;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
 // Members Portal route guard - redirects staff/admin to Staff Portal (unless viewing as member or on profile page)
 const MemberPortalRoute: React.FC<{ children: React.ReactNode; allowStaffAccess?: boolean }> = ({ children, allowStaffAccess }) => {
-  const { user, actualUser, isViewingAs, isLoading } = useData();
-  if (isLoading) return <div className="min-h-screen" />;
+  const { user, actualUser, isViewingAs, sessionChecked } = useData();
+  // Only block rendering until initial session check completes
+  if (!sessionChecked) return <div className="min-h-screen" />;
   if (!user) return <Navigate to="/login" replace />;
   
   // If staff/admin is NOT viewing as a member, redirect to Staff Portal
@@ -303,8 +305,9 @@ const MemberPortalRoute: React.FC<{ children: React.ReactNode; allowStaffAccess?
 };
 
 const AdminProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { actualUser, isLoading } = useData();
-  if (isLoading) return <div className="min-h-screen" />;
+  const { actualUser, sessionChecked } = useData();
+  // Only block rendering until initial session check completes
+  if (!sessionChecked) return <div className="min-h-screen" />;
   if (!actualUser) return <Navigate to="/login" replace />;
   if (actualUser.role !== 'admin' && actualUser.role !== 'staff') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
