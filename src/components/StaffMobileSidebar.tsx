@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavigationLoading } from '../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../data/changelog';
 import { TabType, tabToPath } from '../pages/Admin/layout/types';
+import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../lib/prefetch';
 import BugReportModal from './BugReportModal';
 
 interface NavItem {
@@ -53,9 +54,14 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
   isAdmin = false,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { startNavigation } = useNavigationLoading();
   const [showBugReport, setShowBugReport] = useState(false);
   const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+
+  useEffect(() => {
+    prefetchAdjacentStaffRoutes(location.pathname);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (optimisticTab && activeTab === optimisticTab) {
@@ -101,6 +107,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
     return (
       <button
         onClick={() => handleNavClick(item.id)}
+        onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200

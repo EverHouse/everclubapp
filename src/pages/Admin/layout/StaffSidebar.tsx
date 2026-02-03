@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { TabType, tabToPath } from './types';
 import { useNavigationLoading } from '../../../contexts/NavigationLoadingContext';
 import { getLatestVersion } from '../../../data/changelog';
+import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch';
 
 interface NavItem {
   id: TabType;
@@ -51,6 +52,10 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   const location = useLocation();
   const { startNavigation } = useNavigationLoading();
   const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+  
+  useEffect(() => {
+    prefetchAdjacentStaffRoutes(location.pathname);
+  }, [location.pathname]);
   
   useEffect(() => {
     if (optimisticTab && activeTab === optimisticTab) {
@@ -106,6 +111,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
       <button
         ref={(el) => setButtonRef(item.id, el)}
         onClick={() => navigateToTab(item.id)}
+        onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
           relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200

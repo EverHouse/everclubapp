@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SafeAreaBottomOverlay } from '../../../components/layout/SafeAreaBottomOverlay';
 import { TabType, NavItemData, NAV_ITEMS, tabToPath } from './types';
+import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch';
 
 interface StaffBottomNavProps {
   activeTab: TabType;
@@ -15,7 +16,12 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
   pendingRequestsCount = 0 
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+  
+  useEffect(() => {
+    prefetchAdjacentStaffRoutes(location.pathname);
+  }, [location.pathname]);
   
   useEffect(() => {
     if (optimisticTab && activeTab === optimisticTab) {
@@ -62,6 +68,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
             type="button"
             key={item.id}
             onClick={() => navigateToTab(item.id)}
+            onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             aria-label={item.label}
             aria-current={isActive ? 'page' : undefined}

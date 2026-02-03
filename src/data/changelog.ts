@@ -23,6 +23,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: WebSocket reconnection loops during navigation - now maintains single connection per session",
       "Fixed: Navigation delays and blank screens - pages now render immediately with loading placeholders",
       "Fixed: All navigation (bottom nav, sidebar, mobile menu) now highlights immediately when tapped",
+      "Added: Staff portal now prefetches adjacent pages for faster navigation",
       "Improved: Admin tabs (Tiers, Trackman, Tours, Events) now show skeleton placeholders instead of blocking spinners",
       "Improved: Public pages (Landing, Gallery) load faster with optimized images",
       "Removed: 133 lines of unused loading code from Gallery page"

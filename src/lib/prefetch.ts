@@ -58,3 +58,53 @@ export const prefetchOnIdle = () => {
     setTimeout(prefetchAllNavRoutes, 100);
   }
 };
+
+// Staff portal prefetching
+const staffRouteImports: Record<string, () => Promise<any>> = {
+  '/admin': () => import('../pages/Admin/AdminDashboard'),
+  '/admin/bookings': () => import('../pages/Admin/tabs/SimulatorTab'),
+  '/admin/financials': () => import('../pages/Admin/tabs/FinancialsTab'),
+  '/admin/directory': () => import('../pages/Admin/tabs/DirectoryTab'),
+  '/admin/calendar': () => import('../pages/Admin/tabs/EventsTab'),
+  '/admin/notices': () => import('../pages/Admin/tabs/BlocksTab'),
+  '/admin/updates': () => import('../pages/Admin/tabs/UpdatesTab'),
+  '/admin/tours': () => import('../pages/Admin/tabs/ToursTab'),
+  '/admin/cafe': () => import('../pages/Admin/tabs/CafeTab'),
+  '/admin/team': () => import('../pages/Admin/tabs/TeamTab'),
+  '/admin/tiers': () => import('../pages/Admin/tabs/TiersTab'),
+  '/admin/changelog': () => import('../pages/Admin/tabs/ChangelogTab'),
+};
+
+const staffRouteAPIs: Record<string, string[]> = {
+  '/admin': ['/api/admin/dashboard-summary'],
+  '/admin/bookings': ['/api/admin/todays-bookings'],
+  '/admin/directory': ['/api/admin/members'],
+  '/admin/financials': ['/api/admin/financials/summary'],
+};
+
+export const prefetchStaffRoute = (path: string) => {
+  if (prefetchedPaths.has(path)) return;
+  const importFn = staffRouteImports[path];
+  if (importFn) {
+    prefetchedPaths.add(path);
+    importFn();
+  }
+  const apis = staffRouteAPIs[path];
+  if (apis) {
+    apis.forEach(api => {
+      if (!prefetchedAPIs.has(api)) {
+        prefetchedAPIs.add(api);
+        fetch(api, { credentials: 'include' }).catch(() => {});
+      }
+    });
+  }
+};
+
+export const prefetchAdjacentStaffRoutes = (currentPath: string) => {
+  const navOrder = ['/admin', '/admin/bookings', '/admin/financials', '/admin/tours', '/admin/calendar', '/admin/notices', '/admin/updates', '/admin/directory'];
+  const idx = navOrder.indexOf(currentPath);
+  if (idx === -1) return;
+  
+  if (idx > 0) prefetchStaffRoute(navOrder[idx - 1]);
+  if (idx < navOrder.length - 1) prefetchStaffRoute(navOrder[idx + 1]);
+};
