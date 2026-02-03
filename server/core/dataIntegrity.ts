@@ -66,6 +66,7 @@ export interface IssueContext {
   memberTier?: string;
   bookingDate?: string;
   resourceName?: string;
+  resourceId?: number;
   startTime?: string;
   endTime?: string;
   className?: string;
@@ -84,6 +85,10 @@ export interface IssueContext {
   userName?: string;
   userEmail?: string;
   bayNumber?: string | number;
+  importedName?: string;
+  notes?: string;
+  originalEmail?: string;
+  status?: string;
 }
 
 export interface IntegrityIssue {
@@ -200,7 +205,7 @@ async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
   
   try {
     const unmatchedBookings = await db.execute(sql`
-      SELECT tub.id, tub.trackman_booking_id, tub.user_name, tub.user_email, tub.booking_date, tub.bay_number, tub.start_time, tub.end_time
+      SELECT tub.id, tub.trackman_booking_id, tub.user_name, tub.user_email, tub.booking_date, tub.bay_number, tub.start_time, tub.end_time, tub.notes, tub.original_email
       FROM trackman_unmatched_bookings tub
       WHERE tub.resolved_at IS NULL
         AND NOT EXISTS (
@@ -237,7 +242,10 @@ async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
           bookingDate: row.booking_date || undefined,
           bayNumber: row.bay_number || undefined,
           startTime: row.start_time || undefined,
-          endTime: row.end_time || undefined
+          endTime: row.end_time || undefined,
+          importedName: row.user_name || undefined,
+          notes: row.notes || undefined,
+          originalEmail: row.original_email || undefined
         }
       });
     }
@@ -1363,9 +1371,14 @@ async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
   // Find approved/attended/confirmed bookings that are NOT linked to a session
   // These are "Ghost Bookings" that bypass billing - critical revenue issue
   const ghostsResult = await db.execute(sql`
-    SELECT br.id, br.user_email, br.request_date, br.status, br.trackman_booking_id, br.resource_id
+    SELECT br.id, br.user_email, br.request_date, br.status, br.trackman_booking_id, br.resource_id,
+           br.start_time, br.end_time, br.notes,
+           r.name as resource_name,
+           u.first_name, u.last_name
     FROM booking_requests br
     LEFT JOIN booking_sessions bs ON br.session_id = bs.id
+    LEFT JOIN resources r ON br.resource_id = r.id
+    LEFT JOIN users u ON br.user_id = u.id
     WHERE br.status IN ('approved', 'attended', 'confirmed')
       AND (br.session_id IS NULL OR bs.id IS NULL)
     ORDER BY br.request_date DESC
@@ -1375,6 +1388,7 @@ async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
   
   for (const row of ghosts) {
     const dateStr = row.request_date ? new Date(row.request_date).toISOString().split('T')[0] : 'unknown';
+    const memberName = row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : undefined;
     issues.push({
       category: 'data_quality',
       severity: 'error',
@@ -1385,8 +1399,14 @@ async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
       context: {
         bookingDate: dateStr,
         memberEmail: row.user_email,
+        memberName: memberName,
         trackmanBookingId: row.trackman_booking_id,
         resourceId: row.resource_id,
+        resourceName: row.resource_name,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        notes: row.notes,
+        importedName: memberName || row.user_email?.split('@')[0],
         status: row.status
       }
     });

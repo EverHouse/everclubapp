@@ -49,6 +49,9 @@ interface IssueContext {
   tourDate?: string;
   guestName?: string;
   trackmanBookingId?: string;
+  importedName?: string;
+  notes?: string;
+  originalEmail?: string;
   syncType?: 'hubspot' | 'calendar';
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;
@@ -263,6 +266,9 @@ const DataIntegrityTab: React.FC = () => {
     memberName?: string;
     memberEmail?: string;
     trackmanBookingId?: string;
+    importedName?: string;
+    notes?: string;
+    originalEmail?: string;
   }>({ isOpen: false, bookingId: null });
 
   const [showPlaceholderCleanup, setShowPlaceholderCleanup] = useState(true);
@@ -2249,7 +2255,10 @@ const DataIntegrityTab: React.FC = () => {
                                             timeSlot: issue.context?.startTime,
                                             memberName: issue.context?.memberName,
                                             memberEmail: issue.context?.memberEmail,
-                                            trackmanBookingId: issue.context?.trackmanBookingId
+                                            trackmanBookingId: issue.context?.trackmanBookingId,
+                                            importedName: issue.context?.importedName,
+                                            notes: issue.context?.notes,
+                                            originalEmail: issue.context?.originalEmail
                                           })}
                                           className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
                                           title="Review Unmatched Booking"
@@ -2773,6 +2782,9 @@ const DataIntegrityTab: React.FC = () => {
         matchedBookingId={trackmanLinkModal.bookingId || undefined}
         currentMemberName={trackmanLinkModal.memberName}
         currentMemberEmail={trackmanLinkModal.memberEmail}
+        importedName={trackmanLinkModal.importedName}
+        notes={trackmanLinkModal.notes}
+        originalEmail={trackmanLinkModal.originalEmail}
         onSuccess={() => {
           setTrackmanLinkModal({ isOpen: false, bookingId: null });
           runIntegrityMutation.mutate();
