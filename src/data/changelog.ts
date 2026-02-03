@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.2.5",
+    date: "2026-02-03",
+    title: "Session Backfill Links Existing Sessions",
+    changes: [
+      "Fixed: Bookings that match an existing session are now linked instead of failing",
+      "Fixed: 'Double-booking' errors no longer occur - backfill finds and links to matching sessions",
+      "Improved: Response shows count of newly created vs linked to existing sessions"
+    ]
+  },
+  {
     version: "69.2.4",
     date: "2026-02-03",
     title: "Session Backfill Resilience",

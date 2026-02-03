@@ -2606,6 +2606,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
     }
     
     let sessionsCreated = 0;
+    let sessionsLinked = 0;
     const errors: Array<{ bookingId: number; error: string }> = [];
     let savepointCounter = 0;
     
@@ -2617,62 +2618,89 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
       try {
         await client.query(`SAVEPOINT ${savepointName}`);
         
-        // Determine source based on origin or presence of trackman_booking_id
-        let source = 'member_request';
-        if (booking.trackman_booking_id) {
-          source = 'trackman_import';
-        }
-        
-        // Create booking_session
-        const sessionResult = await client.query(`
-          INSERT INTO booking_sessions (
-            resource_id, 
-            session_date, 
-            start_time, 
-            end_time, 
-            trackman_booking_id,
-            source, 
-            created_by,
-            created_at,
-            updated_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-          RETURNING id
+        // First check if an existing session already covers this time slot
+        const existingSessionResult = await client.query(`
+          SELECT id FROM booking_sessions
+          WHERE resource_id = $1
+            AND session_date = $2
+            AND start_time = $3
+            AND end_time = $4
+          LIMIT 1
         `, [
           booking.resource_id,
           booking.request_date,
           booking.start_time,
-          booking.end_time,
-          booking.trackman_booking_id,
-          source,
-          'backfill_tool'
+          booking.end_time
         ]);
         
-        const sessionId = sessionResult.rows[0].id;
+        let sessionId: number;
+        let linkedExisting = false;
         
-        // Create owner participant if we have user info
+        if (existingSessionResult.rows.length > 0) {
+          // Session already exists - just link the booking to it
+          sessionId = existingSessionResult.rows[0].id;
+          linkedExisting = true;
+        } else {
+          // Determine source based on origin or presence of trackman_booking_id
+          let source = 'member_request';
+          if (booking.trackman_booking_id) {
+            source = 'trackman_import';
+          }
+          
+          // Create booking_session
+          const sessionResult = await client.query(`
+            INSERT INTO booking_sessions (
+              resource_id, 
+              session_date, 
+              start_time, 
+              end_time, 
+              trackman_booking_id,
+              source, 
+              created_by,
+              created_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            RETURNING id
+          `, [
+            booking.resource_id,
+            booking.request_date,
+            booking.start_time,
+            booking.end_time,
+            booking.trackman_booking_id,
+            source,
+            'backfill_tool'
+          ]);
+          
+          sessionId = sessionResult.rows[0].id;
+        }
+        
+        // Create owner participant if we have user info (skip if already exists)
         // Mark as 'paid' since these are historical bookings being backfilled
         const displayName = booking.user_name || booking.user_email || 'Unknown';
         const userId = booking.owner_user_id || booking.user_id;
         
-        await client.query(`
-          INSERT INTO booking_participants (
-            session_id,
-            user_id,
-            participant_type,
-            display_name,
-            invite_status,
-            payment_status,
-            invited_at,
-            created_at,
-            paid_at
-          )
-          VALUES ($1, $2, 'owner', $3, 'accepted', 'paid', NOW(), NOW(), NOW())
-        `, [
-          sessionId,
-          userId,
-          displayName
-        ]);
+        if (!linkedExisting) {
+          // Only add participant for newly created sessions
+          await client.query(`
+            INSERT INTO booking_participants (
+              session_id,
+              user_id,
+              participant_type,
+              display_name,
+              invite_status,
+              payment_status,
+              invited_at,
+              created_at,
+              paid_at
+            )
+            VALUES ($1, $2, 'owner', $3, 'accepted', 'paid', NOW(), NOW(), NOW())
+          `, [
+            sessionId,
+            userId,
+            displayName
+          ]);
+        }
         
         // Link session back to booking_request
         await client.query(`
@@ -2683,7 +2711,12 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         
         // Release savepoint on success
         await client.query(`RELEASE SAVEPOINT ${savepointName}`);
-        sessionsCreated++;
+        
+        if (linkedExisting) {
+          sessionsLinked++;
+        } else {
+          sessionsCreated++;
+        }
       } catch (bookingError: any) {
         // Rollback to savepoint so we can continue with next booking
         try {
@@ -2707,20 +2740,30 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
     logFromRequest(req, 'bulk_action', 'booking', undefined, 'Session Backfill', {
       action: 'backfill_sessions',
       sessionsCreated,
+      sessionsLinked,
       totalProcessed: bookings.length,
       errorsCount: errors.length,
       errors: errors.slice(0, 10) // Only log first 10 errors
     });
     
-    console.log(`[Backfill] Completed: ${sessionsCreated} sessions created for ${bookings.length} bookings by ${staffEmail}`);
+    const totalResolved = sessionsCreated + sessionsLinked;
+    console.log(`[Backfill] Completed: ${sessionsCreated} new sessions, ${sessionsLinked} linked to existing for ${bookings.length} bookings by ${staffEmail}`);
+    
+    const messageParts = [];
+    if (sessionsCreated > 0) messageParts.push(`${sessionsCreated} new sessions created`);
+    if (sessionsLinked > 0) messageParts.push(`${sessionsLinked} linked to existing sessions`);
+    const message = messageParts.length > 0 
+      ? `Successfully resolved ${totalResolved} bookings: ${messageParts.join(', ')}`
+      : 'No bookings could be resolved';
     
     res.json({
       success: true,
       sessionsCreated,
+      sessionsLinked,
       totalProcessed: bookings.length,
       errorsCount: errors.length,
       errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
-      message: `Successfully created ${sessionsCreated} sessions for legacy bookings`
+      message
     });
   } catch (error: any) {
     await client.query('ROLLBACK');
