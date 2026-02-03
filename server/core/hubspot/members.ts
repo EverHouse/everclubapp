@@ -131,7 +131,7 @@ export async function findOrCreateHubSpotContact(
       lastname: lastName,
       phone: phone || '',
       membership_status: 'Active',
-      lifecyclestage: 'customer'
+      lifecyclestage: 'member'
     };
     
     if (hubspotTier) {
