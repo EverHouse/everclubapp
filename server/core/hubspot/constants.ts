@@ -28,38 +28,40 @@ export const MINDBODY_TO_STAGE_MAP: Record<string, string> = {
   'nonmember': HUBSPOT_STAGE_IDS.CLOSED_LOST,
 };
 
-export type ContactMembershipStatus = 'Active' | 'Trialing' | 'Past Due' | 'Inactive' | 'Cancelled' | 'Former Member';
+// Valid HubSpot membership_status options: Froze, Active, Declined, Non-Member, trialing, Expired, past_due, Suspended, Terminated, Pending
+export type ContactMembershipStatus = 'Active' | 'trialing' | 'past_due' | 'Pending' | 'Declined' | 'Suspended' | 'Expired' | 'Froze' | 'Terminated' | 'Non-Member';
 
 export type BillingProvider = 'Stripe' | 'MindBody' | 'Manual';
 
 export const MINDBODY_TO_CONTACT_STATUS_MAP: Record<string, ContactMembershipStatus> = {
   'active': 'Active',
-  'trialing': 'Trialing',
-  'past_due': 'Past Due',
-  'pending': 'Inactive',
-  'declined': 'Inactive',
-  'suspended': 'Inactive',
-  'expired': 'Inactive',
-  'froze': 'Inactive',
-  'frozen': 'Inactive',
-  'terminated': 'Cancelled',
-  'cancelled': 'Cancelled',
-  'non-member': 'Inactive',
+  'trialing': 'trialing',
+  'past_due': 'past_due',
+  'pending': 'Pending',
+  'declined': 'Declined',
+  'suspended': 'Suspended',
+  'expired': 'Expired',
+  'froze': 'Froze',
+  'frozen': 'Froze',
+  'terminated': 'Terminated',
+  'cancelled': 'Terminated',
+  'non-member': 'Non-Member',
 };
 
 export const DB_STATUS_TO_HUBSPOT_STATUS: Record<string, ContactMembershipStatus> = {
   'active': 'Active',
-  'trialing': 'Trialing',
-  'past_due': 'Past Due',
-  'inactive': 'Inactive',
-  'cancelled': 'Cancelled',
-  'expired': 'Cancelled',
-  'terminated': 'Cancelled',
-  'former_member': 'Former Member',
-  'pending': 'Inactive',
-  'suspended': 'Inactive',
-  'frozen': 'Inactive',
-  'non-member': 'Inactive',
+  'trialing': 'trialing',
+  'past_due': 'past_due',
+  'inactive': 'Suspended',
+  'cancelled': 'Terminated',
+  'expired': 'Expired',
+  'terminated': 'Terminated',
+  'former_member': 'Terminated',
+  'pending': 'Pending',
+  'suspended': 'Suspended',
+  'frozen': 'Froze',
+  'non-member': 'Non-Member',
+  'deleted': 'Terminated',
 };
 
 export const DB_BILLING_PROVIDER_TO_HUBSPOT: Record<string, string> = {

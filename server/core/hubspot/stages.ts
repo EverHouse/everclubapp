@@ -179,7 +179,7 @@ export async function syncMemberToHubSpot(
     
     if (status) {
       const normalizedStatus = status.toLowerCase();
-      const hubspotStatus = DB_STATUS_TO_HUBSPOT_STATUS[normalizedStatus] || 'Inactive';
+      const hubspotStatus = DB_STATUS_TO_HUBSPOT_STATUS[normalizedStatus] || 'Suspended';
       properties.membership_status = hubspotStatus;
       updated.status = true;
       
@@ -327,7 +327,7 @@ export async function syncDealStageFromMindbodyStatus(
       return { success: true, dealId: deal.hubspotDealId, newStage: targetStage };
     }
     
-    const targetContactStatus: ContactMembershipStatus = MINDBODY_TO_CONTACT_STATUS_MAP[normalizedStatus] || 'inactive';
+    const targetContactStatus: ContactMembershipStatus = MINDBODY_TO_CONTACT_STATUS_MAP[normalizedStatus] || 'Suspended';
     const isRecovery = ACTIVE_STATUSES.includes(normalizedStatus);
     const isChurned = CHURNED_STATUSES.includes(normalizedStatus);
     

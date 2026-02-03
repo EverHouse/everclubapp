@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.3.6",
+    date: "2026-02-03",
+    title: "HubSpot Status Sync Fix",
+    changes: [
+      "Fixed: HubSpot membership status sync now uses valid status values",
+      "Fixed: Statuses like 'Inactive' replaced with proper HubSpot options (Suspended, Expired, etc.)",
+      "Improved: All app statuses now correctly map to HubSpot dropdown options"
+    ]
+  },
+  {
     version: "69.3.5",
     date: "2026-02-03",
     title: "Orphaned Booking Participant Fix",
