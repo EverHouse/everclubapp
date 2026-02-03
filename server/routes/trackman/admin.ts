@@ -2509,7 +2509,7 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
       SELECT COUNT(*) as total
       FROM booking_requests br
       WHERE br.session_id IS NULL
-        AND br.status IN ('attended', 'approved')
+        AND br.status IN ('attended', 'approved', 'confirmed')
         AND br.resource_id IS NOT NULL
     `);
     
@@ -2534,7 +2534,7 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
       WHERE br.session_id IS NULL
-        AND br.status IN ('attended', 'approved')
+        AND br.status IN ('attended', 'approved', 'confirmed')
         AND br.resource_id IS NOT NULL
       ORDER BY br.request_date DESC, br.start_time DESC
       LIMIT 10
@@ -2589,7 +2589,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
       FROM booking_requests br
       LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
       WHERE br.session_id IS NULL
-        AND br.status IN ('attended', 'approved')
+        AND br.status IN ('attended', 'approved', 'confirmed')
         AND br.resource_id IS NOT NULL
       ORDER BY br.request_date ASC
     `);

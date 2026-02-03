@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.2.3",
+    date: "2026-02-03",
+    title: "Session Backfill Fix",
+    changes: [
+      "Fixed: 'Create Sessions' button now processes all bookings without sessions (was missing 'confirmed' status)",
+      "Fixed: Session backfill now includes approved, attended, AND confirmed bookings",
+      "Fixed: Preview count now matches actual bookings that will be processed"
+    ]
+  },
+  {
     version: "69.2.2",
     date: "2026-02-03",
     title: "MindBody Member Credits Fix",
