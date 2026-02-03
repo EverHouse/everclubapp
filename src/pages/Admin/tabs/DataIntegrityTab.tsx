@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../../components/Toast';
 import EmptyState from '../../../components/EmptyState';
 import { getCheckMetadata, sortBySeverity, CheckSeverity } from '../../../data/integrityCheckMetadata';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
+import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
+import type { MemberProfile } from '../../../types/data';
 
 interface SyncComparisonData {
   field: string;
@@ -243,6 +245,10 @@ const DataIntegrityTab: React.FC = () => {
   const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: any[]; hubspotDuplicates?: any[] } | null>(null);
   const [expandedDuplicates, setExpandedDuplicates] = useState<{ app: boolean; hubspot: boolean }>({ app: false, hubspot: false });
   const [dealStageRemediationResult, setDealStageRemediationResult] = useState<{ success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null>(null);
+
+  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
+  const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
+  const [loadingMemberEmail, setLoadingMemberEmail] = useState<string | null>(null);
 
   const [showPlaceholderCleanup, setShowPlaceholderCleanup] = useState(true);
   const [placeholderAccounts, setPlaceholderAccounts] = useState<{
@@ -1005,6 +1011,42 @@ const DataIntegrityTab: React.FC = () => {
       hubspotContactId: issue.context.hubspotContactId
     });
   };
+
+  const handleViewProfile = useCallback(async (email: string) => {
+    if (!email) return;
+    setLoadingMemberEmail(email);
+    try {
+      const response = await fetchWithCredentials<any>(`/api/members/${encodeURIComponent(email)}/details`);
+      const profile: MemberProfile = {
+        id: response.id,
+        name: [response.firstName, response.lastName].filter(Boolean).join(' ') || response.email,
+        tier: response.tier || '',
+        rawTier: response.tier,
+        membershipStatus: response.membershipStatus,
+        tags: response.tags || [],
+        status: response.membershipStatus || 'Inactive',
+        email: response.email,
+        phone: response.phone || '',
+        jobTitle: response.jobTitle,
+        role: response.role,
+        mindbodyClientId: response.mindbodyClientId,
+        stripeCustomerId: response.stripeCustomerId,
+        dateOfBirth: response.dateOfBirth,
+        billingProvider: response.billingProvider,
+        streetAddress: response.streetAddress,
+        city: response.city,
+        state: response.state,
+        zipCode: response.zipCode,
+        companyName: response.companyName,
+      };
+      setSelectedMember(profile);
+      setIsProfileDrawerOpen(true);
+    } catch (error: any) {
+      showToast(error.message || 'Failed to load member profile', 'error');
+    } finally {
+      setLoadingMemberEmail(null);
+    }
+  }, [showToast]);
 
   const runIntegrityChecks = () => {
     runIntegrityMutation.mutate();
@@ -2124,6 +2166,20 @@ const DataIntegrityTab: React.FC = () => {
                                       </button>
                                     </>
                                   )}
+                                  {issue.context?.memberEmail && (
+                                    <button
+                                      onClick={() => handleViewProfile(issue.context!.memberEmail!)}
+                                      disabled={loadingMemberEmail === issue.context.memberEmail}
+                                      className="p-1.5 text-primary hover:bg-primary/10 dark:text-white dark:hover:bg-white/10 rounded transition-colors disabled:opacity-50"
+                                      title="View member profile"
+                                    >
+                                      {loadingMemberEmail === issue.context.memberEmail ? (
+                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                      ) : (
+                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                      )}
+                                    </button>
+                                  )}
                                   {!issue.ignored && (
                                     <button
                                       onClick={() => openIgnoreModal(issue, result.checkName)}
@@ -2599,6 +2655,22 @@ const DataIntegrityTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      <MemberProfileDrawer
+        isOpen={isProfileDrawerOpen}
+        member={selectedMember}
+        isAdmin={true}
+        onClose={() => {
+          setIsProfileDrawerOpen(false);
+          setSelectedMember(null);
+        }}
+        onViewAs={() => {}}
+        onMemberDeleted={() => {
+          setIsProfileDrawerOpen(false);
+          setSelectedMember(null);
+          runIntegrityMutation.mutate();
+        }}
+      />
     </div>
   );
 };
