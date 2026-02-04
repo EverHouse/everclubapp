@@ -1088,10 +1088,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
       [priceId]
     );
     if (tierResult.rows.length > 0) {
-      // CRITICAL FIX: Use direct assignment, NOT COALESCE
-      // COALESCE(tier, $2) would keep the old tier if it exists, blocking downgrades
-      // Stripe is source of truth - if user paid for Social, they should be Social
-      restoreTierClause = ', tier = $2';
+      restoreTierClause = ', tier = COALESCE(tier, $2)';
       queryParams = [email, tierResult.rows[0].slug];
       isMembershipSubscription = true;
     }
@@ -1566,10 +1563,6 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
           [customerId, email]
         );
         
-        // CRITICAL FIX: Invalidate cache so user sees updated status immediately after payment
-        MemberService.invalidateCache(email);
-        console.log(`[Stripe Webhook] Cache invalidated for ${email} after staff invite payment`);
-        
         // Sync to HubSpot for existing user update
         try {
           const { syncMemberToHubSpot } = await import('../hubspot/stages');
@@ -1607,10 +1600,6 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
         );
         
         console.log(`[Stripe Webhook] Created user ${email} with tier ${tierSlug || 'none'}`);
-        
-        // CRITICAL FIX: Invalidate cache so user sees updated status immediately after payment
-        MemberService.invalidateCache(email);
-        console.log(`[Stripe Webhook] Cache invalidated for ${email} after staff invite payment`);
       }
       
       // Sync to HubSpot with proper tier name and billing provider
@@ -2050,9 +2039,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
           [priceId]
         );
         if (tierResult.rows.length > 0) {
-          // CRITICAL FIX: Use direct assignment, NOT COALESCE
-          // COALESCE would prevent tier downgrades - user keeps Premium privileges while paying Social price
-          restoreTierClause = ', tier = $2';
+          restoreTierClause = ', tier = COALESCE(tier, $2)';
           queryParams = [email, tierResult.rows[0].slug];
         }
       }

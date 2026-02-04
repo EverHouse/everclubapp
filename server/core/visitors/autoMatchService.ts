@@ -229,7 +229,7 @@ export async function matchBookingToPurchase(
           ABS(EXTRACT(EPOCH FROM (dp.purchased_at::time - $3::time))) as time_diff
         FROM day_pass_purchases dp
         LEFT JOIN users u ON LOWER(u.email) = LOWER(dp.purchaser_email)
-        WHERE (DATE(dp.booking_date) = $1 OR DATE(dp.purchased_at AT TIME ZONE 'America/Los_Angeles') = $1)
+        WHERE (DATE(dp.booking_date) = $1 OR DATE(dp.purchased_at) = $1)
           AND dp.status NOT IN ('redeemed', 'expired', 'cancelled')
           AND dp.remaining_uses > 0
           AND (u.archived_at IS NULL OR u.id IS NULL)
@@ -524,10 +524,6 @@ export async function autoMatchSingleBooking(
       const trackmanBookingId = bookingDetails?.trackmanBookingId;
       if (sessionId) {
         await linkPurchaseToSession(purchaseMatch.purchaseId, sessionId, purchaseMatch.source, trackmanBookingId);
-      } else if (isFuture) {
-        // CRITICAL FIX: If this is a FUTURE booking but session creation failed,
-        // do NOT mark the pass as used - that would burn the pass without giving anything in return
-        throw new Error(`Failed to create session for future booking ${bookingId} - pass not burned to protect user`);
       } else {
         // Historical booking: just mark purchase as used (via unmatched booking reference)
         await markPurchaseAsUsed(purchaseMatch.purchaseId, bookingId, purchaseMatch.source, trackmanBookingId);

@@ -13,29 +13,6 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "69.12.0",
-    date: "2026-02-04",
-    title: "Anonymous Guest Fees, Auto-Approve & Conflict Detection Fixes",
-    changes: [
-      "Fixed: Anonymous guest fees now charged when declared player count exceeds identified participants (closes revenue loophole)",
-      "Fixed: Auto-approve via Trackman now copies all guests from booking to session (guest fees properly generated)",
-      "Fixed: Staff invite payment now immediately invalidates cache (member sees active status without delay)",
-      "Fixed: Conflict detection now catches cross-midnight bookings from the previous day",
-      "Improved: Data integrity checks now show sampling info (e.g., 'Checked 100 of 500 members')"
-    ]
-  },
-  {
-    version: "69.11.0",
-    date: "2026-02-04",
-    title: "Booking Visibility, Tier Sync & Pass Protection Fixes",
-    changes: [
-      "Fixed: Members added via Trackman or Session Manager now appear correctly in their booking dashboard (was invisible due to table migration)",
-      "Fixed: Day passes no longer 'burned' if session creation fails - error thrown instead of silently consuming pass",
-      "Fixed: Day pass matching now uses Pacific timezone for evening purchases (9PM Pacific = same day, not next day)",
-      "Fixed: Membership tier downgrades now apply correctly - Stripe is source of truth (was keeping old tier due to COALESCE bug)"
-    ]
-  },
-  {
     version: "69.10.0",
     date: "2026-02-04",
     title: "Guest Pass & Webhook Reliability Fixes",
