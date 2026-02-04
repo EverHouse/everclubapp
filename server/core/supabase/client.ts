@@ -1,6 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseAdmin: SupabaseClient | null = null;
+let supabaseAvailable: boolean | null = null;
+let lastAvailabilityCheck: number = 0;
+const AVAILABILITY_CHECK_INTERVAL = 60000; // Re-check every 60 seconds
 
 export function getSupabaseAdmin(): SupabaseClient {
   if (supabaseAdmin) {
@@ -22,6 +25,60 @@ export function getSupabaseAdmin(): SupabaseClient {
   });
 
   return supabaseAdmin;
+}
+
+export async function isSupabaseAvailable(): Promise<boolean> {
+  const now = Date.now();
+  
+  // Return cached result if checked recently
+  if (supabaseAvailable !== null && (now - lastAvailabilityCheck) < AVAILABILITY_CHECK_INTERVAL) {
+    return supabaseAvailable;
+  }
+  
+  if (!isSupabaseConfigured()) {
+    supabaseAvailable = false;
+    lastAvailabilityCheck = now;
+    return false;
+  }
+  
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Use Promise.race to enforce a timeout on the Supabase call
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Supabase availability check timeout')), 5000);
+    });
+    
+    await Promise.race([
+      supabase.auth.getSession(),
+      timeoutPromise
+    ]);
+    
+    supabaseAvailable = true;
+    lastAvailabilityCheck = now;
+    return true;
+  } catch (err: any) {
+    if (err.message?.includes('fetch failed') || 
+        err.message?.includes('ENOTFOUND') || 
+        err.message?.includes('ECONNREFUSED') ||
+        err.message?.includes('timeout')) {
+      // Only log once when status changes
+      if (supabaseAvailable !== false) {
+        console.warn('[Supabase] Service unreachable - Supabase features disabled');
+      }
+      supabaseAvailable = false;
+    } else {
+      // For other errors, assume it's available but had a different issue
+      supabaseAvailable = true;
+    }
+    lastAvailabilityCheck = now;
+    return supabaseAvailable;
+  }
+}
+
+export function resetSupabaseAvailability(): void {
+  supabaseAvailable = null;
+  lastAvailabilityCheck = 0;
 }
 
 export function getSupabaseAnon(): SupabaseClient {

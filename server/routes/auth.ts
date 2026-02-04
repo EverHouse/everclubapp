@@ -12,7 +12,7 @@ import { triggerMemberSync } from '../core/memberSync';
 import { withResendRetry } from '../core/retryUtils';
 import { getSessionUser } from '../types/session';
 import { sendWelcomeEmail } from '../emails/welcomeEmail';
-import { getSupabaseAdmin } from '../core/supabase/client';
+import { getSupabaseAdmin, isSupabaseAvailable } from '../core/supabase/client';
 import { normalizeEmail } from '../core/utils/emailNormalization';
 
 interface StaffUserData {
@@ -145,6 +145,13 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
 
 async function createSupabaseToken(user: { id: string, email: string, role: string, firstName?: string, lastName?: string }): Promise<string | null> {
   try {
+    // Check if Supabase is available before attempting to call it
+    const available = await isSupabaseAvailable();
+    if (!available) {
+      // Silently skip - Supabase features disabled
+      return null;
+    }
+    
     const supabase = getSupabaseAdmin();
     
     await supabase.auth.admin.createUser({
@@ -170,7 +177,10 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
     });
 
     if (linkError) {
-      console.error('[Supabase] generateLink error:', linkError);
+      // Only log non-network errors
+      if (!linkError.message?.includes('fetch failed') && !linkError.message?.includes('ENOTFOUND')) {
+        console.error('[Supabase] generateLink error:', linkError);
+      }
       return null;
     }
     
@@ -186,7 +196,9 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
       });
       
       if (otpError) {
-        console.error('[Supabase] verifyOtp error:', otpError);
+        if (!otpError.message?.includes('fetch failed') && !otpError.message?.includes('ENOTFOUND')) {
+          console.error('[Supabase] verifyOtp error:', otpError);
+        }
         return null;
       }
       
@@ -195,10 +207,14 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
       }
     }
     
-    console.log('[Supabase] Could not generate realtime token - no hashed_token available');
     return null;
-  } catch (e) {
-    console.error('[Supabase] Failed to generate token:', e);
+  } catch (e: any) {
+    // Suppress network-related errors since we already logged the availability status
+    if (!e.message?.includes('fetch failed') && 
+        !e.message?.includes('ENOTFOUND') && 
+        !e.message?.includes('ECONNREFUSED')) {
+      console.error('[Supabase] Failed to generate token:', e);
+    }
     return null;
   }
 }
