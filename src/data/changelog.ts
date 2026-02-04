@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.4.6",
+    date: "2026-02-04",
+    title: "Fixed: Empty Guest Slots No Longer Charged",
+    changes: [
+      "Fixed: Empty guest slots no longer counted in fee estimates - only filled-in guests with name/email are counted",
+      "Fixed: Booking submission now uses actual filled-in participant count, not just selected player count",
+      "Fixed: Selecting '2 Players' but leaving guest slot empty now correctly shows 1 player (just the owner)",
+      "Previously: An empty guest slot would still add $25 guest fee to the estimate"
+    ]
+  },
+  {
     version: "69.4.5",
     date: "2026-02-04",
     title: "Booking Cards Always Show Expected Fees",

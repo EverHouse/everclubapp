@@ -404,7 +404,10 @@ const BookGolf: React.FC = () => {
   });
 
   // Fee Estimate Query (debounced via staleTime)
-  const guestCount = activeTab === 'simulator' ? playerSlots.filter(slot => slot.type === 'guest').length : 0;
+  // Only count guests that are actually filled in (have selectedId or email)
+  const guestCount = activeTab === 'simulator' 
+    ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || slot.email)).length 
+    : 0;
   const effectivePlayerCount = activeTab === 'simulator' ? playerCount : 1;
   const feeEstimateParams = useMemo(() => {
     if (!duration || !selectedDateObj?.date) return '';
@@ -813,6 +816,10 @@ const BookGolf: React.FC = () => {
             }))
         : undefined;
 
+      // Calculate actual player count: owner (1) + filled-in participants
+      const filledParticipantCount = requestParticipants?.length || 0;
+      const actualPlayerCount = 1 + filledParticipantCount;
+      
       await createBookingMutation.mutateAsync({
         user_email: effectiveUser.email,
         user_name: effectiveUser.name,
@@ -822,7 +829,7 @@ const BookGolf: React.FC = () => {
         start_time: selectedSlot.startTime24,
         duration_minutes: duration,
         notes: activeTab === 'conference' ? 'Conference room booking' : null,
-        declared_player_count: activeTab === 'simulator' ? playerCount : undefined,
+        declared_player_count: activeTab === 'simulator' ? actualPlayerCount : undefined,
         member_notes: memberNotes.trim() || undefined,
         request_participants: requestParticipants,
         ...(consent ? {
