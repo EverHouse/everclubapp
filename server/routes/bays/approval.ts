@@ -334,6 +334,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 .where(eq(bookingRequests.id, bookingId));
               
               console.log(`[Booking Approval] Created session ${createdSessionId} for booking ${bookingId} with ${createdParticipantIds.length} participants, ${sessionResult.usageLedgerEntries || 0} ledger entries`);
+              
             } else {
               console.error(`[Booking Approval] Session creation failed: ${sessionResult.error}`);
               throw { statusCode: 500, error: 'Failed to create booking session. Please try again.', details: sessionResult.error };
@@ -412,6 +413,69 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         body: approvalMessage,
         url: '/sims'
       }).catch(err => console.error('Push notification failed:', err));
+      
+      // Add request_participants to booking_members so they appear on dashboards (runs for ALL approved bookings)
+      (async () => {
+        try {
+          const requestParticipants = updated.requestParticipants as Array<{
+            email?: string;
+            type: 'member' | 'guest';
+            userId?: string;
+            name?: string;
+          }> | null;
+          
+          if (requestParticipants && Array.isArray(requestParticipants) && requestParticipants.length > 0) {
+            const ownerUserId = updated.userId;
+            const ownerEmailLower = updated.userEmail?.toLowerCase();
+            
+            for (let i = 0; i < requestParticipants.length; i++) {
+              const rp = requestParticipants[i];
+              if (!rp || typeof rp !== 'object') continue;
+              
+              // Slot number is index + 2 (owner is slot 1)
+              const slotNumber = i + 2;
+              
+              // Resolve email from userId if not present
+              let participantEmail = rp.email?.toLowerCase()?.trim() || '';
+              if (!participantEmail && rp.userId) {
+                const userResult = await db.select({ email: users.email })
+                  .from(users)
+                  .where(eq(users.id, rp.userId))
+                  .limit(1);
+                if (userResult.length > 0) {
+                  participantEmail = userResult[0].email?.toLowerCase() || '';
+                }
+              }
+              
+              // Skip if this is the owner (check both email and userId)
+              if (participantEmail && participantEmail === ownerEmailLower) {
+                continue;
+              }
+              if (rp.userId && ownerUserId && rp.userId === ownerUserId) {
+                continue;
+              }
+              
+              // Only add if we have an email
+              if (participantEmail) {
+                try {
+                  await db.insert(bookingMembers).values({
+                    bookingId: parseInt(id, 10),
+                    userEmail: participantEmail,
+                    slotNumber: slotNumber,
+                    isPrimary: false,
+                    createdAt: new Date()
+                  }).onConflictDoNothing();
+                  console.log(`[Booking Approval] Added participant ${participantEmail} to booking_members for booking ${id} (slot ${slotNumber})`);
+                } catch (memberError) {
+                  console.error(`[Booking Approval] Failed to add participant to booking_members:`, memberError);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[Booking Approval] Failed to populate booking_members:', err);
+        }
+      })();
       
       (async () => {
         try {
@@ -1495,6 +1559,39 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
               INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
               VALUES ($1, NULL, 'guest', $2, 'pending', $3)
             `, [sessionId, `Guest ${participantsCreated + i + 2}`, sessionDuration]);
+          }
+          
+          // Add request_participants to booking_members so they appear on dashboards
+          if (requestParticipants && Array.isArray(requestParticipants)) {
+            let slotNumber = 2;
+            for (const rp of requestParticipants) {
+              if (!rp || typeof rp !== 'object') continue;
+              
+              let participantEmail = rp.email?.toLowerCase()?.trim() || '';
+              if (!participantEmail && rp.userId) {
+                const userResult = await pool.query(
+                  `SELECT email FROM users WHERE id = $1`,
+                  [rp.userId]
+                );
+                if (userResult.rows.length > 0) {
+                  participantEmail = userResult.rows[0].email?.toLowerCase() || '';
+                }
+              }
+              
+              if (participantEmail && participantEmail !== booking.user_email?.toLowerCase()) {
+                try {
+                  await pool.query(`
+                    INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, created_at)
+                    VALUES ($1, $2, $3, false, NOW())
+                    ON CONFLICT DO NOTHING
+                  `, [bookingId, participantEmail, slotNumber]);
+                  slotNumber++;
+                  console.log(`[Dev Confirm] Added participant ${participantEmail} to booking_members for booking ${bookingId}`);
+                } catch (memberError) {
+                  console.error(`[Dev Confirm] Failed to add participant to booking_members:`, memberError);
+                }
+              }
+            }
           }
         }
         

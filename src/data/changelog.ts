@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.6.3",
+    date: "2026-02-04",
+    title: "Fixed: Booking Participant Tracking",
+    changes: [
+      "Fixed: Members added to booking requests from directory now properly appear on their dashboards after confirmation",
+      "Fixed: Trackman notes now display actual participant names instead of placeholder text",
+      "Fixed: Player slots now correctly show requested participants after booking confirmation",
+      "Improved: Participant email resolution from member directory selection during booking creation"
+    ]
+  },
+  {
     version: "69.6.2",
     date: "2026-02-04",
     title: "Improved: Corporate Checkout Contact Fields",
