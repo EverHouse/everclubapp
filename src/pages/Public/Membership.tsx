@@ -1,21 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
-import HubSpotFormModal from '../../components/HubSpotFormModal';
 import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
-
-const MEMBERSHIP_FIELDS = [
-  { name: 'firstname', label: 'First Name', type: 'text' as const, required: true, placeholder: 'Jane' },
-  { name: 'lastname', label: 'Last Name', type: 'text' as const, required: true, placeholder: 'Doe' },
-  { name: 'email', label: 'Email', type: 'email' as const, required: true, placeholder: 'jane@example.com' },
-  { name: 'phone', label: 'Phone', type: 'tel' as const, required: true, placeholder: '(949) 555-0100' },
-  { name: 'membership_tier', label: 'Which tier are you interested in?', type: 'select' as const, required: false, options: ['Social', 'Core', 'Premium', 'Corporate', 'Not sure yet'] },
-  { name: 'message', label: 'Tell us about yourself', type: 'textarea' as const, required: false, placeholder: 'Tell us about yourself and your interests...' }
-];
 
 interface MembershipTier {
   id: number;
@@ -69,7 +59,6 @@ const MembershipOverview: React.FC = () => {
   const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
   const [selectedPass, setSelectedPass] = useState<'workspace' | 'sim' | null>(null);
-  const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -158,7 +147,7 @@ const MembershipOverview: React.FC = () => {
             suffix={extractSuffix(socialTier.price_string)}
             desc={socialTier.description}
             features={socialTier.highlighted_features}
-            onClick={() => setShowApplicationForm(true)}
+            onClick={() => navigate('/membership/apply')}
             btnText={socialTier.button_text}
           />
         )}
@@ -190,7 +179,7 @@ const MembershipOverview: React.FC = () => {
               ))}
             </ul>
             <button 
-              onClick={() => setShowApplicationForm(true)}
+              onClick={() => navigate('/membership/apply')}
               className="w-full relative z-10 py-4 px-6 rounded-2xl bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white transition-all duration-300 active:scale-[0.98] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
             >
               {coreTier.button_text}
@@ -217,7 +206,7 @@ const MembershipOverview: React.FC = () => {
             suffix={extractSuffix(premiumTier.price_string)}
             desc={premiumTier.description}
             features={premiumTier.highlighted_features}
-            onClick={() => setShowApplicationForm(true)}
+            onClick={() => navigate('/membership/apply')}
             btnText={premiumTier.button_text}
           />
         )}
@@ -272,7 +261,7 @@ const MembershipOverview: React.FC = () => {
         
         <div className="mt-8 text-center">
           <button 
-            onClick={() => setShowApplicationForm(true)}
+            onClick={() => navigate('/membership/apply')}
             className="px-8 py-4 rounded-2xl bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]"
           >
             Start Your Application
@@ -325,16 +314,6 @@ const MembershipOverview: React.FC = () => {
       {/* Spacer for sticky mobile CTA - matches footer green, negative margin to overlap gap */}
       <div className="h-24 md:hidden bg-[#293515] -mx-4 w-[calc(100%+2rem)] -mt-8" aria-hidden="true"></div>
 
-      <HubSpotFormModal
-        isOpen={showApplicationForm}
-        onClose={() => setShowApplicationForm(false)}
-        formType="membership"
-        title="Membership Application"
-        subtitle="Join the Ever House community."
-        fields={MEMBERSHIP_FIELDS}
-        submitButtonText="Submit Application"
-      />
-
       <BackToTop threshold={200} />
 
       {/* Sticky Mobile CTA - Green background bar with bone white button */}
@@ -346,7 +325,7 @@ const MembershipOverview: React.FC = () => {
         }}
       >
         <button 
-          onClick={() => setShowApplicationForm(true)}
+          onClick={() => navigate('/membership/apply')}
           className="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
         >
           Apply for Membership

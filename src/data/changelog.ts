@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.6.0",
+    date: "2026-02-04",
+    title: "New: Membership Application Landing Page",
+    changes: [
+      "Added: New standalone landing page at /membership/apply for membership applications",
+      "Added: Custom-branded 2-step form with contact info and membership preferences",
+      "Added: Submissions go to HubSpot and are saved locally for staff review",
+      "Changed: All 'Apply' buttons on the Membership page now navigate to the new landing page",
+      "Improved: Consistent design with the Private Hire inquiry page (glassmorphism, 2-step flow)"
+    ]
+  },
+  {
     version: "69.5.0",
     date: "2026-02-04",
     title: "New: Private Hire Inquiry Landing Page",
