@@ -887,6 +887,7 @@ const SimulatorTab: React.FC = () => {
         showSuccess: boolean;
     }>({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
     const [staffManualBookingModalOpen, setStaffManualBookingModalOpen] = useState(false);
+    const checkinInProgressRef = useRef<Set<number>>(new Set());
     const [staffManualBookingDefaults, setStaffManualBookingDefaults] = useState<{
         resourceId?: number;
         startTime?: string;
@@ -1111,6 +1112,15 @@ const SimulatorTab: React.FC = () => {
             ? parseInt(String(booking.id).replace('cal_', '')) 
             : booking.id;
         
+        // Prevent double-execution using ref
+        if (newStatus === 'attended' && checkinInProgressRef.current.has(bookingId)) {
+            console.log('[Check-in v2] Already in progress for booking', bookingId);
+            return false;
+        }
+        if (newStatus === 'attended') {
+            checkinInProgressRef.current.add(bookingId);
+        }
+        
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
         const previousApproved = queryClient.getQueryData(bookingsKeys.approved(startDate, endDate));
@@ -1182,11 +1192,16 @@ const SimulatorTab: React.FC = () => {
             const statusLabel = newStatus === 'attended' ? 'checked in' : 
                               newStatus === 'no_show' ? 'marked as no show' : 'cancelled';
             showToast(`Booking ${statusLabel}`, 'success');
+            // Don't clean up ref on success - booking is now checked in
             return true;
         } catch (err: any) {
             queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
             queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
             showToast(err.message || 'Failed to update booking', 'error');
+            // Clean up ref on error to allow retry
+            if (newStatus === 'attended') {
+                checkinInProgressRef.current.delete(bookingId);
+            }
             return false;
         }
     }, [queryClient, startDate, endDate, showToast]);
@@ -2193,8 +2208,14 @@ const SimulatorTab: React.FC = () => {
                                                                             e.preventDefault();
                                                                             const btn = e.currentTarget;
                                                                             if (btn.disabled) return;
-                                                                            btn.disabled = true;
                                                                             const id = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+                                                                            // Prevent double-execution using ref
+                                                                            if (checkinInProgressRef.current.has(id)) {
+                                                                                console.log('[Check-in] Already in progress for booking', id);
+                                                                                return;
+                                                                            }
+                                                                            checkinInProgressRef.current.add(id);
+                                                                            btn.disabled = true;
                                                                             try {
                                                                                 const res = await fetch(`/api/bookings/${id}/checkin`, {
                                                                                     method: 'PUT',
@@ -2213,13 +2234,16 @@ const SimulatorTab: React.FC = () => {
                                                                                         setBillingModal({ isOpen: true, bookingId: id });
                                                                                     }
                                                                                     btn.disabled = false;
+                                                                                    checkinInProgressRef.current.delete(id);
                                                                                 } else {
                                                                                     showToast('Failed to check in', 'error');
                                                                                     btn.disabled = false;
+                                                                                    checkinInProgressRef.current.delete(id);
                                                                                 }
                                                                             } catch (err) {
                                                                                 showToast('Failed to check in', 'error');
                                                                                 btn.disabled = false;
+                                                                                checkinInProgressRef.current.delete(id);
                                                                             }
                                                                         }}
                                                                         className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50"
