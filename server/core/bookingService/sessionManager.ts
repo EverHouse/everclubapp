@@ -514,6 +514,69 @@ async function resolveUserIdToEmail(userId: string): Promise<string | null> {
   }
 }
 
+/**
+ * Find an existing session that overlaps with the given time range.
+ * Uses range overlap detection (not exact time matching) to handle
+ * Trackman sessions that start/end at slightly different times than bookings.
+ */
+export async function findOverlappingSession(
+  resourceId: number,
+  sessionDate: string,
+  startTime: string,
+  endTime: string,
+  tx?: TransactionContext
+): Promise<BookingSession | null> {
+  const dbCtx = tx || db;
+  try {
+    const result = await pool.query(`
+      SELECT id, resource_id, session_date, start_time, end_time, 
+             trackman_booking_id, source, created_by, created_at
+      FROM booking_sessions 
+      WHERE resource_id = $1 
+        AND session_date = $2 
+        AND tsrange(
+          (session_date + start_time)::timestamp,
+          (session_date + end_time)::timestamp,
+          '[)'
+        ) && tsrange(
+          ($2::date + $3::time)::timestamp,
+          ($2::date + $4::time)::timestamp,
+          '[)'
+        )
+      ORDER BY start_time
+      LIMIT 1
+    `, [resourceId, sessionDate, startTime, endTime]);
+    
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      logger.info('[findOverlappingSession] Found existing session', {
+        extra: { 
+          sessionId: row.id, 
+          resourceId, 
+          sessionDate, 
+          existingRange: `${row.start_time}-${row.end_time}`,
+          requestedRange: `${startTime}-${endTime}`
+        }
+      });
+      return {
+        id: row.id,
+        resourceId: row.resource_id,
+        sessionDate: row.session_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        trackmanBookingId: row.trackman_booking_id,
+        source: row.source,
+        createdBy: row.created_by,
+        createdAt: row.created_at
+      } as BookingSession;
+    }
+    return null;
+  } catch (error) {
+    logger.error('[findOverlappingSession] Error:', { error: error as Error });
+    return null;
+  }
+}
+
 export interface OrchestratedSessionRequest {
   ownerEmail: string;
   resourceId: number;
@@ -606,20 +669,49 @@ export async function createSessionWithUsageTracking(
     // Step 5: Execute database writes - either within external transaction or our own
     // This ensures all-or-nothing: if any step fails, everything rolls back
     const executeDbWrites = async (tx: TransactionContext) => {
-      // Create session and link participants within transaction
-      const { session, participants: linkedParticipants } = await createSession(
-        {
-          resourceId: request.resourceId,
-          sessionDate: request.sessionDate,
-          startTime: request.startTime,
-          endTime: request.endTime,
-          trackmanBookingId: request.trackmanBookingId,
-          createdBy: request.ownerEmail
-        },
-        request.participants,
-        source,
-        tx
+      // FIRST: Check if an overlapping session already exists (e.g., from Trackman import)
+      // This prevents "Double-booking not allowed" errors when Trackman sessions
+      // have slightly different start/end times than booking requests
+      const existingSession = await findOverlappingSession(
+        request.resourceId,
+        request.sessionDate,
+        request.startTime,
+        request.endTime
       );
+      
+      let session: BookingSession;
+      let linkedParticipants: BookingParticipant[];
+      
+      if (existingSession) {
+        // Use existing session and link participants to it
+        session = existingSession;
+        linkedParticipants = await linkParticipants(session.id, request.participants, tx);
+        logger.info('[createSessionWithUsageTracking] Linked to existing session', {
+          extra: { 
+            sessionId: session.id, 
+            existingTimes: `${session.startTime}-${session.endTime}`,
+            requestedTimes: `${request.startTime}-${request.endTime}`,
+            participantCount: linkedParticipants.length
+          }
+        });
+      } else {
+        // No existing session - create a new one
+        const result = await createSession(
+          {
+            resourceId: request.resourceId,
+            sessionDate: request.sessionDate,
+            startTime: request.startTime,
+            endTime: request.endTime,
+            trackmanBookingId: request.trackmanBookingId,
+            createdBy: request.ownerEmail
+          },
+          request.participants,
+          source,
+          tx
+        );
+        session = result.session;
+        linkedParticipants = result.participants;
+      }
       
       // Record usage ledger entries within the same transaction
       let ledgerEntriesCreated = 0;
