@@ -1078,7 +1078,9 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
 
   const priceId = invoice.lines?.data?.[0]?.price?.id;
   let restoreTierClause = '';
+  let billingProviderClause = '';
   let queryParams: any[] = [email];
+  let isMembershipSubscription = false;
   
   if (priceId) {
     const tierResult = await client.query(
@@ -1088,19 +1090,25 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
     if (tierResult.rows.length > 0) {
       restoreTierClause = ', tier = COALESCE(tier, $2)';
       queryParams = [email, tierResult.rows[0].slug];
+      isMembershipSubscription = true;
     }
+  }
+  
+  // Only set billing_provider to 'stripe' for MEMBERSHIP subscriptions
+  // This prevents add-on subscriptions from overwriting billing_provider for Mindbody users
+  if (isMembershipSubscription) {
+    billingProviderClause = ', billing_provider = \'stripe\'';
   }
   
   await client.query(
     `UPDATE users SET 
       grace_period_start = NULL,
-      grace_period_email_count = 0,
-      billing_provider = 'stripe'${restoreTierClause},
+      grace_period_email_count = 0${billingProviderClause}${restoreTierClause},
       updated_at = NOW()
     WHERE LOWER(email) = LOWER($1)`,
     queryParams
   );
-  console.log(`[Stripe Webhook] Cleared grace period and set billing_provider for ${email}`);
+  console.log(`[Stripe Webhook] Cleared grace period for ${email}${isMembershipSubscription ? ' and set billing_provider to stripe' : ' (non-membership subscription - billing_provider unchanged)'}`);
 
   const localEmail = email;
   const localMemberName = memberName;
@@ -1962,50 +1970,50 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
               const product = await stripe.products.retrieve(productId as string);
               const productName = product.name?.toLowerCase() || '';
               
-              // Match product name to tier - look for tier keywords
-              const tierKeywords = ['vip', 'premium', 'corporate', 'core', 'social'];
-              for (const keyword of tierKeywords) {
-                if (productName.includes(keyword)) {
-                  const keywordTierResult = await pool.query(
-                    'SELECT slug, name FROM membership_tiers WHERE LOWER(slug) = $1 OR LOWER(name) = $1',
-                    [keyword]
-                  );
-                  if (keywordTierResult.rows.length > 0) {
-                    const { name: tierName } = keywordTierResult.rows[0];
-                    
-                    const updateResult = await pool.query(
-                      `UPDATE users SET 
-                        tier = $1, 
-                        membership_status = CASE 
-                          WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN 'active' 
-                          ELSE membership_status 
-                        END,
-                        billing_provider = 'stripe',
-                        updated_at = NOW() 
-                      WHERE email = $2 
-                      RETURNING id`,
-                      [tierName, email]
-                    );
-                    
-                    if (updateResult.rowCount && updateResult.rowCount > 0) {
-                      console.log(`[Stripe Webhook] User activation (product name match): ${email} tier updated to ${tierName} from product "${product.name}"`);
-                      
-                      // Sync to HubSpot for product name matched tier
-                      try {
-                        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-                        await syncMemberToHubSpot({
-                          email,
-                          status: status, // Use actual subscription status
-                          billingProvider: 'stripe',
-                          tier: tierName,
-                          memberSince: new Date()
-                        });
-                        console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe, memberSince=now`);
-                      } catch (hubspotError) {
-                        console.error('[Stripe Webhook] HubSpot sync failed for product name match:', hubspotError);
-                      }
-                    }
-                    break;
+              // Match product name to tier - require exact tier name match (not fuzzy keyword matching)
+              // This prevents non-membership products like "Corporate Event Ticket" from granting tier access
+              const tierSearchResult = await pool.query(
+                `SELECT slug, name FROM membership_tiers 
+                 WHERE LOWER(name) = LOWER($1) 
+                 OR LOWER(slug) = LOWER($1)
+                 OR LOWER($1) LIKE LOWER(name) || ' %'
+                 OR LOWER($1) LIKE '% ' || LOWER(name)`,
+                [product.name]
+              );
+              
+              if (tierSearchResult.rows.length > 0) {
+                const { name: tierName } = tierSearchResult.rows[0];
+                
+                const updateResult = await pool.query(
+                  `UPDATE users SET 
+                    tier = $1, 
+                    membership_status = CASE 
+                      WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN 'active' 
+                      ELSE membership_status 
+                    END,
+                    billing_provider = 'stripe',
+                    updated_at = NOW() 
+                  WHERE email = $2 
+                  RETURNING id`,
+                  [tierName, email]
+                );
+                
+                if (updateResult.rowCount && updateResult.rowCount > 0) {
+                  console.log(`[Stripe Webhook] User activation (exact product name match): ${email} tier updated to ${tierName} from product "${product.name}"`);
+                  
+                  // Sync to HubSpot for product name matched tier
+                  try {
+                    const { syncMemberToHubSpot } = await import('../hubspot/stages');
+                    await syncMemberToHubSpot({
+                      email,
+                      status: status,
+                      billingProvider: 'stripe',
+                      tier: tierName,
+                      memberSince: new Date()
+                    });
+                    console.log(`[Stripe Webhook] Synced ${email} to HubSpot: tier=${tierName}, status=${status}, billing=stripe, memberSince=now`);
+                  } catch (hubspotError) {
+                    console.error('[Stripe Webhook] HubSpot sync failed for product name match:', hubspotError);
                   }
                 }
               }
@@ -2108,28 +2116,27 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       if (tierResult.rows.length > 0) {
         newTierName = tierResult.rows[0].name;
       } else {
-        // Fallback: try to match by product name
+        // Fallback: try to match by exact product name (no fuzzy keyword matching for security)
         const productId = subscription.items?.data?.[0]?.price?.product;
         if (productId) {
           try {
             const stripe = await getStripeClient();
             const product = await stripe.products.retrieve(productId as string);
-            const productName = product.name?.toLowerCase() || '';
             
-            const tierKeywords = ['vip', 'premium', 'corporate', 'core', 'social'];
-            for (const keyword of tierKeywords) {
-              if (productName.includes(keyword)) {
-                const keywordTierResult = await pool.query(
-                  'SELECT slug, name FROM membership_tiers WHERE LOWER(slug) = $1 OR LOWER(name) = $1',
-                  [keyword]
-                );
-                if (keywordTierResult.rows.length > 0) {
-                  newTierName = keywordTierResult.rows[0].name;
-                  matchMethod = 'product_name';
-                  console.log(`[Stripe Webhook] Tier matched by product name "${product.name}" -> ${newTierName}`);
-                  break;
-                }
-              }
+            // Exact match only - prevents non-membership products from granting tier access
+            const tierSearchResult = await pool.query(
+              `SELECT slug, name FROM membership_tiers 
+               WHERE LOWER(name) = LOWER($1) 
+               OR LOWER(slug) = LOWER($1)
+               OR LOWER($1) LIKE LOWER(name) || ' %'
+               OR LOWER($1) LIKE '% ' || LOWER(name)`,
+              [product.name]
+            );
+            
+            if (tierSearchResult.rows.length > 0) {
+              newTierName = tierSearchResult.rows[0].name;
+              matchMethod = 'product_name_exact';
+              console.log(`[Stripe Webhook] Tier matched by exact product name "${product.name}" -> ${newTierName}`);
             }
           } catch (productError) {
             console.error('[Stripe Webhook] Error fetching product for name match:', productError);
@@ -2310,7 +2317,7 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
     }
 
     const userResult = await pool.query(
-      'SELECT email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
+      'SELECT email, first_name, last_name, stripe_subscription_id FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -2319,7 +2326,14 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       return deferredActions;
     }
 
-    const { email, first_name, last_name } = userResult.rows[0];
+    const { email, first_name, last_name, stripe_subscription_id } = userResult.rows[0];
+    
+    // CRITICAL: Only cancel membership if the deleted subscription matches the user's main subscription
+    // This prevents add-on subscriptions (e.g., locker rental) from cancelling the entire membership
+    if (stripe_subscription_id && stripe_subscription_id !== subscriptionId) {
+      console.log(`[Stripe Webhook] Subscription ${subscriptionId} deleted, but user's main subscription is ${stripe_subscription_id} - not cancelling membership (likely an add-on)`);
+      return deferredActions;
+    }
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
     // Check if there was a billing group and notify staff of orphaned members

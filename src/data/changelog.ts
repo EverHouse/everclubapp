@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.7.0",
+    date: "2026-02-04",
+    title: "Critical Stripe Webhook Security Fixes",
+    changes: [
+      "Fixed: Cancelling an add-on subscription (like locker rental) no longer cancels entire membership",
+      "Fixed: Tier matching now uses exact product name matching instead of loose keyword matching (security improvement)",
+      "Fixed: Booking button now waits for fee calculation to complete before enabling (prevents surprise billing)",
+      "Fixed: Stripe invoice payments for add-ons no longer overwrite billing_provider for Mindbody members",
+      "Improved: Better logging distinguishes membership vs add-on subscription events"
+    ]
+  },
+  {
     version: "69.6.0",
     date: "2026-02-04",
     title: "Critical Bug Fixes: Cache, Refunds & UI",

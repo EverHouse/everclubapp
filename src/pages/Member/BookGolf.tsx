@@ -908,6 +908,7 @@ const BookGolf: React.FC = () => {
     selectedSlot && 
     selectedResource && 
     !isBooking && 
+    !feeEstimateLoading && // Wait for fee calculation to complete to avoid surprise billing
     (activeTab !== 'simulator' || !isAtDailyLimit)
   );
 
