@@ -2140,7 +2140,37 @@ const SimulatorTab: React.FC = () => {
                                                                         onClick={async (e) => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
-                                                                            await updateBookingStatusOptimistic(booking, 'attended');
+                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+                                                                            
+                                                                            // Optimistic update
+                                                                            queryClient.setQueryData(bookingsKeys.allRequests(), (old: any[] | undefined) => 
+                                                                                (old || []).map(r => r.id === booking.id ? { ...r, status: 'attended' } : r)
+                                                                            );
+                                                                            queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), (old: any[] | undefined) => 
+                                                                                (old || []).map(b => b.id === booking.id ? { ...b, status: 'attended' } : b)
+                                                                            );
+                                                                            
+                                                                            try {
+                                                                                const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
+                                                                                    method: 'PUT',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    credentials: 'include',
+                                                                                    body: JSON.stringify({ status: 'attended' })
+                                                                                });
+                                                                                if (res.ok) {
+                                                                                    showToast('Checked in successfully', 'success');
+                                                                                    queryClient.invalidateQueries({ queryKey: bookingsKeys.allRequests() });
+                                                                                    queryClient.invalidateQueries({ queryKey: bookingsKeys.approved(startDate, endDate) });
+                                                                                } else {
+                                                                                    const err = await res.json();
+                                                                                    showToast(err.error || 'Check-in failed', 'error');
+                                                                                    queryClient.invalidateQueries({ queryKey: bookingsKeys.allRequests() });
+                                                                                    queryClient.invalidateQueries({ queryKey: bookingsKeys.approved(startDate, endDate) });
+                                                                                }
+                                                                            } catch (err: any) {
+                                                                                showToast('Check-in failed', 'error');
+                                                                                queryClient.invalidateQueries({ queryKey: bookingsKeys.allRequests() });
+                                                                            }
                                                                         }}
                                                                         className="flex-1 py-2.5 bg-green-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-green-600 active:scale-95 transition-all duration-200"
                                                                     >
