@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.4.3",
+    date: "2026-02-04",
+    title: "Fee Calculation & Check-In Stability",
+    changes: [
+      "Fixed: Fee calculation now uses session actual times instead of arbitrary booking durations when multiple bookings share a session",
+      "Fixed: Check-in button consolidated to use single handler - eliminates conflicting success/failure messages",
+      "Fixed: Check-in now properly refreshes booking lists after successful status change",
+      "Improved: Data cleanup for bookings with mismatched duration values",
+      "Technical: loadSessionData() now calculates duration from session start/end times with fallback to booking duration"
+    ]
+  },
+  {
     version: "69.4.2",
     date: "2026-02-04",
     title: "Critical: Session Duration & Fee Calculation Fix",
