@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.26.0",
+    date: "2026-02-04",
+    title: "Queue Payment Priority & Check-In Error Messages",
+    changes: [
+      "Fixed: Bookings with unpaid fees now show 'Collect $X' button even after check-in instead of just 'Checked In' badge",
+      "Fixed: Attended bookings with outstanding balances display red 'Collect' button, pending bookings show amber 'Charge' button",
+      "Improved: Check-in errors now show specific messages (roster needed, sync required) instead of generic failure",
+      "Fixed: Wes Pak booking participant now displays correct name instead of 'Unknown (Trackman)'"
+    ]
+  },
+  {
     version: "69.25.0",
     date: "2026-02-04",
     title: "Anonymous Guest Fee Fix & Queue Button Improvements",
