@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '../components/Toast';
 
 interface BookingForCheckIn {
   id: number | string;
