@@ -65,6 +65,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Stripe Member Auto-Fix**: Login flow verifies Stripe subscription status and corrects `membership_status`.
 - **Stripe Subscription → HubSpot Sync**: Automated sync of `membership_status` and tier to HubSpot contact.
 - **Member Balance Display**: Shows pending fees; booking cancellations clear fees.
+- **Booking Prepayment System**: After booking approval or Trackman auto-linking, creates a prepayment intent for expected fees (overage, guests). Members can pay from their dashboard with optional credit application toggle. Check-in is blocked until fees are paid. Cancellations auto-refund succeeded prepayments with idempotency protection.
 - **Stripe Customer Metadata Sync**: User ID and tier synced to Stripe customer metadata.
 - **Stripe Transaction Cache**: Local caching of Stripe transactions.
 - **Tier Data Automation**: Member creation requires valid tier, real-time sync queues tier changes to HubSpot, auto-fix copies tiers from alternate emails every 4 hours.
