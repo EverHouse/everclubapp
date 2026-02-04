@@ -447,8 +447,16 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           setBillingModal({ isOpen: true, bookingId: id });
         }
       } else {
+        const errorData = await res.json().catch(() => ({ error: 'Failed to check in' }));
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-        showToast('Failed to check in', 'error');
+        
+        // Handle specific error cases
+        if (errorData.requiresSync) {
+          showToast('Billing session not ready - sync from Trackman first', 'error');
+        } else {
+          showToast(errorData.error || errorData.message || 'Failed to check in', 'error');
+        }
+        console.error('[Check-in] Failed:', { status: res.status, error: errorData });
       }
     } catch (err) {
       safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
