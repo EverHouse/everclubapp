@@ -1482,23 +1482,22 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     const targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
     const isUnmatchedOwner = !ownerEmail || ownerEmail.includes('unmatched@') || ownerEmail.includes('@trackman.import');
-    if (membersResult.rows.length === 0 && targetPlayerCount > 0) {
-      const slotsToCreate: { slotNumber: number; isPrimary: boolean; userEmail: string | null }[] = [];
-      for (let i = 1; i <= targetPlayerCount; i++) {
-        slotsToCreate.push({
-          slotNumber: i,
-          isPrimary: i === 1,
-          userEmail: (i === 1 && !isUnmatchedOwner) ? ownerEmail : null
-        });
-      }
+    
+    // Always ensure we have slots for ALL declared players (not just when zero exist)
+    if (membersResult.rows.length < targetPlayerCount && targetPlayerCount > 0) {
+      const existingSlotNumbers = new Set(membersResult.rows.map(r => r.slot_number));
       
-      for (const slot of slotsToCreate) {
-        await pool.query(
-          `INSERT INTO booking_members (booking_id, slot_number, is_primary, user_email, created_at)
-           VALUES ($1, $2, $3, $4, NOW())
-           ON CONFLICT (booking_id, slot_number) DO NOTHING`,
-          [id, slot.slotNumber, slot.isPrimary, slot.userEmail]
-        );
+      for (let i = 1; i <= targetPlayerCount; i++) {
+        if (!existingSlotNumbers.has(i)) {
+          const isPrimary = i === 1;
+          const userEmail = (i === 1 && !isUnmatchedOwner) ? ownerEmail : null;
+          await pool.query(
+            `INSERT INTO booking_members (booking_id, slot_number, is_primary, user_email, created_at)
+             VALUES ($1, $2, $3, $4, NOW())
+             ON CONFLICT (booking_id, slot_number) DO NOTHING`,
+            [id, i, isPrimary, userEmail]
+          );
+        }
       }
       
       membersResult = await pool.query(
