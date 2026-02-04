@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.29.0",
+    date: "2026-02-04",
+    title: "Check-In Modal Auto-Close Fix",
+    changes: [
+      "Fixed: Check-in and No Show buttons now close their modals/drawers AFTER the API call succeeds, not before",
+      "Fixed: Calendar booking modal closes only after successful check-in confirmation from server",
+      "Fixed: Mark Status modal closes only after successful status update",
+      "Improved: If check-in fails, modal stays open so staff can see the error and retry"
+    ]
+  },
+  {
     version: "69.28.0",
     date: "2026-02-04",
     title: "SimulatorTab Queue Button Fix",

@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+1106
+    1105
+        Page_DownPage_DownPage_DownPage_DownPage_Down1106
+            Page_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_DownPage_Down1180
+                import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import EmptyState from '../../../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
@@ -1104,7 +1108,8 @@ const SimulatorTab: React.FC = () => {
 
     const updateBookingStatusOptimistic = useCallback(async (
         booking: BookingRequest,
-        newStatus: 'attended' | 'no_show' | 'cancelled'
+        newStatus: 'attended' | 'no_show' | 'cancelled',
+        onSuccess?: () => void
     ): Promise<boolean> => {
         console.log('[Check-in] updateBookingStatusOptimistic called', { bookingId: booking?.id, newStatus });
         // Store previous data for rollback
@@ -1177,6 +1182,7 @@ const SimulatorTab: React.FC = () => {
             const statusLabel = newStatus === 'attended' ? 'checked in' : 
                               newStatus === 'no_show' ? 'marked as no show' : 'cancelled';
             showToast(`Booking ${statusLabel}`, 'success');
+            onSuccess?.();
             return true;
         } catch (err: any) {
             queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
@@ -3370,8 +3376,7 @@ const SimulatorTab: React.FC = () => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const booking = selectedCalendarBooking;
-                                                setSelectedCalendarBooking(null);
-                                                await updateBookingStatusOptimistic(booking, 'attended');
+                                                await updateBookingStatusOptimistic(booking, 'attended', () => setSelectedCalendarBooking(null));
                                             }}
                                             className="flex-1 py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2"
                                         >
@@ -3384,8 +3389,7 @@ const SimulatorTab: React.FC = () => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const booking = selectedCalendarBooking;
-                                                setSelectedCalendarBooking(null);
-                                                await updateBookingStatusOptimistic(booking, 'no_show');
+                                                await updateBookingStatusOptimistic(booking, 'no_show', () => setSelectedCalendarBooking(null));
                                             }}
                                             className="flex-1 py-3 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2"
                                         >
@@ -3449,8 +3453,7 @@ const SimulatorTab: React.FC = () => {
                                 onClick={async () => {
                                     if (!markStatusModal.booking) return;
                                     const booking = markStatusModal.booking;
-                                    setMarkStatusModal({ booking: null, confirmNoShow: false });
-                                    await updateBookingStatusOptimistic(booking, 'no_show');
+                                    await updateBookingStatusOptimistic(booking, 'no_show', () => setMarkStatusModal({ booking: null, confirmNoShow: false }));
                                 }}
                                 className="flex-1 py-3 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2"
                             >
@@ -3468,8 +3471,7 @@ const SimulatorTab: React.FC = () => {
                                         return;
                                     }
                                     const booking = markStatusModal.booking;
-                                    setMarkStatusModal({ booking: null, confirmNoShow: false });
-                                    await updateBookingStatusOptimistic(booking, 'attended');
+                                    await updateBookingStatusOptimistic(booking, 'attended', () => setMarkStatusModal({ booking: null, confirmNoShow: false }));
                                 }}
                                 className="flex-1 py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2"
                             >
