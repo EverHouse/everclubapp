@@ -2134,20 +2134,6 @@ const SimulatorTab: React.FC = () => {
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
                                                                         ${(booking.total_owed || 0).toFixed(0)} Due
                                                                     </button>
-                                                                ) : !isConferenceRoom && ((booking as any).declared_player_count || 1) > ((booking as any).filled_player_count || 0) ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                            setRosterModal({ isOpen: true, bookingId });
-                                                                        }}
-                                                                        className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
-                                                                    >
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">group</span>
-                                                                        {(booking as any).filled_player_count || 0}/{(booking as any).declared_player_count || 1} Players
-                                                                    </button>
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         type="button"
@@ -2174,10 +2160,10 @@ const SimulatorTab: React.FC = () => {
                                                                                 alert('Failed: ' + err.message);
                                                                             }
                                                                         }}
-                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
+                                                                        className="flex-1 py-2.5 bg-green-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-green-600 active:scale-95 transition-all duration-200"
                                                                     >
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
-                                                                        Check In
+                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
+                                                                        CHECK IN
                                                                     </button>
                                                                 ) : null}
                                                             </div>
