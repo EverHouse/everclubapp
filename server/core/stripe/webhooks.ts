@@ -1052,19 +1052,37 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
   const currentPeriodEnd = invoice.lines?.data?.[0]?.period?.end;
   const nextBillingDate = currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : new Date();
 
-  if (!email) {
-    console.warn(`[Stripe Webhook] No customer email on invoice ${invoice.id}`);
+  // CRITICAL FIX: Use stripe_customer_id for reliable user lookup
+  // Email can change in the app while Stripe still has the old email, causing renewal failures
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  
+  let userResult;
+  if (customerId) {
+    // Primary lookup: by stable Stripe customer ID (preferred - won't break if user changes email)
+    userResult = await client.query(
+      'SELECT id, email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
+      [customerId]
+    );
+  }
+  
+  // Fallback to email lookup if customer ID lookup fails
+  if ((!userResult || userResult.rows.length === 0) && email) {
+    userResult = await client.query(
+      'SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+  }
+  
+  if (!userResult || userResult.rows.length === 0) {
+    console.warn(`[Stripe Webhook] No user found for invoice ${invoice.id} (customer: ${customerId}, email: ${email})`);
     return deferredActions;
   }
-
-  const userResult = await client.query(
-    'SELECT id, first_name, last_name FROM users WHERE email = $1',
-    [email]
-  );
+  
   const memberName = userResult.rows[0]
-    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
+    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || userResult.rows[0].email
     : email;
   const userId = userResult.rows[0]?.id;
+  const userEmail = userResult.rows[0]?.email || email;
 
   await client.query(
     `UPDATE hubspot_deals 
@@ -1073,13 +1091,13 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
          last_sync_error = NULL,
          updated_at = NOW()
      WHERE LOWER(member_email) = LOWER($1)`,
-    [email]
+    [userEmail]
   );
 
   const priceId = invoice.lines?.data?.[0]?.price?.id;
   let restoreTierClause = '';
   let billingProviderClause = '';
-  let queryParams: any[] = [email];
+  let queryParams: any[] = [userEmail];
   let isMembershipSubscription = false;
   
   if (priceId) {
@@ -1092,7 +1110,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
       // COALESCE(tier, $2) would keep the old tier if it exists, blocking downgrades
       // Stripe is source of truth - if user paid for Social, they should be Social
       restoreTierClause = ', tier = $2';
-      queryParams = [email, tierResult.rows[0].slug];
+      queryParams = [userEmail, tierResult.rows[0].slug];
       isMembershipSubscription = true;
     }
   }
@@ -1111,9 +1129,9 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
     WHERE LOWER(email) = LOWER($1)`,
     queryParams
   );
-  console.log(`[Stripe Webhook] Cleared grace period for ${email}${isMembershipSubscription ? ' and set billing_provider to stripe' : ' (non-membership subscription - billing_provider unchanged)'}`);
+  console.log(`[Stripe Webhook] Cleared grace period for ${userEmail}${isMembershipSubscription ? ' and set billing_provider to stripe' : ' (non-membership subscription - billing_provider unchanged)'}`);
 
-  const localEmail = email;
+  const localEmail = userEmail;
   const localMemberName = memberName;
   const localAmountPaid = amountPaid;
   const localPlanName = planName;

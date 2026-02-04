@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.14.0",
+    date: "2026-02-04",
+    title: "Invoice Identity & Webhook Race Condition Fixes",
+    changes: [
+      "Fixed: Membership renewals now use Stripe customer ID (not email) to identify users - prevents renewal failures when members change their email",
+      "Fixed: Trackman unmatched bookings now use atomic upsert to prevent duplicate records from simultaneous webhook retries"
+    ]
+  },
+  {
     version: "69.13.0",
     date: "2026-02-04",
     title: "Tier Validation, Calendar Sync & Notification Reliability Fixes",

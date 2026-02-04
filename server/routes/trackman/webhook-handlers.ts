@@ -474,30 +474,23 @@ export async function saveToUnmatchedBookings(
   reason?: string
 ): Promise<{ success: boolean; id?: number }> {
   try {
-    const existingResult = await pool.query(
-      `SELECT id FROM trackman_unmatched_bookings WHERE trackman_booking_id = $1`,
-      [trackmanBookingId]
-    );
-    
-    if (existingResult.rows.length > 0) {
-      await pool.query(
-        `UPDATE trackman_unmatched_bookings 
-         SET booking_date = $2, start_time = $3, end_time = $4, bay_number = $5,
-             original_email = $6, user_name = $7, player_count = $8, 
-             match_attempt_reason = COALESCE($9, match_attempt_reason),
-             updated_at = NOW()
-         WHERE trackman_booking_id = $1`,
-        [trackmanBookingId, slotDate, startTime, endTime, resourceId, 
-         customerEmail, customerName, playerCount, reason]
-      );
-      return { success: true, id: existingResult.rows[0].id };
-    }
-    
+    // CRITICAL FIX: Use atomic INSERT...ON CONFLICT to prevent race conditions
+    // from duplicate Trackman webhooks arriving simultaneously
     const result = await pool.query(
       `INSERT INTO trackman_unmatched_bookings 
        (trackman_booking_id, booking_date, start_time, end_time, bay_number, 
-        original_email, user_name, player_count, status, match_attempt_reason, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, NOW())
+        original_email, user_name, player_count, status, match_attempt_reason, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, NOW(), NOW())
+       ON CONFLICT (trackman_booking_id) DO UPDATE SET
+         booking_date = EXCLUDED.booking_date,
+         start_time = EXCLUDED.start_time,
+         end_time = EXCLUDED.end_time,
+         bay_number = EXCLUDED.bay_number,
+         original_email = EXCLUDED.original_email,
+         user_name = EXCLUDED.user_name,
+         player_count = EXCLUDED.player_count,
+         match_attempt_reason = COALESCE(EXCLUDED.match_attempt_reason, trackman_unmatched_bookings.match_attempt_reason),
+         updated_at = NOW()
        RETURNING id`,
       [trackmanBookingId, slotDate, startTime, endTime, resourceId, 
        customerEmail, customerName, playerCount, reason || 'no_member_match']
