@@ -357,8 +357,8 @@ const AnimatedRoutes: React.FC = () => {
       <Suspense fallback={<PageSkeleton />}>
           <Routes location={location}>
             <Route path="/" element={<DirectionalPageTransition><PageErrorBoundary pageName="Landing"><Landing /></PageErrorBoundary></DirectionalPageTransition>} />
-            <Route path="/membership" element={<DirectionalPageTransition><PageErrorBoundary pageName="Membership"><Membership /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/membership/apply" element={<DirectionalPageTransition><PageErrorBoundary pageName="MembershipApply"><MembershipApply /></PageErrorBoundary></DirectionalPageTransition>} />
+            <Route path="/membership/*" element={<DirectionalPageTransition><PageErrorBoundary pageName="Membership"><Membership /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/contact" element={<DirectionalPageTransition><PageErrorBoundary pageName="Contact"><Contact /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/gallery" element={<DirectionalPageTransition><PageErrorBoundary pageName="Gallery"><Gallery /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/whats-on" element={<DirectionalPageTransition><PageErrorBoundary pageName="WhatsOn"><WhatsOn /></PageErrorBoundary></DirectionalPageTransition>} />

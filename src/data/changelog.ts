@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.6.1",
+    date: "2026-02-04",
+    title: "Fixed: Corporate Membership Navigation",
+    changes: [
+      "Fixed: Corporate 'View Details' button now correctly navigates to the Corporate Membership page",
+      "Fixed: Route ordering issue that prevented nested membership routes from rendering"
+    ]
+  },
+  {
     version: "69.6.0",
     date: "2026-02-04",
     title: "New: Membership Application Landing Page",
