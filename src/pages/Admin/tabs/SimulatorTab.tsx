@@ -2151,21 +2151,30 @@ const SimulatorTab: React.FC = () => {
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         type="button"
-                                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                                        onTouchStart={(e) => e.stopPropagation()}
                                                                         onClick={async (e) => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
-                                                                            e.nativeEvent.stopImmediatePropagation();
-                                                                            if (!booking) {
-                                                                                showToast('Booking not found', 'error');
-                                                                                return;
+                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+                                                                            alert('Checking in booking ' + bookingId);
+                                                                            try {
+                                                                                const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
+                                                                                    method: 'PUT',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    credentials: 'include',
+                                                                                    body: JSON.stringify({ status: 'attended' })
+                                                                                });
+                                                                                if (res.ok) {
+                                                                                    alert('Success! Checked in.');
+                                                                                    window.location.reload();
+                                                                                } else {
+                                                                                    const err = await res.json();
+                                                                                    alert('Error: ' + (err.error || res.status));
+                                                                                }
+                                                                            } catch (err: any) {
+                                                                                alert('Failed: ' + err.message);
                                                                             }
-                                                                            console.log('[SimulatorTab] Queue Check In button clicked for booking:', booking.id);
-                                                                            await updateBookingStatusOptimistic(booking, 'attended');
                                                                         }}
-                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200 relative z-20"
+                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
                                                                         Check In
