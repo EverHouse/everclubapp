@@ -2202,6 +2202,14 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
           });
         }
         
+        // CRITICAL FIX: Validate future bookings after tier change
+        // If user downgraded, they may have bookings outside their new tier's booking window
+        try {
+          await validateFutureBookingsAfterTierChange(userId, email, newTierName);
+        } catch (validateError) {
+          console.error(`[Stripe Webhook] Error validating future bookings after tier change:`, validateError);
+        }
+        
         await notifyMember({
           userEmail: email,
           title: 'Membership Updated',
@@ -2458,4 +2466,79 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
     throw error;
   }
   return deferredActions;
+}
+
+/**
+ * CRITICAL FIX: Validate and cancel future bookings that violate new tier rules
+ * Called after tier change (upgrade/downgrade) to ensure members don't retain
+ * access to slots they're no longer eligible for
+ */
+async function validateFutureBookingsAfterTierChange(
+  userId: number, 
+  email: string, 
+  newTierName: string
+): Promise<void> {
+  try {
+    // Get the new tier's booking window
+    const tierResult = await pool.query(
+      `SELECT advance_booking_days FROM membership_tiers WHERE name = $1`,
+      [newTierName]
+    );
+    
+    if (tierResult.rows.length === 0) {
+      console.warn(`[TierValidation] Tier ${newTierName} not found, skipping booking validation`);
+      return;
+    }
+    
+    const maxBookingDays = tierResult.rows[0].advance_booking_days || 7;
+    const maxBookingDate = new Date();
+    maxBookingDate.setDate(maxBookingDate.getDate() + maxBookingDays);
+    const maxDateStr = maxBookingDate.toISOString().split('T')[0];
+    
+    // Find future bookings that are now outside the allowed window
+    const invalidBookingsResult = await pool.query(
+      `SELECT id, request_date, start_time, resource_id
+       FROM booking_requests
+       WHERE LOWER(user_email) = LOWER($1)
+         AND status IN ('pending', 'approved')
+         AND request_date > $2::date
+         AND request_date > CURRENT_DATE`,
+      [email, maxDateStr]
+    );
+    
+    if (invalidBookingsResult.rows.length === 0) {
+      console.log(`[TierValidation] No invalid future bookings found for ${email} after tier change to ${newTierName}`);
+      return;
+    }
+    
+    console.log(`[TierValidation] Found ${invalidBookingsResult.rows.length} bookings outside new tier window for ${email}`);
+    
+    // Cancel each invalid booking
+    for (const booking of invalidBookingsResult.rows) {
+      await pool.query(
+        `UPDATE booking_requests 
+         SET status = 'cancelled', 
+             staff_notes = COALESCE(staff_notes, '') || ' [Auto-cancelled: Outside ${newTierName} tier booking window (${maxBookingDays} days)]',
+             updated_at = NOW()
+         WHERE id = $1`,
+        [booking.id]
+      );
+      
+      console.log(`[TierValidation] Cancelled booking ${booking.id} for ${email} (date: ${booking.request_date})`);
+    }
+    
+    // Notify member about cancelled bookings
+    const { notifyMember } = await import('../notificationService');
+    await notifyMember({
+      userEmail: email,
+      title: 'Bookings Updated',
+      message: `${invalidBookingsResult.rows.length} future booking(s) were cancelled because they are outside your ${newTierName} membership booking window (${maxBookingDays} days advance).`,
+      type: 'booking_cancelled'
+    });
+    
+    console.log(`[TierValidation] Validated and cancelled ${invalidBookingsResult.rows.length} invalid bookings for ${email}`);
+  } catch (error) {
+    console.error(`[TierValidation] Error validating future bookings:`, error);
+    throw error;
+  }
 }

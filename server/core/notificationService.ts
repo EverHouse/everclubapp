@@ -316,6 +316,20 @@ export async function notifyMember(
     details: dbResult ? { notificationId: dbResult.id } : undefined
   });
   
+  // CRITICAL FIX: Only send push/websocket notifications if DB insert succeeded
+  // Otherwise users receive "ghost" notifications that don't appear in their app
+  // (notification center shows nothing because there's no DB record)
+  if (!dbResult) {
+    logger.warn(`[Notification] Skipping push/websocket - DB insert failed for ${payload.userEmail}`, {
+      extra: { event: 'notification.db_failed', type: payload.type }
+    });
+    return {
+      notificationId: undefined,
+      deliveryResults,
+      allSucceeded: false
+    };
+  }
+  
   if (sendWebSocket) {
     const wsResult = await deliverViaWebSocket(payload);
     deliveryResults.push(wsResult);

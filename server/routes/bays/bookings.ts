@@ -1053,6 +1053,18 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           }
         } catch (calError) {
           console.error('Failed to delete calendar event (non-blocking):', calError);
+          // CRITICAL FIX: Flag booking with sync_error so staff can manually clear "zombie slots"
+          // Otherwise Google Calendar shows slot as busy even though DB says cancelled
+          try {
+            await db.update(bookingRequests)
+              .set({ 
+                staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [SYNC ERROR: Calendar event not deleted - may show as busy on Google Calendar. Event ID: ' || ${existing.calendarEventId} || ']'`
+              })
+              .where(eq(bookingRequests.id, bookingId));
+            console.log(`[Booking] Flagged booking ${bookingId} with calendar sync error for staff review`);
+          } catch (flagError) {
+            console.error('Failed to flag calendar sync error:', flagError);
+          }
         }
       }
       
