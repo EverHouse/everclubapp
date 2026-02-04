@@ -1122,16 +1122,16 @@ const SimulatorTab: React.FC = () => {
         }
         
         // Store previous data for rollback
-        const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
-        const previousApproved = queryClient.getQueryData(bookingsKeys.approved(startDate, endDate));
+        const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
+        const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
         
         // Optimistic update via React Query cache
-        queryClient.setQueryData(bookingsKeys.allRequests(), (old: any[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === booking.id ? { ...r, status: newStatus } : r
             )
         );
-        queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), (old: any[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), (old: any[] | undefined) => 
             (old || []).map(b => 
                 b.id === booking.id ? { ...b, status: newStatus } : b
             )
@@ -1150,8 +1150,8 @@ const SimulatorTab: React.FC = () => {
             if (res.status === 402) {
                 const errorData = await res.json();
                 // Revert optimistic update
-                queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
-                queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
+                queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
+                queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
                 
                 // Open the appropriate modal based on what's needed
                 if (errorData.requiresRoster) {
@@ -1193,13 +1193,13 @@ const SimulatorTab: React.FC = () => {
                               newStatus === 'no_show' ? 'marked as no show' : 'cancelled';
             showToast(`Booking ${statusLabel}`, 'success');
             // Invalidate queries to ensure fresh data after successful status change
-            queryClient.invalidateQueries({ queryKey: bookingsKeys.allRequests() });
-            queryClient.invalidateQueries({ queryKey: bookingsKeys.approved(startDate, endDate) });
+            queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
+            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
             // Don't clean up ref on success - booking is now checked in
             return true;
         } catch (err: any) {
-            queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
-            queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
+            queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
+            queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
             showToast(err.message || 'Failed to update booking', 'error');
             // Clean up ref on error to allow retry
             if (newStatus === 'attended') {
@@ -1228,18 +1228,18 @@ const SimulatorTab: React.FC = () => {
         setCancelConfirmModal(prev => ({ ...prev, isCancelling: true }));
         
         // Store previous data for rollback
-        const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
-        const previousApproved = queryClient.getQueryData(bookingsKeys.approved(startDate, endDate));
+        const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
+        const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
         
         // Optimistic update via React Query cache
-        queryClient.setQueryData(bookingsKeys.allRequests(), (old: any[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === booking.id && r.source === booking.source 
                     ? { ...r, status: 'cancelled' } 
                     : r
             )
         );
-        queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), (old: any[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), (old: any[] | undefined) => 
             (old || []).filter(b => 
                 !(b.id === booking.id && b.source === booking.source)
             )
@@ -1270,8 +1270,8 @@ const SimulatorTab: React.FC = () => {
                 setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
             }
         } catch (err: any) {
-            queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
-            queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
+            queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
+            queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
             showToast(err.message || 'Failed to cancel booking', 'error');
             setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
         }
@@ -1530,10 +1530,10 @@ const SimulatorTab: React.FC = () => {
         setError(null);
         
         // Store previous data for rollback
-        const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
+        const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         
         // Optimistic UI: update status immediately via cache
-        queryClient.setQueryData(bookingsKeys.allRequests(), (old: any[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === selectedRequest.id && r.source === selectedRequest.source 
                     ? { ...r, status: 'confirmed' } 
@@ -1571,7 +1571,7 @@ const SimulatorTab: React.FC = () => {
             
             if (!res.ok) {
                 // Revert on failure
-                queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
+                queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 const errData = await res.json();
                 setError(errData.message || errData.error || 'Failed to approve');
             } else {
@@ -1582,7 +1582,7 @@ const SimulatorTab: React.FC = () => {
             }
         } catch (err: any) {
             // Revert on error
-            queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
+            queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             setError(err.message);
         } finally {
             setIsProcessing(false);
@@ -1599,10 +1599,10 @@ const SimulatorTab: React.FC = () => {
         const wasPending = selectedRequest.status === 'pending' || selectedRequest.status === 'pending_approval';
         
         // Store previous data for rollback
-        const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
+        const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         
         // Optimistic UI: update status immediately via cache
-        queryClient.setQueryData(bookingsKeys.allRequests(), (old: any[] | undefined) => 
+        queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === selectedRequest.id && r.source === selectedRequest.source 
                     ? { ...r, status: newStatus } 
@@ -1642,7 +1642,7 @@ const SimulatorTab: React.FC = () => {
             
             if (!res.ok) {
                 // Revert on failure
-                queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
+                queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 const errData = await res.json();
                 setError(errData.error || 'Failed to process request');
             } else {
@@ -1655,7 +1655,7 @@ const SimulatorTab: React.FC = () => {
             }
         } catch (err: any) {
             // Revert on error
-            queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
+            queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             setError(err.message);
         } finally {
             setIsProcessing(false);
@@ -2854,7 +2854,7 @@ const SimulatorTab: React.FC = () => {
                                 created_at: new Date().toISOString(),
                                 source: 'booking'
                             };
-                            queryClient.invalidateQueries({ queryKey: bookingsKeys.approved(startDate, endDate) });
+                            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
                         }
                         
                         window.dispatchEvent(new CustomEvent('booking-action-completed'));
@@ -3338,8 +3338,8 @@ const SimulatorTab: React.FC = () => {
                                             console.error('Failed to create cancellation notification:', notifErr);
                                         }
                                         
-                                        queryClient.invalidateQueries({ queryKey: bookingsKeys.approved(startDate, endDate) });
-                                        queryClient.invalidateQueries({ queryKey: bookingsKeys.allRequests() });
+                                        queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+                                        queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
                                         setSelectedCalendarBooking(null);
                                     } catch (err: any) {
                                         console.error('Failed to cancel booking:', err);
