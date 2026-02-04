@@ -1,7 +1,10 @@
 import { Router } from 'express';
+import { db } from '../../db';
 import { pool } from '../../core/db';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { getPacificMidnightUTC } from '../../utils/dateUtils';
+import { getPacificMidnightUTC, getTodayPacific } from '../../utils/dateUtils';
+import { bookingRequests, tours, adminAuditLog, users, resources } from '../../../shared/schema';
+import { eq, and, inArray, notInArray, desc, asc, sql, gte, lt, count } from 'drizzle-orm';
 
 const router = Router();
 
@@ -9,56 +12,107 @@ const router = Router();
  * GET /api/admin/command-center
  * Returns ALL data needed for the staff command center in a single call
  * Consolidates 8+ individual API calls into one efficient request
+ * Uses Drizzle ORM for consistent camelCase field naming
  */
 router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayPacific();
     const startOfDay = getPacificMidnightUTC(today);
     const startOfDayUnix = Math.floor(startOfDay.getTime() / 1000);
     const endOfDayUnix = startOfDayUnix + 86400;
     
-    // Run all queries in parallel for maximum efficiency
+    // Run all queries in parallel for maximum efficiency using Drizzle
     const [
-      pendingBookings,
-      pendingRequests,
+      pendingBookingsCount,
+      pendingRequestsData,
       todaysBookingsData,
-      activeMembers,
-      pendingTours,
-      recentActivity
+      activeMembersCount,
+      pendingToursData,
+      recentActivityData
     ] = await Promise.all([
-      pool.query(`SELECT COUNT(*) as count FROM booking_requests WHERE status = 'pending_approval'`),
-      pool.query(`
-        SELECT br.id, br.request_date, br.start_time, br.end_time, br.status, br.created_at,
-               u.first_name, u.last_name, u.email, r.name as resource_name
-        FROM booking_requests br
-        LEFT JOIN users u ON u.id = br.user_id
-        LEFT JOIN resources r ON r.id = br.resource_id
-        WHERE br.status IN ('pending', 'pending_approval')
-        ORDER BY br.created_at DESC
-        LIMIT 20
-      `),
-      pool.query(`
-        SELECT br.id, br.request_date, br.start_time, br.end_time, br.status,
-               br.resource_id, r.name as resource_name,
-               u.first_name, u.last_name, u.email
-        FROM booking_requests br
-        LEFT JOIN resources r ON r.id = br.resource_id
-        LEFT JOIN users u ON u.id = br.user_id
-        WHERE br.request_date = $1
-        AND br.status NOT IN ('cancelled', 'declined')
-        ORDER BY br.start_time ASC
-      `, [today]),
-      pool.query(`SELECT COUNT(*) as count FROM users WHERE membership_status = 'active' AND archived_at IS NULL`),
-      pool.query(`
-        SELECT id, guest_name, guest_email, guest_phone, tour_date, start_time, status, created_at
-        FROM tours WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10
-      `),
-      pool.query(`
-        SELECT id, action, staff_email, resource_type, resource_name, created_at
-        FROM admin_audit_log
-        ORDER BY created_at DESC
-        LIMIT 15
-      `)
+      // Count pending bookings
+      db.select({ count: count() })
+        .from(bookingRequests)
+        .where(eq(bookingRequests.status, 'pending_approval')),
+      
+      // Pending requests with user and resource info
+      db.select({
+        id: bookingRequests.id,
+        requestDate: bookingRequests.requestDate,
+        startTime: bookingRequests.startTime,
+        endTime: bookingRequests.endTime,
+        status: bookingRequests.status,
+        createdAt: bookingRequests.createdAt,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        resourceName: resources.name
+      })
+        .from(bookingRequests)
+        .leftJoin(users, eq(users.id, bookingRequests.userId))
+        .leftJoin(resources, eq(resources.id, bookingRequests.resourceId))
+        .where(inArray(bookingRequests.status, ['pending', 'pending_approval']))
+        .orderBy(desc(bookingRequests.createdAt))
+        .limit(20),
+      
+      // Today's bookings
+      db.select({
+        id: bookingRequests.id,
+        requestDate: bookingRequests.requestDate,
+        startTime: bookingRequests.startTime,
+        endTime: bookingRequests.endTime,
+        status: bookingRequests.status,
+        resourceId: bookingRequests.resourceId,
+        resourceName: resources.name,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      })
+        .from(bookingRequests)
+        .leftJoin(resources, eq(resources.id, bookingRequests.resourceId))
+        .leftJoin(users, eq(users.id, bookingRequests.userId))
+        .where(and(
+          eq(bookingRequests.requestDate, today),
+          notInArray(bookingRequests.status, ['cancelled', 'declined'])
+        ))
+        .orderBy(asc(bookingRequests.startTime)),
+      
+      // Active members count
+      db.select({ count: count() })
+        .from(users)
+        .where(and(
+          eq(users.membershipStatus, 'active'),
+          sql`${users.archivedAt} IS NULL`
+        )),
+      
+      // Pending tours
+      db.select({
+        id: tours.id,
+        guestName: tours.guestName,
+        guestEmail: tours.guestEmail,
+        guestPhone: tours.guestPhone,
+        tourDate: tours.tourDate,
+        startTime: tours.startTime,
+        status: tours.status,
+        createdAt: tours.createdAt
+      })
+        .from(tours)
+        .where(eq(tours.status, 'pending'))
+        .orderBy(desc(tours.createdAt))
+        .limit(10),
+      
+      // Recent activity
+      db.select({
+        id: adminAuditLog.id,
+        action: adminAuditLog.action,
+        staffEmail: adminAuditLog.staffEmail,
+        resourceType: adminAuditLog.resourceType,
+        resourceName: adminAuditLog.resourceName,
+        createdAt: adminAuditLog.createdAt
+      })
+        .from(adminAuditLog)
+        .orderBy(desc(adminAuditLog.createdAt))
+        .limit(15)
     ]);
     
     // Financials queries with error handling for missing columns/tables
@@ -75,15 +129,15 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
     
     res.json({
       counts: {
-        pendingBookings: parseInt(pendingBookings.rows[0]?.count || '0'),
-        todaysBookings: todaysBookingsData.rowCount || 0,
-        activeMembers: parseInt(activeMembers.rows[0]?.count || '0'),
-        pendingTours: pendingTours.rowCount || 0
+        pendingBookings: pendingBookingsCount[0]?.count || 0,
+        todaysBookings: todaysBookingsData.length,
+        activeMembers: activeMembersCount[0]?.count || 0,
+        pendingTours: pendingToursData.length
       },
-      pendingRequests: pendingRequests.rows,
-      todaysBookings: todaysBookingsData.rows,
-      pendingToursList: pendingTours.rows,
-      recentActivity: recentActivity.rows,
+      pendingRequests: pendingRequestsData,
+      todaysBookings: todaysBookingsData,
+      pendingToursList: pendingToursData,
+      recentActivity: recentActivityData,
       financials,
       date: today,
       timestamp: new Date().toISOString()
@@ -101,37 +155,38 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
  */
 router.get('/api/admin/dashboard-summary', isStaffOrAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayPacific();
     
-    // Parallel queries for dashboard summary
+    // Parallel queries for dashboard summary using Drizzle
     const [pendingBookings, todaysBookings, activeMembers, pendingTours] = await Promise.all([
-      pool.query(`
-        SELECT COUNT(*) as count 
-        FROM booking_requests 
-        WHERE status = 'pending'
-      `),
-      pool.query(`
-        SELECT COUNT(*) as count 
-        FROM booking_requests 
-        WHERE request_date = $1 AND status = 'approved'
-      `, [today]),
-      pool.query(`
-        SELECT COUNT(*) as count 
-        FROM users 
-        WHERE membership_status = 'active' AND archived_at IS NULL
-      `),
-      pool.query(`
-        SELECT COUNT(*) as count 
-        FROM tours 
-        WHERE status = 'pending'
-      `)
+      db.select({ count: count() })
+        .from(bookingRequests)
+        .where(eq(bookingRequests.status, 'pending')),
+      
+      db.select({ count: count() })
+        .from(bookingRequests)
+        .where(and(
+          eq(bookingRequests.requestDate, today),
+          eq(bookingRequests.status, 'approved')
+        )),
+      
+      db.select({ count: count() })
+        .from(users)
+        .where(and(
+          eq(users.membershipStatus, 'active'),
+          sql`${users.archivedAt} IS NULL`
+        )),
+      
+      db.select({ count: count() })
+        .from(tours)
+        .where(eq(tours.status, 'pending'))
     ]);
     
     res.json({
-      pendingBookingsCount: parseInt(pendingBookings.rows[0]?.count || '0'),
-      todaysBookingsCount: parseInt(todaysBookings.rows[0]?.count || '0'),
-      activeMembersCount: parseInt(activeMembers.rows[0]?.count || '0'),
-      pendingToursCount: parseInt(pendingTours.rows[0]?.count || '0'),
+      pendingBookingsCount: pendingBookings[0]?.count || 0,
+      todaysBookingsCount: todaysBookings[0]?.count || 0,
+      activeMembersCount: activeMembers[0]?.count || 0,
+      pendingToursCount: pendingTours[0]?.count || 0,
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
@@ -147,7 +202,7 @@ router.get('/api/admin/dashboard-summary', isStaffOrAdmin, async (req, res) => {
  */
 router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayPacific();
     const startOfDay = Math.floor(getPacificMidnightUTC(today).getTime() / 1000);
     const endOfDay = startOfDay + 86400;
     
@@ -219,28 +274,36 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
  * GET /api/admin/todays-bookings
  * Returns today's bookings for the staff dashboard
  * Used for prefetching to speed up admin page load
+ * Uses Drizzle ORM for consistent camelCase field naming
  */
 router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const startOfDay = getPacificMidnightUTC(today);
-    const endOfDay = new Date(startOfDay.getTime() + 86400000);
+    const today = getTodayPacific();
     
-    const result = await pool.query(`
-      SELECT br.id, br.request_date, br.start_time, br.end_time, br.status,
-             br.resource_id, r.name as resource_name,
-             u.first_name, u.last_name, u.email
-      FROM booking_requests br
-      LEFT JOIN resources r ON r.id = br.resource_id
-      LEFT JOIN users u ON u.id = br.user_id
-      WHERE br.request_date = $1
-      AND br.status NOT IN ('cancelled', 'declined')
-      ORDER BY br.start_time ASC
-    `, [today]);
+    const bookingsData = await db.select({
+      id: bookingRequests.id,
+      requestDate: bookingRequests.requestDate,
+      startTime: bookingRequests.startTime,
+      endTime: bookingRequests.endTime,
+      status: bookingRequests.status,
+      resourceId: bookingRequests.resourceId,
+      resourceName: resources.name,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email
+    })
+      .from(bookingRequests)
+      .leftJoin(resources, eq(resources.id, bookingRequests.resourceId))
+      .leftJoin(users, eq(users.id, bookingRequests.userId))
+      .where(and(
+        eq(bookingRequests.requestDate, today),
+        notInArray(bookingRequests.status, ['cancelled', 'declined'])
+      ))
+      .orderBy(asc(bookingRequests.startTime));
     
     res.json({
-      bookings: result.rows,
-      count: result.rowCount,
+      bookings: bookingsData,
+      count: bookingsData.length,
       date: today,
       timestamp: new Date().toISOString()
     });

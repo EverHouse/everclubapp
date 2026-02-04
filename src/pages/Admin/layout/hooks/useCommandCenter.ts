@@ -8,49 +8,49 @@ export interface CommandCenterCounts {
 }
 
 export interface PendingRequest {
-  id: string;
-  request_date: string;
-  start_time: string;
-  end_time: string;
+  id: number;
+  requestDate: string;
+  startTime: string;
+  endTime: string;
   status: string;
-  created_at: string;
-  first_name: string | null;
-  last_name: string | null;
+  createdAt: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
-  resource_name: string | null;
+  resourceName: string | null;
 }
 
 export interface TodaysBooking {
-  id: string;
-  request_date: string;
-  start_time: string;
-  end_time: string;
+  id: number;
+  requestDate: string;
+  startTime: string;
+  endTime: string;
   status: string;
-  resource_id: number | null;
-  resource_name: string | null;
-  first_name: string | null;
-  last_name: string | null;
+  resourceId: number | null;
+  resourceName: string | null;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
 }
 
 export interface PendingTour {
-  id: string;
-  guest_name: string;
-  guest_email: string;
-  guest_phone: string | null;
-  tour_date: string | null;
-  start_time: string | null;
+  id: number;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string | null;
+  tourDate: string | null;
+  startTime: string | null;
   status: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface RecentActivity {
-  id: string;
+  id: number;
   action: string;
-  staff_email: string | null;
-  resource_type: string | null;
-  resource_name: string | null;
-  created_at: string;
+  staffEmail: string | null;
+  resourceType: string | null;
+  resourceName: string | null;
+  createdAt: string;
 }
 
 export interface CommandCenterFinancials {
