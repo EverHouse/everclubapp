@@ -2188,18 +2188,31 @@ const SimulatorTab: React.FC = () => {
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={async (e) => {
-                                                                            e.stopPropagation();
-                                                                            e.preventDefault();
-                                                                            console.log('[SimulatorTab Check-in] Button clicked!', { bookingId: booking.id, userName: booking.user_name });
+                                                                        onClick={async () => {
+                                                                            const id = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
                                                                             try {
-                                                                                await updateBookingStatusOptimistic(booking, 'attended');
+                                                                                const res = await fetch(`/api/bookings/${id}/checkin`, {
+                                                                                    method: 'PUT',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    credentials: 'include'
+                                                                                });
+                                                                                if (res.ok) {
+                                                                                    showToast('Member checked in', 'success');
+                                                                                    queryClient.invalidateQueries({ queryKey: bookingsKeys.allRequests() });
+                                                                                    queryClient.invalidateQueries({ queryKey: bookingsKeys.approved(startDate, endDate) });
+                                                                                } else if (res.status === 402) {
+                                                                                    const errorData = await res.json();
+                                                                                    if (errorData.requiresRoster) {
+                                                                                        setRosterModal({ isOpen: true, bookingId: id });
+                                                                                    } else {
+                                                                                        setBillingModal({ isOpen: true, bookingId: id });
+                                                                                    }
+                                                                                } else {
+                                                                                    showToast('Failed to check in', 'error');
+                                                                                }
                                                                             } catch (err) {
-                                                                                console.error('[SimulatorTab Check-in] Error:', err);
+                                                                                showToast('Failed to check in', 'error');
                                                                             }
-                                                                        }}
-                                                                        onTouchEnd={(e) => {
-                                                                            e.stopPropagation();
                                                                         }}
                                                                         className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
