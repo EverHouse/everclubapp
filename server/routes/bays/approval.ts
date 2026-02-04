@@ -186,7 +186,45 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                   .where(eq(bookingRequests.id, bookingId));
               }
             }
-            
+
+            // Fetch all participants from booking_members (other members) and booking_guests (guests)
+            // This ensures the billing session includes everyone the member added to their request
+            const participantsResult = await pool.query(
+              `SELECT
+                 bm.user_email,
+                 COALESCE(u.first_name || ' ' || u.last_name, bm.user_email) as display_name,
+                 CASE WHEN bm.is_primary THEN 'owner' ELSE 'member' END as participant_type,
+                 u.id as user_id
+               FROM booking_members bm
+               LEFT JOIN users u ON LOWER(u.email) = LOWER(bm.user_email)
+               WHERE bm.booking_id = $1 AND bm.user_email IS NOT NULL
+               UNION ALL
+               SELECT
+                 bg.guest_email as user_email,
+                 COALESCE(bg.guest_name, bg.guest_email, 'Guest') as display_name,
+                 'guest' as participant_type,
+                 NULL as user_id
+               FROM booking_guests bg
+               WHERE bg.booking_id = $1`,
+              [bookingId]
+            );
+
+            // Build participants array - use fetched participants if found, otherwise fallback to owner only
+            const sessionParticipants = participantsResult.rows.length > 0
+              ? participantsResult.rows.map((row: any) => ({
+                  userId: row.user_id || undefined,
+                  participantType: row.participant_type as 'owner' | 'member' | 'guest',
+                  displayName: row.display_name || row.user_email || 'Unknown'
+                }))
+              : [{
+                  userId: ownerUserId || undefined,
+                  participantType: 'owner' as const,
+                  displayName: updatedRow.userName || updatedRow.userEmail
+                }];
+
+            console.log(`[Booking Approval] Found ${participantsResult.rows.length} participants for booking ${bookingId}:`,
+              sessionParticipants.map((p: any) => `${p.displayName} (${p.participantType})`).join(', '));
+
             const sessionResult = await createSessionWithUsageTracking(
               {
                 ownerEmail: updatedRow.userEmail,
@@ -195,11 +233,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 startTime: updatedRow.startTime,
                 endTime: updatedRow.endTime,
                 durationMinutes: updatedRow.durationMinutes,
-                participants: [{
-                  userId: ownerUserId || undefined,
-                  participantType: 'owner',
-                  displayName: updatedRow.userName || updatedRow.userEmail
-                }],
+                participants: sessionParticipants,
                 trackmanBookingId: updatedRow.trackmanBookingId || undefined,
                 declaredPlayerCount: updatedRow.declaredPlayerCount || undefined,
                 bookingId: bookingId
