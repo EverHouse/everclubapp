@@ -128,13 +128,21 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         if (bookingDetails.rows.length > 0) {
           const bd = bookingDetails.rows[0];
           
-          // First check if a session already exists for this time slot (from Trackman or another booking)
+          // First check if a session already exists that overlaps this time slot (from Trackman or another booking)
           const existingSession = await pool.query(`
             SELECT id FROM booking_sessions 
             WHERE resource_id = $1 
               AND session_date = $2 
-              AND start_time = $3 
-              AND end_time = $4
+              AND tsrange(
+                (session_date + start_time)::timestamp,
+                (session_date + end_time)::timestamp,
+                '[)'
+              ) && tsrange(
+                ($2::date + $3::time)::timestamp,
+                ($2::date + $4::time)::timestamp,
+                '[)'
+              )
+            ORDER BY start_time
             LIMIT 1
           `, [bd.resource_id, bd.request_date, bd.start_time, bd.end_time]);
           
