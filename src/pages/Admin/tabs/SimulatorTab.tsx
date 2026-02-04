@@ -2033,18 +2033,8 @@ const SimulatorTab: React.FC = () => {
                                                 const isConferenceRoom = bookingResource?.type === 'conference_room';
                                                 const isUnmatched = isBookingUnmatched(booking);
                                                 return (
-                                                    <SwipeableListItem
+                                                    <div
                                                         key={`upcoming-${booking.id}`}
-                                                        leftActions={[]}
-                                                        rightActions={[
-                                                            {
-                                                                id: 'cancel',
-                                                                icon: 'close',
-                                                                label: 'Cancel',
-                                                                color: 'red',
-                                                                onClick: () => cancelBookingOptimistic(booking)
-                                                            }
-                                                        ]}
                                                     >
                                                         <div 
                                                             className={`p-4 rounded-2xl animate-pop-in cursor-pointer shadow-sm ${
@@ -2181,7 +2171,7 @@ const SimulatorTab: React.FC = () => {
                                                                 ) : null}
                                                             </div>
                                                         </div>
-                                                    </SwipeableListItem>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
