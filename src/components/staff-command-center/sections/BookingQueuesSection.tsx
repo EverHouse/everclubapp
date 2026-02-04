@@ -183,8 +183,16 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     if (booking.is_unmatched) {
       return (
         <button
-          onClick={(e) => { e.stopPropagation(); onAssignMember?.(booking); }}
-          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1"
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => { 
+            e.preventDefault();
+            e.stopPropagation(); 
+            e.nativeEvent.stopImmediatePropagation();
+            onAssignMember?.(booking); 
+          }}
+          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1 relative z-10"
         >
           <span className="material-symbols-outlined text-sm">link</span>
           Assign Member
@@ -198,11 +206,16 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     if (declaredPlayers > 0 && filledPlayers < declaredPlayers) {
       return (
         <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { 
+            e.preventDefault();
             e.stopPropagation(); 
+            e.nativeEvent.stopImmediatePropagation();
             onRosterClick?.(bookingId);
           }}
-          className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+          className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1 relative z-10"
         >
           <span className="material-symbols-outlined text-sm">group</span>
           {filledPlayers}/{declaredPlayers} Players
@@ -213,11 +226,16 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     if (booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
       return (
         <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { 
+            e.preventDefault();
             e.stopPropagation(); 
+            e.nativeEvent.stopImmediatePropagation();
             onPaymentClick?.(bookingId);
           }}
-          className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
+          className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1 relative z-10"
         >
           <span className="material-symbols-outlined text-sm">payments</span>
           Charge ${(booking.total_owed || 0).toFixed(0)}
@@ -225,17 +243,22 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       );
     }
     
+    const handleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.nativeEvent.stopImmediatePropagation();
+      console.log('[Queue Check-in] Button clicked', { bookingId: booking.id, booking });
+      onCheckIn(booking);
+    };
+    
     return (
       <button
         type="button"
-        onClick={(e) => { 
-          e.preventDefault();
-          e.stopPropagation(); 
-          console.log('[Queue Check-in] Button clicked', { bookingId: booking.id });
-          onCheckIn(booking); 
-        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={handleClick}
         disabled={isCheckingIn}
-        className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center gap-1"
+        className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center gap-1 relative z-10"
       >
         {isCheckingIn ? (
           <>
