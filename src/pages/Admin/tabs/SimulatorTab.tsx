@@ -2120,7 +2120,7 @@ const SimulatorTab: React.FC = () => {
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
                                                                         Checked In
                                                                     </span>
-                                                                ) : !isConferenceRoom && isToday && booking.has_unpaid_fees ? (
+                                                                ) : !isConferenceRoom && isToday && (booking.has_unpaid_fees || (booking.total_owed ?? 0) > 0) ? (
                                                                     <button
                                                                         type="button"
                                                                         onClick={(e) => {
@@ -2132,7 +2132,7 @@ const SimulatorTab: React.FC = () => {
                                                                         className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
-                                                                        ${(booking.total_owed || 0).toFixed(0)} Due
+                                                                        Charge ${(booking.total_owed || 0).toFixed(0)}
                                                                     </button>
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
@@ -2140,30 +2140,12 @@ const SimulatorTab: React.FC = () => {
                                                                         onClick={async (e) => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
-                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                            alert('Checking in booking ' + bookingId);
-                                                                            try {
-                                                                                const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-                                                                                    method: 'PUT',
-                                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                                    credentials: 'include',
-                                                                                    body: JSON.stringify({ status: 'attended' })
-                                                                                });
-                                                                                if (res.ok) {
-                                                                                    alert('Success! Checked in.');
-                                                                                    window.location.reload();
-                                                                                } else {
-                                                                                    const err = await res.json();
-                                                                                    alert('Error: ' + (err.error || res.status));
-                                                                                }
-                                                                            } catch (err: any) {
-                                                                                alert('Failed: ' + err.message);
-                                                                            }
+                                                                            await updateBookingStatusOptimistic(booking, 'attended');
                                                                         }}
                                                                         className="flex-1 py-2.5 bg-green-500 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-green-600 active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">check</span>
-                                                                        CHECK IN
+                                                                        Check In
                                                                     </button>
                                                                 ) : null}
                                                             </div>
