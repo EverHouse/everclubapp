@@ -2169,7 +2169,12 @@ const SimulatorTab: React.FC = () => {
                                                                     </button>
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
-                                                                        onClick={() => updateBookingStatusOptimistic(booking, 'attended')}
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+                                                                            setBillingModal({ isOpen: true, bookingId });
+                                                                        }}
                                                                         className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
@@ -3384,19 +3389,18 @@ const SimulatorTab: React.FC = () => {
                     ) : (
                         <div className="flex gap-3">
                             <button
-                                onClick={async () => {
-                                    console.log('[Check-in] Attended button clicked', { booking: markStatusModal.booking?.id });
-                                    if (!markStatusModal.booking) {
-                                        console.log('[Check-in] No booking in modal!');
-                                        return;
-                                    }
-                                    const booking = markStatusModal.booking;
-                                    await updateBookingStatusOptimistic(booking, 'attended', () => setMarkStatusModal({ booking: null, confirmNoShow: false }));
+                                onClick={() => {
+                                    if (!markStatusModal.booking) return;
+                                    const bookingId = typeof markStatusModal.booking.id === 'string' 
+                                        ? parseInt(String(markStatusModal.booking.id).replace('cal_', '')) 
+                                        : markStatusModal.booking.id;
+                                    setMarkStatusModal({ booking: null, confirmNoShow: false });
+                                    setBillingModal({ isOpen: true, bookingId });
                                 }}
                                 className="flex-1 py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2"
                             >
-                                <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
-                                Attended
+                                <span aria-hidden="true" className="material-symbols-outlined text-sm">how_to_reg</span>
+                                Complete Check-In
                             </button>
                             <button
                                 onClick={() => setMarkStatusModal({ ...markStatusModal, confirmNoShow: true })}

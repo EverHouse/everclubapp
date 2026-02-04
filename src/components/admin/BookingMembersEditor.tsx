@@ -1382,20 +1382,21 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
           Collect ${financialSummary.grandTotal.toFixed(2)}
         </button>
       )}
-      {/* Show Check In / No Show when no fees OR fees are paid, and booking is approved/confirmed */}
+      {/* Show Complete Check-In when no fees OR fees are paid, and booking is approved/confirmed */}
+      {/* Uses the billing modal flow which handles check-in reliably */}
       {financialSummary && (financialSummary.grandTotal === 0 || financialSummary.allPaid) && 
        bookingStatus && (bookingStatus === 'approved' || bookingStatus === 'confirmed') && (
-        <div className="flex gap-2 mt-3">
+        <div className="space-y-2 mt-3">
           <button
-            onClick={() => onCheckIn?.(Number(bookingId))}
-            className="flex-1 py-2.5 px-4 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+            onClick={() => onCollectPayment?.(Number(bookingId))}
+            className="w-full py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
           >
-            <span className="material-symbols-outlined text-lg">check_circle</span>
-            Check In
+            <span className="material-symbols-outlined text-lg">how_to_reg</span>
+            Complete Check-In
           </button>
           <button
             onClick={() => onNoShow?.(Number(bookingId))}
-            className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+            className="w-full py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
           >
             <span className="material-symbols-outlined text-lg">person_off</span>
             No Show
