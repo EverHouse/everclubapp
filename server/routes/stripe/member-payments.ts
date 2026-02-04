@@ -921,6 +921,7 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     if (requestEmail && sessionUser.isStaff) {
       memberEmail = requestEmail.toLowerCase();
     }
+    const applyCredit = req.body?.applyCredit !== false; // Default to true
     
     // Use email as the primary identifier for Stripe customer
     const memberName = memberEmail;
@@ -991,16 +992,61 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
 
     const client = await pool.connect();
     let snapshotId: number | null = null;
+    let existingPaymentIntentId: string | null = null;
 
     try {
       await client.query('BEGIN');
       
-      const snapshotResult = await client.query(
-        `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
-         VALUES (NULL, NULL, $1, $2, 'pending') RETURNING id`,
-        [JSON.stringify(participantFees), totalCents]
+      // Check for existing pending snapshot (balance payment snapshots have null booking_id and session_id)
+      const existingSnapshot = await client.query(
+        `SELECT id, stripe_payment_intent_id, total_cents, participant_fees
+         FROM booking_fee_snapshots 
+         WHERE booking_id IS NULL AND session_id IS NULL AND status = 'pending' 
+         AND created_at > NOW() - INTERVAL '1 hour'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        []
       );
-      snapshotId = snapshotResult.rows[0].id;
+      
+      if (existingSnapshot.rows.length > 0) {
+        const existing = existingSnapshot.rows[0];
+        const existingFees = existing.participant_fees || {};
+        const existingApplyCredit = existingFees.applyCredit !== false;
+        const existingParticipantIds = (existingFees.fees || []).map((p: any) => p.id).sort().join(',');
+        const newParticipantIds = participantFees.map(p => p.id).sort().join(',');
+        const participantsMatch = existingParticipantIds === newParticipantIds;
+        
+        // Reuse snapshot only if applyCredit setting matches, amounts match, and participants match
+        if (existing.stripe_payment_intent_id && 
+            existing.total_cents === totalCents && 
+            participantsMatch &&
+            existingApplyCredit === applyCredit) {
+          snapshotId = existing.id;
+          existingPaymentIntentId = existing.stripe_payment_intent_id;
+          console.log(`[Member Balance] Reusing existing pending snapshot ${snapshotId}`);
+        } else {
+          // Expire stale snapshot (applyCredit changed or amounts/participants changed)
+          await client.query(
+            `UPDATE booking_fee_snapshots SET status = 'expired' WHERE id = $1`,
+            [existing.id]
+          );
+          console.log(`[Member Balance] Expiring stale snapshot ${existing.id} (applyCredit: ${existingApplyCredit} -> ${applyCredit}, amountMatch: ${existing.total_cents === totalCents}, participantsMatch: ${participantsMatch})`);
+        }
+      }
+      
+      if (!snapshotId) {
+        // Store applyCredit preference with the fees in the snapshot
+        const snapshotData = {
+          fees: participantFees,
+          applyCredit
+        };
+        const snapshotResult = await client.query(
+          `INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
+           VALUES (NULL, NULL, $1, $2, 'pending') RETURNING id`,
+          [JSON.stringify(snapshotData), totalCents]
+        );
+        snapshotId = snapshotResult.rows[0].id;
+      }
       
       await client.query('COMMIT');
     } catch (err) {
@@ -1008,6 +1054,41 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       throw err;
     } finally {
       client.release();
+    }
+    
+    // If we have an existing valid payment intent, return it
+    if (existingPaymentIntentId) {
+      try {
+        const { getStripeClient } = await import('../../core/stripe/client');
+        const stripe = await getStripeClient();
+        const existingIntent = await stripe.paymentIntents.retrieve(existingPaymentIntentId);
+        if (existingIntent.status === 'requires_payment_method' || existingIntent.status === 'requires_confirmation') {
+          console.log(`[Member Balance] Returning existing payment intent ${existingPaymentIntentId}`);
+          
+          // Get customer balance for response
+          const customer = await stripe.customers.retrieve((existingIntent.customer as string) || '');
+          let availableCredit = 0;
+          if (!('deleted' in customer) || !customer.deleted) {
+            const customerBalance = (customer as any).balance || 0;
+            availableCredit = customerBalance < 0 ? Math.abs(customerBalance) : 0;
+          }
+          
+          return res.json({
+            paidInFull: false,
+            clientSecret: existingIntent.client_secret,
+            paymentIntentId: existingPaymentIntentId,
+            totalCents,
+            balanceApplied: 0,
+            remainingCents: totalCents,
+            availableCreditCents: availableCredit,
+            itemCount: participantFees.length,
+            participantFees,
+            creditApplied: false
+          });
+        }
+      } catch (intentError) {
+        console.log(`[Member Balance] Could not reuse intent ${existingPaymentIntentId}, creating new one`);
+      }
     }
 
     // Get or create Stripe customer for balance-aware payment
@@ -1017,22 +1098,70 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       memberName
     );
 
-    // Use balance-aware payment to apply account credits first
-    const paymentResult = await createBalanceAwarePayment({
-      stripeCustomerId,
-      userId: memberEmail,
-      email: memberEmail,
-      memberName,
-      amountCents: totalCents,
-      purpose: 'overage_fee',
-      description: `Outstanding balance payment - ${participantFees.length} item(s)`,
-      metadata: {
-        feeSnapshotId: snapshotId!.toString(),
-        participantCount: participantFees.length.toString(),
-        participantIds: participantFees.map(f => f.id).join(',').substring(0, 490),
-        balancePayment: 'true'
-      }
-    });
+    // Get customer's available credit balance
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const stripe = await getStripeClient();
+    const customer = await stripe.customers.retrieve(stripeCustomerId);
+    let availableCreditCents = 0;
+    if (!('deleted' in customer) || !customer.deleted) {
+      const customerBalance = (customer as any).balance || 0;
+      availableCreditCents = customerBalance < 0 ? Math.abs(customerBalance) : 0;
+    }
+
+    let paymentResult: {
+      paidInFull: boolean;
+      clientSecret?: string;
+      paymentIntentId?: string;
+      balanceTransactionId?: string;
+      totalCents: number;
+      balanceApplied: number;
+      remainingCents: number;
+      error?: string;
+    };
+
+    if (applyCredit && availableCreditCents > 0) {
+      // Use balance-aware payment to apply account credits first
+      paymentResult = await createBalanceAwarePayment({
+        stripeCustomerId,
+        userId: memberEmail,
+        email: memberEmail,
+        memberName,
+        amountCents: totalCents,
+        purpose: 'overage_fee',
+        description: `Outstanding balance payment - ${participantFees.length} item(s)`,
+        metadata: {
+          feeSnapshotId: snapshotId!.toString(),
+          participantCount: participantFees.length.toString(),
+          participantIds: participantFees.map(f => f.id).join(',').substring(0, 490),
+          balancePayment: 'true'
+        }
+      });
+    } else {
+      // Use standard payment without balance application
+      const intentResult = await createPaymentIntent({
+        userId: memberEmail,
+        email: memberEmail,
+        memberName,
+        amountCents: totalCents,
+        purpose: 'overage_fee',
+        description: `Outstanding balance payment - ${participantFees.length} item(s)`,
+        stripeCustomerId,
+        metadata: {
+          feeSnapshotId: snapshotId!.toString(),
+          participantCount: participantFees.length.toString(),
+          participantIds: participantFees.map(f => f.id).join(',').substring(0, 490),
+          balancePayment: 'true'
+        }
+      });
+      paymentResult = {
+        paidInFull: false,
+        clientSecret: intentResult.clientSecret,
+        paymentIntentId: intentResult.paymentIntentId,
+        totalCents,
+        balanceApplied: 0,
+        remainingCents: totalCents
+      };
+    }
 
     if (paymentResult.error) {
       await pool.query(`DELETE FROM booking_fee_snapshots WHERE id = $1`, [snapshotId]);
@@ -1061,7 +1190,10 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       );
     }
 
-    console.log(`[Member Balance] Payment created: $${(totalCents / 100).toFixed(2)} (balance: $${(paymentResult.balanceApplied / 100).toFixed(2)}, remaining: $${(paymentResult.remainingCents / 100).toFixed(2)})`);
+    // Determine if credit was actually applied
+    const creditApplied = applyCredit && availableCreditCents > 0 && paymentResult.balanceApplied > 0;
+
+    console.log(`[Member Balance] Payment created: $${(totalCents / 100).toFixed(2)} (balance: $${(paymentResult.balanceApplied / 100).toFixed(2)}, remaining: $${(paymentResult.remainingCents / 100).toFixed(2)}, applyCredit: ${applyCredit}, creditApplied: ${creditApplied})`);
 
     res.json({
       paidInFull: paymentResult.paidInFull,
@@ -1071,8 +1203,10 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       totalCents,
       balanceApplied: paymentResult.balanceApplied,
       remainingCents: paymentResult.remainingCents,
+      availableCreditCents,
       itemCount: participantFees.length,
       participantFees,
+      creditApplied,
       error: paymentResult.error
     });
   } catch (error: any) {

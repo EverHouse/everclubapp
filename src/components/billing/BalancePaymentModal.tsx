@@ -17,8 +17,10 @@ interface PayBalanceResponse {
   totalCents: number;
   balanceApplied?: number;
   remainingCents?: number;
+  availableCreditCents?: number;
   itemCount: number;
   participantFees: ParticipantFee[];
+  creditApplied?: boolean;
   error?: string;
 }
 
@@ -44,6 +46,7 @@ export function BalancePaymentModal({
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<PayBalanceResponse | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [applyCredit, setApplyCredit] = useState(true);
 
   const initializePayment = useCallback(async () => {
     try {
@@ -55,7 +58,7 @@ export function BalancePaymentModal({
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ memberEmail })
+          body: JSON.stringify({ memberEmail, applyCredit })
         }
       );
 
@@ -75,13 +78,19 @@ export function BalancePaymentModal({
     } finally {
       setLoading(false);
     }
-  }, [memberEmail, onSuccess]);
+  }, [memberEmail, applyCredit, onSuccess]);
 
   useEffect(() => {
     if (isOpen) {
       initializePayment();
     }
   }, [isOpen, initializePayment]);
+
+  useEffect(() => {
+    if (isOpen && paymentData !== null) {
+      initializePayment();
+    }
+  }, [applyCredit]);
 
   const handlePaymentSuccess = async () => {
     if (!paymentIntentId) {
@@ -172,6 +181,46 @@ export function BalancePaymentModal({
                 </div>
               )}
             </div>
+
+            {paymentData.availableCreditCents !== undefined && paymentData.availableCreditCents > 0 && (
+              <div className={`rounded-xl p-3 mb-4 ${isDark ? 'bg-green-900/20 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`material-symbols-outlined text-lg ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                      account_balance_wallet
+                    </span>
+                    <div>
+                      <p className={`text-sm font-medium ${isDark ? 'text-green-300' : 'text-green-700'}`}>
+                        Account Credit
+                      </p>
+                      <p className={`text-xs ${isDark ? 'text-green-400/70' : 'text-green-600/70'}`}>
+                        ${(paymentData.availableCreditCents / 100).toFixed(2)} available
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setApplyCredit(!applyCredit)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      applyCredit 
+                        ? (isDark ? 'bg-green-500' : 'bg-green-600') 
+                        : (isDark ? 'bg-gray-600' : 'bg-gray-300')
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        applyCredit ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {applyCredit && paymentData.balanceApplied && paymentData.balanceApplied > 0 && (
+                  <p className={`text-xs mt-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                    ${(paymentData.balanceApplied / 100).toFixed(2)} credit will be applied
+                  </p>
+                )}
+              </div>
+            )}
 
             {paymentData.paidInFull ? (
               <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
