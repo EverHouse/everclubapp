@@ -2188,7 +2188,12 @@ const SimulatorTab: React.FC = () => {
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={async () => {
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            e.preventDefault();
+                                                                            const btn = e.currentTarget;
+                                                                            if (btn.disabled) return;
+                                                                            btn.disabled = true;
                                                                             const id = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
                                                                             try {
                                                                                 const res = await fetch(`/api/bookings/${id}/checkin`, {
@@ -2207,14 +2212,17 @@ const SimulatorTab: React.FC = () => {
                                                                                     } else {
                                                                                         setBillingModal({ isOpen: true, bookingId: id });
                                                                                     }
+                                                                                    btn.disabled = false;
                                                                                 } else {
                                                                                     showToast('Failed to check in', 'error');
+                                                                                    btn.disabled = false;
                                                                                 }
                                                                             } catch (err) {
                                                                                 showToast('Failed to check in', 'error');
+                                                                                btn.disabled = false;
                                                                             }
                                                                         }}
-                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
+                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50"
                                                                     >
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
                                                                         Check In
