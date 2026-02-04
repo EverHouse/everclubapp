@@ -1002,21 +1002,26 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
            new Date(`2000-01-01T${existing.start_time}`).getTime()) / 60000
         );
         
-        // 1. Check for existing session with EXACT matching times (not just overlap)
-        // This prevents reusing sessions with different durations
+        // 1. Check for existing session with EXACT matching times AND same owner
+        // Never link to sessions belonging to other members
+        const userResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, [existing.user_email]);
+        const userId = userResult.rows[0]?.id || null;
+        
         const existingSession = await pool.query(`
-          SELECT id FROM booking_sessions 
-          WHERE resource_id = $1 
-            AND session_date = $2 
-            AND start_time = $3 
-            AND end_time = $4
+          SELECT bs.id FROM booking_sessions bs
+          LEFT JOIN booking_participants bp ON bp.session_id = bs.id AND bp.participant_type = 'owner'
+          WHERE bs.resource_id = $1 
+            AND bs.session_date = $2 
+            AND bs.start_time = $3 
+            AND bs.end_time = $4
+            AND (bp.user_id IS NULL OR bp.user_id = $5)
           LIMIT 1
-        `, [existing.resource_id, existing.request_date, existing.start_time, existing.end_time]);
+        `, [existing.resource_id, existing.request_date, existing.start_time, existing.end_time, userId]);
 
         let newSessionId: number;
         if (existingSession.rows.length > 0) {
           newSessionId = existingSession.rows[0].id;
-          console.log(`[Checkin] Using existing session ${newSessionId} with exact times for booking ${bookingId}`);
+          console.log(`[Checkin] Using existing session ${newSessionId} with exact times for same member booking ${bookingId}`);
         } else {
           // 2. Create new session with valid source enum
           const sessionResult = await pool.query(`
@@ -1032,10 +1037,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
           await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [newSessionId, bookingId]);
           existing.session_id = newSessionId;
 
-          // 4. Create Owner Participant if not exists
-          const userResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, [existing.user_email]);
-          const userId = userResult.rows[0]?.id || null;
-          
+          // 4. Create Owner Participant if not exists (userId already defined above)
           const existingOwner = await pool.query(`
             SELECT id FROM booking_participants WHERE session_id = $1 AND participant_type = 'owner'
           `, [newSessionId]);
@@ -1330,32 +1332,28 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
       `, [booking.resource_id, booking.request_date, booking.start_time, booking.end_time]);
       
       if (exactSession.rows.length > 0) {
-        sessionId = exactSession.rows[0].id;
-      } else {
-        // Second: Check for overlapping session (to avoid double-booking trigger)
-        const overlappingSession = await pool.query(`
-          SELECT id FROM booking_sessions 
-          WHERE resource_id = $1 
-            AND session_date = $2 
-            AND start_time < $4 
-            AND end_time > $3
+        // Only use exact match if it belongs to the same member
+        const ownerCheck = await pool.query(`
+          SELECT bp.user_id FROM booking_participants bp
+          WHERE bp.session_id = $1 AND bp.participant_type = 'owner'
           LIMIT 1
+        `, [exactSession.rows[0].id]);
+        
+        if (ownerCheck.rows.length === 0 || ownerCheck.rows[0].user_id === booking.user_id) {
+          sessionId = exactSession.rows[0].id;
+        }
+      }
+      
+      // If no suitable exact match, create new session (never link to overlapping sessions from other members)
+      if (!sessionId) {
+        const sessionResult = await pool.query(`
+          INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, source, created_by)
+          VALUES ($1, $2, $3, $4, 'staff_manual', 'dev_confirm')
+          RETURNING id
         `, [booking.resource_id, booking.request_date, booking.start_time, booking.end_time]);
         
-        if (overlappingSession.rows.length > 0) {
-          // Use existing overlapping session
-          sessionId = overlappingSession.rows[0].id;
-        } else {
-          // Third: Create new session
-          const sessionResult = await pool.query(`
-            INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, source, created_by)
-            VALUES ($1, $2, $3, $4, 'staff_manual', 'dev_confirm')
-            RETURNING id
-          `, [booking.resource_id, booking.request_date, booking.start_time, booking.end_time]);
-          
-          if (sessionResult.rows.length > 0) {
-            sessionId = sessionResult.rows[0].id;
-          }
+        if (sessionResult.rows.length > 0) {
+          sessionId = sessionResult.rows[0].id;
         }
       }
       

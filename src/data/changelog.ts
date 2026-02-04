@@ -13,14 +13,27 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.4.7",
+    date: "2026-02-04",
+    title: "Critical: Bookings No Longer Link to Wrong Sessions",
+    isMajor: true,
+    changes: [
+      "Fixed: Bookings now NEVER link to sessions belonging to other members",
+      "Fixed: Dev Confirm and Check-In now verify session owner matches booking member before linking",
+      "Fixed: Removed dangerous 'overlapping session' matching that caused bookings to steal other members' sessions",
+      "Fixed: Each booking now gets its own session with correct owner and participants",
+      "Previously: A booking could link to any overlapping session on the same bay - even if owned by a different member!"
+    ]
+  },
+  {
     version: "69.4.6",
     date: "2026-02-04",
-    title: "Fixed: Empty Guest Slots No Longer Charged",
+    title: "Guest Slots Always Show $25 Fee",
     changes: [
-      "Fixed: Empty guest slots no longer counted in fee estimates - only filled-in guests with name/email are counted",
-      "Fixed: Booking submission now uses actual filled-in participant count, not just selected player count",
-      "Fixed: Selecting '2 Players' but leaving guest slot empty now correctly shows 1 player (just the owner)",
-      "Previously: An empty guest slot would still add $25 guest fee to the estimate"
+      "Clarified: ALL guest slots show $25 fee (linked to Stripe guest fee product)",
+      "Clarified: Only way to avoid $25 guest fee is: add a member with Core tier or higher, OR use a guest pass",
+      "Clarified: Empty guest slots still incur fee - if you select 2 players, the second player slot is charged",
+      "Business rule: Selecting 2 players = 1 guest = $25 charge regardless of whether info is filled in"
     ]
   },
   {

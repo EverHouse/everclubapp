@@ -404,9 +404,11 @@ const BookGolf: React.FC = () => {
   });
 
   // Fee Estimate Query (debounced via staleTime)
-  // Only count guests that are actually filled in (have selectedId or email)
+  // Count ALL guest-type slots for fee estimation - each slot is $25 unless:
+  // 1. A member with Core tier or above fills the slot (type becomes 'member')
+  // 2. A guest pass is used (handled by backend)
   const guestCount = activeTab === 'simulator' 
-    ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || slot.email)).length 
+    ? playerSlots.filter(slot => slot.type === 'guest').length 
     : 0;
   const effectivePlayerCount = activeTab === 'simulator' ? playerCount : 1;
   const feeEstimateParams = useMemo(() => {
@@ -816,10 +818,8 @@ const BookGolf: React.FC = () => {
             }))
         : undefined;
 
-      // Calculate actual player count: owner (1) + filled-in participants
-      const filledParticipantCount = requestParticipants?.length || 0;
-      const actualPlayerCount = 1 + filledParticipantCount;
-      
+      // Use full playerCount since all guest slots are charged $25
+      // (unless member with Core+ fills slot or guest pass is used)
       await createBookingMutation.mutateAsync({
         user_email: effectiveUser.email,
         user_name: effectiveUser.name,
@@ -829,7 +829,7 @@ const BookGolf: React.FC = () => {
         start_time: selectedSlot.startTime24,
         duration_minutes: duration,
         notes: activeTab === 'conference' ? 'Conference room booking' : null,
-        declared_player_count: activeTab === 'simulator' ? actualPlayerCount : undefined,
+        declared_player_count: activeTab === 'simulator' ? playerCount : undefined,
         member_notes: memberNotes.trim() || undefined,
         request_participants: requestParticipants,
         ...(consent ? {
