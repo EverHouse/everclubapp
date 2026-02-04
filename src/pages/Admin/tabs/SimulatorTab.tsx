@@ -1106,6 +1106,11 @@ const SimulatorTab: React.FC = () => {
         booking: BookingRequest,
         newStatus: 'attended' | 'no_show' | 'cancelled'
     ): Promise<boolean> => {
+        // Parse booking ID to handle cal_ prefix from calendar-sourced bookings
+        const bookingId = typeof booking.id === 'string' 
+            ? parseInt(String(booking.id).replace('cal_', '')) 
+            : booking.id;
+        
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
         const previousApproved = queryClient.getQueryData(bookingsKeys.approved(startDate, endDate));
@@ -1123,8 +1128,8 @@ const SimulatorTab: React.FC = () => {
         );
         
         try {
-            console.log('[Check-in v2] Making API call', { bookingId: booking.id, newStatus, source: booking.source });
-            const res = await fetch(`/api/bookings/${booking.id}/checkin`, {
+            console.log('[Check-in v2] Making API call', { bookingId, newStatus, source: booking.source });
+            const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -1139,7 +1144,6 @@ const SimulatorTab: React.FC = () => {
                 queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
                 
                 // Open the appropriate modal based on what's needed
-                const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
                 if (errorData.requiresRoster) {
                     setRosterModal({ isOpen: true, bookingId });
                 } else {
@@ -1153,7 +1157,7 @@ const SimulatorTab: React.FC = () => {
                 // If billing session not generated, allow user to proceed anyway
                 if (errorData.requiresSync) {
                     // Retry with skipPaymentCheck to bypass the billing session check
-                    const retryRes = await fetch(`/api/bookings/${booking.id}/checkin`, {
+                    const retryRes = await fetch(`/api/bookings/${bookingId}/checkin`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
