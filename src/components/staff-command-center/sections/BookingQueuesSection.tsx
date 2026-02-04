@@ -171,32 +171,6 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     const isCheckingIn = isActionLoading(`checkin-${booking.id}`);
     const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
     
-    // Check for unpaid fees FIRST - even if checked in, need to collect payment
-    if (booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
-      const isAttended = booking.status === 'attended';
-      return (
-        <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => { 
-            e.preventDefault();
-            e.stopPropagation(); 
-            e.nativeEvent.stopImmediatePropagation();
-            onPaymentClick?.(bookingId);
-          }}
-          className={`text-xs px-2 py-1 rounded-lg transition-colors flex items-center gap-1 relative z-10 ${
-            isAttended 
-              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50'
-              : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50'
-          }`}
-        >
-          <span className="material-symbols-outlined text-sm">payments</span>
-          {isAttended ? 'Collect' : 'Charge'} ${(booking.total_owed || 0).toFixed(0)}
-        </button>
-      );
-    }
-    
     if (booking.status === 'attended') {
       return (
         <span className="text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1">
@@ -209,16 +183,8 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     if (booking.is_unmatched) {
       return (
         <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => { 
-            e.preventDefault();
-            e.stopPropagation(); 
-            e.nativeEvent.stopImmediatePropagation();
-            onAssignMember?.(booking); 
-          }}
-          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1 relative z-10"
+          onClick={(e) => { e.stopPropagation(); onAssignMember?.(booking); }}
+          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">link</span>
           Assign Member
@@ -232,16 +198,11 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     if (declaredPlayers > 0 && filledPlayers < declaredPlayers) {
       return (
         <button
-          type="button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { 
-            e.preventDefault();
             e.stopPropagation(); 
-            e.nativeEvent.stopImmediatePropagation();
             onRosterClick?.(bookingId);
           }}
-          className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1 relative z-10"
+          className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">group</span>
           {filledPlayers}/{declaredPlayers} Players
@@ -249,22 +210,26 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       );
     }
     
-    const handleClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.nativeEvent.stopImmediatePropagation();
-      console.log('[Queue Check-in] Button clicked', { bookingId: booking.id, booking });
-      onCheckIn(booking);
-    };
+    if (booking.has_unpaid_fees && (booking.total_owed ?? 0) > 0) {
+      return (
+        <button
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            onPaymentClick?.(bookingId);
+          }}
+          className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
+        >
+          <span className="material-symbols-outlined text-sm">payments</span>
+          Charge ${(booking.total_owed || 0).toFixed(0)}
+        </button>
+      );
+    }
     
     return (
       <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={handleClick}
+        onClick={(e) => { e.stopPropagation(); executeCheckIn(booking); }}
         disabled={isCheckingIn}
-        className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center gap-1 relative z-10"
+        className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center gap-1"
       >
         {isCheckingIn ? (
           <>

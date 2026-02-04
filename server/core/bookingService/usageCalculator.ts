@@ -655,7 +655,6 @@ export async function recalculateSessionFees(
       sessionDuration,
       participants,
       hostEmail || participants.find(p => p.participantType === 'owner')?.email || '',
-      participants.length,
       { excludeSessionId: sessionId }
     );
     

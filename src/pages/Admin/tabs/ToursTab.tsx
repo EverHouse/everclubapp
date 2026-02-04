@@ -83,9 +83,7 @@ const ToursTab: React.FC = () => {
     if (checkInModalOpen && typeformContainerRef.current && selectedTour) {
       typeformContainerRef.current.innerHTML = '';
       const script = document.createElement('script');
-      // SECURITY FIX: Use explicit https:// protocol instead of protocol-relative URL
-      // Prevents potential MITM attacks on HTTP connections
-      script.src = 'https://embed.typeform.com/next/embed.js';
+      script.src = '//embed.typeform.com/next/embed.js';
       script.async = true;
       
       const formDiv = document.createElement('div');

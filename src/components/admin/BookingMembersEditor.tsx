@@ -105,12 +105,8 @@ interface BookingMembersEditorProps {
   bookingId: number | string;
   onMemberLinked?: () => void;
   onCollectPayment?: (bookingId: number) => void;
-  onCheckIn?: (bookingId: number) => void;
-  onNoShow?: (bookingId: number) => void;
-  onUndoStatus?: (bookingId: number) => void;
   bookingContext?: BookingContext;
   showHeader?: boolean;
-  bookingStatus?: string;
 }
 
 function parseNamesFromNotes(notes: string): string[] {
@@ -190,12 +186,8 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   bookingId, 
   onMemberLinked, 
   onCollectPayment,
-  onCheckIn,
-  onNoShow,
-  onUndoStatus,
   bookingContext,
-  showHeader = false,
-  bookingStatus
+  showHeader = false
 }) => {
   const { members: allMembersList } = useData();
   const [members, setMembers] = useState<BookingMember[]>([]);
@@ -1374,7 +1366,13 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         </div>
       )}
 
-      {/* Collect Payment Button, Check In Button, or Status Indicators */}
+      {/* Collect Payment Button or Paid Indicator */}
+      {financialSummary && financialSummary.allPaid && (
+        <div className="w-full mt-3 py-2.5 px-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-green-200 dark:border-green-800">
+          <span className="material-symbols-outlined text-lg">check_circle</span>
+          Paid
+        </div>
+      )}
       {financialSummary && financialSummary.grandTotal > 0 && !financialSummary.allPaid && (
         <button
           onClick={() => onCollectPayment?.(Number(bookingId))}
@@ -1383,57 +1381,6 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
           <span className="material-symbols-outlined text-lg">credit_card</span>
           Collect ${financialSummary.grandTotal.toFixed(2)}
         </button>
-      )}
-      {/* Show Check In / No Show when no fees OR fees are paid, and booking is approved/confirmed */}
-      {financialSummary && (financialSummary.grandTotal === 0 || financialSummary.allPaid) && 
-       bookingStatus && (bookingStatus === 'approved' || bookingStatus === 'confirmed') && (
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={() => onCheckIn?.(Number(bookingId))}
-            className="flex-1 py-2.5 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <span className="material-symbols-outlined text-lg">how_to_reg</span>
-            Complete Check-In
-          </button>
-          <button
-            onClick={() => onNoShow?.(Number(bookingId))}
-            className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <span className="material-symbols-outlined text-lg">person_off</span>
-            No Show
-          </button>
-        </div>
-      )}
-      {/* Show status indicator for already checked in or no show - with undo option */}
-      {bookingStatus === 'attended' && (
-        <div className="space-y-2 mt-3">
-          <div className="w-full py-2.5 px-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-green-200 dark:border-green-800">
-            <span className="material-symbols-outlined text-lg">check_circle</span>
-            Checked In
-          </div>
-          <button
-            onClick={() => onUndoStatus?.(Number(bookingId))}
-            className="w-full py-2 px-4 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">undo</span>
-            Undo Check-In
-          </button>
-        </div>
-      )}
-      {bookingStatus === 'no_show' && (
-        <div className="space-y-2 mt-3">
-          <div className="w-full py-2.5 px-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-red-200 dark:border-red-800">
-            <span className="material-symbols-outlined text-lg">person_off</span>
-            No Show
-          </div>
-          <button
-            onClick={() => onUndoStatus?.(Number(bookingId))}
-            className="w-full py-2 px-4 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">undo</span>
-            Undo No Show
-          </button>
-        </div>
       )}
 
       {/* Member Match Warning Modal */}

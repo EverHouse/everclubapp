@@ -14,7 +14,7 @@ import { sendNotificationToUser, broadcastAvailabilityUpdate, broadcastMemberSta
 import { getSessionUser } from '../../types/session';
 import { refundGuestPass } from '../guestPasses';
 import { updateHubSpotContactVisitCount } from '../../core/memberSync';
-import { createSessionWithUsageTracking, ensureBookingSession } from '../../core/bookingService/sessionManager';
+import { createSessionWithUsageTracking } from '../../core/bookingService/sessionManager';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { PaymentStatusService } from '../../core/billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
@@ -922,159 +922,12 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       }
     }
     
-    // Auto-heal missing sessions (e.g. from Trackman CSV Import)
     if (newStatus === 'attended' && !existing.session_id && !skipPaymentCheck) {
-      // First try the standard approach
-      const sessionResult = await ensureBookingSession(bookingId, 'checkin_auto_create');
-      
-      if (sessionResult.sessionId) {
-        existing.session_id = sessionResult.sessionId;
-        console.log(`[Check-in] Auto-created session ${sessionResult.sessionId} for booking ${bookingId}`);
-      } else {
-        // ensureBookingSession failed - try direct auto-heal approach
-        console.log(`[Check-in Auto-Heal] ensureBookingSession failed: ${sessionResult.error}. Attempting direct session creation for booking ${bookingId}`);
-        
-        try {
-          // Get full booking details including resource from any available source
-          const bookingDetails = await pool.query(`
-            SELECT br.id, br.resource_id, br.request_date, br.start_time, br.end_time, 
-                   br.user_email, br.user_name, br.declared_player_count, br.trackman_player_count,
-                   br.trackman_booking_id
-            FROM booking_requests br
-            WHERE br.id = $1
-          `, [bookingId]);
-          
-          if (bookingDetails.rows.length > 0) {
-            const bd = bookingDetails.rows[0];
-            let resourceId = bd.resource_id;
-            
-            // If no resource_id, we cannot safely create a session
-            // Do NOT assign a random bay as it could cause billing/availability corruption
-            if (!resourceId) {
-              console.log(`[Check-in Auto-Heal] Cannot create session for booking ${bookingId} - no resource_id assigned`);
-            }
-            
-            if (resourceId && bd.request_date && bd.start_time) {
-              // Create session shell
-              const createSessionResult = await pool.query(`
-                INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, source, created_by)
-                VALUES ($1, $2, $3, $4, 'checkin_auto_heal', $5)
-                ON CONFLICT (resource_id, session_date, start_time, end_time) DO NOTHING
-                RETURNING id
-              `, [resourceId, bd.request_date, bd.start_time, bd.end_time, staffEmail]);
-              
-              let sessionId = createSessionResult.rows[0]?.id;
-              
-              // Handle race condition if session was created ms ago
-              if (!sessionId) {
-                const existingSession = await pool.query(`
-                  SELECT id FROM booking_sessions 
-                  WHERE resource_id = $1 AND session_date = $2 AND start_time = $3 AND end_time = $4
-                `, [resourceId, bd.request_date, bd.start_time, bd.end_time]);
-                sessionId = existingSession.rows[0]?.id;
-              }
-              
-              if (sessionId) {
-                // Link session to booking
-                await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [sessionId, bookingId]);
-                existing.session_id = sessionId;
-                
-                // Ensure owner participant exists
-                const ownerCheck = await pool.query(`
-                  SELECT id FROM booking_participants WHERE session_id = $1 AND participant_type = 'owner'
-                `, [sessionId]);
-                
-                if (ownerCheck.rows.length === 0) {
-                  const owner = await pool.query(`
-                    SELECT u.id FROM users u WHERE LOWER(u.email) = LOWER($1)
-                  `, [bd.user_email]);
-                  const ownerId = owner.rows[0]?.id || null;
-                  
-                  await pool.query(`
-                    INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
-                    VALUES ($1, $2, 'owner', $3, 'pending')
-                  `, [sessionId, ownerId, bd.user_name || 'Member']);
-                }
-                
-                // Sync linked members from booking_members roster
-                await pool.query(`
-                  INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
-                  SELECT $1, u.id, 'member', u.name, 'pending'
-                  FROM booking_members bm
-                  JOIN users u ON LOWER(u.email) = LOWER(bm.user_email)
-                  WHERE bm.booking_id = $2
-                  AND u.id NOT IN (SELECT user_id FROM booking_participants WHERE session_id = $1 AND user_id IS NOT NULL)
-                  ON CONFLICT DO NOTHING
-                `, [sessionId, bookingId]);
-                
-                // Sync guests from booking_guests roster
-                await pool.query(`
-                  INSERT INTO booking_participants (session_id, participant_type, display_name, payment_status)
-                  SELECT $1, 'guest', bg.guest_name, 'pending'
-                  FROM booking_guests bg
-                  WHERE bg.booking_id = $2
-                  AND bg.guest_name NOT IN (SELECT display_name FROM booking_participants WHERE session_id = $1 AND participant_type = 'guest')
-                  ON CONFLICT DO NOTHING
-                `, [sessionId, bookingId]);
-                
-                // Calculate fees
-                try {
-                  await recalculateSessionFees(sessionId, 'checkin_auto_heal');
-                  console.log(`[Check-in Auto-Heal] Created session ${sessionId} and calculated fees for booking ${bookingId}`);
-                } catch (feeErr) {
-                  console.error(`[Check-in Auto-Heal] Fee calculation warning for session ${sessionId}:`, feeErr);
-                }
-              }
-            }
-          }
-        } catch (autoHealErr) {
-          console.error(`[Check-in Auto-Heal] Failed to create session for booking ${bookingId}:`, autoHealErr);
-        }
-        
-        // Final check - if we still don't have a session and fees might be owed, BLOCK check-in
-        if (!existing.session_id) {
-          // Check if there's a conflicting session we need to resolve
-          const bookingDetails = await pool.query(`
-            SELECT br.resource_id, br.request_date, br.start_time, br.end_time, br.user_email
-            FROM booking_requests br WHERE br.id = $1
-          `, [bookingId]);
-          
-          if (bookingDetails.rows.length > 0) {
-            const bd = bookingDetails.rows[0];
-            
-            // Look for conflicting sessions on same bay/date/time
-            const conflictCheck = await pool.query(`
-              SELECT bs.id, bs.trackman_booking_id, bs.start_time, bs.end_time
-              FROM booking_sessions bs
-              WHERE bs.resource_id = $1 AND bs.session_date = $2
-              AND bs.start_time < $4 AND bs.end_time > $3
-              LIMIT 1
-            `, [bd.resource_id, bd.request_date, bd.start_time, bd.end_time]);
-            
-            if (conflictCheck.rows.length > 0) {
-              const conflict = conflictCheck.rows[0];
-              console.error(`[Check-in] BLOCKED: Booking ${bookingId} has conflicting session ${conflict.id} (Trackman: ${conflict.trackman_booking_id})`);
-              return res.status(409).json({
-                error: 'Conflicting billing session exists',
-                message: `Cannot check in: There's a conflicting billing session (${conflict.start_time}-${conflict.end_time}) on this bay. Please resolve the billing conflict first or contact support.`,
-                conflictingSession: conflict.id
-              });
-            }
-          }
-          
-          // No conflict found but still no session - block if skipPaymentCheck not explicitly set
-          if (!skipPaymentCheck) {
-            console.error(`[Check-in] BLOCKED: Cannot create billing session for booking ${bookingId}. Fees cannot be calculated.`);
-            return res.status(400).json({
-              error: 'Billing session required',
-              message: 'Cannot check in: Unable to create a billing session to calculate fees. Please try refreshing or contact support.'
-            });
-          }
-          
-          // Only allow if explicitly skipping payment check
-          console.warn(`[Check-in] Allowing check-in for booking ${bookingId} without billing session (skipPaymentCheck=true)`);
-        }
-      }
+      return res.status(400).json({
+        error: 'Billing session not generated yet',
+        requiresSync: true,
+        message: 'Billing session not generated yet - Check Trackman Sync. The session may need to be synced from Trackman before check-in to ensure proper billing.'
+      });
     }
     
     if (newStatus === 'attended' && existing.session_id && !skipPaymentCheck) {

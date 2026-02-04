@@ -1552,13 +1552,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           });
         }
       }
-      
-      // FIX: If main email didn't match but we found a valid member in the notes, use that as primary match
-      if (!matchedEmail && memberEmailsFromNotes.length > 0) {
-        matchedEmail = memberEmailsFromNotes[0];
-        matchReason = 'Matched via member email found in notes';
-        process.stderr.write(`[Trackman Import] Promoted note email to primary match: ${row.userEmail} -> ${matchedEmail}\n`);
-      }
 
       if (!matchedEmail && row.userName) {
         const normalizedName = row.userName.toLowerCase().trim();
@@ -1834,18 +1827,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           }
         }
         
-        // BACKFILL: Create session and participants for ANY existing booking if missing
-        // Removed isWebhookCreated restriction - CSV imports should also backfill sessions
-        // This allows re-importing a CSV to repair bookings that were created without sessions
-        if (!existing.sessionId && parsedBayId && bookingDate && startTime) {
+        // BACKFILL: Create session and participants for WEBHOOK-ORIGINATED bookings if missing
+        // Only backfill if we have confirmed ownership and required fields
+        if (isWebhookCreated && !existing.sessionId && parsedBayId && bookingDate && startTime) {
           const ownerEmail = matchedEmail || existing.userEmail;
           const ownerName = row.userName || existing.userName;
           
-          // Only create session if we have a confirmed owner email (not a placeholder)
-          if (ownerEmail && 
-              ownerEmail !== 'unmatched@trackman.import' && 
-              !isPlaceholderEmail(ownerEmail) &&
-              ownerEmail.includes('@')) {
+          // Only create session if we have a confirmed owner email
+          if (ownerEmail && ownerEmail !== 'unmatched@trackman.import') {
             const backfillParsedPlayers = parseNotesForPlayers(row.notes);
             await createTrackmanSessionAndParticipants({
               bookingId: existing.id,
@@ -1862,7 +1851,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               trackmanEmailMapping: trackmanEmailMapping,
               isPast: !isUpcoming
             });
-            process.stderr.write(`[Trackman Import] Backfilled session for existing booking #${existing.id} (Trackman ID: ${row.bookingId})${isWebhookCreated ? ' [webhook]' : ' [csv]'}\n`);
+            process.stderr.write(`[Trackman Import] Backfilled session for webhook booking #${existing.id} (Trackman ID: ${row.bookingId})\n`);
           }
         }
         

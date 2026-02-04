@@ -15,7 +15,6 @@ import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWi
 interface BlocksClosure {
     id: number;
     title: string;
-    description: string | null;
     reason: string | null;
     noticeType: string | null;
     startDate: string;
@@ -40,7 +39,6 @@ interface BlocksClosureForm {
     visibility: string;
     reason: string;
     title: string;
-    description: string;
     notice_type: string;
     notify_members: boolean;
 }
@@ -105,7 +103,6 @@ const BlocksTab: React.FC = () => {
         visibility: '',
         reason: '',
         title: '',
-        description: '',
         notice_type: '',
         notify_members: false
     });
@@ -373,7 +370,6 @@ const BlocksTab: React.FC = () => {
             visibility: '',
             reason: '',
             title: '',
-            description: '',
             notice_type: '',
             notify_members: false
         });
@@ -398,7 +394,6 @@ const BlocksTab: React.FC = () => {
             visibility: closure.visibility || '',
             reason: closure.reason || '',
             title: closure.title || '',
-            description: closure.description || '',
             notice_type: closure.noticeType || '',
             notify_members: closure.notifyMembers ?? false
         });
@@ -1275,19 +1270,6 @@ const BlocksTab: React.FC = () => {
                                 value={closureForm.title} 
                                 onChange={e => setClosureForm({...closureForm, title: e.target.value})} 
                             />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1 block">Description <span className="text-[9px] font-normal normal-case text-gray-400 dark:text-gray-500">(optional)</span></label>
-                            <textarea 
-                                placeholder="Additional details about this notice..." 
-                                rows={3}
-                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" 
-                                value={closureForm.description} 
-                                onChange={e => setClosureForm({...closureForm, description: e.target.value})} 
-                            />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Shown on the Internal Calendar and in notifications
-                            </p>
                         </div>
                         <div>
                             <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1 block">Closure Reason</label>

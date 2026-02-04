@@ -56,19 +56,13 @@ router.get('/api/booking-requests', async (req, res) => {
     
     if (user_email && !include_all) {
       const userEmailLower = (user_email as string).toLowerCase();
-      // CRITICAL FIX: Check booking_members (legacy), booking_participants (via session_id), and booking_guests
-      // booking_participants uses session_id, so we must join through booking_sessions to get booking_request_id
-      // booking_participants.user_id is a varchar ID, so we join through users to match by email
+      // CRITICAL FIX: Check BOTH booking_members (legacy) AND booking_participants (new)
+      // Otherwise members added via Session Manager / Trackman auto-match are invisible in their dashboard
       conditions.push(
         or(
           sql`LOWER(${bookingRequests.userEmail}) = ${userEmailLower}`,
           sql`${bookingRequests.id} IN (SELECT booking_id FROM booking_members WHERE LOWER(user_email) = ${userEmailLower})`,
-          sql`${bookingRequests.id} IN (
-            SELECT bs.booking_request_id FROM booking_sessions bs
-            JOIN booking_participants bp ON bp.session_id = bs.id
-            JOIN users u ON u.id = bp.user_id
-            WHERE LOWER(u.email) = ${userEmailLower} AND bs.booking_request_id IS NOT NULL
-          )`
+          sql`${bookingRequests.id} IN (SELECT booking_request_id FROM booking_participants WHERE LOWER(user_email) = ${userEmailLower})`
         )
       );
     }
@@ -429,57 +423,6 @@ router.post('/api/booking-requests', async (req, res) => {
       return res.status(400).json({ error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
     }
     
-    // Check if member is staff (staff bypass pending limit)
-    const isStaff = await isStaffOrAdminCheck(sessionEmail);
-    
-    // ANTI-SPAM: Limit members to 1 pending request per resource type (simulator vs conference room)
-    // Staff can bypass this limit when creating bookings
-    if (!isStaff) {
-      // Determine if this request is for a conference room
-      let isConferenceRequest = false;
-      
-      if (resource_id) {
-        // If specific resource selected, check its type
-        const resourceResult = await db.select({ type: resources.type })
-          .from(resources)
-          .where(eq(resources.id, resource_id))
-          .limit(1);
-        isConferenceRequest = resourceResult[0]?.type === 'conference_room';
-      } else if (resource_preference) {
-        // Check if preference explicitly indicates conference room
-        const pref = resource_preference.toLowerCase();
-        isConferenceRequest = pref === 'conference_room' || pref === 'conference room' || pref.includes('conference');
-      }
-      
-      // Check for existing pending requests by this user for the same resource category
-      // Uses raw SQL for clarity: match conference rooms OR simulators (anything not conference)
-      const pendingResult = await pool.query(
-        `SELECT br.id FROM booking_requests br
-         LEFT JOIN resources r ON br.resource_id = r.id
-         WHERE LOWER(br.user_email) = LOWER($1)
-           AND br.status = 'pending'
-           AND (
-             CASE WHEN $2 THEN
-               -- Looking for conference room pending requests
-               (r.type = 'conference_room' OR LOWER(COALESCE(br.resource_preference, '')) LIKE '%conference%')
-             ELSE
-               -- Looking for simulator pending requests (anything not conference)
-               (r.type IS NULL OR r.type != 'conference_room')
-               AND LOWER(COALESCE(br.resource_preference, '')) NOT LIKE '%conference%'
-             END
-           )
-         LIMIT 1`,
-        [requestEmail, isConferenceRequest]
-      );
-      
-      if (pendingResult.rows.length > 0) {
-        const resourceTypeName = isConferenceRequest ? 'conference room' : 'simulator';
-        return res.status(429).json({ 
-          error: `You already have a pending ${resourceTypeName} booking request. Please wait for staff to review it before making another request.` 
-        });
-      }
-    }
-    
     const client = await pool.connect();
     let row: any;
     try {
@@ -522,7 +465,9 @@ router.post('/api/booking-requests', async (req, res) => {
       const minutesPerPlayer = Math.ceil(duration_minutes / totalPlayers);
       
       // Check the HOST's limit against their allocated time, not total session time
-      const limitCheck = await checkDailyBookingLimit(user_email, request_date, minutesPerPlayer, user_tier, undefined);
+      // CRITICAL FIX: Pass reschedule_booking_id to exclude original booking when rescheduling
+      // Without this, users hit "deadlock" when trying to move bookings (old + new = over limit)
+      const limitCheck = await checkDailyBookingLimit(user_email, request_date, minutesPerPlayer, user_tier, reschedule_booking_id);
       if (!limitCheck.allowed) {
         await client.query('ROLLBACK');
         client.release();

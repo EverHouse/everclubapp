@@ -13,7 +13,6 @@ import { consumeGuestPassForParticipant, canUseGuestPass } from '../core/billing
 import { logFromRequest } from '../core/auditLog';
 import { enforceSocialTierRules, type ParticipantForValidation } from '../core/bookingService/tierRules';
 import { broadcastMemberStatsUpdated } from '../core/websocket';
-import { ensureBookingSession } from '../core/bookingService/sessionManager';
 
 const router = Router();
 
@@ -38,7 +37,7 @@ interface ParticipantFee {
   participantId: number;
   displayName: string;
   participantType: 'owner' | 'member' | 'guest';
-  userId: string | null | undefined;
+  userId: string | null;
   paymentStatus: 'pending' | 'paid' | 'waived';
   overageFee: number;
   guestFee: number;
@@ -50,7 +49,6 @@ interface ParticipantFee {
   guestPassUsed?: boolean;
   prepaidOnline?: boolean;
   cachedFeeCents?: number | null;
-  isAnonymous?: boolean; // True for unfilled roster slots that still incur guest fees
 }
 
 interface CheckinContext {
@@ -117,14 +115,80 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
     const participants: ParticipantFee[] = [];
     let totalOutstanding = 0;
     
+    // If booking has no session, try to create one on-the-fly for fee calculation
     let sessionId = booking.session_id;
     if (!sessionId && booking.resource_id) {
-      const sessionResult = await ensureBookingSession(bookingId, 'checkin_context');
-      if (sessionResult.sessionId) {
-        sessionId = sessionResult.sessionId;
-        console.log(`[Checkin Context] ${sessionResult.created ? 'Created' : 'Found'} session ${sessionId} for booking ${bookingId}`);
-      } else {
-        console.warn(`[Checkin Context] Failed to create session for booking ${bookingId}: ${sessionResult.error}`);
+      try {
+        // Get booking details for session creation
+        const bookingDetails = await pool.query(`
+          SELECT resource_id, request_date, start_time, end_time, declared_player_count, user_email, user_name
+          FROM booking_requests WHERE id = $1
+        `, [bookingId]);
+        
+        if (bookingDetails.rows.length > 0) {
+          const bd = bookingDetails.rows[0];
+          
+          // Create session without trackman_booking_id (to avoid conflicts)
+          const sessionResult = await pool.query(`
+            INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, source, created_by)
+            VALUES ($1, $2, $3, $4, 'staff_manual', 'checkin_context')
+            ON CONFLICT DO NOTHING
+            RETURNING id
+          `, [bd.resource_id, bd.request_date, bd.start_time, bd.end_time]);
+          
+          if (sessionResult.rows.length > 0) {
+            sessionId = sessionResult.rows[0].id;
+            
+            // Update booking with session_id
+            await pool.query(`UPDATE booking_requests SET session_id = $1 WHERE id = $2`, [sessionId, bookingId]);
+            
+            // Create owner participant (with conflict handling to prevent duplicates)
+            const userResult = await pool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, [bd.user_email]);
+            const userId = userResult.rows[0]?.id || null;
+            
+            // Create owner participant - check first then insert to prevent duplicates
+            // Race condition is mitigated because session creation above uses ON CONFLICT DO NOTHING,
+            // meaning only one request can successfully create a session and reach this code
+            const existingOwner = await pool.query(`
+              SELECT id FROM booking_participants 
+              WHERE session_id = $1 AND participant_type = 'owner'
+              LIMIT 1
+            `, [sessionId]);
+            
+            if (existingOwner.rows.length === 0) {
+              await pool.query(`
+                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+                VALUES ($1, $2, 'owner', $3, 'pending')
+              `, [sessionId, userId, bd.user_name || 'Member']);
+            }
+            
+            // Create guest participants with duplicate prevention
+            // Get current count to determine how many guests to create
+            const playerCount = bd.declared_player_count || 1;
+            const existingGuests = await pool.query(`
+              SELECT COUNT(*) as count FROM booking_participants 
+              WHERE session_id = $1 AND participant_type = 'guest'
+            `, [sessionId]);
+            const existingGuestCount = parseInt(existingGuests.rows[0]?.count || '0');
+            
+            // Only create guests if we don't already have them
+            if (existingGuestCount < playerCount - 1) {
+              for (let i = existingGuestCount + 1; i < playerCount; i++) {
+                await pool.query(`
+                  INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status)
+                  VALUES ($1, NULL, 'guest', $2, 'pending')
+                `, [sessionId, `Guest ${i + 1}`]);
+              }
+            }
+            
+            // Calculate and cache fees
+            await recalculateSessionFees(sessionId);
+            
+            console.log(`[Checkin Context] Created session ${sessionId} for booking ${bookingId}`);
+          }
+        }
+      } catch (sessionError: any) {
+        console.warn(`[Checkin Context] Failed to create session for booking ${bookingId}:`, sessionError.message);
       }
     }
 
@@ -291,32 +355,6 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           totalOutstanding += totalFee;
         }
       }
-      
-      // CRITICAL FIX: Include anonymous guest fees that don't have database participants
-      // These are generated when declared_player_count > actual filled roster slots
-      const anonymousGuests = breakdown.participants.filter(p => !p.participantId);
-      for (const anonGuest of anonymousGuests) {
-        const guestFee = anonGuest.guestCents / 100;
-        participants.push({
-          participantId: -(participants.length + 1), // Negative ID indicates virtual/anonymous
-          displayName: anonGuest.displayName,
-          participantType: 'guest',
-          userId: undefined,
-          paymentStatus: 'pending',
-          overageFee: 0,
-          guestFee,
-          totalFee: guestFee,
-          tierAtBooking: null,
-          dailyAllowance: undefined,
-          minutesUsed: undefined,
-          waiverNeedsReview: false,
-          guestPassUsed: anonGuest.guestPassUsed || false,
-          prepaidOnline: false,
-          cachedFeeCents: null,
-          isAnonymous: true // Flag to indicate this is an unfilled roster slot
-        });
-        totalOutstanding += guestFee;
-      }
     }
 
     const auditResult = await pool.query(`
@@ -418,15 +456,6 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
     if (action === 'confirm' || action === 'waive' || action === 'use_guest_pass') {
       if (!participantId) {
         return res.status(400).json({ error: 'participantId required for individual payment action' });
-      }
-      
-      // GUARD: Reject actions on anonymous/virtual participants (negative IDs)
-      // These are unfilled roster slots that don't exist in the database
-      if (participantId < 0) {
-        return res.status(400).json({ 
-          error: 'Cannot perform payment actions on unfilled roster slots. Please complete the roster first.',
-          code: 'ANONYMOUS_PARTICIPANT'
-        });
       }
 
       const newStatus = action === 'confirm' ? 'paid' : 'waived';

@@ -40,7 +40,6 @@ interface ParticipantFee {
   waiverNeedsReview?: boolean;
   prepaidOnline?: boolean;
   cachedFeeCents?: number | null;
-  isAnonymous?: boolean; // True for unfilled roster slots - no payment actions allowed
 }
 
 interface CheckinContext {
@@ -216,20 +215,12 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const handleConfirmAll = async () => {
     if (!context) return;
     
-    // Check if there are anonymous participants with fees - block bulk confirm
-    const hasAnonymousFees = context.participants.some(p => p.isAnonymous && p.totalFee > 0);
-    if (hasAnonymousFees) {
-      showToast('Cannot confirm all payments - some roster slots are unfilled', 'error');
-      return;
-    }
-    
     const previousContext = context;
     
-    // Only mark non-anonymous participants as paid
     setContext({
       ...context,
       participants: context.participants.map(p =>
-        p.paymentStatus === 'pending' && p.totalFee > 0 && !p.isAnonymous ? { ...p, paymentStatus: 'paid' } : p
+        p.paymentStatus === 'pending' && p.totalFee > 0 ? { ...p, paymentStatus: 'paid' } : p
       ),
       totalOutstanding: 0,
       hasUnpaidBalance: false
@@ -410,8 +401,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   
   const handleShowStripePayment = () => {
     if (!context) return;
-    // Exclude anonymous participants - they don't exist in DB and can't be charged
-    const pendingParticipants = context.participants.filter(p => p.paymentStatus === 'pending' && p.totalFee > 0 && !p.isAnonymous);
+    const pendingParticipants = context.participants.filter(p => p.paymentStatus === 'pending' && p.totalFee > 0);
     const fees = pendingParticipants.map(p => ({ id: p.participantId, amount: p.totalFee }));
     const totalAmount = fees.reduce((sum, f) => sum + f.amount, 0);
     
@@ -445,20 +435,10 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     setShowStripePayment(true);
   };
 
-  // Exclude anonymous participants from unpaid count - they need roster completion first
   const unpaidParticipants = context?.participants.filter(p => 
-    p.paymentStatus === 'pending' && p.totalFee > 0 && !p.isAnonymous
+    p.paymentStatus === 'pending' && p.totalFee > 0
   ) || [];
-  
-  // Track anonymous participants separately to show warning
-  const anonymousParticipants = context?.participants.filter(p => p.isAnonymous) || [];
   const hasPendingPayments = unpaidParticipants.length > 0;
-  
-  // Calculate chargeable total (excludes anonymous fees that can't be processed)
-  const chargeableTotal = unpaidParticipants.reduce((sum, p) => sum + p.totalFee, 0);
-  
-  // Calculate anonymous fees total (for display warning)
-  const anonymousFees = anonymousParticipants.reduce((sum, p) => sum + p.totalFee, 0);
   
   const hasUnreviewedWaivers = context?.participants.some(p => p.waiverNeedsReview) || false;
 
@@ -484,24 +464,16 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
         </button>
       ) : (
         <div className="flex flex-col gap-2">
-          {anonymousFees > 0 && (
-            <div className="mb-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
-              <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">warning</span>
-                ${anonymousFees.toFixed(2)} in fees pending for {anonymousParticipants.length} unfilled roster slot{anonymousParticipants.length !== 1 ? 's' : ''}. Complete roster to collect.
-              </p>
-            </div>
-          )}
           {hasPendingPayments ? (
             <>
-              {chargeableTotal > 0 && (
+              {context?.totalOutstanding && context.totalOutstanding > 0 && (
                 <button
                   onClick={handleShowStripePayment}
                   disabled={actionInProgress !== null}
                   className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined">credit_card</span>
-                  Pay with Card (${chargeableTotal.toFixed(2)})
+                  Pay with Card (${context.totalOutstanding.toFixed(2)})
                 </button>
               )}
               <button
@@ -759,14 +731,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                       </div>
 
                       {p.paymentStatus === 'pending' && p.totalFee > 0 ? (
-                        p.isAnonymous ? (
-                          <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
-                            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                              <span className="material-symbols-outlined text-sm">warning</span>
-                              Unfilled roster slot - complete the roster to process payment
-                            </p>
-                          </div>
-                        ) : showWaiverInput === p.participantId ? (
+                        showWaiverInput === p.participantId ? (
                           <div className="space-y-2">
                             <input
                               type="text"
