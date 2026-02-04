@@ -21,13 +21,14 @@ import { refundGuestPass } from './guestPasses';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../utils/dateUtils';
 import { logFromRequest, logMemberAction } from '../core/auditLog';
 import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
-import { cancelPaymentIntent } from '../core/stripe';
+import { cancelPaymentIntent, getStripeClient } from '../core/stripe';
 import { createPrepaymentIntent } from '../core/billing/prepaymentService';
 
 interface CancellationCascadeResult {
   participantsNotified: number;
   guestPassesRefunded: number;
   bookingMembersRemoved: number;
+  prepaymentRefunds: number;
   errors: string[];
 }
 
@@ -44,6 +45,7 @@ async function handleCancellationCascade(
     participantsNotified: 0,
     guestPassesRefunded: 0,
     bookingMembersRemoved: 0,
+    prepaymentRefunds: 0,
     errors: []
   };
 
@@ -145,6 +147,94 @@ async function handleCancellationCascade(
         });
       } catch (cancelErr: any) {
         const errorMsg = `Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${cancelErr.message}`;
+        result.errors.push(errorMsg);
+        logger.warn('[cancellation-cascade] ' + errorMsg);
+      }
+    }
+
+    // Refund succeeded prepayment intents
+    const succeededIntents = await pool.query(
+      `SELECT stripe_payment_intent_id, amount_cents
+       FROM stripe_payment_intents 
+       WHERE booking_id = $1 AND purpose = 'prepayment' AND status = 'succeeded'`,
+      [bookingId]
+    );
+
+    for (const row of succeededIntents.rows) {
+      try {
+        // Atomically claim this intent for refunding (prevents duplicates)
+        const claimResult = await pool.query(
+          `UPDATE stripe_payment_intents 
+           SET status = 'refunding', updated_at = NOW() 
+           WHERE stripe_payment_intent_id = $1 AND status = 'succeeded'
+           RETURNING stripe_payment_intent_id`,
+          [row.stripe_payment_intent_id]
+        );
+        
+        if (claimResult.rowCount === 0) {
+          // Already being processed or already refunded, skip
+          logger.info('[cancellation-cascade] Prepayment already claimed or refunded, skipping', {
+            extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
+          });
+          continue;
+        }
+        
+        const stripe = await getStripeClient();
+        const paymentIntent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
+        
+        if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
+          // Use idempotency key to prevent Stripe-side duplicates
+          const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
+          
+          const refund = await stripe.refunds.create({
+            charge: typeof paymentIntent.latest_charge === 'string' 
+              ? paymentIntent.latest_charge 
+              : paymentIntent.latest_charge.id,
+            reason: 'requested_by_customer',
+            metadata: {
+              reason: 'booking_cancellation',
+              bookingId: bookingId.toString()
+            }
+          }, {
+            idempotencyKey
+          });
+          
+          // Update local record to refunded
+          await pool.query(
+            `UPDATE stripe_payment_intents 
+             SET status = 'refunded', updated_at = NOW() 
+             WHERE stripe_payment_intent_id = $1`,
+            [row.stripe_payment_intent_id]
+          );
+          
+          result.prepaymentRefunds++;
+          logger.info('[cancellation-cascade] Refunded prepayment', {
+            extra: { 
+              bookingId, 
+              paymentIntentId: row.stripe_payment_intent_id,
+              refundId: refund.id,
+              amountCents: row.amount_cents
+            }
+          });
+        } else {
+          // Payment intent not in expected state, revert claim
+          await pool.query(
+            `UPDATE stripe_payment_intents 
+             SET status = 'succeeded', updated_at = NOW() 
+             WHERE stripe_payment_intent_id = $1`,
+            [row.stripe_payment_intent_id]
+          );
+        }
+      } catch (refundErr: any) {
+        // On error, revert status if it was claimed
+        await pool.query(
+          `UPDATE stripe_payment_intents 
+           SET status = 'succeeded', updated_at = NOW() 
+           WHERE stripe_payment_intent_id = $1 AND status = 'refunding'`,
+          [row.stripe_payment_intent_id]
+        ).catch(() => {}); // Ignore revert errors
+        
+        const errorMsg = `Failed to refund prepayment ${row.stripe_payment_intent_id}: ${refundErr.message}`;
         result.errors.push(errorMsg);
         logger.warn('[cancellation-cascade] ' + errorMsg);
       }
@@ -2139,6 +2229,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
         participantsNotified: cascadeResult.participantsNotified,
         guestPassesRefunded: cascadeResult.guestPassesRefunded,
         bookingMembersRemoved: cascadeResult.bookingMembersRemoved,
+        prepaymentRefunds: cascadeResult.prepaymentRefunds,
         cascadeErrors: cascadeResult.errors.length
       }
     });
@@ -2264,6 +2355,7 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
         participantsNotified: cascadeResult.participantsNotified,
         guestPassesRefunded: cascadeResult.guestPassesRefunded,
         bookingMembersRemoved: cascadeResult.bookingMembersRemoved,
+        prepaymentRefunds: cascadeResult.prepaymentRefunds,
         cascadeErrors: cascadeResult.errors.length
       }
     });
@@ -2315,7 +2407,8 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       booking_date: existing.requestDate,
       booking_time: existing.startTime,
       bay_name: resourceName,
-      refunded_passes: cascadeResult.guestPassesRefunded
+      refunded_passes: cascadeResult.guestPassesRefunded,
+      prepayment_refunds: cascadeResult.prepaymentRefunds
     });
     
     res.json({ 
@@ -2323,7 +2416,8 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       message: 'Booking cancelled successfully',
       cascade: {
         participantsNotified: cascadeResult.participantsNotified,
-        guestPassesRefunded: cascadeResult.guestPassesRefunded
+        guestPassesRefunded: cascadeResult.guestPassesRefunded,
+        prepaymentRefunds: cascadeResult.prepaymentRefunds
       }
     });
 
