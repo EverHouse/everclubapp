@@ -3324,16 +3324,46 @@ const SimulatorTab: React.FC = () => {
                                 Cancel
                             </button>
                         {(() => {
-                            const isTrackmanBooking = !!(selectedCalendarBooking as any)?.trackman_booking_id || (selectedCalendarBooking?.notes && selectedCalendarBooking.notes.includes('[Trackman Import ID:'));
-                            const emailLower = selectedCalendarBooking?.user_email?.toLowerCase() || '';
-                            const hasMatchedMember = selectedCalendarBooking?.user_email && 
-                                !emailLower.includes('unmatched@') &&
-                                !emailLower.includes('unmatched-') &&
-                                !emailLower.includes('@trackman.local') &&
-                                !emailLower.includes('anonymous@') &&
-                                !emailLower.includes('booking@');
+                            if (!selectedCalendarBooking) return null;
+                            const status = selectedCalendarBooking.status;
                             
-return null;
+                            if (status === 'attended') {
+                                return (
+                                    <div className="w-full py-3 px-4 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium flex items-center justify-center gap-2">
+                                        <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
+                                        Checked In
+                                    </div>
+                                );
+                            }
+                            
+                            if (status === 'no_show') {
+                                return (
+                                    <div className="w-full py-3 px-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-medium flex items-center justify-center gap-2">
+                                        <span aria-hidden="true" className="material-symbols-outlined text-sm">person_off</span>
+                                        No Show
+                                    </div>
+                                );
+                            }
+                            
+                            if (status === 'approved' || status === 'confirmed') {
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            const bookingId = typeof selectedCalendarBooking.id === 'string' 
+                                                ? parseInt(String(selectedCalendarBooking.id).replace('cal_', '')) 
+                                                : selectedCalendarBooking.id as number;
+                                            setMarkStatusModal({ booking: selectedCalendarBooking, confirmNoShow: false });
+                                            setSelectedCalendarBooking(null);
+                                        }}
+                                        className="w-full py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2"
+                                    >
+                                        <span aria-hidden="true" className="material-symbols-outlined text-sm">how_to_reg</span>
+                                        Check In / Mark Status
+                                    </button>
+                                );
+                            }
+                            
+                            return null;
                         })()}
                         <button
                             onClick={() => setSelectedCalendarBooking(null)}

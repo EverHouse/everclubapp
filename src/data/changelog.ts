@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.24.0",
+    date: "2026-02-04",
+    title: "Booking Details Check-In Button Restored",
+    changes: [
+      "Fixed: Check-in / Mark Status button was missing from booking details modal",
+      "Added: Shows 'Checked In' or 'No Show' status badges for completed bookings",
+      "Improved: Check-in button only appears for approved/confirmed bookings"
+    ]
+  },
+  {
     version: "69.23.0",
     date: "2026-02-04",
     title: "Member Real-Time Notification Toasts",
