@@ -436,15 +436,34 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     }
   }
 
-  // Helper function to look up usage by BOTH userId and email
+  // CRITICAL: Maintain a LOCAL running total of usage within this session
+  // This prevents the "same-user split billing" loophole where a user appears multiple times
+  // and each slot checks against the ORIGINAL usage (0) instead of accumulated usage
+  const localUsageAccumulator = new Map<string, number>();
+  
+  // Helper function to look up usage by BOTH userId and email, including local accumulator
   function getUsageForParticipant(userId: string | null, email: string | null): number {
+    const key = (userId || email || '').toLowerCase();
+    
+    // Start with database usage
+    let baseUsage = 0;
     if (userId && usageMap.has(userId.toLowerCase())) {
-      return usageMap.get(userId.toLowerCase())!;
+      baseUsage = usageMap.get(userId.toLowerCase())!;
+    } else if (email && usageMap.has(email.toLowerCase())) {
+      baseUsage = usageMap.get(email.toLowerCase())!;
     }
-    if (email && usageMap.has(email.toLowerCase())) {
-      return usageMap.get(email.toLowerCase())!;
+    
+    // Add any locally accumulated usage from earlier participants in THIS session
+    const localUsage = localUsageAccumulator.get(key) || 0;
+    return baseUsage + localUsage;
+  }
+  
+  // Helper to track usage within this session (for same-user-multiple-slots scenario)
+  function addLocalUsage(userId: string | null, email: string | null, minutes: number): void {
+    const key = (userId || email || '').toLowerCase();
+    if (key) {
+      localUsageAccumulator.set(key, (localUsageAccumulator.get(key) || 0) + minutes);
     }
-    return 0;
   }
   
   const lineItems: FeeLineItem[] = [];
@@ -547,6 +566,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       }
       
       lineItem.totalCents = lineItem.overageCents;
+      
+      // Track usage locally so subsequent slots for the same user calculate correctly
+      const ownerKey = participant.email || participant.userId || hostEmail;
+      addLocalUsage(participant.userId || null, ownerKey, minutesPerParticipant);
     } else {
       lineItem.minutesAllocated = minutesPerParticipant;
       
@@ -580,6 +603,9 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       }
       
       lineItem.totalCents = lineItem.overageCents;
+      
+      // Track usage locally so subsequent slots for the same user calculate correctly
+      addLocalUsage(participant.userId || null, memberEmail, minutesPerParticipant);
     }
     
     lineItems.push(lineItem);
