@@ -3316,6 +3316,26 @@ const SimulatorTab: React.FC = () => {
                                     showToast('Failed to mark as no show', 'error');
                                 }
                             }}
+                            onUndoStatus={async (passedBookingId) => {
+                                try {
+                                    const res = await fetch(`/api/bookings/${passedBookingId}/checkin`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include',
+                                        body: JSON.stringify({ status: 'approved' })
+                                    });
+                                    if (res.ok) {
+                                        showToast('Status reverted to approved', 'success');
+                                        setSelectedCalendarBooking(null);
+                                        handleRefresh();
+                                    } else {
+                                        const err = await res.json();
+                                        showToast(err.error || 'Failed to undo status', 'error');
+                                    }
+                                } catch (err) {
+                                    showToast('Failed to undo status', 'error');
+                                }
+                            }}
                         />
                     )}
                     

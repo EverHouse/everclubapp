@@ -107,6 +107,7 @@ interface BookingMembersEditorProps {
   onCollectPayment?: (bookingId: number) => void;
   onCheckIn?: (bookingId: number) => void;
   onNoShow?: (bookingId: number) => void;
+  onUndoStatus?: (bookingId: number) => void;
   bookingContext?: BookingContext;
   showHeader?: boolean;
   bookingStatus?: string;
@@ -191,6 +192,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   onCollectPayment,
   onCheckIn,
   onNoShow,
+  onUndoStatus,
   bookingContext,
   showHeader = false,
   bookingStatus
@@ -1402,17 +1404,35 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
           </button>
         </div>
       )}
-      {/* Show status indicator for already checked in or no show */}
+      {/* Show status indicator for already checked in or no show - with undo option */}
       {bookingStatus === 'attended' && (
-        <div className="w-full mt-3 py-2.5 px-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-green-200 dark:border-green-800">
-          <span className="material-symbols-outlined text-lg">check_circle</span>
-          Checked In
+        <div className="space-y-2 mt-3">
+          <div className="w-full py-2.5 px-4 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-green-200 dark:border-green-800">
+            <span className="material-symbols-outlined text-lg">check_circle</span>
+            Checked In
+          </div>
+          <button
+            onClick={() => onUndoStatus?.(Number(bookingId))}
+            className="w-full py-2 px-4 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+          >
+            <span className="material-symbols-outlined text-sm">undo</span>
+            Undo Check-In
+          </button>
         </div>
       )}
       {bookingStatus === 'no_show' && (
-        <div className="w-full mt-3 py-2.5 px-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-red-200 dark:border-red-800">
-          <span className="material-symbols-outlined text-lg">person_off</span>
-          No Show
+        <div className="space-y-2 mt-3">
+          <div className="w-full py-2.5 px-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg font-medium flex items-center justify-center gap-2 border border-red-200 dark:border-red-800">
+            <span className="material-symbols-outlined text-lg">person_off</span>
+            No Show
+          </div>
+          <button
+            onClick={() => onUndoStatus?.(Number(bookingId))}
+            className="w-full py-2 px-4 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+          >
+            <span className="material-symbols-outlined text-sm">undo</span>
+            Undo No Show
+          </button>
         </div>
       )}
 
