@@ -22,6 +22,7 @@ import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '.
 import { logFromRequest, logMemberAction } from '../core/auditLog';
 import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { cancelPaymentIntent } from '../core/stripe';
+import { createPrepaymentIntent } from '../core/billing/prepaymentService';
 
 interface CancellationCascadeResult {
   participantsNotified: number;
@@ -1655,6 +1656,42 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       }
     }
     
+    if (result.sessionId) {
+      try {
+        const feeResult = await pool.query(`
+          SELECT SUM(COALESCE(cached_fee_cents, 0)) as total_cents,
+                 SUM(CASE WHEN participant_type = 'owner' THEN COALESCE(cached_fee_cents, 0) ELSE 0 END) as overage_cents,
+                 SUM(CASE WHEN participant_type = 'guest' THEN COALESCE(cached_fee_cents, 0) ELSE 0 END) as guest_cents
+          FROM booking_participants
+          WHERE session_id = $1
+        `, [result.sessionId]);
+        
+        const totalCents = parseInt(feeResult.rows[0]?.total_cents || '0');
+        const overageCents = parseInt(feeResult.rows[0]?.overage_cents || '0');
+        const guestCents = parseInt(feeResult.rows[0]?.guest_cents || '0');
+        
+        if (totalCents > 0) {
+          await createPrepaymentIntent({
+            sessionId: result.sessionId,
+            bookingId: bookingId,
+            userId: owner.member_id || null,
+            userEmail: owner.email,
+            userName: owner.name,
+            totalFeeCents: totalCents,
+            feeBreakdown: { overageCents, guestCents }
+          });
+          
+          logger.info('[assign-with-players] Created prepayment intent', {
+            extra: { bookingId, sessionId: result.sessionId, totalCents }
+          });
+        }
+      } catch (prepayErr) {
+        logger.warn('[assign-with-players] Failed to create prepayment intent', {
+          extra: { bookingId, sessionId: result.sessionId, error: prepayErr }
+        });
+      }
+    }
+    
     const { broadcastToStaff } = await import('../core/websocket');
     broadcastToStaff({
       type: 'booking_updated',
@@ -1664,6 +1701,49 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       memberName: owner.name,
       totalPlayers: totalPlayerCount
     });
+    
+    if (owner.member_id) {
+      try {
+        const feeResult = await pool.query(`
+          SELECT SUM(COALESCE(cached_fee_cents, 0)) as total_cents
+          FROM booking_participants
+          WHERE session_id = $1
+        `, [result.sessionId]);
+        
+        const totalCents = parseInt(feeResult.rows[0]?.total_cents || '0');
+        const feeMessage = totalCents > 0 
+          ? ` Estimated fees: $${(totalCents / 100).toFixed(2)}. You can pay now from your dashboard.`
+          : '';
+        
+        const dateStr = result.booking.requestDate 
+          ? new Date(result.booking.requestDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          : '';
+        const timeStr = result.booking.startTime || '';
+        
+        await pool.query(
+          `INSERT INTO notifications (user_id, title, message, type, link, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [
+            owner.member_id,
+            'Booking Confirmed',
+            `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.${feeMessage}`,
+            'booking',
+            '/bookings'
+          ]
+        );
+        
+        sendNotificationToUser(owner.email, {
+          type: 'booking_confirmed',
+          title: 'Booking Confirmed',
+          message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.${feeMessage}`,
+          data: { bookingId, feeCents: totalCents },
+        });
+      } catch (notifyErr) {
+        logger.warn('[assign-with-players] Failed to notify member', {
+          extra: { bookingId, error: notifyErr }
+        });
+      }
+    }
     
     let emailLinked = false;
     if (rememberEmail && originalEmail && originalEmail.toLowerCase() !== owner.email.toLowerCase()) {
