@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.15.0",
+    date: "2026-02-04",
+    title: "Reschedule, Pause & Duplicate Guest Fixes",
+    changes: [
+      "Fixed: Rescheduling bookings no longer blocked by daily limit - original booking excluded from calculation",
+      "Fixed: Paused Stripe subscriptions now properly update member status (closes free access loophole)",
+      "Fixed: Duplicate guests in booking requests now deduplicated (prevents double guest fees)"
+    ]
+  },
+  {
     version: "69.14.0",
     date: "2026-02-04",
     title: "Invoice Identity & Webhook Race Condition Fixes",

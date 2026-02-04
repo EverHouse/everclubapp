@@ -107,6 +107,10 @@ export async function linkParticipants(
     const ownerUserId = owner?.userId?.toLowerCase();
     const ownerDisplayName = owner?.displayName?.toLowerCase().trim();
     
+    // CRITICAL FIX: Track seen guests to prevent duplicate guest fees
+    // If same guest is added twice (by mistake or duplicate API call), only add once
+    const seenGuestKeys = new Set<string>();
+    
     const filteredParticipants = participants.filter(p => {
       if (p.participantType === 'owner') {
         return true;
@@ -129,6 +133,19 @@ export async function linkParticipants(
           extra: { sessionId, ownerName: ownerDisplayName, duplicateName: participantName }
         });
         return false;
+      }
+      
+      // CRITICAL FIX: Deduplicate guests - prevent double guest fees
+      // Use both userId and displayName as dedup keys
+      const guestKey = p.userId?.toLowerCase() || participantName || '';
+      if (guestKey && seenGuestKeys.has(guestKey)) {
+        logger.warn('[linkParticipants] Skipping duplicate guest', {
+          extra: { sessionId, guestKey, displayName: p.displayName }
+        });
+        return false;
+      }
+      if (guestKey) {
+        seenGuestKeys.add(guestKey);
       }
       
       return true;

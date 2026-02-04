@@ -2323,6 +2323,41 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       } catch (hubspotError) {
         console.error('[Stripe Webhook] HubSpot sync failed for status suspended:', hubspotError);
       }
+    } else if (status === 'paused') {
+      // CRITICAL FIX: Handle paused subscriptions - user should NOT have active access
+      // Without this, paused subscriptions keep 'active' status indefinitely (free access loophole)
+      await pool.query(
+        `UPDATE users SET membership_status = 'paused', updated_at = NOW() WHERE id = $1`,
+        [userId]
+      );
+      // Invalidate member cache to ensure fresh data is served
+      MemberService.invalidateCache(email);
+      
+      await notifyMember({
+        userEmail: email,
+        title: 'Membership Paused',
+        message: 'Your membership has been paused. Contact us to resume your membership.',
+        type: 'system',
+      }, { sendPush: true });
+
+      // Notify staff about subscription being paused
+      await notifyAllStaff(
+        'Membership Paused',
+        `${memberName} (${email}) has paused their subscription.`,
+        'system',
+        { sendPush: true, sendWebSocket: true }
+      );
+
+      console.log(`[Stripe Webhook] Paused notification sent to ${email}`);
+      
+      // Sync paused status to HubSpot
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email, status: 'paused', billingProvider: 'stripe' });
+        console.log(`[Stripe Webhook] Synced ${email} status=paused to HubSpot`);
+      } catch (hubspotError) {
+        console.error('[Stripe Webhook] HubSpot sync failed for status paused:', hubspotError);
+      }
     }
 
     broadcastBillingUpdate({
