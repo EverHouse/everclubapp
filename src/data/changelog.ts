@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.31.0",
+    date: "2026-02-04",
+    title: "Check-In Button Reliability Improvements",
+    changes: [
+      "Fixed: Added null guards to all check-in buttons to prevent silent failures",
+      "Fixed: Check-in buttons now show error toast if booking data is missing",
+      "Improved: Added debug logging to help track check-in button clicks",
+      "Improved: All check-in/no-show buttons now use async/await properly"
+    ]
+  },
+  {
     version: "69.30.0",
     date: "2026-02-04",
     title: "SimulatorTab File Corruption Fix",

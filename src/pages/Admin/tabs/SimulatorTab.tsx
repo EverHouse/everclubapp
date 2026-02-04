@@ -2191,11 +2191,15 @@ const SimulatorTab: React.FC = () => {
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={(e) => {
+                                                                        onClick={async (e) => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
-                                                                            console.log('[SimulatorTab] Check In button clicked for booking:', booking.id);
-                                                                            updateBookingStatusOptimistic(booking, 'attended');
+                                                                            if (!booking) {
+                                                                                showToast('Booking not found', 'error');
+                                                                                return;
+                                                                            }
+                                                                            console.log('[SimulatorTab] Queue Check In button clicked for booking:', booking.id);
+                                                                            await updateBookingStatusOptimistic(booking, 'attended');
                                                                         }}
                                                                         className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
@@ -3372,6 +3376,11 @@ const SimulatorTab: React.FC = () => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const booking = selectedCalendarBooking;
+                                                if (!booking) {
+                                                    showToast('Booking not found', 'error');
+                                                    return;
+                                                }
+                                                console.log('[SimulatorTab] Calendar modal Check In clicked for booking:', booking.id);
                                                 await updateBookingStatusOptimistic(booking, 'attended', () => setSelectedCalendarBooking(null));
                                             }}
                                             className="flex-1 py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2"
@@ -3385,6 +3394,11 @@ const SimulatorTab: React.FC = () => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const booking = selectedCalendarBooking;
+                                                if (!booking) {
+                                                    showToast('Booking not found', 'error');
+                                                    return;
+                                                }
+                                                console.log('[SimulatorTab] Calendar modal No Show clicked for booking:', booking.id);
                                                 await updateBookingStatusOptimistic(booking, 'no_show', () => setSelectedCalendarBooking(null));
                                             }}
                                             className="flex-1 py-3 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2"
