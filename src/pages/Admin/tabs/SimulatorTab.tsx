@@ -2188,10 +2188,15 @@ const SimulatorTab: React.FC = () => {
                                                                 ) : !isConferenceRoom && isToday ? (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={(e) => {
+                                                                        onClick={async (e) => {
                                                                             e.stopPropagation();
                                                                             e.preventDefault();
-                                                                            updateBookingStatusOptimistic(booking, 'attended');
+                                                                            console.log('[SimulatorTab Check-in] Button clicked!', { bookingId: booking.id, userName: booking.user_name });
+                                                                            try {
+                                                                                await updateBookingStatusOptimistic(booking, 'attended');
+                                                                            } catch (err) {
+                                                                                console.error('[SimulatorTab Check-in] Error:', err);
+                                                                            }
                                                                         }}
                                                                         onTouchEnd={(e) => {
                                                                             e.stopPropagation();
