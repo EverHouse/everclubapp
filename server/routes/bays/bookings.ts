@@ -429,6 +429,57 @@ router.post('/api/booking-requests', async (req, res) => {
       return res.status(400).json({ error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
     }
     
+    // Check if member is staff (staff bypass pending limit)
+    const isStaff = await isStaffOrAdminCheck(sessionEmail);
+    
+    // ANTI-SPAM: Limit members to 1 pending request per resource type (simulator vs conference room)
+    // Staff can bypass this limit when creating bookings
+    if (!isStaff) {
+      // Determine if this request is for a conference room
+      let isConferenceRequest = false;
+      
+      if (resource_id) {
+        // If specific resource selected, check its type
+        const resourceResult = await db.select({ type: resources.type })
+          .from(resources)
+          .where(eq(resources.id, resource_id))
+          .limit(1);
+        isConferenceRequest = resourceResult[0]?.type === 'conference_room';
+      } else if (resource_preference) {
+        // Check if preference explicitly indicates conference room
+        const pref = resource_preference.toLowerCase();
+        isConferenceRequest = pref === 'conference_room' || pref === 'conference room' || pref.includes('conference');
+      }
+      
+      // Check for existing pending requests by this user for the same resource category
+      // Uses raw SQL for clarity: match conference rooms OR simulators (anything not conference)
+      const pendingResult = await pool.query(
+        `SELECT br.id FROM booking_requests br
+         LEFT JOIN resources r ON br.resource_id = r.id
+         WHERE LOWER(br.user_email) = LOWER($1)
+           AND br.status = 'pending'
+           AND (
+             CASE WHEN $2 THEN
+               -- Looking for conference room pending requests
+               (r.type = 'conference_room' OR LOWER(COALESCE(br.resource_preference, '')) LIKE '%conference%')
+             ELSE
+               -- Looking for simulator pending requests (anything not conference)
+               (r.type IS NULL OR r.type != 'conference_room')
+               AND LOWER(COALESCE(br.resource_preference, '')) NOT LIKE '%conference%'
+             END
+           )
+         LIMIT 1`,
+        [requestEmail, isConferenceRequest]
+      );
+      
+      if (pendingResult.rows.length > 0) {
+        const resourceTypeName = isConferenceRequest ? 'conference room' : 'simulator';
+        return res.status(429).json({ 
+          error: `You already have a pending ${resourceTypeName} booking request. Please wait for staff to review it before making another request.` 
+        });
+      }
+    }
+    
     const client = await pool.connect();
     let row: any;
     try {

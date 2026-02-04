@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.19.0",
+    date: "2026-02-04",
+    title: "Anti-Spam Booking Limit",
+    changes: [
+      "Added: Members limited to 1 pending booking request per resource type (simulator or conference room)",
+      "Added: Staff bypass this limit when creating bookings on behalf of members",
+      "UX: Clear error message guides members to wait for staff review before making additional requests"
+    ]
+  },
+  {
     version: "69.18.0",
     date: "2026-02-04",
     title: "Notice Description Field",
