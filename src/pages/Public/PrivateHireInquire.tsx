@@ -138,7 +138,7 @@ const PrivateHireInquire: React.FC = () => {
         context.hutk = hutk;
       }
 
-      const response = await fetch('/api/hubspot/forms/event-inquiry', {
+      const response = await fetch('/api/hubspot/forms/private-hire', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields, context })

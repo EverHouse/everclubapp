@@ -20,6 +20,7 @@ export const changelog: ChangelogEntry[] = [
       "Added: New standalone landing page at /private-hire/inquire for event inquiries",
       "Added: Custom-branded 2-step form matching HubSpot fields with updated Event Type options",
       "Added: Event types now include Private Event, Birthday, Corporate, Brand Activation, Other",
+      "Added: Private Hire submissions now appear on Admin Inquiries page under 'Private Hire' tab",
       "Changed: Submit Inquiry button on Private Hire page now navigates to the new landing page",
       "Improved: Consent checkbox is now required before proceeding with the inquiry"
     ]
