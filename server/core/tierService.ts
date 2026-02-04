@@ -121,26 +121,18 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
   }
 }
 
-export async function getDailyBookedMinutes(email: string, date: string, excludeBookingId?: number): Promise<number> {
+export async function getDailyBookedMinutes(email: string, date: string): Promise<number> {
   try {
     // Include 'attended' - completed bookings still count toward daily allowance
     // Exclude 'cancelled' and 'no_show' - those don't consume the allowance
-    // CRITICAL FIX: Optional excludeBookingId allows reschedule operations to exclude the original
-    // booking from the calculation, preventing "reschedule deadlock" where users can't move bookings
-    let query = `SELECT COALESCE(SUM(duration_minutes), 0) as total_minutes
+    const result = await pool.query(
+      `SELECT COALESCE(SUM(duration_minutes), 0) as total_minutes
        FROM booking_requests
        WHERE LOWER(user_email) = LOWER($1)
          AND request_date = $2
-         AND status IN ('pending', 'approved', 'attended')`;
-    
-    const params: any[] = [email, date];
-    
-    if (excludeBookingId) {
-      query += ` AND id != $3`;
-      params.push(excludeBookingId);
-    }
-    
-    const result = await pool.query(query, params);
+         AND status IN ('pending', 'approved', 'attended')`,
+      [email, date]
+    );
     
     return parseInt(result.rows[0].total_minutes) || 0;
   } catch (error) {
@@ -263,8 +255,7 @@ export async function checkDailyBookingLimit(
   email: string, 
   date: string, 
   requestedMinutes: number,
-  providedTier?: string,
-  excludeBookingId?: number // CRITICAL FIX: Exclude original booking when rescheduling
+  providedTier?: string
 ): Promise<{ allowed: boolean; reason?: string; remainingMinutes?: number; overageMinutes?: number; includedMinutes?: number }> {
   // Use provided tier first (from view-as-member), fall back to database lookup
   const tier = providedTier || await getMemberTierByEmail(email);
@@ -308,7 +299,7 @@ export async function checkDailyBookingLimit(
   // All time is charged as overage. They can still book, just with 0 included minutes.
   // Only block if can_book_simulators is explicitly false (already checked above at line 145)
   
-  const alreadyBooked = await getDailyBookedMinutes(email, date, excludeBookingId);
+  const alreadyBooked = await getDailyBookedMinutes(email, date);
   const remainingMinutes = Math.max(0, dailyLimit - alreadyBooked);
   
   // Allow bookings - calculate included vs overage for billing

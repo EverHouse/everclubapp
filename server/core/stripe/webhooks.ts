@@ -1052,37 +1052,19 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
   const currentPeriodEnd = invoice.lines?.data?.[0]?.period?.end;
   const nextBillingDate = currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : new Date();
 
-  // CRITICAL FIX: Use stripe_customer_id for reliable user lookup
-  // Email can change in the app while Stripe still has the old email, causing renewal failures
-  const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
-  
-  let userResult;
-  if (customerId) {
-    // Primary lookup: by stable Stripe customer ID (preferred - won't break if user changes email)
-    userResult = await client.query(
-      'SELECT id, email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
-      [customerId]
-    );
-  }
-  
-  // Fallback to email lookup if customer ID lookup fails
-  if ((!userResult || userResult.rows.length === 0) && email) {
-    userResult = await client.query(
-      'SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
-      [email]
-    );
-  }
-  
-  if (!userResult || userResult.rows.length === 0) {
-    console.warn(`[Stripe Webhook] No user found for invoice ${invoice.id} (customer: ${customerId}, email: ${email})`);
+  if (!email) {
+    console.warn(`[Stripe Webhook] No customer email on invoice ${invoice.id}`);
     return deferredActions;
   }
-  
+
+  const userResult = await client.query(
+    'SELECT id, first_name, last_name FROM users WHERE email = $1',
+    [email]
+  );
   const memberName = userResult.rows[0]
-    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || userResult.rows[0].email
+    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
     : email;
   const userId = userResult.rows[0]?.id;
-  const userEmail = userResult.rows[0]?.email || email;
 
   await client.query(
     `UPDATE hubspot_deals 
@@ -1091,13 +1073,13 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
          last_sync_error = NULL,
          updated_at = NOW()
      WHERE LOWER(member_email) = LOWER($1)`,
-    [userEmail]
+    [email]
   );
 
   const priceId = invoice.lines?.data?.[0]?.price?.id;
   let restoreTierClause = '';
   let billingProviderClause = '';
-  let queryParams: any[] = [userEmail];
+  let queryParams: any[] = [email];
   let isMembershipSubscription = false;
   
   if (priceId) {
@@ -1110,7 +1092,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
       // COALESCE(tier, $2) would keep the old tier if it exists, blocking downgrades
       // Stripe is source of truth - if user paid for Social, they should be Social
       restoreTierClause = ', tier = $2';
-      queryParams = [userEmail, tierResult.rows[0].slug];
+      queryParams = [email, tierResult.rows[0].slug];
       isMembershipSubscription = true;
     }
   }
@@ -1129,9 +1111,9 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
     WHERE LOWER(email) = LOWER($1)`,
     queryParams
   );
-  console.log(`[Stripe Webhook] Cleared grace period for ${userEmail}${isMembershipSubscription ? ' and set billing_provider to stripe' : ' (non-membership subscription - billing_provider unchanged)'}`);
+  console.log(`[Stripe Webhook] Cleared grace period for ${email}${isMembershipSubscription ? ' and set billing_provider to stripe' : ' (non-membership subscription - billing_provider unchanged)'}`);
 
-  const localEmail = userEmail;
+  const localEmail = email;
   const localMemberName = memberName;
   const localAmountPaid = amountPaid;
   const localPlanName = planName;
@@ -2220,14 +2202,6 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
           });
         }
         
-        // CRITICAL FIX: Validate future bookings after tier change
-        // If user downgraded, they may have bookings outside their new tier's booking window
-        try {
-          await validateFutureBookingsAfterTierChange(userId, email, newTierName);
-        } catch (validateError) {
-          console.error(`[Stripe Webhook] Error validating future bookings after tier change:`, validateError);
-        }
-        
         await notifyMember({
           userEmail: email,
           title: 'Membership Updated',
@@ -2322,41 +2296,6 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
         console.log(`[Stripe Webhook] Synced ${email} status=suspended to HubSpot`);
       } catch (hubspotError) {
         console.error('[Stripe Webhook] HubSpot sync failed for status suspended:', hubspotError);
-      }
-    } else if (status === 'paused') {
-      // CRITICAL FIX: Handle paused subscriptions - user should NOT have active access
-      // Without this, paused subscriptions keep 'active' status indefinitely (free access loophole)
-      await pool.query(
-        `UPDATE users SET membership_status = 'paused', updated_at = NOW() WHERE id = $1`,
-        [userId]
-      );
-      // Invalidate member cache to ensure fresh data is served
-      MemberService.invalidateCache(email);
-      
-      await notifyMember({
-        userEmail: email,
-        title: 'Membership Paused',
-        message: 'Your membership has been paused. Contact us to resume your membership.',
-        type: 'system',
-      }, { sendPush: true });
-
-      // Notify staff about subscription being paused
-      await notifyAllStaff(
-        'Membership Paused',
-        `${memberName} (${email}) has paused their subscription.`,
-        'system',
-        { sendPush: true, sendWebSocket: true }
-      );
-
-      console.log(`[Stripe Webhook] Paused notification sent to ${email}`);
-      
-      // Sync paused status to HubSpot
-      try {
-        const { syncMemberToHubSpot } = await import('../hubspot/stages');
-        await syncMemberToHubSpot({ email, status: 'paused', billingProvider: 'stripe' });
-        console.log(`[Stripe Webhook] Synced ${email} status=paused to HubSpot`);
-      } catch (hubspotError) {
-        console.error('[Stripe Webhook] HubSpot sync failed for status paused:', hubspotError);
       }
     }
 
@@ -2519,79 +2458,4 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
     throw error;
   }
   return deferredActions;
-}
-
-/**
- * CRITICAL FIX: Validate and cancel future bookings that violate new tier rules
- * Called after tier change (upgrade/downgrade) to ensure members don't retain
- * access to slots they're no longer eligible for
- */
-async function validateFutureBookingsAfterTierChange(
-  userId: number, 
-  email: string, 
-  newTierName: string
-): Promise<void> {
-  try {
-    // Get the new tier's booking window
-    const tierResult = await pool.query(
-      `SELECT advance_booking_days FROM membership_tiers WHERE name = $1`,
-      [newTierName]
-    );
-    
-    if (tierResult.rows.length === 0) {
-      console.warn(`[TierValidation] Tier ${newTierName} not found, skipping booking validation`);
-      return;
-    }
-    
-    const maxBookingDays = tierResult.rows[0].advance_booking_days || 7;
-    const maxBookingDate = new Date();
-    maxBookingDate.setDate(maxBookingDate.getDate() + maxBookingDays);
-    const maxDateStr = maxBookingDate.toISOString().split('T')[0];
-    
-    // Find future bookings that are now outside the allowed window
-    const invalidBookingsResult = await pool.query(
-      `SELECT id, request_date, start_time, resource_id
-       FROM booking_requests
-       WHERE LOWER(user_email) = LOWER($1)
-         AND status IN ('pending', 'approved')
-         AND request_date > $2::date
-         AND request_date > CURRENT_DATE`,
-      [email, maxDateStr]
-    );
-    
-    if (invalidBookingsResult.rows.length === 0) {
-      console.log(`[TierValidation] No invalid future bookings found for ${email} after tier change to ${newTierName}`);
-      return;
-    }
-    
-    console.log(`[TierValidation] Found ${invalidBookingsResult.rows.length} bookings outside new tier window for ${email}`);
-    
-    // Cancel each invalid booking
-    for (const booking of invalidBookingsResult.rows) {
-      await pool.query(
-        `UPDATE booking_requests 
-         SET status = 'cancelled', 
-             staff_notes = COALESCE(staff_notes, '') || ' [Auto-cancelled: Outside ${newTierName} tier booking window (${maxBookingDays} days)]',
-             updated_at = NOW()
-         WHERE id = $1`,
-        [booking.id]
-      );
-      
-      console.log(`[TierValidation] Cancelled booking ${booking.id} for ${email} (date: ${booking.request_date})`);
-    }
-    
-    // Notify member about cancelled bookings
-    const { notifyMember } = await import('../notificationService');
-    await notifyMember({
-      userEmail: email,
-      title: 'Bookings Updated',
-      message: `${invalidBookingsResult.rows.length} future booking(s) were cancelled because they are outside your ${newTierName} membership booking window (${maxBookingDays} days advance).`,
-      type: 'booking_cancelled'
-    });
-    
-    console.log(`[TierValidation] Validated and cancelled ${invalidBookingsResult.rows.length} invalid bookings for ${email}`);
-  } catch (error) {
-    console.error(`[TierValidation] Error validating future bookings:`, error);
-    throw error;
-  }
 }

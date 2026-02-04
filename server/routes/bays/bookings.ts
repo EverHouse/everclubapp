@@ -465,9 +465,7 @@ router.post('/api/booking-requests', async (req, res) => {
       const minutesPerPlayer = Math.ceil(duration_minutes / totalPlayers);
       
       // Check the HOST's limit against their allocated time, not total session time
-      // CRITICAL FIX: Pass reschedule_booking_id to exclude original booking when rescheduling
-      // Without this, users hit "deadlock" when trying to move bookings (old + new = over limit)
-      const limitCheck = await checkDailyBookingLimit(user_email, request_date, minutesPerPlayer, user_tier, reschedule_booking_id);
+      const limitCheck = await checkDailyBookingLimit(user_email, request_date, minutesPerPlayer, user_tier);
       if (!limitCheck.allowed) {
         await client.query('ROLLBACK');
         client.release();
@@ -1055,18 +1053,6 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           }
         } catch (calError) {
           console.error('Failed to delete calendar event (non-blocking):', calError);
-          // CRITICAL FIX: Flag booking with sync_error so staff can manually clear "zombie slots"
-          // Otherwise Google Calendar shows slot as busy even though DB says cancelled
-          try {
-            await db.update(bookingRequests)
-              .set({ 
-                staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [SYNC ERROR: Calendar event not deleted - may show as busy on Google Calendar. Event ID: ' || ${existing.calendarEventId} || ']'`
-              })
-              .where(eq(bookingRequests.id, bookingId));
-            console.log(`[Booking] Flagged booking ${bookingId} with calendar sync error for staff review`);
-          } catch (flagError) {
-            console.error('Failed to flag calendar sync error:', flagError);
-          }
         }
       }
       

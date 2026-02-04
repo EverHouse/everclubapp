@@ -13,36 +13,6 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "69.15.0",
-    date: "2026-02-04",
-    title: "Reschedule, Pause & Duplicate Guest Fixes",
-    changes: [
-      "Fixed: Rescheduling bookings no longer blocked by daily limit - original booking excluded from calculation",
-      "Fixed: Paused Stripe subscriptions now properly update member status (closes free access loophole)",
-      "Fixed: Duplicate guests in booking requests now deduplicated (prevents double guest fees)"
-    ]
-  },
-  {
-    version: "69.14.0",
-    date: "2026-02-04",
-    title: "Invoice Identity & Webhook Race Condition Fixes",
-    changes: [
-      "Fixed: Membership renewals now use Stripe customer ID (not email) to identify users - prevents renewal failures when members change their email",
-      "Fixed: Trackman unmatched bookings now use atomic upsert to prevent duplicate records from simultaneous webhook retries"
-    ]
-  },
-  {
-    version: "69.13.0",
-    date: "2026-02-04",
-    title: "Tier Validation, Calendar Sync & Notification Reliability Fixes",
-    changes: [
-      "Fixed: Future bookings automatically cancelled when member downgrades to a tier with shorter booking window (closes tier exploit)",
-      "Fixed: Failed calendar deletions now flag bookings with sync error so staff can clear 'zombie slots' on Google Calendar",
-      "Fixed: Auto-match now tracks retry attempts - bookings that fail 5 times marked for manual review (prevents infinite retry loop)",
-      "Fixed: Push notifications no longer sent if database insert fails (prevents 'ghost' notifications with no app record)"
-    ]
-  },
-  {
     version: "69.12.0",
     date: "2026-02-04",
     title: "Anonymous Guest Fees, Auto-Approve & Conflict Detection Fixes",

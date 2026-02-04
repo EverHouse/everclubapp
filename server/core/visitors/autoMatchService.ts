@@ -741,16 +741,10 @@ async function autoMatchLegacyUnmatchedBookings(
   let matched = 0;
   let failed = 0;
 
-  // CRITICAL FIX: Exclude bookings that have exceeded match attempts threshold
-  // This prevents infinite retry loop on unmatchable bookings (e.g., GolfNow with no user profile)
-  const MAX_MATCH_ATTEMPTS = 5;
-  
   const query = `
-    SELECT tub.id, tub.booking_date, tub.start_time, tub.user_name, tub.notes, 
-           COALESCE(tub.match_attempts, 0) as match_attempts
+    SELECT tub.id, tub.booking_date, tub.start_time, tub.user_name, tub.notes
     FROM trackman_unmatched_bookings tub
     WHERE (tub.status = 'pending' OR tub.status = 'unmatched')
-      AND COALESCE(tub.match_attempts, 0) < $1
       AND NOT EXISTS (
         SELECT 1 FROM booking_requests br 
         WHERE br.trackman_booking_id = tub.trackman_booking_id::text
@@ -758,7 +752,7 @@ async function autoMatchLegacyUnmatchedBookings(
     ORDER BY tub.booking_date DESC, tub.start_time DESC
   `;
   
-  const { rows } = await pool.query(query, [MAX_MATCH_ATTEMPTS]);
+  const { rows } = await pool.query(query);
   
   console.log(`[AutoMatch] Processing ${rows.length} legacy unmatched bookings...`);
   
@@ -779,23 +773,6 @@ async function autoMatchLegacyUnmatchedBookings(
       console.log(`[AutoMatch] Matched legacy booking #${row.id}: ${result.matchType} -> ${result.visitorEmail || 'private_event'}`);
     } else {
       failed++;
-      
-      // CRITICAL FIX: Increment match_attempts and mark as manual_review if threshold exceeded
-      const newAttempts = (row.match_attempts || 0) + 1;
-      if (newAttempts >= MAX_MATCH_ATTEMPTS) {
-        await pool.query(`
-          UPDATE trackman_unmatched_bookings 
-          SET match_attempts = $2, status = 'manual_review', updated_at = NOW()
-          WHERE id = $1
-        `, [row.id, newAttempts]);
-        console.log(`[AutoMatch] Booking #${row.id} marked for manual_review after ${newAttempts} failed attempts`);
-      } else {
-        await pool.query(`
-          UPDATE trackman_unmatched_bookings 
-          SET match_attempts = $2, updated_at = NOW()
-          WHERE id = $1
-        `, [row.id, newAttempts]);
-      }
     }
   }
   

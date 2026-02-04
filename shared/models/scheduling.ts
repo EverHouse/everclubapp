@@ -159,12 +159,10 @@ export const trackmanUnmatchedBookings = pgTable("trackman_unmatched_bookings", 
   playerCount: integer("player_count"),
   notes: text("notes"),
   matchAttemptReason: text("match_attempt_reason"),
-  matchAttempts: integer("match_attempts").default(0), // Track auto-match retry count to prevent infinite loops
   resolvedEmail: varchar("resolved_email"),
   resolvedAt: timestamp("resolved_at"),
   resolvedBy: varchar("resolved_by"),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Trackman import runs - track import history
