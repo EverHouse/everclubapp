@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.3.9",
+    date: "2026-02-04",
+    title: "Critical: Booking Participants Now Saved at Approval",
+    isMajor: true,
+    changes: [
+      "Fixed: Members and guests added during booking request are now properly converted to session participants at approval time",
+      "Fixed: Booking workflow now works correctly: Member requests > adds players > staff approves > fees locked for all participants",
+      "Fixed: Member participants added by email (without userId) are now properly resolved and linked",
+      "Fixed: Guests who match existing member emails are automatically converted to member participants",
+      "Improved: Duplicate participant detection prevents the same person being added twice",
+      "Previously: Only the booking owner was created as a participant - additional players were lost at approval"
+    ]
+  },
+  {
     version: "69.3.8",
     date: "2026-02-04",
     title: "Check-In & Fee Stability Fixes",

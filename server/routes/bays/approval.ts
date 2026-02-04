@@ -187,6 +187,124 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
               }
             }
             
+            // Build participants array starting with owner
+            const sessionParticipants: Array<{
+              userId?: string;
+              guestId?: number;
+              participantType: 'owner' | 'member' | 'guest';
+              displayName: string;
+            }> = [{
+              userId: ownerUserId || undefined,
+              participantType: 'owner',
+              displayName: updatedRow.userName || updatedRow.userEmail
+            }];
+            
+            // Convert request_participants to session participants
+            const requestParticipants = updatedRow.requestParticipants as Array<{
+              email?: string;
+              type: 'member' | 'guest';
+              userId?: string;
+              name?: string;
+            }> | null;
+            
+            // Track added participants to prevent duplicates
+            const addedUserIds = new Set<string>();
+            const addedEmails = new Set<string>();
+            const ownerEmailNormalized = updatedRow.userEmail.toLowerCase();
+            
+            // Mark owner as already added
+            if (ownerUserId) addedUserIds.add(ownerUserId);
+            addedEmails.add(ownerEmailNormalized);
+            
+            if (requestParticipants && Array.isArray(requestParticipants)) {
+              for (const rp of requestParticipants) {
+                // Validate entry structure
+                if (!rp || typeof rp !== 'object') {
+                  console.warn('[Booking Approval] Skipping invalid request participant entry:', rp);
+                  continue;
+                }
+                
+                const rpEmailNormalized = rp.email?.toLowerCase()?.trim() || '';
+                
+                // Skip if this is the owner (by email or userId)
+                if (rpEmailNormalized && rpEmailNormalized === ownerEmailNormalized) {
+                  continue;
+                }
+                if (rp.userId && rp.userId === ownerUserId) {
+                  continue;
+                }
+                
+                // Skip if already added (duplicate detection)
+                if (rp.userId && addedUserIds.has(rp.userId)) {
+                  continue;
+                }
+                if (rpEmailNormalized && addedEmails.has(rpEmailNormalized)) {
+                  continue;
+                }
+                
+                // Determine if this is a member: check userId, or lookup by email
+                let resolvedUserId = rp.userId;
+                let resolvedName = rp.name;
+                let isMember = rp.type === 'member';
+                
+                // If type is 'member' but no userId, try to resolve by email
+                if (isMember && !resolvedUserId && rpEmailNormalized) {
+                  const memberResult = await tx.select({ id: users.id, name: users.name })
+                    .from(users)
+                    .where(eq(sql`LOWER(${users.email})`, rpEmailNormalized))
+                    .limit(1);
+                  if (memberResult.length > 0) {
+                    resolvedUserId = memberResult[0].id;
+                    if (!resolvedName) resolvedName = memberResult[0].name || rpEmailNormalized;
+                  }
+                }
+                
+                // Also check if email matches an existing user (for guests who are actually members)
+                if (!resolvedUserId && rpEmailNormalized) {
+                  const memberResult = await tx.select({ id: users.id, name: users.name })
+                    .from(users)
+                    .where(eq(sql`LOWER(${users.email})`, rpEmailNormalized))
+                    .limit(1);
+                  if (memberResult.length > 0) {
+                    // This "guest" is actually a member
+                    resolvedUserId = memberResult[0].id;
+                    isMember = true;
+                    if (!resolvedName) resolvedName = memberResult[0].name || rpEmailNormalized;
+                    console.log(`[Booking Approval] Converted guest to member: ${rpEmailNormalized}`);
+                  }
+                }
+                
+                // Get member name if we have userId but no name
+                if (resolvedUserId && !resolvedName) {
+                  const memberResult = await tx.select({ name: users.name, email: users.email })
+                    .from(users)
+                    .where(eq(users.id, resolvedUserId))
+                    .limit(1);
+                  if (memberResult.length > 0) {
+                    resolvedName = memberResult[0].name || memberResult[0].email;
+                  }
+                }
+                
+                if (isMember && resolvedUserId) {
+                  sessionParticipants.push({
+                    userId: resolvedUserId,
+                    participantType: 'member',
+                    displayName: resolvedName || rpEmailNormalized || 'Member'
+                  });
+                  addedUserIds.add(resolvedUserId);
+                  if (rpEmailNormalized) addedEmails.add(rpEmailNormalized);
+                } else {
+                  // True guest - no matching member found
+                  sessionParticipants.push({
+                    participantType: 'guest',
+                    displayName: resolvedName || rp.name || rpEmailNormalized || 'Guest'
+                  });
+                  if (rpEmailNormalized) addedEmails.add(rpEmailNormalized);
+                }
+              }
+              console.log(`[Booking Approval] Converted ${requestParticipants.length} request participants to ${sessionParticipants.length - 1} session participants (plus owner)`);
+            }
+            
             const sessionResult = await createSessionWithUsageTracking(
               {
                 ownerEmail: updatedRow.userEmail,
@@ -195,11 +313,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 startTime: updatedRow.startTime,
                 endTime: updatedRow.endTime,
                 durationMinutes: updatedRow.durationMinutes,
-                participants: [{
-                  userId: ownerUserId || undefined,
-                  participantType: 'owner',
-                  displayName: updatedRow.userName || updatedRow.userEmail
-                }],
+                participants: sessionParticipants,
                 trackmanBookingId: updatedRow.trackmanBookingId || undefined,
                 declaredPlayerCount: updatedRow.declaredPlayerCount || undefined,
                 bookingId: bookingId
