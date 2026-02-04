@@ -1088,7 +1088,10 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
       [priceId]
     );
     if (tierResult.rows.length > 0) {
-      restoreTierClause = ', tier = COALESCE(tier, $2)';
+      // CRITICAL FIX: Use direct assignment, NOT COALESCE
+      // COALESCE(tier, $2) would keep the old tier if it exists, blocking downgrades
+      // Stripe is source of truth - if user paid for Social, they should be Social
+      restoreTierClause = ', tier = $2';
       queryParams = [email, tierResult.rows[0].slug];
       isMembershipSubscription = true;
     }
@@ -2039,7 +2042,9 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
           [priceId]
         );
         if (tierResult.rows.length > 0) {
-          restoreTierClause = ', tier = COALESCE(tier, $2)';
+          // CRITICAL FIX: Use direct assignment, NOT COALESCE
+          // COALESCE would prevent tier downgrades - user keeps Premium privileges while paying Social price
+          restoreTierClause = ', tier = $2';
           queryParams = [email, tierResult.rows[0].slug];
         }
       }
