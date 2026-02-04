@@ -13,6 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.18.0",
+    date: "2026-02-04",
+    title: "Notice Description Field",
+    changes: [
+      "Added: Description text field to Notice edit form for adding details about closures and announcements"
+    ]
+  },
+  {
     version: "69.17.0",
     date: "2026-02-04",
     title: "Auto-Approve & Booking Query Fixes",
