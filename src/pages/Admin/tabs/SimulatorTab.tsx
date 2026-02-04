@@ -1106,6 +1106,7 @@ const SimulatorTab: React.FC = () => {
         booking: BookingRequest,
         newStatus: 'attended' | 'no_show' | 'cancelled'
     ): Promise<boolean> => {
+        console.log('[Check-in] updateBookingStatusOptimistic called', { bookingId: booking?.id, newStatus });
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
         const previousApproved = queryClient.getQueryData(bookingsKeys.approved(startDate, endDate));
@@ -3429,7 +3430,11 @@ const SimulatorTab: React.FC = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={async () => {
-                                    if (!markStatusModal.booking) return;
+                                    console.log('[Check-in] Attended button clicked', { booking: markStatusModal.booking?.id });
+                                    if (!markStatusModal.booking) {
+                                        console.log('[Check-in] No booking in modal!');
+                                        return;
+                                    }
                                     const booking = markStatusModal.booking;
                                     setMarkStatusModal({ booking: null, confirmNoShow: false });
                                     await updateBookingStatusOptimistic(booking, 'attended');
