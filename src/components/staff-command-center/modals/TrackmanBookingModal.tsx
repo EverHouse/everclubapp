@@ -57,8 +57,17 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [])
     
     const prefix = participant.type === 'member' ? 'M' : 'G';
     const email = participant.email || 'none';
-    // Pre-declared participants only have email, not names yet
-    lines.push(`${prefix}|${email}|Pending|Info`);
+    
+    // Use participant name if available (from directory selection), otherwise show Pending|Info
+    let firstName = 'Pending';
+    let lastName = 'Info';
+    if (participant.name) {
+      const nameParts = participant.name.trim().split(/\s+/);
+      firstName = nameParts[0] || 'Pending';
+      lastName = nameParts.slice(1).join(' ') || 'Info';
+    }
+    
+    lines.push(`${prefix}|${email}|${firstName}|${lastName}`);
     filledCount++;
   }
   

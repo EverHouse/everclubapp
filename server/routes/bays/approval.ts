@@ -1427,12 +1427,74 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
             VALUES ($1, $2, 'owner', $3, 'pending', $4)
           `, [sessionId, booking.user_id, booking.user_name || 'Member', sessionDuration]);
           
-          // Create guest participants
-          for (let i = 1; i < playerCount; i++) {
+          // Create participants from request_participants if available
+          const requestParticipants = booking.request_participants as Array<{
+            email?: string;
+            type: 'member' | 'guest';
+            userId?: string;
+            name?: string;
+          }> | null;
+          
+          let participantsCreated = 0;
+          if (requestParticipants && Array.isArray(requestParticipants)) {
+            for (const rp of requestParticipants) {
+              if (!rp || typeof rp !== 'object') continue;
+              
+              // Resolve user info for members
+              let resolvedUserId = rp.userId || null;
+              let resolvedName = rp.name || '';
+              let participantType = rp.type === 'member' ? 'member' : 'guest';
+              
+              // If we have userId but no name, look it up
+              if (resolvedUserId && !resolvedName) {
+                const userResult = await pool.query(
+                  `SELECT name, first_name, last_name, email FROM users WHERE id = $1`,
+                  [resolvedUserId]
+                );
+                if (userResult.rows.length > 0) {
+                  const u = userResult.rows[0];
+                  resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || 'Member';
+                }
+              }
+              
+              // If no userId but we have email, try to resolve
+              if (!resolvedUserId && rp.email) {
+                const userResult = await pool.query(
+                  `SELECT id, name, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
+                  [rp.email]
+                );
+                if (userResult.rows.length > 0) {
+                  resolvedUserId = userResult.rows[0].id;
+                  participantType = 'member';
+                  if (!resolvedName) {
+                    const u = userResult.rows[0];
+                    resolvedName = u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+                  }
+                }
+              }
+              
+              // Use a fallback name if still empty
+              if (!resolvedName) {
+                resolvedName = rp.email || `Player ${participantsCreated + 2}`;
+              }
+              
+              await pool.query(`
+                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
+                VALUES ($1, $2, $3, $4, 'pending', $5)
+              `, [sessionId, resolvedUserId, participantType, resolvedName, sessionDuration]);
+              
+              participantsCreated++;
+            }
+            console.log(`[Dev Confirm] Created ${participantsCreated} participants from request_participants`);
+          }
+          
+          // If not enough participants from request_participants, create generic guests for remaining slots
+          const remainingSlots = playerCount - 1 - participantsCreated;
+          for (let i = 0; i < remainingSlots; i++) {
             await pool.query(`
               INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
               VALUES ($1, NULL, 'guest', $2, 'pending', $3)
-            `, [sessionId, `Guest ${i + 1}`, sessionDuration]);
+            `, [sessionId, `Guest ${participantsCreated + i + 2}`, sessionDuration]);
           }
         }
         

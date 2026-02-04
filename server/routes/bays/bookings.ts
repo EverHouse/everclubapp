@@ -497,6 +497,33 @@ router.post('/api/booking-requests', async (req, res) => {
             console.error(`[Booking] Failed to lookup user for email ${participant.email}:`, err);
           }
         }
+        
+        // FIX: Also resolve email and name when userId is provided but email is missing
+        // This happens when members are selected from the directory (userId set, email undefined)
+        if (participant.userId && !participant.email) {
+          try {
+            const [existingUser] = await db.select({ 
+              email: users.email, 
+              firstName: users.firstName,
+              lastName: users.lastName,
+              name: users.name
+            }).from(users)
+              .where(eq(users.id, participant.userId))
+              .limit(1);
+            if (existingUser) {
+              participant.email = existingUser.email?.toLowerCase() || '';
+              // Also set name if not already set
+              if (!participant.name) {
+                participant.name = existingUser.name || 
+                  `${existingUser.firstName || ''} ${existingUser.lastName || ''}`.trim() || 
+                  existingUser.email;
+              }
+              console.log(`[Booking] Resolved email for directory-selected participant: ${participant.email}`);
+            }
+          } catch (err) {
+            console.error(`[Booking] Failed to lookup email for userId ${participant.userId}:`, err);
+          }
+        }
       }
       
       const insertResult = await client.query(
