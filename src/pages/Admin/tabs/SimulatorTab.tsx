@@ -79,30 +79,52 @@ interface Bay {
     description: string;
 }
 
-// Estimate fees based on tier and booking duration (when no session exists yet)
+// Estimate fees based on tier, duration, and player count (when no session exists yet)
 // Returns estimated fee in dollars
-function estimateFeeByTier(tier: string | null | undefined, durationMinutes: number): number {
-    if (!tier || durationMinutes <= 0) return 0;
+// IMPORTANT: Guest slots ALWAYS incur $25 fee unless a Core+ member fills the slot or guest pass is used
+function estimateFeeByTier(
+    tier: string | null | undefined, 
+    durationMinutes: number,
+    declaredPlayerCount: number = 1
+): number {
+    if (durationMinutes <= 0) return 0;
+    
+    const playerCount = Math.max(1, declaredPlayerCount);
+    const guestCount = Math.max(0, playerCount - 1); // All non-owner slots are guests by default
+    
+    // Guest fees: $25 per guest slot (always charged unless member with Core+ or guest pass)
+    const guestFees = guestCount * 25;
+    
+    // If no tier, only charge guest fees
+    if (!tier) return guestFees;
+    
     const tierLower = tier.toLowerCase();
     
-    // Tier-based included minutes
-    let includedMinutes = 0;
+    // VIP has unlimited access - only pay guest fees
     if (tierLower === 'vip') {
-        return 0; // VIP has unlimited access
-    } else if (tierLower === 'corporate' || tierLower === 'premium') {
+        return guestFees;
+    }
+    
+    // Tier-based included minutes (per person, per day)
+    let includedMinutes = 0;
+    if (tierLower === 'corporate' || tierLower === 'premium') {
         includedMinutes = 90;
     } else if (tierLower === 'core') {
         includedMinutes = 60;
     }
     // Social, Base, Day Pass, etc. have 0 included minutes
     
-    // Calculate overage
-    const overageMinutes = Math.max(0, durationMinutes - includedMinutes);
-    if (overageMinutes === 0) return 0;
+    // Calculate per-person minutes (time is split across all players)
+    const perPersonMinutes = Math.floor(durationMinutes / playerCount);
     
-    // Fee is $25 per 30 min, round up to nearest 30 min block
-    const blocks = Math.ceil(overageMinutes / 30);
-    return blocks * 25;
+    // Calculate owner's overage (only owner pays overage based on their tier)
+    const ownerOverageMinutes = Math.max(0, perPersonMinutes - includedMinutes);
+    
+    // Fee is $25 per 30 min block, rounded up
+    const ownerOverageBlocks = ownerOverageMinutes > 0 ? Math.ceil(ownerOverageMinutes / 30) : 0;
+    const ownerOverageFee = ownerOverageBlocks * 25;
+    
+    return ownerOverageFee + guestFees;
 }
 
 interface Resource {
@@ -2207,9 +2229,9 @@ const SimulatorTab: React.FC = () => {
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
                                                                         Checked In
                                                                     </span>
-                                                                ) : !isConferenceRoom && isToday && (booking.has_unpaid_fees || estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0) > 0) ? (
+                                                                ) : !isConferenceRoom && isToday && (booking.has_unpaid_fees || estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, (booking as any).declared_player_count || 1) > 0) ? (
                                                                     (() => {
-                                                                        const estimatedFee = booking.total_owed || estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0);
+                                                                        const estimatedFee = booking.total_owed || estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, (booking as any).declared_player_count || 1);
                                                                         const isEstimate = !booking.has_unpaid_fees;
                                                                         return (
                                                                             <button
@@ -2534,7 +2556,7 @@ const SimulatorTab: React.FC = () => {
                                                                 const unfilledSlots = (booking as any)?.unfilled_slots ?? 0;
                                                                 const declaredPlayers = (booking as any)?.declared_player_count ?? 1;
                                                                 const filledSlots = Math.max(0, declaredPlayers - unfilledSlots);
-                                                                const estimatedFromTier = estimateFeeByTier((booking as any)?.tier, (booking as any)?.duration_minutes || 0);
+                                                                const estimatedFromTier = estimateFeeByTier((booking as any)?.tier, (booking as any)?.duration_minutes || 0, declaredPlayers);
                                                                 const hasUnpaidFees = ((booking as any)?.has_unpaid_fees ?? false) || estimatedFromTier > 0;
                                                                 const totalOwed = (booking as any)?.total_owed || estimatedFromTier;
                                                                 const isPartialRoster = !isConference && declaredPlayers > 1 && filledSlots < declaredPlayers;

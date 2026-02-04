@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.4.8",
+    date: "2026-02-04",
+    title: "Fixed: Booking Cards Now Show Correct Fee Estimates",
+    isMajor: true,
+    changes: [
+      "Fixed: Booking card fee estimates now include guest fees ($25 per guest slot)",
+      "Fixed: Fee estimates now correctly split time across all players (duration ÷ player count)",
+      "Fixed: VIP with 1 guest now shows $25 (guest fee), not $0",
+      "Fixed: Social with 1 guest (60 min) now shows $50 ($25 overage + $25 guest), not $50 (wrong calculation)",
+      "Previously: Booking cards used a simplified estimate that ignored guests entirely - causing staff to see wrong amounts"
+    ]
+  },
+  {
     version: "69.4.7",
     date: "2026-02-04",
     title: "Critical: Bookings No Longer Link to Wrong Sessions",
