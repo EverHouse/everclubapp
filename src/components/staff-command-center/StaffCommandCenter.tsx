@@ -12,6 +12,7 @@ import { getTodayPacific, formatTime12Hour, formatDateShort } from '../../utils/
 import { StaffCommandCenterSkeleton } from '../skeletons';
 import { AnimatedPage } from '../motion';
 import { useStaffWebSocketContext } from '../../contexts/StaffWebSocketContext';
+import { useBookingCheckIn } from '../../hooks/useBookingCheckIn';
 
 import { useCommandCenterData } from './hooks/useCommandCenterData';
 import { formatLastSynced, formatTodayDate } from './helpers';
@@ -46,6 +47,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   const isMobile = useIsMobile();
   const { actualUser } = useData();
   const { isConnected: wsConnected } = useStaffWebSocketContext();
+  const { checkIn: performCheckIn, parseBookingId } = useBookingCheckIn();
   
   const navigateToTab = useCallback((tab: TabType) => {
     if (tabToPath[tab as keyof typeof tabToPath]) {
@@ -390,7 +392,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   };
 
   const handleCheckIn = async (booking: BookingRequest) => {
-    const id = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
+    const id = parseBookingId(booking.id);
     setActionInProgress(`checkin-${id}`);
     
     const originalStatus = booking.status;
@@ -427,41 +429,21 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     updateRecentActivity(prev => [newActivity, ...prev]);
     
     try {
-      const res = await fetch(`/api/bookings/${id}/checkin`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'attended' })
-      });
+      const result = await performCheckIn(booking, 'attended');
       
-      if (res.ok) {
+      if (result.success) {
         optimisticUpdateRef.current = null;
-        showToast('Member checked in', 'success');
-      } else if (res.status === 402) {
-        const errorData = await res.json();
+      } else if (result.requiresRoster) {
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-        
-        if (errorData.requiresRoster) {
-          // Open the Complete Roster modal directly instead of switching tabs
-          setRosterModal({ isOpen: true, bookingId: id });
-        } else {
-          setBillingModal({ isOpen: true, bookingId: id });
-        }
+        setRosterModal({ isOpen: true, bookingId: id });
+      } else if (result.requiresBilling) {
+        safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
+        setBillingModal({ isOpen: true, bookingId: id });
       } else {
-        const errorData = await res.json().catch(() => ({ error: 'Failed to check in' }));
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-        
-        // Handle specific error cases
-        if (errorData.requiresSync) {
-          showToast('Billing session not ready - sync from Trackman first', 'error');
-        } else {
-          showToast(errorData.error || errorData.message || 'Failed to check in', 'error');
-        }
-        console.error('[Check-in] Failed:', { status: res.status, error: errorData });
       }
     } catch (err) {
       safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-      showToast('Failed to check in', 'error');
     } finally {
       setActionInProgress(null);
     }

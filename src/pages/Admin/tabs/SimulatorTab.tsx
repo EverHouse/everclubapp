@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
+import { useBookingCheckIn } from '../../../hooks/useBookingCheckIn';
 import { getTodayPacific, addDaysToPacificDate, formatDateDisplayWithDay, formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime } from '../../../utils/dateUtils';
 import { getStatusBadge, formatStatusLabel } from '../../../utils/statusColors';
 import TierBadge from '../../../components/TierBadge';
@@ -695,6 +696,7 @@ const SimulatorTab: React.FC = () => {
     const { setPageReady } = usePageReady();
     const { user, actualUser, members } = useData();
     const queryClient = useQueryClient();
+    const { checkIn: performCheckIn, parseBookingId } = useBookingCheckIn();
     
     const navigateToTab = useCallback((tab: TabType) => {
         if (tabToPath[tab]) {
@@ -1107,7 +1109,9 @@ const SimulatorTab: React.FC = () => {
         newStatus: 'attended' | 'no_show' | 'cancelled',
         onSuccess?: () => void
     ): Promise<boolean> => {
-        console.log('[Check-in] updateBookingStatusOptimistic called', { bookingId: booking?.id, newStatus });
+        const bookingId = parseBookingId(booking.id);
+        console.log('[Check-in] updateBookingStatusOptimistic called', { bookingId: booking?.id, parsedId: bookingId, newStatus });
+        
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(bookingsKeys.allRequests());
         const previousApproved = queryClient.getQueryData(bookingsKeys.approved(startDate, endDate));
@@ -1125,68 +1129,32 @@ const SimulatorTab: React.FC = () => {
         );
         
         try {
-            const res = await fetch(`/api/bookings/${booking.id}/checkin`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ status: newStatus, source: booking.source })
-            });
+            // Use the shared check-in hook with parsed booking ID
+            const bookingForApi = { ...booking, id: bookingId };
+            const result = await performCheckIn(bookingForApi, newStatus === 'cancelled' ? 'attended' : newStatus);
             
-            if (res.status === 402) {
-                const errorData = await res.json();
-                // Revert optimistic update
-                queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
-                queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
-                
-                // Open the appropriate modal based on what's needed
-                const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                if (errorData.requiresRoster) {
-                    setRosterModal({ isOpen: true, bookingId });
-                } else {
-                    setBillingModal({ isOpen: true, bookingId });
-                }
-                return false;
+            if (result.success) {
+                onSuccess?.();
+                return true;
             }
             
-            if (res.status === 400) {
-                const errorData = await res.json();
-                // If billing session not generated, allow user to proceed anyway
-                if (errorData.requiresSync) {
-                    // Retry with skipPaymentCheck to bypass the billing session check
-                    const retryRes = await fetch(`/api/bookings/${booking.id}/checkin`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ status: newStatus, skipPaymentCheck: true })
-                    });
-                    if (retryRes.ok) {
-                        showToast('Booking checked in (billing session pending)', 'success');
-                        return true;
-                    } else {
-                        const retryErr = await retryRes.json();
-                        throw new Error(retryErr.error || 'Failed to check in');
-                    }
-                }
-                throw new Error(errorData.error || 'Failed to update status');
+            // Revert optimistic update on failure
+            queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
+            queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
+            
+            if (result.requiresRoster) {
+                setRosterModal({ isOpen: true, bookingId });
+            } else if (result.requiresBilling) {
+                setBillingModal({ isOpen: true, bookingId });
             }
             
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to update status');
-            }
-            
-            const statusLabel = newStatus === 'attended' ? 'checked in' : 
-                              newStatus === 'no_show' ? 'marked as no show' : 'cancelled';
-            showToast(`Booking ${statusLabel}`, 'success');
-            onSuccess?.();
-            return true;
+            return false;
         } catch (err: any) {
             queryClient.setQueryData(bookingsKeys.allRequests(), previousRequests);
             queryClient.setQueryData(bookingsKeys.approved(startDate, endDate), previousApproved);
-            showToast(err.message || 'Failed to update booking', 'error');
             return false;
         }
-    }, [queryClient, startDate, endDate, showToast]);
+    }, [queryClient, startDate, endDate, performCheckIn, parseBookingId]);
 
     const showCancelConfirmation = useCallback((booking: BookingRequest) => {
         const hasTrackman = !!(booking.trackman_booking_id) || 
@@ -3375,24 +3343,13 @@ const SimulatorTab: React.FC = () => {
                                             onClick={async (e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
-                                                try {
-                                                    const booking = selectedCalendarBooking;
-                                                    if (!booking) {
-                                                        showToast('Booking not found', 'error');
-                                                        return;
-                                                    }
-                                                    // Parse booking ID - calendar bookings may have "cal_" prefix
-                                                    const parsedId = typeof booking.id === 'string' 
-                                                        ? parseInt(String(booking.id).replace('cal_', ''), 10) 
-                                                        : booking.id;
-                                                    console.log('[SimulatorTab] Calendar modal Check In clicked for booking:', booking.id, '-> parsed:', parsedId);
-                                                    // Create a booking object with the parsed ID for the API call
-                                                    const bookingForApi = { ...booking, id: parsedId };
-                                                    await updateBookingStatusOptimistic(bookingForApi as any, 'attended', () => setSelectedCalendarBooking(null));
-                                                } catch (err: any) {
-                                                    console.error('[SimulatorTab] Check In error:', err);
-                                                    showToast(err.message || 'Check-in failed', 'error');
+                                                const booking = selectedCalendarBooking;
+                                                if (!booking) {
+                                                    showToast('Booking not found', 'error');
+                                                    return;
                                                 }
+                                                console.log('[SimulatorTab] Calendar modal Check In clicked for booking:', booking.id);
+                                                await updateBookingStatusOptimistic(booking, 'attended', () => setSelectedCalendarBooking(null));
                                             }}
                                             className="flex-1 py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium flex items-center justify-center gap-2"
                                         >
@@ -3404,23 +3361,13 @@ const SimulatorTab: React.FC = () => {
                                             onClick={async (e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
-                                                try {
-                                                    const booking = selectedCalendarBooking;
-                                                    if (!booking) {
-                                                        showToast('Booking not found', 'error');
-                                                        return;
-                                                    }
-                                                    // Parse booking ID - calendar bookings may have "cal_" prefix
-                                                    const parsedId = typeof booking.id === 'string' 
-                                                        ? parseInt(String(booking.id).replace('cal_', ''), 10) 
-                                                        : booking.id;
-                                                    console.log('[SimulatorTab] Calendar modal No Show clicked for booking:', booking.id, '-> parsed:', parsedId);
-                                                    const bookingForApi = { ...booking, id: parsedId };
-                                                    await updateBookingStatusOptimistic(bookingForApi as any, 'no_show', () => setSelectedCalendarBooking(null));
-                                                } catch (err: any) {
-                                                    console.error('[SimulatorTab] No Show error:', err);
-                                                    showToast(err.message || 'Failed to mark as no show', 'error');
+                                                const booking = selectedCalendarBooking;
+                                                if (!booking) {
+                                                    showToast('Booking not found', 'error');
+                                                    return;
                                                 }
+                                                console.log('[SimulatorTab] Calendar modal No Show clicked for booking:', booking.id);
+                                                await updateBookingStatusOptimistic(booking, 'no_show', () => setSelectedCalendarBooking(null));
                                             }}
                                             className="flex-1 py-3 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2"
                                         >
