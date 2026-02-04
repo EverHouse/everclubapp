@@ -11,6 +11,7 @@ import DirectionalPageTransition, { TransitionContext } from './components/motio
 import Logo from './components/Logo';
 import MenuOverlay from './components/MenuOverlay';
 import MemberMenuOverlay from './components/MemberMenuOverlay';
+import { StaffMobileSidebar } from './components/StaffMobileSidebar';
 import ViewAsBanner from './components/ViewAsBanner';
 import PageErrorBoundary from './components/PageErrorBoundary';
 import Avatar from './components/Avatar';
@@ -492,6 +493,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isStaffOrAdmin = actualUser?.role === 'admin' || actualUser?.role === 'staff';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMemberMenuOpen, setIsMemberMenuOpen] = useState(false);
+  const [isStaffSidebarOpen, setIsStaffSidebarOpen] = useState(false);
   const unreadCount = useNotificationStore(state => state.unreadCount);
   useWebSocket({ effectiveEmail: user?.email });
   useSupabaseRealtime({ userEmail: user?.email });
@@ -629,23 +631,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Left section - flex-1 for symmetric spacing with right */}
       <div className="flex-1 flex justify-start">
         {isMemberRoute ? (
-          isProfilePage ? (
             <button 
-              onClick={() => navigate(-1)}
-              className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
-              aria-label="Go back"
-            >
-              <span className="material-symbols-outlined text-[24px]">arrow_back</span>
-            </button>
-          ) : (
-            <button 
-              onClick={() => setIsMemberMenuOpen(true)}
+              onClick={() => {
+                // On profile page for staff/admin, open staff sidebar
+                // Otherwise open member menu
+                if (isProfilePage && isStaffOrAdmin) {
+                  setIsStaffSidebarOpen(true);
+                } else {
+                  setIsMemberMenuOpen(true);
+                }
+              }}
               className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
               aria-label="Open menu"
             >
               <span className="material-symbols-outlined text-[24px]">menu</span>
             </button>
-          )
         ) : (
           <button 
             onClick={handleTopLeftClick}
@@ -788,6 +788,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
             <MenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
             <MemberMenuOverlay isOpen={isMemberMenuOpen} onClose={() => setIsMemberMenuOpen(false)} />
+            <StaffMobileSidebar 
+              isOpen={isStaffSidebarOpen} 
+              onClose={() => setIsStaffSidebarOpen(false)} 
+              activeTab="settings"
+              isAdmin={actualUser?.role === 'admin'}
+            />
         </div>
       </NotificationContext.Provider>
     </div>

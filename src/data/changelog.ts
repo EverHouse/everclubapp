@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.22.0",
+    date: "2026-02-04",
+    title: "Profile Page Navigation Menu",
+    changes: [
+      "Changed: Profile page header now shows hamburger menu instead of back button",
+      "Improved: Staff see staff navigation menu, members see member navigation menu from profile"
+    ]
+  },
+  {
     version: "69.21.0",
     date: "2026-02-04",
     title: "View-As Mode Dashboard Fix",
