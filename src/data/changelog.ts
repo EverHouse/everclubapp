@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.30.0",
+    date: "2026-02-04",
+    title: "SimulatorTab File Corruption Fix",
+    changes: [
+      "Fixed: Critical file corruption that was preventing the Bookings page from loading",
+      "Fixed: Removed corrupted text artifacts at the beginning of the SimulatorTab file"
+    ]
+  },
+  {
     version: "69.29.0",
     date: "2026-02-04",
     title: "Check-In Modal Auto-Close Fix",
