@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.5.0",
+    date: "2026-02-04",
+    title: "New: Private Hire Inquiry Landing Page",
+    changes: [
+      "Added: New standalone landing page at /private-hire/inquire for event inquiries",
+      "Added: Custom-branded 2-step form matching HubSpot fields with updated Event Type options",
+      "Added: Event types now include Private Event, Birthday, Corporate, Brand Activation, Other",
+      "Changed: Submit Inquiry button on Private Hire page now navigates to the new landing page",
+      "Improved: Consent checkbox is now required before proceeding with the inquiry"
+    ]
+  },
+  {
     version: "69.4.9",
     date: "2026-02-04",
     title: "Fixed: Prepayment Intents Now Created When Guests Added After Approval",
