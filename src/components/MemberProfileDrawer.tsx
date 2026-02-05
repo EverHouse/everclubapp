@@ -733,6 +733,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   ))}
                 </div>
               </div>
+              </div>
             )}
           </div>
         );
