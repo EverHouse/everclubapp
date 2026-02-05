@@ -374,7 +374,8 @@ router.post('/api/booking-requests', async (req, res) => {
     const { 
       user_email, user_name, resource_id, resource_preference, request_date, start_time, 
       duration_minutes, notes, user_tier, declared_player_count, member_notes,
-      guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants
+      guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants,
+      conference_prepayment_id
     } = req.body;
     
     if (!user_email || !request_date || !start_time || !duration_minutes) {
@@ -536,7 +537,72 @@ router.post('/api/booking-requests', async (req, res) => {
       
       // Conference rooms auto-confirm (no staff approval needed), simulators stay pending
       const isConferenceRoom = resourceType === 'conference_room';
-      const initialStatus = isConferenceRoom ? 'confirmed' : 'pending';
+      let initialStatus: 'pending' | 'confirmed' = isConferenceRoom ? 'confirmed' : 'pending';
+      let linkedPrepaymentId: number | null = null;
+      
+      // For conference rooms with overage fees, validate prepayment before confirming
+      if (isConferenceRoom) {
+        // Calculate overage fees for conference room
+        const { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } = await import('../../core/tierService');
+        const { calculateOverageCents } = await import('../../core/billing/pricingConfig');
+        
+        const tierName = await getMemberTierByEmail(user_email.toLowerCase());
+        if (tierName) {
+          const tierLimits = await getTierLimits(tierName);
+          const dailyAllowance = tierLimits.daily_conf_room_minutes || 0;
+          const usedToday = await getDailyBookedMinutes(user_email.toLowerCase(), request_date, 'conference_room');
+          const remainingAllowance = Math.max(0, dailyAllowance - usedToday);
+          const overageMinutes = Math.max(0, duration_minutes - remainingAllowance);
+          const totalCents = calculateOverageCents(overageMinutes);
+          
+          if (totalCents > 0) {
+            // Overage fees apply - require prepayment
+            if (!conference_prepayment_id) {
+              await client.query('ROLLBACK');
+              client.release();
+              return res.status(402).json({ 
+                error: 'Payment required for conference room overage fees',
+                overageMinutes,
+                totalCents,
+                feeDollars: (totalCents / 100).toFixed(2)
+              });
+            }
+            
+            // Validate the prepayment was successful and matches expected amount
+            const prepaymentCheck = await client.query(
+              `SELECT id, status, amount_cents, duration_minutes FROM conference_prepayments 
+               WHERE id = $1 AND member_email = $2 AND booking_date = $3`,
+              [conference_prepayment_id, user_email.toLowerCase(), request_date]
+            );
+            
+            if (prepaymentCheck.rows.length === 0) {
+              await client.query('ROLLBACK');
+              client.release();
+              return res.status(400).json({ error: 'Prepayment not found' });
+            }
+            
+            const prepayment = prepaymentCheck.rows[0];
+            if (prepayment.status !== 'succeeded') {
+              await client.query('ROLLBACK');
+              client.release();
+              return res.status(402).json({ error: 'Prepayment not completed. Please complete payment first.' });
+            }
+            
+            // Verify prepayment amount matches expected fee
+            if (prepayment.amount_cents < totalCents) {
+              await client.query('ROLLBACK');
+              client.release();
+              return res.status(402).json({ 
+                error: 'Prepayment amount insufficient for this booking duration',
+                prepaidCents: prepayment.amount_cents,
+                requiredCents: totalCents
+              });
+            }
+            
+            linkedPrepaymentId = prepayment.id;
+          }
+        }
+      }
       
       const insertResult = await client.query(
         `INSERT INTO booking_requests (
@@ -580,6 +646,15 @@ router.post('/api/booking-requests', async (req, res) => {
         if (!holdResult.success) {
           console.log(`[Booking] Guest pass hold not created (non-blocking): ${holdResult.error}`);
         }
+      }
+      
+      // Link prepayment to booking if conference room with overage fees
+      if (linkedPrepaymentId) {
+        await client.query(
+          `UPDATE conference_prepayments SET booking_id = $1 WHERE id = $2`,
+          [insertResult.rows[0].id, linkedPrepaymentId]
+        );
+        console.log(`[Booking] Linked prepayment ${linkedPrepaymentId} to conference room booking ${insertResult.rows[0].id}`);
       }
       
       await client.query('COMMIT');
@@ -1139,6 +1214,7 @@ async function calculateFeeEstimate(params: {
     ? (tierLimits?.daily_conf_room_minutes || 0)
     : (tierLimits?.daily_sim_minutes || 0);
   const isUnlimitedTier = dailyAllowance >= 999;
+  const isSocialTier = !isConferenceRoom && (tierLimits?.daily_sim_minutes || 0) === 0;
   
   const usedMinutesToday = requestDate ? await getDailyBookedMinutes(ownerEmail, requestDate, isConferenceRoom ? 'conference_room' : 'simulator') : 0;
   const perPersonMins = Math.floor(durationMinutes / playerCount);

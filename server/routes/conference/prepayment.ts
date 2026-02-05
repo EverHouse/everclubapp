@@ -180,8 +180,8 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
 
           const prepaymentResult = await pool.query(
             `INSERT INTO conference_prepayments 
-             (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at)
-             VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'pending', $7)
+             (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
+             VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
              RETURNING id`,
             [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceTransaction.id, expiresAt]
           );
@@ -233,8 +233,8 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
     if (result.paidInFull) {
       const prepaymentResult = await pool.query(
         `INSERT INTO conference_prepayments 
-         (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at)
-         VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'pending', $7)
+         (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
+         VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
          RETURNING id`,
         [normalizedEmail, date, startTime, durationMinutes, totalCents, result.balanceTransactionId, expiresAt]
       );
