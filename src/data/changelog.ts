@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.2",
+    date: "2026-02-05",
+    title: "Corporate & Family Billing Status Propagation",
+    changes: [
+      "Fixed: Corporate billing reconciliation now correctly skips quantity-based groups",
+      "Fixed: Past-due and unpaid statuses now propagate to all family/corporate sub-members",
+      "Fixed: Sub-members are automatically reactivated when primary subscription becomes active",
+      "Fixed: Metadata is now preserved when corporate subscription items are replaced during price tier changes",
+      "Added: Sub-members receive notifications when group billing status changes"
+    ]
+  },
+  {
     version: "69.9.1",
     date: "2026-02-05",
     title: "Future Bookings Visibility on Financials",
