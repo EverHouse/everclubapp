@@ -34,7 +34,7 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
     const booking = bookingResult.rows[0];
     
     const isOwner = booking.user_email.toLowerCase() === userEmail?.toLowerCase();
-    const isStaff = sessionUser?.isStaff === true;
+    const isStaff = sessionUser?.role === 'staff' || sessionUser?.role === 'admin';
     
     if (!isOwner && !isStaff) {
       return res.status(403).json({ error: 'Not authorized to pay for this booking.' });
@@ -153,7 +153,7 @@ router.post('/api/stripe/overage/confirm-payment', async (req: Request, res: Res
     const { bookingId, paymentIntentId } = req.body;
     const sessionUser = getSessionUser(req);
     const userEmail = sessionUser?.email;
-    const isStaff = sessionUser?.isStaff === true;
+    const isStaff = sessionUser?.role === 'staff' || sessionUser?.role === 'admin';
     
     if (!userEmail) {
       return res.status(401).json({ error: 'Authentication required.' });
@@ -229,7 +229,7 @@ router.get('/api/stripe/overage/check/:bookingId', async (req: Request, res: Res
     const { bookingId } = req.params;
     const sessionUser = getSessionUser(req);
     const userEmail = sessionUser?.email;
-    const isStaff = sessionUser?.isStaff === true;
+    const isStaff = sessionUser?.role === 'staff' || sessionUser?.role === 'admin';
     
     if (!userEmail) {
       return res.status(401).json({ error: 'Authentication required.' });

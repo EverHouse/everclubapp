@@ -417,10 +417,26 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       return res.status(500).json({ error: subscriptionResult.error || 'Failed to create subscription' });
     }
     
-    await pool.query(
-      'UPDATE users SET stripe_subscription_id = $1 WHERE id = $2',
-      [subscriptionResult.subscription?.subscriptionId, userId]
-    );
+    try {
+      await pool.query(
+        'UPDATE users SET stripe_subscription_id = $1 WHERE id = $2',
+        [subscriptionResult.subscription?.subscriptionId, userId]
+      );
+    } catch (dbError: any) {
+      console.error('[Stripe] DB update failed after subscription creation. Rolling back...', dbError.message);
+      if (subscriptionResult.subscription?.subscriptionId) {
+        try {
+          await cancelSubscription(subscriptionResult.subscription.subscriptionId);
+          console.log(`[Stripe] Emergency rollback: cancelled subscription ${subscriptionResult.subscription.subscriptionId}`);
+        } catch (cancelError: any) {
+          console.error('[Stripe] Failed to cancel subscription during rollback:', cancelError.message);
+        }
+      }
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+      return res.status(500).json({ 
+        error: 'System error during activation. Payment has been voided. Please try again.' 
+      });
+    }
     
     await logFromRequest(req, {
       action: 'new_member_subscription_created',

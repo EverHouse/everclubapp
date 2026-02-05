@@ -1324,6 +1324,14 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
   );
   console.log(`[Stripe Webhook] Cleared grace period and set billing_provider for ${email}`);
 
+  if (currentPeriodEnd) {
+    await client.query(
+      `UPDATE users SET stripe_current_period_end = $1, updated_at = NOW()
+       WHERE LOWER(email) = LOWER($2)`,
+      [nextBillingDate, email]
+    );
+  }
+
   const localEmail = email;
   const localMemberName = memberName;
   const localAmountPaid = amountPaid;
@@ -1957,6 +1965,9 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
     const planName = subscription.items?.data?.[0]?.price?.nickname || 
                      subscription.items?.data?.[0]?.plan?.nickname || 
                      'Membership';
+    const subscriptionPeriodEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000) 
+      : null;
 
     // First try to find user by stripe_customer_id
     let userResult = await pool.query(
@@ -2058,19 +2069,20 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
       
       const actualStatus = subscription.status === 'trialing' ? 'trialing' : subscription.status === 'past_due' ? 'past_due' : 'active';
       await pool.query(
-        `INSERT INTO users (email, first_name, last_name, phone, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, join_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $8, $4, $7, $5, $6, 'stripe', NOW(), NOW(), NOW())
+        `INSERT INTO users (email, first_name, last_name, phone, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, stripe_current_period_end, join_date, created_at, updated_at)
+         VALUES ($1, $2, $3, $8, $4, $7, $5, $6, 'stripe', $9, NOW(), NOW(), NOW())
          ON CONFLICT (email) DO UPDATE SET 
            stripe_customer_id = EXCLUDED.stripe_customer_id,
            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
            membership_status = $7,
            billing_provider = 'stripe',
+           stripe_current_period_end = COALESCE($9, users.stripe_current_period_end),
            tier = COALESCE(EXCLUDED.tier, users.tier),
            first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
            last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
            phone = COALESCE(NULLIF(EXCLUDED.phone, ''), users.phone),
            updated_at = NOW()`,
-        [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus, metadataPhone || '']
+        [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus, metadataPhone || '', subscriptionPeriodEnd]
       );
       
       console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, phone ${metadataPhone || 'none'}, subscription ${subscription.id}`);
@@ -2219,6 +2231,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
             billing_provider = 'stripe',
             stripe_customer_id = COALESCE(stripe_customer_id, $3),
             stripe_subscription_id = COALESCE(stripe_subscription_id, $4),
+            stripe_current_period_end = COALESCE($5, stripe_current_period_end),
             membership_status = CASE 
               WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN 'active' 
               ELSE membership_status 
@@ -2226,7 +2239,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
             updated_at = NOW() 
           WHERE LOWER(email) = LOWER($2) 
           RETURNING id`,
-          [tierSlug, email, customerId, subscription.id]
+          [tierSlug, email, customerId, subscription.id, subscriptionPeriodEnd]
         );
           
           if (updateResult.rowCount && updateResult.rowCount > 0) {
@@ -2319,10 +2332,11 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                           ELSE membership_status 
                         END,
                         billing_provider = 'stripe',
+                        stripe_current_period_end = COALESCE($3, stripe_current_period_end),
                         updated_at = NOW() 
                       WHERE email = $2 
                       RETURNING id`,
-                      [tierName, email]
+                      [tierName, email, subscriptionPeriodEnd]
                     );
                     
                     if (updateResult.rowCount && updateResult.rowCount > 0) {
@@ -2398,6 +2412,9 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
     const customerId = subscription.customer;
     const status = subscription.status;
     const currentPriceId = subscription.items?.data?.[0]?.price?.id;
+    const subscriptionPeriodEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000) 
+      : null;
 
     if (previousAttributes?.items?.data) {
       const { handleSubscriptionItemsChanged } = await import('./groupBilling');
@@ -2474,8 +2491,8 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       // Compare names (users.tier stores the display name like 'Social', not slug)
       if (newTierName && newTierName !== currentTier) {
         await pool.query(
-          'UPDATE users SET tier = $1, billing_provider = $3, updated_at = NOW() WHERE id = $2',
-          [newTierName, userId, 'stripe']
+          'UPDATE users SET tier = $1, billing_provider = $3, stripe_current_period_end = COALESCE($4, stripe_current_period_end), updated_at = NOW() WHERE id = $2',
+          [newTierName, userId, 'stripe', subscriptionPeriodEnd]
         );
         
         console.log(`[Stripe Webhook] Tier updated via Stripe for ${email}: ${currentTier} -> ${newTierName} (matched by ${matchMethod})`);
@@ -2524,11 +2541,11 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
 
     if (status === 'active') {
       await pool.query(
-        `UPDATE users SET membership_status = 'active', updated_at = NOW() 
+        `UPDATE users SET membership_status = 'active', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() 
          WHERE id = $1 
          AND (membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member', 'past_due'))
          AND COALESCE(membership_status, '') NOT IN ('cancelled', 'suspended', 'terminated')`,
-        [userId]
+        [userId, subscriptionPeriodEnd]
       );
       console.log(`[Stripe Webhook] Membership status set to active for ${email}`);
       
@@ -2584,8 +2601,8 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       }
     } else if (status === 'past_due') {
       await pool.query(
-        `UPDATE users SET membership_status = 'past_due', updated_at = NOW() WHERE id = $1`,
-        [userId]
+        `UPDATE users SET membership_status = 'past_due', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
+        [userId, subscriptionPeriodEnd]
       );
       await notifyMember({
         userEmail: email,
@@ -2658,8 +2675,8 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       console.log(`[Stripe Webhook] Subscription canceled for ${email} - handled by subscription.deleted webhook`);
     } else if (status === 'unpaid') {
       await pool.query(
-        `UPDATE users SET membership_status = 'suspended', updated_at = NOW() WHERE id = $1`,
-        [userId]
+        `UPDATE users SET membership_status = 'suspended', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
+        [userId, subscriptionPeriodEnd]
       );
       await notifyMember({
         userEmail: email,

@@ -209,6 +209,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
       manuallyLinkedEmails: users.manuallyLinkedEmails,
       dataSource: users.dataSource,
       billingProvider: users.billingProvider,
+      stripeCurrentPeriodEnd: users.stripeCurrentPeriodEnd,
     })
       .from(users)
       .where(whereClause)
@@ -369,6 +370,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
         manuallyLinkedEmails: member.manuallyLinkedEmails || [],
         dataSource: member.dataSource,
         billingProvider: member.billingProvider,
+        nextPaymentDate: member.stripeCurrentPeriodEnd || null,
       };
     });
     

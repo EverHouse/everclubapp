@@ -35,6 +35,7 @@ export const users = pgTable("users", {
   billingProvider: varchar("billing_provider").default("mindbody"),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
+  stripeCurrentPeriodEnd: timestamp("stripe_current_period_end"),
   lastSyncedAt: timestamp("last_synced_at"),
   joinDate: date("join_date"),
   memberSince: timestamp("member_since"),

@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.15.0",
+    date: "2026-02-05",
+    title: "Next Payment Date Tracking & Billing Safety",
+    changes: [
+      "Added: Next payment date now tracked automatically from Stripe — synced from subscription creation, renewal, and updates",
+      "Added: Next payment date visible in the member directory for staff",
+      "Fixed: Staff can now charge booking overage fees (was blocked by an incorrect permission check)",
+      "Fixed: If a system error occurs while saving a new member's subscription, the Stripe subscription is now automatically cancelled to prevent orphaned charges"
+    ]
+  },
+  {
     version: "69.14.0",
     date: "2026-02-05",
     title: "Billing Safety & Access Control Fixes",
