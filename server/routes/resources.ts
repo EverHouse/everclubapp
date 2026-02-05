@@ -699,8 +699,7 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
       data: { bookingId, status: 'confirmed' }
     });
     
-    logFromRequest(req, 'approve_booking', 'booking', id, {
-      member_email: result.userEmail,
+    logFromRequest(req, 'approve_booking', 'booking', id, result.userEmail, {
       bay: result.resourceId,
       time: result.startTime
     });

@@ -120,8 +120,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       console.log(`[DataTools] Re-synced member ${normalizedEmail} from HubSpot by ${staffEmail}`);
     }
     
-    logFromRequest(req, 'sync_hubspot', 'member', null, {
-      email: normalizedEmail,
+    logFromRequest(req, 'sync_hubspot', 'member', null, normalizedEmail, {
       action: 'manual_sync'
     });
     
@@ -951,7 +950,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
     }
     
     if (!dryRun && updated.length > 0) {
-      logFromRequest(req, 'sync_subscription_status', 'users', null, {
+      logFromRequest(req, 'sync_subscription_status', 'users', null, undefined, {
         action: 'bulk_status_sync',
         updatedCount: updated.length,
         staffEmail
@@ -1068,7 +1067,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
     }
     
     if (!dryRun && cleared.length > 0) {
-      logFromRequest(req, 'clear_orphaned_stripe_ids', 'users', null, {
+      logFromRequest(req, 'clear_orphaned_stripe_ids', 'users', null, undefined, {
         action: 'bulk_clear_orphaned',
         clearedCount: cleared.length,
         staffEmail
@@ -1226,7 +1225,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
         }
       }
       
-      logFromRequest(req, 'link_stripe_hubspot', 'users', null, {
+      logFromRequest(req, 'link_stripe_hubspot', 'users', null, undefined, {
         action: 'bulk_link_stripe_hubspot',
         hubspotCreated: hubspotCreated.length,
         stripeCreated: stripeCreated.length,
@@ -1428,7 +1427,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
     }
     
     if (!dryRun && updated.length > 0) {
-      logFromRequest(req, 'sync_visit_counts', 'users', null, {
+      logFromRequest(req, 'sync_visit_counts', 'users', null, undefined, {
         action: 'bulk_visit_count_sync',
         updatedCount: updated.length,
         staffEmail
@@ -1561,7 +1560,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
       performedByName: staffEmail
     });
     
-    logFromRequest(req, 'detect_duplicates', 'users', null, {
+    logFromRequest(req, 'detect_duplicates', 'users', null, undefined, {
       action: 'duplicate_detection',
       appDuplicateCount: appDuplicates.length,
       hubspotDuplicateCount: hubspotDuplicates.length,
@@ -1758,7 +1757,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
     }
     
     if (!dryRun && updated.length > 0) {
-      logFromRequest(req, 'sync_payment_status', 'users', null, {
+      logFromRequest(req, 'sync_payment_status', 'users', null, undefined, {
         action: 'bulk_payment_status_sync',
         updatedCount: updated.length,
         staffEmail
@@ -1851,7 +1850,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     }));
     
     if (dryRun) {
-      logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, {
+      logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, undefined, {
         action: 'preview',
         ghostBookingsFound: ghostBookings.length,
         staffEmail
@@ -2057,7 +2056,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
       }
     }
     
-    logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, {
+    logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, undefined, {
       action: 'execute',
       ghostBookingsFound: ghostBookings.length,
       fixedCount: fixed.length,

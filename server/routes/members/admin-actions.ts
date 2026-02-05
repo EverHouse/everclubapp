@@ -981,7 +981,7 @@ router.post('/api/members/merge/execute', isAdmin, async (req, res) => {
     
     const result = await executeMerge(primaryUserId, secondaryUserId, sessionUser?.email || 'admin');
     
-    logFromRequest(req, 'merge_users', 'user', primaryUserId, {
+    logFromRequest(req, 'merge_users', 'user', primaryUserId, undefined, {
       secondary_user_id: secondaryUserId,
       records_merged: result.recordsMerged,
       merged_lifetime_visits: result.mergedLifetimeVisits

@@ -292,8 +292,7 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
 
     console.log(`[MemberBilling] Paused subscription ${subscription.id} for ${email} until ${resumeDate.toISOString()} (${durationDays} days)`);
     
-    logFromRequest(req, 'pause_subscription', 'subscription', subscription.id, {
-      member_email: email,
+    logFromRequest(req, 'pause_subscription', 'subscription', subscription.id, email, {
       pause_until: resumeDate.toISOString()
     });
     
@@ -340,9 +339,7 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
 
     console.log(`[MemberBilling] Resumed subscription ${subscription.id} for ${email}`);
     
-    logFromRequest(req, 'resume_subscription', 'subscription', subscription.id, {
-      member_email: email
-    });
+    logFromRequest(req, 'resume_subscription', 'subscription', subscription.id, email, {});
     
     res.json({ success: true, subscriptionId: subscription.id, status: 'active' });
   } catch (error: any) {
@@ -400,8 +397,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
 
     console.log(`[MemberBilling] Set cancel_at for subscription ${subscription.id}, email ${email}, effective ${effectiveDate.toISOString()}`);
     
-    logFromRequest(req, 'cancel_subscription', 'subscription', subscription.id, {
-      member_email: email,
+    logFromRequest(req, 'cancel_subscription', 'subscription', subscription.id, email, {
       reason: reason || 'Not specified',
       effective_date: effectiveDate.toISOString(),
       immediate: !!immediate
@@ -469,9 +465,7 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
 
     console.log(`[MemberBilling] Undid cancellation for subscription ${pendingCancelSub.id}, email ${email}`);
     
-    logFromRequest(req, 'undo_cancel_subscription', 'subscription', pendingCancelSub.id, {
-      member_email: email
-    });
+    logFromRequest(req, 'undo_cancel_subscription', 'subscription', pendingCancelSub.id, email, {});
     
     res.json({
       success: true,
@@ -734,9 +728,7 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
 
     console.log(`[MemberBilling] Created billing portal session for ${email}`);
     
-    logFromRequest(req, 'send_payment_link', 'member', member.id?.toString() || null, {
-      member_email: email
-    });
+    logFromRequest(req, 'send_payment_link', 'member', member.id?.toString() || null, email, {});
     
     res.json({
       success: true,

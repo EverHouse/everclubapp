@@ -1261,11 +1261,11 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
     const spotsAvailable = spotsQuery.rows[0]?.spots_available;
     broadcastWaitlistUpdate({ classId: parseInt(class_id), action: 'spot_opened', spotsAvailable: spotsAvailable ?? undefined });
     
-    logFromRequest(req, 'cancel_wellness_enrollment', 'wellness_class', class_id, {
+    logFromRequest(req, 'cancel_wellness_enrollment', 'wellness_class', class_id, undefined, {
       member_email: user_email,
       class_title: cls.title,
       class_date: dateStr
-    }, 'member', user_email);
+    });
     
     res.json({ success: true });
   } catch (error: any) {

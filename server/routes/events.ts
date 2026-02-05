@@ -1055,11 +1055,11 @@ router.delete('/api/rsvps/:event_id/:user_email', async (req, res) => {
       memberEmail: user_email
     });
     
-    logFromRequest(req, 'cancel_event_rsvp', 'event', event_id, {
+    logFromRequest(req, 'cancel_event_rsvp', 'event', event_id, undefined, {
       member_email: user_email,
       event_title: evt.title,
       event_date: evt.eventDate
-    }, 'member', user_email);
+    });
     
     res.json({ success: true });
   } catch (error: any) {

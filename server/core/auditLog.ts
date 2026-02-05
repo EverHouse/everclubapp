@@ -91,6 +91,7 @@ export type AuditAction =
   | 'reset_trackman_data'
   // Group billing actions
   | 'add_group_member'
+  | 'add_corporate_member'
   | 'remove_group_member'
   | 'link_group_subscription'
   // Staff checkin actions

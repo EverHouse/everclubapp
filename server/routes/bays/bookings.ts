@@ -970,7 +970,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     
     await releaseGuestPassHold(bookingId);
     
-    logFromRequest(req, 'cancel_booking', 'booking', id, {
+    logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
       member_email: existing.userEmail
     });
     

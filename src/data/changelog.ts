@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.10.1",
+    date: "2026-02-05",
+    title: "Comprehensive Audit Logging Fixes",
+    changes: [
+      "Fixed: 20+ broken audit log calls missing resourceName parameter across billing, bookings, wellness, events",
+      "Fixed: Subscription pause/resume/cancel actions now properly recorded in Staff Activity",
+      "Fixed: Booking approval and cancellation actions now properly logged",
+      "Fixed: Data sync tools (HubSpot, Stripe, duplicates) now properly log all actions",
+      "Added: add_corporate_member action type for group billing"
+    ]
+  },
+  {
     version: "69.10.0",
     date: "2026-02-05",
     title: "Critical Bug Fixes",

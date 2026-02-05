@@ -270,7 +270,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       );
     }
 
-    logFromRequest(req, 'record_charge', 'payment', result.paymentIntentId, {
+    logFromRequest(req, 'record_charge', 'payment', result.paymentIntentId, undefined, {
       member_email: email,
       amount: serverTotal,
       description: description

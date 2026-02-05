@@ -1091,7 +1091,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         }, { action: 'booking_cancelled', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
       }
       
-      logFromRequest(req, 'cancel_booking', 'booking', id, {
+      logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
         member_email: bookingData.userEmail,
         member_name: bookingData.userName,
         booking_date: bookingData.requestDate,
