@@ -340,12 +340,24 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     }
     
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE LOWER(email) = $1',
+      `SELECT id, first_name, last_name, membership_status, created_at 
+       FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
     
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'A member with this email already exists' });
+      const existing = existingUser.rows[0];
+      const isPending = existing.membership_status === 'pending';
+      const name = [existing.first_name, existing.last_name].filter(Boolean).join(' ') || email;
+      return res.status(400).json({ 
+        error: isPending 
+          ? `This email has an incomplete signup from ${new Date(existing.created_at).toLocaleDateString()}. Clean it up to proceed.`
+          : 'A member with this email already exists',
+        isPendingUser: isPending,
+        existingUserId: isPending ? existing.id : undefined,
+        existingUserName: name,
+        canCleanup: isPending
+      });
     }
     
     const tierResult = await db.select()
@@ -448,12 +460,24 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
     }
     
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE LOWER(email) = $1',
+      `SELECT id, first_name, last_name, membership_status, created_at 
+       FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
     
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'A member with this email already exists' });
+      const existing = existingUser.rows[0];
+      const isPending = existing.membership_status === 'pending';
+      const name = [existing.first_name, existing.last_name].filter(Boolean).join(' ') || email;
+      return res.status(400).json({ 
+        error: isPending 
+          ? `This email has an incomplete signup from ${new Date(existing.created_at).toLocaleDateString()}. Clean it up to proceed.`
+          : 'A member with this email already exists',
+        isPendingUser: isPending,
+        existingUserId: isPending ? existing.id : undefined,
+        existingUserName: name,
+        canCleanup: isPending
+      });
     }
     
     const tierResult = await db.select()
@@ -584,6 +608,58 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
   } catch (error: any) {
     console.error('[Stripe] Error sending activation link:', error);
     res.status(500).json({ error: error.message || 'Failed to send activation link' });
+  }
+});
+
+router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const sessionUser = getSessionUser(req);
+    
+    const userResult = await pool.query(
+      `SELECT id, email, first_name, last_name, membership_status, stripe_customer_id 
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    if (user.membership_status !== 'pending') {
+      return res.status(400).json({ 
+        error: `Cannot cleanup user with status "${user.membership_status}". Only pending users can be cleaned up.`
+      });
+    }
+    
+    if (user.stripe_customer_id) {
+      try {
+        const stripe = await getStripeClient();
+        await stripe.customers.del(user.stripe_customer_id);
+        console.log(`[Stripe] Deleted Stripe customer ${user.stripe_customer_id} for pending user cleanup`);
+      } catch (stripeErr: any) {
+        console.error(`[Stripe] Failed to delete Stripe customer during cleanup:`, stripeErr.message);
+      }
+    }
+    
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    
+    const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+    console.log(`[Stripe] Cleaned up pending user ${user.email} (${userName}) by ${sessionUser?.email}`);
+    
+    logFromRequest(req, 'cleanup_pending_user', 'member', user.email,
+      userName, { status: user.membership_status });
+    
+    res.json({ 
+      success: true, 
+      message: `Cleaned up pending signup for ${userName}`,
+      email: user.email
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error cleaning up pending user:', error);
+    res.status(500).json({ error: 'Failed to cleanup pending user' });
   }
 });
 

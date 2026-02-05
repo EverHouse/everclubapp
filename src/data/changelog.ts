@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.9",
+    date: "2026-02-05",
+    title: "Incomplete Signup Cleanup",
+    changes: [
+      "Fixed: Ghost 'pending' users no longer block email reuse - now shows cleanup option",
+      "Added: Automatic cleanup of abandoned signups older than 24 hours (runs every 6 hours)",
+      "Added: Staff can clean up incomplete signups directly from the error message",
+      "Improved: Error messages now explain when an email has an incomplete signup vs an active member"
+    ]
+  },
+  {
     version: "69.9.8",
     date: "2026-02-05",
     title: "Family Billing Data Completeness Fix",

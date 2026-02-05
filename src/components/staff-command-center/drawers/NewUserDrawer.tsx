@@ -151,6 +151,8 @@ export function NewUserDrawer({
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingUserToCleanup, setPendingUserToCleanup] = useState<{ id: string; name: string } | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
   
   const [createdUser, setCreatedUser] = useState<{ id: string; email: string; name: string } | null>(null);
 
@@ -171,8 +173,32 @@ export function NewUserDrawer({
     setMemberForm(initialMemberForm);
     setVisitorForm(initialVisitorForm);
     setError(null);
+    setPendingUserToCleanup(null);
     setCreatedUser(null);
   }, [defaultMode]);
+  
+  const handleCleanupPendingUser = async () => {
+    if (!pendingUserToCleanup) return;
+    setIsCleaningUp(true);
+    try {
+      const res = await fetch(`/api/stripe/subscriptions/cleanup-pending/${pendingUserToCleanup.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setError(null);
+        setPendingUserToCleanup(null);
+        showToast?.(`Cleaned up incomplete signup. You can now proceed.`, 'success');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to cleanup');
+      }
+    } catch (err) {
+      setError('Failed to cleanup pending user');
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
 
   const fetchInitialData = async () => {
     try {
@@ -332,12 +358,26 @@ export function NewUserDrawer({
               <span className="material-symbols-outlined text-lg">error</span>
               <span className="text-sm">{error}</span>
             </div>
+            {pendingUserToCleanup && (
+              <button
+                onClick={handleCleanupPendingUser}
+                disabled={isCleaningUp}
+                className={`mt-2 w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                  isDark
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white disabled:bg-amber-800'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white disabled:bg-amber-300'
+                }`}
+              >
+                {isCleaningUp ? 'Cleaning up...' : 'Clean Up & Try Again'}
+              </button>
+            )}
           </div>
         )}
 
         {mode === 'member' ? (
           <MemberFlow
             step={memberStep}
+            setPendingUserToCleanup={setPendingUserToCleanup}
             form={memberForm}
             setForm={setMemberForm}
             tiers={tiers}
@@ -405,6 +445,7 @@ interface MemberFlowProps {
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setPendingUserToCleanup: (user: { id: string; name: string } | null) => void;
   setStep: (step: MemberStep) => void;
   onSuccess: (user: { id: string; email: string; name: string }) => void;
   createdUser: { id: string; email: string; name: string } | null;
@@ -423,6 +464,7 @@ function MemberFlow({
   isLoading,
   setIsLoading,
   setError,
+  setPendingUserToCleanup,
   setStep,
   onSuccess,
   createdUser,
@@ -530,6 +572,9 @@ function MemberFlow({
 
         if (!res.ok) {
           const data = await res.json();
+          if (data.canCleanup && data.existingUserId) {
+            setPendingUserToCleanup({ id: data.existingUserId, name: data.existingUserName || form.email });
+          }
           throw new Error(data.error || 'Failed to create subscription');
         }
 
@@ -657,6 +702,9 @@ function MemberFlow({
       
       if (!res.ok) {
         const data = await res.json();
+        if (data.canCleanup && data.existingUserId) {
+          setPendingUserToCleanup({ id: data.existingUserId, name: data.existingUserName || form.email });
+        }
         throw new Error(data.error || 'Failed to send activation link');
       }
       

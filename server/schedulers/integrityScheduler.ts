@@ -114,9 +114,37 @@ async function runPeriodicAutoFix(): Promise<void> {
   }
 }
 
+async function cleanupAbandonedPendingUsers(): Promise<void> {
+  try {
+    const { pool } = await import('../db');
+    
+    if (!pool) {
+      console.log('[Auto-Cleanup] Database pool not ready, skipping cleanup');
+      return;
+    }
+    
+    const result = await pool.query(`
+      DELETE FROM users 
+      WHERE membership_status = 'pending' 
+        AND created_at < NOW() - INTERVAL '24 hours'
+        AND stripe_subscription_id IS NULL
+      RETURNING id, email, first_name, last_name
+    `);
+    
+    if (result.rowCount && result.rowCount > 0) {
+      const emails = result.rows.map(r => r.email).join(', ');
+      console.log(`[Auto-Cleanup] Deleted ${result.rowCount} abandoned pending users: ${emails}`);
+    }
+  } catch (err) {
+    console.error('[Auto-Cleanup] Failed to cleanup abandoned pending users:', err);
+  }
+}
+
 export function startIntegrityScheduler(): void {
   setInterval(checkAndRunIntegrityCheck, 30 * 60 * 1000);
   setInterval(runPeriodicAutoFix, 4 * 60 * 60 * 1000);
+  setInterval(cleanupAbandonedPendingUsers, 6 * 60 * 60 * 1000);
+  setTimeout(() => cleanupAbandonedPendingUsers().catch(() => {}), 60 * 1000);
   runPeriodicAutoFix().catch(() => {});
   console.log('[Startup] Daily integrity check scheduler enabled (runs at midnight Pacific)');
   console.log('[Startup] Periodic auto-fix scheduler enabled (runs every 4 hours)');

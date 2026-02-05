@@ -14,6 +14,7 @@ export type AuditAction =
   | 'export_member_data'
   | 'create_member'
   | 'invite_member'
+  | 'cleanup_pending_user'
   | 'update_member_notes'
   | 'link_stripe_customer'
   | 'sync_hubspot'
