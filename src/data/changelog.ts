@@ -13,6 +13,27 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.8.0",
+    date: "2026-02-05",
+    title: "Optimistic UI & Dark Mode Improvements",
+    isMajor: true,
+    changes: [
+      "Added: Instant visual feedback when booking, cancelling, or updating throughout the app",
+      "Added: Spinners and status badges show immediately when taking actions instead of waiting for server",
+      "Added: Member Wellness page now shows instant feedback for class enrollment, cancellation, and waitlist operations",
+      "Added: Member Events page now shows instant feedback for event RSVPs and cancellations",
+      "Added: Member Dashboard now shows instant feedback for booking cancellations and invite handling",
+      "Added: Staff Simulator tab now shows instant feedback for booking creation and status updates",
+      "Added: Staff Events tab now shows instant feedback for event creation, updates, and RSVP management",
+      "Added: Staff Directory tab now shows instant feedback for member tier updates",
+      "Added: Staff Trackman tab now shows instant feedback for booking linking and unlinking",
+      "Fixed: Payment forms (Stripe) now properly display in dark mode with readable labels and inputs",
+      "Fixed: All payment modals (guest passes, invoices, bookings) now use consistent dark mode styling",
+      "Fixed: Update notification popup now appears below the header instead of being hidden behind it",
+      "Improved: Error handling now properly reverts UI state when actions fail"
+    ]
+  },
+  {
     version: "69.7.4",
     date: "2026-02-05",
     title: "Staff Training Guide Accuracy Update",
