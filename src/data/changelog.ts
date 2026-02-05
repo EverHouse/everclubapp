@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.3",
+    date: "2026-02-05",
+    title: "Corporate Checkout Field Fixes",
+    changes: [
+      "Fixed: Last name now properly saved when purchasing corporate volume subscription",
+      "Fixed: Phone number now properly saved when purchasing corporate volume subscription",
+      "Fixed: HubSpot now correctly sets lifecycle stage to 'member' for new corporate subscriptions",
+      "Fixed: HubSpot now correctly sets membership status to 'Active' for new corporate subscriptions"
+    ]
+  },
+  {
     version: "69.9.2",
     date: "2026-02-05",
     title: "Corporate & Family Billing Status Propagation",

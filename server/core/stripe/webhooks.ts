@@ -1727,10 +1727,26 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
         return deferredActions;
       }
       
-      const customerName = customer.name || '';
-      const nameParts = customerName.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      // Read name from subscription metadata first (set during checkout), fallback to customer name
+      const metadataFirstName = subscription.metadata?.first_name;
+      const metadataLastName = subscription.metadata?.last_name;
+      const metadataPhone = subscription.metadata?.phone;
+      
+      let firstName: string;
+      let lastName: string;
+      
+      if (metadataFirstName || metadataLastName) {
+        firstName = metadataFirstName || '';
+        lastName = metadataLastName || '';
+        console.log(`[Stripe Webhook] Using name from subscription metadata: ${firstName} ${lastName}`);
+      } else {
+        // Fallback to customer name
+        const customerName = customer.name || '';
+        const nameParts = customerName.split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+        console.log(`[Stripe Webhook] Using name from customer object: ${firstName} ${lastName}`);
+      }
       
       let tierSlug: string | null = null;
       let tierName: string | null = null;
@@ -1772,19 +1788,22 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
       
       const actualStatus = subscription.status === 'trialing' ? 'trialing' : subscription.status === 'past_due' ? 'past_due' : 'active';
       await pool.query(
-        `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, join_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $7, $5, $6, 'stripe', NOW(), NOW(), NOW())
+        `INSERT INTO users (email, first_name, last_name, phone, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, join_date, created_at, updated_at)
+         VALUES ($1, $2, $3, $8, $4, $7, $5, $6, 'stripe', NOW(), NOW(), NOW())
          ON CONFLICT (email) DO UPDATE SET 
            stripe_customer_id = EXCLUDED.stripe_customer_id,
            stripe_subscription_id = EXCLUDED.stripe_subscription_id,
            membership_status = $7,
            billing_provider = 'stripe',
            tier = COALESCE(EXCLUDED.tier, users.tier),
+           first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
+           last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
+           phone = COALESCE(NULLIF(EXCLUDED.phone, ''), users.phone),
            updated_at = NOW()`,
-        [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus]
+        [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus, metadataPhone || '']
       );
       
-      console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, subscription ${subscription.id}`);
+      console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, phone ${metadataPhone || 'none'}, subscription ${subscription.id}`);
       
       try {
         const { findOrCreateHubSpotContact } = await import('../hubspot/members');
@@ -1793,19 +1812,19 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
           customerEmail,
           firstName,
           lastName,
-          undefined,
+          metadataPhone || undefined,
           tierName || undefined
         );
         
         if (contactResult?.contactId) {
           await syncMemberToHubSpot({
             email: customerEmail,
-            status: subscription.status,
+            status: actualStatus,
             billingProvider: 'stripe',
             tier: tierName || undefined,
             memberSince: new Date()
           });
-          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot contact: status=${subscription.status}, tier=${tierName}, billing=stripe`);
+          console.log(`[Stripe Webhook] Synced ${customerEmail} to HubSpot contact: status=${actualStatus}, tier=${tierName}, billing=stripe`);
           
           // Also sync deal line items for new Stripe subscription - Stripe-billed only
           if (tierName) {
