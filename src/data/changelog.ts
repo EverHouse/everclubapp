@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.8.2",
+    date: "2026-02-05",
+    title: "Enhanced Animations & UI Polish",
+    changes: [
+      "Added: Touch feedback animations on booking cards, event cards, and member rows",
+      "Added: Springy bounce animation when staff action button appears",
+      "Added: Staggered entry animations in member profile drawer for all tabs",
+      "Added: Staggered list animations on Events page and Staff Command Center",
+      "Added: Smooth loading spinner transition effects for buttons",
+      "Fixed: Stripe Config tab text no longer overflows on mobile screens",
+      "Improved: Overall app feels more fluid and responsive to touch"
+    ]
+  },
+  {
     version: "69.8.1",
     date: "2026-02-05",
     title: "Changelog Performance Optimization",
