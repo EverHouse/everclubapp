@@ -634,7 +634,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div className="flex-1 flex justify-start">
         {isMemberRoute ? (
           <button 
-            onClick={() => setIsMemberMenuOpen(true)}
+            onClick={() => {
+              // On profile page, staff/admin (not viewing as member) should see staff sidebar
+              if (isProfilePage && isStaffOrAdmin && !isViewingAs) {
+                setIsMenuOpen(true);
+              } else {
+                setIsMemberMenuOpen(true);
+              }
+            }}
             className={`w-10 h-10 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg`}
             aria-label="Open menu"
           >

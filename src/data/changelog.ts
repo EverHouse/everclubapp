@@ -18,7 +18,8 @@ export const changelog: ChangelogEntry[] = [
     title: "Profile Page Navigation Improvement",
     changes: [
       "Improved: Profile page now shows hamburger menu instead of back arrow for consistent navigation",
-      "Improved: Tapping the hamburger menu on Profile opens the full navigation sidebar with all member options"
+      "Improved: Staff see their Staff Portal sidebar when tapping hamburger on Profile",
+      "Improved: Members see their Member Portal sidebar when tapping hamburger on Profile"
     ]
   },
   {
