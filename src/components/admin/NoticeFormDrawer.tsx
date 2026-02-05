@@ -2,6 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return '';
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p>/gi, '\n\n')
+    .replace(/<p>/gi, '')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 interface NoticeFormData {
   id?: number;
   title: string;
@@ -62,7 +80,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
         setFormData({
           id: editItem.id,
           title: editItem.title || '',
-          notes: editItem.notes || '',
+          notes: stripHtml(editItem.notes),
           start_date: editItem.start_date || today,
           end_date: editItem.end_date || today,
           affected_areas: editItem.affected_areas || 'none',

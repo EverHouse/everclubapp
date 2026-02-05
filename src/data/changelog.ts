@@ -20,7 +20,8 @@ export const changelog: ChangelogEntry[] = [
       "Added: Notes field for closures and notices that syncs bidirectionally with Google Calendar event descriptions",
       "Added: Notes appear after metadata brackets in calendar events for easy reading",
       "Added: Notes display on notice cards in the Blocks tab with expandable details",
-      "Improved: Notice editing now shows and preserves existing notes from calendar sync"
+      "Improved: Notice editing now shows and preserves existing notes from calendar sync",
+      "Fixed: HTML formatting from calendar descriptions is now converted to plain text"
     ]
   },
   {

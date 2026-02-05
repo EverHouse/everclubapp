@@ -4,6 +4,24 @@ import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { getPacificMidnightUTC } from '../../../utils/dateUtils';
 
+function stripHtmlTags(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p>/gi, '\n\n')
+    .replace(/<p>/gi, '')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function parseClosureMetadata(description: string): { affectedAreas?: string; notifyMembers?: boolean; notes?: string } {
   const result: { affectedAreas?: string; notifyMembers?: boolean; notes?: string } = {};
   
@@ -26,9 +44,9 @@ export function parseClosureMetadata(description: string): { affectedAreas?: str
   // Extract notes: content after the [Members Notified: ...] bracket
   const notesMatch = description.match(/\[Members Notified:\s*(?:Yes|No)\]\s*([\s\S]*)/i);
   if (notesMatch && notesMatch[1]) {
-    const notes = notesMatch[1].trim();
-    if (notes) {
-      result.notes = notes;
+    const rawNotes = notesMatch[1].trim();
+    if (rawNotes) {
+      result.notes = stripHtmlTags(rawNotes);
     }
   }
   

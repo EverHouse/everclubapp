@@ -59,6 +59,24 @@ interface ClosureReason {
     isActive: boolean;
 }
 
+function stripHtml(html: string | null | undefined): string {
+    if (!html) return '';
+    return html
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>\s*<p>/gi, '\n\n')
+        .replace(/<p>/gi, '')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 const BlocksTab: React.FC = () => {
     const { actualUser } = useData();
     const { showToast } = useToast();
@@ -397,7 +415,7 @@ const BlocksTab: React.FC = () => {
             affected_areas: closure.affectedAreas || 'entire_facility',
             visibility: closure.visibility || '',
             reason: closure.reason || '',
-            notes: closure.notes || '',
+            notes: stripHtml(closure.notes),
             title: closure.title || '',
             notice_type: closure.noticeType || '',
             notify_members: closure.notifyMembers ?? false
@@ -993,7 +1011,7 @@ const BlocksTab: React.FC = () => {
                                             </div>
                                             <h4 className="font-bold text-primary dark:text-white mb-1 truncate">{closure.title.replace(/^\[[^\]]+\]\s*:?\s*/i, '')}</h4>
                                             {closure.notes && (
-                                                <p className="text-sm text-gray-600 dark:text-white/70 mb-2 line-clamp-2">{closure.notes}</p>
+                                                <p className="text-sm text-gray-600 dark:text-white/70 mb-2 line-clamp-2">{stripHtml(closure.notes)}</p>
                                             )}
                                             <div className="flex flex-wrap gap-2">
                                                 <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
@@ -1061,7 +1079,7 @@ const BlocksTab: React.FC = () => {
                                             {closure.notes && (
                                                 <div>
                                                     <p className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Staff Notes</p>
-                                                    <p className="text-sm text-gray-600 dark:text-white/80 whitespace-pre-wrap">{closure.notes}</p>
+                                                    <p className="text-sm text-gray-600 dark:text-white/80 whitespace-pre-wrap">{stripHtml(closure.notes)}</p>
                                                 </div>
                                             )}
                                             
@@ -1165,7 +1183,7 @@ const BlocksTab: React.FC = () => {
                                                     </div>
                                                     <h4 className="font-medium text-sm text-gray-600 dark:text-white/70 mb-1 truncate">{closure.title.replace(/^\[[^\]]+\]\s*:?\s*/i, '')}</h4>
                                                     {closure.notes && (
-                                                        <p className="text-xs text-gray-500 dark:text-white/50 mb-1 line-clamp-1">{closure.notes}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-white/50 mb-1 line-clamp-1">{stripHtml(closure.notes)}</p>
                                                     )}
                                                     <div className="flex flex-wrap gap-1.5">
                                                         <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${
