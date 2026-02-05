@@ -187,6 +187,11 @@ const ChangelogTab: React.FC = () => {
     const [uniqueStaff, setUniqueStaff] = useState<string[]>([]);
     const [limit, setLimit] = useState(50);
     const [hasMore, setHasMore] = useState(true);
+    
+    // Changelog pagination - show 25 entries initially, load 25 more per click
+    const [changelogLimit, setChangelogLimit] = useState(25);
+    const visibleChangelog = changelog.slice(0, changelogLimit);
+    const hasMoreChangelog = changelogLimit < changelog.length;
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -690,10 +695,10 @@ const ChangelogTab: React.FC = () => {
                 A complete history of updates, improvements, and new features added to the Ever House app.
             </div>
 
-            {changelog.map((entry, index) => (
+            {visibleChangelog.map((entry, index) => (
                 <div 
                     key={entry.version}
-                    className={`relative pl-8 pb-6 ${index !== changelog.length - 1 ? 'border-l-2 border-primary/20 dark:border-white/20' : ''}`}
+                    className={`relative pl-8 pb-6 ${index !== visibleChangelog.length - 1 || hasMoreChangelog ? 'border-l-2 border-primary/20 dark:border-white/20' : ''}`}
                 >
                     <div className={`absolute left-0 top-0 w-4 h-4 rounded-full -translate-x-[9px] ${
                         entry.isMajor 
@@ -738,6 +743,18 @@ const ChangelogTab: React.FC = () => {
                     </div>
                 </div>
             ))}
+            
+            {hasMoreChangelog && (
+                <div className="flex justify-center pt-4">
+                    <button
+                        onClick={() => setChangelogLimit(prev => prev + 25)}
+                        className="px-6 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-xl">expand_more</span>
+                        Load More Updates ({changelog.length - changelogLimit} remaining)
+                    </button>
+                </div>
+            )}
         </div>
     );
 

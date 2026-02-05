@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.8.1",
+    date: "2026-02-05",
+    title: "Changelog Performance Optimization",
+    changes: [
+      "Improved: App Updates tab now loads 25 entries at a time instead of all at once",
+      "Added: 'Load More Updates' button to progressively load older changelog entries",
+      "Fixed: Changelog page performance issues caused by rendering 100+ entries simultaneously"
+    ]
+  },
+  {
     version: "69.8.0",
     date: "2026-02-05",
     title: "Optimistic UI & Dark Mode Improvements",
