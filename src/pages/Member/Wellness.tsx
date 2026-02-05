@@ -568,10 +568,18 @@ const getCategoryIcon = (category: string): string => {
   }
 };
 
+const LoadingSpinner: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <svg className={`animate-spin h-4 w-4 ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
+
 const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0 }) => {
   const formattedTime = formatTimeTo12Hour(time);
   const showJoinWaitlist = isFull && waitlistEnabled && !isEnrolled;
   const showFullNoWaitlist = isFull && !waitlistEnabled && !isEnrolled;
+  const isPending = isCancelling || isRsvping;
   
   const getSpotDisplay = () => {
     if (isOnWaitlist) return 'On Waitlist';
@@ -588,9 +596,33 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
     return spots;
   };
 
+  const getStatusBadge = () => {
+    if (isCancelling) {
+      return <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-md whitespace-nowrap flex items-center gap-1 animate-pulse">
+        <LoadingSpinner className="h-3 w-3" />
+        Cancelling
+      </span>;
+    }
+    if (isRsvping) {
+      const label = showJoinWaitlist ? 'Joining Waitlist' : 'Confirming';
+      const bgColor = showJoinWaitlist ? 'bg-amber-500/20 text-amber-500' : 'bg-green-500/20 text-green-500';
+      return <span className={`text-[10px] font-bold uppercase tracking-wider ${bgColor} px-1.5 py-0.5 rounded-md whitespace-nowrap flex items-center gap-1 animate-pulse`}>
+        <LoadingSpinner className="h-3 w-3" />
+        {label}
+      </span>;
+    }
+    if (isOnWaitlist) {
+      return <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded-md whitespace-nowrap">Waitlist</span>;
+    }
+    if (isEnrolled) {
+      return <span className="text-[10px] font-bold uppercase tracking-wider bg-accent text-brand-green px-1.5 py-0.5 rounded-md whitespace-nowrap">Going</span>;
+    }
+    return null;
+  };
+
   return (
   <div 
-    className={`rounded-xl relative overflow-hidden transition-all glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}
+    className={`rounded-xl relative overflow-hidden transition-all glass-card ${isDark ? 'border-white/25' : 'border-black/10'} ${isPending ? 'ring-2 ring-offset-2 ring-offset-transparent animate-pulse' : ''} ${isCancelling ? 'ring-red-500/50' : isRsvping ? (showJoinWaitlist ? 'ring-amber-500/50' : 'ring-green-500/50') : ''}`}
   >
     <button 
       onClick={onToggle}
@@ -599,7 +631,7 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
       className={`w-full p-4 cursor-pointer transition-all text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
     >
       <div className="flex gap-4 items-start">
-        <div className={`w-14 h-14 flex-shrink-0 rounded-xl flex items-center justify-center ${isDark ? 'bg-lavender/20' : 'bg-lavender/30'}`}>
+        <div className={`w-14 h-14 flex-shrink-0 rounded-xl flex items-center justify-center transition-all ${isDark ? 'bg-lavender/20' : 'bg-lavender/30'} ${isPending ? 'animate-pulse' : ''}`}>
           <span className="material-symbols-outlined text-2xl text-lavender">
             {getCategoryIcon(category)}
           </span>
@@ -608,11 +640,7 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-lavender/20 text-lavender' : 'bg-brand-green/20 text-brand-green'}`}>{category}</span>
             <span className={`text-xs font-bold ${isDark ? 'text-white/80' : 'text-primary/80'}`}>• {duration}</span>
-            {isOnWaitlist ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded-md whitespace-nowrap">Waitlist</span>
-            ) : isEnrolled ? (
-              <span className="text-[10px] font-bold uppercase tracking-wider bg-accent text-brand-green px-1.5 py-0.5 rounded-md whitespace-nowrap">Going</span>
-            ) : null}
+            {getStatusBadge()}
           </div>
           <h3 className={`text-lg md:text-xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}>{title}</h3>
         </div>
@@ -644,9 +672,10 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
           <button 
             onClick={(e) => { e.stopPropagation(); onCancel(); }}
             disabled={isCancelling}
-            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all border ${isDark ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-500/50 text-red-500 hover:bg-red-500/10'} ${isCancelling ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all border flex items-center justify-center gap-2 ${isDark ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-500/50 text-red-500 hover:bg-red-500/10'} ${isCancelling ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
           >
-            {isCancelling ? 'Cancelling...' : isOnWaitlist ? 'Leave Waitlist' : 'Cancel'}
+            {isCancelling && <LoadingSpinner />}
+            {isCancelling ? (isOnWaitlist ? 'Leaving Waitlist...' : 'Cancelling...') : isOnWaitlist ? 'Leave Waitlist' : 'Cancel'}
           </button>
         ) : showFullNoWaitlist ? (
           <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
@@ -656,9 +685,10 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
           <button 
             onClick={(e) => { e.stopPropagation(); onBook(); }}
             disabled={isRsvping}
-            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all ${isRsvping ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'} ${showJoinWaitlist ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : (isDark ? 'bg-white text-brand-green' : 'bg-brand-green text-white')}`}
+            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${isRsvping ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'} ${showJoinWaitlist ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : (isDark ? 'bg-white text-brand-green' : 'bg-brand-green text-white')}`}
           >
-            {isRsvping ? 'Confirming...' : showJoinWaitlist ? 'Join Waitlist' : 'RSVP'}
+            {isRsvping && <LoadingSpinner className={showJoinWaitlist ? '' : (isDark ? 'text-brand-green' : 'text-white')} />}
+            {isRsvping ? (showJoinWaitlist ? 'Joining Waitlist...' : 'Confirming...') : showJoinWaitlist ? 'Join Waitlist' : 'RSVP'}
           </button>
         )}
       </div>

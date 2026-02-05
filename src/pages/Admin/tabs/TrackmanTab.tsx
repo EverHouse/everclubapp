@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import EmptyState from '../../../components/EmptyState';
 import { usePageReady } from '../../../contexts/PageReadyContext';
@@ -13,6 +13,11 @@ import RosterManager from '../../../components/booking/RosterManager';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import { TrackmanTabSkeleton } from '../../../components/skeletons';
+
+interface OptimisticAction {
+  type: 'linking' | 'unlinking';
+  targetEmail?: string;
+}
 
 const formatTime12Hour = (time: string | null | undefined): string => {
   if (!time) return '';
@@ -107,6 +112,9 @@ const TrackmanTab: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unmatchedSectionRef = useRef<HTMLDivElement>(null);
   const needsPlayersSectionRef = useRef<HTMLDivElement>(null);
+  
+  const [optimisticActions, setOptimisticActions] = useState<Map<number, OptimisticAction>>(new Map());
+  const snapshotRef = useRef<any[]>([]);
 
   const unmatchedOffset = (unmatchedPage - 1) * ITEMS_PER_PAGE;
   const needsPlayersOffset = (needsPlayersPage - 1) * ITEMS_PER_PAGE;
@@ -204,7 +212,17 @@ const TrackmanTab: React.FC = () => {
       if (!res.ok) throw new Error('Failed to resolve booking');
       return res.json();
     },
-    onSuccess: async (data) => {
+    onMutate: async ({ bookingId, memberEmail }) => {
+      snapshotRef.current = unmatchedData?.data || [];
+      setOptimisticActions(prev => new Map(prev).set(bookingId, { type: 'linking', targetEmail: memberEmail }));
+    },
+    onSuccess: async (data, { bookingId }) => {
+      setOptimisticActions(prev => {
+        const next = new Map(prev);
+        next.delete(bookingId);
+        return next;
+      });
+      
       const originalEmail = fuzzyMatchModal?.booking?.originalEmail || fuzzyMatchModal?.booking?.original_email;
       const shouldRemember = fuzzyMatchModal?.rememberEmail && originalEmail && 
         originalEmail.toLowerCase() !== fuzzyMatchModal?.selectedEmail?.toLowerCase();
@@ -235,7 +253,12 @@ const TrackmanTab: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 300));
       queryClient.invalidateQueries({ queryKey: ['trackman'] });
     },
-    onError: () => {
+    onError: (_, { bookingId }) => {
+      setOptimisticActions(prev => {
+        const next = new Map(prev);
+        next.delete(bookingId);
+        return next;
+      });
       showToast('Failed to resolve booking', 'error');
     },
   });
@@ -485,52 +508,70 @@ const TrackmanTab: React.FC = () => {
                   const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
                   return name.includes(query) || email.includes(query);
                 })
-                .map((booking: any, idx: number) => (
-                <div 
-                  key={booking.id} 
-                  className="bg-white/50 dark:bg-white/5 rounded-xl p-4 border border-primary/10 dark:border-white/10 animate-slide-up-stagger" 
-                  style={{ '--stagger-index': idx } as React.CSSProperties}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="font-bold text-primary dark:text-white">
-                        {booking.userName || booking.user_name || 'Unknown'}
-                      </p>
-                      <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
-                        {booking.originalEmail || booking.original_email || 'No email'}
-                      </p>
+                .map((booking: any, idx: number) => {
+                  const isLinking = optimisticActions.get(booking.id)?.type === 'linking';
+                  const linkingEmail = optimisticActions.get(booking.id)?.targetEmail;
+                  
+                  return (
+                    <div 
+                      key={booking.id} 
+                      className={`rounded-xl p-4 border animate-slide-up-stagger transition-all duration-300 ${
+                        isLinking 
+                          ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30 opacity-75' 
+                          : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'
+                      }`}
+                      style={{ '--stagger-index': idx } as React.CSSProperties}
+                    >
+                      {isLinking && (
+                        <div className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
+                          <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-sm animate-spin">progress_activity</span>
+                          <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                            Linking to {linkingEmail}...
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-bold text-primary dark:text-white">
+                            {booking.userName || booking.user_name || 'Unknown'}
+                          </p>
+                          <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
+                            {booking.originalEmail || booking.original_email || 'No email'}
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold text-primary dark:text-white bg-primary/10 dark:bg-white/10 px-2 py-1 rounded-lg">
+                          Bay {booking.bayNumber || booking.bay_number}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div>
+                          <span className="text-xs text-primary/50 dark:text-white/50">Date</span>
+                          <p className="text-primary dark:text-white font-medium text-sm">
+                            {formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-primary/50 dark:text-white/50">Time</span>
+                          <p className="text-primary dark:text-white font-medium text-sm">
+                            {formatTime12Hour(booking.startTime || booking.start_time)} - {formatTime12Hour(booking.endTime || booking.end_time)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
+                          {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
+                        disabled={isLinking}
+                        className="w-full py-2 bg-accent text-primary rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLinking ? 'Linking...' : 'Resolve'}
+                      </button>
                     </div>
-                    <span className="text-xs font-bold text-primary dark:text-white bg-primary/10 dark:bg-white/10 px-2 py-1 rounded-lg">
-                      Bay {booking.bayNumber || booking.bay_number}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                    <div>
-                      <span className="text-xs text-primary/50 dark:text-white/50">Date</span>
-                      <p className="text-primary dark:text-white font-medium text-sm">
-                        {formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-primary/50 dark:text-white/50">Time</span>
-                      <p className="text-primary dark:text-white font-medium text-sm">
-                        {formatTime12Hour(booking.startTime || booking.start_time)} - {formatTime12Hour(booking.endTime || booking.end_time)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
-                      {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
-                    className="w-full py-2 bg-accent text-primary rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
-                  >
-                    Resolve
-                  </button>
-                </div>
-              ))}
+                  );
+                })}
             </div>
 
             {/* Desktop table view */}
@@ -542,7 +583,7 @@ const TrackmanTab: React.FC = () => {
                     <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Trackman Name</th>
                     <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Email</th>
                     <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Bay</th>
-                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden lg:table-cell">Issue</th>
+                    <th className="text-left py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide hidden lg:table-cell">Status</th>
                     <th className="text-right py-2.5 px-3 font-semibold text-primary dark:text-white text-xs uppercase tracking-wide">Action</th>
                   </tr>
                 </thead>
@@ -555,34 +596,55 @@ const TrackmanTab: React.FC = () => {
                       const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
                       return name.includes(query) || email.includes(query);
                     })
-                    .map((booking: any, idx: number) => (
-                    <tr key={booking.id} className="bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 transition-colors animate-slide-up-stagger" style={{ '--stagger-index': idx } as React.CSSProperties}>
-                      <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
-                        <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}</div>
-                        <div className="text-xs text-primary/60 dark:text-white/60">{formatTime12Hour(booking.startTime || booking.start_time)} - {formatTime12Hour(booking.endTime || booking.end_time)}</div>
-                      </td>
-                      <td className="py-2 px-3 text-primary dark:text-white">
-                        <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
-                      </td>
-                      <td className="py-2 px-3 text-primary/80 dark:text-white/80">
-                        <div className="truncate max-w-[180px]">{booking.originalEmail || booking.original_email || 'No email'}</div>
-                      </td>
-                      <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.bayNumber || booking.bay_number}</td>
-                      <td className="py-2 px-3 hidden lg:table-cell">
-                        <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full truncate max-w-[200px] inline-block">
-                          {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <button
-                          onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
-                          className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity"
+                    .map((booking: any, idx: number) => {
+                      const isLinking = optimisticActions.get(booking.id)?.type === 'linking';
+                      const linkingEmail = optimisticActions.get(booking.id)?.targetEmail;
+                      
+                      return (
+                        <tr 
+                          key={booking.id} 
+                          className={`transition-colors animate-slide-up-stagger ${
+                            isLinking 
+                              ? 'bg-green-50 dark:bg-green-500/10' 
+                              : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
+                          }`} 
+                          style={{ '--stagger-index': idx } as React.CSSProperties}
                         >
-                          Resolve
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
+                            <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}</div>
+                            <div className="text-xs text-primary/60 dark:text-white/60">{formatTime12Hour(booking.startTime || booking.start_time)} - {formatTime12Hour(booking.endTime || booking.end_time)}</div>
+                          </td>
+                          <td className="py-2 px-3 text-primary dark:text-white">
+                            <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
+                          </td>
+                          <td className="py-2 px-3 text-primary/80 dark:text-white/80">
+                            <div className="truncate max-w-[180px]">{booking.originalEmail || booking.original_email || 'No email'}</div>
+                          </td>
+                          <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.bayNumber || booking.bay_number}</td>
+                          <td className="py-2 px-3 hidden lg:table-cell">
+                            {isLinking ? (
+                              <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
+                                Linking to {linkingEmail?.split('@')[0]}...
+                              </span>
+                            ) : (
+                              <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full truncate max-w-[200px] inline-block">
+                                {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            <button
+                              onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
+                              disabled={isLinking}
+                              className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isLinking ? 'Linking...' : 'Resolve'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -1016,8 +1078,16 @@ const TrackmanTab: React.FC = () => {
           currentMemberEmail={undefined}
           isRelink={false}
           onSuccess={async (options) => {
-            const originalEmail = assignPlayersModal.booking.originalEmail || assignPlayersModal.booking.original_email;
+            const bookingId = assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id;
             const memberEmail = options?.memberEmail;
+            
+            setOptimisticActions(prev => {
+              const next = new Map(prev);
+              next.set(bookingId, { type: 'linking', targetEmail: memberEmail || '' });
+              return next;
+            });
+            
+            const originalEmail = assignPlayersModal.booking.originalEmail || assignPlayersModal.booking.original_email;
             if (originalEmail && memberEmail) {
               try {
                 await fetch('/api/admin/trackman/auto-resolve-same-email', {
@@ -1027,7 +1097,7 @@ const TrackmanTab: React.FC = () => {
                   body: JSON.stringify({ 
                     originalEmail,
                     memberEmail,
-                    excludeTrackmanId: assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id
+                    excludeTrackmanId: bookingId
                   })
                 });
               } catch (err) {
@@ -1035,7 +1105,13 @@ const TrackmanTab: React.FC = () => {
               }
             }
             await new Promise(r => setTimeout(r, 300));
-            invalidateTrackmanQueries();
+            await invalidateTrackmanQueries();
+            
+            setOptimisticActions(prev => {
+              const next = new Map(prev);
+              next.delete(bookingId);
+              return next;
+            });
           }}
           importedName={assignPlayersModal.booking.userName || assignPlayersModal.booking.user_name}
           notes={assignPlayersModal.booking.notes || assignPlayersModal.booking.note}

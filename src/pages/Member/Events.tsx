@@ -22,6 +22,8 @@ interface UserRsvp {
   status: string;
 }
 
+type OptimisticAction = 'rsvp' | 'cancel';
+
 const MemberEvents: React.FC = () => {
   const { events, isLoading, user, actualUser, isViewingAs, viewAsUser } = useData();
   const { effectiveTheme } = useTheme();
@@ -34,8 +36,25 @@ const MemberEvents: React.FC = () => {
   const [loadingRsvp, setLoadingRsvp] = useState<string | null>(null);
   const [showViewAsConfirm, setShowViewAsConfirm] = useState(false);
   const [pendingEvent, setPendingEvent] = useState<EventData | null>(null);
+  const [optimisticActions, setOptimisticActions] = useState<Map<string, OptimisticAction>>(new Map());
   
   const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
+  
+  const getOptimisticAction = (eventId: string): OptimisticAction | null => {
+    return optimisticActions.get(eventId) || null;
+  };
+  
+  const setOptimisticAction = (eventId: string, action: OptimisticAction) => {
+    setOptimisticActions(prev => new Map(prev).set(eventId, action));
+  };
+  
+  const clearOptimisticAction = (eventId: string) => {
+    setOptimisticActions(prev => {
+      const next = new Map(prev);
+      next.delete(eventId);
+      return next;
+    });
+  };
 
   const { data: userRsvps = [], refetch: refetchRsvps } = useQuery({
     queryKey: ['user-rsvps', user?.email],
@@ -55,13 +74,14 @@ const MemberEvents: React.FC = () => {
       });
     },
     onMutate: async ({ eventId }) => {
+      setOptimisticAction(eventId, 'rsvp');
       await queryClient.cancelQueries({ queryKey: ['user-rsvps', user?.email] });
       const previousRsvps = queryClient.getQueryData<UserRsvp[]>(['user-rsvps', user?.email]);
       queryClient.setQueryData<UserRsvp[]>(['user-rsvps', user?.email], (old = []) => [
         ...old,
         { event_id: parseInt(eventId), status: 'confirmed' }
       ]);
-      return { previousRsvps };
+      return { previousRsvps, eventId };
     },
     onError: (_error, _variables, context) => {
       if (context?.previousRsvps) {
@@ -73,8 +93,9 @@ const MemberEvents: React.FC = () => {
       showToast('You are on the list!', 'success');
       queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       setLoadingRsvp(null);
+      clearOptimisticAction(variables.eventId);
     }
   });
 
@@ -83,12 +104,13 @@ const MemberEvents: React.FC = () => {
       return deleteWithCredentials(`/api/rsvps/${eventId}/${encodeURIComponent(userEmail)}`);
     },
     onMutate: async ({ eventId }) => {
+      setOptimisticAction(eventId, 'cancel');
       await queryClient.cancelQueries({ queryKey: ['user-rsvps', user?.email] });
       const previousRsvps = queryClient.getQueryData<UserRsvp[]>(['user-rsvps', user?.email]);
       queryClient.setQueryData<UserRsvp[]>(['user-rsvps', user?.email], (old = []) =>
         old.filter(r => r.event_id !== parseInt(eventId))
       );
-      return { previousRsvps };
+      return { previousRsvps, eventId };
     },
     onError: (_error, _variables, context) => {
       if (context?.previousRsvps) {
@@ -100,8 +122,9 @@ const MemberEvents: React.FC = () => {
       showToast('RSVP cancelled', 'success');
       queryClient.invalidateQueries({ queryKey: ['user-rsvps', user?.email] });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       setLoadingRsvp(null);
+      clearOptimisticAction(variables.eventId);
     }
   });
 
@@ -270,6 +293,10 @@ const MemberEvents: React.FC = () => {
                 const isExpanded = expandedEventId === event.id;
                 const isRsvpd = hasRsvp(event.id);
                 const isLoadingThis = loadingRsvp === event.id;
+                const optimisticAction = getOptimisticAction(event.id);
+                const isPendingRsvp = optimisticAction === 'rsvp';
+                const isPendingCancel = optimisticAction === 'cancel';
+                const showOptimisticGoing = isRsvpd || isPendingRsvp;
                 
                 return (
                   <MotionListItem 
@@ -297,8 +324,18 @@ const MemberEvents: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
                           <h4 className={`text-base md:text-lg font-bold leading-tight truncate pr-2 ${isDark ? 'text-white' : 'text-primary'}`}>{event.title}</h4>
-                          {isRsvpd ? (
-                            <span className="text-[10px] font-bold uppercase tracking-wider bg-accent text-brand-green px-1.5 py-0.5 rounded-md whitespace-nowrap">Going</span>
+                          {isPendingRsvp ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-accent/60 text-brand-green px-1.5 py-0.5 rounded-md whitespace-nowrap animate-pulse flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-brand-green rounded-full animate-ping"></span>
+                              RSVP'ing
+                            </span>
+                          ) : isPendingCancel ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-md whitespace-nowrap animate-pulse flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-ping"></span>
+                              Cancelling
+                            </span>
+                          ) : isRsvpd ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-accent text-brand-green px-1.5 py-0.5 rounded-md whitespace-nowrap transition-all">Going</span>
                           ) : event.source === 'eventbrite' ? (
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-[#F05537]/20 text-[#F05537] px-1.5 py-0.5 rounded-md whitespace-nowrap">Ticketed</span>
                           ) : (
@@ -345,6 +382,22 @@ const MemberEvents: React.FC = () => {
                             <div className={`flex-1 py-3 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
                               <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Event</span>
                             </div>
+                          ) : isPendingRsvp ? (
+                            <button 
+                              disabled
+                              className="flex-1 py-3 rounded-xl font-semibold text-sm bg-brand-green/70 text-white cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              <WalkingGolferSpinner size="sm" variant="light" />
+                              <span>RSVP'ing...</span>
+                            </button>
+                          ) : isPendingCancel ? (
+                            <button 
+                              disabled
+                              className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-colors border flex items-center justify-center gap-2 cursor-not-allowed opacity-70 ${isDark ? 'border-red-500/50 text-red-400' : 'border-red-500/50 text-red-500'}`}
+                            >
+                              <WalkingGolferSpinner size="sm" variant={isDark ? 'light' : 'dark'} />
+                              <span>Cancelling...</span>
+                            </button>
                           ) : isRsvpd ? (
                             <button 
                               onClick={(e) => { e.stopPropagation(); handleCancelRSVP(event); }}

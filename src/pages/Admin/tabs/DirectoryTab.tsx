@@ -16,6 +16,7 @@ import { formatPhoneNumber } from '../../../utils/formatting';
 import { getTierColor, getTagColor } from '../../../utils/tierUtils';
 import { AnimatedPage } from '../../../components/motion';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import { useToast } from '../../../components/Toast';
 
 const TIER_OPTIONS = ['All', 'Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const ASSIGNABLE_TIERS = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
@@ -236,10 +237,13 @@ const DirectoryTab: React.FC = () => {
     const [visitorSortDirection, setVisitorSortDirection] = useState<SortDirection>('desc');
     const [visitorsPage, setVisitorsPage] = useState(1);
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
+    const [optimisticTiers, setOptimisticTiers] = useState<Record<string, string>>({});
+    const [pendingTierUpdates, setPendingTierUpdates] = useState<Set<string>>(new Set());
     
     const isAdmin = actualUser?.role === 'admin';
     const { isAtBottom, drawerOpen } = useBottomNav();
     const isMobile = useIsMobile();
+    const { showToast } = useToast();
 
     React.useEffect(() => {
         setPageReady(true);
@@ -368,19 +372,45 @@ const DirectoryTab: React.FC = () => {
     });
 
     const assignTierMutation = useMutation({
-        mutationFn: async ({ memberId, tier }: { memberId: string | number; tier: string }) => {
+        mutationFn: async ({ memberId, tier, memberEmail }: { memberId: string | number; tier: string; memberEmail: string }) => {
             return fetchWithCredentials<{ success: boolean }>(`/api/hubspot/contacts/${memberId}/tier`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tier }),
             });
         },
-        onSuccess: async () => {
+        onMutate: async ({ memberEmail, tier }) => {
+            setOptimisticTiers(prev => ({ ...prev, [memberEmail]: tier }));
+            setPendingTierUpdates(prev => new Set(prev).add(memberEmail));
             setAssignTierModalOpen(false);
             setMemberToAssignTier(null);
+        },
+        onSuccess: async (_data, { memberEmail, tier }) => {
+            setPendingTierUpdates(prev => {
+                const next = new Set(prev);
+                next.delete(memberEmail);
+                return next;
+            });
+            setOptimisticTiers(prev => {
+                const next = { ...prev };
+                delete next[memberEmail];
+                return next;
+            });
+            showToast(`Tier updated to ${tier}`, 'success');
             await refreshMembers();
         },
-        onError: (err: Error) => {
+        onError: (err: Error, { memberEmail }) => {
+            setPendingTierUpdates(prev => {
+                const next = new Set(prev);
+                next.delete(memberEmail);
+                return next;
+            });
+            setOptimisticTiers(prev => {
+                const next = { ...prev };
+                delete next[memberEmail];
+                return next;
+            });
+            showToast(err.message || 'Failed to assign tier', 'error');
             setAssignTierError(err.message || 'Failed to assign tier. Please try again.');
         },
     });
@@ -404,9 +434,21 @@ const DirectoryTab: React.FC = () => {
         if (!memberToAssignTier || !selectedTierToAssign) return;
         assignTierMutation.mutate({ 
             memberId: memberToAssignTier.id!, 
-            tier: selectedTierToAssign 
+            tier: selectedTierToAssign,
+            memberEmail: memberToAssignTier.email
         });
     };
+    
+    const getDisplayTier = useCallback((member: MemberProfile): string | null => {
+        if (optimisticTiers[member.email]) {
+            return optimisticTiers[member.email];
+        }
+        return member.rawTier || member.tier || null;
+    }, [optimisticTiers]);
+    
+    const isMemberPendingUpdate = useCallback((memberEmail: string): boolean => {
+        return pendingTierUpdates.has(memberEmail);
+    }, [pendingTierUpdates]);
 
     const handleSync = () => {
         syncMutation.mutate();
@@ -1489,11 +1531,16 @@ const DirectoryTab: React.FC = () => {
                                             </div>
                                             <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                                    <div className="flex items-center gap-1">
+                                                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} />
+                                                        {isMemberPendingUpdate(m.email) && (
+                                                            <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                        )}
+                                                    </div>
                                                     {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                                                         <TagBadge key={tag} tag={tag} size="sm" />
                                                     ))}
-                                                    {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                                    {isAdmin && memberTab === 'active' && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
                                                             className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
@@ -1541,11 +1588,16 @@ const DirectoryTab: React.FC = () => {
                                         <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
                                         <div style={{ width: '20%' }} className="p-4">
                                             <div className="flex items-center gap-1 flex-wrap">
-                                                <TierBadge tier={m.rawTier} size="sm" showNoTier={true} />
+                                                <div className="flex items-center gap-1">
+                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} />
+                                                    {isMemberPendingUpdate(m.email) && (
+                                                        <span className="material-symbols-outlined text-[12px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                    )}
+                                                </div>
                                                 {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                                                     <TagBadge key={tag} tag={tag} size="sm" />
                                                 ))}
-                                                {isAdmin && memberTab === 'active' && (!m.tier || m.tier.trim() === '') && (
+                                                {isAdmin && memberTab === 'active' && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
                                                         className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"

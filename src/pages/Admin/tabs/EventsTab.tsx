@@ -154,31 +154,71 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filteredMembers, setFilteredMembers] = useState<MemberProfile[]>([]);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+    
+    const [deletingParticipantIds, setDeletingParticipantIds] = useState<Set<number>>(new Set());
+    const [optimisticParticipants, setOptimisticParticipants] = useState<Participant[]>([]);
+    const [pendingAddEmail, setPendingAddEmail] = useState<string | null>(null);
 
     const deleteRsvpMutation = useMutation({
         mutationFn: (rsvpId: number) => 
             deleteWithCredentials(`/api/events/${eventId}/rsvps/${rsvpId}`),
-        onSuccess: () => {
-            showToast('RSVP removed successfully', 'success');
+        onMutate: async (rsvpId) => {
+            setDeletingParticipantIds(prev => new Set(prev).add(rsvpId));
             setConfirmDeleteId(null);
+            return { rsvpId };
+        },
+        onSuccess: (_, __, context) => {
+            if (context?.rsvpId) {
+                setDeletingParticipantIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.rsvpId);
+                    return next;
+                });
+            }
+            showToast('RSVP removed successfully', 'success');
             queryClient.invalidateQueries({ queryKey: ['event-rsvps', eventId] });
             onRefresh?.();
         },
-        onError: (error: Error) => {
+        onError: (error: Error, _, context) => {
+            if (context?.rsvpId) {
+                setDeletingParticipantIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.rsvpId);
+                    return next;
+                });
+            }
             showToast(error.message || 'Failed to remove RSVP', 'error');
         }
     });
 
     const deleteEnrollmentMutation = useMutation({
-        mutationFn: (userEmail: string) => 
+        mutationFn: ({ userEmail, participantId }: { userEmail: string; participantId: number }) => 
             deleteWithCredentials(`/api/wellness-enrollments/${classId}/${encodeURIComponent(userEmail)}`),
-        onSuccess: () => {
-            showToast('Enrollment removed successfully', 'success');
+        onMutate: async ({ participantId }) => {
+            setDeletingParticipantIds(prev => new Set(prev).add(participantId));
             setConfirmDeleteId(null);
+            return { participantId };
+        },
+        onSuccess: (_, __, context) => {
+            if (context?.participantId) {
+                setDeletingParticipantIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.participantId);
+                    return next;
+                });
+            }
+            showToast('Enrollment removed successfully', 'success');
             queryClient.invalidateQueries({ queryKey: ['class-enrollments', classId] });
             onRefresh?.();
         },
-        onError: (error: Error) => {
+        onError: (error: Error, _, context) => {
+            if (context?.participantId) {
+                setDeletingParticipantIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.participantId);
+                    return next;
+                });
+            }
             showToast(error.message || 'Failed to remove enrollment', 'error');
         }
     });
@@ -204,9 +244,29 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                 : `/api/wellness-classes/${classId}/enrollments/manual`;
             return postWithCredentials(url, { email });
         },
-        onSuccess: () => {
+        onMutate: async (email) => {
+            setPendingAddEmail(email);
+            const tempId = -Date.now();
+            const optimisticParticipant: Participant = {
+                id: tempId,
+                userEmail: email,
+                status: 'confirmed',
+                createdAt: new Date().toISOString(),
+                firstName: null,
+                lastName: null,
+                phone: null,
+            };
+            setOptimisticParticipants(prev => [...prev, optimisticParticipant]);
             setNewEmail('');
             setIsAdding(false);
+            return { tempId, email };
+        },
+        onSuccess: (_, __, context) => {
+            if (context?.tempId) {
+                setOptimisticParticipants(prev => prev.filter(p => p.id !== context.tempId));
+            }
+            setPendingAddEmail(null);
+            showToast(`${type === 'rsvp' ? 'RSVP' : 'Enrollment'} added successfully`, 'success');
             if (type === 'rsvp') {
                 queryClient.invalidateQueries({ queryKey: ['event-rsvps', eventId] });
             } else {
@@ -214,7 +274,11 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
             }
             onRefresh?.();
         },
-        onError: (error: Error) => {
+        onError: (error: Error, _, context) => {
+            if (context?.tempId) {
+                setOptimisticParticipants(prev => prev.filter(p => p.id !== context.tempId));
+            }
+            setPendingAddEmail(null);
             setAddError(error.message || `Failed to add ${type === 'rsvp' ? 'RSVP' : 'enrollment'}`);
         }
     });
@@ -224,10 +288,13 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
         deleteRsvpMutation.mutate(rsvpId);
     };
 
-    const handleDeleteEnrollment = (enrollmentId: number, userEmail: string) => {
+    const handleDeleteEnrollment = (participantId: number, userEmail: string) => {
         if (!classId) return;
-        deleteEnrollmentMutation.mutate(userEmail);
+        deleteEnrollmentMutation.mutate({ userEmail, participantId });
     };
+    
+    const allParticipants = [...participants, ...optimisticParticipants]
+        .filter(p => !deletingParticipantIds.has(p.id));
 
     const handleEmailChange = (value: string) => {
         setNewEmail(value);
@@ -284,8 +351,7 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
         <SlideUpDrawer 
             isOpen={isOpen} 
             onClose={onClose}
-            title={title}
-            subtitle={subtitle}
+            title={subtitle ? `${title} — ${subtitle}` : title}
             maxHeight="large"
         >
             <div className="p-5">
@@ -386,7 +452,7 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                             </div>
                         )}
 
-                        {participants.length === 0 ? (
+                        {allParticipants.length === 0 ? (
                             <div className="text-center py-12 text-gray-600 dark:text-gray-500">
                                 <span aria-hidden="true" className="material-symbols-outlined text-4xl mb-2 block">
                                     {type === 'rsvp' ? 'event_busy' : 'person_off'}
@@ -394,7 +460,7 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                                 <p>No {type === 'rsvp' ? 'RSVPs' : 'enrollments'} yet</p>
                             </div>
                         ) : (() => {
-                            const grouped = participants.reduce((acc, p) => {
+                            const grouped = allParticipants.reduce((acc, p) => {
                                 const displayName = p.firstName && p.lastName 
                                     ? `${p.firstName} ${p.lastName}` 
                                     : p.attendeeName || p.userEmail;
@@ -407,7 +473,7 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                             }, {} as Record<string, (Participant & { displayName: string })[]>);
 
                             const groupedEntries = Object.entries(grouped);
-                            const totalHeadcount = participants.reduce((sum, p) => sum + 1 + (p.guestCount || 0), 0);
+                            const totalHeadcount = allParticipants.reduce((sum, p) => sum + 1 + (p.guestCount || 0), 0);
 
                             return (
                                 <div className="space-y-3">
@@ -424,27 +490,46 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                                         const guestCount = group.reduce((sum, p) => sum + (p.guestCount || 0), 0);
                                         const isEventbrite = primary.source === 'eventbrite';
                                         const isMember = Boolean(primary.matchedUserId || (primary.firstName && primary.lastName));
+                                        const isOptimistic = primary.id < 0;
+                                        const isDeleting = deletingParticipantIds.has(primary.id);
                                         
                                         return (
                                             <div 
                                                 key={primary.id}
-                                                className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/20"
+                                                className={`p-4 rounded-xl border transition-all ${
+                                                    isOptimistic 
+                                                        ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green/30 animate-pulse' 
+                                                        : isDeleting
+                                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/30 opacity-50'
+                                                            : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/20'
+                                                }`}
                                             >
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-                                                            isMember 
-                                                                ? 'bg-accent/20 text-brand-green' 
-                                                                : isEventbrite 
-                                                                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' 
-                                                                    : 'bg-gray-100 dark:bg-white/10 text-gray-500'
+                                                            isOptimistic
+                                                                ? 'bg-brand-green/30 text-brand-green'
+                                                                : isMember 
+                                                                    ? 'bg-accent/20 text-brand-green' 
+                                                                    : isEventbrite 
+                                                                        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' 
+                                                                        : 'bg-gray-100 dark:bg-white/10 text-gray-500'
                                                         }`}>
-                                                            {(primary.firstName?.[0] || primary.attendeeName?.[0] || primary.userEmail[0]).toUpperCase()}
+                                                            {isOptimistic ? (
+                                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                                            ) : (
+                                                                (primary.firstName?.[0] || primary.attendeeName?.[0] || primary.userEmail[0]).toUpperCase()
+                                                            )}
                                                         </div>
                                                         <div>
                                                             <p className="font-semibold text-primary dark:text-white">
                                                                 {primary.displayName}
-                                                                {guestCount > 0 && (
+                                                                {isOptimistic && (
+                                                                    <span className="ml-2 text-sm font-normal text-brand-green">
+                                                                        Adding...
+                                                                    </span>
+                                                                )}
+                                                                {guestCount > 0 && !isOptimistic && (
                                                                     <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
                                                                         (+{guestCount} guest{guestCount !== 1 ? 's' : ''})
                                                                     </span>
@@ -456,26 +541,28 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shrink-0 ${
-                                                            type === 'rsvp' 
-                                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                                                                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-                                                        }`}>
-                                                            {type === 'rsvp' ? 'RSVP' : 'Enrolled'}
-                                                        </span>
-                                                        {confirmDeleteId === primary.id ? (
+                                                        {isOptimistic ? (
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shrink-0 bg-brand-green/20 text-brand-green flex items-center gap-1">
+                                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
+                                                                Adding...
+                                                            </span>
+                                                        ) : (
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shrink-0 ${
+                                                                type === 'rsvp' 
+                                                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                                                    : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                                                            }`}>
+                                                                {type === 'rsvp' ? 'RSVP' : 'Enrolled'}
+                                                            </span>
+                                                        )}
+                                                        {!isOptimistic && !isDeleting && confirmDeleteId === primary.id ? (
                                                             <div className="flex items-center gap-1">
                                                                 <button
                                                                     onClick={() => type === 'rsvp' ? handleDeleteRsvp(primary.id) : handleDeleteEnrollment(primary.id, primary.userEmail)}
-                                                                    disabled={deleteRsvpMutation.isPending || deleteEnrollmentMutation.isPending}
-                                                                    className="p-1.5 rounded-lg bg-red-500 text-white text-xs font-medium min-w-[44px] min-h-[32px] flex items-center justify-center disabled:opacity-50"
+                                                                    className="p-1.5 rounded-lg bg-red-500 text-white text-xs font-medium min-w-[44px] min-h-[32px] flex items-center justify-center"
                                                                     aria-label="Confirm remove"
                                                                 >
-                                                                    {(deleteRsvpMutation.isPending || deleteEnrollmentMutation.isPending) ? (
-                                                                        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                                                                    ) : (
-                                                                        'Yes'
-                                                                    )}
+                                                                    Yes
                                                                 </button>
                                                                 <button
                                                                     onClick={() => setConfirmDeleteId(null)}
@@ -485,7 +572,7 @@ const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = ({
                                                                     No
                                                                 </button>
                                                             </div>
-                                                        ) : (
+                                                        ) : !isOptimistic && !isDeleting && (
                                                             <button
                                                                 onClick={() => setConfirmDeleteId(primary.id)}
                                                                 className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
@@ -557,6 +644,10 @@ const EventsAdminContent: React.FC = () => {
     const [newItem, setNewItem] = useState<Partial<DBEvent>>({ category: 'Social' });
     const [error, setError] = useState<string | null>(null);
     const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+    
+    const [pendingEventIds, setPendingEventIds] = useState<Set<number>>(new Set());
+    const [deletingEventIds, setDeletingEventIds] = useState<Set<number>>(new Set());
+    const [optimisticEvents, setOptimisticEvents] = useState<DBEvent[]>([]);
 
     const eventValidation = {
         category: !newItem.category || newItem.category === '' || newItem.category === 'Event',
@@ -612,13 +703,58 @@ const EventsAdminContent: React.FC = () => {
                 body: JSON.stringify(payload)
             });
         },
-        onSuccess: () => {
+        onMutate: async (payload) => {
+            const tempId = editId || -Date.now();
+            setPendingEventIds(prev => new Set(prev).add(tempId));
+            
+            if (!editId) {
+                const optimisticEvent: DBEvent = {
+                    id: tempId,
+                    title: String(payload.title || ''),
+                    description: String(payload.description || ''),
+                    event_date: String(payload.event_date || ''),
+                    start_time: String(payload.start_time || ''),
+                    end_time: String(payload.end_time || ''),
+                    location: String(payload.location || ''),
+                    category: String(payload.category || 'Social'),
+                    image_url: payload.image_url as string | null,
+                    max_attendees: payload.max_attendees as number | null,
+                    eventbrite_id: null,
+                    eventbrite_url: null,
+                    external_url: payload.external_url as string | undefined,
+                    visibility: payload.visibility as string | undefined,
+                    block_bookings: Boolean(payload.block_bookings),
+                    block_simulators: Boolean(payload.block_simulators),
+                    block_conference_room: Boolean(payload.block_conference_room),
+                };
+                setOptimisticEvents(prev => [...prev, optimisticEvent]);
+            }
+            
             setIsEditing(false);
+            return { tempId };
+        },
+        onSuccess: (_, __, context) => {
+            if (context?.tempId) {
+                setPendingEventIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.tempId);
+                    return next;
+                });
+                setOptimisticEvents(prev => prev.filter(e => e.id !== context.tempId));
+            }
             showToast(editId ? 'Event updated successfully' : 'Event created successfully', 'success');
             queryClient.invalidateQueries({ queryKey: ['admin-events'] });
             queryClient.invalidateQueries({ queryKey: ['events-needs-review'] });
         },
-        onError: () => {
+        onError: (_, __, context) => {
+            if (context?.tempId) {
+                setPendingEventIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.tempId);
+                    return next;
+                });
+                setOptimisticEvents(prev => prev.filter(e => e.id !== context.tempId));
+            }
             setError(getNetworkErrorMessage());
         }
     });
@@ -626,13 +762,33 @@ const EventsAdminContent: React.FC = () => {
     const deleteEventMutation = useMutation({
         mutationFn: (eventId: number) => 
             deleteWithCredentials(`/api/events/${eventId}`),
-        onSuccess: () => {
+        onMutate: async (eventId) => {
+            setDeletingEventIds(prev => new Set(prev).add(eventId));
+            setShowDeleteConfirm(false);
+            setEventToDelete(null);
+            return { eventId };
+        },
+        onSuccess: (_, __, context) => {
+            if (context?.eventId) {
+                setDeletingEventIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.eventId);
+                    return next;
+                });
+            }
             setSuccess('Event archived');
             showToast('Event archived successfully', 'success');
             setTimeout(() => setSuccess(null), 3000);
             queryClient.invalidateQueries({ queryKey: ['admin-events'] });
         },
-        onError: () => {
+        onError: (_, __, context) => {
+            if (context?.eventId) {
+                setDeletingEventIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(context.eventId);
+                    return next;
+                });
+            }
             setError(getNetworkErrorMessage());
             showToast('Failed to archive event', 'error');
             setTimeout(() => setError(null), 3000);
@@ -686,13 +842,18 @@ const EventsAdminContent: React.FC = () => {
         };
     }, [isEditing]);
 
+    const allEvents = [...events, ...optimisticEvents];
     const filteredEvents = activeCategory === 'all' 
-        ? events 
-        : events.filter(e => e.category === activeCategory);
+        ? allEvents 
+        : allEvents.filter(e => e.category === activeCategory);
 
     const today = getTodayPacific();
-    const upcomingEvents = filteredEvents.filter(e => e.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date));
-    const pastEvents = filteredEvents.filter(e => e.event_date < today).sort((a, b) => b.event_date.localeCompare(a.event_date));
+    const upcomingEvents = filteredEvents
+        .filter(e => e.event_date >= today && !deletingEventIds.has(e.id))
+        .sort((a, b) => a.event_date.localeCompare(b.event_date));
+    const pastEvents = filteredEvents
+        .filter(e => e.event_date < today && !deletingEventIds.has(e.id))
+        .sort((a, b) => b.event_date.localeCompare(a.event_date));
 
     const openEdit = (event: DBEvent) => {
         setNewItem(event);
@@ -758,9 +919,7 @@ const EventsAdminContent: React.FC = () => {
 
     const confirmDelete = () => {
         if (!eventToDelete) return;
-        setShowDeleteConfirm(false);
         deleteEventMutation.mutate(eventToDelete.id);
-        setEventToDelete(null);
     };
 
     const handleViewRsvps = (event: DBEvent) => {
@@ -1215,9 +1374,22 @@ const EventsAdminContent: React.FC = () => {
                                 <h3 className="font-bold text-primary dark:text-white">Upcoming ({upcomingEvents.length})</h3>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {upcomingEvents.map((event, index) => (
-                                    <div key={event.id} onClick={() => openEdit(event)} className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-all animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
-                                        {event.eventbrite_id && (
+                                {upcomingEvents.map((event, index) => {
+                                    const isPending = pendingEventIds.has(event.id);
+                                    const isOptimistic = event.id < 0;
+                                    return (
+                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-all animate-slide-up-stagger ${
+                                        isPending || isOptimistic 
+                                            ? 'border-brand-green/50 animate-pulse cursor-wait' 
+                                            : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30'
+                                    }`} style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+                                        {(isPending || isOptimistic) && (
+                                            <div className="absolute top-0 left-0 bg-brand-green text-white text-[8px] font-bold uppercase px-2 py-1 rounded-br-lg z-10 flex items-center gap-1">
+                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
+                                                Saving...
+                                            </div>
+                                        )}
+                                        {event.eventbrite_id && !isPending && !isOptimistic && (
                                             <div className="absolute top-0 right-0 bg-[#F05537] text-white text-[8px] font-bold uppercase px-2 py-1 rounded-bl-lg z-10">
                                                 Eventbrite
                                             </div>
@@ -1240,6 +1412,7 @@ const EventsAdminContent: React.FC = () => {
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
                                             <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><span aria-hidden="true" className="material-symbols-outlined text-[14px]">location_on</span> {event.location}</span>
+                                            {!isPending && !isOptimistic && (
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewRsvps(event); }} 
@@ -1260,16 +1433,18 @@ const EventsAdminContent: React.FC = () => {
                                                 )}
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleDelete(event); }} 
-                                                    disabled={deleteEventMutation.isPending}
+                                                    disabled={deletingEventIds.has(event.id)}
                                                     className="text-primary/70 dark:text-white/70 text-xs font-bold uppercase tracking-wider hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                                                 >
-                                                    {deleteEventMutation.isPending && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                                                    {deletingEventIds.has(event.id) && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
                                                     Delete
                                                 </button>
                                             </div>
+                                            )}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -1281,9 +1456,19 @@ const EventsAdminContent: React.FC = () => {
                                 <h3 className="font-bold text-gray-500 dark:text-gray-400">Past ({pastEvents.length})</h3>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
-                                {pastEvents.map((event, index) => (
-                                    <div key={event.id} onClick={() => openEdit(event)} className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-all animate-slide-up-stagger" style={{ '--stagger-index': upcomingEvents.length + index + 3 } as React.CSSProperties}>
-                                        {event.eventbrite_id && (
+                                {pastEvents.map((event, index) => {
+                                    const isPending = pendingEventIds.has(event.id);
+                                    return (
+                                    <div key={event.id} onClick={() => openEdit(event)} className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-all animate-slide-up-stagger ${
+                                        isPending ? 'border-brand-green/50 animate-pulse cursor-wait' : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30'
+                                    }`} style={{ '--stagger-index': upcomingEvents.length + index + 3 } as React.CSSProperties}>
+                                        {isPending && (
+                                            <div className="absolute top-0 left-0 bg-brand-green text-white text-[8px] font-bold uppercase px-2 py-1 rounded-br-lg z-10 flex items-center gap-1">
+                                                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[10px]">progress_activity</span>
+                                                Updating...
+                                            </div>
+                                        )}
+                                        {event.eventbrite_id && !isPending && (
                                             <div className="absolute top-0 right-0 bg-[#F05537] text-white text-[8px] font-bold uppercase px-2 py-1 rounded-bl-lg z-10">
                                                 Eventbrite
                                             </div>
@@ -1306,6 +1491,7 @@ const EventsAdminContent: React.FC = () => {
                                         </div>
                                         <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-white/20 mt-auto">
                                             <span className="text-xs text-gray-600 dark:text-gray-500 flex items-center gap-1"><span aria-hidden="true" className="material-symbols-outlined text-[14px]">location_on</span> {event.location}</span>
+                                            {!isPending && (
                                             <div className="flex items-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewRsvps(event); }} 
@@ -1326,15 +1512,18 @@ const EventsAdminContent: React.FC = () => {
                                                 )}
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleDelete(event); }} 
-                                                    disabled={deleteEventMutation.isPending}
+                                                    disabled={deletingEventIds.has(event.id)}
                                                     className="text-primary/70 dark:text-white/70 text-xs font-bold uppercase tracking-wider hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                                                 >
+                                                    {deletingEventIds.has(event.id) && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
                                                     Delete
                                                 </button>
                                             </div>
+                                            )}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

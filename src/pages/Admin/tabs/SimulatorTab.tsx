@@ -942,6 +942,11 @@ const SimulatorTab: React.FC = () => {
         date?: string;
     }>({});
     
+    // Per-booking optimistic action tracking for visual feedback
+    const [actionInProgress, setActionInProgress] = useState<Record<string, 'approving' | 'declining' | 'cancelling' | 'checking_in'>>({});
+    const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+    const [optimisticNewBooking, setOptimisticNewBooking] = useState<BookingRequest | null>(null);
+    
     // Refs for syncing queue height to calendar height
     const calendarColRef = useRef<HTMLDivElement>(null);
     const [queueMaxHeight, setQueueMaxHeight] = useState<number | null>(null);
@@ -1110,32 +1115,73 @@ const SimulatorTab: React.FC = () => {
             name: p.member?.name || p.name
         })).filter(p => p.email || p.userId);
 
-        const res = await fetch('/api/staff/manual-booking', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                user_email: data.hostMember.email,
-                user_name: data.hostMember.name,
-                resource_id: data.resourceId,
-                request_date: data.requestDate,
-                start_time: data.startTime + ':00',
-                duration_minutes: data.durationMinutes,
-                declared_player_count: data.declaredPlayerCount,
-                request_participants: requestParticipants,
-                trackman_external_id: data.trackmanExternalId
-            })
-        });
-
-        if (!res.ok) {
-            const error = await res.json().catch(() => ({}));
-            throw new Error(error.error || 'Failed to create booking');
-        }
-
-        showToast('Booking created successfully', 'success');
+        // Show creating state immediately for visual feedback
+        setIsCreatingBooking(true);
+        
+        // Calculate end time for optimistic display
+        const [startHour, startMin] = data.startTime.split(':').map(Number);
+        const endTotalMins = startHour * 60 + startMin + data.durationMinutes;
+        const endHour = Math.floor(endTotalMins / 60) % 24;
+        const endMin = endTotalMins % 60;
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+        
+        // Create optimistic booking for immediate visual feedback
+        const optimisticId = `creating-${Date.now()}`;
+        const optimisticBooking: BookingRequest = {
+            id: optimisticId,
+            user_email: data.hostMember.email,
+            user_name: data.hostMember.name,
+            resource_id: data.resourceId,
+            bay_name: resources?.find(r => r.id === data.resourceId)?.name || null,
+            resource_preference: null,
+            request_date: data.requestDate,
+            start_time: data.startTime + ':00',
+            end_time: endTime + ':00',
+            duration_minutes: data.durationMinutes,
+            notes: null,
+            status: 'confirmed',
+            staff_notes: null,
+            suggested_time: null,
+            created_at: new Date().toISOString(),
+            source: 'booking'
+        };
+        setOptimisticNewBooking(optimisticBooking);
+        
+        // Close modal immediately for snappy feedback
         setStaffManualBookingModalOpen(false);
-        handleRefresh();
-    }, [showToast, handleRefresh]);
+
+        try {
+            const res = await fetch('/api/staff/manual-booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    user_email: data.hostMember.email,
+                    user_name: data.hostMember.name,
+                    resource_id: data.resourceId,
+                    request_date: data.requestDate,
+                    start_time: data.startTime + ':00',
+                    duration_minutes: data.durationMinutes,
+                    declared_player_count: data.declaredPlayerCount,
+                    request_participants: requestParticipants,
+                    trackman_external_id: data.trackmanExternalId
+                })
+            });
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(error.error || 'Failed to create booking');
+            }
+
+            showToast('Booking created successfully', 'success');
+            handleRefresh();
+        } catch (err: any) {
+            showToast(err.message || 'Failed to create booking', 'error');
+        } finally {
+            setIsCreatingBooking(false);
+            setOptimisticNewBooking(null);
+        }
+    }, [showToast, handleRefresh, resources]);
 
     const unmatchedBookings = useMemo(() => {
         const today = getTodayPacific();
@@ -1273,7 +1319,11 @@ const SimulatorTab: React.FC = () => {
         const booking = cancelConfirmModal.booking;
         if (!booking) return;
         
+        const bookingKey = `${booking.source || 'booking'}-${booking.id}`;
         setCancelConfirmModal(prev => ({ ...prev, isCancelling: true }));
+        
+        // Track action in progress for visual feedback on booking card
+        setActionInProgress(prev => ({ ...prev, [bookingKey]: 'cancelling' }));
         
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
@@ -1322,6 +1372,13 @@ const SimulatorTab: React.FC = () => {
             queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
             showToast(err.message || 'Failed to cancel booking', 'error');
             setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
+        } finally {
+            // Clear action in progress
+            setActionInProgress(prev => {
+                const next = { ...prev };
+                delete next[bookingKey];
+                return next;
+            });
         }
     }, [cancelConfirmModal.booking, cancelConfirmModal.hasTrackman, queryClient, startDate, endDate, actualUser?.email, showToast]);
 
@@ -1521,7 +1578,12 @@ const SimulatorTab: React.FC = () => {
             return d.toISOString().split('T')[0];
         })();
         
-        return approvedBookings
+        // Include optimistic new booking if it exists and matches the current filter
+        const bookingsToFilter = optimisticNewBooking 
+            ? [...approvedBookings, optimisticNewBooking]
+            : approvedBookings;
+        
+        return bookingsToFilter
             .filter(b => {
                 // Include approved/confirmed, plus attended for today only (so checked-in bookings stay visible)
                 const isScheduledStatus = b.status === 'approved' || b.status === 'confirmed';
@@ -1539,7 +1601,7 @@ const SimulatorTab: React.FC = () => {
                 }
                 return a.start_time.localeCompare(b.start_time);
             });
-    }, [approvedBookings, scheduledFilter]);
+    }, [approvedBookings, scheduledFilter, optimisticNewBooking]);
 
     const isBookingUnmatched = useCallback((booking: BookingRequest): boolean => {
         // A booking is unmatched if:
@@ -1574,8 +1636,12 @@ const SimulatorTab: React.FC = () => {
     const handleApprove = async () => {
         if (!selectedRequest) return;
         
+        const bookingKey = `${selectedRequest.source || 'request'}-${selectedRequest.id}`;
         setIsProcessing(true);
         setError(null);
+        
+        // Track action in progress for visual feedback
+        setActionInProgress(prev => ({ ...prev, [bookingKey]: 'approving' }));
         
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
@@ -1622,7 +1688,9 @@ const SimulatorTab: React.FC = () => {
                 queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 const errData = await res.json();
                 setError(errData.message || errData.error || 'Failed to approve');
+                showToast(errData.message || errData.error || 'Failed to approve', 'error');
             } else {
+                showToast('Booking approved', 'success');
                 window.dispatchEvent(new CustomEvent('booking-action-completed'));
                 // Invalidate to sync with server
                 queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
@@ -1632,19 +1700,30 @@ const SimulatorTab: React.FC = () => {
             // Revert on error
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             setError(err.message);
+            showToast(err.message || 'Failed to approve booking', 'error');
         } finally {
             setIsProcessing(false);
+            // Clear action in progress
+            setActionInProgress(prev => {
+                const next = { ...prev };
+                delete next[bookingKey];
+                return next;
+            });
         }
     };
 
     const handleDecline = async () => {
         if (!selectedRequest) return;
         
+        const bookingKey = `${selectedRequest.source || 'request'}-${selectedRequest.id}`;
         setIsProcessing(true);
         setError(null);
         
         const newStatus = selectedRequest.status === 'approved' ? 'cancelled' : 'declined';
         const wasPending = selectedRequest.status === 'pending' || selectedRequest.status === 'pending_approval';
+        
+        // Track action in progress for visual feedback
+        setActionInProgress(prev => ({ ...prev, [bookingKey]: 'declining' }));
         
         // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
@@ -1693,7 +1772,10 @@ const SimulatorTab: React.FC = () => {
                 queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 const errData = await res.json();
                 setError(errData.error || 'Failed to process request');
+                showToast(errData.error || 'Failed to process request', 'error');
             } else {
+                const statusLabel = newStatus === 'cancelled' ? 'cancelled' : 'declined';
+                showToast(`Booking ${statusLabel}`, 'success');
                 if (wasPending) {
                     window.dispatchEvent(new CustomEvent('booking-action-completed'));
                 }
@@ -1705,8 +1787,15 @@ const SimulatorTab: React.FC = () => {
             // Revert on error
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             setError(err.message);
+            showToast(err.message || 'Failed to process request', 'error');
         } finally {
             setIsProcessing(false);
+            // Clear action in progress
+            setActionInProgress(prev => {
+                const next = { ...prev };
+                delete next[bookingKey];
+                return next;
+            });
         }
     };
 
@@ -1998,8 +2087,20 @@ const SimulatorTab: React.FC = () => {
                                     }
                                     
                                     // Pending request card (existing design)
+                                    const actionKey = `${req.source || 'request'}-${req.id}`;
+                                    const actionState = actionInProgress[actionKey];
+                                    const isActionPending = !!actionState;
                                     return (
-                                    <div key={`${req.source || 'request'}-${req.id}`} className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 animate-slide-up-stagger shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer" style={{ '--stagger-index': index + 2 } as React.CSSProperties}>
+                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 animate-slide-up-stagger shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer ${isActionPending ? 'opacity-60 pointer-events-none' : ''}`} style={{ '--stagger-index': index + 2 } as React.CSSProperties}>
+                                        {isActionPending && (
+                                            <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
+                                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                </svg>
+                                                <span className="capitalize">{actionState}...</span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-0.5">
@@ -2133,11 +2234,15 @@ const SimulatorTab: React.FC = () => {
                                                 const bookingResource = resources.find(r => r.id === booking.resource_id);
                                                 const isConferenceRoom = bookingResource?.type === 'conference_room';
                                                 const isUnmatched = isBookingUnmatched(booking);
+                                                const actionKey = `${booking.source || 'booking'}-${booking.id}`;
+                                                const actionState = actionInProgress[actionKey];
+                                                const isActionPending = !!actionState;
+                                                const isOptimisticNew = String(booking.id).startsWith('creating-');
                                                 return (
                                                     <SwipeableListItem
                                                         key={`upcoming-${booking.id}`}
                                                         leftActions={[]}
-                                                        rightActions={[
+                                                        rightActions={isOptimisticNew || isActionPending ? [] : [
                                                             {
                                                                 id: 'cancel',
                                                                 icon: 'close',
@@ -2149,13 +2254,26 @@ const SimulatorTab: React.FC = () => {
                                                     >
                                                         <div 
                                                             className={`p-4 rounded-2xl animate-pop-in cursor-pointer shadow-sm ${
-                                                                isUnmatched 
-                                                                    ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30 hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:shadow-md hover:scale-[1.01]' 
-                                                                    : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
+                                                                isOptimisticNew
+                                                                    ? 'bg-green-50/80 dark:bg-green-500/10 border-2 border-dashed border-green-300 dark:border-green-500/30 opacity-70'
+                                                                    : isActionPending
+                                                                        ? 'opacity-60 pointer-events-none glass-card border border-primary/10 dark:border-white/25'
+                                                                        : isUnmatched 
+                                                                            ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30 hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:shadow-md hover:scale-[1.01]' 
+                                                                            : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
                                                             } transition-all duration-200`} 
                                                             style={{ '--stagger-index': index } as React.CSSProperties}
-                                                            onClick={() => setSelectedCalendarBooking(booking)}
+                                                            onClick={() => !isOptimisticNew && !isActionPending && setSelectedCalendarBooking(booking)}
                                                         >
+                                                            {(isActionPending || isOptimisticNew) && (
+                                                                <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
+                                                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                                    </svg>
+                                                                    <span className="capitalize">{isOptimisticNew ? 'Creating booking...' : `${actionState}...`}</span>
+                                                                </div>
+                                                            )}
                                                             {/* Header: Name/Badge + Status */}
                                                             <div className="flex items-center gap-2 mb-2">
                                                                 {isUnmatched ? (

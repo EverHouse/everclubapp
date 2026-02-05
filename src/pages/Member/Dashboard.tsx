@@ -172,6 +172,13 @@ const Dashboard: React.FC = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<number | null>(null);
   const [showBalancePaymentModal, setShowBalancePaymentModal] = useState(false);
+  
+  // Optimistic UI state
+  const [optimisticCancellingIds, setOptimisticCancellingIds] = useState<Set<number>>(new Set());
+  const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Set<number>>(new Set());
+  const [optimisticAcceptedInviteIds, setOptimisticAcceptedInviteIds] = useState<Set<number>>(new Set());
+  const [optimisticDeclinedInviteIds, setOptimisticDeclinedInviteIds] = useState<Set<number>>(new Set());
+  const [optimisticInviteAction, setOptimisticInviteAction] = useState<{ id: number; action: 'accepting' | 'declining' } | null>(null);
   const [balanceRefreshKey, setBalanceRefreshKey] = useState(0);
   const [overagePaymentBooking, setOveragePaymentBooking] = useState<{ id: number; amount: number; minutes: number } | null>(null);
   const [isPayingOverage, setIsPayingOverage] = useState(false);
@@ -453,7 +460,10 @@ const Dashboard: React.FC = () => {
   const pendingInvites = dbBookingRequests.filter(r => 
     r.is_linked_member === true && 
     r.invite_status === 'pending' &&
-    ['pending', 'pending_approval', 'approved', 'confirmed'].includes(r.status)
+    ['pending', 'pending_approval', 'approved', 'confirmed'].includes(r.status) &&
+    // Exclude invites that have been optimistically accepted or declined
+    !optimisticAcceptedInviteIds.has(r.id) &&
+    !optimisticDeclinedInviteIds.has(r.id)
   );
   
   const pendingInviteIds = new Set(pendingInvites.map(p => p.id));
@@ -461,8 +471,15 @@ const Dashboard: React.FC = () => {
   const upcomingItemsFiltered = upcomingItems.filter(item => {
     if (item.type === 'booking_request' || item.type === 'booking') {
       const raw = item.raw as DBBookingRequest;
-      if (raw && pendingInviteIds.has(raw.id)) {
-        return false;
+      if (raw) {
+        // Exclude bookings that have been optimistically cancelled
+        if (optimisticCancelledIds.has(raw.id)) {
+          return false;
+        }
+        // Exclude pending invites (unless optimistically accepted)
+        if (pendingInviteIds.has(raw.id) && !optimisticAcceptedInviteIds.has(raw.id)) {
+          return false;
+        }
       }
     }
     return true;
@@ -495,6 +512,9 @@ const Dashboard: React.FC = () => {
       onConfirm: async () => {
         setConfirmModal(null);
         
+        // Optimistic UI: immediately show cancelling state
+        setOptimisticCancellingIds(prev => new Set(prev).add(bookingId));
+        
         try {
           let res;
           const headers = { 'Content-Type': 'application/json' };
@@ -516,15 +536,35 @@ const Dashboard: React.FC = () => {
           }
 
           if (res.ok) {
+            // Optimistic UI: mark as cancelled before data refresh
+            setOptimisticCancellingIds(prev => {
+              const next = new Set(prev);
+              next.delete(bookingId);
+              return next;
+            });
+            setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
+            
             setSelectedBooking(null);
             deleteBooking(String(bookingId));
             showToast('Booking cancelled successfully', 'success');
             refetchAllData();
           } else {
+            // Revert optimistic state on failure
+            setOptimisticCancellingIds(prev => {
+              const next = new Set(prev);
+              next.delete(bookingId);
+              return next;
+            });
             const data = await res.json().catch(() => ({}));
             showToast(data.error || 'Failed to cancel booking', 'error');
           }
         } catch (err) {
+          // Revert optimistic state on error
+          setOptimisticCancellingIds(prev => {
+            const next = new Set(prev);
+            next.delete(bookingId);
+            return next;
+          });
           showToast('Failed to cancel booking', 'error');
         }
       }
@@ -640,6 +680,10 @@ const Dashboard: React.FC = () => {
 
   const handleAcceptInvite = async (bookingId: number) => {
     setProcessingInviteId(bookingId);
+    // Optimistic UI: immediately show accepting state
+    setOptimisticInviteAction({ id: bookingId, action: 'accepting' });
+    setOptimisticAcceptedInviteIds(prev => new Set(prev).add(bookingId));
+    
     try {
       const body = isAdminViewingAs && user?.email ? { onBehalfOf: user.email } : {};
       
@@ -653,12 +697,25 @@ const Dashboard: React.FC = () => {
         showToast('Invite accepted!', 'success');
         refetchAllData();
       } else {
+        // Revert optimistic state on failure
+        setOptimisticAcceptedInviteIds(prev => {
+          const next = new Set(prev);
+          next.delete(bookingId);
+          return next;
+        });
         showToast(result.error || 'Failed to accept invite', 'error');
       }
     } catch (err) {
+      // Revert optimistic state on error
+      setOptimisticAcceptedInviteIds(prev => {
+        const next = new Set(prev);
+        next.delete(bookingId);
+        return next;
+      });
       showToast('Failed to accept invite', 'error');
     } finally {
       setProcessingInviteId(null);
+      setOptimisticInviteAction(null);
     }
   };
 
@@ -670,6 +727,9 @@ const Dashboard: React.FC = () => {
       onConfirm: async () => {
         setConfirmModal(null);
         setProcessingInviteId(bookingId);
+        // Optimistic UI: immediately show declining state and hide invite
+        setOptimisticInviteAction({ id: bookingId, action: 'declining' });
+        setOptimisticDeclinedInviteIds(prev => new Set(prev).add(bookingId));
         
         try {
           const body = isAdminViewingAs && user?.email ? { onBehalfOf: user.email } : {};
@@ -684,12 +744,25 @@ const Dashboard: React.FC = () => {
             showToast('Invite declined', 'success');
             refetchAllData();
           } else {
+            // Revert optimistic state on failure
+            setOptimisticDeclinedInviteIds(prev => {
+              const next = new Set(prev);
+              next.delete(bookingId);
+              return next;
+            });
             showToast(result.error || 'Failed to decline invite', 'error');
           }
         } catch (err) {
+          // Revert optimistic state on error
+          setOptimisticDeclinedInviteIds(prev => {
+            const next = new Set(prev);
+            next.delete(bookingId);
+            return next;
+          });
           showToast('Failed to decline invite', 'error');
         } finally {
           setProcessingInviteId(null);
+          setOptimisticInviteAction(null);
         }
       }
     });
@@ -952,34 +1025,58 @@ const Dashboard: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleAcceptInvite(invite.id)}
-                        disabled={processingInviteId === invite.id}
-                        className={`flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
-                          processingInviteId === invite.id 
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : 'hover:scale-[0.98] active:scale-95'
-                        } ${isDark ? 'bg-brand-green text-white' : 'bg-brand-green text-white'}`}
-                      >
-                        {processingInviteId === invite.id ? (
-                          <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
-                        ) : (
-                          <span className="material-symbols-outlined text-base">check</span>
-                        )}
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleDeclineInvite(invite.id, invite.primary_booker_name)}
-                        disabled={processingInviteId === invite.id}
-                        className={`flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
-                          processingInviteId === invite.id 
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : 'hover:scale-[0.98] active:scale-95'
-                        } ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-primary hover:bg-gray-200'}`}
-                      >
-                        <span className="material-symbols-outlined text-base">close</span>
-                        Decline
-                      </button>
+                      {(() => {
+                        const isProcessing = processingInviteId === invite.id;
+                        const isAccepting = optimisticInviteAction?.id === invite.id && optimisticInviteAction?.action === 'accepting';
+                        const isDeclining = optimisticInviteAction?.id === invite.id && optimisticInviteAction?.action === 'declining';
+                        
+                        return (
+                          <>
+                            <button
+                              onClick={() => handleAcceptInvite(invite.id)}
+                              disabled={isProcessing}
+                              className={`flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
+                                isProcessing 
+                                  ? 'opacity-70 cursor-not-allowed' 
+                                  : 'hover:scale-[0.98] active:scale-95'
+                              } ${isDark ? 'bg-brand-green text-white' : 'bg-brand-green text-white'}`}
+                            >
+                              {isAccepting ? (
+                                <>
+                                  <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                                  Accepting...
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-base">check</span>
+                                  Accept
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDeclineInvite(invite.id, invite.primary_booker_name)}
+                              disabled={isProcessing}
+                              className={`flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
+                                isProcessing 
+                                  ? 'opacity-70 cursor-not-allowed' 
+                                  : 'hover:scale-[0.98] active:scale-95'
+                              } ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-primary hover:bg-gray-200'}`}
+                            >
+                              {isDeclining ? (
+                                <>
+                                  <span className="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                                  Declining...
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-base">close</span>
+                                  Decline
+                                </>
+                              )}
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
@@ -1003,6 +1100,8 @@ const Dashboard: React.FC = () => {
             <div className="space-y-3">
               {upcomingItemsFiltered.length > 0 ? upcomingItemsFiltered.slice(0, 6).map((item, idx) => {
                 let actions;
+                const isCancelling = optimisticCancellingIds.has(item.dbId);
+                
                 if (item.type === 'booking' || item.type === 'booking_request') {
                   const bookingStatus = (item as any).status;
                   const isConfirmed = bookingStatus === 'approved' || bookingStatus === 'confirmed';
@@ -1018,34 +1117,40 @@ const Dashboard: React.FC = () => {
                   const overageAmount = hasUnpaidOverage ? (rawBooking.overage_fee_cents! / 100).toFixed(2) : null;
                   
                   const primaryBookerName = (item as any).primaryBookerName;
-                  actions = [
-                    ...(hasUnpaidOverage && !isLinkedMember ? [{
-                      icon: 'payment',
-                      label: `Pay $${overageAmount}`,
-                      onClick: () => setOveragePaymentBooking({ id: item.dbId, amount: rawBooking.overage_fee_cents!, minutes: rawBooking.overage_minutes || 0 }),
-                      highlight: true
-                    }] : []),
-                    ...(isConfirmed ? [{
-                      icon: 'calendar_add_on',
-                      label: 'Add to Calendar',
-                      onClick: () => downloadICalFile({
-                        title: `${item.title} - Even House`,
-                        description: `Your ${item.resourceType === 'conference_room' ? 'conference room' : 'golf simulator'} booking at Even House`,
-                        location: 'Even House, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
-                        startDate: item.rawDate,
-                        startTime: startTime24,
-                        endTime: endTime24
-                      }, `EvenHouse_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
-                    }] : []),
-                    ...(!isLinkedMember ? [
-                      { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(item.dbId, item.type) }
-                    ] : []),
-                    ...(isLinkedMember && isConfirmed ? [{
-                      icon: 'logout',
-                      label: 'Leave',
-                      onClick: () => handleLeaveBooking(item.dbId, primaryBookerName)
-                    }] : [])
-                  ];
+                  
+                  // When cancelling, show no actions (disabled state)
+                  if (isCancelling) {
+                    actions = [];
+                  } else {
+                    actions = [
+                      ...(hasUnpaidOverage && !isLinkedMember ? [{
+                        icon: 'payment',
+                        label: `Pay $${overageAmount}`,
+                        onClick: () => setOveragePaymentBooking({ id: item.dbId, amount: rawBooking.overage_fee_cents!, minutes: rawBooking.overage_minutes || 0 }),
+                        highlight: true
+                      }] : []),
+                      ...(isConfirmed ? [{
+                        icon: 'calendar_add_on',
+                        label: 'Add to Calendar',
+                        onClick: () => downloadICalFile({
+                          title: `${item.title} - Even House`,
+                          description: `Your ${item.resourceType === 'conference_room' ? 'conference room' : 'golf simulator'} booking at Even House`,
+                          location: 'Even House, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
+                          startDate: item.rawDate,
+                          startTime: startTime24,
+                          endTime: endTime24
+                        }, `EvenHouse_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
+                      }] : []),
+                      ...(!isLinkedMember ? [
+                        { icon: 'close', label: 'Cancel', onClick: () => handleCancelBooking(item.dbId, item.type) }
+                      ] : []),
+                      ...(isLinkedMember && isConfirmed ? [{
+                        icon: 'logout',
+                        label: 'Leave',
+                        onClick: () => handleLeaveBooking(item.dbId, primaryBookerName)
+                      }] : [])
+                    ];
+                  }
                 } else if (item.type === 'rsvp') {
                   actions = [{ icon: 'close', label: 'Cancel RSVP', onClick: () => handleCancelRSVP((item.raw as DBRSVP).event_id) }];
                 } else if (item.type === 'wellness') {
@@ -1060,6 +1165,17 @@ const Dashboard: React.FC = () => {
                   const rawBooking = item.raw as DBBookingRequest;
                   
                   const badges: React.ReactNode[] = [];
+                  
+                  // Show "Cancelling..." badge when optimistically cancelling
+                  if (isCancelling) {
+                    badges.push(
+                      <span key="cancelling" className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
+                        Cancelling...
+                      </span>
+                    );
+                    return <div className="flex gap-1.5 flex-wrap">{badges}</div>;
+                  }
                   
                   if (isLinked) {
                     badges.push(

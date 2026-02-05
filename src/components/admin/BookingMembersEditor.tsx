@@ -197,6 +197,8 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [linkingSlotId, setLinkingSlotId] = useState<number | null>(null);
   const [unlinkingSlotId, setUnlinkingSlotId] = useState<number | null>(null);
+  const [optimisticallyUnlinkedSlots, setOptimisticallyUnlinkedSlots] = useState<Set<number>>(new Set());
+  const membersSnapshotRef = useRef<BookingMember[]>([]);
   const [activeSearchSlot, setActiveSearchSlot] = useState<number | null>(null);
   const [guestAddSlot, setGuestAddSlot] = useState<number | null>(null);
   const [guestMode, setGuestMode] = useState<'search' | 'new'>('search');
@@ -306,7 +308,10 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   };
 
   const handleUnlinkMember = async (slotId: number) => {
+    membersSnapshotRef.current = [...members];
     setUnlinkingSlotId(slotId);
+    setOptimisticallyUnlinkedSlots(prev => new Set(prev).add(slotId));
+    
     try {
       const res = await fetch(`/api/admin/booking/${bookingId}/members/${slotId}/unlink`, {
         method: 'PUT',
@@ -315,11 +320,28 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
       
       if (res.ok) {
         await fetchBookingMembers();
+        setOptimisticallyUnlinkedSlots(prev => {
+          const next = new Set(prev);
+          next.delete(slotId);
+          return next;
+        });
         onMemberLinked?.();
       } else {
+        setMembers(membersSnapshotRef.current);
+        setOptimisticallyUnlinkedSlots(prev => {
+          const next = new Set(prev);
+          next.delete(slotId);
+          return next;
+        });
         setError(getApiErrorMessage(res, 'unlink member'));
       }
     } catch (err) {
+      setMembers(membersSnapshotRef.current);
+      setOptimisticallyUnlinkedSlots(prev => {
+        const next = new Set(prev);
+        next.delete(slotId);
+        return next;
+      });
       setError(getNetworkErrorMessage());
     } finally {
       setUnlinkingSlotId(null);
@@ -1016,25 +1038,40 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         )}
 
         <div className="space-y-2">
-          {filledSlots.map((member) => (
-            <div 
-              key={member.id} 
-              className="flex items-center justify-between p-2 bg-white dark:bg-black/20 rounded-lg border border-gray-100 dark:border-white/10"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="w-6 h-6 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-primary dark:text-white">{member.slotNumber}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-primary dark:text-white truncate">
-                      {member.memberName}
-                    </p>
-                    {member.isPrimary && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-accent/20 text-primary dark:text-accent shrink-0">
-                        PRIMARY
-                      </span>
-                    )}
+          {filledSlots.map((member) => {
+            const isOptimisticallyUnlinking = optimisticallyUnlinkedSlots.has(member.id);
+            
+            return (
+              <div 
+                key={member.id} 
+                className={`relative flex items-center justify-between p-2 rounded-lg border transition-all duration-300 ${
+                  isOptimisticallyUnlinking 
+                    ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30' 
+                    : 'bg-white dark:bg-black/20 border-gray-100 dark:border-white/10'
+                }`}
+              >
+                {isOptimisticallyUnlinking && (
+                  <div className="absolute inset-0 bg-red-50/80 dark:bg-red-900/30 rounded-lg flex items-center justify-center z-10">
+                    <span className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5 bg-white dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
+                      <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                      Removing...
+                    </span>
+                  </div>
+                )}
+                <div className={`flex items-center gap-2 min-w-0 flex-1 ${isOptimisticallyUnlinking ? 'opacity-50' : ''}`}>
+                  <div className="w-6 h-6 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-primary dark:text-white">{member.slotNumber}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-primary dark:text-white truncate">
+                        {member.memberName}
+                      </p>
+                      {member.isPrimary && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-accent/20 text-primary dark:text-accent shrink-0">
+                          PRIMARY
+                        </span>
+                      )}
                     {member.tier && (
                       <TierBadge tier={member.tier} size="sm" />
                     )}
@@ -1065,7 +1102,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
                   </div>
                 )}
               </div>
-              {!member.isPrimary && member.userEmail && (
+              {!member.isPrimary && member.userEmail && !isOptimisticallyUnlinking && (
                 <button
                   onClick={() => handleUnlinkMember(member.id)}
                   disabled={unlinkingSlotId === member.id}
@@ -1079,8 +1116,9 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
                   )}
                 </button>
               )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
 
           {emptySlots.map((slot) => (
             <div 
