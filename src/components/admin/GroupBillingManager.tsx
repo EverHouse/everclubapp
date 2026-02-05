@@ -24,6 +24,9 @@ interface FamilyGroupData {
   members: FamilyMemberInfo[];
   totalMonthlyAmount: number;
   isActive: boolean;
+  type: 'family' | 'corporate';
+  maxSeats: number | null;
+  companyName: string | null;
 }
 
 interface FamilyAddOnProduct {
@@ -62,6 +65,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
   const [selectedTier, setSelectedTier] = useState<string>('');
   const [selectedRelationship, setSelectedRelationship] = useState<string>('');
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [corporateEmail, setCorporateEmail] = useState('');
 
   const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
 
@@ -73,6 +77,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
 
   const isPrimaryPayer = familyGroup?.primaryEmail.toLowerCase() === memberEmail.toLowerCase();
   const isAddOnMember = familyGroup && !isPrimaryPayer;
+  const isCorporateGroup = familyGroup?.type === 'corporate';
 
   const fetchFamilyGroup = useCallback(async () => {
     setIsLoading(true);
@@ -196,6 +201,33 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
       setError(getNetworkErrorMessage());
     } finally {
       setRemovingMemberId(null);
+    }
+  };
+
+  const handleAddCorporateMember = async () => {
+    if (!corporateEmail.trim() || !familyGroup) return;
+    
+    setIsAddingMember(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/group-billing/groups/${familyGroup.id}/corporate-members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: corporateEmail.trim() }),
+      });
+      if (res.ok) {
+        await fetchFamilyGroup();
+        setShowAddMemberForm(false);
+        setCorporateEmail('');
+        showSuccess('Team member added successfully');
+      } else {
+        setError(getApiErrorMessage(res, 'add team member'));
+      }
+    } catch (err) {
+      setError(getNetworkErrorMessage());
+    } finally {
+      setIsAddingMember(false);
     }
   };
 
@@ -475,7 +507,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                 <div className="flex items-center gap-2 mb-1">
                   <span className="material-symbols-outlined text-primary dark:text-accent text-sm">credit_card</span>
                   <p className="text-xs font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wide">
-                    Primary Payer
+                    {isCorporateGroup ? 'Account Owner' : 'Primary Payer'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -496,7 +528,9 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wide">
-                    Group Members ({familyGroup.members.length})
+                    {isCorporateGroup && familyGroup.maxSeats
+                      ? `${familyGroup.members.length} of ${familyGroup.maxSeats} seats filled`
+                      : `Group Members (${familyGroup.members.length})`}
                   </p>
                   {isPrimaryPayer && (
                     <button
@@ -504,14 +538,16 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                       className="flex items-center gap-1 text-xs font-medium text-primary dark:text-accent hover:opacity-80 transition-opacity"
                     >
                       <span className="material-symbols-outlined text-sm">person_add</span>
-                      Add Member
+                      {isCorporateGroup ? 'Add Team Member' : 'Add Member'}
                     </button>
                   )}
                 </div>
 
                 {familyGroup.members.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                    No add-on members yet
+                    {isCorporateGroup && familyGroup.maxSeats
+                      ? `${familyGroup.maxSeats} seats available`
+                      : 'No add-on members yet'}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -543,9 +579,11 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-semibold text-primary dark:text-accent">
-                            {formatCurrency(member.addOnPriceCents)}/mo
-                          </span>
+                          {!isCorporateGroup && (
+                            <span className="text-sm font-semibold text-primary dark:text-accent">
+                              {formatCurrency(member.addOnPriceCents)}/mo
+                            </span>
+                          )}
                           {isPrimaryPayer && (
                             <button
                               onClick={() => handleRemoveMember(member.id)}
@@ -567,103 +605,150 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                 )}
               </div>
 
-              <div className="pt-3 border-t border-gray-100 dark:border-white/10">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Total Monthly Add-on Amount
-                  </p>
-                  <p className="text-lg font-bold text-primary dark:text-accent">
-                    {formatCurrency(familyGroup.totalMonthlyAmount)}
-                  </p>
+              {!isCorporateGroup && (
+                <div className="pt-3 border-t border-gray-100 dark:border-white/10">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Total Monthly Add-on Amount
+                    </p>
+                    <p className="text-lg font-bold text-primary dark:text-accent">
+                      {formatCurrency(familyGroup.totalMonthlyAmount)}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {showAddMemberForm && isPrimaryPayer && (
               <div className="p-4 bg-white dark:bg-black/20 rounded-lg border border-primary/20 dark:border-white/20 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="material-symbols-outlined text-primary dark:text-accent text-lg">person_add</span>
-                  <p className="text-sm font-semibold text-primary dark:text-white">Add Group Member</p>
+                  <p className="text-sm font-semibold text-primary dark:text-white">
+                    {isCorporateGroup ? 'Add Team Member' : 'Add Group Member'}
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                    Select Member
-                  </label>
-                  <MemberSearchInput
-                    onSelect={setSelectedNewMember}
-                    onClear={() => setSelectedNewMember(null)}
-                    selectedMember={selectedNewMember}
-                    placeholder="Search for a member..."
-                    excludeEmails={familyGroup ? [
-                      familyGroup.primaryEmail,
-                      ...familyGroup.members.map(m => m.memberEmail)
-                    ] : []}
-                  />
-                </div>
+                {isCorporateGroup ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={corporateEmail}
+                        onChange={(e) => setCorporateEmail(e.target.value)}
+                        placeholder="Enter team member email..."
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/20 rounded-lg bg-white dark:bg-black/30 text-sm text-primary dark:text-white placeholder:text-gray-400"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                    Membership Tier
-                    <span className="ml-1 text-[10px] text-green-600 dark:text-green-400">(20% group discount applied)</span>
-                  </label>
-                  <select
-                    value={selectedTier}
-                    onChange={(e) => setSelectedTier(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/20 rounded-lg bg-white dark:bg-black/30 text-sm text-primary dark:text-white"
-                  >
-                    <option value="">Select tier...</option>
-                    {products.map((product) => (
-                      <option key={product.tierName} value={product.tierName}>
-                        {product.tierName} ({formatCurrency(product.priceCents)}/mo)
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleAddCorporateMember}
+                        disabled={isAddingMember || !corporateEmail.trim()}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                        {isAddingMember ? (
+                          <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-base">person_add</span>
+                        )}
+                        Add Team Member
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddMemberForm(false);
+                          setCorporateEmail('');
+                        }}
+                        className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                        Select Member
+                      </label>
+                      <MemberSearchInput
+                        onSelect={setSelectedNewMember}
+                        onClear={() => setSelectedNewMember(null)}
+                        selectedMember={selectedNewMember}
+                        placeholder="Search for a member..."
+                        excludeEmails={familyGroup ? [
+                          familyGroup.primaryEmail,
+                          ...familyGroup.members.map(m => m.memberEmail)
+                        ] : []}
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                    Relationship (optional)
-                  </label>
-                  <select
-                    value={selectedRelationship}
-                    onChange={(e) => setSelectedRelationship(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/20 rounded-lg bg-white dark:bg-black/30 text-sm text-primary dark:text-white"
-                  >
-                    <option value="">Select relationship...</option>
-                    {RELATIONSHIP_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                        Membership Tier
+                        <span className="ml-1 text-[10px] text-green-600 dark:text-green-400">(20% group discount applied)</span>
+                      </label>
+                      <select
+                        value={selectedTier}
+                        onChange={(e) => setSelectedTier(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/20 rounded-lg bg-white dark:bg-black/30 text-sm text-primary dark:text-white"
+                      >
+                        <option value="">Select tier...</option>
+                        {products.map((product) => (
+                          <option key={product.tierName} value={product.tierName}>
+                            {product.tierName} ({formatCurrency(product.priceCents)}/mo)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleAddMember}
-                    disabled={isAddingMember || !selectedNewMember || !selectedTier}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    {isAddingMember ? (
-                      <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-                    ) : (
-                      <span className="material-symbols-outlined text-base">person_add</span>
-                    )}
-                    Add to Group
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddMemberForm(false);
-                      setSelectedNewMember(null);
-                      setSelectedTier('');
-                      setSelectedRelationship('');
-                    }}
-                    className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                        Relationship (optional)
+                      </label>
+                      <select
+                        value={selectedRelationship}
+                        onChange={(e) => setSelectedRelationship(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/20 rounded-lg bg-white dark:bg-black/30 text-sm text-primary dark:text-white"
+                      >
+                        <option value="">Select relationship...</option>
+                        {RELATIONSHIP_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleAddMember}
+                        disabled={isAddingMember || !selectedNewMember || !selectedTier}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                        {isAddingMember ? (
+                          <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-base">person_add</span>
+                        )}
+                        Add to Group
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddMemberForm(false);
+                          setSelectedNewMember(null);
+                          setSelectedTier('');
+                          setSelectedRelationship('');
+                        }}
+                        className="px-4 py-2.5 border border-gray-200 dark:border-white/20 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

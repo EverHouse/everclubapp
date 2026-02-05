@@ -295,6 +295,68 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
   }
 });
 
+router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { email } = req.body;
+    const user = req.user as any;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    const groupIdInt = parseInt(groupId, 10);
+    
+    const group = await db.select()
+      .from(billingGroups)
+      .where(eq(billingGroups.id, groupIdInt))
+      .limit(1);
+    
+    if (group.length === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    
+    if (group[0].type !== 'corporate') {
+      return res.status(400).json({ error: 'This endpoint is only for corporate groups' });
+    }
+    
+    const currentMembers = await db.select()
+      .from(groupMembers)
+      .where(eq(groupMembers.billingGroupId, groupIdInt));
+    
+    const activeMemberCount = currentMembers.filter(m => m.isActive).length;
+    const maxSeats = group[0].maxSeats;
+    
+    if (maxSeats && activeMemberCount >= maxSeats) {
+      return res.status(400).json({ 
+        error: `All ${maxSeats} seats are filled. Contact support to add more seats.` 
+      });
+    }
+    
+    const result = await addCorporateMember({
+      billingGroupId: groupIdInt,
+      memberEmail: email,
+      memberTier: 'Corporate',
+      addedBy: user?.email || 'staff',
+      addedByName: user?.displayName || 'Staff Member',
+    });
+    
+    if (result.success) {
+      logFromRequest(req, 'add_corporate_member', 'group', groupId, group[0].groupName || undefined, {
+        memberEmail: email,
+        seatsUsed: activeMemberCount + 1,
+        maxSeats,
+      });
+      res.json({ success: true, memberId: result.memberId });
+    } else {
+      res.status(400).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('[GroupBilling] Error adding corporate member:', error);
+    res.status(500).json({ error: 'An error occurred. Please try again.' });
+  }
+});
+
 router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
     const { groupId } = req.params;

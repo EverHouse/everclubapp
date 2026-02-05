@@ -15,6 +15,8 @@ export interface BillingGroupWithMembers {
   totalMonthlyAmount: number;
   isActive: boolean;
   type: 'family' | 'corporate';
+  maxSeats: number | null;
+  companyName: string | null;
 }
 
 export interface GroupMemberInfo {
@@ -206,6 +208,8 @@ export async function getBillingGroupByPrimaryEmail(primaryEmail: string): Promi
     totalMonthlyAmount,
     isActive: billingGroup.isActive ?? true,
     type: (billingGroup.type as 'family' | 'corporate') || 'family',
+    maxSeats: billingGroup.maxSeats ?? null,
+    companyName: billingGroup.companyName ?? null,
   };
 }
 
