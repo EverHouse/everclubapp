@@ -785,7 +785,9 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
 
     let memberEmail = sessionUser.email.toLowerCase();
     const queryEmail = req.query.email as string | undefined;
-    if (queryEmail && sessionUser.isStaff) {
+    // Allow staff and admins to view another member's balance (for View As mode)
+    const canViewOthers = sessionUser.isStaff || sessionUser.role === 'admin';
+    if (queryEmail && canViewOthers) {
       memberEmail = queryEmail.toLowerCase();
     }
 
@@ -918,7 +920,9 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
 
     let memberEmail = sessionUser.email.toLowerCase();
     const requestEmail = req.body?.memberEmail as string | undefined;
-    if (requestEmail && sessionUser.isStaff) {
+    // Allow staff and admins to pay on behalf of another member (for View As mode)
+    const canActForOthers = sessionUser.isStaff || sessionUser.role === 'admin';
+    if (requestEmail && canActForOthers) {
       memberEmail = requestEmail.toLowerCase();
     }
     const applyCredit = req.body?.applyCredit !== false; // Default to true

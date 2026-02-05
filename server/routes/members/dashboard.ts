@@ -31,16 +31,39 @@ router.get('/api/member/dashboard-data', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const userEmail = sessionUser.email?.toLowerCase() || '';
-    const userName = sessionUser.name || '';
+    const sessionEmail = sessionUser.email?.toLowerCase() || '';
     
-    if (!userEmail) {
+    if (!sessionEmail) {
       return res.status(400).json({ error: 'User email is required' });
     }
     
-    logger.info('[dashboard-data] Fetching combined dashboard data', { 
-      extra: { email: userEmail }
-    });
+    // Support admin "View As" mode - allow admins to fetch another member's data
+    const { member_email } = req.query;
+    const isAdmin = sessionUser.role === 'admin';
+    let userEmail = sessionEmail;
+    let userName = sessionUser.name || '';
+    
+    if (member_email && typeof member_email === 'string') {
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Only admins can view other member data' });
+      }
+      userEmail = member_email.toLowerCase();
+      // Fetch the viewed member's name for proper display
+      const viewedMember = await db.select({ firstName: users.firstName, lastName: users.lastName })
+        .from(users)
+        .where(sql`LOWER(${users.email}) = ${userEmail}`)
+        .limit(1);
+      if (viewedMember.length > 0) {
+        userName = [viewedMember[0].firstName, viewedMember[0].lastName].filter(Boolean).join(' ') || userEmail;
+      }
+      logger.info('[dashboard-data] Admin viewing member dashboard', { 
+        extra: { adminEmail: sessionEmail, viewingEmail: userEmail }
+      });
+    } else {
+      logger.info('[dashboard-data] Fetching combined dashboard data', { 
+        extra: { email: userEmail }
+      });
+    }
     
     const todayPacific = getTodayPacific();
     const now = new Date();

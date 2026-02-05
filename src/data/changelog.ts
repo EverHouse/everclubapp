@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.6.5",
+    date: "2026-02-05",
+    title: "Fixed: Admin View As Mode",
+    changes: [
+      "Fixed: 'View As' mode now shows the actual member's dashboard data including their bookings and schedule",
+      "Fixed: 'View As' mode now shows the member's outstanding fees and balance correctly",
+      "Fixed: Balance card and payment modal now work correctly when admin is viewing as a member",
+      "Improved: Admins can now accurately verify what members see on their dashboards"
+    ]
+  },
+  {
     version: "69.6.4",
     date: "2026-02-05",
     title: "Fixed: Notification Timestamps & Participant Alerts",

@@ -151,10 +151,12 @@ const formatDate = (dateStr: string): string => {
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, actualUser, isViewingAs, addBooking, deleteBooking } = useData();
+  const { user, actualUser, viewAsUser, isViewingAs, addBooking, deleteBooking } = useData();
   const { effectiveTheme } = useTheme();
   
   const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
+  // For View As mode, use the viewed member's email for API calls
+  const viewAsEmail = isAdminViewingAs && viewAsUser?.email ? viewAsUser.email : null;
   const { setPageReady } = usePageReady();
   const { startNavigation } = useNavigationLoading();
   const { showToast } = useToast();
@@ -178,9 +180,14 @@ const Dashboard: React.FC = () => {
   const { permissions: tierPermissions } = useTierPermissions(user?.tier);
 
   // Combined dashboard data query - replaces 9 separate API calls
+  // When admin is in "View As" mode, include member_email param to fetch that member's data
+  const dashboardUrl = viewAsEmail 
+    ? `/api/member/dashboard-data?member_email=${encodeURIComponent(viewAsEmail)}`
+    : '/api/member/dashboard-data';
+  
   const { data: dashboardData, isLoading, error: dashboardError, refetch: refetchDashboardData } = useQuery({
-    queryKey: ['member', 'dashboard-data'],
-    queryFn: () => fetchWithCredentials<DashboardData>('/api/member/dashboard-data'),
+    queryKey: ['member', 'dashboard-data', viewAsEmail || user?.email],
+    queryFn: () => fetchWithCredentials<DashboardData>(dashboardUrl),
     enabled: !!user?.email,
     refetchOnWindowFocus: true,
     staleTime: 300000, // 5 minutes - makes returning to dashboard instant
@@ -887,8 +894,8 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* My Balance Section */}
-        {!isStaffOrAdminProfile && user?.email && (
+        {/* My Balance Section - show for members OR when admin is viewing as a member */}
+        {(!isStaffOrAdminProfile || isAdminViewingAs) && user?.email && (
           <div className="mb-6 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
             <BalanceCard 
               key={`${balanceRefreshKey}-${user.email}`}
