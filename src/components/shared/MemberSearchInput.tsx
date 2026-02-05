@@ -190,9 +190,9 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isOpen && filteredMembers.length > 0 && inputRef.current) {
+    if (isOpen && filteredMembers.length > 0 && dropdownRef.current) {
       setTimeout(() => {
-        inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        dropdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 100);
     }
   }, [isOpen, filteredMembers.length]);
