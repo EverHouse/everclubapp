@@ -478,6 +478,8 @@ function MemberFlow({
   const [stripeError, setStripeError] = useState<string | null>(null);
   const paymentInitiatedRef = useRef(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [activationUrl, setActivationUrl] = useState<string | null>(null);
+  const [copyingLink, setCopyingLink] = useState(false);
 
   const getInputClass = (fieldName: string) => `w-full px-3 py-2.5 rounded-lg border ${
     fieldErrors[fieldName]
@@ -716,6 +718,7 @@ function MemberFlow({
       
       const data = await res.json();
       
+      setActivationUrl(data.checkoutUrl);
       showToast(`Activation link sent to ${form.email}`, 'success');
       onSuccess({ 
         id: data.userId, 
@@ -726,6 +729,59 @@ function MemberFlow({
       setError(err.message || 'Failed to send activation link');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCopyActivationLink = async () => {
+    if (!form.email || !form.tierId) return;
+    
+    setCopyingLink(true);
+    setError(null);
+    
+    try {
+      const selectedTier = tiers.find(t => t.id === form.tierId);
+      if (!selectedTier) {
+        throw new Error('Selected tier not found');
+      }
+      
+      const discount = discounts.find(d => d.code === form.discountCode);
+      
+      const res = await fetch('/api/stripe/subscriptions/send-activation-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: form.email,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone || undefined,
+          dob: form.dob || undefined,
+          tierSlug: selectedTier.slug,
+          couponId: discount?.stripeCouponId || undefined
+        })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        if (data.canCleanup && data.existingUserId) {
+          setPendingUserToCleanup({ id: data.existingUserId, name: data.existingUserName || form.email });
+        }
+        throw new Error(data.error || 'Failed to create activation link');
+      }
+      
+      const data = await res.json();
+      
+      if (data.checkoutUrl) {
+        await navigator.clipboard.writeText(data.checkoutUrl);
+        setActivationUrl(data.checkoutUrl);
+        showToast('Activation link copied to clipboard!', 'success');
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to copy activation link');
+    } finally {
+      setCopyingLink(false);
     }
   };
 
@@ -1008,29 +1064,48 @@ function MemberFlow({
         )}
 
         <div className={`pt-2 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-          <button
-            onClick={handleSendActivationLink}
-            disabled={isLoading}
-            className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
-              isDark 
-                ? 'bg-white/10 text-white hover:bg-white/20' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {isLoading ? (
-              <>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSendActivationLink}
+              disabled={isLoading || copyingLink}
+              className={`flex-1 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                isDark 
+                  ? 'bg-white/10 text-white hover:bg-white/20' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {isLoading ? (
+                <>
+                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-sm">mail</span>
+                  Send Link
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleCopyActivationLink}
+              disabled={isLoading || copyingLink}
+              className={`py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                isDark 
+                  ? 'bg-white/10 text-white hover:bg-white/20' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              title="Copy activation link to clipboard"
+            >
+              {copyingLink ? (
                 <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
-                Sending...
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm">mail</span>
-                Send Activation Link Instead
-              </>
-            )}
-          </button>
+              ) : (
+                <span className="material-symbols-outlined text-sm">content_copy</span>
+              )}
+              Copy Link
+            </button>
+          </div>
           <p className={`text-xs text-center mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-            Member will complete payment via email
+            Member will complete payment via link
           </p>
         </div>
 

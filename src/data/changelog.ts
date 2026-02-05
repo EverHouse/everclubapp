@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.10.5",
+    date: "2026-02-05",
+    title: "Copy Activation Link Feature",
+    changes: [
+      "Added: 'Copy Link' button next to 'Send Link' when creating new members",
+      "Staff can now copy activation links to clipboard for manual sharing or testing"
+    ]
+  },
+  {
     version: "69.10.4",
     date: "2026-02-05",
     title: "Fix In-Person Payment Form for New Members",
