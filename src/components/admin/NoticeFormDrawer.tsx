@@ -5,7 +5,7 @@ import { SlideUpDrawer } from '../SlideUpDrawer';
 interface NoticeFormData {
   id?: number;
   title: string;
-  description: string;
+  notes: string;
   start_date: string;
   end_date: string;
   affected_areas: string;
@@ -35,7 +35,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
   
   const [formData, setFormData] = useState<NoticeFormData>({
     title: '',
-    description: '',
+    notes: '',
     start_date: today,
     end_date: today,
     affected_areas: 'none',
@@ -62,7 +62,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
         setFormData({
           id: editItem.id,
           title: editItem.title || '',
-          description: editItem.description || '',
+          notes: editItem.notes || '',
           start_date: editItem.start_date || today,
           end_date: editItem.end_date || today,
           affected_areas: editItem.affected_areas || 'none',
@@ -73,7 +73,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
       } else {
         setFormData({
           title: '',
-          description: '',
+          notes: '',
           start_date: today,
           end_date: today,
           affected_areas: 'none',
@@ -120,7 +120,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
   const handleClose = () => {
     setFormData({
       title: '',
-      description: '',
+      notes: '',
       start_date: today,
       end_date: today,
       affected_areas: 'none',
@@ -195,6 +195,20 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
             value={formData.title} 
             onChange={e => setFormData({...formData, title: e.target.value})} 
           />
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1 block">Notes</label>
+          <textarea 
+            className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" 
+            placeholder="Internal notes, event details, logistics..." 
+            rows={3} 
+            value={formData.notes} 
+            onChange={e => setFormData({...formData, notes: e.target.value})} 
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Syncs with Google Calendar event description
+          </p>
         </div>
 
         <div>
@@ -283,17 +297,6 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
               onChange={e => setFormData({...formData, end_date: e.target.value})} 
             />
           </div>
-        </div>
-
-        <div>
-          <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1 block">Description</label>
-          <textarea 
-            className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" 
-            placeholder="Additional details shown to members..." 
-            rows={2} 
-            value={formData.description} 
-            onChange={e => setFormData({...formData, description: e.target.value})} 
-          />
         </div>
 
         <div className="flex items-center justify-between py-2">

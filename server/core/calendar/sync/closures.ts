@@ -4,8 +4,8 @@ import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { getPacificMidnightUTC } from '../../../utils/dateUtils';
 
-export function parseClosureMetadata(description: string): { affectedAreas?: string; notifyMembers?: boolean } {
-  const result: { affectedAreas?: string; notifyMembers?: boolean } = {};
+export function parseClosureMetadata(description: string): { affectedAreas?: string; notifyMembers?: boolean; notes?: string } {
+  const result: { affectedAreas?: string; notifyMembers?: boolean; notes?: string } = {};
   
   if (!description) return result;
   
@@ -23,10 +23,19 @@ export function parseClosureMetadata(description: string): { affectedAreas?: str
     result.notifyMembers = notifyMatch[1].toLowerCase() === 'yes';
   }
   
+  // Extract notes: content after the [Members Notified: ...] bracket
+  const notesMatch = description.match(/\[Members Notified:\s*(?:Yes|No)\]\s*([\s\S]*)/i);
+  if (notesMatch && notesMatch[1]) {
+    const notes = notesMatch[1].trim();
+    if (notes) {
+      result.notes = notes;
+    }
+  }
+  
   return result;
 }
 
-export function formatClosureMetadata(affectedAreas: string, notifyMembers: boolean): string {
+export function formatClosureMetadata(affectedAreas: string, notifyMembers: boolean, notes?: string): string {
   const affectedDisplay: Record<string, string> = {
     'none': 'None',
     'all_bays': 'All Bays',
@@ -34,12 +43,20 @@ export function formatClosureMetadata(affectedAreas: string, notifyMembers: bool
     'entire_facility': 'Entire Facility'
   };
   
-  return `\n---\n[Affected: ${affectedDisplay[affectedAreas] || 'None'}]\n[Members Notified: ${notifyMembers ? 'Yes' : 'No'}]`;
+  let result = `\n---\n[Affected: ${affectedDisplay[affectedAreas] || 'None'}]\n[Members Notified: ${notifyMembers ? 'Yes' : 'No'}]`;
+  
+  // Append notes after the metadata if provided
+  if (notes && notes.trim()) {
+    result += `\n\n${notes.trim()}`;
+  }
+  
+  return result;
 }
 
-export function updateDescriptionWithMetadata(originalDescription: string, affectedAreas: string, notifyMembers: boolean): string {
-  const baseDescription = (originalDescription || '').replace(/\n---\n\[Affected:.*?\]\n\[Members Notified:.*?\]/s, '').trim();
-  return baseDescription + formatClosureMetadata(affectedAreas, notifyMembers);
+export function updateDescriptionWithMetadata(originalDescription: string, affectedAreas: string, notifyMembers: boolean, notes?: string): string {
+  // Remove existing metadata and any notes after it
+  const baseDescription = (originalDescription || '').replace(/\n---\n\[Affected:.*?\]\n\[Members Notified:.*?\][\s\S]*/s, '').trim();
+  return baseDescription + formatClosureMetadata(affectedAreas, notifyMembers, notes);
 }
 
 export function getBaseDescription(description: string): string {
@@ -300,9 +317,9 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         await pool.query(
           `UPDATE facility_closures SET 
            title = $1, reason = $2, start_date = $3, start_time = $4,
-           end_date = $5, end_time = $6, notice_type = $7, is_active = true
-           WHERE internal_calendar_id = $8`,
-          [title, reason, startDate, startTime, endDate, endTime, noticeType, internalCalendarId]
+           end_date = $5, end_time = $6, notice_type = $7, notes = $8, is_active = true
+           WHERE internal_calendar_id = $9`,
+          [title, reason, startDate, startTime, endDate, endTime, noticeType, metadata.notes || null, internalCalendarId]
         );
         
         if (datesChanged) {
@@ -327,10 +344,10 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         
         const result = await pool.query(
           `INSERT INTO facility_closures 
-           (title, reason, notice_type, start_date, start_time, end_date, end_time, affected_areas, is_active, created_by, internal_calendar_id, needs_review)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, 'system', $9, $10)
+           (title, reason, notes, notice_type, start_date, start_time, end_date, end_time, affected_areas, is_active, created_by, internal_calendar_id, needs_review)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, 'system', $10, $11)
            RETURNING id`,
-          [title, reason, noticeType, startDate, startTime, endDate, endTime, affectedAreas, internalCalendarId, needsReview]
+          [title, reason, metadata.notes || null, noticeType, startDate, startTime, endDate, endTime, affectedAreas, internalCalendarId, needsReview]
         );
         
         const closureId = result.rows[0].id;

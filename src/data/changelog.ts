@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.7.2",
+    date: "2026-02-05",
+    title: "Staff Notes for Closures & Notices",
+    changes: [
+      "Added: Notes field for closures and notices that syncs bidirectionally with Google Calendar event descriptions",
+      "Added: Notes appear after metadata brackets in calendar events for easy reading",
+      "Added: Notes display on notice cards in the Blocks tab with expandable details",
+      "Improved: Notice editing now shows and preserves existing notes from calendar sync"
+    ]
+  },
+  {
     version: "69.7.1",
     date: "2026-02-05",
     title: "Improved: Staff Booking Modal Animations",

@@ -16,6 +16,7 @@ interface BlocksClosure {
     id: number;
     title: string;
     reason: string | null;
+    notes: string | null;
     noticeType: string | null;
     startDate: string;
     startTime: string | null;
@@ -38,6 +39,7 @@ interface BlocksClosureForm {
     affected_areas: string;
     visibility: string;
     reason: string;
+    notes: string;
     title: string;
     notice_type: string;
     notify_members: boolean;
@@ -102,6 +104,7 @@ const BlocksTab: React.FC = () => {
         affected_areas: 'entire_facility',
         visibility: '',
         reason: '',
+        notes: '',
         title: '',
         notice_type: '',
         notify_members: false
@@ -369,6 +372,7 @@ const BlocksTab: React.FC = () => {
             affected_areas: 'entire_facility',
             visibility: '',
             reason: '',
+            notes: '',
             title: '',
             notice_type: '',
             notify_members: false
@@ -393,6 +397,7 @@ const BlocksTab: React.FC = () => {
             affected_areas: closure.affectedAreas || 'entire_facility',
             visibility: closure.visibility || '',
             reason: closure.reason || '',
+            notes: closure.notes || '',
             title: closure.title || '',
             notice_type: closure.noticeType || '',
             notify_members: closure.notifyMembers ?? false
@@ -987,6 +992,9 @@ const BlocksTab: React.FC = () => {
                                                 )}
                                             </div>
                                             <h4 className="font-bold text-primary dark:text-white mb-1 truncate">{closure.title.replace(/^\[[^\]]+\]\s*:?\s*/i, '')}</h4>
+                                            {closure.notes && (
+                                                <p className="text-sm text-gray-600 dark:text-white/70 mb-2 line-clamp-2">{closure.notes}</p>
+                                            )}
                                             <div className="flex flex-wrap gap-2">
                                                 <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
                                                     blocking 
@@ -1047,6 +1055,13 @@ const BlocksTab: React.FC = () => {
                                                 <div>
                                                     <p className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Note to Members</p>
                                                     <p className="text-sm text-gray-600 dark:text-white/80">{closure.reason}</p>
+                                                </div>
+                                            )}
+                                            
+                                            {closure.notes && (
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Staff Notes</p>
+                                                    <p className="text-sm text-gray-600 dark:text-white/80 whitespace-pre-wrap">{closure.notes}</p>
                                                 </div>
                                             )}
                                             
@@ -1149,6 +1164,9 @@ const BlocksTab: React.FC = () => {
                                                         </span>
                                                     </div>
                                                     <h4 className="font-medium text-sm text-gray-600 dark:text-white/70 mb-1 truncate">{closure.title.replace(/^\[[^\]]+\]\s*:?\s*/i, '')}</h4>
+                                                    {closure.notes && (
+                                                        <p className="text-xs text-gray-500 dark:text-white/50 mb-1 line-clamp-1">{closure.notes}</p>
+                                                    )}
                                                     <div className="flex flex-wrap gap-1.5">
                                                         <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${
                                                             blocking 
@@ -1285,6 +1303,19 @@ const BlocksTab: React.FC = () => {
                             </select>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 Shown as a badge to members. Manage options in "Closure Reasons" section above.
+                            </p>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1 block">Notes</label>
+                            <textarea 
+                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all resize-none" 
+                                placeholder="Internal notes, event details, logistics..." 
+                                rows={3} 
+                                value={closureForm.notes} 
+                                onChange={e => setClosureForm({...closureForm, notes: e.target.value})} 
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Syncs with Google Calendar event description
                             </p>
                         </div>
                         <div>
