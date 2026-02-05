@@ -71,6 +71,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Tier Data Automation**: Member creation requires valid tier, real-time sync queues tier changes to HubSpot, auto-fix copies tiers from alternate emails every 4 hours.
 - **Scheduled Maintenance**: Daily tasks for session cleanup, webhook log cleanup, Stripe reconciliation, and grace period checks.
 - **Security Implementation**: Rate limiting, SQL injection prevention (parameterized queries/Drizzle ORM), webhook signature verification (Stripe, HubSpot, Resend), secure session management (httpOnly, secure, sameSite=none), CORS origin whitelist, authentication middleware for push notifications, and dependency overrides for CVEs.
+- **Stripe Terminal Integration**: In-person card reader support for membership signup. Staff can tap/swipe member cards using WisePOS E or S700 readers. Payment flow: create subscription → collect payment on Terminal → confirm and activate membership. Includes idempotency keys, metadata validation, amount verification, and audit logging. Supports simulated readers for development testing.
 
 ## External Dependencies
 - **Stripe Payments**: Payment collection, subscription management, webhooks.

@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.11.0",
+    date: "2026-02-05",
+    title: "Stripe Terminal Card Reader Support",
+    isMajor: true,
+    changes: [
+      "Added: Card Reader payment option for in-person membership signup",
+      "Staff can now tap/swipe member cards using Stripe Terminal readers",
+      "Toggle between 'Enter Card' (manual) and 'Card Reader' (terminal) in payment step",
+      "Create simulated readers for testing without physical hardware",
+      "Full backend support: connection tokens, reader discovery, payment processing",
+      "Terminal payments automatically activate membership and sync to HubSpot"
+    ]
+  },
+  {
     version: "69.10.5",
     date: "2026-02-05",
     title: "Copy Activation Link Feature",

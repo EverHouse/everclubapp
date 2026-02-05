@@ -6,6 +6,7 @@ import { useBottomNav } from '../../../contexts/BottomNavContext';
 import { useToast } from '../../Toast';
 import { SimpleCheckoutForm } from '../../stripe/StripePaymentForm';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
+import { TerminalPayment } from '../TerminalPayment';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
@@ -482,6 +483,7 @@ function MemberFlow({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [activationUrl, setActivationUrl] = useState<string | null>(null);
   const [copyingLink, setCopyingLink] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'terminal'>('card');
 
   const getInputClass = (fieldName: string) => `w-full px-3 py-2.5 rounded-lg border ${
     fieldErrors[fieldName]
@@ -584,12 +586,10 @@ function MemberFlow({
 
         const data = await res.json();
         
-        // Handle missing clientSecret (can happen if Stripe didn't return a payment intent)
-        if (!data.clientSecret) {
-          throw new Error('Payment initialization failed - no payment session returned from Stripe. Please try again or use "Send Activation Link Instead".');
+        // clientSecret may be missing for some edge cases - Terminal mode doesn't need it
+        if (data.clientSecret) {
+          setClientSecret(data.clientSecret);
         }
-        
-        setClientSecret(data.clientSecret);
         setSubscriptionId(data.subscriptionId);
         setCreatedUserId(data.userId);
       }
@@ -1044,44 +1044,121 @@ function MemberFlow({
             for {form.firstName} {form.lastName}
           </p>
         </div>
-        
-        {stripeLoading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-600 border-t-transparent" />
-          </div>
+
+        <div className="flex gap-2 p-1 rounded-lg bg-gray-100 dark:bg-white/5">
+          <button
+            onClick={() => setPaymentMethod('card')}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              paymentMethod === 'card'
+                ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">credit_card</span>
+            Enter Card
+          </button>
+          <button
+            onClick={() => setPaymentMethod('terminal')}
+            className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              paymentMethod === 'terminal'
+                ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">contactless</span>
+            Card Reader
+          </button>
+        </div>
+
+        {paymentMethod === 'card' && (
+          <>
+            {stripeLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-600 border-t-transparent" />
+              </div>
+            )}
+
+            {stripeError && (
+              <div className={`p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+                <p className="text-sm">{stripeError}</p>
+                <button
+                  onClick={() => {
+                    resetPayment();
+                    initializePayment();
+                  }}
+                  className="text-sm underline mt-2"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {clientSecret && stripeInstance && stripeOptions && (
+              <Elements stripe={stripeInstance} options={stripeOptions}>
+                <SimpleCheckoutForm
+                  onSuccess={handlePaymentSuccess}
+                  onError={(msg) => setStripeError(msg)}
+                  submitLabel={`Charge $${(totalPrice / 100).toFixed(2)}`}
+                />
+              </Elements>
+            )}
+
+            {!stripeLoading && !stripeError && !clientSecret && (
+              <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                {subscriptionId ? (
+                  <div className="text-center">
+                    <p className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Card entry not available for this subscription.
+                    </p>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      Use the Card Reader option above, or send an activation link.
+                    </p>
+                  </div>
+                ) : (
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Initializing payment...
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
 
-        {stripeError && (
-          <div className={`p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-            <p className="text-sm">{stripeError}</p>
-            <button
-              onClick={() => {
-                resetPayment();
-                initializePayment();
-              }}
-              className="text-sm underline mt-2"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {clientSecret && stripeInstance && stripeOptions && (
-          <Elements stripe={stripeInstance} options={stripeOptions}>
-            <SimpleCheckoutForm
-              onSuccess={handlePaymentSuccess}
-              onError={(msg) => setStripeError(msg)}
-              submitLabel={`Charge $${(totalPrice / 100).toFixed(2)}`}
-            />
-          </Elements>
-        )}
-
-        {!stripeLoading && !stripeError && !clientSecret && (
-          <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Initializing payment...
-            </p>
-          </div>
+        {paymentMethod === 'terminal' && (
+          <TerminalPayment
+            amount={totalPrice}
+            subscriptionId={subscriptionId}
+            userId={createdUserId}
+            onSuccess={async (paymentIntentId) => {
+              try {
+                const confirmRes = await fetch('/api/stripe/terminal/confirm-subscription-payment', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    paymentIntentId,
+                    subscriptionId,
+                    userId: createdUserId,
+                    invoiceId: null
+                  })
+                });
+                if (!confirmRes.ok) {
+                  const data = await confirmRes.json();
+                  throw new Error(data.error || 'Failed to confirm payment');
+                }
+                showToast('Payment received! Membership activated.', 'success');
+                onSuccess({
+                  id: createdUserId || 'member-' + Date.now(),
+                  email: form.email,
+                  name: `${form.firstName} ${form.lastName}`
+                });
+              } catch (err: any) {
+                setStripeError(err.message || 'Failed to activate membership');
+              }
+            }}
+            onError={(msg) => setStripeError(msg)}
+            onCancel={() => {}}
+          />
         )}
 
         <div className={`pt-2 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
