@@ -26,9 +26,9 @@ export const TRAINING_SEED_DATA = [
     steps: [
       { title: 'Access the Staff Portal', content: 'Log in with your staff credentials. After logging in, you will be automatically directed to the Staff Portal Command Center.', pageIcon: 'admin_panel_settings' },
       { title: 'Command Center Overview', content: 'The Home dashboard is your command center. It shows pending booking requests, today\'s schedule, facility status, upcoming tours, and recent activity at a glance.', pageIcon: 'home' },
-      { title: 'Bottom Navigation', content: 'Use the bottom navigation bar to quickly access the main sections: Home, Bookings, Financials, Tours, Calendar, and Directory.', pageIcon: 'menu' },
+      { title: 'Bottom Navigation', content: 'Use the bottom navigation bar to quickly access the main sections: Home, Bookings, Financials, Calendar, and Directory.', pageIcon: 'menu' },
       { title: 'Updates (Header Icon)', content: 'The megaphone/campaign icon in the header takes you to the Updates page where you can view your activity notifications and manage member announcements.', pageIcon: 'campaign' },
-      { title: 'Mobile Hamburger Menu', content: 'On mobile, tap the hamburger menu (three lines) in the top left to access all navigation items including: Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources (Cafe, Training, Team), and Admin settings.', pageIcon: 'menu' },
+      { title: 'Mobile Hamburger Menu', content: 'On mobile, tap the hamburger menu (three lines) in the top left to access all navigation items including: Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources (Cafe, Training Guide), and Admin settings (Stripe Config, Manage Team, Gallery, FAQs, Inquiries, Bug Reports, Changelog, Data Integrity).', pageIcon: 'menu' },
       { title: 'Profile Access', content: 'Tap your avatar in the top right to access your profile, where you can manage push notifications and set up a password for faster login.', pageIcon: 'person' },
       { title: 'Sidebar Navigation', content: 'On larger screens (desktop/tablet), the sidebar provides quick access to all main sections plus Facility/Notices for managing closures and announcements.' },
     ]
@@ -46,7 +46,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Book in Trackman', content: 'After reviewing a request, go to the Trackman booking portal and create the booking there. Make sure the email and time match the request.' },
       { title: 'Automatic Confirmation', content: 'When you book in Trackman, a webhook is sent to the app which automatically confirms the booking and links it. The status changes from Pending (yellow) to Confirmed (blue).' },
       { title: 'Calendar Grid Colors', content: 'Yellow = Pending (awaiting confirmation). Blue = Approved/Confirmed (linked to Trackman). Green = Attended (checked in). Red = Declined/Cancelled. Orange = No Show. Gray = Expired.' },
-      { title: 'Unmatched Bookings', content: 'When a Trackman webhook email doesn\'t match any member, it appears in the "Unmatched" section. Tap "Link to Member" to search and connect it to the correct member.' },
+      { title: 'Unmatched Bookings', content: 'When a Trackman webhook email doesn\'t match any member, the booking appears with a "Needs Assignment" badge in Today\'s Bookings. Tap "Assign Member" to search and connect it to the correct member.' },
       { title: 'Remember Email Feature', content: 'When linking an unmatched booking, check "Remember this email" to save the association. Future bookings from that email will auto-match to the member.' },
       { title: 'Manual Booking', content: 'The floating action button (+) lets you create a manual booking for walk-ins or phone reservations. Enter the member, bay, date, time, and booking source.' },
       { title: 'Decline with Notes', content: 'If you need to decline a request, add staff notes explaining why. The member will be notified and can see the reason.' },
@@ -89,7 +89,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Green Badge = Guest Pass Used', content: 'A green badge means the member used one of their monthly guest passes, so no guest fee is charged for that guest.' },
       { title: 'Tier & Allowance Info', content: 'Each person\'s row shows their membership tier and how much daily time they have left. This helps explain why overage fees apply.' },
       { title: 'Confirming Payments', content: 'You can mark individual payments as paid, or confirm all at once. Use "Waive" if a fee should be forgiven (you must enter a reason).' },
-      { title: 'Payment Methods', content: 'Payments can be collected via card (processed through Stripe) or recorded as cash. The payment method is tracked for daily reconciliation.' },
+      { title: 'Payment Methods', content: 'Payment options include: "Charge Card on File" (use the member\'s saved card), "Pay with Card" (enter a new card), "Mark Paid (Cash/External)" (record cash or external payment), or "Waive All Fees" (forgive fees with a required reason). All payments are tracked for daily reconciliation.' },
       { title: 'Payment Audit Trail', content: 'All payment actions are logged with your name and timestamp for accountability.' },
     ]
   },
@@ -102,16 +102,17 @@ export const TRAINING_SEED_DATA = [
     isAdminOnly: false,
     steps: [
       { title: 'Access Financials', content: 'Go to the Financials tab from the bottom navigation. This is your hub for all payment-related activities.', pageIcon: 'payments' },
-      { title: 'Three Main Tabs', content: 'The Financials page has three tabs: POS (Point of Sale for daily transactions), Subscriptions (member billing), and Invoices (payment history).' },
+      { title: 'Three Main Tabs', content: 'The Financials page has three tabs: POS (Point of Sale for daily transactions including Record Purchase, Redeem Pass, Pending Authorizations, Overdue Payments, Failed Payments, Refunds, and Recent Transactions), Subscriptions (member billing), and Invoices (payment history).' },
       { title: 'POS: Record Purchase', content: 'Charge a member for merchandise, guest fees, or custom amounts. Search for the member, enter the amount and description, and select card or cash payment.' },
       { title: 'POS: Redeem Pass', content: 'Scan a QR code or manually enter a pass ID to redeem day passes. The system validates the pass and marks it as used.' },
       { title: 'POS: Overdue Payments', content: 'Shows bookings from the last 30 days with unpaid balances. Tap any item to open the check-in billing modal and collect the outstanding amount.' },
       { title: 'POS: Recent Transactions', content: 'A live feed of all recent payments showing member name, amount, type, and timestamp. Use this to verify transactions.' },
-      { title: 'POS: Daily Summary', content: 'Shows today\'s totals broken down by payment type: guest fees, overage fees, merchandise, membership payments, cash collected, and check payments.' },
+      { title: 'POS: Daily Summary', content: 'Shows today\'s totals broken down by payment type: guest fees, overage fees, merchandise, membership payments, cash collected, check payments, and other.' },
       { title: 'POS: Failed Payments', content: 'Payments that failed to process appear here. You can retry the charge or mark it as manually collected if the member paid another way.' },
       { title: 'POS: Pending Authorizations', content: 'Card holds that are awaiting capture. These are pre-authorized amounts that haven\'t been finalized yet.' },
-      { title: 'Subscriptions Tab', content: 'View all active Stripe subscriptions. See member name, plan, amount, status, and next billing date. Filter by status: active, past_due, or canceled.' },
-      { title: 'Invoices Tab', content: 'View all Stripe invoices. Filter by status: paid, open, void, or uncollectible. Download PDF receipts or open the Stripe-hosted invoice page.' },
+      { title: 'POS: Refunds', content: 'Process full or partial refunds for payments made in the last 30 days. Select a payment, choose full or partial refund, enter amount (if partial), select a reason, and confirm.' },
+      { title: 'Subscriptions Tab', content: 'View all active Stripe subscriptions. See member name, plan, amount, status, and next billing date. Filter by status: all, active, past_due, or canceled. You can also sync subscriptions from Stripe to update the local database.' },
+      { title: 'Invoices Tab', content: 'View all Stripe invoices. Filter by status: all, paid, open, or uncollectible. You can also filter by date range. Download PDF receipts or open the Stripe-hosted invoice page.' },
       { title: 'Payment Failure Handling', content: 'When a membership payment fails, the system automatically sets the member to "past due" status, starts a grace period, and notifies both the member and staff. Members in past due status are flagged in their profile.' },
       { title: 'Grace Period', content: 'After a payment failure, members enter a 3-day grace period. During this time they can update their payment method. Staff are notified and can assist with payment recovery if needed.' },
     ]
@@ -143,12 +144,12 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 7,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Tours', content: 'Go to the Tours tab from the bottom navigation to view all scheduled facility tours.', pageIcon: 'directions_walk' },
+      { title: 'Access Tours', content: 'Go to the Tours tab from the sidebar or hamburger menu to view all scheduled facility tours.', pageIcon: 'directions_walk' },
       { title: 'Today\'s Tours', content: 'The top section shows tours scheduled for today with the guest name, scheduled time, and current status.' },
       { title: 'Upcoming Tours', content: 'Below today\'s tours, you can see all upcoming scheduled tours organized by date.' },
-      { title: 'Tour Sources', content: 'Tours come from two places: the booking widget on the website, or directly synced from the HubSpot meeting scheduler.' },
-      { title: 'Needs Review', content: 'HubSpot meetings that didn\'t auto-match appear in the "Needs Review" section at the top. You can link them to existing tours, create new ones, or dismiss if not relevant.' },
-      { title: 'Tour Status', content: 'Update the tour status as needed: Scheduled (upcoming), Completed (attended), Cancelled, or No Show.' },
+      { title: 'Tour Sources', content: 'Tours come from two places: the booking widget on the website, or directly synced from Google Calendar.' },
+      { title: 'Past Tours', content: 'Use the "Show Past" toggle at the top to view past tours for reference and follow-up.' },
+      { title: 'Tour Status', content: 'Update the tour status as needed: Scheduled (upcoming), Pending, Checked In, Completed (attended), Cancelled, or No Show.' },
       { title: 'Tour Notifications', content: 'Staff receive notifications when new tours are scheduled. Daily reminder emails are sent at 6pm for the next day\'s tours.' },
     ]
   },
@@ -160,17 +161,19 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 8,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Notices', content: 'Go to Facility/Notices from the sidebar or bottom navigation to manage facility notices and closures.', pageIcon: 'notifications' },
-      { title: 'Card Colors Explained', content: 'RED cards block bookings for the selected areas. AMBER cards are informational announcements only and don\'t affect booking availability.' },
-      { title: 'Needs Review Section', content: 'Notices synced from the Google Calendar without proper configuration show as "Needs Review" at the top. These are like drafts that need attention.' },
+      { title: 'Access Notices', content: 'Go to Facility from the sidebar or hamburger menu to manage facility notices and closures.', pageIcon: 'notifications' },
+      { title: 'Three Subtabs', content: 'The Notices page has three subtabs: Closures (for blocking booking availability), Closure Reasons (predefined reasons for closures), and Notices (informational announcements).' },
+      { title: 'Card Colors Explained', content: 'RED cards are closures that block bookings. CYAN cards are closure drafts that need review. AMBER cards are informational notices that don\'t affect booking availability.' },
+      { title: 'Needs Review Section', content: 'Closures synced from Google Calendar without complete configuration show with a cyan border and "Needs Review" status. Tap to configure which resources are blocked.' },
       { title: 'Configuring Draft Notices', content: 'Tap a notice in "Needs Review" to configure which resources are blocked: specific Bays, Conference Room, Entire Facility, or None (informational only).' },
-      { title: 'None = Informational', content: 'Setting affected areas to "None" makes the notice amber/informational. It shows up in the calendar but doesn\'t block any bookings.' },
+      { title: 'Informational Only', content: 'Setting visibility to "Informational Only" makes the notice amber. It shows up for members but doesn\'t block any bookings.' },
       { title: 'Blocking Resources', content: 'Selecting specific bays, conference room, or entire facility turns the card red and prevents members from booking those resources during the notice period.' },
       { title: 'Create a Notice', content: 'Click the + button to create a new notice. Fill in the title, dates, times (optional), and select which areas are affected.' },
       { title: 'Accordion View', content: 'Each notice displays as an expandable card. Tap to expand and see affected resources and internal notes. Use the edit button to make changes.' },
       { title: 'Color Updates Instantly', content: 'The card color changes immediately when you modify affected areas. Red means booking restrictions are active.' },
       { title: 'Automatic Sync', content: 'Notices sync to the internal Google Calendar. Blocked areas automatically prevent member bookings during the specified times.' },
-      { title: 'Filter & Search', content: 'Use the filter dropdown to view specific areas, date picker to find notices for a date, and "Show past" toggle to see historical notices.' },
+      { title: 'Filter & Search', content: 'Use the filter dropdown to view specific areas, date picker to find notices for a date, and "Show Past" toggle to see historical notices.' },
+      { title: 'Member Visibility', content: 'Toggle "Member Visibility" when creating notices to control whether members see the notice in their app or if it\'s internal staff-only.' },
     ]
   },
   {
@@ -203,9 +206,9 @@ export const TRAINING_SEED_DATA = [
     isAdminOnly: false,
     steps: [
       { title: 'Access Updates', content: 'Click the megaphone/campaign icon in the header to go to the Updates page.', pageIcon: 'campaign' },
-      { title: 'Activity Tab', content: 'The Activity tab shows your staff notifications - new booking requests, check-in reminders, system alerts, and other activity relevant to your role.' },
+      { title: 'Alerts Tab', content: 'The Alerts tab shows your staff notifications - new booking requests, check-in reminders, system alerts, and other activity relevant to your role.' },
       { title: 'Mark as Read', content: 'Click "Mark all as read" to clear unread notifications, or tap individual notifications to mark them read. Use "Dismiss all" to permanently remove all notifications.' },
-      { title: 'Announcements Tab', content: 'Switch to the Announcements tab to create and manage announcements that members will see in their feed.' },
+      { title: 'Announce Tab', content: 'Switch to the Announce tab to create and manage announcements that members will see in their feed.' },
       { title: 'Create an Announcement', content: 'Click the + button to create a new announcement. Enter a title and description for your message.' },
       { title: 'Push Notification Toggle', content: 'Toggle "Send push notification to all members" to send an instant alert to everyone. Use sparingly for important club-wide announcements.' },
       { title: 'Homepage Banner', content: 'Toggle "Show as Homepage Banner" to display the announcement prominently on the member dashboard. Great for promotions or urgent notices.' },
@@ -223,7 +226,7 @@ export const TRAINING_SEED_DATA = [
     isAdminOnly: false,
     steps: [
       { title: 'Access Directory', content: 'Go to Directory from the bottom navigation, sidebar, or the hamburger menu on mobile.', pageIcon: 'groups' },
-      { title: 'Three Directory Tabs', content: 'The directory has three tabs: Active (current paying members), Former (cancelled or expired memberships), and Visitors (non-members).' },
+      { title: 'Four Directory Tabs', content: 'The directory has four tabs: Active (current paying members), Former (cancelled or expired memberships), Visitors (non-members), and Team (staff and admin accounts).' },
       { title: 'Active Members', content: 'The Active tab shows all current members with active subscriptions. These are your paying club members.' },
       { title: 'Former Members', content: 'The Former tab shows members who have cancelled or whose memberships have expired. Useful for win-back outreach.' },
       { title: 'Visitors Tab', content: 'Visitors are non-members who have interacted with the club. Types include: ClassPass users, Sim Walk-Ins, Private Lesson attendees, Day Pass buyers, Guests, and Leads.' },
@@ -244,7 +247,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 12,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Inquiries', content: 'Go to the Home tab and tap "Inquiries" in the Admin Settings section.', pageIcon: 'mail' },
+      { title: 'Access Inquiries', content: 'Go to Inquiries from the Admin section of the sidebar or hamburger menu.', pageIcon: 'mail' },
       { title: 'Filter by Type', content: 'Use the filter buttons to view specific form types: Contact, Tour Request, Membership Inquiry, Private Hire, or Guest Check-in.' },
       { title: 'Filter by Status', content: 'Filter by status: New (unread), Read, Replied, or Archived.' },
       { title: 'View Submission Details', content: 'Tap an inquiry to expand and see the full submission details including contact info and message.' },
@@ -260,7 +263,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 13,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Cafe Menu', content: 'On desktop, use the sidebar under Resources. On mobile, tap the hamburger menu and select "Cafe" under Resources.', pageIcon: 'local_cafe' },
+      { title: 'Access Cafe Menu', content: 'Go to Cafe Menu from the Resources section of the sidebar or hamburger menu.', pageIcon: 'local_cafe' },
       { title: 'Add Menu Items', content: 'Tap "Add Item" to create a new menu item. Fill in the name, description, price, and category.' },
       { title: 'Categories', content: 'Organize items into categories like Drinks, Bites, Cocktails, etc. for easy browsing by members.' },
       { title: 'Upload Images', content: 'Add images to menu items by tapping the image upload button. Images are automatically optimized for web.' },
@@ -275,7 +278,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 14,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Gallery', content: 'Go to the Home tab and tap "Gallery" in the Admin Settings section.', pageIcon: 'photo_library' },
+      { title: 'Access Gallery', content: 'Go to Gallery from the Admin section of the sidebar or hamburger menu.', pageIcon: 'photo_library' },
       { title: 'Add Photos', content: 'Tap "Add Photo" and upload an image. Images are automatically converted to WebP format and optimized for web.' },
       { title: 'Set Category', content: 'Assign photos to categories (e.g., Interior, Events, Golf Bays) for organization on the public gallery.' },
       { title: 'Reorder Photos', content: 'Use the sort order field to control the display order of photos within each category.' },
@@ -290,7 +293,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 15,
     isAdminOnly: true,
     steps: [
-      { title: 'Access FAQs', content: 'Go to the Home tab and tap "FAQs" in the Admin Settings section.', pageIcon: 'help_outline' },
+      { title: 'Access FAQs', content: 'Go to FAQs from the Admin section of the sidebar or hamburger menu.', pageIcon: 'help_outline' },
       { title: 'Add New FAQ', content: 'Tap "Add FAQ" to create a new question and answer for the public FAQ page.' },
       { title: 'Edit Existing', content: 'Tap the edit button on any FAQ to update the question or answer text.' },
       { title: 'Reorder', content: 'Adjust the sort order to control which FAQs appear first on the public page.' },
@@ -300,12 +303,12 @@ export const TRAINING_SEED_DATA = [
   {
     guideId: 'team-access',
     icon: 'shield_person',
-    title: 'Team Access',
+    title: 'Manage Team',
     description: 'Manage staff and admin accounts',
     sortOrder: 16,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Team Settings', content: 'Go to Team Access from the Admin Settings section of the dashboard. This is admin-only.', pageIcon: 'shield_person' },
+      { title: 'Access Manage Team', content: 'Go to Manage Team from the Admin section of the sidebar or hamburger menu. This is admin-only.', pageIcon: 'shield_person' },
       { title: 'Staff vs Admins', content: 'Use the tabs to switch between managing Staff accounts and Admin accounts.' },
       { title: 'Add Team Member', content: 'Click "Add" and enter their email, name, and job title. They will receive a login email.' },
       { title: 'Activate/Deactivate', content: 'Toggle accounts active or inactive to grant or revoke access without deleting the account.' },
@@ -320,7 +323,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 17,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Tiers', content: 'Go to Manage Tiers from the Admin Settings section. This controls what each membership level can do.', pageIcon: 'loyalty' },
+      { title: 'Access Stripe Config', content: 'Go to Stripe Config from the Admin section of the sidebar or hamburger menu. This controls membership tier settings and Stripe integration.', pageIcon: 'loyalty' },
       { title: 'Edit Tier Settings', content: 'Click on a tier to edit its name, description, price, and marketing copy. Changes take effect immediately for all members on that tier.' },
       { title: 'Booking Limits', content: 'Set daily simulator minutes, conference room minutes, and advance booking window for each tier. Members cannot exceed these limits.' },
       { title: 'Guest Passes', content: 'Configure how many guest passes members receive per month for each tier. Passes reset on the 1st of each month.' },
@@ -337,10 +340,10 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 18,
     isAdminOnly: false,
     steps: [
-      { title: 'Access Team Directory', content: 'On desktop, use the sidebar under Resources. On mobile, tap the hamburger menu and select "Team" under Resources.', pageIcon: 'badge' },
+      { title: 'Access Team Directory', content: 'Go to the Directory from the bottom navigation, then tap the Team tab to view staff and admin contacts.', pageIcon: 'badge' },
       { title: 'View Team Members', content: 'See all active staff and admin team members with their names, job titles, and profile photos.' },
       { title: 'Contact Information', content: 'Tap a team member to view their phone number and email for quick contact.' },
-      { title: 'Different from Team Access', content: 'This directory is read-only for viewing contact info. Admins who need to manage accounts should use Team Access in Admin Settings.' },
+      { title: 'Different from Manage Team', content: 'This directory is read-only for viewing contact info. Admins who need to manage accounts should use Manage Team in Admin Settings.' },
     ]
   },
   {
@@ -351,7 +354,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 19,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Trackman Import', content: 'Go to the Home tab and tap "Trackman Import" in the Admin Settings section. This is admin-only.', pageIcon: 'upload_file' },
+      { title: 'Access Trackman Import', content: 'Trackman Import is accessed from the Bookings tab. Look for the import/upload section when managing bookings. This is admin-only.', pageIcon: 'upload_file' },
       { title: 'Upload CSV File', content: 'Upload the Trackman booking export CSV file. The system will parse dates, times, durations, and email addresses.' },
       { title: 'Automatic Matching', content: 'The system automatically matches Trackman emails to existing members. If an email doesn\'t match, it\'s added to the Unmatched list.' },
       { title: 'Resolve Unmatched', content: 'For unmatched bookings, search and select the correct member. The system learns this mapping for future imports.' },
@@ -367,7 +370,7 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 20,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Bug Reports', content: 'Go to the Home tab and tap "Bug Reports" in the Admin Settings section.', pageIcon: 'bug_report' },
+      { title: 'Access Bug Reports', content: 'Go to Bug Reports from the Admin section of the sidebar or hamburger menu.', pageIcon: 'bug_report' },
       { title: 'View Reports', content: 'See all bug reports submitted by members and staff, including screenshots if attached.' },
       { title: 'Report Details', content: 'Each report shows the description, reporter, date submitted, and current status (Open, In Progress, Resolved).' },
       { title: 'Update Status', content: 'Change the status as you work on issues. Mark as "In Progress" when investigating, and "Resolved" when fixed.' },
@@ -375,16 +378,17 @@ export const TRAINING_SEED_DATA = [
     ]
   },
   {
-    guideId: 'version-history',
+    guideId: 'changelog',
     icon: 'history',
-    title: 'Version History',
+    title: 'Changelog',
     description: 'View app updates and changes (Admin only)',
     sortOrder: 21,
     isAdminOnly: true,
     steps: [
-      { title: 'Access Version History', content: 'Go to the Home tab and tap "Version History" in the Admin Settings section.', pageIcon: 'history' },
+      { title: 'Access Changelog', content: 'Go to the Changelog from the sidebar/hamburger menu under Admin settings to view all app updates.', pageIcon: 'history' },
       { title: 'View Updates', content: 'See a chronological list of all app updates, newest first. Major releases are highlighted.' },
       { title: 'What\'s Included', content: 'Each version shows the date, a title summarizing the update, and a list of changes in plain language.' },
+      { title: 'Staff Activity Feed', content: 'Below the changelog, you can see a live feed of staff activity including booking actions, payment processing, and member updates.' },
       { title: 'Share with Staff', content: 'Use this to stay informed about new features and share updates with your team during meetings.' },
     ]
   },
