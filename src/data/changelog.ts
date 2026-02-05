@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.10.2",
+    date: "2026-02-05",
+    title: "Complete Money-Flow Audit & Fixes",
+    changes: [
+      "Audited: 261 database queries across all Stripe/billing code paths",
+      "Audited: All webhook handlers, subscription management, refund logic",
+      "Verified: Dual subscription prevention in family and corporate member addition",
+      "Verified: Transaction rollback on database failures",
+      "Verified: Idempotency keys for payment intents prevent duplicate charges",
+      "Verified: Row-level locking prevents race conditions in fee snapshots",
+      "Fixed: Payment record audit logging now correctly logs member email"
+    ]
+  },
+  {
     version: "69.10.1",
     date: "2026-02-05",
     title: "Comprehensive Audit Logging Fixes",
