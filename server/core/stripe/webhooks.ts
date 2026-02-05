@@ -2243,6 +2243,48 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       );
       console.log(`[Stripe Webhook] Membership status set to active for ${email}`);
       
+      // Reactivate sub-members (family/corporate employees) if they were suspended/past_due
+      try {
+        const groupResult = await pool.query(
+          `SELECT bg.id, bg.group_name, bg.type FROM billing_groups bg 
+           WHERE LOWER(bg.primary_email) = LOWER($1) AND bg.is_active = true`,
+          [email]
+        );
+        
+        if (groupResult.rows.length > 0) {
+          const group = groupResult.rows[0];
+          
+          // Reactivate all sub-members that were suspended/past_due due to billing issues
+          const subMembersResult = await pool.query(
+            `UPDATE users u SET membership_status = 'active', updated_at = NOW()
+             FROM group_members gm
+             WHERE gm.billing_group_id = $1 
+             AND gm.is_active = true
+             AND LOWER(u.email) = LOWER(gm.member_email)
+             AND u.membership_status IN ('past_due', 'suspended')
+             RETURNING u.email`,
+            [group.id]
+          );
+          
+          const affectedCount = subMembersResult.rows.length;
+          if (affectedCount > 0) {
+            console.log(`[Stripe Webhook] Reactivated ${affectedCount} sub-members for group ${group.group_name}`);
+            
+            // Notify each sub-member
+            for (const row of subMembersResult.rows) {
+              await notifyMember({
+                userEmail: row.email,
+                title: 'Membership Restored',
+                message: 'Your membership access has been restored. Welcome back!',
+                type: 'system',
+              }, { sendPush: true });
+            }
+          }
+        }
+      } catch (groupErr) {
+        console.error('[Stripe Webhook] Error reactivating sub-members:', groupErr);
+      }
+      
       // Sync status change to HubSpot
       try {
         const { syncMemberToHubSpot } = await import('../hubspot/stages');
@@ -2272,6 +2314,48 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       );
 
       console.log(`[Stripe Webhook] Past due notification sent to ${email}`);
+      
+      // Propagate past_due status to sub-members (family/corporate employees)
+      try {
+        const groupResult = await pool.query(
+          `SELECT bg.id, bg.group_name, bg.type FROM billing_groups bg 
+           WHERE LOWER(bg.primary_email) = LOWER($1) AND bg.is_active = true`,
+          [email]
+        );
+        
+        if (groupResult.rows.length > 0) {
+          const group = groupResult.rows[0];
+          
+          // Update all active sub-members to past_due status
+          const subMembersResult = await pool.query(
+            `UPDATE users u SET membership_status = 'past_due', updated_at = NOW()
+             FROM group_members gm
+             WHERE gm.billing_group_id = $1 
+             AND gm.is_active = true
+             AND LOWER(u.email) = LOWER(gm.member_email)
+             AND u.membership_status NOT IN ('cancelled', 'terminated')
+             RETURNING u.email`,
+            [group.id]
+          );
+          
+          const affectedCount = subMembersResult.rows.length;
+          if (affectedCount > 0) {
+            console.log(`[Stripe Webhook] Set ${affectedCount} sub-members to past_due for group ${group.group_name}`);
+            
+            // Notify each sub-member
+            for (const row of subMembersResult.rows) {
+              await notifyMember({
+                userEmail: row.email,
+                title: 'Membership Payment Issue',
+                message: 'Your membership access may be affected by a billing issue with your group account.',
+                type: 'membership_past_due',
+              }, { sendPush: true });
+            }
+          }
+        }
+      } catch (groupErr) {
+        console.error('[Stripe Webhook] Error propagating past_due to sub-members:', groupErr);
+      }
       
       // Sync past_due status to HubSpot
       try {
@@ -2304,6 +2388,48 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
       );
 
       console.log(`[Stripe Webhook] Unpaid notification sent to ${email}`);
+      
+      // Propagate suspension to sub-members (family/corporate employees)
+      try {
+        const groupResult = await pool.query(
+          `SELECT bg.id, bg.group_name, bg.type FROM billing_groups bg 
+           WHERE LOWER(bg.primary_email) = LOWER($1) AND bg.is_active = true`,
+          [email]
+        );
+        
+        if (groupResult.rows.length > 0) {
+          const group = groupResult.rows[0];
+          
+          // Suspend all active sub-members
+          const subMembersResult = await pool.query(
+            `UPDATE users u SET membership_status = 'suspended', updated_at = NOW()
+             FROM group_members gm
+             WHERE gm.billing_group_id = $1 
+             AND gm.is_active = true
+             AND LOWER(u.email) = LOWER(gm.member_email)
+             AND u.membership_status NOT IN ('cancelled', 'terminated')
+             RETURNING u.email`,
+            [group.id]
+          );
+          
+          const affectedCount = subMembersResult.rows.length;
+          if (affectedCount > 0) {
+            console.log(`[Stripe Webhook] Suspended ${affectedCount} sub-members for group ${group.group_name}`);
+            
+            // Notify each sub-member
+            for (const row of subMembersResult.rows) {
+              await notifyMember({
+                userEmail: row.email,
+                title: 'Membership Suspended',
+                message: 'Your membership has been suspended due to an unpaid balance on your group account.',
+                type: 'membership_past_due',
+              }, { sendPush: true });
+            }
+          }
+        }
+      } catch (groupErr) {
+        console.error('[Stripe Webhook] Error propagating suspension to sub-members:', groupErr);
+      }
       
       // Sync suspended status to HubSpot
       try {

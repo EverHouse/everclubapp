@@ -766,6 +766,8 @@ export async function addCorporateMember(params: {
             if (originalPricePerSeat !== newPricePerSeat) {
               console.log(`[GroupBilling] Price tier change: ${originalPricePerSeat} -> ${newPricePerSeat} cents/seat for ${newMemberCount} members`);
               
+              // Preserve existing metadata from the old item while ensuring corporate_membership is set
+              const existingMetadata = corporateItem.metadata || {};
               const newItem = await stripe.subscriptionItems.create({
                 subscription: group[0].primaryStripeSubscriptionId,
                 price_data: {
@@ -776,6 +778,7 @@ export async function addCorporateMember(params: {
                 },
                 quantity: newMemberCount,
                 metadata: {
+                  ...existingMetadata,
                   corporate_membership: 'true',
                 },
                 proration_behavior: 'create_prorations',
@@ -1198,6 +1201,19 @@ export async function reconcileGroupBillingWithStripe(): Promise<ReconciliationR
     
     for (const group of activeGroups) {
       result.groupsChecked++;
+      
+      // Skip corporate groups - they use quantity-based billing, not individual subscription items
+      // Corporate members don't have individual stripeSubscriptionItemId values, so the
+      // individual-item reconciliation logic doesn't apply to them
+      if (group.type === 'corporate') {
+        result.details.push({
+          billingGroupId: group.id,
+          primaryEmail: group.primaryEmail,
+          action: 'ok',
+          reason: 'Corporate group uses quantity-based billing - skipped individual item reconciliation',
+        });
+        continue;
+      }
       
       if (!group.primaryStripeSubscriptionId) {
         result.details.push({
