@@ -407,7 +407,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await pool.query('DELETE FROM guest_passes WHERE LOWER(member_email) = $1', [normalizedEmail]);
     deletionLog.push('guest_passes');
     
-    await pool.query('DELETE FROM guest_check_ins WHERE LOWER(member_email) = $1 OR LOWER(guest_email) = $1', [normalizedEmail, normalizedEmail]);
+    await pool.query('DELETE FROM guest_check_ins WHERE LOWER(member_email) = $1 OR LOWER(guest_email) = $1', [normalizedEmail]);
     deletionLog.push('guest_check_ins');
     
     await pool.query('UPDATE event_rsvps SET matched_user_id = NULL WHERE matched_user_id = $1', [userIdStr]);
@@ -498,7 +498,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await pool.query('DELETE FROM tours WHERE LOWER(guest_email) = $1', [normalizedEmail]);
     deletionLog.push('tours');
     
-    await pool.query('DELETE FROM trackman_unmatched_bookings WHERE LOWER(original_email) = $1 OR LOWER(resolved_email) = $1', [normalizedEmail, normalizedEmail]);
+    await pool.query('DELETE FROM trackman_unmatched_bookings WHERE LOWER(original_email) = $1 OR LOWER(resolved_email) = $1', [normalizedEmail]);
     deletionLog.push('trackman_unmatched_bookings');
     
     await pool.query('DELETE FROM trackman_bay_slots WHERE LOWER(customer_email) = $1', [normalizedEmail]);
