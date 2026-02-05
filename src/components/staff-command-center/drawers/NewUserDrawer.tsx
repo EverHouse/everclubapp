@@ -502,7 +502,11 @@ function MemberFlow({
           isNewCustomer: true,
           firstName: form.firstName,
           lastName: form.lastName,
-          phone: form.phone
+          phone: form.phone,
+          dob: form.dob || undefined,
+          tierSlug: selectedTier.slug,
+          tierName: selectedTier.name,
+          createUser: true
         })
       });
 

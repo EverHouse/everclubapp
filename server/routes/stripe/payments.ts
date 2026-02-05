@@ -515,7 +515,7 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
 
 router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone } = req.body;
+    const { memberEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone, dob, tierSlug, tierName, createUser } = req.body;
     const { sessionUser, staffEmail } = getStaffInfo(req);
 
     if (!memberEmail || amountCents === undefined || amountCents === null) {
@@ -568,12 +568,14 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
           phone: phone || undefined,
           metadata: {
             source: 'staff_quick_charge',
-            createdBy: staffEmail
+            createdBy: staffEmail,
+            tier: tierSlug || undefined
           }
         });
         stripeCustomerId = customer.id;
         console.log(`[Stripe] Created new customer ${customer.id} for quick charge: ${memberEmail}`);
       }
+      
     } else {
       const memberResult = await pool.query(
         `SELECT id, email, first_name, last_name, stripe_customer_id 
@@ -636,7 +638,14 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
         memberId: member?.id?.toString() || 'guest',
         memberEmail: customerEmail,
         memberName: resolvedName,
-        isNewCustomer: isNewCustomer ? 'true' : 'false'
+        isNewCustomer: isNewCustomer ? 'true' : 'false',
+        createUser: createUser ? 'true' : 'false',
+        tierSlug: tierSlug || '',
+        tierName: tierName || '',
+        firstName: firstName || '',
+        lastName: lastName || '',
+        phone: phone || '',
+        dob: dob || ''
       }
     });
 
@@ -671,6 +680,49 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
 
     if (!result.success) {
       return res.status(400).json({ error: result.error || 'Payment confirmation failed' });
+    }
+
+    const stripe = await getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const metadata = paymentIntent.metadata || {};
+    
+    if (metadata.createUser === 'true' && metadata.tierSlug && metadata.memberEmail) {
+      const tierSlug = metadata.tierSlug;
+      const tierName = metadata.tierName || tierSlug;
+      const memberEmail = metadata.memberEmail;
+      const firstName = metadata.firstName || '';
+      const lastName = metadata.lastName || '';
+      const phone = metadata.phone || null;
+      const dob = metadata.dob || null;
+      const stripeCustomerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id;
+      
+      const tierResult = await pool.query(
+        'SELECT name FROM membership_tiers WHERE slug = $1 OR name = $1',
+        [tierSlug]
+      );
+      const validatedTierName = tierResult.rows[0]?.name || tierName;
+      
+      const existingUser = await pool.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+        [memberEmail]
+      );
+      
+      if (existingUser.rows.length === 0) {
+        const userId = require('crypto').randomUUID();
+        await pool.query(
+          `INSERT INTO users (id, email, first_name, last_name, phone, dob, tier, membership_status, billing_provider, stripe_customer_id, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, NOW())`,
+          [userId, memberEmail.toLowerCase(), firstName, lastName, phone, dob, validatedTierName, stripeCustomerId || null]
+        );
+        console.log(`[Stripe] Created user ${memberEmail} with tier ${validatedTierName} after payment confirmation`);
+      } else {
+        await pool.query(
+          `UPDATE users SET tier = $1, billing_provider = 'stripe', stripe_customer_id = COALESCE($2, stripe_customer_id), membership_status = 'active'
+           WHERE LOWER(email) = LOWER($3)`,
+          [validatedTierName, stripeCustomerId, memberEmail]
+        );
+        console.log(`[Stripe] Updated user ${memberEmail} with tier ${validatedTierName} after payment confirmation`);
+      }
     }
 
     const paymentRecord = await getPaymentByIntentId(paymentIntentId);
