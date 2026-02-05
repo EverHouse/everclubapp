@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ModalShell } from '../../ModalShell';
 import { useToast } from '../../Toast';
 import { formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
@@ -12,6 +12,13 @@ interface Guest {
   email?: string | null;
 }
 
+interface EnrichedParticipant {
+  email?: string;
+  type: 'member' | 'guest';
+  userId?: string;
+  name?: string;
+}
+
 interface TrackmanBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,7 +27,7 @@ interface TrackmanBookingModalProps {
   onConfirm: (bookingId: number | string, trackmanExternalId: string) => Promise<void>;
 }
 
-function generateNotesText(booking: BookingRequest | null, guests: Guest[] = []): string {
+function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [], enrichedParticipants: EnrichedParticipant[] = []): string {
   if (!booking) return '';
   
   const lines: string[] = [];
@@ -45,11 +52,10 @@ function generateNotesText(booking: BookingRequest | null, guests: Guest[] = [])
   // Calculate filled count so far (host + guests)
   let filledCount = 1 + guests.length;
   
-  // Add pre-declared participants from request (if not already covered by guests)
-  const requestParticipants = booking.request_participants || [];
+  // Add pre-declared participants from enriched list (with resolved emails)
   const guestEmails = new Set(guests.map(g => g.email?.toLowerCase()).filter(Boolean));
   
-  for (const participant of requestParticipants) {
+  for (const participant of enrichedParticipants) {
     // Skip if this email is already in guests list
     if (participant.email && guestEmails.has(participant.email.toLowerCase())) {
       continue;
@@ -97,8 +103,63 @@ export function TrackmanBookingModal({
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
 
-  const notesText = generateNotesText(booking, guests);
+  // Fetch participant emails when modal opens
+  useEffect(() => {
+    if (!isOpen || !booking) {
+      setEnrichedParticipants([]);
+      return;
+    }
+
+    const requestParticipants = (booking.request_participants || []) as EnrichedParticipant[];
+    
+    // Find participants that have userId but no email
+    const participantsNeedingEmail = requestParticipants.filter(p => p.userId && !p.email);
+    
+    if (participantsNeedingEmail.length === 0) {
+      // All participants already have emails
+      setEnrichedParticipants(requestParticipants);
+      return;
+    }
+
+    // Fetch emails for participants with userId
+    const fetchEmails = async () => {
+      try {
+        const userIds = participantsNeedingEmail.map(p => p.userId).filter(Boolean);
+        const response = await fetch('/api/users/batch-emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userIds })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const emailMap = new Map<string, string>(
+            Object.entries(data.emails || {})
+          );
+          
+          // Enrich participants with fetched emails
+          const enriched = requestParticipants.map(p => ({
+            ...p,
+            email: p.email || (p.userId ? emailMap.get(p.userId) : undefined)
+          }));
+          setEnrichedParticipants(enriched);
+        } else {
+          // Fallback to original participants if fetch fails
+          setEnrichedParticipants(requestParticipants);
+        }
+      } catch (err) {
+        console.error('Failed to fetch participant emails:', err);
+        setEnrichedParticipants(requestParticipants);
+      }
+    };
+    
+    fetchEmails();
+  }, [isOpen, booking]);
+
+  const notesText = generateNotesText(booking, guests, enrichedParticipants);
   // Use declared_player_count from booking, fallback to 1 + guests if not set
   // Use nullish coalescing to preserve 0 as a valid value (though unlikely)
   const totalPlayers = booking?.declared_player_count ?? Math.max(1, 1 + guests.length);

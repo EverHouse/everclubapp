@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, desc, sql, and } from 'drizzle-orm';
+import { eq, desc, sql, and, inArray } from 'drizzle-orm';
 import { db } from '../db';
-import { staffUsers } from '../../shared/schema';
+import { staffUsers, users } from '../../shared/schema';
 import { isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { normalizeEmail } from '../core/utils/emailNormalization';
@@ -332,6 +332,39 @@ router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
   } catch (error: any) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to remove admin user' });
+  }
+});
+
+router.post('/api/users/batch-emails', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { userIds } = req.body;
+    
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.json({ emails: {} });
+    }
+    
+    if (userIds.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 user IDs allowed' });
+    }
+    
+    const result = await db.select({
+      id: users.id,
+      email: users.email
+    })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    
+    const emails: Record<string, string> = {};
+    for (const user of result) {
+      if (user.email) {
+        emails[user.id] = user.email.toLowerCase();
+      }
+    }
+    
+    res.json({ emails });
+  } catch (error: any) {
+    if (!isProduction) console.error('API error:', error);
+    res.status(500).json({ error: 'Failed to fetch user emails' });
   }
 });
 
