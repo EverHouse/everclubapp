@@ -61,6 +61,7 @@ export interface FeeComputeParams {
   }>;
   source: 'preview' | 'approval' | 'checkin' | 'stripe' | 'roster_update';
   excludeSessionFromUsage?: boolean;
+  isConferenceRoom?: boolean;
 }
 
 // --- Day Pass & Redemptions Tables ---

@@ -143,7 +143,8 @@ export function estimateBookingFees(
   duration: number,
   playerCount: number,
   usedMinutesForDay: number,
-  tierPermissions: { dailySimulatorMinutes?: number }
+  tierPermissions: { dailySimulatorMinutes?: number; dailyConfRoomMinutes?: number },
+  isConferenceRoom: boolean = false
 ): {
   overageFee: number;
   guestFees: number;
@@ -154,13 +155,13 @@ export function estimateBookingFees(
   const safePlayerCount = Math.max(1, Math.floor(playerCount) || 1);
   const safeDuration = Math.max(0, duration || 0);
   
-  const isSocialTier = userTier?.toLowerCase() === 'social';
-  const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
+  // Use conference room minutes for conference room bookings, simulator minutes otherwise
+  const dailyAllowance = isConferenceRoom 
+    ? (tierPermissions.dailyConfRoomMinutes || 0)
+    : (tierPermissions.dailySimulatorMinutes || 0);
   const perPersonMins = Math.floor(safeDuration / safePlayerCount);
 
-  const overageMinutes = isSocialTier
-    ? safeDuration
-    : Math.max(0, (usedMinutesForDay + perPersonMins) - dailyAllowance);
+  const overageMinutes = Math.max(0, (usedMinutesForDay + perPersonMins) - dailyAllowance);
   const overageBlocks = Math.ceil(overageMinutes / 30);
   const overageFee = overageBlocks * 25;
 

@@ -36,6 +36,7 @@ interface SessionData {
   sessionDuration: number;
   declaredPlayerCount: number;
   hostEmail: string;
+  isConferenceRoom: boolean;
   participants: Array<{
     participantId: number;
     userId?: string;
@@ -67,9 +68,11 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
             br.duration_minutes
           )::int as duration_minutes,
           COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
-          br.user_email as host_email
+          br.user_email as host_email,
+          COALESCE(r.type, 'simulator') as resource_type
         FROM booking_sessions bs
         JOIN booking_requests br ON br.session_id = bs.id
+        LEFT JOIN resources r ON br.resource_id = r.id
         WHERE bs.id = $1
         ORDER BY br.duration_minutes DESC
         LIMIT 1
@@ -85,9 +88,11 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
           br.start_time,
           br.duration_minutes,
           COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
-          br.user_email as host_email
+          br.user_email as host_email,
+          COALESCE(r.type, 'simulator') as resource_type
         FROM booking_requests br
         LEFT JOIN booking_sessions bs ON br.session_id = bs.id
+        LEFT JOIN resources r ON br.resource_id = r.id
         WHERE br.id = $1
         LIMIT 1
       `;
@@ -174,6 +179,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
       sessionDuration: session.duration_minutes,
       declaredPlayerCount: parseInt(session.declared_player_count) || 1,
       hostEmail: session.host_email,
+      isConferenceRoom: session.resource_type === 'conference_room',
       participants
     };
   } catch (error) {
@@ -188,6 +194,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   let sessionDuration: number;
   let declaredPlayerCount: number;
   let hostEmail: string;
+  let isConferenceRoom: boolean;
   let participants: Array<{
     participantId?: number;
     userId?: string;
@@ -208,6 +215,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     sessionDuration = sessionData.sessionDuration;
     declaredPlayerCount = sessionData.declaredPlayerCount;
     hostEmail = sessionData.hostEmail;
+    isConferenceRoom = params.isConferenceRoom ?? sessionData.isConferenceRoom;
     participants = sessionData.participants;
     sessionId = sessionData.sessionId;
     currentBookingId = sessionData.bookingId;
@@ -220,6 +228,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     sessionDuration = params.sessionDuration;
     declaredPlayerCount = params.declaredPlayerCount || 1;
     hostEmail = params.hostEmail;
+    isConferenceRoom = params.isConferenceRoom ?? false;
     participants = params.participants;
     sessionId = undefined;
     currentBookingId = params.bookingId;
@@ -314,17 +323,24 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
           ? `AND br.id != $3`
           : '';
       
+      // Filter by resource type to separate simulator vs conference room usage
+      const resourceTypeFilter = isConferenceRoom ? 'conference_room' : 'simulator';
+      const resourceTypeClause = `AND EXISTS (
+        SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $5
+      )`;
+      
       const queryParams = hasTimeFilter
-        ? [emailList.map(e => e.toLowerCase()), sessionDate, effectiveStartTime, currentBookingId || 0]
+        ? [emailList.map(e => e.toLowerCase()), sessionDate, effectiveStartTime, currentBookingId || 0, resourceTypeFilter]
         : hasBookingIdFilter
-          ? [emailList.map(e => e.toLowerCase()), sessionDate, currentBookingId]
-          : [emailList.map(e => e.toLowerCase()), sessionDate];
+          ? [emailList.map(e => e.toLowerCase()), sessionDate, currentBookingId, null, resourceTypeFilter]
+          : [emailList.map(e => e.toLowerCase()), sessionDate, null, null, resourceTypeFilter];
       
       const previewUsageQuery = `
         WITH owned_bookings AS (
           -- Bookings where the member is the owner
           -- Per-participant minutes = duration / player_count
           -- Only count bookings that start EARLIER than current booking
+          -- Filter by resource type (simulator vs conference_room) for separate allowances
           SELECT LOWER(user_email) as identifier, 
                  br.id as booking_id,
                  FLOOR(duration_minutes::float / GREATEST(1, COALESCE(declared_player_count, 1))) as minutes_share
@@ -333,11 +349,13 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
             AND request_date = $2
             AND status IN ('pending', 'approved', 'attended')
             ${timeFilterClause}
+            ${resourceTypeClause}
         ),
         member_bookings AS (
           -- Bookings where the member is a participant (via booking_members table)
           -- Exclude bookings where they are already the owner to prevent double-counting
           -- Only count bookings that start EARLIER than current booking
+          -- Filter by resource type (simulator vs conference_room) for separate allowances
           SELECT LOWER(bm.user_email) as identifier,
                  br.id as booking_id,
                  FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1))) as minutes_share
@@ -348,11 +366,13 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
             AND br.status IN ('pending', 'approved', 'attended')
             AND LOWER(bm.user_email) != LOWER(br.user_email)
             ${timeFilterClause}
+            ${resourceTypeClause}
         ),
         session_participant_bookings AS (
           -- Bookings where the member is a participant (via booking_participants -> booking_sessions)
           -- This handles cases where sessions were created but booking not in booking_members
           -- Only count bookings that start EARLIER than current booking
+          -- Filter by resource type (simulator vs conference_room) for separate allowances
           SELECT LOWER(u.email) as identifier,
                  br.id as booking_id,
                  FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1))) as minutes_share
@@ -365,6 +385,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
             AND br.status IN ('pending', 'approved', 'attended')
             AND LOWER(u.email) != LOWER(br.user_email)
             ${timeFilterClause}
+            ${resourceTypeClause}
         ),
         all_usage AS (
           -- Combine all sources and deduplicate by booking_id + identifier
@@ -383,25 +404,30 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const usageResult = await pool.query(previewUsageQuery, queryParams);
       usageResult.rows.forEach(r => usageMap.set(r.identifier, parseInt(r.used) || 0));
     } else {
+      // Filter by resource type to separate simulator vs conference room usage
+      const resourceTypeFilter = isConferenceRoom ? 'conference_room' : 'simulator';
       const usageQuery = excludeId 
         ? `WITH ledger_usage AS (
              SELECT LOWER(ul.member_id) as identifier, COALESCE(SUM(ul.minutes_charged), 0) as mins
              FROM usage_ledger ul
              JOIN booking_sessions bs ON ul.session_id = bs.id
+             JOIN resources r ON bs.resource_id = r.id
              WHERE LOWER(ul.member_id) = ANY($1::text[])
                AND bs.session_date = $2
                AND ul.session_id != $3
+               AND r.type = $4
              GROUP BY LOWER(ul.member_id)
            ),
            ghost_usage AS (
-             SELECT LOWER(user_email) as identifier, 
-                    COALESCE(SUM(FLOOR(duration_minutes::float / GREATEST(1, COALESCE(declared_player_count, 1)))), 0) as mins
-             FROM booking_requests
-             WHERE LOWER(user_email) = ANY($1::text[])
-               AND request_date = $2
-               AND status IN ('approved', 'confirmed', 'attended')
-               AND session_id IS NULL
-             GROUP BY LOWER(user_email)
+             SELECT LOWER(br.user_email) as identifier, 
+                    COALESCE(SUM(FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1)))), 0) as mins
+             FROM booking_requests br
+             WHERE LOWER(br.user_email) = ANY($1::text[])
+               AND br.request_date = $2
+               AND br.status IN ('approved', 'confirmed', 'attended')
+               AND br.session_id IS NULL
+               AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $4)
+             GROUP BY LOWER(br.user_email)
            )
            SELECT identifier, COALESCE(SUM(mins), 0) as used
            FROM (
@@ -414,19 +440,22 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
              SELECT LOWER(ul.member_id) as identifier, COALESCE(SUM(ul.minutes_charged), 0) as mins
              FROM usage_ledger ul
              JOIN booking_sessions bs ON ul.session_id = bs.id
+             JOIN resources r ON bs.resource_id = r.id
              WHERE LOWER(ul.member_id) = ANY($1::text[])
                AND bs.session_date = $2
+               AND r.type = $3
              GROUP BY LOWER(ul.member_id)
            ),
            ghost_usage AS (
-             SELECT LOWER(user_email) as identifier, 
-                    COALESCE(SUM(FLOOR(duration_minutes::float / GREATEST(1, COALESCE(declared_player_count, 1)))), 0) as mins
-             FROM booking_requests
-             WHERE LOWER(user_email) = ANY($1::text[])
-               AND request_date = $2
-               AND status IN ('approved', 'confirmed', 'attended')
-               AND session_id IS NULL
-             GROUP BY LOWER(user_email)
+             SELECT LOWER(br.user_email) as identifier, 
+                    COALESCE(SUM(FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1)))), 0) as mins
+             FROM booking_requests br
+             WHERE LOWER(br.user_email) = ANY($1::text[])
+               AND br.request_date = $2
+               AND br.status IN ('approved', 'confirmed', 'attended')
+               AND br.session_id IS NULL
+               AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $3)
+             GROUP BY LOWER(br.user_email)
            )
            SELECT identifier, COALESCE(SUM(mins), 0) as used
            FROM (
@@ -436,8 +465,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
            ) combined
            GROUP BY identifier`;
       const usageParams = excludeId 
-        ? [allIdentifiers, sessionDate, excludeId]
-        : [allIdentifiers, sessionDate];
+        ? [allIdentifiers, sessionDate, excludeId, resourceTypeFilter]
+        : [allIdentifiers, sessionDate, resourceTypeFilter];
       const usageResult = await pool.query(usageQuery, usageParams);
       usageResult.rows.forEach(r => usageMap.set(r.identifier, parseInt(r.used) || 0));
     }
@@ -507,7 +536,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         tierName = await getMemberTierByEmail(ownerEmail);
       }
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
-      const dailyAllowance = tierLimits?.daily_sim_minutes ?? 0;
+      // Use conference room minutes for conference room bookings, simulator minutes otherwise
+      const dailyAllowance = isConferenceRoom 
+        ? (tierLimits?.daily_conf_room_minutes ?? 0)
+        : (tierLimits?.daily_sim_minutes ?? 0);
       const unlimitedAccess = tierLimits?.unlimited_access ?? false;
       
       // Use batched usage data - look up by BOTH userId and email
@@ -525,7 +557,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
           unlimitedAccess,
           usedMinutesToday,
           minutesAllocated: minutesPerParticipant,
-          willCalculateOverage: !unlimitedAccess && dailyAllowance < 999
+          willCalculateOverage: !unlimitedAccess && dailyAllowance < 999,
+          isConferenceRoom
         }
       });
       
@@ -564,7 +597,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         tierName = await getMemberTierByEmail(memberEmail);
       }
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
-      const dailyAllowance = tierLimits?.daily_sim_minutes ?? 0;
+      // Use conference room minutes for conference room bookings, simulator minutes otherwise
+      const dailyAllowance = isConferenceRoom 
+        ? (tierLimits?.daily_conf_room_minutes ?? 0)
+        : (tierLimits?.daily_sim_minutes ?? 0);
       const unlimitedAccess = tierLimits?.unlimited_access ?? false;
       
       // Use batched usage data - look up by BOTH userId and email

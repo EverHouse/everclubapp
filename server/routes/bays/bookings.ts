@@ -1111,17 +1111,21 @@ async function calculateFeeEstimate(params: {
   playerCount: number;
   sessionId?: number;
   bookingId?: number;
+  resourceType?: string;
 }) {
-  const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount, sessionId, bookingId } = params;
+  const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount, sessionId, bookingId, resourceType } = params;
   
   const ownerTier = await getMemberTierByEmail(ownerEmail);
   const tierLimits = ownerTier ? await getTierLimits(ownerTier) : null;
   
-  const dailyAllowance = tierLimits?.daily_sim_minutes || 0;
-  const isSocialTier = ownerTier?.toLowerCase() === 'social';
+  // Use conference room minutes for conference room bookings, simulator minutes otherwise
+  const isConferenceRoom = resourceType === 'conference_room';
+  const dailyAllowance = isConferenceRoom 
+    ? (tierLimits?.daily_conf_room_minutes || 0)
+    : (tierLimits?.daily_sim_minutes || 0);
   const isUnlimitedTier = dailyAllowance >= 999;
   
-  const usedMinutesToday = requestDate ? await getDailyBookedMinutes(ownerEmail, requestDate) : 0;
+  const usedMinutesToday = requestDate ? await getDailyBookedMinutes(ownerEmail, requestDate, isConferenceRoom ? 'conference_room' : 'simulator') : 0;
   const perPersonMins = Math.floor(durationMinutes / playerCount);
   
   // Build participants array for fee computation
@@ -1148,7 +1152,7 @@ async function calculateFeeEstimate(params: {
       perPersonMins,
       dailyAllowance,
       usedMinutesToday,
-      isSocialTier,
+      isConferenceRoom,
       isUnlimitedTier,
       guestCount,
       requestDate
@@ -1159,14 +1163,15 @@ async function calculateFeeEstimate(params: {
     // This handles: 1) member preview (no session), 2) staff checking booking without session
     const breakdown = await computeFeeBreakdown(
       sessionId 
-        ? { sessionId, declaredPlayerCount: playerCount, source: 'preview' as const }
+        ? { sessionId, declaredPlayerCount: playerCount, source: 'preview' as const, isConferenceRoom }
         : {
             sessionDate: requestDate,
             sessionDuration: durationMinutes,
             declaredPlayerCount: playerCount,
             hostEmail: ownerEmail,
             participants,
-            source: 'preview' as const
+            source: 'preview' as const,
+            isConferenceRoom
           }
     );
     
@@ -1267,6 +1272,16 @@ router.get('/api/fee-estimate', async (req, res) => {
       const request = booking[0];
       const declaredPlayerCount = (request as any).declaredPlayerCount || 1;
       
+      // Get resource type to determine if this is a conference room booking
+      let resourceType = 'simulator';
+      if (request.resourceId) {
+        const resourceResult = await pool.query(
+          `SELECT type FROM resources WHERE id = $1`,
+          [request.resourceId]
+        );
+        resourceType = resourceResult.rows[0]?.type || 'simulator';
+      }
+      
       // If booking has a session, use actual participant count for accuracy
       let effectivePlayerCount = declaredPlayerCount;
       let guestCount = Math.max(0, declaredPlayerCount - 1);
@@ -1295,7 +1310,8 @@ router.get('/api/fee-estimate', async (req, res) => {
         requestDate: request.requestDate || '',
         playerCount: effectivePlayerCount,
         sessionId: (request as any).sessionId ? parseInt((request as any).sessionId) : undefined,
-        bookingId
+        bookingId,
+        resourceType
       });
       
       return res.json(estimate);
@@ -1306,6 +1322,7 @@ router.get('/api/fee-estimate', async (req, res) => {
     const guestCount = parseInt(req.query.guestCount as string) || 0;
     const playerCount = parseInt(req.query.playerCount as string) || 1;
     const requestDate = (req.query.date as string) || '';
+    const resourceType = (req.query.resourceType as string) || 'simulator';
     
     // Members can only check their own fees
     const ownerEmail = isStaff && req.query.email 
@@ -1317,7 +1334,8 @@ router.get('/api/fee-estimate', async (req, res) => {
       durationMinutes,
       guestCount,
       requestDate,
-      playerCount
+      playerCount,
+      resourceType
     });
     
     res.json({ ...estimate, _ts: Date.now() });
@@ -1356,6 +1374,16 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
     const request = booking[0];
     const declaredPlayerCount = (request as any).declaredPlayerCount || 1;
     
+    // Get resource type to determine if this is a conference room booking
+    let resourceType = 'simulator';
+    if (request.resourceId) {
+      const resourceResult = await pool.query(
+        `SELECT type FROM resources WHERE id = $1`,
+        [request.resourceId]
+      );
+      resourceType = resourceResult.rows[0]?.type || 'simulator';
+    }
+    
     // If booking has a session, use actual participant count for accuracy
     let effectivePlayerCount = declaredPlayerCount;
     let guestCount = Math.max(0, declaredPlayerCount - 1);
@@ -1384,7 +1412,8 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
       requestDate: request.requestDate || '',
       playerCount: effectivePlayerCount,
       sessionId: (request as any).sessionId ? parseInt((request as any).sessionId) : undefined,
-      bookingId
+      bookingId,
+      resourceType
     });
     
     res.json(estimate);

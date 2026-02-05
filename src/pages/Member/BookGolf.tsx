@@ -1264,8 +1264,10 @@ const BookGolf: React.FC = () => {
                     );
                   }
                   
-                  const isSocialTier = effectiveUser?.tier?.toLowerCase() === 'social';
-                  const dailyAllowance = tierPermissions.dailySimulatorMinutes || 0;
+                  // Use conference room minutes for conference tab, simulator minutes otherwise
+                  const dailyAllowance = activeTab === 'conference' 
+                    ? (tierPermissions.dailyConfRoomMinutes || 0)
+                    : (tierPermissions.dailySimulatorMinutes || 0);
                   
                   return availableDurations.map(mins => {
                     // For simulators: split time among players; for conference: full time to user
@@ -1274,9 +1276,7 @@ const BookGolf: React.FC = () => {
                     const recommendedMins = playerCount * 30;
                     
                     const myUsageMinutes = perPersonMins;
-                    const overageMinutes = isSocialTier 
-                      ? myUsageMinutes 
-                      : Math.max(0, (usedMinutesForDay + myUsageMinutes) - dailyAllowance);
+                    const overageMinutes = Math.max(0, (usedMinutesForDay + myUsageMinutes) - dailyAllowance);
                     const overageBlocks = Math.ceil(overageMinutes / 30);
                     const overageFee = overageBlocks * 25;
                     const hasOverage = overageMinutes > 0;

@@ -121,18 +121,31 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
   }
 }
 
-export async function getDailyBookedMinutes(email: string, date: string): Promise<number> {
+export async function getDailyBookedMinutes(email: string, date: string, resourceType?: string): Promise<number> {
   try {
     // Include 'attended' - completed bookings still count toward daily allowance
     // Exclude 'cancelled' and 'no_show' - those don't consume the allowance
-    const result = await pool.query(
-      `SELECT COALESCE(SUM(duration_minutes), 0) as total_minutes
-       FROM booking_requests
-       WHERE LOWER(user_email) = LOWER($1)
-         AND request_date = $2
-         AND status IN ('pending', 'approved', 'attended')`,
-      [email, date]
-    );
+    // Filter by resource type if specified to separate simulator vs conference room usage
+    let query = `
+      SELECT COALESCE(SUM(br.duration_minutes), 0) as total_minutes
+      FROM booking_requests br
+      WHERE LOWER(br.user_email) = LOWER($1)
+        AND br.request_date = $2
+        AND br.status IN ('pending', 'approved', 'attended')`;
+    
+    const params: any[] = [email, date];
+    
+    // Filter by resource type if specified
+    if (resourceType) {
+      query += `
+        AND EXISTS (
+          SELECT 1 FROM resources r 
+          WHERE r.id = br.resource_id AND r.type = $3
+        )`;
+      params.push(resourceType);
+    }
+    
+    const result = await pool.query(query, params);
     
     return parseInt(result.rows[0].total_minutes) || 0;
   } catch (error) {
