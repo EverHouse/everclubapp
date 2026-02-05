@@ -233,12 +233,30 @@ export function StaffManualBookingModal({
       .then(slots => {
         setConfAvailableSlots(slots);
         if (slots.length > 0) {
-          setConfSelectedSlot(slots[0]);
+          let selectedSlot = slots[0];
+          
+          // Try to pre-select the clicked time slot
+          if (defaultStartTime) {
+            // First try exact match
+            if (slots.includes(defaultStartTime)) {
+              selectedSlot = defaultStartTime;
+            } else {
+              // Round to nearest 30-minute slot (conference room slots are 30-min intervals)
+              const [hours, mins] = defaultStartTime.split(':').map(Number);
+              const roundedMins = mins < 30 ? 0 : 30;
+              const roundedSlot = `${String(hours).padStart(2, '0')}:${String(roundedMins).padStart(2, '0')}`;
+              if (slots.includes(roundedSlot)) {
+                selectedSlot = roundedSlot;
+              }
+            }
+          }
+          
+          setConfSelectedSlot(selectedSlot);
         }
       })
       .catch(err => console.error('Failed to load available slots:', err))
       .finally(() => setConfLoadingSlots(false));
-  }, [mode, confDate, confDuration]);
+  }, [mode, confDate, confDuration, defaultStartTime]);
 
   // Fetch fee estimate when host member or date/duration changes
   useEffect(() => {

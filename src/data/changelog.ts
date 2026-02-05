@@ -19,6 +19,7 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed: Duration options now adjust based on player count in staff manual booking modal",
       "Fixed: Clicking a conference room cell now opens the modal to the Conference Room tab",
+      "Fixed: Conference room time slot now pre-selects based on the clicked cell",
       "Improved: Reordered fields so Player Count appears before Duration for better UX"
     ]
   },
