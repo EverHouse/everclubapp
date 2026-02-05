@@ -546,6 +546,50 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         data: { bookingId: parseInt(id, 10), eventType: 'booking_approved' }
       }, { action: 'booking_approved', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
       
+      // Notify participants (excluding owner) that they've been added to the approved booking
+      if (updated.userEmail) {
+        (async () => {
+          try {
+            const participantsResult = await pool.query(
+              `SELECT bm.user_email 
+               FROM booking_members bm
+               WHERE bm.booking_id = $1 
+                 AND bm.user_email IS NOT NULL 
+                 AND bm.user_email != ''
+                 AND LOWER(bm.user_email) != LOWER($2)
+                 AND bm.is_primary = false`,
+              [bookingId, updated.userEmail]
+            );
+            
+            const ownerName = updated.userName || updated.userEmail?.split('@')[0] || 'A member';
+            const formattedDate = formatDateDisplayWithDay(updated.requestDate);
+            const formattedTime = formatTime12Hour(updated.startTime || '');
+            
+            for (const participant of participantsResult.rows) {
+              const participantEmail = participant.user_email?.toLowerCase();
+              if (!participantEmail) continue;
+              
+              const notificationMsg = `${ownerName} has added you to their simulator booking on ${formattedDate} at ${formattedTime}.`;
+              
+              await pool.query(
+                `INSERT INTO notifications (user_email, title, message, type, related_type, related_id, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+                [participantEmail, 'Added to Booking', notificationMsg, 'booking', 'booking', bookingId]
+              );
+              
+              sendNotificationToUser(participantEmail, {
+                type: 'notification',
+                title: 'Added to Booking',
+                message: notificationMsg,
+                data: { bookingId: bookingId.toString(), eventType: 'booking_participant_added' }
+              }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' });
+            }
+          } catch (notifyErr) {
+            console.error('[Approval] Failed to notify participants (non-blocking):', notifyErr);
+          }
+        })();
+      }
+      
       return res.json(formatRow(updated));
     }
     
@@ -1653,6 +1697,51 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
       message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
       data: { bookingId: bookingId.toString(), eventType: 'booking_confirmed' }
     }, { action: 'booking_confirmed', bookingId, triggerSource: 'approval.ts' });
+
+    // Notify participants (excluding owner) that they've been added to the booking
+    if (booking.user_email) {
+      try {
+        const participantsResult = await pool.query(
+          `SELECT bm.user_email, u.first_name, u.last_name 
+           FROM booking_members bm
+           LEFT JOIN users u ON LOWER(u.email) = LOWER(bm.user_email)
+           WHERE bm.booking_id = $1 
+             AND bm.user_email IS NOT NULL 
+             AND bm.user_email != ''
+             AND bm.is_primary = false
+             AND LOWER(bm.user_email) != LOWER($2)`,
+          [bookingId, booking.user_email]
+        );
+        
+        const ownerName = booking.user_name || booking.user_email?.split('@')[0] || 'A member';
+        const formattedDate = formatDateDisplayWithDay(dateStr);
+        const formattedTime = formatTime12Hour(timeStr);
+        
+        for (const participant of participantsResult.rows) {
+          const participantEmail = participant.user_email?.toLowerCase();
+          if (!participantEmail) continue;
+          
+          const notificationMsg = `${ownerName} has added you to their simulator booking on ${formattedDate} at ${formattedTime}.`;
+          
+          await pool.query(
+            `INSERT INTO notifications (user_email, title, message, type, related_type, related_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+            [participantEmail, 'Added to Booking', notificationMsg, 'booking', 'booking', bookingId]
+          );
+          
+          sendNotificationToUser(participantEmail, {
+            type: 'notification',
+            title: 'Added to Booking',
+            message: notificationMsg,
+            data: { bookingId: bookingId.toString(), eventType: 'booking_participant_added' }
+          }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' });
+          
+          console.log(`[Dev Confirm] Sent 'Added to Booking' notification to ${participantEmail} for booking ${bookingId}`);
+        }
+      } catch (notifyErr) {
+        console.error('[Dev Confirm] Failed to notify participants (non-blocking):', notifyErr);
+      }
+    }
 
     res.json({ 
       success: true, 

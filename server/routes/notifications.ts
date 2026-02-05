@@ -59,7 +59,22 @@ router.get('/api/notifications', isAuthenticated, async (req, res) => {
     query += ' ORDER BY created_at DESC LIMIT 50';
     
     const result = await queryWithRetry(query, params);
-    res.json(result.rows);
+    
+    // Convert timestamps to proper ISO format for UTC interpretation
+    // Database stores 'timestamp without time zone' in UTC, but pg driver returns it without 'Z' suffix
+    const notifications = result.rows.map((row: any) => {
+      if (!row.created_at) return row;
+      
+      const createdAtStr = String(row.created_at);
+      // If already has timezone info (ISO format with Z or offset), use as-is
+      if (createdAtStr.includes('Z') || /[+-]\d{2}:\d{2}$/.test(createdAtStr)) {
+        return { ...row, created_at: new Date(createdAtStr).toISOString() };
+      }
+      // Otherwise, assume UTC and append 'Z' before parsing
+      return { ...row, created_at: new Date(createdAtStr + 'Z').toISOString() };
+    });
+    
+    res.json(notifications);
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to fetch notifications', error, 'NOTIFICATIONS_FETCH_ERROR');
   }

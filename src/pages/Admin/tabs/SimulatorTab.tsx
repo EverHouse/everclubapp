@@ -2229,10 +2229,20 @@ const SimulatorTab: React.FC = () => {
                                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
                                                                         Checked In
                                                                     </span>
-                                                                ) : !isConferenceRoom && isToday && (booking.has_unpaid_fees || estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, (booking as any).declared_player_count || 1) > 0) ? (
+                                                                ) : !isConferenceRoom && isToday && (() => {
+                                                                    const declPlayers = (booking as any).declared_player_count || 1;
+                                                                    const filledPlayers = (booking as any).filled_player_count || 0;
+                                                                    const dbOwed = booking.total_owed || 0;
+                                                                    const estimatedFee = estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers);
+                                                                    // Only show fee button if: actual fees owed OR (roster incomplete AND estimated fees > 0)
+                                                                    return booking.has_unpaid_fees === true || dbOwed > 0 || (filledPlayers < declPlayers && estimatedFee > 0);
+                                                                })() ? (
                                                                     (() => {
-                                                                        const estimatedFee = booking.total_owed || estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, (booking as any).declared_player_count || 1);
-                                                                        const isEstimate = !booking.has_unpaid_fees;
+                                                                        const declPlayers = (booking as any).declared_player_count || 1;
+                                                                        const filledPlayers = (booking as any).filled_player_count || 0;
+                                                                        const dbOwed = booking.total_owed || 0;
+                                                                        const estimatedFee = dbOwed > 0 ? dbOwed : (filledPlayers < declPlayers ? estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers) : 0);
+                                                                        const isEstimate = !booking.has_unpaid_fees && dbOwed === 0;
                                                                         return (
                                                                             <button
                                                                                 onClick={() => {
@@ -2557,8 +2567,12 @@ const SimulatorTab: React.FC = () => {
                                                                 const declaredPlayers = (booking as any)?.declared_player_count ?? 1;
                                                                 const filledSlots = Math.max(0, declaredPlayers - unfilledSlots);
                                                                 const estimatedFromTier = estimateFeeByTier((booking as any)?.tier, (booking as any)?.duration_minutes || 0, declaredPlayers);
-                                                                const hasUnpaidFees = ((booking as any)?.has_unpaid_fees ?? false) || estimatedFromTier > 0;
-                                                                const totalOwed = (booking as any)?.total_owed || estimatedFromTier;
+                                                                // Only use estimate for incomplete rosters; use actual database value when roster is complete
+                                                                const dbTotalOwed = (booking as any)?.total_owed ?? 0;
+                                                                const hasUnpaidFees = ((booking as any)?.has_unpaid_fees === true) || 
+                                                                    (dbTotalOwed > 0) || 
+                                                                    (filledSlots < declaredPlayers && estimatedFromTier > 0);
+                                                                const totalOwed = dbTotalOwed > 0 ? dbTotalOwed : (filledSlots < declaredPlayers ? estimatedFromTier : 0);
                                                                 const isPartialRoster = !isConference && declaredPlayers > 1 && filledSlots < declaredPlayers;
                                                                 const textColor = isConference 
                                                                     ? 'text-purple-700 dark:text-purple-300' 

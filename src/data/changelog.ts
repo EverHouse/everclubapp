@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.6.4",
+    date: "2026-02-05",
+    title: "Fixed: Notification Timestamps & Participant Alerts",
+    changes: [
+      "Fixed: Notification timestamps now correctly display in Pacific time instead of showing 8 hours ahead",
+      "Fixed: Staff calendar no longer shows false '$50 owed' indicators for complete rosters",
+      "Fixed: Staff calendar now correctly shows actual participant count (e.g., '3/3 slots filled') instead of erroneous estimates",
+      "Added: Participants now receive 'Added to Booking' notifications when they are added to approved bookings",
+      "Improved: Fee estimation now only shows for incomplete rosters; complete rosters use actual database values"
+    ]
+  },
+  {
     version: "69.6.3",
     date: "2026-02-04",
     title: "Fixed: Booking Participant Tracking",
