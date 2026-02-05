@@ -739,7 +739,11 @@ export async function addCorporateMember(params: {
         console.log(`[GroupBilling] Created new user ${params.memberEmail} with tier ${params.memberTier}`);
       }
 
-      if (group[0].primaryStripeSubscriptionId) {
+      const hasPrePaidSeats = group[0].maxSeats && group[0].maxSeats > 0;
+      
+      if (hasPrePaidSeats) {
+        console.log(`[GroupBilling] Pre-paid seats mode: ${newMemberCount} of ${group[0].maxSeats} seats used (no Stripe billing change needed)`);
+      } else if (group[0].primaryStripeSubscriptionId) {
         try {
           const stripe = await getStripeClient();
           const subscription = await stripe.subscriptions.retrieve(group[0].primaryStripeSubscriptionId, {
@@ -788,6 +792,8 @@ export async function addCorporateMember(params: {
               });
             }
             stripeUpdated = true;
+          } else {
+            console.log('[GroupBilling] No corporate_membership item found - assuming pre-paid seats via checkout');
           }
         } catch (stripeErr: any) {
           console.error('[GroupBilling] Stripe API failed, rolling back DB reservation:', stripeErr);

@@ -543,7 +543,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wide">
                     {isCorporateGroup && familyGroup.maxSeats
-                      ? `${familyGroup.members.length} of ${familyGroup.maxSeats} seats filled`
+                      ? `${familyGroup.members.length + 1} of ${familyGroup.maxSeats} seats filled`
                       : `Group Members (${familyGroup.members.length})`}
                   </p>
                   {isPrimaryPayer && (
@@ -560,7 +560,7 @@ const GroupBillingManager: React.FC<GroupBillingManagerProps> = ({ memberEmail }
                 {familyGroup.members.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
                     {isCorporateGroup && familyGroup.maxSeats
-                      ? `${familyGroup.maxSeats} seats available`
+                      ? `${familyGroup.maxSeats - 1} seats available`
                       : 'No add-on members yet'}
                   </p>
                 ) : (
