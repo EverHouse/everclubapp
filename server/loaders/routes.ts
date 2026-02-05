@@ -50,6 +50,7 @@ import staffManualBookingRouter from '../routes/staff/manualBooking';
 import staffRouter from '../routes/staff';
 import tierFeaturesRouter from '../routes/tierFeatures';
 import resendWebhooksRouter from '../routes/resendWebhooks';
+import conferencePrepaymentRouter from '../routes/conference/prepayment';
 import { registerObjectStorageRoutes } from '../replit_integrations/object_storage';
 
 export function registerRoutes(app: Express): void {
@@ -103,5 +104,6 @@ export function registerRoutes(app: Express): void {
   app.use(staffRouter);
   app.use(tierFeaturesRouter);
   app.use(resendWebhooksRouter);
+  app.use(conferencePrepaymentRouter);
   registerObjectStorageRoutes(app);
 }

@@ -146,5 +146,35 @@ export const guestPassHolds = pgTable(
 
 export type GuestPassHold = typeof guestPassHolds.$inferSelect;
 
+// --- Conference Prepayments Table ---
+// Tracks prepayments for conference room bookings with overage fees
+export const conferencePrepayments = pgTable(
+  "conference_prepayments",
+  {
+    id: serial("id").primaryKey(),
+    memberEmail: varchar("member_email", { length: 255 }).notNull(),
+    bookingDate: varchar("booking_date", { length: 10 }).notNull(),
+    startTime: varchar("start_time", { length: 8 }).notNull(),
+    durationMinutes: integer("duration_minutes").notNull(),
+    amountCents: integer("amount_cents").notNull().default(0),
+    paymentType: varchar("payment_type", { length: 20 }).notNull().default('stripe'),
+    paymentIntentId: varchar("payment_intent_id", { length: 255 }),
+    creditReferenceId: varchar("credit_reference_id", { length: 255 }),
+    status: varchar("status", { length: 20 }).notNull().default('pending'),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    bookingId: integer("booking_id"),
+  },
+  (table) => [
+    index("idx_conference_prepayments_member_email").on(table.memberEmail),
+    index("idx_conference_prepayments_status").on(table.status),
+    index("idx_conference_prepayments_payment_intent").on(table.paymentIntentId),
+    index("idx_conference_prepayments_booking_date").on(table.bookingDate),
+  ],
+);
+
+export type ConferencePrepayment = typeof conferencePrepayments.$inferSelect;
+
 // Note: billingGroups, groupMembers, and familyAddOnProducts are defined in hubspot-billing.ts
 // to avoid duplicate exports. Import them from there or from the main schema.

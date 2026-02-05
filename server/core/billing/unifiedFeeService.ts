@@ -314,30 +314,34 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const hasTimeFilter = effectiveStartTime !== undefined;
       const hasBookingIdFilter = currentBookingId !== undefined;
       
-      // Filter clause: only count bookings that started earlier OR same time with lower ID
-      // This ensures deterministic ordering and the current booking is excluded
-      // IMPORTANT: Handle NULL start_time values with COALESCE - NULL times are treated as midnight (earliest)
-      // This ensures legacy bookings without start_time don't break the ordering logic
-      const timeFilterClause = hasTimeFilter 
-        ? `AND (
-             COALESCE(br.start_time, '00:00:00') < $3 
-             OR (COALESCE(br.start_time, '00:00:00') = $3 AND br.id < COALESCE($4, 0))
-           )`
-        : hasBookingIdFilter
-          ? `AND br.id != $3`
-          : '';
-      
       // Filter by resource type to separate simulator vs conference room usage
       const resourceTypeFilter = isConferenceRoom ? 'conference_room' : 'simulator';
-      const resourceTypeClause = `AND EXISTS (
-        SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $5
-      )`;
       
-      const queryParams = hasTimeFilter
-        ? [emailList.map(e => e.toLowerCase()), sessionDate, effectiveStartTime, currentBookingId || 0, resourceTypeFilter]
-        : hasBookingIdFilter
-          ? [emailList.map(e => e.toLowerCase()), sessionDate, currentBookingId, null, resourceTypeFilter]
-          : [emailList.map(e => e.toLowerCase()), sessionDate, null, null, resourceTypeFilter];
+      // Dynamically build query params and clauses to avoid passing unused null params
+      // which causes PostgreSQL to fail with "could not determine data type of parameter"
+      let queryParams: any[];
+      let timeFilterClause: string;
+      let resourceTypeClause: string;
+      
+      if (hasTimeFilter) {
+        // Params: $1=emails, $2=date, $3=startTime, $4=bookingId, $5=resourceType
+        queryParams = [emailList.map(e => e.toLowerCase()), sessionDate, effectiveStartTime, currentBookingId || 0, resourceTypeFilter];
+        timeFilterClause = `AND (
+             COALESCE(br.start_time, '00:00:00') < $3 
+             OR (COALESCE(br.start_time, '00:00:00') = $3 AND br.id < COALESCE($4, 0))
+           )`;
+        resourceTypeClause = `AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $5)`;
+      } else if (hasBookingIdFilter) {
+        // Params: $1=emails, $2=date, $3=bookingId, $4=resourceType
+        queryParams = [emailList.map(e => e.toLowerCase()), sessionDate, currentBookingId, resourceTypeFilter];
+        timeFilterClause = `AND br.id != $3`;
+        resourceTypeClause = `AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $4)`;
+      } else {
+        // Params: $1=emails, $2=date, $3=resourceType
+        queryParams = [emailList.map(e => e.toLowerCase()), sessionDate, resourceTypeFilter];
+        timeFilterClause = '';
+        resourceTypeClause = `AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $3)`;
+      }
       
       const previewUsageQuery = `
         WITH owned_bookings AS (
