@@ -114,10 +114,14 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
         const subscriptionsResult = await listCustomerSubscriptions(member.stripe_customer_id);
         if (subscriptionsResult.success) {
           billingInfo.subscriptions = subscriptionsResult.subscriptions;
+          console.log(`[MemberBilling] Found ${subscriptionsResult.subscriptions?.length || 0} subscriptions for ${member.email}:`, 
+            subscriptionsResult.subscriptions?.map(s => ({ id: s.id, status: s.status })));
           const activeSub = subscriptionsResult.subscriptions?.find(
-            s => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
+            s => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due' || s.status === 'incomplete'
           );
           billingInfo.activeSubscription = activeSub || null;
+        } else {
+          console.log(`[MemberBilling] Failed to fetch subscriptions for ${member.email}:`, subscriptionsResult.error);
         }
 
         const paymentMethods = await stripe.paymentMethods.list({
