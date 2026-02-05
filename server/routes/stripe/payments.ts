@@ -1856,6 +1856,76 @@ router.get('/api/payments/pending-authorizations', isStaffOrAdmin, async (req: R
   }
 });
 
+router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        br.id as booking_id,
+        br.user_email,
+        br.user_name,
+        br.request_date,
+        br.start_time,
+        br.end_time,
+        br.session_id,
+        br.status,
+        br.player_count,
+        r.name as resource_name,
+        r.type as resource_type,
+        u.tier,
+        u.first_name,
+        u.last_name,
+        COALESCE(
+          (SELECT SUM(bp.cached_fee_cents) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.payment_status IN ('pending', NULL)),
+          0
+        ) as pending_fee_cents,
+        COALESCE(
+          (SELECT SUM(ul.overage_fee * 100 + ul.guest_fee * 100) FROM usage_ledger ul WHERE ul.session_id = br.session_id),
+          0
+        ) as ledger_fee_cents,
+        (SELECT COUNT(*) FROM stripe_payment_intents spi WHERE spi.booking_id = br.id AND spi.status NOT IN ('succeeded', 'canceled')) as pending_intent_count,
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type = 'guest') as guest_count
+      FROM booking_requests br
+      LEFT JOIN resources r ON r.id = br.bay_id
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+      WHERE br.status IN ('approved', 'confirmed')
+      AND br.request_date >= CURRENT_DATE
+      AND r.type != 'conference_room'
+      ORDER BY br.request_date, br.start_time
+      LIMIT 50
+    `);
+
+    const futureBookings = result.rows.map(row => {
+      const totalFeeCents = Math.max(
+        parseInt(row.pending_fee_cents) || 0,
+        parseInt(row.ledger_fee_cents) || 0
+      );
+      
+      return {
+        bookingId: row.booking_id,
+        memberEmail: row.user_email,
+        memberName: row.first_name && row.last_name 
+          ? `${row.first_name} ${row.last_name}` 
+          : row.user_name || row.user_email,
+        tier: row.tier,
+        date: row.request_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        resourceName: row.resource_name,
+        status: row.status,
+        playerCount: row.player_count || 1,
+        guestCount: parseInt(row.guest_count) || 0,
+        estimatedFeeCents: totalFeeCents,
+        hasPaymentIntent: parseInt(row.pending_intent_count) > 0
+      };
+    });
+
+    res.json(futureBookings);
+  } catch (error: any) {
+    console.error('[Payments] Error fetching future bookings with fees:', error);
+    res.status(500).json({ error: 'Failed to fetch future bookings' });
+  }
+});
+
 router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents } = req.body;

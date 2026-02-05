@@ -66,6 +66,22 @@ interface RefundablePayment {
   status: string;
 }
 
+interface FutureBookingWithFees {
+  bookingId: number;
+  memberEmail: string;
+  memberName: string;
+  tier: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  resourceName: string;
+  status: string;
+  playerCount: number;
+  guestCount: number;
+  estimatedFeeCents: number;
+  hasPaymentIntent: boolean;
+}
+
 interface SubscriptionListItem {
   id: string;
   memberEmail: string;
@@ -99,6 +115,7 @@ export const financialsKeys = {
   overduePayments: () => [...financialsKeys.all, 'overdue-payments'] as const,
   failedPayments: () => [...financialsKeys.all, 'failed-payments'] as const,
   pendingAuthorizations: () => [...financialsKeys.all, 'pending-authorizations'] as const,
+  futureBookingsWithFees: () => [...financialsKeys.all, 'future-bookings-with-fees'] as const,
   refundablePayments: () => [...financialsKeys.all, 'refundable-payments'] as const,
   subscriptions: (status?: string) => [...financialsKeys.all, 'subscriptions', { status }] as const,
   invoices: (params?: { status?: string; startDate?: string; endDate?: string }) => 
@@ -134,6 +151,16 @@ export function usePendingAuthorizations() {
     queryKey: financialsKeys.pendingAuthorizations(),
     queryFn: async () => {
       const data = await fetchWithCredentials<PendingAuthorization[]>('/api/payments/pending-authorizations');
+      return Array.isArray(data) ? data : [];
+    },
+  });
+}
+
+export function useFutureBookingsWithFees() {
+  return useQuery({
+    queryKey: financialsKeys.futureBookingsWithFees(),
+    queryFn: async () => {
+      const data = await fetchWithCredentials<FutureBookingWithFees[]>('/api/payments/future-bookings-with-fees');
       return Array.isArray(data) ? data : [];
     },
   });

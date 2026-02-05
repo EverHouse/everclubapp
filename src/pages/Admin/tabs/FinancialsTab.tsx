@@ -20,6 +20,7 @@ import {
   useOverduePayments,
   useFailedPayments,
   usePendingAuthorizations,
+  useFutureBookingsWithFees,
   useRefundablePayments,
   useSubscriptions,
   useInvoices,
@@ -424,6 +425,7 @@ const DesktopPaymentsView: React.FC = () => {
           <RecentTransactionsSection ref={transactionListRef} variant="card" />
         </div>
         <PendingAuthorizationsSection variant="card" />
+        <FutureBookingsSection variant="card" />
         <OverduePaymentsPanel variant="card" />
         <FailedPaymentsSection variant="card" />
         <RefundsSection variant="card" />
@@ -909,6 +911,119 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
 };
 
 const MAX_RETRY_ATTEMPTS = 3;
+
+const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
+  const { data: futureBookings = [], isLoading: loading } = useFutureBookingsWithFees();
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const content = loading ? (
+    <div className="flex items-center justify-center py-8">
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-green-500 border-t-transparent" />
+    </div>
+  ) : futureBookings.length === 0 ? (
+    <EmptyState 
+      icon="event_available" 
+      title="No upcoming bookings"
+      description="No approved future bookings found"
+    />
+  ) : (
+    <div className="space-y-3">
+      {futureBookings.map((booking) => (
+        <div 
+          key={booking.bookingId}
+          className="flex items-center justify-between p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/10 dark:border-white/10"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-primary dark:text-white truncate">
+                {booking.memberName}
+              </span>
+              {booking.tier && (
+                <span className="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded">
+                  {booking.tier}
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-primary/60 dark:text-white/60 flex items-center gap-2 mt-1">
+              <span>{booking.resourceName}</span>
+              <span className="text-primary/30 dark:text-white/30">|</span>
+              <span>{formatDate(booking.date)}</span>
+              <span className="text-primary/30 dark:text-white/30">|</span>
+              <span>{formatTime12Hour(booking.startTime)}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              {booking.playerCount > 1 && (
+                <span className="text-xs text-primary/50 dark:text-white/50">
+                  {booking.playerCount} players
+                </span>
+              )}
+              {booking.guestCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded">
+                  {booking.guestCount} guest{booking.guestCount > 1 ? 's' : ''}
+                </span>
+              )}
+              {booking.hasPaymentIntent && (
+                <span className="text-xs px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded">
+                  Payment pending
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            {booking.estimatedFeeCents > 0 ? (
+              <span className="font-bold text-green-600 dark:text-green-400">
+                ${(booking.estimatedFeeCents / 100).toFixed(2)}
+              </span>
+            ) : (
+              <span className="text-sm text-primary/40 dark:text-white/40">No fees</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (variant === 'card') {
+    return (
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
+          <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
+          {futureBookings.length > 0 && (
+            <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
+              {futureBookings.length}
+            </span>
+          )}
+        </div>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-green-600 dark:text-green-400">event_upcoming</span>
+          <h3 className="font-bold text-primary dark:text-white">Future Bookings</h3>
+          {futureBookings.length > 0 && (
+            <span className="px-2 py-0.5 text-xs font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-full">
+              {futureBookings.length}
+            </span>
+          )}
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+          <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
+        </button>
+      </div>
+      {content}
+    </div>
+  );
+};
 
 const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
   const { data: failedPayments = [], isLoading: loading } = useFailedPayments();
