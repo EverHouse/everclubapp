@@ -651,10 +651,24 @@ router.post('/api/booking-requests', async (req, res) => {
       
       // Link prepayment to booking if conference room with overage fees
       if (linkedPrepaymentId) {
-        await client.query(
-          `UPDATE conference_prepayments SET booking_id = $1 WHERE id = $2`,
+        // Update conference_prepayments with booking_id and get payment references
+        const prepaymentUpdate = await client.query(
+          `UPDATE conference_prepayments SET booking_id = $1 WHERE id = $2 
+           RETURNING credit_reference_id, payment_intent_id`,
           [insertResult.rows[0].id, linkedPrepaymentId]
         );
+        
+        // Also update stripe_payment_intents so cancellation cascade can find it for refunds
+        // credit_reference_id is used for credit payments (balance-xxx), payment_intent_id for card payments (pi_xxx)
+        const stripeRef = prepaymentUpdate.rows[0]?.credit_reference_id || prepaymentUpdate.rows[0]?.payment_intent_id;
+        if (stripeRef) {
+          await client.query(
+            `UPDATE stripe_payment_intents SET booking_id = $1, updated_at = NOW() 
+             WHERE stripe_payment_intent_id = $2`,
+            [insertResult.rows[0].id, stripeRef]
+          );
+        }
+        
         console.log(`[Booking] Linked prepayment ${linkedPrepaymentId} to conference room booking ${insertResult.rows[0].id}`);
       }
       

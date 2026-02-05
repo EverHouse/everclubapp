@@ -178,12 +178,24 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
             }
           );
 
+          // Use consistent format with 'balance-' prefix for refund tracking
+          const balanceRef = `balance-${balanceTransaction.id}`;
+
           const prepaymentResult = await pool.query(
             `INSERT INTO conference_prepayments 
              (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
              VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
              RETURNING id`,
-            [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceTransaction.id, expiresAt]
+            [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceRef, expiresAt]
+          );
+
+          // Insert into stripe_payment_intents for cancellation refund tracking
+          await pool.query(
+            `INSERT INTO stripe_payment_intents 
+             (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, 'prepayment', $5, 'succeeded', NOW(), NOW())
+             ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
+            [normalizedEmail, balanceRef, stripeCustomerId, totalCents, description]
           );
 
           logger.info('[ConferencePrepay] Credit applied successfully', {
@@ -191,14 +203,14 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
               prepaymentId: prepaymentResult.rows[0].id, 
               memberEmail: normalizedEmail, 
               amountCents: totalCents,
-              creditReferenceId: balanceTransaction.id
+              balanceRef
             }
           });
 
           return res.json({
             creditApplied: true,
             amountCents: totalCents,
-            creditReferenceId: balanceTransaction.id,
+            creditReferenceId: balanceRef,
             prepaymentId: prepaymentResult.rows[0].id,
             paymentRequired: false
           });
@@ -231,26 +243,30 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
     }
 
     if (result.paidInFull) {
+      // Store with 'balance-' prefix to match stripe_payment_intents format
+      const balanceRef = `balance-${result.balanceTransactionId}`;
+      
       const prepaymentResult = await pool.query(
         `INSERT INTO conference_prepayments 
          (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
          VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
          RETURNING id`,
-        [normalizedEmail, date, startTime, durationMinutes, totalCents, result.balanceTransactionId, expiresAt]
+        [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceRef, expiresAt]
       );
 
       logger.info('[ConferencePrepay] Paid in full via balance', {
         extra: { 
           prepaymentId: prepaymentResult.rows[0].id,
           memberEmail: normalizedEmail, 
-          amountCents: totalCents
+          amountCents: totalCents,
+          balanceRef
         }
       });
 
       return res.json({
         creditApplied: true,
         amountCents: totalCents,
-        creditReferenceId: result.balanceTransactionId,
+        creditReferenceId: balanceRef,
         prepaymentId: prepaymentResult.rows[0].id,
         paymentRequired: false
       });
@@ -341,9 +357,14 @@ router.post('/api/member/conference/prepay/:id/confirm', async (req: Request, re
       [prepaymentId]
     );
 
+    // Insert into stripe_payment_intents for refund tracking (or update if exists)
     await pool.query(
-      `UPDATE stripe_payment_intents SET status = 'succeeded', updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-      [paymentIntentId]
+      `INSERT INTO stripe_payment_intents 
+       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'prepayment', 'Conference room prepayment', 'succeeded', NOW(), NOW())
+       ON CONFLICT (stripe_payment_intent_id) 
+       DO UPDATE SET status = 'succeeded', updated_at = NOW()`,
+      [prepayment.member_email, paymentIntentId, paymentIntent.customer, prepayment.amount_cents]
     );
 
     logger.info('[ConferencePrepay] Payment confirmed', {

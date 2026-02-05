@@ -154,9 +154,9 @@ async function handleCancellationCascade(
 
     // Refund succeeded prepayment intents
     const succeededIntents = await pool.query(
-      `SELECT stripe_payment_intent_id, amount_cents
-       FROM stripe_payment_intents 
-       WHERE booking_id = $1 AND purpose = 'prepayment' AND status = 'succeeded'`,
+      `SELECT spi.stripe_payment_intent_id, spi.amount_cents, spi.stripe_customer_id, spi.user_id
+       FROM stripe_payment_intents spi
+       WHERE spi.booking_id = $1 AND spi.purpose = 'prepayment' AND spi.status = 'succeeded'`,
       [bookingId]
     );
 
@@ -180,50 +180,88 @@ async function handleCancellationCascade(
         }
         
         const stripe = await getStripeClient();
-        const paymentIntent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
         
-        if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
-          // Use idempotency key to prevent Stripe-side duplicates
-          const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
-          
-          const refund = await stripe.refunds.create({
-            charge: typeof paymentIntent.latest_charge === 'string' 
-              ? paymentIntent.latest_charge 
-              : paymentIntent.latest_charge.id,
-            reason: 'requested_by_customer',
-            metadata: {
-              reason: 'booking_cancellation',
-              bookingId: bookingId.toString()
-            }
-          }, {
-            idempotencyKey
-          });
-          
-          // Update local record to refunded
-          await pool.query(
-            `UPDATE stripe_payment_intents 
-             SET status = 'refunded', updated_at = NOW() 
-             WHERE stripe_payment_intent_id = $1`,
-            [row.stripe_payment_intent_id]
-          );
-          
-          result.prepaymentRefunds++;
-          logger.info('[cancellation-cascade] Refunded prepayment', {
-            extra: { 
-              bookingId, 
-              paymentIntentId: row.stripe_payment_intent_id,
-              refundId: refund.id,
-              amountCents: row.amount_cents
-            }
-          });
+        // Handle credit-based prepayments (balance-xxx IDs) vs card-based (pi_xxx IDs)
+        if (row.stripe_payment_intent_id.startsWith('balance-')) {
+          // Credit-based payment: add credit back to customer's balance
+          if (row.stripe_customer_id) {
+            const balanceTransaction = await stripe.customers.createBalanceTransaction(
+              row.stripe_customer_id,
+              {
+                amount: -row.amount_cents, // Negative = add credit
+                currency: 'usd',
+                description: `Refund for cancelled booking #${bookingId}`,
+              }
+            );
+            
+            await pool.query(
+              `UPDATE stripe_payment_intents 
+               SET status = 'refunded', updated_at = NOW() 
+               WHERE stripe_payment_intent_id = $1`,
+              [row.stripe_payment_intent_id]
+            );
+            
+            result.prepaymentRefunds++;
+            logger.info('[cancellation-cascade] Credited balance for cancelled prepayment', {
+              extra: { 
+                bookingId, 
+                paymentIntentId: row.stripe_payment_intent_id,
+                balanceTransactionId: balanceTransaction.id,
+                amountCents: row.amount_cents
+              }
+            });
+          } else {
+            logger.warn('[cancellation-cascade] Cannot refund balance - no customer ID', {
+              extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
+            });
+          }
         } else {
-          // Payment intent not in expected state, revert claim
-          await pool.query(
-            `UPDATE stripe_payment_intents 
-             SET status = 'succeeded', updated_at = NOW() 
-             WHERE stripe_payment_intent_id = $1`,
-            [row.stripe_payment_intent_id]
-          );
+          // Card-based payment: refund via Stripe
+          const paymentIntent = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
+          
+          if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
+            // Use idempotency key to prevent Stripe-side duplicates
+            const idempotencyKey = `refund-booking-${bookingId}-${row.stripe_payment_intent_id}`;
+            
+            const refund = await stripe.refunds.create({
+              charge: typeof paymentIntent.latest_charge === 'string' 
+                ? paymentIntent.latest_charge 
+                : paymentIntent.latest_charge.id,
+              reason: 'requested_by_customer',
+              metadata: {
+                reason: 'booking_cancellation',
+                bookingId: bookingId.toString()
+              }
+            }, {
+              idempotencyKey
+            });
+            
+            // Update local record to refunded
+            await pool.query(
+              `UPDATE stripe_payment_intents 
+               SET status = 'refunded', updated_at = NOW() 
+               WHERE stripe_payment_intent_id = $1`,
+              [row.stripe_payment_intent_id]
+            );
+            
+            result.prepaymentRefunds++;
+            logger.info('[cancellation-cascade] Refunded prepayment', {
+              extra: { 
+                bookingId, 
+                paymentIntentId: row.stripe_payment_intent_id,
+                refundId: refund.id,
+                amountCents: row.amount_cents
+              }
+            });
+          } else {
+            // Payment intent not in expected state, revert claim
+            await pool.query(
+              `UPDATE stripe_payment_intents 
+               SET status = 'succeeded', updated_at = NOW() 
+               WHERE stripe_payment_intent_id = $1`,
+              [row.stripe_payment_intent_id]
+            );
+          }
         }
       } catch (refundErr: any) {
         // On error, revert status if it was claimed
