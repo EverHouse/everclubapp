@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.4",
+    date: "2026-02-05",
+    title: "Database Column Fix for New Members",
+    changes: [
+      "Fixed: 'column dob does not exist' error when adding new members",
+      "Fixed: Date of birth field now uses correct database column name in all member creation flows"
+    ]
+  },
+  {
     version: "69.9.3",
     date: "2026-02-05",
     title: "Corporate Checkout Field Fixes",

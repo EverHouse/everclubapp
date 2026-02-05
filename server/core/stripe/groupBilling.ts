@@ -711,7 +711,7 @@ export async function addCorporateMember(params: {
           updateValues.push(params.phone);
         }
         if (params.dob) {
-          updateFields.push(`dob = $${paramIndex++}`);
+          updateFields.push(`date_of_birth = $${paramIndex++}`);
           updateValues.push(params.dob);
         }
         
@@ -724,7 +724,7 @@ export async function addCorporateMember(params: {
       } else {
         const userId = randomUUID();
         await client.query(
-          `INSERT INTO users (id, email, first_name, last_name, phone, dob, tier, membership_status, billing_provider, billing_group_id, created_at)
+          `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, NOW())`,
           [
             userId,

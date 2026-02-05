@@ -367,7 +367,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
     
     await pool.query(
-      `INSERT INTO users (id, email, first_name, last_name, phone, dob, tier, membership_status, billing_provider, created_at)
+      `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', NOW())`,
       [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name]
     );
@@ -475,7 +475,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
     const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
     
     await pool.query(
-      `INSERT INTO users (id, email, first_name, last_name, phone, dob, tier, membership_status, billing_provider, created_at)
+      `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', NOW())`,
       [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name]
     );
