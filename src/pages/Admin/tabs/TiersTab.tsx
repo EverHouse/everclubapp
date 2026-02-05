@@ -424,18 +424,18 @@ const TiersTab: React.FC = () => {
     return (
         <div className="animate-pop-in">
             {/* Sub-tabs navigation */}
-            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-black/30 rounded-xl mb-6 overflow-x-auto">
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-black/30 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
                 {SUB_TABS.map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveSubTab(tab.key)}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                        className={`flex items-center gap-1 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                             activeSubTab === tab.key
                                 ? 'bg-white dark:bg-white/10 text-primary dark:text-white shadow-sm'
                                 : 'text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-white'
                         }`}
                     >
-                        <span aria-hidden="true" className="material-symbols-outlined text-lg">{tab.icon}</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-base sm:text-lg">{tab.icon}</span>
                         {tab.label}
                     </button>
                 ))}
