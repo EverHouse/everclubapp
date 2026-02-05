@@ -423,6 +423,8 @@ router.post('/api/booking-requests', async (req, res) => {
     
     const client = await pool.connect();
     let row: any;
+    // Declare resourceType outside try block so it's available for notifications after transaction
+    let resourceType = 'simulator';
     try {
       await client.query('BEGIN');
       
@@ -436,7 +438,6 @@ router.post('/api/booking-requests', async (req, res) => {
       );
       
       // Get resource type to pass to limit checking
-      let resourceType = 'simulator';
       if (resource_id) {
         const resourceResult = await client.query(
           `SELECT type FROM resources WHERE id = $1`,
