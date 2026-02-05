@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.7.1",
+    date: "2026-02-05",
+    title: "Improved: Staff Booking Modal Animations",
+    changes: [
+      "Added: Smooth horizontal slide animation when switching between Member Booking, Lesson/Staff Block, and Conference Room tabs",
+      "Added: Modal height now animates smoothly when tab content changes size instead of snapping",
+      "Improved: Member search dropdown now auto-scrolls into view when results appear"
+    ]
+  },
+  {
     version: "69.7.0",
     date: "2026-02-05",
     title: "Staff Conference Room Booking",
