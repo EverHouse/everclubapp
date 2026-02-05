@@ -48,16 +48,42 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     const subscription = await stripe.subscriptions.create(subscriptionParams);
     
     const invoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
+    let paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent | null;
     const pendingSetupIntent = subscription.pending_setup_intent as Stripe.SetupIntent | null;
+    
+    console.log(`[Stripe Subscriptions] Created subscription ${subscription.id} for customer ${customerId}`);
+    console.log(`[Stripe Subscriptions] Invoice status: ${invoice?.status}, Invoice ID: ${invoice?.id}`);
+    console.log(`[Stripe Subscriptions] Initial payment intent: ${paymentIntent?.id || 'none'}, Setup intent: ${pendingSetupIntent?.id || 'none'}`);
+    
+    // If no payment intent exists and invoice requires payment, create one manually
+    if (!paymentIntent && invoice && invoice.amount_due > 0) {
+      console.log(`[Stripe Subscriptions] No payment intent found, creating one for invoice amount: ${invoice.amount_due}`);
+      
+      try {
+        // Create a PaymentIntent for the invoice amount
+        const newPaymentIntent = await stripe.paymentIntents.create({
+          amount: invoice.amount_due,
+          currency: invoice.currency || 'usd',
+          customer: customerId,
+          setup_future_usage: 'off_session', // Save payment method for future billing
+          metadata: {
+            invoice_id: invoice.id,
+            subscription_id: subscription.id,
+            source: 'membership_inline_payment',
+          },
+        });
+        
+        paymentIntent = newPaymentIntent;
+        console.log(`[Stripe Subscriptions] Created PaymentIntent ${newPaymentIntent.id} for invoice ${invoice.id}`);
+      } catch (piError: any) {
+        console.error(`[Stripe Subscriptions] Failed to create PaymentIntent:`, piError.message);
+      }
+    }
     
     // Use payment_intent client_secret if available, otherwise use pending_setup_intent
     const clientSecret = paymentIntent?.client_secret || pendingSetupIntent?.client_secret;
     
-    console.log(`[Stripe Subscriptions] Created subscription ${subscription.id} for customer ${customerId}`);
-    console.log(`[Stripe Subscriptions] Invoice status: ${invoice?.status}, Invoice ID: ${invoice?.id}`);
-    console.log(`[Stripe Subscriptions] Payment intent: ${paymentIntent?.id || 'none'}, Setup intent: ${pendingSetupIntent?.id || 'none'}`);
-    console.log(`[Stripe Subscriptions] Client secret exists: ${!!clientSecret}`);
+    console.log(`[Stripe Subscriptions] Final client secret exists: ${!!clientSecret}`);
     
     return {
       success: true,
