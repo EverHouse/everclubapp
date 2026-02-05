@@ -829,13 +829,22 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             }
           }
           
-          // Update participant payment status to refunded for any paid participants
+          // Update participant payment status for all participants in this session
           if (existing.sessionId) {
+            // Mark paid participants as refunded
             await pool.query(
               `UPDATE booking_participants SET payment_status = 'refunded' 
                WHERE session_id = $1 AND payment_status = 'paid'`,
               [existing.sessionId]
             );
+            
+            // Mark pending participants as waived (booking cancelled before payment)
+            await pool.query(
+              `UPDATE booking_participants SET payment_status = 'waived' 
+               WHERE session_id = $1 AND (payment_status = 'pending' OR payment_status IS NULL)`,
+              [existing.sessionId]
+            );
+            console.log(`[Staff Cancel] Cleared pending fees for session ${existing.sessionId}`);
           }
         } catch (cancelIntentsErr) {
           console.error('[Staff Cancel] Failed to handle payment intents (non-blocking):', cancelIntentsErr);

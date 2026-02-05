@@ -25,7 +25,8 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Notification system now handles null values correctly for data integrity alerts",
       "Fixed: Corporate billing webhook now properly updates member tier and billing provider",
       "Fixed: HubSpot sync no longer overwrites membership status to 'non-member' for users with active Stripe subscriptions",
-      "Fixed: Members with Stripe subscriptions now correctly appear only in Active tab, not Visitors"
+      "Fixed: Members with Stripe subscriptions now correctly appear only in Active tab, not Visitors",
+      "Fixed: Cancelled bookings now properly clear pending fees (no more phantom charges after cancellation)"
     ]
   },
   {
