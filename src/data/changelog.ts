@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.10.0",
+    date: "2026-02-05",
+    title: "Critical Bug Fixes",
+    changes: [
+      "Fixed: Stripe customer lookup query referencing non-existent column",
+      "Fixed: Audit logging now works with both object and positional parameter patterns",
+      "Added: Missing audit action types for subscription creation and activation links"
+    ],
+    isMajor: true
+  },
+  {
     version: "69.9.9",
     date: "2026-02-05",
     title: "Incomplete Signup Cleanup",

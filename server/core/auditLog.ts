@@ -52,6 +52,9 @@ export type AuditAction =
   | 'payment_refund_partial'
   | 'payment_failed'
   | 'payment_succeeded'
+  | 'subscription_created'
+  | 'new_member_subscription_created'
+  | 'activation_link_sent'
   // Tour actions
   | 'tour_checkin'
   | 'tour_completed'
@@ -236,20 +239,55 @@ export async function logMemberAction(params: MemberActionParams): Promise<void>
   }
 }
 
-export function logFromRequest(req: Request, action: AuditAction, resourceType: ResourceType, resourceId?: string, resourceName?: string, details?: Record<string, any>): void {
+interface LogFromRequestParams {
+  action: AuditAction;
+  resourceType: ResourceType;
+  resourceId?: string;
+  resourceName?: string;
+  details?: Record<string, any>;
+}
+
+export function logFromRequest(
+  req: Request, 
+  actionOrParams: AuditAction | LogFromRequestParams, 
+  resourceType?: ResourceType, 
+  resourceId?: string, 
+  resourceName?: string, 
+  details?: Record<string, any>
+): void {
   const staffEmail = req.session?.user?.email;
   const staffName = req.session?.user?.name;
   
   if (!staffEmail) return;
   
+  let finalAction: AuditAction;
+  let finalResourceType: ResourceType;
+  let finalResourceId: string | undefined;
+  let finalResourceName: string | undefined;
+  let finalDetails: Record<string, any> | undefined;
+  
+  if (typeof actionOrParams === 'object' && actionOrParams !== null && 'action' in actionOrParams) {
+    finalAction = actionOrParams.action;
+    finalResourceType = actionOrParams.resourceType;
+    finalResourceId = actionOrParams.resourceId;
+    finalResourceName = actionOrParams.resourceName;
+    finalDetails = actionOrParams.details;
+  } else {
+    finalAction = actionOrParams as AuditAction;
+    finalResourceType = resourceType!;
+    finalResourceId = resourceId;
+    finalResourceName = resourceName;
+    finalDetails = details;
+  }
+  
   logAdminAction({
     staffEmail,
     staffName,
-    action,
-    resourceType,
-    resourceId,
-    resourceName,
-    details,
+    action: finalAction,
+    resourceType: finalResourceType,
+    resourceId: finalResourceId,
+    resourceName: finalResourceName,
+    details: finalDetails,
     req
   }).catch(() => {});
 }
