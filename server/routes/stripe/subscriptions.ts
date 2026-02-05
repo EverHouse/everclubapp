@@ -436,9 +436,14 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     
     console.log(`[Stripe] Created subscription ${subscriptionResult.subscription?.subscriptionId} for new member ${email}`);
     
+    // If no clientSecret, the subscription may be fully paid (e.g., 100% discount) or there's an issue
+    if (!subscriptionResult.subscription?.clientSecret) {
+      console.warn(`[Stripe] No clientSecret returned for subscription ${subscriptionResult.subscription?.subscriptionId}`);
+    }
+    
     res.json({
       success: true,
-      clientSecret: subscriptionResult.subscription?.clientSecret,
+      clientSecret: subscriptionResult.subscription?.clientSecret || null,
       subscriptionId: subscriptionResult.subscription?.subscriptionId,
       customerId,
       userId,
@@ -554,7 +559,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
           isNewMember: 'true'
         }
       },
-      expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+      expires_at: Math.floor(Date.now() / 1000) + (23 * 60 * 60), // 23 hours (Stripe max is 24h)
     };
     
     if (couponId) {

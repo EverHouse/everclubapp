@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.10.3",
+    date: "2026-02-05",
+    title: "Member Checkout & Activation Link Fixes",
+    changes: [
+      "Fixed: Activation link expiry now 23 hours (was incorrectly set to 7 days, exceeding Stripe's 24h limit)",
+      "Fixed: Better error handling when payment form fails to initialize",
+      "Added: Clear error message when Stripe doesn't return payment session"
+    ]
+  },
+  {
     version: "69.10.2",
     date: "2026-02-05",
     title: "Complete Money-Flow Audit & Fixes",

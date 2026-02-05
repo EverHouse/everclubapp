@@ -50,6 +50,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
     
     console.log(`[Stripe Subscriptions] Created subscription ${subscription.id} for customer ${customerId}`);
+    console.log(`[Stripe Subscriptions] Invoice status: ${invoice?.status}, Payment intent: ${paymentIntent?.id || 'none'}, Client secret exists: ${!!paymentIntent?.client_secret}`);
     
     return {
       success: true,

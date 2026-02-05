@@ -579,6 +579,12 @@ function MemberFlow({
         }
 
         const data = await res.json();
+        
+        // Handle missing clientSecret (can happen if Stripe didn't return a payment intent)
+        if (!data.clientSecret) {
+          throw new Error('Payment initialization failed - no payment session returned from Stripe. Please try again or use "Send Activation Link Instead".');
+        }
+        
         setClientSecret(data.clientSecret);
         setPaymentIntentId(data.subscriptionId);
       }
