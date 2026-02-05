@@ -445,6 +445,12 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await pool.query('DELETE FROM trackman_unmatched_bookings WHERE LOWER(original_email) = $1 OR LOWER(resolved_email) = $1', [normalizedEmail, normalizedEmail]);
     deletionLog.push('trackman_unmatched_bookings');
     
+    await pool.query('DELETE FROM trackman_bay_slots WHERE LOWER(customer_email) = $1', [normalizedEmail]);
+    deletionLog.push('trackman_bay_slots');
+    
+    await pool.query('UPDATE trackman_webhook_events SET matched_user_id = NULL WHERE matched_user_id = $1', [userIdStr]);
+    deletionLog.push('trackman_webhook_events (unlinked)');
+    
     await pool.query('DELETE FROM terminal_payments WHERE user_id = $1', [userIdStr]);
     deletionLog.push('terminal_payments');
     
@@ -463,9 +469,12 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await pool.query('DELETE FROM usage_ledger WHERE member_id = $1', [userIdStr]);
     deletionLog.push('usage_ledger');
     
+    await pool.query('DELETE FROM stripe_transaction_cache WHERE LOWER(customer_email) = $1', [normalizedEmail]);
+    deletionLog.push('stripe_transaction_cache (by email)');
+    
     if (stripeCustomerId) {
       await pool.query('DELETE FROM stripe_transaction_cache WHERE customer_id = $1', [stripeCustomerId]);
-      deletionLog.push('stripe_transaction_cache');
+      deletionLog.push('stripe_transaction_cache (by customer_id)');
       
       await pool.query('DELETE FROM terminal_payments WHERE stripe_customer_id = $1', [stripeCustomerId]);
       await pool.query('DELETE FROM stripe_payment_intents WHERE stripe_customer_id = $1', [stripeCustomerId]);

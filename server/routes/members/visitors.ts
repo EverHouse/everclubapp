@@ -851,6 +851,12 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
     await pool.query('DELETE FROM trackman_unmatched_bookings WHERE LOWER(original_email) = $1 OR LOWER(resolved_email) = $1', [visitorEmail, visitorEmail]);
     deletionLog.push('trackman_unmatched_bookings');
     
+    await pool.query('DELETE FROM trackman_bay_slots WHERE LOWER(customer_email) = $1', [visitorEmail]);
+    deletionLog.push('trackman_bay_slots');
+    
+    await pool.query('DELETE FROM stripe_transaction_cache WHERE LOWER(customer_email) = $1', [visitorEmail]);
+    deletionLog.push('stripe_transaction_cache (by email)');
+    
     await pool.query('DELETE FROM hubspot_line_items WHERE hubspot_deal_id IN (SELECT hubspot_deal_id FROM hubspot_deals WHERE LOWER(member_email) = $1)', [visitorEmail]);
     deletionLog.push('hubspot_line_items');
     
