@@ -327,4 +327,112 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
   }
 });
 
+router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { email, firstName, lastName, phone, dob, tierSlug, couponId } = req.body;
+    const sessionUser = getSessionUser(req);
+    
+    if (!email || !tierSlug) {
+      return res.status(400).json({ error: 'email and tierSlug are required' });
+    }
+    
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = $1',
+      [email.toLowerCase()]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'A member with this email already exists' });
+    }
+    
+    const tierResult = await db.select()
+      .from(membershipTiers)
+      .where(eq(membershipTiers.slug, tierSlug))
+      .limit(1);
+    
+    if (tierResult.length === 0) {
+      return res.status(400).json({ error: `Tier "${tierSlug}" not found` });
+    }
+    
+    const tier = tierResult[0];
+    
+    if (!tier.stripePriceId) {
+      return res.status(400).json({ error: `Tier "${tier.name}" does not have a Stripe price configured` });
+    }
+    
+    const userId = require('crypto').randomUUID();
+    const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
+    
+    await pool.query(
+      `INSERT INTO users (id, email, first_name, last_name, phone, dob, tier, membership_status, billing_provider, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', NOW())`,
+      [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name]
+    );
+    
+    console.log(`[Stripe] Created pending user ${email} with tier ${tier.name}`);
+    
+    const { customerId } = await getOrCreateStripeCustomer(
+      userId,
+      email,
+      memberName,
+      tier.name
+    );
+    
+    await pool.query(
+      'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
+      [customerId, userId]
+    );
+    
+    const subscriptionResult = await createSubscription({
+      customerId,
+      priceId: tier.stripePriceId,
+      couponId: couponId || undefined,
+      metadata: {
+        memberEmail: email,
+        tier: tier.name,
+        createdBy: sessionUser?.email || 'staff',
+        userId,
+        isNewMember: 'true',
+        ...(couponId ? { couponApplied: couponId } : {})
+      }
+    });
+    
+    if (!subscriptionResult.success) {
+      await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+      return res.status(500).json({ error: subscriptionResult.error || 'Failed to create subscription' });
+    }
+    
+    await pool.query(
+      'UPDATE users SET stripe_subscription_id = $1 WHERE id = $2',
+      [subscriptionResult.subscription?.subscriptionId, userId]
+    );
+    
+    await logFromRequest(req, {
+      action: 'new_member_subscription_created',
+      resourceType: 'member',
+      resourceId: userId,
+      resourceName: memberName,
+      details: {
+        tier: tier.name,
+        subscriptionId: subscriptionResult.subscription?.subscriptionId,
+        customerId
+      }
+    });
+    
+    console.log(`[Stripe] Created subscription ${subscriptionResult.subscription?.subscriptionId} for new member ${email}`);
+    
+    res.json({
+      success: true,
+      clientSecret: subscriptionResult.subscription?.clientSecret,
+      subscriptionId: subscriptionResult.subscription?.subscriptionId,
+      customerId,
+      userId,
+      tierName: tier.name
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error creating new member subscription:', error);
+    res.status(500).json({ error: error.message || 'Failed to create subscription' });
+  }
+});
+
 export default router;

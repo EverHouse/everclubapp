@@ -475,49 +475,68 @@ function MemberFlow({
       }
       setStripeInstance(stripe);
 
-      const discount = discounts.find(d => d.code === form.discountCode);
-      const discountPercent = discount?.percentOff || 0;
-      const primaryPrice = form.joinExistingGroup
-        ? Math.round(selectedTier.priceCents * 0.8)
-        : Math.round(selectedTier.priceCents * (1 - discountPercent / 100));
-      
-      const groupMembersTotal = form.groupMembers.reduce((sum, member) => {
-        const memberTier = tiers.find(t => t.id === member.tierId) || selectedTier;
-        return sum + Math.round(memberTier.priceCents * 0.8);
-      }, 0);
-      
-      const totalPrice = primaryPrice + groupMembersTotal;
+      if (form.joinExistingGroup && form.existingGroupId) {
+        const discount = discounts.find(d => d.code === form.discountCode);
+        const discountPercent = discount?.percentOff || 0;
+        const primaryPrice = Math.round(selectedTier.priceCents * 0.8);
+        const discountedPrice = Math.round(primaryPrice * (1 - discountPercent / 100));
+        
+        const res = await fetch('/api/stripe/staff/quick-charge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            memberEmail: form.email,
+            memberName: `${form.firstName} ${form.lastName}`,
+            amountCents: discountedPrice,
+            description: `${selectedTier.name} Membership (Group Add-on)`,
+            isNewCustomer: true,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            phone: form.phone,
+            dob: form.dob || undefined,
+            tierSlug: selectedTier.slug,
+            tierName: selectedTier.name,
+            createUser: true
+          })
+        });
 
-      const res = await fetch('/api/stripe/staff/quick-charge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          memberEmail: form.email,
-          memberName: `${form.firstName} ${form.lastName}`,
-          amountCents: totalPrice,
-          description: form.joinExistingGroup 
-            ? `${selectedTier.name} Membership (Group Add-on)` 
-            : `${selectedTier.name} Membership Setup`,
-          isNewCustomer: true,
-          firstName: form.firstName,
-          lastName: form.lastName,
-          phone: form.phone,
-          dob: form.dob || undefined,
-          tierSlug: selectedTier.slug,
-          tierName: selectedTier.name,
-          createUser: true
-        })
-      });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to create payment');
+        }
 
-      if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to create payment');
-      }
+        setClientSecret(data.clientSecret);
+        setPaymentIntentId(data.paymentIntentId);
+      } else {
+        const discount = discounts.find(d => d.code === form.discountCode);
+        const couponId = discount?.stripeCouponId || undefined;
+        
+        const res = await fetch('/api/stripe/subscriptions/create-new-member', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: form.email,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            phone: form.phone || undefined,
+            dob: form.dob || undefined,
+            tierSlug: selectedTier.slug,
+            couponId
+          })
+        });
 
-      const data = await res.json();
-      setClientSecret(data.clientSecret);
-      setPaymentIntentId(data.paymentIntentId);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to create subscription');
+        }
+
+        const data = await res.json();
+        setClientSecret(data.clientSecret);
+        setPaymentIntentId(data.subscriptionId);
+      }
     } catch (err: any) {
       setStripeError(err.message || 'Failed to initialize payment');
       paymentInitiatedRef.current = false;
@@ -531,21 +550,27 @@ function MemberFlow({
     setIsLoading(true);
     
     try {
-      await fetch('/api/stripe/staff/quick-charge/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ paymentIntentId: paymentIntentIdResult || paymentIntentId })
-      });
-
       if (form.joinExistingGroup && form.existingGroupId && selectedTier) {
+        await fetch('/api/stripe/staff/quick-charge/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ paymentIntentId: paymentIntentIdResult || paymentIntentId })
+        });
+        
         try {
           const endpoint = form.existingGroupType === 'corporate'
             ? `/api/group-billing/groups/${form.existingGroupId}/corporate-members`
             : `/api/family-billing/groups/${form.existingGroupId}/members`;
           
           const payload = form.existingGroupType === 'corporate'
-            ? { memberEmail: form.email, memberTier: selectedTier.slug }
+            ? { 
+                email: form.email, 
+                firstName: form.firstName,
+                lastName: form.lastName,
+                phone: form.phone,
+                dob: form.dob
+              }
             : { memberEmail: form.email, memberTier: selectedTier.slug, relationship: 'family' };
           
           const groupRes = await fetch(endpoint, {
@@ -558,16 +583,16 @@ function MemberFlow({
           if (!groupRes.ok) {
             const groupData = await groupRes.json();
             console.error('Failed to add member to group:', groupData.error);
-            showToast('Payment successful but failed to add to group. Contact support.', 'error');
+            showToast('Payment received but failed to add to group. Contact support.', 'error');
           } else {
-            showToast('Payment successful! Member added to billing group.', 'success');
+            showToast('Payment received! Member added to billing group.', 'success');
           }
         } catch (groupErr) {
           console.error('Error adding member to group:', groupErr);
-          showToast('Payment successful but failed to add to group. Contact support.', 'error');
+          showToast('Payment received but failed to add to group. Contact support.', 'error');
         }
       } else {
-        showToast('Payment successful!', 'success');
+        showToast('Payment received! Membership will activate shortly.', 'success');
       }
 
       onSuccess({ 
