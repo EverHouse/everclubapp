@@ -279,7 +279,10 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
     
     const userResult = await db.select({ 
       id: users.id, 
-      archivedAt: users.archivedAt 
+      email: users.email,
+      archivedAt: users.archivedAt,
+      stripeSubscriptionId: users.stripeSubscriptionId,
+      stripeCustomerId: users.stripeCustomerId
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -301,10 +304,63 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       })
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
     
+    let subscriptionCancelled = false;
+    const stripeSubscriptionId = userResult[0].stripeSubscriptionId;
+    const stripeCustomerId = userResult[0].stripeCustomerId;
+    const userEmail = userResult[0].email;
+
+    if (stripeSubscriptionId || stripeCustomerId) {
+      try {
+        const { getStripeClient } = await import('../../core/stripe/client');
+        const stripe = await getStripeClient();
+        
+        if (stripeSubscriptionId) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+            if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+              await stripe.subscriptions.cancel(stripeSubscriptionId);
+              subscriptionCancelled = true;
+              console.log(`[Admin] Cancelled subscription ${stripeSubscriptionId} for archived member ${normalizedEmail}`);
+            }
+          } catch (subError: any) {
+            console.error(`[Admin] Failed to cancel subscription ${stripeSubscriptionId}:`, subError.message);
+          }
+        }
+        
+        if (!subscriptionCancelled && stripeCustomerId) {
+          try {
+            let hasMore = true;
+            let startingAfter: string | undefined;
+            while (hasMore) {
+              const params: any = { customer: stripeCustomerId, limit: 100 };
+              if (startingAfter) params.starting_after = startingAfter;
+              const subscriptions = await stripe.subscriptions.list(params);
+              for (const sub of subscriptions.data) {
+                if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+                  await stripe.subscriptions.cancel(sub.id);
+                  subscriptionCancelled = true;
+                  console.log(`[Admin] Cancelled subscription ${sub.id} for archived member ${normalizedEmail}`);
+                }
+              }
+              hasMore = subscriptions.has_more;
+              if (subscriptions.data.length > 0) {
+                startingAfter = subscriptions.data[subscriptions.data.length - 1].id;
+              }
+            }
+          } catch (listError: any) {
+            console.error(`[Admin] Failed to list/cancel subscriptions for customer ${stripeCustomerId}:`, listError.message);
+          }
+        }
+      } catch (importError: any) {
+        console.error(`[Admin] Failed to import Stripe client for subscription cancellation:`, importError.message);
+      }
+    }
+
     res.json({ 
       success: true, 
       archived: true,
       archivedBy,
+      subscriptionCancelled,
       message: 'Member archived successfully'
     });
   } catch (error: any) {
@@ -489,8 +545,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await pool.query("UPDATE billing_groups SET is_active = false WHERE LOWER(primary_email) = $1 AND is_active = true", [normalizedEmail]);
     deletionLog.push('billing_groups (deactivated)');
     
-    let stripeDeleted = false;
-    if (deleteFromStripe === 'true' && stripeCustomerId) {
+    let subscriptionsCancelled = false;
+    if (stripeCustomerId) {
       try {
         const { getStripe } = await import('../../core/stripe');
         const stripe = getStripe();
@@ -504,6 +560,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
             if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
               await stripe.subscriptions.cancel(sub.id);
               deletionLog.push(`stripe_subscription_cancelled (${sub.id})`);
+              subscriptionsCancelled = true;
             }
           }
           hasMore = subscriptions.has_more;
@@ -511,6 +568,16 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
             startingAfter = subscriptions.data[subscriptions.data.length - 1].id;
           }
         }
+      } catch (stripeSubError: any) {
+        console.error(`[Admin] Failed to cancel subscriptions for ${stripeCustomerId}:`, stripeSubError.message);
+      }
+    }
+
+    let stripeDeleted = false;
+    if (deleteFromStripe === 'true' && stripeCustomerId) {
+      try {
+        const { getStripe } = await import('../../core/stripe');
+        const stripe = getStripe();
         await stripe.customers.del(stripeCustomerId);
         stripeDeleted = true;
         deletionLog.push('stripe_customer');
@@ -556,6 +623,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
       deleted: true,
       deletedBy: sessionUser?.email,
       deletedRecords: deletionLog,
+      subscriptionsCancelled,
       stripeDeleted,
       hubspotArchived,
       message: `Member ${memberName || normalizedEmail} permanently deleted`

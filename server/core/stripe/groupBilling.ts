@@ -1636,7 +1636,11 @@ export async function handlePrimarySubscriptionCancelled(subscriptionId: string)
 
     if (emailsToDeactivate.length > 0) {
       await pool.query(
-        `UPDATE users SET billing_group_id = NULL 
+        `UPDATE users SET 
+           billing_group_id = NULL,
+           membership_status = 'cancelled',
+           tier = NULL,
+           updated_at = NOW()
          WHERE LOWER(email) = ANY($1::text[])`,
         [emailsToDeactivate]
       );

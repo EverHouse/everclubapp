@@ -710,13 +710,13 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
         const userId = require('crypto').randomUUID();
         await pool.query(
           `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, stripe_customer_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, NOW())`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'inactive', 'stripe', $8, NOW())`,
           [userId, memberEmail.toLowerCase(), firstName, lastName, phone, dob, validatedTierName, stripeCustomerId || null]
         );
         console.log(`[Stripe] Created user ${memberEmail} with tier ${validatedTierName} after payment confirmation`);
       } else {
         await pool.query(
-          `UPDATE users SET tier = $1, billing_provider = 'stripe', stripe_customer_id = COALESCE($2, stripe_customer_id), membership_status = 'active'
+          `UPDATE users SET tier = $1, billing_provider = 'stripe', stripe_customer_id = COALESCE($2, stripe_customer_id)
            WHERE LOWER(email) = LOWER($3)`,
           [validatedTierName, stripeCustomerId, memberEmail]
         );

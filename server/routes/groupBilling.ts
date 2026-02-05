@@ -331,7 +331,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
     const activeMemberCount = currentMembers.filter(m => m.isActive).length;
     const maxSeats = group[0].maxSeats;
     
-    if (maxSeats && (activeMemberCount + 1) >= maxSeats) {
+    if (maxSeats && (activeMemberCount + 1) > maxSeats) {
       return res.status(400).json({ 
         error: `All ${maxSeats} seats are filled. Contact support to add more seats.` 
       });
