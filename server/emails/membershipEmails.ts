@@ -516,3 +516,93 @@ export async function sendGracePeriodReminderEmail(
     return { success: false, error: error.message };
   }
 }
+
+interface MembershipActivationParams {
+  memberName: string;
+  tierName: string;
+  monthlyPrice: number;
+  checkoutUrl: string;
+  expiresAt: Date;
+}
+
+function getMembershipActivationHtml(params: MembershipActivationParams): string {
+  const { memberName, tierName, monthlyPrice, checkoutUrl, expiresAt } = params;
+  
+  const content = `
+          <tr>
+            <td style="padding-bottom: 24px;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: ${CLUB_COLORS.deepGreen}; line-height: 1.3;">
+                Welcome to Ever House
+              </h1>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding-bottom: 24px;">
+              <p style="margin: 0 0 16px 0; font-size: 16px; color: ${CLUB_COLORS.textDark}; line-height: 1.5;">
+                Hi ${memberName},
+              </p>
+              <p style="margin: 0 0 16px 0; font-size: 16px; color: ${CLUB_COLORS.textDark}; line-height: 1.5;">
+                You've been invited to join Ever House as a <strong>${tierName}</strong> member. 
+                Complete your membership setup by clicking the button below.
+              </p>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding-bottom: 24px; background-color: ${CLUB_COLORS.bone}; border-radius: 12px; padding: 20px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="font-size: 14px; color: ${CLUB_COLORS.textMuted};">Membership Tier</td>
+                  <td style="font-size: 16px; font-weight: 600; color: ${CLUB_COLORS.deepGreen}; text-align: right;">${tierName}</td>
+                </tr>
+                <tr>
+                  <td style="font-size: 14px; color: ${CLUB_COLORS.textMuted}; padding-top: 12px;">Monthly Price</td>
+                  <td style="font-size: 16px; font-weight: 600; color: ${CLUB_COLORS.deepGreen}; text-align: right; padding-top: 12px;">${formatCurrency(monthlyPrice)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding-bottom: 24px; text-align: center;">
+              <a href="${checkoutUrl}" style="display: inline-block; background-color: ${CLUB_COLORS.deepGreen}; color: #ffffff; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+                Complete Membership Setup
+              </a>
+            </td>
+          </tr>
+          
+          <tr>
+            <td>
+              <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textMuted}; line-height: 1.5; text-align: center;">
+                This link expires on ${formatDate(expiresAt)}. If you have any questions, 
+                please reply to this email or contact us at the club.
+              </p>
+            </td>
+          </tr>
+  `;
+  
+  return getEmailWrapper(content);
+}
+
+export async function sendMembershipActivationEmail(
+  email: string,
+  params: MembershipActivationParams
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    await client.emails.send({
+      from: fromEmail || 'Ever House Members Club <noreply@everhouse.app>',
+      to: email,
+      subject: `Complete Your ${params.tierName} Membership - Ever House`,
+      html: getMembershipActivationHtml(params)
+    });
+    
+    console.log(`[Activation Email] Sent to ${email} for ${params.tierName} membership`);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`[Activation Email] Failed to send to ${email}:`, error.message);
+    return { success: false, error: error.message };
+  }
+}

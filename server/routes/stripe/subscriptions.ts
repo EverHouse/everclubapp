@@ -9,11 +9,14 @@ import {
   cancelSubscription,
   listCustomerSubscriptions,
   syncActiveSubscriptionsFromStripe,
-  getOrCreateStripeCustomer
+  getOrCreateStripeCustomer,
+  getStripeClient
 } from '../../core/stripe';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
+import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 
@@ -360,7 +363,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       return res.status(400).json({ error: `Tier "${tier.name}" does not have a Stripe price configured` });
     }
     
-    const userId = require('crypto').randomUUID();
+    const userId = randomUUID();
     const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
     
     await pool.query(
@@ -432,6 +435,155 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
   } catch (error: any) {
     console.error('[Stripe] Error creating new member subscription:', error);
     res.status(500).json({ error: error.message || 'Failed to create subscription' });
+  }
+});
+
+router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { email, firstName, lastName, phone, dob, tierSlug, couponId } = req.body;
+    const sessionUser = getSessionUser(req);
+    
+    if (!email || !tierSlug) {
+      return res.status(400).json({ error: 'email and tierSlug are required' });
+    }
+    
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = $1',
+      [email.toLowerCase()]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'A member with this email already exists' });
+    }
+    
+    const tierResult = await db.select()
+      .from(membershipTiers)
+      .where(eq(membershipTiers.slug, tierSlug))
+      .limit(1);
+    
+    if (tierResult.length === 0) {
+      return res.status(400).json({ error: `Tier "${tierSlug}" not found` });
+    }
+    
+    const tier = tierResult[0];
+    
+    if (!tier.stripePriceId) {
+      return res.status(400).json({ error: `Tier "${tier.name}" does not have a Stripe price configured` });
+    }
+    
+    const userId = randomUUID();
+    const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
+    
+    await pool.query(
+      `INSERT INTO users (id, email, first_name, last_name, phone, dob, tier, membership_status, billing_provider, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', NOW())`,
+      [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name]
+    );
+    
+    console.log(`[Activation Link] Created pending user ${email} with tier ${tier.name}`);
+    
+    const { customerId } = await getOrCreateStripeCustomer(
+      userId,
+      email,
+      memberName,
+      tier.name
+    );
+    
+    await pool.query(
+      'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
+      [customerId, userId]
+    );
+    
+    const stripe = await getStripeClient();
+    
+    // Use environment-aware URLs
+    const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
+    const baseUrl = replitDomains ? `https://${replitDomains}` : 'https://everhouse.app';
+    
+    const successUrl = `${baseUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/`;
+    
+    const sessionParams: any = {
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{
+        price: tier.stripePriceId,
+        quantity: 1,
+      }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: {
+        userId,
+        memberEmail: email,
+        tier: tier.name,
+        tierSlug: tier.slug,
+        createdBy: sessionUser?.email || 'staff',
+        isNewMember: 'true',
+        source: 'activation_link'
+      },
+      subscription_data: {
+        metadata: {
+          userId,
+          memberEmail: email,
+          tier: tier.name,
+          tierSlug: tier.slug,
+          isNewMember: 'true'
+        }
+      },
+      expires_at: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+    };
+    
+    if (couponId) {
+      sessionParams.discounts = [{ coupon: couponId }];
+    }
+    
+    const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
+    
+    if (!checkoutSession.url) {
+      console.error(`[Activation Link] Stripe returned no checkout URL for session ${checkoutSession.id}`);
+      return res.status(500).json({ error: 'Failed to create checkout session - no URL returned' });
+    }
+    
+    console.log(`[Activation Link] Created checkout session ${checkoutSession.id} for ${email}`);
+    
+    const expiresAt = new Date(checkoutSession.expires_at * 1000);
+    const emailResult = await sendMembershipActivationEmail(email, {
+      memberName,
+      tierName: tier.name,
+      monthlyPrice: tier.priceCents / 100,
+      checkoutUrl: checkoutSession.url,
+      expiresAt
+    });
+    
+    if (!emailResult.success) {
+      console.error(`[Activation Link] Email failed for ${email}:`, emailResult.error);
+    }
+    
+    await logFromRequest(req, {
+      action: 'activation_link_sent',
+      resourceType: 'member',
+      resourceId: userId,
+      resourceName: memberName,
+      details: {
+        tier: tier.name,
+        checkoutSessionId: checkoutSession.id,
+        emailSent: emailResult.success,
+        expiresAt: expiresAt.toISOString()
+      }
+    });
+    
+    res.json({
+      success: true,
+      checkoutSessionId: checkoutSession.id,
+      checkoutUrl: checkoutSession.url,
+      expiresAt: expiresAt.toISOString(),
+      userId,
+      tierName: tier.name,
+      emailSent: emailResult.success
+    });
+  } catch (error: any) {
+    console.error('[Stripe] Error sending activation link:', error);
+    res.status(500).json({ error: error.message || 'Failed to send activation link' });
   }
 });
 

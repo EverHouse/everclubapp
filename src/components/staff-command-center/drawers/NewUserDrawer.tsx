@@ -608,13 +608,55 @@ function MemberFlow({
   };
 
   const handleSendActivationLink = async () => {
+    const errors: Record<string, string> = {};
+    if (!form.tierId) errors.tierId = 'Please select a membership tier';
+    if (!form.firstName) errors.firstName = 'First name is required';
+    if (!form.lastName) errors.lastName = 'Last name is required';
+    if (!form.email) errors.email = 'Email is required';
+    else if (!EMAIL_REGEX.test(form.email)) errors.email = 'Please enter a valid email address';
+    
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      showToast('Activation link functionality coming soon', 'info');
+      const selectedTier = tiers.find(t => t.id === form.tierId);
+      if (!selectedTier) {
+        throw new Error('Selected tier not found');
+      }
+      
+      const discount = discounts.find(d => d.code === form.discountCode);
+      
+      const res = await fetch('/api/stripe/subscriptions/send-activation-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: form.email,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone || undefined,
+          dob: form.dob || undefined,
+          tierSlug: selectedTier.slug,
+          couponId: discount?.stripeCouponId || undefined
+        })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to send activation link');
+      }
+      
+      const data = await res.json();
+      
+      showToast(`Activation link sent to ${form.email}`, 'success');
       onSuccess({ 
-        id: 'pending-' + Date.now(), 
+        id: data.userId, 
         email: form.email, 
         name: `${form.firstName} ${form.lastName}` 
       });

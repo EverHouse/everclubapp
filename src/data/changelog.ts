@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.0",
+    date: "2026-02-05",
+    title: "Activation Link for New Members",
+    isMajor: true,
+    changes: [
+      "Added: Staff can now send new members a payment setup link instead of charging them directly",
+      "Added: New members receive a branded email with a secure Stripe checkout link",
+      "Added: Links are valid for 7 days and guide members to set up their own payment method",
+      "Added: Automatic member activation when payment is completed via activation link",
+      "Fixed: Notification system now handles null values correctly for data integrity alerts",
+      "Fixed: Corporate billing webhook now properly updates member tier and billing provider"
+    ]
+  },
+  {
     version: "69.8.3",
     date: "2026-02-05",
     title: "Staff Manual Booking Improvements",

@@ -74,13 +74,17 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
   }
   
   try {
+    // Defensive handling: ensure relatedId is a valid number or null
+    const safeRelatedId = typeof payload.relatedId === 'number' ? payload.relatedId : null;
+    const safeRelatedType = payload.relatedType && typeof payload.relatedType === 'string' ? payload.relatedType : null;
+    
     const [result] = await db.insert(notifications).values({
       userEmail: payload.userEmail,
       title: payload.title,
       message: payload.message,
       type: payload.type,
-      relatedId: payload.relatedId ?? null,
-      relatedType: payload.relatedType ?? null,
+      relatedId: safeRelatedId,
+      relatedType: safeRelatedType,
     }).returning({ id: notifications.id });
     
     return result;
@@ -399,13 +403,18 @@ export async function notifyAllStaff(
       return { staffCount: 0, deliveryResults };
     }
     
+    // Defensive handling: ensure relatedId is a valid number or null
+    // relatedId is an integer column, so empty strings/undefined must become null
+    const safeRelatedId = typeof options.relatedId === 'number' ? options.relatedId : null;
+    const safeRelatedType = options.relatedType && typeof options.relatedType === 'string' ? options.relatedType : null;
+    
     const notificationValues = staffEmails.map(({ email }) => ({
       userEmail: email,
       title,
       message,
       type,
-      relatedId: options.relatedId ?? null,
-      relatedType: options.relatedType ?? null,
+      relatedId: safeRelatedId,
+      relatedType: safeRelatedType,
     }));
     
     await db.insert(notifications).values(notificationValues);
