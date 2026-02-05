@@ -730,7 +730,10 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
       }
       
       const [updated] = await tx.update(bookingRequests)
-        .set({ status: 'declined' })
+        .set({ 
+          status: 'declined',
+          trackmanExternalId: null  // Clear so ID can be reused
+        })
         .where(eq(bookingRequests.id, bookingId))
         .returning();
       
@@ -2401,7 +2404,10 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
     }
     
     await db.update(bookingRequests)
-      .set({ status: 'cancelled' })
+      .set({ 
+        status: 'cancelled',
+        trackmanExternalId: null  // Clear so ID can be reused
+      })
       .where(eq(bookingRequests.id, bookingId));
     
     // Clean up any corresponding Trackman bay slot cache entry
