@@ -116,14 +116,6 @@ export function StaffManualBookingModal({
   const conferenceContentRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState<number | undefined>(undefined);
   
-  useLayoutEffect(() => {
-    const activeRef = mode === 'member' ? memberContentRef : mode === 'lesson' ? lessonContentRef : conferenceContentRef;
-    if (activeRef.current) {
-      const height = activeRef.current.offsetHeight;
-      setContainerHeight(height);
-    }
-  }, [mode, step, playerCount, participants, confAvailableSlots, confFeeEstimate, confHostMember]);
-  
   const [resources, setResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   
@@ -156,6 +148,14 @@ export function StaffManualBookingModal({
   const [externalId, setExternalId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    const activeRef = mode === 'member' ? memberContentRef : mode === 'lesson' ? lessonContentRef : conferenceContentRef;
+    if (activeRef.current) {
+      const height = activeRef.current.offsetHeight;
+      setContainerHeight(height);
+    }
+  }, [mode, step, playerCount, participants, confAvailableSlots, confFeeEstimate, confHostMember]);
 
   useEffect(() => {
     if (isOpen) {
