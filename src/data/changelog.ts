@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.1",
+    date: "2026-02-05",
+    title: "Future Bookings Visibility on Financials",
+    changes: [
+      "Added: 'Future Bookings' card on Financials page shows upcoming approved bookings with expected fees",
+      "Added: Track guest fees and estimated charges before payment intents are created",
+      "Added: Visual indicators for member tier, guest count, and payment status on each booking"
+    ]
+  },
+  {
     version: "69.9.0",
     date: "2026-02-05",
     title: "Activation Link for New Members",
