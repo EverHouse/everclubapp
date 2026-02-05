@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { MemberSearchInput, type SelectedMember } from '../../shared/MemberSearchInput';
 import { useToast } from '../../Toast';
@@ -96,6 +96,8 @@ function calculateEndTime(startTime: string, durationMinutes: number): string {
   return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
 }
 
+const modeIndex: Record<'member' | 'lesson' | 'conference', number> = { member: 0, lesson: 1, conference: 2 };
+
 export function StaffManualBookingModal({
   isOpen,
   onClose,
@@ -108,6 +110,20 @@ export function StaffManualBookingModal({
   const { showToast } = useToast();
   const [mode, setMode] = useState<'member' | 'lesson' | 'conference'>('member');
   const [step, setStep] = useState<1 | 2>(1);
+  
+  const memberContentRef = useRef<HTMLDivElement>(null);
+  const lessonContentRef = useRef<HTMLDivElement>(null);
+  const conferenceContentRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number | undefined>(undefined);
+  
+  useLayoutEffect(() => {
+    const activeRef = mode === 'member' ? memberContentRef : mode === 'lesson' ? lessonContentRef : conferenceContentRef;
+    if (activeRef.current) {
+      const height = activeRef.current.offsetHeight;
+      setContainerHeight(height);
+    }
+  }, [mode, step, playerCount, participants, confAvailableSlots, confFeeEstimate, confHostMember]);
+  
   const [resources, setResources] = useState<Resource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   
@@ -572,460 +588,470 @@ export function StaffManualBookingModal({
           </button>
         </div>
 
-        {mode === 'conference' ? (
-          /* Conference Room Booking Form */
-          <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            {/* Date and Duration */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={confDate}
-                  onChange={(e) => setConfDate(e.target.value)}
-                  min={getTodayPacific()}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                />
-              </div>
+        {/* Sliding Tab Content Container */}
+        <div 
+          className="overflow-hidden transition-[height] duration-300 ease-out"
+          style={{ height: containerHeight !== undefined ? `${containerHeight}px` : 'auto' }}
+        >
+          <div 
+            className="flex transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(-${modeIndex[mode] * 100}%)` }}
+          >
+            {/* Member Booking Tab (index 0) */}
+            <div ref={memberContentRef} className="w-full flex-shrink-0">
+              {step === 1 ? (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Bay
+                      </label>
+                      <select
+                        value={resourceId ?? ''}
+                        onChange={(e) => setResourceId(Number(e.target.value))}
+                        disabled={loadingResources}
+                        className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                      >
+                        {loadingResources ? (
+                          <option value="">Loading...</option>
+                        ) : (
+                          resources.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))
+                        )}
+                      </select>
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Duration
-                </label>
-                <select
-                  value={confDuration}
-                  onChange={(e) => setConfDuration(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                >
-                  <option value={30}>30 minutes</option>
-                  <option value={60}>60 minutes</option>
-                  <option value={90}>90 minutes</option>
-                  <option value={120}>120 minutes</option>
-                  <option value={150}>150 minutes</option>
-                  <option value={180}>180 minutes</option>
-                  <option value={210}>210 minutes</option>
-                  <option value={240}>240 minutes</option>
-                </select>
-              </div>
-            </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Date
+                      </label>
+                      <input
+                        type="date"
+                        value={requestDate}
+                        onChange={(e) => setRequestDate(e.target.value)}
+                        min={getTodayPacific()}
+                        className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                      />
+                    </div>
 
-            {/* Available Time Slots */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Available Time Slots
-              </label>
-              {confLoadingSlots ? (
-                <div className="flex items-center gap-2 py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-                  Loading available slots...
-                </div>
-              ) : confAvailableSlots.length === 0 ? (
-                <div className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                  No available slots for this date and duration
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Start Time
+                      </label>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Duration
+                      </label>
+                      <select
+                        value={durationMinutes}
+                        onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                      >
+                        <option value={30}>30 minutes</option>
+                        <option value={60}>60 minutes</option>
+                        <option value={90}>90 minutes</option>
+                        <option value={120}>120 minutes</option>
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Player Count
+                      </label>
+                      <select
+                        value={playerCount}
+                        onChange={(e) => setPlayerCount(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                      >
+                        <option value={1}>1 player</option>
+                        <option value={2}>2 players</option>
+                        <option value={3}>3 players</option>
+                        <option value={4}>4 players</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                    <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
+                      Participants
+                    </h4>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Host (Member) <span className="text-red-500">*</span>
+                        </label>
+                        <MemberSearchInput
+                          onSelect={setHostMember}
+                          onClear={() => setHostMember(null)}
+                          selectedMember={hostMember}
+                          placeholder="Search for host member..."
+                          excludeEmails={getExcludedEmails().filter(e => e !== hostMember?.email)}
+                        />
+                      </div>
+
+                      {participants.map((participant, index) => (
+                        <div key={index} className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-200 dark:border-white/10">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Player {index + 2}
+                            </span>
+                            <div className="flex bg-gray-200 dark:bg-white/10 rounded-lg p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleParticipantTypeChange(index, 'member')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                                  participant.type === 'member'
+                                    ? 'bg-white dark:bg-white/20 text-primary dark:text-white shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                                }`}
+                              >
+                                Member
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleParticipantTypeChange(index, 'guest')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                                  participant.type === 'guest'
+                                    ? 'bg-white dark:bg-white/20 text-primary dark:text-white shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                                }`}
+                              >
+                                Guest
+                              </button>
+                            </div>
+                          </div>
+
+                          <MemberSearchInput
+                            onSelect={(member) => handleParticipantSelect(index, member)}
+                            onClear={() => handleParticipantClear(index)}
+                            selectedMember={participant.member}
+                            placeholder={participant.type === 'member' ? 'Search member...' : 'Search guest (optional)...'}
+                            includeVisitors={participant.type === 'guest'}
+                            excludeEmails={getExcludedEmails().filter(e => e !== participant.member?.email)}
+                          />
+                          {participant.type === 'member' && !participant.member && (
+                            <p className="mt-1 text-xs text-red-500">Required for members</p>
+                          )}
+                          {participant.type === 'guest' && (
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional - leave empty for walk-in guest</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <select
-                  value={confSelectedSlot}
-                  onChange={(e) => setConfSelectedSlot(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                >
-                  {confAvailableSlots.map(slot => (
-                    <option key={slot} value={slot}>
-                      {formatTime12Hour(slot)} - {formatTime12Hour(calculateEndTime(slot, confDuration))}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-5">
+                  <button
+                    onClick={handleBack}
+                    className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg">arrow_back</span>
+                    Back to edit
+                  </button>
+
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">Booking Summary</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-blue-700/70 dark:text-blue-300/70">Host</span>
+                        <p className="font-medium text-blue-900 dark:text-blue-100">{hostMember?.name}</p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700/70 dark:text-blue-300/70">Date</span>
+                        <p className="font-medium text-blue-900 dark:text-blue-100">{formatDateShort(requestDate)}</p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700/70 dark:text-blue-300/70">Time</span>
+                        <p className="font-medium text-blue-900 dark:text-blue-100">
+                          {formatTime12Hour(startTime)} - {formatTime12Hour(endTime)}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700/70 dark:text-blue-300/70">Bay</span>
+                        <p className="font-medium text-blue-900 dark:text-blue-100">{selectedResource?.name || 'Unknown'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-blue-700/70 dark:text-blue-300/70">Total Players</span>
+                        <p className="font-medium text-blue-900 dark:text-blue-100">
+                          {playerCount} {playerCount === 1 ? 'player' : 'players'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Notes to paste into Trackman
+                      </label>
+                      <button
+                        onClick={handleCopy}
+                        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary dark:text-[#CCB8E4] bg-primary/10 dark:bg-[#CCB8E4]/20 rounded-lg hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-sm">
+                          {copied ? 'check' : 'content_copy'}
+                        </span>
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3 font-mono text-sm border border-gray-200 dark:border-white/10">
+                      <pre className="whitespace-pre-wrap break-all text-gray-800 dark:text-gray-200">{notesText}</pre>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Copy this text and paste it into the "Notes" field in Trackman. Set player count to {playerCount}.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleOpenTrackman}
+                    className="w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined">open_in_new</span>
+                    Open Trackman Portal
+                  </button>
+
+                  <div className="border-t border-gray-200 dark:border-white/10 pt-5">
+                    <label htmlFor="externalId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Paste External Booking ID from Trackman
+                    </label>
+                    <input
+                      id="externalId"
+                      type="text"
+                      value={externalId}
+                      onChange={(e) => setExternalId(e.target.value)}
+                      placeholder="e.g., 019bdde0-e12e-7d41-910a-731855716740"
+                      className="w-full px-4 py-3 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                    />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      After creating the booking in Trackman, copy the "Linked Booking" ID and paste it here.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Host Member Search */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Host Member <span className="text-red-500">*</span>
-              </label>
-              <MemberSearchInput
-                onSelect={setConfHostMember}
-                onClear={() => setConfHostMember(null)}
-                selectedMember={confHostMember}
-                placeholder="Search for host member..."
-              />
-            </div>
-
-            {/* Fee Estimate */}
-            {confHostMember && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
-                  <h4 className="font-semibold text-blue-900 dark:text-blue-100">Fee Estimate</h4>
-                </div>
-                {confLoadingFee ? (
-                  <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-                    <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-                    Calculating...
-                  </div>
-                ) : confFeeEstimate ? (
-                  <div className="space-y-2 text-sm">
-                    {confFeeEstimate.tierName && (
-                      <div className="flex justify-between">
-                        <span className="text-blue-700/70 dark:text-blue-300/70">Member Tier</span>
-                        <span className="font-medium text-blue-900 dark:text-blue-100">{confFeeEstimate.tierName}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-blue-700/70 dark:text-blue-300/70">Daily Allowance</span>
-                      <span className="font-medium text-blue-900 dark:text-blue-100">{confFeeEstimate.dailyAllowance} min</span>
+            {/* Lesson / Staff Block Tab (index 1) */}
+            <div ref={lessonContentRef} className="w-full flex-shrink-0">
+              <div className="space-y-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+                  <div className="flex gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-800/50 rounded-lg h-fit">
+                      <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-700/70 dark:text-blue-300/70">Used Today</span>
-                      <span className="font-medium text-blue-900 dark:text-blue-100">{confFeeEstimate.usedToday} min</span>
+                    <div>
+                      <h3 className="font-medium text-blue-900 dark:text-blue-100">New Workflow</h3>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
+                        Lessons and Staff Blocks are now handled automatically. Instead of creating a booking here, simply book in Trackman using your staff email.
+                      </p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-700/70 dark:text-blue-300/70">This Booking</span>
-                      <span className="font-medium text-blue-900 dark:text-blue-100">{confDuration} min</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Client Name (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={lessonClientName}
+                      onChange={(e) => setLessonClientName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="w-full px-3 py-2.5 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-primary/20 dark:focus:ring-[#CCB8E4]/20 focus:border-primary dark:focus:border-[#CCB8E4] transition-colors"
+                    />
+                  </div>
+
+                  <div className="border border-gray-100 dark:border-white/10 rounded-xl divide-y divide-gray-100 dark:divide-white/10 bg-white dark:bg-white/5 shadow-sm">
+                    <div className="p-4 flex gap-4">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">1</div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">Open Trackman</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Go to the Trackman booking grid.</p>
+                      </div>
                     </div>
-                    {confFeeEstimate.overageMinutes > 0 ? (
-                      <div className="pt-2 mt-2 border-t border-blue-200 dark:border-blue-700">
-                        <div className="flex justify-between items-center">
-                          <span className="text-amber-700 dark:text-amber-400 font-medium">Overage Fee</span>
-                          <span className="font-bold text-amber-700 dark:text-amber-400">
-                            ${(confFeeEstimate.overageCents / 100).toFixed(2)} for {confFeeEstimate.overageMinutes} min
-                          </span>
-                        </div>
+
+                    <div className="p-4 flex gap-4">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">2</div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">Create booking with your @evenhouse.club email</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">This tells the system it's a lesson/staff block, not a member booking.</p>
                       </div>
-                    ) : (
-                      <div className="pt-2 mt-2 border-t border-blue-200 dark:border-blue-700">
-                        <div className="flex justify-between items-center">
-                          <span className="text-green-700 dark:text-green-400 font-medium">Within Allowance</span>
-                          <span className="font-bold text-green-700 dark:text-green-400">No fee</span>
-                        </div>
+                    </div>
+
+                    <div className="p-4 flex gap-4">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">3</div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">Paste the notes (optional)</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Click "Copy Notes" below, then paste into Trackman's notes field.</p>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-blue-600/70 dark:text-blue-400/70">
-                    Unable to calculate fee estimate
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        ) : mode === 'lesson' ? (
-          /* Lesson / Staff Block Helper View */
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
-              <div className="flex gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-800/50 rounded-lg h-fit">
-                  <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
-                </div>
-                <div>
-                  <h3 className="font-medium text-blue-900 dark:text-blue-100">New Workflow</h3>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 leading-relaxed">
-                    Lessons and Staff Blocks are now handled automatically. Instead of creating a booking here, simply book in Trackman using your staff email.
-                  </p>
-                </div>
-              </div>
-            </div>
+                    </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Client Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={lessonClientName}
-                  onChange={(e) => setLessonClientName(e.target.value)}
-                  placeholder="e.g. John Doe"
-                  className="w-full px-3 py-2.5 bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg focus:ring-2 focus:ring-primary/20 dark:focus:ring-[#CCB8E4]/20 focus:border-primary dark:focus:border-[#CCB8E4] transition-colors"
-                  autoFocus
-                />
-              </div>
-
-              <div className="border border-gray-100 dark:border-white/10 rounded-xl divide-y divide-gray-100 dark:divide-white/10 bg-white dark:bg-white/5 shadow-sm">
-                <div className="p-4 flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">1</div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Open Trackman</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Go to the Trackman booking grid.</p>
-                  </div>
-                </div>
-
-                <div className="p-4 flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">2</div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Create booking with your @evenhouse.club email</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">This tells the system it's a lesson/staff block, not a member booking.</p>
-                  </div>
-                </div>
-
-                <div className="p-4 flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 shrink-0">3</div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Paste the notes (optional)</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Click "Copy Notes" below, then paste into Trackman's notes field.</p>
-                  </div>
-                </div>
-
-                <div className="p-4 flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-sm font-bold text-green-600 dark:text-green-400 shrink-0">
-                    <span className="material-symbols-outlined text-lg">check</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">That's it!</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">The system will auto-convert it to an availability block.</p>
+                    <div className="p-4 flex gap-4">
+                      <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-sm font-bold text-green-600 dark:text-green-400 shrink-0">
+                        <span className="material-symbols-outlined text-lg">check</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">That's it!</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">The system will auto-convert it to an availability block.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-          </div>
-        ) : step === 1 ? (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Bay
-                </label>
-                <select
-                  value={resourceId ?? ''}
-                  onChange={(e) => setResourceId(Number(e.target.value))}
-                  disabled={loadingResources}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                >
-                  {loadingResources ? (
-                    <option value="">Loading...</option>
-                  ) : (
-                    resources.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))
-                  )}
-                </select>
-              </div>
+            {/* Conference Room Tab (index 2) */}
+            <div ref={conferenceContentRef} className="w-full flex-shrink-0">
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={confDate}
+                      onChange={(e) => setConfDate(e.target.value)}
+                      min={getTodayPacific()}
+                      className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={requestDate}
-                  onChange={(e) => setRequestDate(e.target.value)}
-                  min={getTodayPacific()}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Duration
+                    </label>
+                    <select
+                      value={confDuration}
+                      onChange={(e) => setConfDuration(Number(e.target.value))}
+                      className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                    >
+                      <option value={30}>30 minutes</option>
+                      <option value={60}>60 minutes</option>
+                      <option value={90}>90 minutes</option>
+                      <option value={120}>120 minutes</option>
+                      <option value={150}>150 minutes</option>
+                      <option value={180}>180 minutes</option>
+                      <option value={210}>210 minutes</option>
+                      <option value={240}>240 minutes</option>
+                    </select>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Start Time
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Duration
-                </label>
-                <select
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                >
-                  <option value={30}>30 minutes</option>
-                  <option value={60}>60 minutes</option>
-                  <option value={90}>90 minutes</option>
-                  <option value={120}>120 minutes</option>
-                </select>
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Player Count
-                </label>
-                <select
-                  value={playerCount}
-                  onChange={(e) => setPlayerCount(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-                >
-                  <option value={1}>1 player</option>
-                  <option value={2}>2 players</option>
-                  <option value={3}>3 players</option>
-                  <option value={4}>4 players</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4">
-              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">
-                Participants
-              </h4>
-
-              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Host (Member) <span className="text-red-500">*</span>
+                    Available Time Slots
+                  </label>
+                  {confLoadingSlots ? (
+                    <div className="flex items-center gap-2 py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400">
+                      <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                      Loading available slots...
+                    </div>
+                  ) : confAvailableSlots.length === 0 ? (
+                    <div className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      No available slots for this date and duration
+                    </div>
+                  ) : (
+                    <select
+                      value={confSelectedSlot}
+                      onChange={(e) => setConfSelectedSlot(e.target.value)}
+                      className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
+                    >
+                      {confAvailableSlots.map(slot => (
+                        <option key={slot} value={slot}>
+                          {formatTime12Hour(slot)} - {formatTime12Hour(calculateEndTime(slot, confDuration))}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Host Member <span className="text-red-500">*</span>
                   </label>
                   <MemberSearchInput
-                    onSelect={setHostMember}
-                    onClear={() => setHostMember(null)}
-                    selectedMember={hostMember}
+                    onSelect={setConfHostMember}
+                    onClear={() => setConfHostMember(null)}
+                    selectedMember={confHostMember}
                     placeholder="Search for host member..."
-                    excludeEmails={getExcludedEmails().filter(e => e !== hostMember?.email)}
                   />
                 </div>
 
-                {participants.map((participant, index) => (
-                  <div key={index} className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-200 dark:border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Player {index + 2}
-                      </span>
-                      <div className="flex bg-gray-200 dark:bg-white/10 rounded-lg p-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleParticipantTypeChange(index, 'member')}
-                          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                            participant.type === 'member'
-                              ? 'bg-white dark:bg-white/20 text-primary dark:text-white shadow-sm'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                          }`}
-                        >
-                          Member
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleParticipantTypeChange(index, 'guest')}
-                          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                            participant.type === 'guest'
-                              ? 'bg-white dark:bg-white/20 text-primary dark:text-white shadow-sm'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                          }`}
-                        >
-                          Guest
-                        </button>
-                      </div>
+                {confHostMember && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">receipt_long</span>
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">Fee Estimate</h4>
                     </div>
-
-                    <MemberSearchInput
-                      onSelect={(member) => handleParticipantSelect(index, member)}
-                      onClear={() => handleParticipantClear(index)}
-                      selectedMember={participant.member}
-                      placeholder={participant.type === 'member' ? 'Search member...' : 'Search guest (optional)...'}
-                      includeVisitors={participant.type === 'guest'}
-                      excludeEmails={getExcludedEmails().filter(e => e !== participant.member?.email)}
-                    />
-                    {participant.type === 'member' && !participant.member && (
-                      <p className="mt-1 text-xs text-red-500">Required for members</p>
-                    )}
-                    {participant.type === 'guest' && (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional - leave empty for walk-in guest</p>
+                    {confLoadingFee ? (
+                      <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                        <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                        Calculating...
+                      </div>
+                    ) : confFeeEstimate ? (
+                      <div className="space-y-2 text-sm">
+                        {confFeeEstimate.tierName && (
+                          <div className="flex justify-between">
+                            <span className="text-blue-700/70 dark:text-blue-300/70">Member Tier</span>
+                            <span className="font-medium text-blue-900 dark:text-blue-100">{confFeeEstimate.tierName}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-blue-700/70 dark:text-blue-300/70">Daily Allowance</span>
+                          <span className="font-medium text-blue-900 dark:text-blue-100">{confFeeEstimate.dailyAllowance} min</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700/70 dark:text-blue-300/70">Used Today</span>
+                          <span className="font-medium text-blue-900 dark:text-blue-100">{confFeeEstimate.usedToday} min</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700/70 dark:text-blue-300/70">This Booking</span>
+                          <span className="font-medium text-blue-900 dark:text-blue-100">{confDuration} min</span>
+                        </div>
+                        {confFeeEstimate.overageMinutes > 0 ? (
+                          <div className="pt-2 mt-2 border-t border-blue-200 dark:border-blue-700">
+                            <div className="flex justify-between items-center">
+                              <span className="text-amber-700 dark:text-amber-400 font-medium">Overage Fee</span>
+                              <span className="font-bold text-amber-700 dark:text-amber-400">
+                                ${(confFeeEstimate.overageCents / 100).toFixed(2)} for {confFeeEstimate.overageMinutes} min
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="pt-2 mt-2 border-t border-blue-200 dark:border-blue-700">
+                            <div className="flex justify-between items-center">
+                              <span className="text-green-700 dark:text-green-400 font-medium">Within Allowance</span>
+                              <span className="font-bold text-green-700 dark:text-green-400">No fee</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-blue-600/70 dark:text-blue-400/70">
+                        Unable to calculate fee estimate
+                      </p>
                     )}
                   </div>
-                ))}
+                )}
               </div>
             </div>
-
-          </>
-        ) : (
-          <>
-            <button
-              onClick={handleBack}
-              className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">arrow_back</span>
-              Back to edit
-            </button>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
-                <h4 className="font-semibold text-blue-900 dark:text-blue-100">Booking Summary</h4>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-blue-700/70 dark:text-blue-300/70">Host</span>
-                  <p className="font-medium text-blue-900 dark:text-blue-100">{hostMember?.name}</p>
-                </div>
-                <div>
-                  <span className="text-blue-700/70 dark:text-blue-300/70">Date</span>
-                  <p className="font-medium text-blue-900 dark:text-blue-100">{formatDateShort(requestDate)}</p>
-                </div>
-                <div>
-                  <span className="text-blue-700/70 dark:text-blue-300/70">Time</span>
-                  <p className="font-medium text-blue-900 dark:text-blue-100">
-                    {formatTime12Hour(startTime)} - {formatTime12Hour(endTime)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-blue-700/70 dark:text-blue-300/70">Bay</span>
-                  <p className="font-medium text-blue-900 dark:text-blue-100">{selectedResource?.name || 'Unknown'}</p>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-blue-700/70 dark:text-blue-300/70">Total Players</span>
-                  <p className="font-medium text-blue-900 dark:text-blue-100">
-                    {playerCount} {playerCount === 1 ? 'player' : 'players'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Notes to paste into Trackman
-                </label>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-primary dark:text-[#CCB8E4] bg-primary/10 dark:bg-[#CCB8E4]/20 rounded-lg hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    {copied ? 'check' : 'content_copy'}
-                  </span>
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3 font-mono text-sm border border-gray-200 dark:border-white/10">
-                <pre className="whitespace-pre-wrap break-all text-gray-800 dark:text-gray-200">{notesText}</pre>
-              </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Copy this text and paste it into the "Notes" field in Trackman. Set player count to {playerCount}.
-              </p>
-            </div>
-
-            <button
-              onClick={handleOpenTrackman}
-              className="w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined">open_in_new</span>
-              Open Trackman Portal
-            </button>
-
-            <div className="border-t border-gray-200 dark:border-white/10 pt-5">
-              <label htmlFor="externalId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Paste External Booking ID from Trackman
-              </label>
-              <input
-                id="externalId"
-                type="text"
-                value={externalId}
-                onChange={(e) => setExternalId(e.target.value)}
-                placeholder="e.g., 019bdde0-e12e-7d41-910a-731855716740"
-                className="w-full px-4 py-3 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all"
-              />
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                After creating the booking in Trackman, copy the "Linked Booking" ID and paste it here.
-              </p>
-            </div>
-
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </SlideUpDrawer>
   );
