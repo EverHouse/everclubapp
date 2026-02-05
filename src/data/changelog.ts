@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.9.8",
+    date: "2026-02-05",
+    title: "Family Billing Data Completeness Fix",
+    changes: [
+      "Fixed: Family member profile info (name, phone, birthday) now properly sent when adding to family plans",
+      "Fixed: addFamilyMember wrapper function now passes all profile fields correctly"
+    ]
+  },
+  {
     version: "69.9.7",
     date: "2026-02-05",
     title: "Family Billing & Subscription Safety Fixes",

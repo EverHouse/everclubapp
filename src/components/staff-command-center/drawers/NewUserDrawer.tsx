@@ -571,7 +571,15 @@ function MemberFlow({
                 phone: form.phone,
                 dob: form.dob
               }
-            : { memberEmail: form.email, memberTier: selectedTier.slug, relationship: 'family' };
+            : { 
+                memberEmail: form.email, 
+                memberTier: selectedTier.slug, 
+                relationship: 'family',
+                firstName: form.firstName,
+                lastName: form.lastName,
+                phone: form.phone,
+                dob: form.dob
+              };
           
           const groupRes = await fetch(endpoint, {
             method: 'POST',
