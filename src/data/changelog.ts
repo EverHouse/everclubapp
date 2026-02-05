@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.13.0",
+    date: "2026-02-05",
+    title: "Comprehensive Member Deletion",
+    changes: [
+      "Fixed: Delete button now cleans ALL user data across 35+ database tables (previously only ~10)",
+      "Fixed: Stripe subscriptions are now canceled before deleting the customer account",
+      "Fixed: Stripe subscription pagination handles customers with many subscriptions",
+      "Added: Email matching uses case-insensitive comparison on all tables",
+      "Added: Cleanup covers notifications, terminal payments, billing logs, push subscriptions, linked emails, fee snapshots, and more",
+      "Added: Billing groups are safely deactivated (not deleted) to protect other group members",
+      "Added: Visitor deletion also comprehensively cleans all related records",
+      "Added: Staff audit log entry recorded for every member/visitor deletion"
+    ]
+  },
+  {
     version: "69.12.3",
     date: "2026-02-05",
     title: "Terminal Payment Integrity - Complete Coverage",

@@ -807,31 +807,109 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     const visitorName = `${visitor.firstName || ''} ${visitor.lastName || ''}`.trim() || visitor.email;
+    const visitorEmail = (visitor.email || '').toLowerCase();
+    const visitorIdStr = String(id);
     const deletionLog: string[] = [];
     
-    await pool.query('DELETE FROM day_pass_purchases WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM day_pass_purchases WHERE user_id = $1', [visitorIdStr]);
     deletionLog.push('day_pass_purchases');
     
-    await pool.query('DELETE FROM booking_guests WHERE LOWER(guest_email) = LOWER($1)', [visitor.email]);
+    await pool.query('DELETE FROM booking_guests WHERE LOWER(guest_email) = $1', [visitorEmail]);
     deletionLog.push('booking_guests');
     
-    await pool.query('DELETE FROM member_notes WHERE member_email = $1', [visitor.email]);
+    await pool.query('DELETE FROM member_notes WHERE LOWER(member_email) = $1', [visitorEmail]);
     deletionLog.push('member_notes');
     
-    await pool.query('DELETE FROM communication_logs WHERE member_email = $1', [visitor.email]);
+    await pool.query('DELETE FROM communication_logs WHERE LOWER(member_email) = $1', [visitorEmail]);
     deletionLog.push('communication_logs');
     
-    await pool.query('DELETE FROM legacy_purchases WHERE LOWER(member_email) = LOWER($1)', [visitor.email]);
+    await pool.query('DELETE FROM legacy_purchases WHERE LOWER(member_email) = $1', [visitorEmail]);
     deletionLog.push('legacy_purchases');
     
     await pool.query('DELETE FROM booking_participants WHERE user_id = $1', [id]);
     deletionLog.push('booking_participants');
+    
+    await pool.query('DELETE FROM notifications WHERE LOWER(user_email) = $1', [visitorEmail]);
+    deletionLog.push('notifications');
+    
+    await pool.query('DELETE FROM magic_links WHERE LOWER(email) = $1', [visitorEmail]);
+    deletionLog.push('magic_links');
+    
+    await pool.query('DELETE FROM push_subscriptions WHERE LOWER(user_email) = $1', [visitorEmail]);
+    deletionLog.push('push_subscriptions');
+    
+    await pool.query('DELETE FROM user_dismissed_notices WHERE LOWER(user_email) = $1', [visitorEmail]);
+    deletionLog.push('user_dismissed_notices');
+    
+    await pool.query('DELETE FROM form_submissions WHERE LOWER(email) = $1', [visitorEmail]);
+    deletionLog.push('form_submissions');
+    
+    await pool.query("DELETE FROM sessions WHERE sess->'user'->>'email' = $1", [visitorEmail]);
+    deletionLog.push('sessions');
+    
+    await pool.query("DELETE FROM hubspot_sync_queue WHERE LOWER(payload->>'email') = $1", [visitorEmail]);
+    deletionLog.push('hubspot_sync_queue');
+    
+    await pool.query('DELETE FROM guest_check_ins WHERE LOWER(member_email) = $1', [visitorEmail]);
+    deletionLog.push('guest_check_ins');
+    
+    await pool.query('DELETE FROM guest_passes WHERE LOWER(member_email) = $1', [visitorEmail]);
+    deletionLog.push('guest_passes');
+    
+    await pool.query('DELETE FROM account_deletion_requests WHERE user_id = $1', [id]);
+    deletionLog.push('account_deletion_requests');
+    
+    await pool.query('DELETE FROM data_export_requests WHERE LOWER(user_email) = $1', [visitorEmail]);
+    deletionLog.push('data_export_requests');
+    
+    await pool.query('DELETE FROM bug_reports WHERE LOWER(user_email) = $1', [visitorEmail]);
+    deletionLog.push('bug_reports');
+    
+    await pool.query('DELETE FROM terminal_payments WHERE user_id = $1', [visitorIdStr]);
+    deletionLog.push('terminal_payments');
+    
+    await pool.query('DELETE FROM stripe_payment_intents WHERE user_id = $1', [visitorIdStr]);
+    deletionLog.push('stripe_payment_intents');
+    
+    if (visitor.stripeCustomerId) {
+      await pool.query('DELETE FROM stripe_transaction_cache WHERE customer_id = $1', [visitor.stripeCustomerId]);
+      deletionLog.push('stripe_transaction_cache');
+      
+      await pool.query('DELETE FROM terminal_payments WHERE stripe_customer_id = $1', [visitor.stripeCustomerId]);
+      await pool.query('DELETE FROM stripe_payment_intents WHERE stripe_customer_id = $1', [visitor.stripeCustomerId]);
+      
+      await pool.query('DELETE FROM webhook_processed_events WHERE resource_id = $1', [visitor.stripeCustomerId]);
+      deletionLog.push('webhook_processed_events');
+    }
+    
+    await pool.query("DELETE FROM admin_audit_log WHERE resource_id = $1 AND resource_type = 'user'", [visitorIdStr]);
+    deletionLog.push('admin_audit_log');
+    
+    await pool.query("UPDATE billing_groups SET is_active = false WHERE LOWER(primary_email) = $1 AND is_active = true", [visitorEmail]);
+    deletionLog.push('billing_groups (deactivated)');
     
     let stripeDeleted = false;
     if (deleteFromStripe === 'true' && visitor.stripeCustomerId) {
       try {
         const { getStripe } = await import('../../core/stripe');
         const stripe = getStripe();
+        let hasMore = true;
+        let startingAfter: string | undefined;
+        while (hasMore) {
+          const params: any = { customer: visitor.stripeCustomerId, limit: 100 };
+          if (startingAfter) params.starting_after = startingAfter;
+          const subscriptions = await stripe.subscriptions.list(params);
+          for (const sub of subscriptions.data) {
+            if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+              await stripe.subscriptions.cancel(sub.id);
+              deletionLog.push(`stripe_subscription_cancelled (${sub.id})`);
+            }
+          }
+          hasMore = subscriptions.has_more;
+          if (subscriptions.data.length > 0) {
+            startingAfter = subscriptions.data[subscriptions.data.length - 1].id;
+          }
+        }
         await stripe.customers.del(visitor.stripeCustomerId);
         stripeDeleted = true;
         deletionLog.push('stripe_customer');

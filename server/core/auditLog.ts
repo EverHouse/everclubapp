@@ -10,6 +10,7 @@ export type AuditAction =
   | 'view_member_billing'
   | 'update_member'
   | 'delete_member'
+  | 'delete_visitor'
   | 'archive_member'
   | 'export_member_data'
   | 'create_member'
@@ -134,7 +135,8 @@ export type ResourceType =
   | 'waiver'
   | 'system'
   | 'checkout'
-  | 'authorization';
+  | 'authorization'
+  | 'user';
 
 interface AuditLogParams {
   staffEmail: string;
