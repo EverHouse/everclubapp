@@ -1,0 +1,199 @@
+TRAINING GUIDE AUDIT - CORRECTIONS NEEDED
+==========================================
+
+TOURS SECTION (server/routes/training.ts lines 146-153)
+
+- Section: Tours
+- Step: Tour Sources
+- Issue: Training states tours come from "booking widget on the website, or directly synced from the HubSpot meeting scheduler" but app syncs from Google Calendar, not HubSpot
+- Correction: "Tours are synced from Google Calendar, including facility tours created through the tour booking system on the website."
+
+- Section: Tours
+- Step: Tour Status
+- Issue: Training lists status options as "Scheduled (upcoming), Completed (attended), Cancelled, or No Show" but the app includes two additional statuses: "Checked In" and "Pending"
+- Correction: "Update the tour status as needed: Scheduled (upcoming), Checked In (guest has arrived), Completed (attended), No Show (didn't arrive), Cancelled, or Pending (awaiting confirmation)."
+
+- Section: Tours
+- Step: Needs Review
+- Issue: Training describes a "Needs Review" section for HubSpot meetings that didn't auto-match, but this section does not exist in the actual Tours tab UI
+- Correction: Remove this step or clarify with backend that feature is not yet implemented
+
+- Section: Tours
+- Step: (Missing - add new)
+- Issue: Training does not document the "Past Tours" section that displays completed and historical tours
+- Correction: Add new step: "Past Tours - Below Upcoming Tours, view historical tours that have occurred, organized by date."
+
+- Section: Tours
+- Step: (Missing - add new or enhance Today's Tours)
+- Issue: Training does not explain the blue "Check In" button visible for today's scheduled tours
+- Correction: Add: "For today's scheduled tours, use the blue 'Check In' button to mark the guest as arrived. The status then changes to 'Checked In'."
+
+
+NOTICES (FACILITY) SECTION (server/routes/training.ts lines 163-174)
+
+- Section: Notices (Facility)
+- Step: Access Notices
+- Issue: Training does not mention that the Facility section has two subtabs: Notices and Blocks
+- Correction: Update step to: "Go to Facility/Notices from the sidebar or bottom navigation. The section has two tabs: Notices (closures and announcements) and Blocks (availability blocks and maintenance)."
+
+- Section: Notices (Facility)
+- Step: Needs Review Section
+- Issue: Training describes section but doesn't mention draft items are marked with cyan color and "Draft" label
+- Correction: "Notices synced from Google Calendar without proper configuration show in 'Needs Review' at the top, marked with a cyan indicator labeled 'Draft'. These show missing required fields: Notice type, Affected areas, and Visibility. Tap 'Edit' to configure."
+
+- Section: Notices (Facility)
+- Step: Card Colors Explained
+- Issue: Training describes RED and AMBER but doesn't mention CYAN color for Draft notices
+- Correction: "Card Colors - RED cards block bookings for selected areas. AMBER cards are informational and don't affect booking availability. CYAN cards indicate Draft notices needing configuration."
+
+- Section: Notices (Facility)
+- Step: None = Informational
+- Issue: Training says "Setting affected areas to 'None'" but UI uses terminology "Informational Only" in the dropdown
+- Correction: "Select 'Informational Only' (None in the system) for affected areas to make the notice amber/informational. It shows in calendar but doesn't block bookings."
+
+- Section: Notices (Facility)
+- Step: Filter & Search
+- Issue: Training mentions "Show past" toggle but actual implementation uses "Past Notices" collapsible accordion section
+- Correction: "Use the 'Past Notices' accordion at the bottom to view historical notices. Click the header to expand and see past closures and announcements."
+
+- Section: Notices (Facility)
+- Step: (Missing - add new)
+- Issue: Training completely omits the required "Visibility" field which controls who can view the notice (Public, Staff Only, Private, Draft)
+- Correction: Add new step: "Visibility Setting - After selecting affected areas, set who can view this notice: Public (members see it), Staff Only (internal), Private (hidden), or Draft (incomplete notices). This is a required field."
+
+- Section: Notices (Facility)
+- Step: (Missing - add new)
+- Issue: Training does not mention the "Show to Members" checkbox that controls member dashboard display
+- Correction: Add new step: "Member Dashboard Display - For informational notices, toggle 'Show to Members' to display on member dashboards and Updates section. For blocking notices, this is always shown when applicable."
+
+- Section: Notices (Facility)
+- Step: (Missing - add new)
+- Issue: Training doesn't document the "Closure Reasons" configuration section for managing dropdown options
+- Correction: Add new step: "Closure Reasons - In the Notices tab, use the 'Closure Reasons' section to add and manage the reason options shown to members (e.g., Holiday, Maintenance). Control the display order with sort order."
+
+- Section: Notices (Facility)
+- Step: Create a Notice
+- Issue: Training doesn't explain the "Reason Category" (notice_type) field and its purpose
+- Correction: Add detail: "Reason Category - Select a category for the closure (e.g., Holiday, Maintenance). This category appears as a badge to members and syncs with Google Calendar."
+
+
+SUMMARY OF ISSUES BY CATEGORY
+===============================
+
+Incorrect Information (factually wrong):
+- Tours sync source is Google Calendar, not HubSpot
+- Needs Review section doesn't exist in Tours tab
+
+Missing/Incomplete Documentation:
+- Tour statuses incomplete (missing Checked In, Pending)
+- Past Tours section not documented
+- Check In button functionality not explained
+- Visibility field completely missing from Notices guide
+- Member Visibility checkbox not mentioned
+- Closure Reasons management not documented
+- Notice Type field purpose not explained
+
+Visual/UI Documentation Issues:
+- Needs Review cyan color and Draft label not documented
+- Card color legend missing cyan
+- Past Notices accordion vs toggle terminology
+- Affected areas "None" vs "Informational Only" terminology
+
+Structural Issues:
+- Facility subtabs (Notices vs Blocks) not mentioned
+- Two complete required form fields (Visibility, Member Visibility) omitted from guide
+
+
+EVENTS, WELLNESS & BLOCKS SECTION (server/routes/training.ts lines 176-196)
+
+- Section: Events, Wellness & Blocks
+- Step: Access the Calendar
+- Issue: Training says "Go to the Calendar tab" but there is no single "Calendar" tab. Events, Wellness, and Blocks are in separate admin tabs (EventsTab and BlocksTab), and they don't all appear in one "Calendar tab".
+- Correction: "Navigate to the Events tab in Admin to view and manage events and wellness classes. Availability blocks are managed in a separate Blocks tab."
+
+---
+
+- Section: Events, Wellness & Blocks
+- Step: Three Main Tabs
+- Issue: Training says "Use the tabs to switch between Events (member events), Wellness (classes like yoga, pilates), and Blocks (resource availability)" as if all three are accessible in one location. However, Events and Wellness are in EventsTab (as subtabs "Events" and "Wellness"), while Blocks are in a completely separate BlocksTab.
+- Correction: "The Events tab has two subtabs to switch between Events (member events) and Wellness (classes like yoga, pilates). Blocks (resource availability) are managed in the separate Blocks tab."
+
+---
+
+- Section: Events, Wellness & Blocks
+- Step: Calendar Status
+- Issue: Training mentions tapping "Calendar Status" at the top to see which Google Calendars are connected and their sync status. No such "Calendar Status" button or section is visible in the EventsTab code. There is a sync message that appears after pulling to refresh, but no dedicated "Calendar Status" display.
+- Correction: "Sync status messages appear at the top of the Events tab after pulling to refresh. To check current calendar connections, pull to refresh the page which triggers a sync with all connected Google Calendars."
+
+---
+
+- Section: Events, Wellness & Blocks
+- Step: Sync with Eventbrite
+- Issue: Training says "Click the Eventbrite sync button" but there is no visible Eventbrite sync button in the main Events interface. Eventbrite sync happens automatically via pull-to-refresh along with Google Calendar sync, and can also be triggered from the event RSVPs view.
+- Correction: "Eventbrite attendees are synced automatically when you pull to refresh the Events tab. You can also manually sync Eventbrite attendees for a specific event by opening the event's RSVP details and clicking the sync button."
+
+---
+
+- Section: Events, Wellness & Blocks
+- Step: Sync with Google Calendar
+- Issue: Training says "Click the Google Calendar sync button" but there is no visible dedicated "Google Calendar sync button" in the main Events interface. Google Calendar sync is triggered via pull-to-refresh.
+- Correction: "Pull to refresh the Events or Wellness tab to sync with your connected Google Calendars. Both events and wellness classes will be updated with the latest calendar data."
+
+---
+
+- Section: Events, Wellness & Blocks
+- Step: Create Manual Events
+- Issue: Minor clarification - training says "Use the + button" but should specify it's the floating action button at the bottom right.
+- Correction: "Tap the floating action button (+ icon) at the bottom right to add a new event or wellness class, depending on which tab (Events or Wellness) you're currently viewing."
+
+
+UPDATES & ANNOUNCEMENTS SECTION (server/routes/training.ts lines 197-216)
+
+- Section: Updates & Announcements
+- Step: Activity Tab
+- Issue: Training says "The Activity tab shows your staff notifications" but the actual tab is labeled "Alerts", not "Activity". This is clearly visible in the UI where the button text is "Alerts".
+- Correction: "The Alerts tab shows your staff notifications - new booking requests, check-in reminders, system alerts, and other activity relevant to your role."
+
+---
+
+- Section: Updates & Announcements
+- Step: Announcements Tab
+- Issue: Training says "Switch to the Announcements tab" but the actual tab is labeled "Announce", not "Announcements". This is clearly visible in the UI where the button text is "Announce".
+- Correction: "Switch to the Announce tab to create and manage announcements that members will see in their feed."
+
+---
+
+- Section: Updates & Announcements
+- Step: Create an Announcement
+- Issue: Minor wording clarity - training says "Click the + button" but should specify floating action button.
+- Correction: "Tap the floating action button (+ icon) at the bottom right to create a new announcement."
+
+
+MEMBER DIRECTORY SECTION (server/routes/training.ts lines 217-238)
+
+- Section: Member Directory
+- Step: Three Directory Tabs
+- Issue: Training says "The directory has three tabs: Active (current paying members), Former (cancelled or expired memberships), and Visitors (non-members)." However, the DirectoryTab component actually has FOUR tabs: 'active', 'former', 'visitors', AND 'team'. The training guide is missing the Team tab.
+- Correction: "The directory has four tabs: Active (current paying members), Former (cancelled or expired memberships), Visitors (non-members), and Team (staff members and employees)."
+
+
+SUMMARY OF NEW ISSUES BY CATEGORY (Events/Wellness/Blocks, Updates, Directory)
+==================================================================================
+
+Tab Naming Issues (High Priority - Confusing to Users):
+- "Activity Tab" is actually called "Alerts"
+- "Announcements Tab" is actually called "Announce"
+- "Three Tabs" description incomplete - Directory has 4 tabs (missing Team)
+
+Navigation/Structure Issues (High Priority - Misleading Instructions):
+- No single "Calendar tab" - Events/Wellness in separate subtabs, Blocks in separate tab
+- "Three Main Tabs" (Events/Wellness/Blocks) are not all in one location as training suggests
+
+Missing UI Elements (Medium Priority - Instructions Don't Match UI):
+- No visible "Calendar Status" button/section mentioned in training
+- No visible Eventbrite sync button - sync is via pull-to-refresh
+- No visible Google Calendar sync button - sync is via pull-to-refresh
+
+Clarity/Wording Issues (Low Priority):
+- Floating action button vs "+" button terminology
+- Pull-to-refresh as primary sync mechanism not clearly explained
