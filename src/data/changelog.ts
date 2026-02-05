@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "69.10.4",
+    date: "2026-02-05",
+    title: "Fix In-Person Payment Form for New Members",
+    changes: [
+      "Fixed: Inline card payment form now appears when creating new members in person",
+      "Fixed: Stripe subscription creation now explicitly uses card payment collection",
+      "Root cause: Stripe wasn't generating payment intent for the card form"
+    ]
+  },
+  {
     version: "69.10.3",
     date: "2026-02-05",
     title: "Member Checkout & Activation Link Fixes",

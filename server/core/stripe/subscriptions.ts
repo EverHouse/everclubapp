@@ -29,8 +29,10 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
       customer: customerId,
       items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
+      collection_method: 'charge_automatically',
       payment_settings: {
         save_default_payment_method: 'on_subscription',
+        payment_method_types: ['card'],
       },
       expand: ['latest_invoice.payment_intent'],
       metadata: {
