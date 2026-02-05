@@ -643,6 +643,10 @@ export async function addFamilyMember(params: {
   memberEmail: string;
   memberTier: string;
   relationship?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  dob?: string;
   addedBy: string;
   addedByName: string;
 }): Promise<{ success: boolean; memberId?: number; error?: string }> {
@@ -651,6 +655,10 @@ export async function addFamilyMember(params: {
     memberEmail: params.memberEmail,
     memberTier: params.memberTier,
     relationship: params.relationship,
+    firstName: params.firstName,
+    lastName: params.lastName,
+    phone: params.phone,
+    dob: params.dob,
     addedBy: params.addedBy,
     addedByName: params.addedByName,
   });
