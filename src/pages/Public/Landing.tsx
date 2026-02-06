@@ -280,7 +280,7 @@ const Landing: React.FC = () => {
     return match ? match[0] : '/mo';
   };
 
-  if (!sessionChecked || user) {
+  if (sessionChecked && user) {
     return <div className="min-h-screen" />;
   }
 

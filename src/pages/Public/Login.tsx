@@ -287,7 +287,7 @@ const Login: React.FC = () => {
     }
   };
 
-  if (!sessionChecked || user) {
+  if (sessionChecked && user) {
     return <div className="min-h-screen" />;
   }
 
