@@ -247,48 +247,66 @@ router.post('/api/hubspot/sync-communication-logs', isStaffOrAdmin, async (req, 
   }
 });
 
-// Push member data (tier, billing_provider, lifecycle) TO HubSpot for all active members
+// Push member data (tier, billing_provider, status, lifecycle) TO HubSpot for all relevant members
 router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, res) => {
   try {
     console.log('[HubSpotDeals] Push members to HubSpot triggered');
     const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
     
-    // Get all active members with HubSpot IDs
     const membersResult = await pool.query(`
-      SELECT email, membership_tier, billing_provider, membership_status
+      SELECT id, email, tier, billing_provider, membership_status, hubspot_id
       FROM users
       WHERE role = 'member'
-        AND hubspot_id IS NOT NULL
-        AND membership_status IN ('active', 'trialing', 'past_due')
+        AND membership_status IN ('active', 'trialing', 'past_due', 'frozen', 'froze', 'suspended', 'declined')
     `);
     
     const members = membersResult.rows;
-    console.log(`[HubSpotDeals] Found ${members.length} active members to sync to HubSpot`);
+    console.log(`[HubSpotDeals] Found ${members.length} members to push to HubSpot`);
     
     let synced = 0;
     let errors = 0;
+    let hubspotIdsBackfilled = 0;
     const errorDetails: string[] = [];
+    const BATCH_SIZE = 5;
     
-    for (const member of members) {
-      try {
-        await syncMemberToHubSpot({
-          email: member.email,
-          status: member.membership_status,
-          tier: member.membership_tier,
-          billingProvider: member.billing_provider
-        });
-        synced++;
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error: any) {
-        errors++;
-        errorDetails.push(`${member.email}: ${error.message}`);
-        console.error(`[HubSpotDeals] Error syncing ${member.email}:`, error.message);
+    for (let i = 0; i < members.length; i += BATCH_SIZE) {
+      const batch = members.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(
+        batch.map(async (member) => {
+          try {
+            const result = await syncMemberToHubSpot({
+              email: member.email,
+              status: member.membership_status,
+              tier: member.tier,
+              billingProvider: member.billing_provider
+            });
+            synced++;
+            
+            if (result.success && result.contactId && !member.hubspot_id) {
+              try {
+                await pool.query(
+                  'UPDATE users SET hubspot_id = $1, updated_at = NOW() WHERE id = $2 AND (hubspot_id IS NULL OR hubspot_id = \'\')',
+                  [result.contactId, member.id]
+                );
+                hubspotIdsBackfilled++;
+              } catch {}
+            }
+          } catch (error: any) {
+            errors++;
+            errorDetails.push(`${member.email}: ${error.message}`);
+            console.error(`[HubSpotDeals] Error syncing ${member.email}:`, error.message);
+          }
+        })
+      );
+      
+      if (i + BATCH_SIZE < members.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
-    console.log(`[HubSpotDeals] Push complete - Synced: ${synced}, Errors: ${errors}`);
-    res.json({ success: true, total: members.length, synced, errors, errorDetails: errorDetails.slice(0, 10) });
+    console.log(`[HubSpotDeals] Push complete - Synced: ${synced}, Errors: ${errors}, HubSpot IDs backfilled: ${hubspotIdsBackfilled}`);
+    res.json({ success: true, total: members.length, synced, errors, hubspotIdsBackfilled, errorDetails: errorDetails.slice(0, 10) });
   } catch (error: any) {
     console.error('Error pushing members to HubSpot:', error);
     res.status(500).json({ error: 'Failed to push members to HubSpot' });
