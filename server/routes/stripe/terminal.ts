@@ -103,13 +103,29 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
     
     const stripe = await getStripeClient();
     
+    let customerId: string | undefined;
+    if (metadata?.userId && metadata?.ownerEmail) {
+      try {
+        const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+        const result = await getOrCreateStripeCustomer(
+          metadata.userId,
+          metadata.ownerEmail,
+          metadata.ownerName
+        );
+        customerId = result.customerId;
+      } catch (custErr: any) {
+        console.warn('[Terminal] Could not resolve Stripe customer (non-blocking):', custErr.message);
+      }
+    }
+    
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount),
       currency,
       payment_method_types: ['card_present'],
       capture_method: 'automatic',
       description: description || 'Terminal payment',
-      metadata: metadata || {}
+      metadata: metadata || {},
+      ...(customerId ? { customer: customerId } : {})
     });
     
     const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
@@ -123,6 +139,21 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
         console.error('[Terminal] Simulated card presentation error (non-blocking):', simErr.message);
       }
     }
+    
+    await logFromRequest(req, {
+      action: 'terminal_payment_initiated',
+      resourceType: 'payment',
+      resourceId: paymentIntent.id,
+      resourceName: metadata?.ownerEmail || metadata?.paymentType || 'terminal_payment',
+      details: {
+        paymentIntentId: paymentIntent.id,
+        amount: Math.round(amount),
+        readerId,
+        customerId: customerId || null,
+        paymentType: metadata?.paymentType || 'generic',
+        bookingId: metadata?.bookingId || null
+      }
+    });
     
     res.json({
       success: true,
