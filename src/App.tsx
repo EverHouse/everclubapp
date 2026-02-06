@@ -283,14 +283,15 @@ const ScrollToTop = () => {
 
 const AuthenticatedRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, actualUser, isViewingAs, sessionChecked } = useData();
-  const navigate = useNavigate();
+  const [redirecting, setRedirecting] = React.useState(false);
 
   React.useEffect(() => {
-    if (!sessionChecked || !user) return;
+    if (!sessionChecked || !user || redirecting) return;
     const isStaffOrAdmin = actualUser?.role === 'admin' || actualUser?.role === 'staff';
     const target = (isStaffOrAdmin && !isViewingAs) ? '/admin' : '/member/dashboard';
-    navigate(target, { replace: true });
-  }, [sessionChecked, user, actualUser, isViewingAs, navigate]);
+    setRedirecting(true);
+    window.location.replace(target);
+  }, [sessionChecked, user, actualUser, isViewingAs, redirecting]);
 
   if (!sessionChecked || user) return <div className="min-h-screen" />;
   return <>{children}</>;
