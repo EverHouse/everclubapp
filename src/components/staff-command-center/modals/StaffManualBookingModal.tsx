@@ -103,8 +103,8 @@ function getSimulatorDurations(players: number): number[] {
   switch (players) {
     case 1: return [30, 60, 90, 120, 150, 180, 210, 240];
     case 2: return [60, 120, 180, 240];
-    case 3: return [90, 180, 270];
-    case 4: return [120, 240];
+    case 3: return [90, 120, 150, 180, 270];
+    case 4: return [120, 180, 240];
     default: return [60, 120, 180, 240];
   }
 }

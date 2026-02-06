@@ -538,8 +538,8 @@ const BookGolf: React.FC = () => {
       switch (players) {
         case 1: return [30, 60, 90, 120, 150, 180, 210, 240];
         case 2: return [60, 120, 180, 240];
-        case 3: return [90, 180, 270];
-        case 4: return [120, 240];
+        case 3: return [90, 120, 150, 180, 270];
+        case 4: return [120, 180, 240];
         default: return [60, 120, 180, 240];
       }
     };
@@ -1434,17 +1434,17 @@ const BookGolf: React.FC = () => {
               </div>
               <div className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
                 {(() => {
-                  // Filter durations based on player count so time splits into even 30-min blocks per player
+                  // Filter durations based on player count
                   // 1 player: all 30-min increments (30, 60, 90, 120, 150, 180, 210, 240)
-                  // 2 players: multiples of 60 (60, 120, 180, 240)
-                  // 3 players: multiples of 90 (90, 180, 270)
-                  // 4 players: multiples of 120 (120, 240)
+                  // 2 players: 30 each increments (60, 120, 180, 240)
+                  // 3 players: short/medium/long + max (90, 120, 150, 180, 270)
+                  // 4 players: short/medium/long (120, 180, 240)
                   const getSimulatorDurations = (players: number): number[] => {
                     switch (players) {
                       case 1: return [30, 60, 90, 120, 150, 180, 210, 240];
                       case 2: return [60, 120, 180, 240];
-                      case 3: return [90, 180, 270];
-                      case 4: return [120, 240];
+                      case 3: return [90, 120, 150, 180, 270];
+                      case 4: return [120, 180, 240];
                       default: return [60, 120, 180, 240];
                     }
                   };

@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "71.3.0",
+    date: "2026-02-06",
+    title: "Booking Duration Options: More Flexibility for Groups",
+    changes: [
+      "New: 3-player bookings now offer 5 duration options — 90m (30 each), 120m (40 each), 150m (50 each), 180m (60 each), and 270m (90 each) — filling the gap between short and long sessions",
+      "New: 4-player bookings now include a 180m option (45 each) alongside 120m and 240m, giving groups a middle-ground choice that matches common Trackman session lengths",
+      "Improved: Duration options are now consistent between the member booking page and staff manual booking form"
+    ]
+  },
+  {
     version: "71.2.0",
     date: "2026-02-06",
     title: "Billing Safety: Race Condition & Revenue Leak Fixes",
