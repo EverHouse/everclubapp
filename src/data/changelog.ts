@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "72.0.1",
+    date: "2026-02-06",
+    title: "Reschedule Safety Fixes",
+    changes: [
+      "Fix: Original booking date is now preserved when rescheduling — previously only bay, start time, and end time were saved, so a date change lost the original date",
+      "Fix: Reschedule confirm now verifies the booking is actually in reschedule mode — prevents accidental confirms without starting the reschedule first",
+      "Fix: Any unpaid prepayment charges are automatically voided after a reschedule — prevents members from being billed at the old rate"
+    ]
+  },
+  {
     version: "72.0.0",
     date: "2026-02-06",
     title: "Booking Reschedule: Move Bookings to Any Bay & Time",

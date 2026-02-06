@@ -4,6 +4,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { logFromRequest } from '../../core/auditLog';
 import { logger } from '../../core/logger';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { getStripeClient } from '../../core/stripe/client';
 
 const router = Router();
 
@@ -112,6 +113,10 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
       return res.status(400).json({ error: 'Cannot reschedule a cancelled booking' });
     }
 
+    if (!booking.is_relocating) {
+      return res.status(400).json({ error: 'Booking is not in reschedule mode. Please start the reschedule first.' });
+    }
+
     const conflictResult = await pool.query(
       `SELECT id FROM booking_requests
        WHERE resource_id = $1
@@ -147,13 +152,14 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
            original_resource_id = $7,
            original_start_time = $8,
            original_end_time = $9,
+           original_booked_date = $10,
            is_relocating = false,
            relocating_started_at = NULL,
            updated_at = NOW()
-       WHERE id = $10
+       WHERE id = $11
        RETURNING *`,
       [resource_id, request_date, start_time, end_time, duration_minutes, trackman_booking_id,
-       originalResourceId, originalStartTime, originalEndTime, bookingId]
+       originalResourceId, originalStartTime, originalEndTime, originalDate, bookingId]
     );
 
     const updated = updateResult.rows[0];
@@ -179,6 +185,40 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
         } catch (feeErr) {
           logger.warn('[Reschedule] Fee recalculation failed (non-blocking)', {
             extra: { bookingId, sessionId: updated.session_id, error: (feeErr as Error).message }
+          });
+        }
+
+        try {
+          const staleIntents = await pool.query(
+            `SELECT id, stripe_payment_intent_id FROM stripe_payment_intents
+             WHERE session_id = $1
+               AND purpose = 'prepayment'
+               AND status NOT IN ('canceled', 'cancelled', 'refunded', 'failed', 'succeeded')`,
+            [updated.session_id]
+          );
+
+          if (staleIntents.rows.length > 0) {
+            const stripe = await getStripeClient();
+            for (const intent of staleIntents.rows) {
+              try {
+                await stripe.paymentIntents.cancel(intent.stripe_payment_intent_id);
+                await pool.query(
+                  `UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE id = $1`,
+                  [intent.id]
+                );
+                logger.info('[Reschedule] Canceled stale prepayment intent after reschedule', {
+                  extra: { bookingId, sessionId: updated.session_id, paymentIntentId: intent.stripe_payment_intent_id }
+                });
+              } catch (cancelErr) {
+                logger.warn('[Reschedule] Failed to cancel prepayment intent (non-blocking)', {
+                  extra: { bookingId, paymentIntentId: intent.stripe_payment_intent_id, error: (cancelErr as Error).message }
+                });
+              }
+            }
+          }
+        } catch (intentErr) {
+          logger.warn('[Reschedule] Failed to query stale prepayment intents (non-blocking)', {
+            extra: { bookingId, sessionId: updated.session_id, error: (intentErr as Error).message }
           });
         }
       } catch (sessionErr) {
