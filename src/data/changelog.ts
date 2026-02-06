@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "70.6.1",
+    date: "2026-02-06",
+    title: "Smarter Product Editing & Stripe Category Tagging",
+    changes: [
+      "New: Stripe products now include an app_category metadata key (membership, fee, cafe, config) — enables future auto-routing of new Stripe products to the correct admin tab",
+      "Improved: Editing a fee or pass product (Simulator Overage, Guest Pass, Day Passes) now shows only relevant fields — no more confusing booking limits, access permissions, or compare table sections",
+      "Improved: Section title changes from 'Membership Page Card' to 'Product Details' when editing non-membership products"
+    ]
+  },
+  {
     version: "70.6.0",
     date: "2026-02-06",
     title: "Admin Tier Editor Overhaul & Dynamic Membership Page",

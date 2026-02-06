@@ -390,6 +390,7 @@ function buildPrivilegeMetadata(tier: any): Record<string, string> {
     tier_slug: tier.slug,
     product_type: tier.productType || 'subscription',
     source: 'ever_house_app',
+    app_category: tier.productType === 'one_time' ? 'fee' : tier.productType === 'config' ? 'config' : 'membership',
   };
   
   // Add privilege/limit metadata (prefixed for clarity)
@@ -857,6 +858,7 @@ export async function ensureSimulatorOverageProduct(): Promise<{
           tier_slug: OVERAGE_SLUG,
           product_type: 'one_time',
           fee_type: 'simulator_overage',
+          app_category: 'fee',
         },
       });
       stripeProductId = product.id;
@@ -873,6 +875,7 @@ export async function ensureSimulatorOverageProduct(): Promise<{
           tier_id: tierId.toString(),
           tier_slug: OVERAGE_SLUG,
           product_type: 'one_time',
+          app_category: 'fee',
         },
       });
       stripePriceId = price.id;
@@ -959,6 +962,7 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
         product_type: 'config',
         config_type: 'corporate_volume_pricing',
         volume_base_price: basePrice.toString(),
+        app_category: 'config',
       };
       
       for (const tier of tiers) {
@@ -1265,6 +1269,7 @@ export async function syncCafeItemsToStripe(): Promise<{
           cafe_item_id: item.id.toString(),
           category: item.category,
           product_type: 'one_time',
+          app_category: 'cafe',
         };
 
         let stripeProductId = item.stripe_product_id;
