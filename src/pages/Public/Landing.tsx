@@ -229,7 +229,7 @@ const Landing: React.FC = () => {
     if (!sessionChecked) return;
     if (user) {
       const staffOrAdmin = actualUser?.role === 'admin' || actualUser?.role === 'staff';
-      navigate((staffOrAdmin && !isViewingAs) ? '/admin' : '/member/dashboard', { replace: true });
+      navigate((staffOrAdmin && !isViewingAs) ? '/admin' : '/dashboard', { replace: true });
     }
   }, [sessionChecked, user, actualUser, isViewingAs, navigate]);
 

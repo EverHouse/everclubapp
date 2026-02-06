@@ -21,7 +21,7 @@ const Login: React.FC = () => {
     if (!sessionChecked) return;
     if (user) {
       const staffOrAdmin = actualUser?.role === 'admin' || actualUser?.role === 'staff';
-      navigate((staffOrAdmin && !isViewingAs) ? '/admin' : '/member/dashboard', { replace: true });
+      navigate((staffOrAdmin && !isViewingAs) ? '/admin' : '/dashboard', { replace: true });
       return;
     }
     setPageReady(true);
@@ -106,7 +106,7 @@ const Login: React.FC = () => {
       const { member } = await res.json();
       loginWithMember(member);
       startNavigation();
-      navigate(member.role === 'admin' || member.role === 'staff' ? '/admin' : '/member/dashboard');
+      navigate(member.role === 'admin' || member.role === 'staff' ? '/admin' : '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Dev login failed');
     } finally {
@@ -136,7 +136,7 @@ const Login: React.FC = () => {
       
       loginWithMember(data.member);
       startNavigation();
-      navigate(data.member.role === 'admin' || data.member.role === 'staff' ? '/admin' : '/member/dashboard');
+      navigate(data.member.role === 'admin' || data.member.role === 'staff' ? '/admin' : '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {
@@ -270,7 +270,7 @@ const Login: React.FC = () => {
       loginWithMember(data.member);
       
       const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
-      const destination = isStaff ? '/admin' : '/member/dashboard';
+      const destination = isStaff ? '/admin' : '/dashboard';
       
       startNavigation();
       if (data.shouldSetupPassword && isStaff) {

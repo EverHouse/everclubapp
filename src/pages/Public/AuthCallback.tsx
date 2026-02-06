@@ -41,7 +41,7 @@ const AuthCallback: React.FC = () => {
             console.error('Failed to check staff/admin status');
           }
           startNavigation();
-          navigate('/member/dashboard');
+          navigate('/dashboard');
         } else {
           startNavigation();
           navigate('/login');
