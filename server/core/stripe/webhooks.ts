@@ -2995,6 +2995,11 @@ async function handleProductDeleted(client: PoolClient, product: any): Promise<D
 
     if (tierMatch.rows.length > 0) {
       console.warn(`[Stripe Webhook] WARNING: Tier product deleted in Stripe for tier "${tierMatch.rows[0].name}" (${product.id}). Tier data preserved in app.`);
+      await client.query(
+        'UPDATE membership_tiers SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = $1',
+        [tierMatch.rows[0].id]
+      );
+      console.log(`[Stripe Webhook] Cleared Stripe references for tier "${tierMatch.rows[0].name}" after product deletion`);
       return deferredActions;
     }
 
@@ -3037,6 +3042,19 @@ async function handlePriceChange(client: PoolClient, price: any): Promise<Deferr
     if (result.rowCount && result.rowCount > 0) {
       for (const row of result.rows) {
         console.log(`[Stripe Webhook] Updated price for cafe item "${row.name}" to $${priceDecimal}`);
+      }
+    }
+
+    const tierResult = await client.query(
+      `UPDATE membership_tiers SET price_cents = $1, stripe_price_id = $2
+       WHERE stripe_product_id = $3
+       RETURNING id, name`,
+      [priceCents, price.id, productId]
+    );
+
+    if (tierResult.rowCount && tierResult.rowCount > 0) {
+      for (const row of tierResult.rows) {
+        console.log(`[Stripe Webhook] Updated tier "${row.name}" price to ${priceCents} cents ($${priceDecimal})`);
       }
     }
   } catch (error) {

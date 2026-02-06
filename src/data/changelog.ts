@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "70.4.1",
+    date: "2026-02-06",
+    title: "Stripe Sync Gap Fixes",
+    changes: [
+      "Fixed: Cafe item name, price, and category fields are now properly locked (read-only) when editing Stripe-managed items",
+      "Fixed: Backend API now prevents overwriting Stripe-managed cafe fields (name, price, category) via direct API calls",
+      "Fixed: Deleting Stripe-managed cafe items is now blocked — archive in Stripe Dashboard instead",
+      "Fixed: Tier subscription price changes in Stripe Dashboard now automatically sync back to the app",
+      "Fixed: Deleting a tier product in Stripe Dashboard now properly unlocks the tier for local editing again"
+    ]
+  },
+  {
     version: "70.4.0",
     date: "2026-02-06",
     title: "Stripe-Driven Product Management (Reverse Sync)",

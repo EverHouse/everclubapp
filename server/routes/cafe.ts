@@ -61,22 +61,36 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     const { id } = req.params;
     const { category, name, price, description, icon, image_url, is_active, sort_order } = req.body;
     
-    const result = await pool.query(
-      `UPDATE cafe_items 
-       SET category = COALESCE($1, category),
-           name = COALESCE($2, name),
-           price = COALESCE($3, price),
-           description = COALESCE($4, description),
-           icon = COALESCE($5, icon),
-           image_url = COALESCE($6, image_url),
-           is_active = COALESCE($7, is_active),
-           sort_order = COALESCE($8, sort_order)
-       WHERE id = $9 RETURNING *`,
-      [category, name, price, description, icon, image_url, is_active, sort_order, id]
-    );
-    
-    if (result.rows.length === 0) {
+    const existing = await pool.query('SELECT stripe_product_id FROM cafe_items WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Cafe item not found' });
+    }
+    
+    let result;
+    if (existing.rows[0].stripe_product_id) {
+      result = await pool.query(
+        `UPDATE cafe_items 
+         SET description = COALESCE($1, description),
+             icon = COALESCE($2, icon),
+             image_url = COALESCE($3, image_url),
+             sort_order = COALESCE($4, sort_order)
+         WHERE id = $5 RETURNING *`,
+        [description, icon, image_url, sort_order, id]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE cafe_items 
+         SET category = COALESCE($1, category),
+             name = COALESCE($2, name),
+             price = COALESCE($3, price),
+             description = COALESCE($4, description),
+             icon = COALESCE($5, icon),
+             image_url = COALESCE($6, image_url),
+             is_active = COALESCE($7, is_active),
+             sort_order = COALESCE($8, sort_order)
+         WHERE id = $9 RETURNING *`,
+        [category, name, price, description, icon, image_url, is_active, sort_order, id]
+      );
     }
     
     broadcastCafeMenuUpdate('updated');
@@ -90,6 +104,12 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    const existing = await pool.query('SELECT stripe_product_id FROM cafe_items WHERE id = $1', [id]);
+    if (existing.rows.length > 0 && existing.rows[0].stripe_product_id) {
+      return res.status(400).json({ error: 'Cannot delete Stripe-managed items. Archive in Stripe Dashboard instead.' });
+    }
+    
     await pool.query('DELETE FROM cafe_items WHERE id = $1', [id]);
     broadcastCafeMenuUpdate('deleted');
     res.json({ success: true });
