@@ -13,7 +13,7 @@ import {
   syncDealStageFromMindbodyStatus,
   updateDealStage
 } from '../core/hubspotDeals';
-import { syncAllMembersFromHubSpot, syncCommunicationLogsFromHubSpot, getLastMemberSyncTime, setLastMemberSyncTime } from '../core/memberSync';
+import { syncAllMembersFromHubSpot, syncRelevantMembersFromHubSpot, syncCommunicationLogsFromHubSpot, getLastMemberSyncTime, setLastMemberSyncTime } from '../core/memberSync';
 import { db } from '../db';
 import { hubspotProductMappings, discountRules, hubspotDeals } from '../../shared/schema';
 import { eq, and, ne } from 'drizzle-orm';
@@ -223,10 +223,10 @@ router.get('/api/hubspot/sync-status', isStaffOrAdmin, async (req, res) => {
 // Manual trigger for full member sync (creates deals for all active members)
 router.post('/api/hubspot/sync-all-members', isStaffOrAdmin, async (req, res) => {
   try {
-    console.log('[HubSpotDeals] Manual member sync triggered');
-    const result = await syncAllMembersFromHubSpot();
+    console.log('[HubSpotDeals] Manual member sync triggered (focused)');
+    const result = await syncRelevantMembersFromHubSpot();
     await setLastMemberSyncTime(Date.now());
-    console.log(`[HubSpotDeals] Manual sync complete - Synced: ${result.synced}, Errors: ${result.errors}`);
+    console.log(`[HubSpotDeals] Manual focused sync complete - Synced: ${result.synced}, Errors: ${result.errors}`);
     res.json({ success: true, ...result });
   } catch (error: any) {
     console.error('Error during manual member sync:', error);

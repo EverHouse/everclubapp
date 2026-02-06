@@ -662,6 +662,476 @@ export function triggerMemberSync(): void {
   });
 }
 
+export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number; errors: number }> {
+  if (syncInProgress) {
+    if (!isProduction) console.log('[MemberSync] Sync already in progress, skipping');
+    return { synced: 0, errors: 0 };
+  }
+  
+  const now = Date.now();
+  if (now - lastSyncTime < SYNC_COOLDOWN) {
+    if (!isProduction) console.log('[MemberSync] Sync cooldown active, skipping');
+    return { synced: 0, errors: 0 };
+  }
+  
+  syncInProgress = true;
+  lastSyncTime = now;
+  
+  try {
+    const hubspot = await getHubSpotClient();
+    
+    const properties = [
+      'firstname',
+      'lastname',
+      'hs_calculated_full_name',
+      'email',
+      'phone',
+      'company',
+      'membership_tier',
+      'membership_status',
+      'membership_discount_reason',
+      'mindbody_client_id',
+      'membership_start_date',
+      'createdate',
+      'eh_email_updates_opt_in',
+      'eh_sms_updates_opt_in',
+      'interest_golf',
+      'interest_in_cafe',
+      'interest_in_events',
+      'interest_in_workspace',
+      'total_visit_count',
+      'membership_notes',
+      'message',
+      'address',
+      'city',
+      'state',
+      'zip',
+      'date_of_birth',
+      'stripe_delinquent',
+      'hs_sms_promotional',
+      'hs_sms_customer_updates',
+      'hs_sms_reminders',
+      'hs_merged_object_ids'
+    ];
+    
+    const relevantStatuses = ['active', 'past_due', 'past due', 'pastdue', 'frozen', 'froze', 'suspended', 'declined', 'expired', 'terminated', 'cancelled'];
+    
+    const filterGroups: any[] = [
+      {
+        filters: [
+          {
+            propertyName: 'membership_status',
+            operator: 'IN',
+            values: relevantStatuses
+          }
+        ]
+      }
+    ];
+    
+    const previousSyncTime = getLastMemberSyncTime();
+    if (previousSyncTime > 0) {
+      filterGroups.push({
+        filters: [
+          {
+            propertyName: 'lastmodifieddate',
+            operator: 'GTE',
+            value: new Date(previousSyncTime).toISOString()
+          }
+        ]
+      });
+    }
+    
+    let allContacts: HubSpotContact[] = [];
+    let after: string | undefined = undefined;
+    
+    do {
+      const searchRequest: any = {
+        filterGroups,
+        properties,
+        limit: 100,
+        ...(after ? { after } : {})
+      };
+      
+      const response = await hubspot.crm.contacts.searchApi.doSearch(searchRequest);
+      allContacts = allContacts.concat(response.results as HubSpotContact[]);
+      after = response.paging?.next?.after;
+    } while (after);
+    
+    console.log(`[MemberSync] Focused sync: fetched ${allContacts.length} relevant contacts from HubSpot`);
+    
+    const tierCache = new Map<string, number>();
+    const tierResults = await db.select({ id: membershipTiers.id, name: membershipTiers.name }).from(membershipTiers);
+    for (const tier of tierResults) {
+      tierCache.set(tier.name.toLowerCase(), tier.id);
+    }
+    
+    let synced = 0;
+    let errors = 0;
+    let statusChanges = 0;
+    
+    const parseOptIn = (val?: string): boolean | null => {
+      if (!val) return null;
+      const lower = val.toLowerCase();
+      return lower === 'true' || lower === 'yes' || lower === '1';
+    };
+    
+    const getNameFromContact = (contact: HubSpotContact): { firstName: string | null; lastName: string | null } => {
+      let firstName = contact.properties.firstname || null;
+      let lastName = contact.properties.lastname || null;
+      
+      if ((!firstName || !lastName) && contact.properties.hs_calculated_full_name) {
+        const fullName = contact.properties.hs_calculated_full_name.trim();
+        const parts = fullName.split(' ');
+        if (parts.length >= 2) {
+          firstName = firstName || parts[0];
+          lastName = lastName || parts.slice(1).join(' ');
+        } else if (parts.length === 1 && parts[0]) {
+          firstName = firstName || parts[0];
+        }
+      }
+      
+      return { firstName, lastName };
+    };
+    
+    const SYNC_BATCH_SIZE = 25;
+    const syncLimit = pLimit(10);
+    
+    for (let i = 0; i < allContacts.length; i += SYNC_BATCH_SIZE) {
+      const batch = allContacts.slice(i, i + SYNC_BATCH_SIZE);
+      
+      const results = await Promise.allSettled(
+        batch.map(contact => syncLimit(async () => {
+          const email = contact.properties.email?.toLowerCase();
+          if (!email) return null;
+          
+          const status = (contact.properties.membership_status || 'non-member').toLowerCase();
+          
+          const rawTier = contact.properties.membership_tier;
+          let normalizedTier: string | null = null;
+          
+          if (isRecognizedTier(rawTier)) {
+            normalizedTier = normalizeTierName(rawTier);
+          } else if (rawTier && rawTier.trim()) {
+            console.warn(`[MemberSync] UNRECOGNIZED TIER "${rawTier}" for ${email} - requires manual mapping, tier will not be updated`);
+          }
+          const tierId = normalizedTier ? (tierCache.get(normalizedTier.toLowerCase()) || null) : null;
+          const tags = extractTierTags(contact.properties.membership_tier, contact.properties.membership_discount_reason);
+          
+          let joinDate: string | null = null;
+          if (contact.properties.membership_start_date) {
+            const dateStr = contact.properties.membership_start_date;
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+              joinDate = dateStr.split('T')[0];
+            }
+          }
+          if (!joinDate && contact.properties.createdate) {
+            try {
+              const createDate = new Date(contact.properties.createdate);
+              if (!isNaN(createDate.getTime())) {
+                joinDate = createDate.toISOString().split('T')[0];
+              }
+            } catch (e) {
+            }
+          }
+          
+          const emailOptIn = parseOptIn(contact.properties.eh_email_updates_opt_in);
+          const smsOptIn = parseOptIn(contact.properties.eh_sms_updates_opt_in);
+          const { firstName, lastName } = getNameFromContact(contact);
+          
+          const smsPromoOptIn = parseOptIn(contact.properties.hs_sms_promotional);
+          const smsTransactionalOptIn = parseOptIn(contact.properties.hs_sms_customer_updates);
+          const smsRemindersOptIn = parseOptIn(contact.properties.hs_sms_reminders);
+          
+          const stripeDelinquent = parseOptIn(contact.properties.stripe_delinquent);
+          
+          const existingUser = await db.select({ 
+            membershipStatus: users.membershipStatus,
+            lastHubspotNotesHash: users.lastHubspotNotesHash
+          })
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
+          const oldStatus = existingUser[0]?.membershipStatus || null;
+          const oldNotesHash = existingUser[0]?.lastHubspotNotesHash || null;
+          
+          const streetAddress = contact.properties.address?.trim() || null;
+          const city = contact.properties.city?.trim() || null;
+          const state = contact.properties.state?.trim() || null;
+          const zipCode = contact.properties.zip?.trim() || null;
+          
+          let dateOfBirth: string | null = null;
+          if (contact.properties.date_of_birth) {
+            const dobStr = contact.properties.date_of_birth.trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(dobStr)) {
+              dateOfBirth = dobStr.split('T')[0];
+            }
+          }
+          
+          await db.insert(users)
+            .values({
+              id: sql`gen_random_uuid()`,
+              email,
+              firstName,
+              lastName,
+              phone: contact.properties.phone || null,
+              tier: normalizedTier,
+              tierId,
+              tags: tags.length > 0 ? tags : [],
+              hubspotId: contact.id,
+              membershipStatus: status,
+              mindbodyClientId: contact.properties.mindbody_client_id || null,
+              joinDate,
+              emailOptIn,
+              smsOptIn,
+              smsPromoOptIn,
+              smsTransactionalOptIn,
+              smsRemindersOptIn,
+              stripeDelinquent,
+              streetAddress,
+              city,
+              state,
+              zipCode,
+              dateOfBirth,
+              lastSyncedAt: new Date(),
+              role: 'member'
+            })
+            .onConflictDoUpdate({
+              target: users.email,
+              set: {
+                firstName: sql`COALESCE(${firstName}, ${users.firstName})`,
+                lastName: sql`COALESCE(${lastName}, ${users.lastName})`,
+                phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
+                tier: normalizedTier ? normalizedTier : sql`${users.tier}`,
+                tierId: tierId !== null ? tierId : sql`${users.tierId}`,
+                tags: tags.length > 0 ? tags : sql`${users.tags}`,
+                hubspotId: contact.id,
+                membershipStatus: status,
+                mindbodyClientId: contact.properties.mindbody_client_id || null,
+                joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
+                emailOptIn: emailOptIn !== null ? emailOptIn : sql`${users.emailOptIn}`,
+                smsOptIn: smsOptIn !== null ? smsOptIn : sql`${users.smsOptIn}`,
+                smsPromoOptIn: smsPromoOptIn !== null ? smsPromoOptIn : sql`${users.smsPromoOptIn}`,
+                smsTransactionalOptIn: smsTransactionalOptIn !== null ? smsTransactionalOptIn : sql`${users.smsTransactionalOptIn}`,
+                smsRemindersOptIn: smsRemindersOptIn !== null ? smsRemindersOptIn : sql`${users.smsRemindersOptIn}`,
+                stripeDelinquent: stripeDelinquent !== null ? stripeDelinquent : sql`${users.stripeDelinquent}`,
+                streetAddress: sql`COALESCE(${streetAddress}, ${users.streetAddress})`,
+                city: sql`COALESCE(${city}, ${users.city})`,
+                state: sql`COALESCE(${state}, ${users.state})`,
+                zipCode: sql`COALESCE(${zipCode}, ${users.zipCode})`,
+                dateOfBirth: sql`COALESCE(${dateOfBirth}, ${users.dateOfBirth})`,
+                lastSyncedAt: new Date(),
+                updatedAt: new Date()
+              }
+            });
+          
+          if (oldStatus !== status) {
+            detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
+              console.error(`[MemberSync] Failed to notify status change for ${email}:`, err);
+            });
+          }
+          
+          const hubspotNotes = contact.properties.membership_notes?.trim();
+          const hubspotMessage = contact.properties.message?.trim();
+          
+          const sanitizeNoteContent = (content: string): string => {
+            return content
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<\/?[^>]+(>|$)/g, '')
+              .trim()
+              .substring(0, 5000);
+          };
+          
+          const combinedNotesContent = [hubspotNotes || '', hubspotMessage || ''].join('||');
+          const currentNotesHash = combinedNotesContent ? simpleHash(combinedNotesContent) : null;
+          
+          if (currentNotesHash && currentNotesHash !== oldNotesHash) {
+            const today = new Date().toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric',
+              timeZone: 'America/Los_Angeles'
+            });
+            
+            if (hubspotNotes) {
+              const noteContent = `[Mindbody Notes - ${today}]:\n${sanitizeNoteContent(hubspotNotes)}`;
+              await db.insert(memberNotes).values({
+                memberEmail: email,
+                content: noteContent,
+                createdBy: 'system',
+                createdByName: 'HubSpot Sync (Mindbody)',
+                isPinned: false
+              });
+            }
+            
+            if (hubspotMessage) {
+              const msgContent = `[Mindbody Message - ${today}]:\n${sanitizeNoteContent(hubspotMessage)}`;
+              await db.insert(memberNotes).values({
+                memberEmail: email,
+                content: msgContent,
+                createdBy: 'system',
+                createdByName: 'HubSpot Sync (Mindbody)',
+                isPinned: false
+              });
+            }
+            
+            await db.update(users)
+              .set({ lastHubspotNotesHash: currentNotesHash })
+              .where(eq(users.email, email));
+          }
+          
+          return { email, statusChanged: oldStatus !== null && oldStatus !== status };
+        }))
+      );
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          synced++;
+          if (result.value.statusChanged) {
+            statusChanges++;
+          }
+        } else if (result.status === 'rejected') {
+          errors++;
+          if (!isProduction) console.error(`[MemberSync] Error syncing contact:`, result.reason);
+        }
+      }
+    }
+    
+    if (!isProduction) console.log(`[MemberSync] Focused sync complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}`);
+    
+    const contactsWithMergedIds = allContacts.filter(c => c.properties.hs_merged_object_ids);
+    if (contactsWithMergedIds.length > 0) {
+      if (!isProduction) console.log(`[MemberSync] Processing ${contactsWithMergedIds.length} contacts with merged IDs`);
+      
+      const mergedIdsByPrimaryEmail = new Map<string, string[]>();
+      for (const contact of contactsWithMergedIds) {
+        const primaryEmail = contact.properties.email?.toLowerCase();
+        if (!primaryEmail) continue;
+        
+        const mergedIds = contact.properties.hs_merged_object_ids!
+          .split(';')
+          .map(id => id.trim())
+          .filter(id => id.length > 0);
+        
+        if (mergedIds.length > 0) {
+          mergedIdsByPrimaryEmail.set(primaryEmail, mergedIds);
+        }
+      }
+      
+      const allMergedIds = [...new Set([...mergedIdsByPrimaryEmail.values()].flat())];
+      const mergedContactEmails = new Map<string, string>();
+      
+      if (allMergedIds.length > 0) {
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < allMergedIds.length; i += BATCH_SIZE) {
+          const batchIds = allMergedIds.slice(i, i + BATCH_SIZE);
+          try {
+            const batchResponse = await hubspot.crm.contacts.batchApi.read({
+              inputs: batchIds.map(id => ({ id })),
+              properties: ['email'],
+              propertiesWithHistory: []
+            });
+            
+            for (const result of batchResponse.results) {
+              const email = result.properties?.email?.toLowerCase();
+              if (email) {
+                mergedContactEmails.set(result.id, email);
+              }
+            }
+          } catch (err) {
+            if (!isProduction) console.error(`[MemberSync] Error fetching merged contacts:`, err);
+          }
+          
+          if (i + BATCH_SIZE < allMergedIds.length) {
+            await delay(500);
+          }
+        }
+        
+        let linkedEmailsAdded = 0;
+        for (const [primaryEmail, mergedIds] of mergedIdsByPrimaryEmail) {
+          for (const mergedId of mergedIds) {
+            const mergedEmail = mergedContactEmails.get(mergedId);
+            if (mergedEmail && mergedEmail !== primaryEmail) {
+              try {
+                await db.insert(userLinkedEmails)
+                  .values({
+                    primaryEmail,
+                    linkedEmail: mergedEmail,
+                    source: 'hubspot_merge'
+                  })
+                  .onConflictDoNothing();
+                linkedEmailsAdded++;
+              } catch (err) {
+              }
+            }
+          }
+        }
+        
+        if (!isProduction && linkedEmailsAdded > 0) {
+          console.log(`[MemberSync] Added ${linkedEmailsAdded} linked emails from HubSpot merged contacts`);
+        }
+      }
+    }
+    
+    const dealSyncStatuses = ['active', 'declined', 'suspended', 'expired', 'terminated', 'cancelled', 'froze', 'non-member', 'frozen', 'past_due', 'past due', 'pastdue'];
+    const contactsNeedingDealSync = allContacts.filter(c => {
+      const email = c.properties.email?.toLowerCase();
+      const status = (c.properties.membership_status || 'non-member').toLowerCase();
+      return email && dealSyncStatuses.includes(status);
+    });
+    
+    if (contactsNeedingDealSync.length > 0) {
+      if (!isProduction) console.log(`[MemberSync] Starting deal sync for ${contactsNeedingDealSync.length} members (throttled)`);
+      
+      const BATCH_SIZE = 5;
+      const BATCH_DELAY_MS = 2000;
+      const limit = pLimit(BATCH_SIZE);
+      
+      for (let i = 0; i < contactsNeedingDealSync.length; i += BATCH_SIZE) {
+        const batch = contactsNeedingDealSync.slice(i, i + BATCH_SIZE);
+        
+        await Promise.all(
+          batch.map(contact => 
+            limit(async () => {
+              const email = contact.properties.email!.toLowerCase();
+              const status = (contact.properties.membership_status || 'non-member').toLowerCase();
+              try {
+                await syncDealStageFromMindbodyStatus(email, status, 'system', 'Mindbody Sync');
+              } catch (err) {
+                if (!isProduction) console.error(`[MemberSync] Failed to sync deal stage for ${email}:`, err);
+              }
+            })
+          )
+        );
+        
+        if (i + BATCH_SIZE < contactsNeedingDealSync.length) {
+          await delay(BATCH_DELAY_MS);
+        }
+      }
+      
+      if (!isProduction) console.log(`[MemberSync] Deal sync complete for ${contactsNeedingDealSync.length} members`);
+    }
+    
+    if (synced > 0) {
+      broadcastMemberDataUpdated([]);
+      broadcastDataIntegrityUpdate('data_changed', { source: 'hubspot_sync' });
+    }
+    
+    await alertOnHubSpotSyncComplete(synced, errors, allContacts.length);
+    
+    return { synced, errors };
+  } catch (error) {
+    console.error('[MemberSync] Fatal error in focused sync:', error);
+    await alertOnSyncFailure(
+      'hubspot',
+      'Focused member sync from HubSpot',
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return { synced: 0, errors: 1 };
+  } finally {
+    syncInProgress = false;
+  }
+}
+
 // Push lifetimeVisits to HubSpot when visit count changes
 export async function updateHubSpotContactVisitCount(hubspotId: string, visitCount: number): Promise<boolean> {
   try {

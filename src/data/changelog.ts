@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.3.5",
+    date: "2026-02-06",
+    title: "Directory Sync Speed Improvement",
+    changes: [
+      "Improvement: Sync button on Directory page now runs much faster — only syncs members with active statuses or recent changes from HubSpot, instead of re-processing all 2,000+ contacts",
+      "Improvement: Removed redundant Stripe sync from the manual sync button — Stripe updates already arrive instantly through webhooks"
+    ]
+  },
+  {
     version: "7.3.4",
     date: "2026-02-06",
     title: "Family Group Signup & Terminal Cleanup",

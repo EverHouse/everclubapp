@@ -327,38 +327,16 @@ const DirectoryTab: React.FC = () => {
 
     const syncMutation = useMutation({
         mutationFn: async () => {
-            let stripeCount = 0;
-            let hubspotCount = 0;
-            let errors: string[] = [];
-            
-            try {
-                const stripeRes = await postWithCredentials<SyncResponse>('/api/stripe/sync-subscriptions', {});
-                stripeCount = (stripeRes.created || 0) + (stripeRes.updated || 0);
-            } catch {
-                errors.push('Stripe');
-            }
-            
-            try {
-                const hubspotRes = await postWithCredentials<SyncResponse>('/api/hubspot/sync-all-members', {});
-                hubspotCount = hubspotRes.synced || 0;
-            } catch {
-                errors.push('HubSpot');
-            }
-            
-            return { stripeCount, hubspotCount, errors };
+            const hubspotRes = await postWithCredentials<SyncResponse>('/api/hubspot/sync-all-members', {});
+            return { hubspotCount: hubspotRes.synced || 0 };
         },
-        onSuccess: async ({ stripeCount, hubspotCount, errors }) => {
+        onSuccess: async ({ hubspotCount }) => {
             await refreshMembers();
             
-            if (errors.length === 0) {
-                const stripeMsg = stripeCount > 0 ? `${stripeCount} from Stripe` : 'Stripe up to date';
-                const hubspotMsg = hubspotCount > 0 ? `${hubspotCount} from HubSpot` : 'HubSpot synced (or cooldown active)';
-                setSyncMessage({ type: 'success', text: `${stripeMsg}, ${hubspotMsg}` });
-            } else if (errors.length === 2) {
-                setSyncMessage({ type: 'error', text: 'Failed to sync with Stripe and HubSpot' });
-            } else {
-                setSyncMessage({ type: 'success', text: `Partial sync: ${errors[0]} failed, other source synced` });
-            }
+            setSyncMessage({
+                type: 'success',
+                text: hubspotCount > 0 ? `Synced ${hubspotCount} members from HubSpot` : 'HubSpot up to date'
+            });
             
             if (memberTab === 'former') {
                 setFormerLoading(true);
@@ -367,6 +345,10 @@ const DirectoryTab: React.FC = () => {
             }
             
             queryClient.invalidateQueries({ queryKey: directoryKeys.syncStatus() });
+            setTimeout(() => setSyncMessage(null), 5000);
+        },
+        onError: () => {
+            setSyncMessage({ type: 'error', text: 'Failed to sync with HubSpot' });
             setTimeout(() => setSyncMessage(null), 5000);
         },
     });
@@ -851,7 +833,7 @@ const DirectoryTab: React.FC = () => {
                         <span className={`material-symbols-outlined text-[14px] ${syncMutation.isPending ? 'animate-spin' : ''}`}>
                             sync
                         </span>
-                        {syncMutation.isPending ? 'Syncing...' : 'Sync'}
+                        {syncMutation.isPending ? 'Syncing HubSpot...' : 'Sync'}
                     </button>
                     {lastSyncTime && (
                         <span className="text-[9px] text-gray-500 dark:text-gray-400">
