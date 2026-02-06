@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "70.0.0",
+    date: "2026-02-06",
+    title: "Record Purchase Redesign — Point-of-Sale Experience",
+    isMajor: true,
+    changes: [
+      "Redesigned: Record Purchase card completely restructured as a point-of-sale system",
+      "Added: Product selection via tappable buttons instead of dropdown — Day Pass Coworking, Day Pass Golf Sim, Guest Pass",
+      "Added: Cart system with quantity controls — add multiple products and see line items with running total",
+      "Added: Price is now locked to product × quantity — no manual editing of amounts",
+      "Removed: Simulator Overage from purchase options (only used by fee calculator)",
+      "Added: Review & Charge drawer — see all line items, subtotal, and total before charging",
+      "Added: Payment method selection inside review drawer — Online Card, Card Reader (Terminal), or Cash/Check",
+      "Added: Email Receipt button after successful payment — sends branded receipt with line items to the customer",
+      "Improved: Layout reordered to Products → Amount → Description → Customer → Review for faster checkout flow"
+    ]
+  },
+  {
     version: "69.19.0",
     date: "2026-02-06",
     title: "Calendar & Queue Improvements for Inactive Members",

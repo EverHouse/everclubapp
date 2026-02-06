@@ -112,7 +112,8 @@ export type AuditAction =
   | 'health_check_viewed'
   // Checkout/pricing security actions
   | 'checkout_pricing_calculated'
-  | 'unauthorized_access_attempt';
+  | 'unauthorized_access_attempt'
+  | 'send_receipt';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

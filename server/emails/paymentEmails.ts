@@ -497,3 +497,136 @@ export async function sendFeeWaivedEmail(
     return { success: false, error: error.message };
   }
 }
+
+export interface PurchaseReceiptItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface PurchaseReceiptParams {
+  memberName: string;
+  items: PurchaseReceiptItem[];
+  totalAmount: number;
+  paymentMethod: string;
+  paymentIntentId?: string;
+  date: Date;
+}
+
+function getPurchaseReceiptHtml(params: PurchaseReceiptParams): string {
+  const { memberName, items, totalAmount, paymentMethod, paymentIntentId, date } = params;
+
+  const lineItemsHtml = items.map(item => `
+                      <tr>
+                        <td style="padding: 10px 0; font-size: 14px; color: ${CLUB_COLORS.textDark}; border-bottom: 1px solid ${CLUB_COLORS.borderLight};">
+                          ${item.name}${item.quantity > 1 ? ` <span style="color: ${CLUB_COLORS.textMuted};">x${item.quantity}</span>` : ''}
+                        </td>
+                        <td style="padding: 10px 0; font-size: 14px; color: ${CLUB_COLORS.textDark}; text-align: right; border-bottom: 1px solid ${CLUB_COLORS.borderLight};">
+                          ${formatCurrency(item.total / 100)}
+                        </td>
+                      </tr>`).join('');
+
+  const paymentMethodLabel = paymentMethod === 'card' ? 'Credit Card' 
+    : paymentMethod === 'terminal' ? 'Card Reader' 
+    : paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1);
+
+  const content = `
+          <tr>
+            <td style="text-align: center; padding-bottom: 16px;">
+              <h1 style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 32px; font-weight: 400; color: ${CLUB_COLORS.deepGreen};">
+                Purchase Receipt
+              </h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="text-align: center; padding-bottom: 40px;">
+              <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
+                Thank you for your purchase, ${memberName}.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding-bottom: 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone}; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding-bottom: 12px; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Item</td>
+                        <td style="padding-bottom: 12px; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px; text-align: right;">Amount</td>
+                      </tr>
+                      ${lineItemsHtml}
+                      <tr>
+                        <td style="padding-top: 16px; font-size: 16px; font-weight: 600; color: ${CLUB_COLORS.deepGreen};">Total</td>
+                        <td style="padding-top: 16px; font-size: 20px; font-weight: 600; color: ${CLUB_COLORS.deepGreen}; text-align: right;">${formatCurrency(totalAmount / 100)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding-bottom: 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="padding-bottom: 8px;">
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Payment Method</p>
+                    <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textDark};">${paymentMethodLabel}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 8px;">
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Date</p>
+                    <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textDark};">${formatDate(date)}</p>
+                  </td>
+                </tr>
+                ${paymentIntentId ? `
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Transaction ID</p>
+                    <p style="margin: 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; font-family: monospace;">${paymentIntentId}</p>
+                  </td>
+                </tr>
+                ` : ''}
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <a href="https://everhouse.app/history" style="display: inline-block; background-color: ${CLUB_COLORS.deepGreen}; color: #ffffff; font-size: 16px; font-weight: 500; text-decoration: none; padding: 14px 32px; border-radius: 12px;">
+                View Purchase History
+              </a>
+            </td>
+          </tr>
+  `;
+
+  return getEmailWrapper(content);
+}
+
+export async function sendPurchaseReceipt(
+  email: string,
+  params: PurchaseReceiptParams
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+
+    await client.emails.send({
+      from: fromEmail || 'Ever House Members Club <noreply@everhouse.app>',
+      to: email,
+      subject: 'Your Purchase Receipt - Ever House',
+      html: getPurchaseReceiptHtml(params)
+    });
+
+    console.log(`[Purchase Receipt] Sent successfully to ${email}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`[Purchase Receipt] Failed to send to ${email}:`, error.message);
+    return { success: false, error: error.message };
+  }
+}

@@ -27,6 +27,7 @@ import {
   updatePaymentStatusAndAmount
 } from '../../core/stripe/paymentRepository';
 import { logFromRequest } from '../../core/auditLog';
+import { sendPurchaseReceipt, PurchaseReceiptItem } from '../../emails/paymentEmails';
 import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS } from './helpers';
 import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
@@ -1144,6 +1145,53 @@ router.post('/api/payments/record-offline', isStaffOrAdmin, async (req: Request,
   } catch (error: any) {
     console.error('[Payments] Error recording offline payment:', error);
     res.status(500).json({ error: 'Failed to record offline payment' });
+  }
+});
+
+router.post('/api/purchases/send-receipt', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { email, memberName, items, totalAmount, paymentMethod, paymentIntentId } = req.body;
+
+    if (!email || !memberName || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields: email, memberName, items' });
+    }
+
+    const numericTotal = Number(totalAmount);
+    if (!totalAmount || isNaN(numericTotal) || numericTotal <= 0) {
+      return res.status(400).json({ error: 'totalAmount must be a positive number' });
+    }
+
+    const receiptItems: PurchaseReceiptItem[] = items.map((item: any) => ({
+      name: item.name || 'Unknown Item',
+      quantity: item.quantity || 1,
+      unitPrice: item.unitPrice || 0,
+      total: item.total || 0
+    }));
+
+    const result = await sendPurchaseReceipt(email, {
+      memberName,
+      items: receiptItems,
+      totalAmount,
+      paymentMethod: paymentMethod || 'card',
+      paymentIntentId,
+      date: new Date()
+    });
+
+    if (result.success) {
+      logFromRequest(req, 'send_receipt', 'payment', paymentIntentId || undefined, memberName, {
+        email,
+        totalAmount,
+        itemCount: items.length,
+        paymentMethod
+      });
+
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: result.error || 'Failed to send receipt' });
+    }
+  } catch (error: any) {
+    console.error('[Purchases] Error sending receipt:', error);
+    res.status(500).json({ error: 'Failed to send receipt email' });
   }
 });
 
