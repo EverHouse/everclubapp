@@ -15,10 +15,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "69.16.0",
     date: "2026-02-06",
-    title: "Stripe Customer Auto-Recovery",
+    title: "Stripe Customer Auto-Recovery & Terminal Simulated Reader Fix",
     changes: [
       "Fixed: Payments no longer fail when a member's Stripe customer record was deleted — the system now automatically detects invalid customer IDs and creates a fresh one",
-      "Fixed: Both 'Pay with Card' and 'Charge' buttons for overage fees now recover gracefully from stale Stripe data"
+      "Fixed: Both 'Pay with Card' and 'Charge' buttons for overage fees now recover gracefully from stale Stripe data",
+      "Fixed: Simulated card reader now works for testing — payments no longer fail with 'declined or canceled' because the system now auto-presents a test card on simulated readers"
     ]
   },
   {

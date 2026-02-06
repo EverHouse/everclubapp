@@ -116,6 +116,14 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       payment_intent: paymentIntent.id
     });
     
+    if (reader.device_type?.startsWith('simulated')) {
+      try {
+        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
+      } catch (simErr: any) {
+        console.error('[Terminal] Simulated card presentation error (non-blocking):', simErr.message);
+      }
+    }
+    
     res.json({
       success: true,
       paymentIntentId: paymentIntent.id,
@@ -221,6 +229,14 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
     const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
       payment_intent: paymentIntent.id
     });
+    
+    if (reader.device_type?.startsWith('simulated')) {
+      try {
+        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
+      } catch (simErr: any) {
+        console.error('[Terminal] Simulated card presentation error (non-blocking):', simErr.message);
+      }
+    }
     
     await logFromRequest(req, {
       action: 'terminal_payment_initiated',
