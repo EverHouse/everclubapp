@@ -236,6 +236,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
       metadata: {
         memberEmail: member.email,
         tier: tierName,
+        tier_slug: tier.slug,
         createdBy: sessionUser?.email || 'staff',
         ...(couponId ? { couponApplied: couponId } : {})
       }
@@ -405,6 +406,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       metadata: {
         memberEmail: email,
         tier: tier.name,
+        tier_slug: tier.slug,
         createdBy: sessionUser?.email || 'staff',
         userId,
         isNewMember: 'true',
