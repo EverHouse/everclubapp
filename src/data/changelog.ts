@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.3.4",
+    date: "2026-02-06",
+    title: "Family Group Signup & Terminal Cleanup",
+    changes: [
+      "Fix: When staff signs up a new member with family sub-members, the family billing group and sub-member accounts are now actually created after payment — previously only the primary member was created and sub-member data was lost",
+      "Fix: Family sub-member creation works for both online card and Card Reader payment methods",
+      "Fix: If a Card Reader payment is cancelled during new member signup, the pending account and Stripe subscription are now automatically cleaned up instead of being left behind"
+    ]
+  },
+  {
     version: "7.3.3",
     date: "2026-02-06",
     title: "Checkout Customer Fix & Corporate Billing Safety",

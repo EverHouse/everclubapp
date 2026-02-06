@@ -617,6 +617,73 @@ function MemberFlow({
           showToast('Payment received but activation failed. Contact support.', 'error');
         } else {
           showToast('Payment received! Membership activated.', 'success');
+          
+          if (form.addGroupMembers && form.groupMembers.length > 0) {
+            try {
+              const groupCreateRes = await fetch('/api/family-billing/groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  primaryEmail: form.email,
+                  groupName: `${form.firstName} ${form.lastName} Family`
+                })
+              });
+
+              if (!groupCreateRes.ok) {
+                const groupCreateData = await groupCreateRes.json();
+                console.error('Failed to create family billing group:', groupCreateData.error);
+                showToast('Membership activated but failed to create family group. You can set this up manually.', 'warning');
+              } else {
+                const groupCreateData = await groupCreateRes.json();
+                const groupId = groupCreateData.groupId;
+                let addedCount = 0;
+                let failedCount = 0;
+
+                for (const member of form.groupMembers) {
+                  try {
+                    const memberTierSlug = tiers.find(t => t.id === member.tierId)?.slug || selectedTier?.slug;
+                    const addMemberRes = await fetch(`/api/family-billing/groups/${groupId}/members`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        memberEmail: member.email,
+                        memberTier: memberTierSlug,
+                        relationship: 'family',
+                        firstName: member.firstName,
+                        lastName: member.lastName,
+                        phone: member.phone,
+                        dob: member.dob
+                      })
+                    });
+
+                    if (addMemberRes.ok) {
+                      addedCount++;
+                    } else {
+                      failedCount++;
+                      const addData = await addMemberRes.json();
+                      console.error(`Failed to add group member ${member.email}:`, addData.error);
+                    }
+                  } catch (memberErr) {
+                    failedCount++;
+                    console.error(`Error adding group member ${member.email}:`, memberErr);
+                  }
+                }
+
+                if (failedCount === 0) {
+                  showToast(`Family group created with ${addedCount} member${addedCount !== 1 ? 's' : ''}.`, 'success');
+                } else if (addedCount > 0) {
+                  showToast(`Family group created. ${addedCount} added, ${failedCount} failed. Check group billing to fix.`, 'warning');
+                } else {
+                  showToast('Family group created but failed to add members. You can add them manually.', 'warning');
+                }
+              }
+            } catch (groupErr) {
+              console.error('Error creating family group:', groupErr);
+              showToast('Membership activated but failed to create family group. You can set this up manually.', 'warning');
+            }
+          }
         }
       }
 
@@ -1110,6 +1177,74 @@ function MemberFlow({
                         throw new Error(data.error || 'Failed to confirm payment');
                       }
                       showToast('Payment received! Membership activated.', 'success');
+
+                      if (form.addGroupMembers && form.groupMembers.length > 0) {
+                        try {
+                          const groupCreateRes = await fetch('/api/family-billing/groups', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              primaryEmail: form.email,
+                              groupName: `${form.firstName} ${form.lastName} Family`
+                            })
+                          });
+
+                          if (!groupCreateRes.ok) {
+                            const groupCreateData = await groupCreateRes.json();
+                            console.error('Failed to create family billing group:', groupCreateData.error);
+                            showToast('Membership activated but failed to create family group. You can set this up manually.', 'warning');
+                          } else {
+                            const groupCreateData = await groupCreateRes.json();
+                            const groupId = groupCreateData.groupId;
+                            let addedCount = 0;
+                            let failedCount = 0;
+
+                            for (const member of form.groupMembers) {
+                              try {
+                                const memberTierSlug = tiers.find(t => t.id === member.tierId)?.slug || selectedTier?.slug;
+                                const addMemberRes = await fetch(`/api/family-billing/groups/${groupId}/members`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  credentials: 'include',
+                                  body: JSON.stringify({
+                                    memberEmail: member.email,
+                                    memberTier: memberTierSlug,
+                                    relationship: 'family',
+                                    firstName: member.firstName,
+                                    lastName: member.lastName,
+                                    phone: member.phone,
+                                    dob: member.dob
+                                  })
+                                });
+
+                                if (addMemberRes.ok) {
+                                  addedCount++;
+                                } else {
+                                  failedCount++;
+                                  const addData = await addMemberRes.json();
+                                  console.error(`Failed to add group member ${member.email}:`, addData.error);
+                                }
+                              } catch (memberErr) {
+                                failedCount++;
+                                console.error(`Error adding group member ${member.email}:`, memberErr);
+                              }
+                            }
+
+                            if (failedCount === 0) {
+                              showToast(`Family group created with ${addedCount} member${addedCount !== 1 ? 's' : ''}.`, 'success');
+                            } else if (addedCount > 0) {
+                              showToast(`Family group created. ${addedCount} added, ${failedCount} failed. Check group billing to fix.`, 'warning');
+                            } else {
+                              showToast('Family group created but failed to add members. You can add them manually.', 'warning');
+                            }
+                          }
+                        } catch (groupErr) {
+                          console.error('Error creating family group:', groupErr);
+                          showToast('Membership activated but failed to create family group. You can set this up manually.', 'warning');
+                        }
+                      }
+
                       onSuccess({
                         id: createdUserId || 'member-' + Date.now(),
                         email: form.email,
@@ -1121,7 +1256,21 @@ function MemberFlow({
                   }
                 }}
                 onError={(msg) => setStripeError(msg)}
-                onCancel={() => {}}
+                onCancel={async () => {
+                  if (createdUserId && subscriptionId) {
+                    try {
+                      await fetch(`/api/stripe/subscriptions/cleanup-pending/${createdUserId}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                      });
+                      showToast('Signup cancelled. No charges were made.', 'info');
+                    } catch (err) {
+                      console.error('Failed to cleanup pending signup:', err);
+                      showToast('Signup cancelled but cleanup failed. Use the cleanup button to remove the pending account.', 'warning');
+                    }
+                  }
+                  paymentInitiatedRef.current = false;
+                }}
               />
             )}
           </>
