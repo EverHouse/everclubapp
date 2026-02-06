@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.2.3",
+    date: "2026-02-06",
+    title: "Smart Login Redirect",
+    changes: [
+      "Fix: Logged-in users visiting the home page are now automatically taken to their dashboard — staff and admins go to the Staff Portal, members go to their Member Dashboard",
+      "Fix: Logged-in users visiting the login page are now redirected to their dashboard instead of seeing the login form again"
+    ]
+  },
+  {
     version: "7.2.2",
     date: "2026-02-06",
     title: "Reschedule Hardening: Full Gap Audit",
