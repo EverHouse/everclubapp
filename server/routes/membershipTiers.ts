@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { pool, isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { invalidateTierCache, clearTierCache } from '../core/tierService';
-import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts } from '../core/stripe/products';
+import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts, syncTierFeaturesToStripe, syncCafeItemsToStripe } from '../core/stripe/products';
 
 const router = Router();
 
@@ -231,8 +231,16 @@ router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) 
     const cleanupResult = await cleanupOrphanStripeProducts();
     console.log(`[Admin] Stripe cleanup complete: ${cleanupResult.archived} archived, ${cleanupResult.skipped} skipped`);
     
+    // Step 3: Sync tier features to Stripe entitlements
+    const featureResult = await syncTierFeaturesToStripe();
+    console.log(`[Admin] Feature sync complete: ${featureResult.featuresCreated} created, ${featureResult.featuresAttached} attached, ${featureResult.featuresRemoved} removed`);
+    
+    // Step 4: Sync cafe items to Stripe
+    const cafeResult = await syncCafeItemsToStripe();
+    console.log(`[Admin] Cafe sync complete: ${cafeResult.synced} synced, ${cafeResult.failed} failed, ${cafeResult.skipped} skipped`);
+    
     res.json({ 
-      success: syncResult.success && cleanupResult.success, 
+      success: syncResult.success && cleanupResult.success && featureResult.success && cafeResult.success, 
       synced: syncResult.synced,
       failed: syncResult.failed,
       skipped: syncResult.skipped,
@@ -240,7 +248,9 @@ router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) 
       cleanupSkipped: cleanupResult.skipped,
       cleanupErrors: cleanupResult.errors,
       details: syncResult.results,
-      cleanupDetails: cleanupResult.results
+      cleanupDetails: cleanupResult.results,
+      featureSync: featureResult,
+      cafeSync: cafeResult
     });
   } catch (error: any) {
     console.error('[Admin] Stripe sync error:', error);

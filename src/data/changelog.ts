@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "70.2.0",
+    date: "2026-02-06",
+    title: "Stripe Sync — Product Features & Cafe Menu",
+    changes: [
+      "Added: Sync to Stripe button now syncs tier permission features to Stripe Product Catalog automatically",
+      "Added: Sync to Stripe button now creates cafe menu items as Stripe one-time products with prices and category metadata",
+      "Added: Tier features sync creates/removes Stripe Features dynamically based on current tier permissions — no code changes needed when permissions change",
+      "Added: Cafe items sync handles price changes by archiving old prices and creating new ones",
+      "Added: stripeProductId and stripePriceId columns on cafe items for Stripe product tracking",
+      "Foundation: Stripe becoming source of truth for product catalog — future phases will drive POS and menus from Stripe"
+    ]
+  },
+  {
     version: "70.1.0",
     date: "2026-02-06",
     title: "Stripe Product Catalog Features Setup",

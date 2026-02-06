@@ -155,6 +155,8 @@ export const cafeItems = pgTable("cafe_items", {
   imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
+  stripeProductId: varchar("stripe_product_id"),
+  stripePriceId: varchar("stripe_price_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

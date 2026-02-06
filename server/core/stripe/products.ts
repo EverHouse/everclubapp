@@ -892,3 +892,322 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     return { success: false, action: 'error' };
   }
 }
+
+function buildFeatureKeysForTier(tier: any): Array<{ lookupKey: string; name: string; metadata?: Record<string, string> }> {
+  const features: Array<{ lookupKey: string; name: string; metadata?: Record<string, string> }> = [];
+
+  const booleanMap: Array<{ field: string; key: string; name: string }> = [
+    { field: 'canBookSimulators', key: 'can_book_simulators', name: 'Can Book Simulators' },
+    { field: 'canBookConference', key: 'can_book_conference', name: 'Can Book Conference' },
+    { field: 'canBookWellness', key: 'can_book_wellness', name: 'Can Book Wellness' },
+    { field: 'hasGroupLessons', key: 'has_group_lessons', name: 'Has Group Lessons' },
+    { field: 'hasExtendedSessions', key: 'has_extended_sessions', name: 'Has Extended Sessions' },
+    { field: 'hasPrivateLesson', key: 'has_private_lesson', name: 'Has Private Lesson' },
+    { field: 'hasSimulatorGuestPasses', key: 'has_simulator_guest_passes', name: 'Has Simulator Guest Passes' },
+    { field: 'hasDiscountedMerch', key: 'has_discounted_merch', name: 'Has Discounted Merch' },
+    { field: 'unlimitedAccess', key: 'unlimited_access', name: 'Unlimited Access' },
+  ];
+
+  for (const { field, key, name } of booleanMap) {
+    if (tier[field]) {
+      features.push({ lookupKey: key, name });
+    }
+  }
+
+  const simMinutes = tier.dailySimMinutes ?? 0;
+  if (simMinutes > 0) {
+    if (simMinutes >= 900) {
+      features.push({ lookupKey: 'daily_sim_minutes_unlimited', name: 'Daily Sim Minutes: Unlimited', metadata: { type: 'daily_sim_minutes', value: 'unlimited', unit: 'minutes' } });
+    } else if (simMinutes === 60) {
+      features.push({ lookupKey: 'daily_sim_minutes_60', name: 'Daily Sim Minutes: 60' });
+    } else if (simMinutes === 90) {
+      features.push({ lookupKey: 'daily_sim_minutes_90', name: 'Daily Sim Minutes: 90' });
+    } else {
+      features.push({ lookupKey: `daily_sim_minutes_${simMinutes}`, name: `Daily Sim Minutes: ${simMinutes}`, metadata: { type: 'daily_sim_minutes', value: simMinutes.toString(), unit: 'minutes' } });
+    }
+  }
+
+  const guestPasses = tier.guestPassesPerMonth ?? 0;
+  if (guestPasses > 0) {
+    if (guestPasses >= 900) {
+      features.push({ lookupKey: 'guest_passes_unlimited', name: 'Guest Passes: Unlimited/month', metadata: { type: 'guest_passes_per_month', value: 'unlimited', unit: 'passes' } });
+    } else if (guestPasses === 4) {
+      features.push({ lookupKey: 'guest_passes_4', name: 'Guest Passes: 4/month' });
+    } else if (guestPasses === 8) {
+      features.push({ lookupKey: 'guest_passes_8', name: 'Guest Passes: 8/month' });
+    } else if (guestPasses === 15) {
+      features.push({ lookupKey: 'guest_passes_15', name: 'Guest Passes: 15/month' });
+    } else {
+      features.push({ lookupKey: `guest_passes_${guestPasses}`, name: `Guest Passes: ${guestPasses}/month`, metadata: { type: 'guest_passes_per_month', value: guestPasses.toString(), unit: 'passes' } });
+    }
+  }
+
+  const bookingWindow = tier.bookingWindowDays ?? 7;
+  if (bookingWindow === 7) {
+    features.push({ lookupKey: 'booking_window_7', name: 'Booking Window: 7 days' });
+  } else if (bookingWindow === 10) {
+    features.push({ lookupKey: 'booking_window_10', name: 'Booking Window: 10 days' });
+  } else if (bookingWindow === 14) {
+    features.push({ lookupKey: 'booking_window_14', name: 'Booking Window: 14 days' });
+  } else {
+    features.push({ lookupKey: `booking_window_${bookingWindow}`, name: `Booking Window: ${bookingWindow} days`, metadata: { type: 'booking_window', value: bookingWindow.toString(), unit: 'days' } });
+  }
+
+  const confMinutes = tier.dailyConfRoomMinutes ?? 0;
+  if (confMinutes > 0) {
+    if (confMinutes >= 900) {
+      features.push({ lookupKey: 'conf_room_minutes_unlimited', name: 'Conference Room: Unlimited/day', metadata: { type: 'daily_conf_room_minutes', value: 'unlimited', unit: 'minutes' } });
+    } else if (confMinutes === 60) {
+      features.push({ lookupKey: 'conf_room_minutes_60', name: 'Conference Room: 60 min/day' });
+    } else if (confMinutes === 90) {
+      features.push({ lookupKey: 'conf_room_minutes_90', name: 'Conference Room: 90 min/day' });
+    } else {
+      features.push({ lookupKey: `conf_room_minutes_${confMinutes}`, name: `Conference Room: ${confMinutes} min/day`, metadata: { type: 'daily_conf_room_minutes', value: confMinutes.toString(), unit: 'minutes' } });
+    }
+  }
+
+  return features;
+}
+
+export async function syncTierFeaturesToStripe(): Promise<{
+  success: boolean;
+  featuresCreated: number;
+  featuresAttached: number;
+  featuresRemoved: number;
+}> {
+  let featuresCreated = 0;
+  let featuresAttached = 0;
+  let featuresRemoved = 0;
+
+  try {
+    const stripe = await getStripeClient();
+    const tiers = await db.select().from(membershipTiers).where(eq(membershipTiers.isActive, true));
+
+    console.log(`[Feature Sync] Starting feature sync for ${tiers.length} active tiers`);
+
+    const existingFeatures = new Map<string, string>();
+    let hasMoreFeatures = true;
+    let startingAfterFeature: string | undefined;
+
+    while (hasMoreFeatures) {
+      const params: any = { limit: 100 };
+      if (startingAfterFeature) params.starting_after = startingAfterFeature;
+      const featureList = await stripe.entitlements.features.list(params);
+      for (const f of featureList.data) {
+        existingFeatures.set(f.lookup_key, f.id);
+      }
+      hasMoreFeatures = featureList.has_more;
+      if (featureList.data.length > 0) {
+        startingAfterFeature = featureList.data[featureList.data.length - 1].id;
+      }
+    }
+
+    console.log(`[Feature Sync] Found ${existingFeatures.size} existing Stripe features`);
+
+    for (const tier of tiers) {
+      if (!tier.stripeProductId) {
+        console.log(`[Feature Sync] Skipping ${tier.name}: No Stripe product ID`);
+        continue;
+      }
+
+      const desiredFeatures = buildFeatureKeysForTier(tier);
+      const desiredKeys = new Set(desiredFeatures.map(f => f.lookupKey));
+
+      for (const feature of desiredFeatures) {
+        if (!existingFeatures.has(feature.lookupKey)) {
+          try {
+            const created = await stripe.entitlements.features.create({
+              lookup_key: feature.lookupKey,
+              name: feature.name,
+              metadata: feature.metadata || {},
+            });
+            existingFeatures.set(feature.lookupKey, created.id);
+            featuresCreated++;
+            console.log(`[Feature Sync] Created feature: ${feature.name} (${feature.lookupKey})`);
+          } catch (err: any) {
+            if (err.code === 'resource_already_exists') {
+              const refetch = await stripe.entitlements.features.list({ lookup_key: feature.lookupKey, limit: 1 });
+              if (refetch.data.length > 0) {
+                existingFeatures.set(feature.lookupKey, refetch.data[0].id);
+              }
+            } else {
+              console.error(`[Feature Sync] Error creating feature ${feature.lookupKey}:`, err.message);
+            }
+          }
+        }
+      }
+
+      const attachedFeatures = new Map<string, string>();
+      let hasMoreAttached = true;
+      let startingAfterAttached: string | undefined;
+
+      while (hasMoreAttached) {
+        const params: any = { limit: 100 };
+        if (startingAfterAttached) params.starting_after = startingAfterAttached;
+        const attached = await stripe.products.listFeatures(tier.stripeProductId, params);
+        for (const af of attached.data) {
+          if (af.entitlement_feature?.lookup_key) {
+            attachedFeatures.set(af.entitlement_feature.lookup_key, af.id);
+          }
+        }
+        hasMoreAttached = attached.has_more;
+        if (attached.data.length > 0) {
+          startingAfterAttached = attached.data[attached.data.length - 1].id;
+        }
+      }
+
+      for (const feature of desiredFeatures) {
+        if (!attachedFeatures.has(feature.lookupKey)) {
+          const featureId = existingFeatures.get(feature.lookupKey);
+          if (featureId) {
+            try {
+              await stripe.products.createFeature(tier.stripeProductId, {
+                entitlement_feature: featureId,
+              });
+              featuresAttached++;
+              console.log(`[Feature Sync] Attached ${feature.lookupKey} to ${tier.name}`);
+            } catch (err: any) {
+              console.error(`[Feature Sync] Error attaching ${feature.lookupKey} to ${tier.name}:`, err.message);
+            }
+          }
+        }
+      }
+
+      for (const [attachedKey, attachmentId] of attachedFeatures) {
+        if (!desiredKeys.has(attachedKey)) {
+          try {
+            await stripe.products.deleteFeature(tier.stripeProductId, attachmentId);
+            featuresRemoved++;
+            console.log(`[Feature Sync] Removed ${attachedKey} from ${tier.name}`);
+          } catch (err: any) {
+            console.error(`[Feature Sync] Error removing ${attachedKey} from ${tier.name}:`, err.message);
+          }
+        }
+      }
+    }
+
+    console.log(`[Feature Sync] Complete: ${featuresCreated} created, ${featuresAttached} attached, ${featuresRemoved} removed`);
+    return { success: true, featuresCreated, featuresAttached, featuresRemoved };
+  } catch (error: any) {
+    console.error('[Feature Sync] Fatal error:', error);
+    return { success: false, featuresCreated, featuresAttached, featuresRemoved };
+  }
+}
+
+export async function syncCafeItemsToStripe(): Promise<{
+  success: boolean;
+  synced: number;
+  failed: number;
+  skipped: number;
+}> {
+  let synced = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  try {
+    const stripe = await getStripeClient();
+    const { rows: cafeItemRows } = await pool.query('SELECT * FROM cafe_items WHERE is_active = true ORDER BY category, sort_order');
+
+    console.log(`[Cafe Sync] Starting sync for ${cafeItemRows.length} active cafe items`);
+
+    for (const item of cafeItemRows) {
+      try {
+        const priceCents = Math.round(parseFloat(item.price) * 100);
+        if (priceCents <= 0) {
+          console.log(`[Cafe Sync] Skipping ${item.name}: No price`);
+          skipped++;
+          continue;
+        }
+
+        const metadata = {
+          source: 'ever_house_app',
+          cafe_item_id: item.id.toString(),
+          category: item.category,
+          product_type: 'one_time',
+        };
+
+        let stripeProductId = item.stripe_product_id;
+        let stripePriceId = item.stripe_price_id;
+
+        if (stripeProductId) {
+          await stripe.products.update(stripeProductId, {
+            name: item.name,
+            description: item.description || undefined,
+            metadata,
+          });
+          console.log(`[Cafe Sync] Updated product for ${item.name}`);
+        } else {
+          const existingProduct = await findExistingStripeProduct(
+            stripe,
+            item.name,
+            'cafe_item_id',
+            item.id.toString()
+          );
+
+          if (existingProduct) {
+            stripeProductId = existingProduct.id;
+            await stripe.products.update(stripeProductId, {
+              name: item.name,
+              description: item.description || undefined,
+              metadata,
+            });
+            console.log(`[Cafe Sync] Reusing existing Stripe product ${stripeProductId} for ${item.name}`);
+          } else {
+            const newProduct = await stripe.products.create({
+              name: item.name,
+              description: item.description || undefined,
+              metadata,
+            });
+            stripeProductId = newProduct.id;
+            console.log(`[Cafe Sync] Created product for ${item.name}: ${stripeProductId}`);
+          }
+        }
+
+        let needNewPrice = false;
+        if (stripePriceId) {
+          try {
+            const existingPrice = await stripe.prices.retrieve(stripePriceId);
+            if (existingPrice.unit_amount !== priceCents) {
+              await stripe.prices.update(stripePriceId, { active: false });
+              needNewPrice = true;
+              console.log(`[Cafe Sync] Price changed for ${item.name}, creating new price`);
+            }
+          } catch {
+            needNewPrice = true;
+          }
+        } else {
+          needNewPrice = true;
+        }
+
+        if (needNewPrice) {
+          const newPrice = await stripe.prices.create({
+            product: stripeProductId,
+            unit_amount: priceCents,
+            currency: 'usd',
+            metadata: {
+              cafe_item_id: item.id.toString(),
+            },
+          });
+          stripePriceId = newPrice.id;
+          console.log(`[Cafe Sync] Created price for ${item.name}: ${stripePriceId}`);
+        }
+
+        await pool.query(
+          'UPDATE cafe_items SET stripe_product_id = $1, stripe_price_id = $2 WHERE id = $3',
+          [stripeProductId, stripePriceId, item.id]
+        );
+
+        synced++;
+      } catch (error: any) {
+        console.error(`[Cafe Sync] Error syncing ${item.name}:`, error.message);
+        failed++;
+      }
+    }
+
+    console.log(`[Cafe Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
+    return { success: true, synced, failed, skipped };
+  } catch (error: any) {
+    console.error('[Cafe Sync] Fatal error:', error);
+    return { success: false, synced, failed, skipped };
+  }
+}

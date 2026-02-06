@@ -11,6 +11,8 @@ export {
   getProductSyncStatus,
   syncMembershipTiersToStripe,
   getTierSyncStatus,
+  syncTierFeaturesToStripe,
+  syncCafeItemsToStripe,
   type HubSpotProduct,
   type StripeProductWithPrice,
   type ProductSyncStatus,
