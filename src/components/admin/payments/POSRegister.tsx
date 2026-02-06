@@ -286,7 +286,16 @@ const POSRegister: React.FC = () => {
     setSuccess(true);
   };
 
-  const handleTerminalSuccess = (piId: string) => {
+  const handleTerminalSuccess = async (piId: string) => {
+    try {
+      await fetch('/api/stripe/staff/quick-charge/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ paymentIntentId: piId }),
+      });
+    } catch {}
+
     setPaymentIntentId(piId);
     setSuccess(true);
   };
@@ -856,6 +865,9 @@ const POSRegister: React.FC = () => {
             paymentMetadata={{
               source: 'pos',
               items: cartItems.map(i => `${i.name} x${i.quantity}`).join(', '),
+              ...(getCustomerInfo()?.id ? { userId: getCustomerInfo()!.id! } : {}),
+              ...(getCustomerInfo()?.email ? { ownerEmail: getCustomerInfo()!.email } : {}),
+              ...(getCustomerInfo()?.name ? { ownerName: getCustomerInfo()!.name } : {}),
             }}
             onSuccess={handleTerminalSuccess}
             onError={(msg) => setError(msg)}

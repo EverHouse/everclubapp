@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { getStripeClient } from '../../core/stripe/client';
 import { logFromRequest } from '../../core/auditLog';
+import { pool } from '../../core/db';
 
 const router = Router();
 
@@ -118,16 +119,47 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       }
     }
     
+    const finalMetadata = {
+      ...(metadata || {}),
+      source: metadata?.source || 'terminal',
+      email: metadata?.ownerEmail || '',
+      purpose: 'one_time_purchase'
+    };
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount),
       currency,
       payment_method_types: ['card_present'],
       capture_method: 'automatic',
       description: description || 'Terminal payment',
-      metadata: metadata || {},
+      metadata: finalMetadata,
       ...(customerId ? { customer: customerId } : {})
     });
     
+    if (customerId || metadata?.ownerEmail) {
+      try {
+        await pool.query(
+          `INSERT INTO stripe_payment_intents 
+           (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, product_id, product_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
+          [
+            metadata?.userId || `guest-${customerId || 'terminal'}`,
+            paymentIntent.id,
+            customerId || null,
+            Math.round(amount),
+            'one_time_purchase',
+            description || 'Terminal payment',
+            'pending',
+            null,
+            metadata?.items || null
+          ]
+        );
+      } catch (dbErr: any) {
+        console.warn('[Terminal] Non-blocking: Could not save local payment record:', dbErr.message);
+      }
+    }
+
     const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
       payment_intent: paymentIntent.id
     });
