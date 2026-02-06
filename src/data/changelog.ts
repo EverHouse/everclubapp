@@ -13,7 +13,7 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "72.0.2",
+    version: "7.2.2",
     date: "2026-02-06",
     title: "Reschedule Hardening: Full Gap Audit",
     changes: [
@@ -25,7 +25,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "72.0.1",
+    version: "7.2.1",
     date: "2026-02-06",
     title: "Reschedule Safety Fixes",
     changes: [
@@ -35,7 +35,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "72.0.0",
+    version: "7.2.0",
     date: "2026-02-06",
     title: "Booking Reschedule: Move Bookings to Any Bay & Time",
     isMajor: true,
@@ -50,7 +50,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "71.4.0",
+    version: "7.1.4",
     date: "2026-02-06",
     title: "Trackman Webhook Log on Import Page",
     changes: [
@@ -58,7 +58,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "71.3.0",
+    version: "7.1.3",
     date: "2026-02-06",
     title: "Booking Duration Options: More Flexibility for Groups",
     changes: [
@@ -68,7 +68,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "71.2.0",
+    version: "7.1.2",
     date: "2026-02-06",
     title: "Billing Safety: Race Condition & Revenue Leak Fixes",
     changes: [
@@ -78,7 +78,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "71.1.0",
+    version: "7.1.1",
     date: "2026-02-06",
     title: "POS Checkout: Card-Only Payments & Card on File",
     changes: [
@@ -90,7 +90,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "71.0.0",
+    version: "7.1.0",
     date: "2026-02-06",
     title: "Financials Redesign: POS Cash Register & Transactions Tab",
     isMajor: true,
@@ -106,7 +106,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.9.0",
+    version: "7.0.9",
     date: "2026-02-06",
     title: "Automatic Stripe Environment Validation & Fee Product Auto-Creation",
     isMajor: true,
@@ -121,7 +121,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.8.0",
+    version: "7.0.8",
     date: "2026-02-06",
     title: "Stripe Deployment Safety & Environment Indicator",
     changes: [
@@ -132,7 +132,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.7.0",
+    version: "7.0.7",
     date: "2026-02-06",
     title: "Instant Staff Notifications for Member Status Changes",
     changes: [
@@ -145,7 +145,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.6.1",
+    version: "7.0.61",
     date: "2026-02-06",
     title: "Smarter Product Editing & Stripe Category Tagging",
     changes: [
@@ -155,7 +155,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.6.0",
+    version: "7.0.6",
     date: "2026-02-06",
     title: "Admin Tier Editor Overhaul & Dynamic Membership Page",
     isMajor: true,
@@ -173,7 +173,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.5.0",
+    version: "7.0.5",
     date: "2026-02-06",
     title: "Stripe-Managed Corporate Pricing & Family Discount",
     isMajor: true,
@@ -185,7 +185,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.4.2",
+    version: "7.0.42",
     date: "2026-02-06",
     title: "Stripe Sync Gap Fixes (Round 2)",
     changes: [
@@ -195,7 +195,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.4.1",
+    version: "7.0.41",
     date: "2026-02-06",
     title: "Stripe Sync Gap Fixes",
     changes: [
@@ -207,7 +207,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.4.0",
+    version: "7.0.4",
     date: "2026-02-06",
     title: "Stripe-Driven Product Management (Reverse Sync)",
     changes: [
@@ -222,7 +222,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.3.0",
+    version: "7.0.3",
     date: "2026-02-06",
     title: "Admin Navigation Consolidation",
     changes: [
@@ -233,7 +233,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.2.0",
+    version: "7.0.2",
     date: "2026-02-06",
     title: "Stripe Sync — Product Features & Cafe Menu",
     changes: [
@@ -246,7 +246,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.1.0",
+    version: "7.0.1",
     date: "2026-02-06",
     title: "Stripe Product Catalog Features Setup",
     changes: [
@@ -259,7 +259,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "70.0.0",
+    version: "7.0.0",
     date: "2026-02-06",
     title: "Record Purchase Redesign — Point-of-Sale Experience",
     isMajor: true,
@@ -276,7 +276,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.19.0",
+    version: "6.9.19",
     date: "2026-02-06",
     title: "Calendar & Queue Improvements for Inactive Members",
     changes: [
@@ -286,7 +286,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.18.0",
+    version: "6.9.18",
     date: "2026-02-06",
     title: "Fee Calculation Fix for Non-Active Members",
     changes: [
@@ -295,7 +295,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.17.0",
+    version: "6.9.17",
     date: "2026-02-06",
     title: "Card Reader for Booking Payments",
     isMajor: false,
@@ -306,7 +306,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.16.0",
+    version: "6.9.16",
     date: "2026-02-06",
     title: "Stripe Customer Auto-Recovery & Terminal Simulated Reader Fix",
     changes: [
@@ -316,7 +316,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.15.0",
+    version: "6.9.15",
     date: "2026-02-05",
     title: "Next Payment Date Tracking & Billing Safety",
     changes: [
@@ -329,7 +329,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.14.0",
+    version: "6.9.14",
     date: "2026-02-05",
     title: "Billing Safety & Access Control Fixes",
     isMajor: true,
@@ -342,7 +342,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.13.0",
+    version: "6.9.13",
     date: "2026-02-05",
     title: "Comprehensive Member Deletion",
     changes: [
@@ -357,7 +357,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.12.3",
+    version: "6.9.123",
     date: "2026-02-05",
     title: "Terminal Payment Integrity - Complete Coverage",
     changes: [
@@ -370,7 +370,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.12.0",
+    version: "6.9.12",
     date: "2026-02-05",
     title: "Terminal Payment Integrity & Reconciliation",
     changes: [
@@ -383,7 +383,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.11.0",
+    version: "6.9.11",
     date: "2026-02-05",
     title: "Stripe Terminal Card Reader Support",
     isMajor: true,
@@ -397,7 +397,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.10.5",
+    version: "6.9.105",
     date: "2026-02-05",
     title: "Copy Activation Link Feature",
     changes: [
@@ -406,7 +406,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.10.4",
+    version: "6.9.104",
     date: "2026-02-05",
     title: "Fix In-Person Payment Form for New Members",
     changes: [
@@ -416,7 +416,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.10.3",
+    version: "6.9.103",
     date: "2026-02-05",
     title: "Member Checkout & Activation Link Fixes",
     changes: [
@@ -426,7 +426,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.10.2",
+    version: "6.9.102",
     date: "2026-02-05",
     title: "Complete Money-Flow Audit & Fixes",
     changes: [
@@ -440,7 +440,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.10.1",
+    version: "6.9.101",
     date: "2026-02-05",
     title: "Comprehensive Audit Logging Fixes",
     changes: [
@@ -452,7 +452,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.10.0",
+    version: "6.9.10",
     date: "2026-02-05",
     title: "Critical Bug Fixes",
     changes: [
@@ -463,7 +463,7 @@ export const changelog: ChangelogEntry[] = [
     isMajor: true
   },
   {
-    version: "69.9.9",
+    version: "6.9.99",
     date: "2026-02-05",
     title: "Incomplete Signup Cleanup",
     changes: [
@@ -474,7 +474,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.8",
+    version: "6.9.98",
     date: "2026-02-05",
     title: "Family Billing Data Completeness Fix",
     changes: [
@@ -483,7 +483,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.7",
+    version: "6.9.97",
     date: "2026-02-05",
     title: "Family Billing & Subscription Safety Fixes",
     changes: [
@@ -495,7 +495,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.6",
+    version: "6.9.96",
     date: "2026-02-05",
     title: "Notice to Members Field",
     changes: [
@@ -507,7 +507,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.5",
+    version: "6.9.95",
     date: "2026-02-05",
     title: "Comprehensive Database Column Fixes",
     changes: [
@@ -521,7 +521,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.4",
+    version: "6.9.94",
     date: "2026-02-05",
     title: "Database Column Fix for New Members",
     changes: [
@@ -530,7 +530,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.3",
+    version: "6.9.93",
     date: "2026-02-05",
     title: "Corporate Checkout Field Fixes",
     changes: [
@@ -541,7 +541,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.2",
+    version: "6.9.92",
     date: "2026-02-05",
     title: "Corporate & Family Billing Status Propagation",
     changes: [
@@ -553,7 +553,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.1",
+    version: "6.9.91",
     date: "2026-02-05",
     title: "Future Bookings Visibility on Financials",
     changes: [
@@ -563,7 +563,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.9.0",
+    version: "6.9.9",
     date: "2026-02-05",
     title: "Activation Link for New Members",
     isMajor: true,
@@ -580,7 +580,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.8.3",
+    version: "6.9.83",
     date: "2026-02-05",
     title: "Staff Manual Booking Improvements",
     changes: [
@@ -591,7 +591,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.8.2",
+    version: "6.9.82",
     date: "2026-02-05",
     title: "Enhanced Animations & UI Polish",
     changes: [
@@ -605,7 +605,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.8.1",
+    version: "6.9.81",
     date: "2026-02-05",
     title: "Changelog Performance Optimization",
     changes: [
@@ -615,7 +615,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.8.0",
+    version: "6.9.8",
     date: "2026-02-05",
     title: "Optimistic UI & Dark Mode Improvements",
     isMajor: true,
@@ -636,7 +636,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.7.4",
+    version: "6.9.74",
     date: "2026-02-05",
     title: "Staff Training Guide Accuracy Update",
     changes: [
@@ -652,7 +652,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.7.3",
+    version: "6.9.73",
     date: "2026-02-05",
     title: "Profile Page Navigation Improvement",
     changes: [
@@ -662,7 +662,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.7.2",
+    version: "6.9.72",
     date: "2026-02-05",
     title: "Staff Notes for Closures & Notices",
     changes: [
@@ -674,7 +674,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.7.1",
+    version: "6.9.71",
     date: "2026-02-05",
     title: "Improved: Staff Booking Modal Animations",
     changes: [
@@ -684,7 +684,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.7.0",
+    version: "6.9.7",
     date: "2026-02-05",
     title: "Staff Conference Room Booking",
     changes: [
@@ -697,7 +697,7 @@ export const changelog: ChangelogEntry[] = [
     isMajor: true
   },
   {
-    version: "69.6.5",
+    version: "6.9.65",
     date: "2026-02-05",
     title: "Fixed: Admin View As Mode",
     changes: [
@@ -708,7 +708,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.6.4",
+    version: "6.9.64",
     date: "2026-02-05",
     title: "Fixed: Notification Timestamps & Participant Alerts",
     changes: [
@@ -720,7 +720,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.6.3",
+    version: "6.9.63",
     date: "2026-02-04",
     title: "Fixed: Booking Participant Tracking",
     changes: [
@@ -731,7 +731,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.6.2",
+    version: "6.9.62",
     date: "2026-02-04",
     title: "Improved: Corporate Checkout Contact Fields",
     changes: [
@@ -742,7 +742,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.6.1",
+    version: "6.9.61",
     date: "2026-02-04",
     title: "Fixed: Corporate Membership Navigation",
     changes: [
@@ -751,7 +751,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.6.0",
+    version: "6.9.6",
     date: "2026-02-04",
     title: "New: Membership Application Landing Page",
     changes: [
@@ -763,7 +763,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.5.0",
+    version: "6.9.5",
     date: "2026-02-04",
     title: "New: Private Hire Inquiry Landing Page",
     changes: [
@@ -776,7 +776,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.9",
+    version: "6.9.49",
     date: "2026-02-04",
     title: "Fixed: Prepayment Intents Now Created When Guests Added After Approval",
     changes: [
@@ -787,7 +787,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.8",
+    version: "6.9.48",
     date: "2026-02-04",
     title: "Fixed: Booking Cards Now Show Correct Fee Estimates",
     isMajor: true,
@@ -800,7 +800,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.7",
+    version: "6.9.47",
     date: "2026-02-04",
     title: "Critical: Bookings No Longer Link to Wrong Sessions",
     isMajor: true,
@@ -813,7 +813,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.6",
+    version: "6.9.46",
     date: "2026-02-04",
     title: "Guest Slots Always Show $25 Fee",
     changes: [
@@ -824,7 +824,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.5",
+    version: "6.9.45",
     date: "2026-02-04",
     title: "Booking Cards Always Show Expected Fees",
     changes: [
@@ -835,7 +835,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.4",
+    version: "6.9.44",
     date: "2026-02-04",
     title: "Dev Confirm Workflow Simplified",
     changes: [
@@ -845,7 +845,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.3",
+    version: "6.9.43",
     date: "2026-02-04",
     title: "Fee Calculation & Check-In Stability",
     changes: [
@@ -857,7 +857,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.2",
+    version: "6.9.42",
     date: "2026-02-04",
     title: "Critical: Session Duration & Fee Calculation Fix",
     isMajor: true,
@@ -873,7 +873,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.4.0",
+    version: "6.9.4",
     date: "2026-02-04",
     title: "Staff Can Charge Member's Card on File",
     isMajor: true,
@@ -886,7 +886,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.9",
+    version: "6.9.39",
     date: "2026-02-04",
     title: "Critical: Booking Participants Now Saved at Approval",
     isMajor: true,
@@ -900,7 +900,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.8",
+    version: "6.9.38",
     date: "2026-02-04",
     title: "Check-In & Fee Stability Fixes",
     changes: [
@@ -912,7 +912,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.7",
+    version: "6.9.37",
     date: "2026-02-03",
     title: "Assign Players Bug Fix",
     changes: [
@@ -922,7 +922,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.6",
+    version: "6.9.36",
     date: "2026-02-03",
     title: "HubSpot Status Sync Fix",
     changes: [
@@ -932,7 +932,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.5",
+    version: "6.9.35",
     date: "2026-02-03",
     title: "Orphaned Booking Participant Fix",
     changes: [
@@ -943,7 +943,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.4",
+    version: "6.9.34",
     date: "2026-02-03",
     title: "MindBody Data Quality Check Improvement",
     changes: [
@@ -952,7 +952,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.3",
+    version: "6.9.33",
     date: "2026-02-03",
     title: "HubSpot Billing Source Sync Improvement",
     changes: [
@@ -961,7 +961,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.2",
+    version: "6.9.32",
     date: "2026-02-03",
     title: "MindBody Member Billing Separation",
     changes: [
@@ -971,7 +971,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.1",
+    version: "6.9.31",
     date: "2026-02-03",
     title: "Account Balance in Profile Drawer",
     changes: [
@@ -981,7 +981,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.3.0",
+    version: "6.9.3",
     date: "2026-02-03",
     title: "Team Page Moved to Admin",
     changes: [
@@ -990,7 +990,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.9",
+    version: "6.9.29",
     date: "2026-02-03",
     title: "MindBody Integrity Checks Added",
     changes: [
@@ -1001,7 +1001,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.8",
+    version: "6.9.28",
     date: "2026-02-03",
     title: "Data Integrity Billing Provider Filters",
     changes: [
@@ -1012,7 +1012,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.7",
+    version: "6.9.27",
     date: "2026-02-03",
     title: "Data Integrity Sync Fix",
     changes: [
@@ -1021,7 +1021,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.6",
+    version: "6.9.26",
     date: "2026-02-03",
     title: "Session Backfill Matches on Start Time",
     changes: [
@@ -1031,7 +1031,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.5",
+    version: "6.9.25",
     date: "2026-02-03",
     title: "Session Backfill Links Existing Sessions",
     changes: [
@@ -1041,7 +1041,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.4",
+    version: "6.9.24",
     date: "2026-02-03",
     title: "Session Backfill Resilience",
     changes: [
@@ -1051,7 +1051,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.3",
+    version: "6.9.23",
     date: "2026-02-03",
     title: "Session Backfill Fix",
     changes: [
@@ -1061,7 +1061,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.2",
+    version: "6.9.22",
     date: "2026-02-03",
     title: "MindBody Member Credits Fix",
     changes: [
@@ -1071,7 +1071,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.1",
+    version: "6.9.21",
     date: "2026-02-03",
     title: "Check-In Date Display Fix",
     changes: [
@@ -1081,7 +1081,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.2.0",
+    version: "6.9.2",
     date: "2026-02-03",
     title: "Guest Pass Atomicity Hardening",
     changes: [
@@ -1092,7 +1092,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.1.0",
+    version: "6.9.1",
     date: "2026-02-03",
     title: "Critical Billing Accuracy Fixes",
     changes: [
@@ -1103,7 +1103,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "69.0.0",
+    version: "6.9.0",
     date: "2026-02-03",
     title: "Security Hardening & Bug Fix Release",
     isMajor: true,
@@ -1125,7 +1125,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "68.0.0",
+    version: "6.8.0",
     date: "2026-02-03",
     title: "Comprehensive Performance & Responsiveness Overhaul",
     isMajor: true,
@@ -1142,7 +1142,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.10.0",
+    version: "6.7.10",
     date: "2026-02-03",
     title: "Cancellation Handling & Audit Trail",
     changes: [
@@ -1153,7 +1153,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.9.0",
+    version: "6.7.9",
     date: "2026-02-03",
     title: "Stripe Subscription Tier Sync",
     changes: [
@@ -1163,7 +1163,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.8.0",
+    version: "6.7.8",
     date: "2026-02-03",
     title: "Tier Sync Reliability",
     changes: [
@@ -1175,7 +1175,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.7.0",
+    version: "6.7.7",
     date: "2026-02-03",
     title: "Staff Tier Assignment",
     changes: [
@@ -1185,7 +1185,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.6.0",
+    version: "6.7.6",
     date: "2026-02-03",
     title: "Tier Data Automation",
     changes: [
@@ -1196,7 +1196,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.5.0",
+    version: "6.7.5",
     date: "2026-02-02",
     title: "Data Integrity Cleanup",
     changes: [
@@ -1205,7 +1205,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.4.0",
+    version: "6.7.4",
     date: "2026-02-02",
     title: "HubSpot Tier Sync Safety",
     changes: [
@@ -1216,7 +1216,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.3.0",
+    version: "6.7.3",
     date: "2026-02-02",
     title: "HubSpot Tier Sync Improvements",
     changes: [
@@ -1227,7 +1227,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.2.0",
+    version: "6.7.2",
     date: "2026-02-02",
     title: "Page Load Performance Boost",
     changes: [
@@ -1238,7 +1238,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.1.0",
+    version: "6.7.1",
     date: "2026-02-02",
     title: "Accessibility & UX Improvements",
     changes: [
@@ -1251,7 +1251,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "67.0.0",
+    version: "6.7.0",
     date: "2026-02-02",
     title: "Security Hardening Update",
     isMajor: true,
@@ -1265,7 +1265,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "66.4.0",
+    version: "6.6.4",
     date: "2026-02-02",
     title: "Safari Toolbar Color Fix",
     changes: [
@@ -1274,7 +1274,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "66.3.0",
+    version: "6.6.3",
     date: "2026-02-02",
     title: "Safari Toolbar Fix",
     changes: [
@@ -1284,7 +1284,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "66.2.0",
+    version: "6.6.2",
     date: "2026-02-02",
     title: "Notification System Fixes",
     changes: [
@@ -1294,7 +1294,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "66.1.0",
+    version: "6.6.1",
     date: "2026-02-02",
     title: "Member Navigation Polish",
     changes: [
@@ -1303,7 +1303,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "66.0.0",
+    version: "6.6.0",
     date: "2026-02-02",
     title: "Animation System Enhancements",
     isMajor: true,
@@ -1318,7 +1318,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "65.0.0",
+    version: "6.5.0",
     date: "2026-02-02",
     title: "UX/UI Polish & Accessibility Improvements",
     isMajor: true,
@@ -1332,7 +1332,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "64.2.0",
+    version: "6.4.2",
     date: "2026-02-02",
     title: "Security & Data Integrity Improvements",
     changes: [
@@ -1343,7 +1343,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "64.1.0",
+    version: "6.4.1",
     date: "2026-02-02",
     title: "Bug Fixes: Guest Passes, Notifications & Check-in",
     changes: [
@@ -1354,7 +1354,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "64.0.0",
+    version: "6.4.0",
     date: "2026-02-02",
     title: "Corporate Volume Pricing & 30-Day Cancellation Notice",
     isMajor: true,
@@ -1370,7 +1370,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.7.0",
+    version: "6.3.7",
     date: "2026-02-02",
     title: "Security & Error Recovery Improvements",
     changes: [
@@ -1381,7 +1381,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.6.0",
+    version: "6.3.6",
     date: "2026-02-02",
     title: "Real-Time Connection Stability Improvements",
     changes: [
@@ -1392,7 +1392,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.5.0",
+    version: "6.3.5",
     date: "2026-02-02",
     title: "Private Events Display Fix",
     changes: [
@@ -1402,7 +1402,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.4.0",
+    version: "6.3.4",
     date: "2026-02-01",
     title: "Directory Deletion Now Updates Immediately",
     changes: [
@@ -1411,7 +1411,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.3.0",
+    version: "6.3.3",
     date: "2026-02-01",
     title: "Member Profile Drawer UX Improvements",
     changes: [
@@ -1421,7 +1421,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.2.0",
+    version: "6.3.2",
     date: "2026-02-01",
     title: "Billing Emails Now Handled by Stripe",
     changes: [
@@ -1432,7 +1432,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.1.0",
+    version: "6.3.1",
     date: "2026-02-01",
     title: "Resend Email Webhook Integration",
     changes: [
@@ -1444,7 +1444,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "63.0.0",
+    version: "6.3.0",
     date: "2026-02-01",
     title: "System Health Monitoring & Error Resilience",
     isMajor: true,
@@ -1460,7 +1460,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "62.3.0",
+    version: "6.2.3",
     date: "2026-02-01",
     title: "Directory Page Scroll Improvements",
     changes: [
@@ -1469,7 +1469,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "62.2.0",
+    version: "6.2.2",
     date: "2026-02-01",
     title: "Navigation Bug Fix",
     changes: [
@@ -1479,7 +1479,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "62.1.0",
+    version: "6.2.1",
     date: "2026-02-01",
     title: "Bug Fixes for New User Drawer",
     changes: [
@@ -1490,7 +1490,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "62.0.0",
+    version: "6.2.0",
     date: "2026-02-01",
     title: "New User Drawer: Unified Member & Visitor Creation",
     isMajor: true,
@@ -1506,7 +1506,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "61.4.0",
+    version: "6.1.4",
     date: "2026-02-01",
     title: "Comprehensive Error Handling Improvements",
     changes: [
@@ -1519,7 +1519,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "61.3.0",
+    version: "6.1.3",
     date: "2026-02-01",
     title: "Stability Improvements",
     changes: [
@@ -1530,7 +1530,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "61.2.0",
+    version: "6.1.2",
     date: "2026-02-01",
     title: "Bug Fixes",
     changes: [
@@ -1539,7 +1539,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "61.1.0",
+    version: "6.1.1",
     date: "2026-02-01",
     title: "Member Profile Drawer Polish",
     changes: [
@@ -1550,7 +1550,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "61.0.0",
+    version: "6.1.0",
     date: "2026-02-01",
     title: "Smart Data Caching: Faster Navigation & Reduced Loading",
     isMajor: true,
@@ -1568,7 +1568,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "60.5.0",
+    version: "6.0.5",
     date: "2026-02-01",
     title: "Financials Page Navigation Fix",
     changes: [
@@ -1578,7 +1578,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "60.4.0",
+    version: "6.0.4",
     date: "2026-02-01",
     title: "Staff Navigation Fix",
     changes: [
@@ -1587,7 +1587,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "60.3.0",
+    version: "6.0.3",
     date: "2026-02-01",
     title: "iOS Safari Translucent Toolbar",
     changes: [
@@ -1598,7 +1598,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "60.2.0",
+    version: "6.0.2",
     date: "2026-01-31",
     title: "URL Routing Cleanup",
     changes: [
@@ -1610,7 +1610,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "60.1.0",
+    version: "6.0.1",
     date: "2026-01-31",
     title: "Staff FAB Quick Actions Stay In-Place",
     changes: [
@@ -1620,7 +1620,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "60.0.0",
+    version: "6.0.0",
     date: "2026-01-31",
     title: "Major UX Overhaul: Mobile-First Navigation & Drawers",
     isMajor: true,
@@ -1640,7 +1640,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "59.3.0",
+    version: "5.9.3",
     date: "2026-01-31",
     title: "SimulatorTab Cleanup",
     changes: [
@@ -1649,7 +1649,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "59.2.0",
+    version: "5.9.2",
     date: "2026-01-31",
     title: "Trackman Admin Cleanup & Mobile UX",
     changes: [
@@ -1661,7 +1661,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "59.1.0",
+    version: "5.9.1",
     date: "2026-01-31",
     title: "Mobile UX: Slide-Up Drawers",
     changes: [
@@ -1675,7 +1675,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "59.0.0",
+    version: "5.9.0",
     date: "2026-01-31",
     title: "Staff Management & Private Event Linking",
     isMajor: true,
@@ -1696,7 +1696,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "58.0.0",
+    version: "5.8.0",
     date: "2026-01-31",
     title: "Eliminate Placeholder Email Generation",
     isMajor: true,
@@ -1715,7 +1715,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.10.0",
+    version: "5.7.10",
     date: "2026-01-31",
     title: "Placeholder Account Cleanup Tool",
     changes: [
@@ -1728,7 +1728,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.9.0",
+    version: "5.7.9",
     date: "2026-01-30",
     title: "Auto-Cleanup Stale Billing Participants",
     changes: [
@@ -1738,7 +1738,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.8.0",
+    version: "5.7.8",
     date: "2026-01-30",
     title: "Bug Report Button Moved to Menu",
     changes: [
@@ -1748,7 +1748,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.7.0",
+    version: "5.7.7",
     date: "2026-01-30",
     title: "Fix Player Removal Not Updating Billing",
     changes: [
@@ -1759,7 +1759,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.6.0",
+    version: "5.7.6",
     date: "2026-01-30",
     title: "UI Polish - Smoother Animations & Visual Feedback",
     changes: [
@@ -1772,7 +1772,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.5.0",
+    version: "5.7.5",
     date: "2026-01-30",
     title: "Remove Duplicate Requires Review Section",
     changes: [
@@ -1781,7 +1781,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.4.0",
+    version: "5.7.4",
     date: "2026-01-30",
     title: "Optimistic UI for Data Integrity Fixes",
     changes: [
@@ -1791,7 +1791,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.3.0",
+    version: "5.7.3",
     date: "2026-01-30",
     title: "Clear Orphaned Stripe IDs Tool",
     changes: [
@@ -1801,7 +1801,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.2.0",
+    version: "5.7.2",
     date: "2026-01-30",
     title: "Prevent Placeholder Stripe Customers",
     changes: [
@@ -1811,7 +1811,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.1.0",
+    version: "5.7.1",
     date: "2026-01-30",
     title: "Orphaned Stripe Customer Detection",
     changes: [
@@ -1821,7 +1821,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "57.0.0",
+    version: "5.7.0",
     date: "2026-01-30",
     title: "Stripe Customer Email Linking",
     isMajor: true,
@@ -1835,7 +1835,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "56.4.0",
+    version: "5.6.4",
     date: "2026-01-30",
     title: "Stripe Error Handling Improvements",
     changes: [
@@ -1845,7 +1845,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "56.3.0",
+    version: "5.6.3",
     date: "2026-01-30",
     title: "Fix Tool Endpoint Corrections",
     changes: [
@@ -1854,7 +1854,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "56.2.0",
+    version: "5.6.2",
     date: "2026-01-30",
     title: "Data Integrity Fix Tools",
     changes: [
@@ -1865,7 +1865,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "56.1.0",
+    version: "5.6.1",
     date: "2026-01-30",
     title: "Data Integrity UX Improvements",
     changes: [
@@ -1878,7 +1878,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "56.0.0",
+    version: "5.6.0",
     date: "2026-01-30",
     title: "Dynamic Tier Features Comparison System",
     isMajor: true,
@@ -1892,7 +1892,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "55.1.0",
+    version: "5.5.1",
     date: "2026-01-30",
     title: "Webhook Security Hardening",
     changes: [
@@ -1903,7 +1903,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "55.0.0",
+    version: "5.5.0",
     date: "2026-01-30",
     title: "Infrastructure Reliability & Data Protection Audit",
     isMajor: true,
@@ -1924,7 +1924,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "54.1.0",
+    version: "5.4.1",
     date: "2026-01-29",
     title: "Zombie User Fix & Lesson Cleanup Tool",
     changes: [
@@ -1936,7 +1936,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "54.0.0",
+    version: "5.4.0",
     date: "2026-01-29",
     title: "Comprehensive System Reliability Improvements",
     isMajor: true,
@@ -1954,7 +1954,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.15.0",
+    version: "5.3.15",
     date: "2026-01-29",
     title: "Staff Lesson Auto-Conversion",
     changes: [
@@ -1967,7 +1967,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.14.0",
+    version: "5.3.14",
     date: "2026-01-29",
     title: "Critical Bug Fixes - Data Integrity & User Management",
     changes: [
@@ -1982,7 +1982,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.13.0",
+    version: "5.3.13",
     date: "2026-01-29",
     title: "Simplified Safari Toolbar Colors",
     changes: [
@@ -1992,7 +1992,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.12.0",
+    version: "5.3.12",
     date: "2026-01-29",
     title: "Safari Toolbar Color Enhancement",
     changes: [
@@ -2003,7 +2003,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.11.0",
+    version: "5.3.11",
     date: "2026-01-29",
     title: "Safari Translucent Toolbar Fix",
     changes: [
@@ -2015,7 +2015,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.10.0",
+    version: "5.3.10",
     date: "2026-01-29",
     title: "Safari Browser Theme Improvements",
     changes: [
@@ -2026,7 +2026,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.9.0",
+    version: "5.3.9",
     date: "2026-01-29",
     title: "Smart Queue Resolution",
     changes: [
@@ -2037,7 +2037,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.8.0",
+    version: "5.3.8",
     date: "2026-01-29",
     title: "Tag Display Crash Fix",
     changes: [
@@ -2047,7 +2047,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.7.0",
+    version: "5.3.7",
     date: "2026-01-29",
     title: "Private Event from Unmatched Bookings",
     changes: [
@@ -2057,7 +2057,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.6.0",
+    version: "5.3.6",
     date: "2026-01-29",
     title: "Staff Portal Directory Fix",
     changes: [
@@ -2067,7 +2067,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.5.0",
+    version: "5.3.5",
     date: "2026-01-29",
     title: "Private Event Toast Fix",
     changes: [
@@ -2076,7 +2076,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.4.0",
+    version: "5.3.4",
     date: "2026-01-29",
     title: "Complete User Merge Coverage",
     changes: [
@@ -2090,7 +2090,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.3.0",
+    version: "5.3.3",
     date: "2026-01-29",
     title: "Expanded User Merge Coverage",
     changes: [
@@ -2104,7 +2104,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.2.0",
+    version: "5.3.2",
     date: "2026-01-29",
     title: "Member Portal Navigation Menu",
     changes: [
@@ -2116,7 +2116,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.1.0",
+    version: "5.3.1",
     date: "2026-01-29",
     title: "Complete Duplicate Prevention Coverage",
     changes: [
@@ -2128,7 +2128,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "53.0.0",
+    version: "5.3.0",
     date: "2026-01-29",
     title: "User Merge & Duplicate Prevention",
     isMajor: true,
@@ -2145,7 +2145,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "52.1.0",
+    version: "5.2.1",
     date: "2026-01-29",
     title: "Duplicate Visitor Cleanup & Queue Stats Layout",
     changes: [
@@ -2156,7 +2156,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "52.0.0",
+    version: "5.2.0",
     date: "2026-01-29",
     title: "Auto-Match Visitors from MindBody",
     isMajor: true,
@@ -2171,7 +2171,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "51.0.0",
+    version: "5.1.0",
     date: "2026-01-29",
     title: "Unified Queue with Requires Review",
     isMajor: true,
@@ -2185,7 +2185,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "50.3.0",
+    version: "5.0.3",
     date: "2026-01-29",
     title: "Queue Shows Booking Details",
     changes: [
@@ -2196,7 +2196,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "50.2.0",
+    version: "5.0.2",
     date: "2026-01-29",
     title: "Complete Duplicate Prevention Coverage",
     changes: [
@@ -2208,7 +2208,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "50.1.0",
+    version: "5.0.1",
     date: "2026-01-29",
     title: "Import Duplicate Prevention & Queue Tab",
     changes: [
@@ -2220,7 +2220,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "50.0.0",
+    version: "5.0.0",
     date: "2026-01-29",
     title: "TrackMan Import & Email Learning System",
     isMajor: true,
@@ -2235,7 +2235,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.7.0",
+    version: "4.9.7",
     date: "2026-01-29",
     title: "Booking Availability Fix",
     changes: [
@@ -2246,7 +2246,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.6.0",
+    version: "4.9.6",
     date: "2026-01-29",
     title: "UI/UX & Accessibility Improvements",
     changes: [
@@ -2259,7 +2259,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.5.0",
+    version: "4.9.5",
     date: "2026-01-29",
     title: "Staff Notification Coverage",
     changes: [
@@ -2273,7 +2273,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.4.0",
+    version: "4.9.4",
     date: "2026-01-29",
     title: "Staff Activity Human-Readable Details",
     changes: [
@@ -2285,7 +2285,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.3.0",
+    version: "4.9.3",
     date: "2026-01-29",
     title: "Complete Human-Readable Activity Details",
     changes: [
@@ -2296,7 +2296,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.2.0",
+    version: "4.9.2",
     date: "2026-01-29",
     title: "Complete Activity Logging Coverage",
     changes: [
@@ -2308,7 +2308,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.1.0",
+    version: "4.9.1",
     date: "2026-01-29",
     title: "Dashboard Today's Bookings Filter",
     changes: [
@@ -2318,7 +2318,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "49.0.0",
+    version: "4.9.0",
     date: "2026-01-29",
     title: "Comprehensive Activity Logging & Staff Notifications",
     isMajor: true,
@@ -2333,7 +2333,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "48.1.0",
+    version: "4.8.1",
     date: "2026-01-28",
     title: "Calendar Quick Booking",
     changes: [
@@ -2343,7 +2343,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "48.0.0",
+    version: "4.8.0",
     date: "2026-01-28",
     title: "Staff Manual Booking Tool",
     isMajor: true,
@@ -2358,7 +2358,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.6.0",
+    version: "4.7.6",
     date: "2026-01-28",
     title: "Same-Day Booking Fee Calculation Fix",
     changes: [
@@ -2368,7 +2368,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.5.0",
+    version: "4.7.5",
     date: "2026-01-28",
     title: "Member History Bug Fix",
     changes: [
@@ -2377,7 +2377,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.4.0",
+    version: "4.7.4",
     date: "2026-01-28",
     title: "Staff PWA Menu Shortcuts",
     changes: [
@@ -2386,7 +2386,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.3.0",
+    version: "4.7.3",
     date: "2026-01-28",
     title: "Calendar Refresh Button & Last Updated Time",
     changes: [
@@ -2397,7 +2397,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.2.0",
+    version: "4.7.2",
     date: "2026-01-28",
     title: "Webhook Booking Link Fix",
     changes: [
@@ -2408,7 +2408,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.1.0",
+    version: "4.7.1",
     date: "2026-01-28",
     title: "Complete Real-Time Billing Notifications",
     changes: [
@@ -2422,7 +2422,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "47.0.0",
+    version: "4.7.0",
     date: "2026-01-28",
     title: "Real-Time Notifications for Bookings & Billing",
     isMajor: true,
@@ -2437,7 +2437,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "46.1.0",
+    version: "4.6.1",
     date: "2026-01-28",
     title: "Wellness Tab Mobile Crash Fix",
     changes: [
@@ -2446,7 +2446,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "46.0.0",
+    version: "4.6.0",
     date: "2026-01-28",
     title: "Production Readiness Improvements",
     isMajor: true,
@@ -2461,7 +2461,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "45.3.0",
+    version: "4.5.3",
     date: "2026-01-28",
     title: "Stripe Webhook Fix",
     changes: [
@@ -2471,7 +2471,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "45.2.0",
+    version: "4.5.2",
     date: "2026-01-28",
     title: "Add Funds Balance Update Fix",
     changes: [
@@ -2481,7 +2481,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "45.1.0",
+    version: "4.5.1",
     date: "2026-01-28",
     title: "Staff Profile Bottom Navigation Fix",
     changes: [
@@ -2490,7 +2490,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "45.0.0",
+    version: "4.5.0",
     date: "2026-01-28",
     title: "Real-Time Updates & Optimistic UI",
     isMajor: true,
@@ -2506,7 +2506,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "44.5.0",
+    version: "4.4.5",
     date: "2026-01-28",
     title: "Subscription Date Display Fix",
     changes: [
@@ -2515,7 +2515,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "44.4.0",
+    version: "4.4.4",
     date: "2026-01-28",
     title: "Failed Payments Cleanup & Cancel Button",
     changes: [
@@ -2526,7 +2526,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "44.3.0",
+    version: "4.4.3",
     date: "2026-01-28",
     title: "Payment Webhook Database Fix",
     changes: [
@@ -2537,7 +2537,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "44.2.0",
+    version: "4.4.2",
     date: "2026-01-28",
     title: "Payment Status Display Fix",
     changes: [
@@ -2547,7 +2547,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "44.1.0",
+    version: "4.4.1",
     date: "2026-01-28",
     title: "Tier Change Payment Fix",
     changes: [
@@ -2557,7 +2557,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "44.0.0",
+    version: "4.4.0",
     date: "2026-01-28",
     title: "Training Guide & Mobile Navigation Update",
     isMajor: true,
@@ -2574,7 +2574,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.14.0",
+    version: "4.3.14",
     date: "2026-01-28",
     title: "Member Profile Performance Optimization",
     changes: [
@@ -2584,7 +2584,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.13.0",
+    version: "4.3.13",
     date: "2026-01-28",
     title: "Historical Session Backfill",
     changes: [
@@ -2595,7 +2595,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.12.0",
+    version: "4.3.12",
     date: "2026-01-28",
     title: "Improved Potential Matches Display",
     changes: [
@@ -2605,7 +2605,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.11.0",
+    version: "4.3.11",
     date: "2026-01-28",
     title: "Trackman Auto-Match Badge & Concurrency Guard",
     changes: [
@@ -2615,7 +2615,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.10.0",
+    version: "4.3.10",
     date: "2026-01-28",
     title: "Trackman Webhook Auto-Match Improvements",
     changes: [
@@ -2626,7 +2626,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.9.0",
+    version: "4.3.9",
     date: "2026-01-28",
     title: "Fix Double Push Notifications for Booking Requests",
     changes: [
@@ -2635,7 +2635,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.8.0",
+    version: "4.3.8",
     date: "2026-01-28",
     title: "Coupon Selection for New Subscriptions",
     changes: [
@@ -2645,7 +2645,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.7.0",
+    version: "4.3.7",
     date: "2026-01-28",
     title: "Add Billing Source Dropdown & Fix Tier Clearing",
     changes: [
@@ -2656,7 +2656,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.6.0",
+    version: "4.3.6",
     date: "2026-01-28",
     title: "Fix Trackman Webhook ON CONFLICT Syntax",
     changes: [
@@ -2666,7 +2666,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.5.0",
+    version: "4.3.5",
     date: "2026-01-28",
     title: "Atomic Duplicate Prevention for Trackman Webhooks",
     changes: [
@@ -2678,7 +2678,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.4.0",
+    version: "4.3.4",
     date: "2026-01-28",
     title: "Billing Security Hardening",
     changes: [
@@ -2689,7 +2689,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.3.0",
+    version: "4.3.3",
     date: "2026-01-28",
     title: "Persistent Sync Timestamp",
     changes: [
@@ -2699,7 +2699,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.2.0",
+    version: "4.3.2",
     date: "2026-01-28",
     title: "Background Sync Optimization",
     changes: [
@@ -2711,7 +2711,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.1.0",
+    version: "4.3.1",
     date: "2026-01-28",
     title: "Roster Placeholder Guest Replacement",
     changes: [
@@ -2721,7 +2721,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "43.0.0",
+    version: "4.3.0",
     date: "2026-01-28",
     title: "HubSpot Billing Provider Sync",
     isMajor: true,
@@ -2738,7 +2738,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "42.2.0",
+    version: "4.2.2",
     date: "2026-01-28",
     title: "Final Status Check Sweep",
     changes: [
@@ -2749,7 +2749,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "42.1.0",
+    version: "4.2.1",
     date: "2026-01-28",
     title: "HubSpot Webhook Instant Status Updates",
     changes: [
@@ -2760,7 +2760,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "42.0.0",
+    version: "4.2.0",
     date: "2026-01-28",
     title: "Deep Sweep - All Status Checks Fixed",
     isMajor: true,
@@ -2778,7 +2778,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "41.0.0",
+    version: "4.1.0",
     date: "2026-01-27",
     title: "Comprehensive Status Fix - All Endpoints & UI",
     isMajor: true,
@@ -2793,7 +2793,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.10.0",
+    version: "4.0.10",
     date: "2026-01-27",
     title: "Critical Pacific Timezone Fix",
     changes: [
@@ -2804,7 +2804,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.9.0",
+    version: "4.0.9",
     date: "2026-01-27",
     title: "Balance Display Fix - Show All Pending Fees",
     changes: [
@@ -2816,7 +2816,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.8.0",
+    version: "4.0.8",
     date: "2026-01-27",
     title: "Payment Modal Fix - Use Existing Payment Intent",
     changes: [
@@ -2825,7 +2825,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.7.0",
+    version: "4.0.7",
     date: "2026-01-27",
     title: "Payment Modal Fix & Activity Tab",
     changes: [
@@ -2838,7 +2838,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.6.0",
+    version: "4.0.6",
     date: "2026-01-28",
     title: "Member Balance & Payment Flow Fixes",
     changes: [
@@ -2853,7 +2853,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.5.0",
+    version: "4.0.5",
     date: "2026-01-27",
     title: "Trackman Webhook Count Display",
     changes: [
@@ -2862,7 +2862,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.4.0",
+    version: "4.0.4",
     date: "2026-01-27",
     title: "Simulator Tab Full Height Layout",
     changes: [
@@ -2873,7 +2873,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.3.0",
+    version: "4.0.3",
     date: "2026-01-27",
     title: "Check-In Fee Detection Fix",
     changes: [
@@ -2885,7 +2885,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.2.0",
+    version: "4.0.2",
     date: "2026-01-27",
     title: "Fee Estimate Display Fix & Responsive Layout",
     changes: [
@@ -2897,7 +2897,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.1.0",
+    version: "4.0.1",
     date: "2026-01-27",
     title: "Fee Calculation Bug Fixes",
     changes: [
@@ -2910,7 +2910,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "40.0.0",
+    version: "4.0.0",
     date: "2026-01-27",
     title: "Payment Cancellation and Refund System Overhaul",
     isMajor: true,
@@ -2927,7 +2927,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "39.0.0",
+    version: "3.9.0",
     date: "2026-01-27",
     title: "Booking Flow and Fee Calculation Fixes",
     isMajor: true,
@@ -2944,7 +2944,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "38.1.0",
+    version: "3.8.1",
     date: "2026-01-27",
     title: "Editable Player Count for Staff",
     changes: [
@@ -2955,7 +2955,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "38.0.0",
+    version: "3.8.0",
     date: "2026-01-27",
     title: "Comprehensive Payment Intent Cancellation",
     isMajor: true,
@@ -2972,7 +2972,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "37.0.0",
+    version: "3.7.0",
     date: "2026-01-27",
     title: "Critical Fee Estimate Display Fix",
     isMajor: true,
@@ -2984,7 +2984,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "36.3.0",
+    version: "3.6.3",
     date: "2026-01-27",
     title: "Fee Estimate Caching Fix",
     changes: [
@@ -2994,7 +2994,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "36.2.0",
+    version: "3.6.2",
     date: "2026-01-27",
     title: "Trackman V2 Webhook Complete Fix",
     changes: [
@@ -3006,7 +3006,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "36.1.0",
+    version: "3.6.1",
     date: "2026-01-27",
     title: "Trackman V2 Webhook Processing Fix",
     changes: [
@@ -3018,7 +3018,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "36.0.0",
+    version: "3.6.0",
     date: "2026-01-27",
     title: "Critical Fee Estimate Fix",
     isMajor: true,
@@ -3031,7 +3031,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "35.4.0",
+    version: "3.5.4",
     date: "2026-01-27",
     title: "Billing Modal Session Fix",
     changes: [
@@ -3041,7 +3041,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "35.3.0",
+    version: "3.5.3",
     date: "2026-01-27",
     title: "Daily Usage & Notification Fixes",
     changes: [
@@ -3052,7 +3052,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "35.2.0",
+    version: "3.5.2",
     date: "2026-01-27",
     title: "Comprehensive Fee Calculation Fix",
     changes: [
@@ -3066,7 +3066,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "35.1.0",
+    version: "3.5.1",
     date: "2026-01-27",
     title: "Overdue Payment Check-In Fix",
     changes: [
@@ -3077,7 +3077,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "35.0.0",
+    version: "3.5.0",
     date: "2026-01-27",
     title: "Cross-Platform Sync Tools",
     isMajor: true,
@@ -3093,7 +3093,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "34.5.0",
+    version: "3.4.5",
     date: "2026-01-27",
     title: "Mind Body ID Data Integrity",
     changes: [
@@ -3105,7 +3105,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "34.4.0",
+    version: "3.4.4",
     date: "2026-01-27",
     title: "Responsive Layout & Modal Fixes",
     changes: [
@@ -3119,7 +3119,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "34.3.0",
+    version: "3.4.3",
     date: "2026-01-27",
     title: "Animation System Standardization",
     changes: [
@@ -3132,7 +3132,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "34.2.0",
+    version: "3.4.2",
     date: "2026-01-27",
     title: "Premium Motion & Interaction Polish",
     changes: [
@@ -3143,7 +3143,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "34.1.0",
+    version: "3.4.1",
     date: "2026-01-27",
     title: "Data Integrity & Reconciliation Fixes",
     changes: [
@@ -3154,7 +3154,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "34.0.0",
+    version: "3.4.0",
     date: "2026-01-27",
     title: "Trackman Reconciliation & Admin UI Overhaul",
     isMajor: true,
@@ -3168,7 +3168,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "33.1.0",
+    version: "3.3.1",
     date: "2026-01-27",
     title: "Webhook Matching Safety Improvements",
     changes: [
@@ -3179,7 +3179,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "33.0.0",
+    version: "3.3.0",
     date: "2026-01-27",
     title: "Production Readiness Improvements",
     isMajor: true,
@@ -3192,7 +3192,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.11.0",
+    version: "3.2.11",
     date: "2026-01-27",
     title: "Improved Payment Descriptions",
     changes: [
@@ -3202,7 +3202,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.10.0",
+    version: "3.2.10",
     date: "2026-01-27",
     title: "Player Search Improvements",
     changes: [
@@ -3212,7 +3212,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.9.0",
+    version: "3.2.9",
     date: "2026-01-27",
     title: "Check-In Page Architecture Fix",
     changes: [
@@ -3222,7 +3222,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.8.0",
+    version: "3.2.8",
     date: "2026-01-26",
     title: "Session Backfill Payment Status Fix",
     changes: [
@@ -3232,7 +3232,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.7.0",
+    version: "3.2.7",
     date: "2026-01-26",
     title: "Auto-Open Billing After Assignment",
     changes: [
@@ -3242,7 +3242,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.6.0",
+    version: "3.2.6",
     date: "2026-01-26",
     title: "Trackman Assignment Fee Recalculation",
     changes: [
@@ -3253,7 +3253,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.5.0",
+    version: "3.2.5",
     date: "2026-01-26",
     title: "Check-In & Refund Notifications",
     changes: [
@@ -3265,7 +3265,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.4.0",
+    version: "3.2.4",
     date: "2026-01-26",
     title: "Booking Cancellation Refunds",
     changes: [
@@ -3276,7 +3276,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.3.0",
+    version: "3.2.3",
     date: "2026-01-26",
     title: "Safe Account Credit Integration",
     changes: [
@@ -3287,7 +3287,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.2.0",
+    version: "3.2.2",
     date: "2026-01-26",
     title: "Account Credits Applied to Booking Payments",
     changes: [
@@ -3299,7 +3299,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.1.0",
+    version: "3.2.1",
     date: "2026-01-26",
     title: "Staff Subscription Management",
     changes: [
@@ -3311,7 +3311,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "32.0.0",
+    version: "3.2.0",
     date: "2026-01-26",
     title: "Double-Booking Protection & HubSpot Reliability",
     isMajor: true,
@@ -3323,7 +3323,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "31.2.0",
+    version: "3.1.2",
     date: "2026-01-26",
     title: "Trackman Sync Improvements",
     changes: [
@@ -3333,7 +3333,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "31.1.0",
+    version: "3.1.1",
     date: "2026-01-26",
     title: "Performance & Safety Improvements",
     changes: [
@@ -3347,7 +3347,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "31.0.0",
+    version: "3.1.0",
     date: "2026-01-26",
     title: "Unified Fee Service & System Reliability",
     isMajor: true,
@@ -3361,7 +3361,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.7.0",
+    version: "3.0.7",
     date: "2026-01-26",
     title: "Roster Sync & Payment UX Improvements",
     changes: [
@@ -3373,7 +3373,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.6.0",
+    version: "3.0.6",
     date: "2026-01-26",
     title: "Unified Fee Calculations",
     changes: [
@@ -3384,7 +3384,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.5.0",
+    version: "3.0.5",
     date: "2026-01-26",
     title: "Booking Flow Audit Fixes",
     changes: [
@@ -3396,7 +3396,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.4.0",
+    version: "3.0.4",
     date: "2026-01-26",
     title: "Simplified Billing Model",
     changes: [
@@ -3407,7 +3407,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.3.0",
+    version: "3.0.3",
     date: "2026-01-26",
     title: "Add Guest & Financial Summary Fixes",
     changes: [
@@ -3420,7 +3420,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.2.0",
+    version: "3.0.2",
     date: "2026-01-26",
     title: "Confirmed Booking Details Enhancement",
     changes: [
@@ -3432,7 +3432,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.1.0",
+    version: "3.0.1",
     date: "2026-01-26",
     title: "Booking Request Error Fix",
     changes: [
@@ -3441,7 +3441,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "30.0.0",
+    version: "3.0.0",
     date: "2026-01-26",
     title: "Architecture & Performance Improvements",
     isMajor: true,
@@ -3456,7 +3456,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.6.0",
+    version: "2.9.6",
     date: "2026-01-26",
     title: "Critical Booking Participant Data Fix",
     changes: [
@@ -3467,7 +3467,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.5.0",
+    version: "2.9.5",
     date: "2026-01-26",
     title: "Guest Pass Pending Request Calculation",
     changes: [
@@ -3477,7 +3477,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.4.0",
+    version: "2.9.4",
     date: "2026-01-26",
     title: "Guest Pass Integration in Booking Fees",
     changes: [
@@ -3488,7 +3488,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.3.0",
+    version: "2.9.3",
     date: "2026-01-25",
     title: "Activity Tab & Lifetime Visits Improvements",
     changes: [
@@ -3498,7 +3498,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.2.0",
+    version: "2.9.2",
     date: "2026-01-25",
     title: "Staff Directory Activity Tab Fix",
     changes: [
@@ -3508,7 +3508,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.1.0",
+    version: "2.9.1",
     date: "2026-01-25",
     title: "Improved Player Selection for Booking Requests",
     changes: [
@@ -3520,7 +3520,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "29.0.0",
+    version: "2.9.0",
     date: "2026-01-25",
     title: "Codebase Modernization & Maintainability",
     isMajor: true,
@@ -3534,7 +3534,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "28.2.0",
+    version: "2.8.2",
     date: "2026-01-25",
     title: "Transaction Safety & Data Integrity Improvements",
     changes: [
@@ -3545,7 +3545,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "28.1.0",
+    version: "2.8.1",
     date: "2026-01-25",
     title: "Booking Details Fee Calculation Fix",
     changes: [
@@ -3555,7 +3555,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "28.0.0",
+    version: "2.8.0",
     date: "2026-01-25",
     title: "Trackman Booking Assignment Overhaul",
     isMajor: true,
@@ -3572,7 +3572,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "27.1.0",
+    version: "2.7.1",
     date: "2026-01-25",
     title: "Membership Payment Labels",
     changes: [
@@ -3581,7 +3581,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "27.0.0",
+    version: "2.7.0",
     date: "2026-01-25",
     title: "Member Profile Drawer Redesign",
     isMajor: true,
@@ -3596,7 +3596,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "26.1.0",
+    version: "2.6.1",
     date: "2026-01-25",
     title: "Billing UI Consolidation",
     changes: [
@@ -3610,7 +3610,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "26.0.0",
+    version: "2.6.0",
     date: "2026-01-25",
     title: "Day Pass Management & UI Improvements",
     isMajor: true,
@@ -3628,7 +3628,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "25.0.0",
+    version: "2.5.0",
     date: "2026-01-25",
     title: "New User Flow & Visitor Payment Links",
     isMajor: true,
@@ -3643,7 +3643,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "24.0.0",
+    version: "2.4.0",
     date: "2026-01-25",
     title: "Pre-Declare Players & Participant Notifications",
     isMajor: true,
@@ -3656,7 +3656,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.7.0",
+    version: "2.3.7",
     date: "2026-01-25",
     title: "Trackman Modal Fixes",
     changes: [
@@ -3666,7 +3666,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.6.0",
+    version: "2.3.6",
     date: "2026-01-25",
     title: "Bay Preference Display Fix",
     changes: [
@@ -3675,7 +3675,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.5.0",
+    version: "2.3.5",
     date: "2026-01-25",
     title: "Trackman-Only Booking Workflow",
     changes: [
@@ -3685,7 +3685,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.4.0",
+    version: "2.3.4",
     date: "2026-01-25",
     title: "Trackman Webhook Backfill",
     changes: [
@@ -3699,7 +3699,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.3.0",
+    version: "2.3.3",
     date: "2026-01-24",
     title: "Trackman Auto-Match Feature",
     changes: [
@@ -3710,7 +3710,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.2.0",
+    version: "2.3.2",
     date: "2026-01-24",
     title: "Booking Management Improvements",
     changes: [
@@ -3722,7 +3722,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.1.0",
+    version: "2.3.1",
     date: "2026-01-24",
     title: "Enhanced Visitor Types",
     changes: [
@@ -3736,7 +3736,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "23.0.0",
+    version: "2.3.0",
     date: "2026-01-24",
     title: "HubSpot → App Sync Improvements",
     isMajor: true,
@@ -3750,7 +3750,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "22.1.0",
+    version: "2.2.1",
     date: "2026-01-24",
     title: "Visitors Directory Improvements",
     changes: [
@@ -3761,7 +3761,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "22.0.0",
+    version: "2.2.0",
     date: "2026-01-24",
     title: "Mindbody CSV Import",
     isMajor: true,
@@ -3775,7 +3775,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "21.1.0",
+    version: "2.1.1",
     date: "2026-01-24",
     title: "Visitors Directory Pagination",
     changes: [
@@ -3785,7 +3785,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "21.0.0",
+    version: "2.1.0",
     date: "2026-01-24",
     title: "Member Visits Tab",
     isMajor: true,
@@ -3799,7 +3799,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "20.4.0",
+    version: "2.0.4",
     date: "2026-01-24",
     title: "Unified Visits System (Staff)",
     changes: [
@@ -3812,7 +3812,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "20.3.0",
+    version: "2.0.3",
     date: "2026-01-24",
     title: "Visitor Deletion with External Data Cleanup",
     changes: [
@@ -3824,7 +3824,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "20.2.0",
+    version: "2.0.2",
     date: "2026-01-24",
     title: "Real-Time Visitor Type Updates",
     changes: [
@@ -3834,7 +3834,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "20.1.0",
+    version: "2.0.1",
     date: "2026-01-24",
     title: "Visitor Directory Enhancements",
     changes: [
@@ -3847,7 +3847,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "20.0.0",
+    version: "2.0.0",
     date: "2026-01-24",
     title: "Guest Pass Checkout Flow",
     isMajor: true,
@@ -3861,7 +3861,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "19.1.0",
+    version: "1.9.1",
     date: "2026-01-24",
     title: "Unified Visitor Profile Drawer",
     changes: [
@@ -3874,7 +3874,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "19.0.0",
+    version: "1.9.0",
     date: "2026-01-24",
     title: "Expanded Visitors Tab & Smart Contact Management",
     isMajor: true,
@@ -3889,7 +3889,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "18.5.0",
+    version: "1.8.5",
     date: "2026-01-24",
     title: "Directory List Cleanup",
     changes: [
@@ -3898,7 +3898,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "18.4.0",
+    version: "1.8.4",
     date: "2026-01-24",
     title: "Queue Card Border Fix",
     changes: [
@@ -3907,7 +3907,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "18.3.0",
+    version: "1.8.3",
     date: "2026-01-24",
     title: "Booking Information Consistency",
     changes: [
@@ -3919,7 +3919,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "18.2.0",
+    version: "1.8.2",
     date: "2026-01-24",
     title: "Streamlined Walk-In Visitor Flow",
     changes: [
@@ -3931,7 +3931,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "18.1.0",
+    version: "1.8.1",
     date: "2026-01-24",
     title: "Account Balance & Instant Credits",
     changes: [
@@ -3947,7 +3947,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "18.0.0",
+    version: "1.8.0",
     date: "2026-01-24",
     title: "Billing Integrity & Payment Protection",
     isMajor: true,
@@ -3964,7 +3964,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "17.2.0",
+    version: "1.7.2",
     date: "2026-01-24",
     title: "Facility Status Display Fix",
     changes: [
@@ -3974,7 +3974,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "17.1.0",
+    version: "1.7.1",
     date: "2026-01-24",
     title: "Visitor Day Pass Billing & Payment Sync",
     changes: [
@@ -3986,7 +3986,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "17.0.0",
+    version: "1.7.0",
     date: "2026-01-24",
     title: "Stripe & Trackman Billing Harmony",
     isMajor: true,
@@ -4001,7 +4001,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "16.2.0",
+    version: "1.6.2",
     date: "2026-01-24",
     title: "Stripe Webhook Reliability Fixes",
     changes: [
@@ -4011,7 +4011,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "16.1.0",
+    version: "1.6.1",
     date: "2026-01-24",
     title: "Fix Trackman Resolve Booking",
     changes: [
@@ -4020,7 +4020,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "16.0.0",
+    version: "1.6.0",
     date: "2026-01-24",
     title: "Create Visitor from Trackman Bookings",
     isMajor: true,
@@ -4032,7 +4032,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "15.3.0",
+    version: "1.5.3",
     date: "2026-01-24",
     title: "Trackman Rescan & Member Search Fix",
     changes: [
@@ -4042,7 +4042,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "15.2.0",
+    version: "1.5.2",
     date: "2026-01-24",
     title: "Unmatched Bookings List Restored",
     changes: [
@@ -4052,7 +4052,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "15.1.0",
+    version: "1.5.1",
     date: "2026-01-24",
     title: "Tappable Booking Cards & Timezone Fix",
     changes: [
@@ -4061,7 +4061,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "15.0.0",
+    version: "1.5.0",
     date: "2026-01-24",
     title: "Trackman Data Sync Architecture",
     isMajor: true,
@@ -4075,7 +4075,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.16.0",
+    version: "1.4.16",
     date: "2026-01-24",
     title: "Staff Activity Filters & Player Roster",
     changes: [
@@ -4086,7 +4086,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.15.0",
+    version: "1.4.15",
     date: "2026-01-24",
     title: "Fixed Assign Member Button",
     changes: [
@@ -4103,7 +4103,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.14.0",
+    version: "1.4.14",
     date: "2026-01-23",
     title: "Cleaner Booking Queue Layout",
     changes: [
@@ -4115,7 +4115,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.13.0",
+    version: "1.4.13",
     date: "2026-01-23",
     title: "Unified Booking Queue with Smart Actions",
     changes: [
@@ -4127,7 +4127,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.12.0",
+    version: "1.4.12",
     date: "2026-01-23",
     title: "Member Notifications & Improved Search",
     changes: [
@@ -4139,7 +4139,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.11.0",
+    version: "1.4.11",
     date: "2026-01-23",
     title: "Detailed Booking Stats Breakdown",
     changes: [
@@ -4150,7 +4150,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.10.0",
+    version: "1.4.10",
     date: "2026-01-23",
     title: "Accurate Trackman Booking Stats",
     changes: [
@@ -4161,7 +4161,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.9.0",
+    version: "1.4.9",
     date: "2026-01-23",
     title: "Streamlined Unmatched Booking Flow",
     changes: [
@@ -4171,7 +4171,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.8.0",
+    version: "1.4.8",
     date: "2026-01-23",
     title: "Unified Assign Member Experience",
     changes: [
@@ -4181,7 +4181,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.7.0",
+    version: "1.4.7",
     date: "2026-01-23",
     title: "Improved Trackman Booking Visibility",
     changes: [
@@ -4193,7 +4193,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.6.0",
+    version: "1.4.6",
     date: "2026-01-23",
     title: "Change Booking Owner Feature",
     changes: [
@@ -4205,7 +4205,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.5.0",
+    version: "1.4.5",
     date: "2026-01-23",
     title: "Trackman Webhook Booking Creation Fixed",
     changes: [
@@ -4217,7 +4217,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.4.0",
+    version: "1.4.4",
     date: "2026-01-23",
     title: "CSRF Protection Removed",
     changes: [
@@ -4227,7 +4227,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.3.0",
+    version: "1.4.3",
     date: "2026-01-23",
     title: "UI Polish: Dark Mode & Rounded Corners",
     changes: [
@@ -4237,7 +4237,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.2.0",
+    version: "1.4.2",
     date: "2026-01-23",
     title: "Audit Fixes: Payments & Login",
     changes: [
@@ -4248,7 +4248,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.1.0",
+    version: "1.4.1",
     date: "2026-01-23",
     title: "Bug Fixes & Maintenance",
     changes: [
@@ -4259,7 +4259,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "14.0.0",
+    version: "1.4.0",
     date: "2026-01-23",
     title: "Comprehensive Staff Activity Logging",
     isMajor: true,
@@ -4277,7 +4277,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "13.1.0",
+    version: "1.3.1",
     date: "2026-01-23",
     title: "Staff Activity Tracking",
     changes: [
@@ -4289,7 +4289,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "13.0.0",
+    version: "1.3.0",
     date: "2026-01-22",
     title: "Stripe Transaction Cache & Sync",
     isMajor: true,
@@ -4304,7 +4304,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "12.2.0",
+    version: "1.2.2",
     date: "2026-01-21",
     title: "Relative Times & Bug Fixes",
     changes: [
@@ -4316,7 +4316,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "12.1.0",
+    version: "1.2.1",
     date: "2026-01-20",
     title: "MindBody-Stripe Integration",
     changes: [
@@ -4328,7 +4328,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "12.0.0",
+    version: "1.2.0",
     date: "2026-01-19",
     title: "Trackman Booking Sync",
     isMajor: true,
@@ -4342,7 +4342,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.6.0",
+    version: "1.1.6",
     date: "2026-01-18",
     title: "Self-Service Billing Portal",
     changes: [
@@ -4354,7 +4354,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.5.0",
+    version: "1.1.5",
     date: "2026-01-17",
     title: "Calendar & Scheduler Improvements",
     changes: [
@@ -4366,7 +4366,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.4.0",
+    version: "1.1.4",
     date: "2026-01-16",
     title: "Mobile App & Privacy Compliance",
     changes: [
@@ -4379,7 +4379,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.3.0",
+    version: "1.1.3",
     date: "2026-01-13",
     title: "Billing & Payment Tracking",
     changes: [
@@ -4391,7 +4391,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.2.0",
+    version: "1.1.2",
     date: "2026-01-10",
     title: "Reliability & Token Refresh",
     changes: [
@@ -4401,7 +4401,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.1.0",
+    version: "1.1.1",
     date: "2026-01-09",
     title: "Smoother Animations & Notifications",
     changes: [
@@ -4412,7 +4412,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "11.0.0",
+    version: "1.1.0",
     date: "2026-01-08",
     title: "Multi-Member Bookings",
     isMajor: true,
@@ -4427,7 +4427,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "10.4.0",
+    version: "1.0.4",
     date: "2026-01-06",
     title: "Availability Blocks & Calendar Status",
     changes: [
@@ -4438,7 +4438,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "10.3.0",
+    version: "1.0.3",
     date: "2026-01-04",
     title: "Training Guide & Bug Fixes",
     changes: [
@@ -4449,7 +4449,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "10.2.0",
+    version: "1.0.2",
     date: "2026-01-04",
     title: "Stability & Reliability",
     changes: [
@@ -4460,7 +4460,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "10.1.0",
+    version: "1.0.1",
     date: "2026-01-02",
     title: "Notice Categories & Calendar Sync",
     changes: [
@@ -4471,7 +4471,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "10.0.0",
+    version: "1.0.0",
     date: "2026-01-02",
     title: "Faster & More Responsive",
     isMajor: true,
@@ -4483,7 +4483,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "9.0.0",
+    version: "0.9.0",
     date: "2026-01-02",
     title: "Trackman Import & Booking History",
     isMajor: true,
@@ -4495,7 +4495,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "8.0.0",
+    version: "0.8.0",
     date: "2026-01-01",
     title: "Staff Command Center",
     isMajor: true,
@@ -4507,7 +4507,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "7.3.0",
+    version: "0.7.3",
     date: "2026-01-01",
     title: "PWA & Performance",
     changes: [
@@ -4518,7 +4518,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "7.2.0",
+    version: "0.7.2",
     date: "2025-12-31",
     title: "Notices & Booking Improvements",
     changes: [
@@ -4530,7 +4530,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "7.1.0",
+    version: "0.7.1",
     date: "2025-12-30",
     title: "Member Dashboard & History",
     changes: [
@@ -4542,7 +4542,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "7.0.0",
+    version: "0.7.0",
     date: "2025-12-30",
     title: "Tier-Based Booking Limits",
     isMajor: true,
@@ -4554,7 +4554,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "6.0.0",
+    version: "0.6.0",
     date: "2025-12-29",
     title: "Unified Updates Page",
     isMajor: true,
@@ -4566,7 +4566,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "5.0.0",
+    version: "0.5.0",
     date: "2025-12-28",
     title: "Pull to Refresh & Polish",
     isMajor: true,
@@ -4579,7 +4579,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "4.0.0",
+    version: "0.4.0",
     date: "2025-12-28",
     title: "Premium Feel",
     isMajor: true,
@@ -4591,7 +4591,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "3.0.0",
+    version: "0.3.0",
     date: "2025-12-26",
     title: "Staff Portal Redesign",
     isMajor: true,
@@ -4603,7 +4603,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "2.0.0",
+    version: "0.2.0",
     date: "2025-12-20",
     title: "Staff Portal & Install as App",
     isMajor: true,
@@ -4616,7 +4616,7 @@ export const changelog: ChangelogEntry[] = [
     ]
   },
   {
-    version: "1.0.0",
+    version: "0.1.0",
     date: "2025-12-16",
     title: "Launch Day",
     isMajor: true,
