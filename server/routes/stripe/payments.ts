@@ -1858,57 +1858,57 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
         }
         
         if (ledgerEntries.rows.length > 0) {
-          const totalLedgerFees = ledgerEntries.rows.reduce((sum, entry) => {
-            return sum + (parseFloat(entry.overage_fee) || 0) + (parseFloat(entry.guest_fee) || 0);
+          const totalLedgerFeeCents = ledgerEntries.rows.reduce((sum, entry) => {
+            return sum + Math.round((parseFloat(entry.overage_fee) || 0) * 100) + Math.round((parseFloat(entry.guest_fee) || 0) * 100);
           }, 0);
           
-          const refundAmountDollars = refundedAmount / 100;
-          const refundProportion = totalLedgerFees > 0 
-            ? Math.min(1, refundAmountDollars / totalLedgerFees)
+          const refundCents = refundedAmount;
+          const refundProportion = totalLedgerFeeCents > 0 
+            ? Math.min(1, refundCents / totalLedgerFeeCents)
             : 1;
           
-          let totalReversedOverage = 0;
-          let totalReversedGuest = 0;
-          const targetReversalTotal = refundAmountDollars;
+          let totalReversedOverageCents = 0;
+          let totalReversedGuestCents = 0;
+          const targetReversalCents = refundCents;
           
           const reversalAmounts: Array<{
             memberId: string;
-            reversedOverage: number;
-            reversedGuest: number;
+            reversedOverageCents: number;
+            reversedGuestCents: number;
           }> = [];
           
           for (const entry of ledgerEntries.rows) {
-            const originalOverage = parseFloat(entry.overage_fee) || 0;
-            const originalGuest = parseFloat(entry.guest_fee) || 0;
+            const originalOverageCents = Math.round((parseFloat(entry.overage_fee) || 0) * 100);
+            const originalGuestCents = Math.round((parseFloat(entry.guest_fee) || 0) * 100);
             
-            let reversedOverage = isPartialRefund 
-              ? Math.round(originalOverage * refundProportion * 100) / 100
-              : originalOverage;
-            let reversedGuest = isPartialRefund 
-              ? Math.round(originalGuest * refundProportion * 100) / 100
-              : originalGuest;
+            let reversedOverageCents = isPartialRefund 
+              ? Math.round(originalOverageCents * refundProportion)
+              : originalOverageCents;
+            let reversedGuestCents = isPartialRefund 
+              ? Math.round(originalGuestCents * refundProportion)
+              : originalGuestCents;
             
             reversalAmounts.push({
               memberId: entry.member_id,
-              reversedOverage,
-              reversedGuest
+              reversedOverageCents,
+              reversedGuestCents
             });
             
-            totalReversedOverage += reversedOverage;
-            totalReversedGuest += reversedGuest;
+            totalReversedOverageCents += reversedOverageCents;
+            totalReversedGuestCents += reversedGuestCents;
           }
           
           if (isPartialRefund && reversalAmounts.length > 0) {
-            const actualReversalTotal = Math.round((totalReversedOverage + totalReversedGuest) * 100) / 100;
-            const remainder = Math.round((targetReversalTotal - actualReversalTotal) * 100) / 100;
+            const actualReversalCents = totalReversedOverageCents + totalReversedGuestCents;
+            const remainderCents = targetReversalCents - actualReversalCents;
             
-            if (Math.abs(remainder) > 0.001) {
-              if (reversalAmounts[0].reversedOverage > 0 || reversalAmounts[0].reversedGuest === 0) {
-                reversalAmounts[0].reversedOverage = Math.round((reversalAmounts[0].reversedOverage + remainder) * 100) / 100;
+            if (remainderCents !== 0) {
+              if (reversalAmounts[0].reversedOverageCents > 0 || reversalAmounts[0].reversedGuestCents === 0) {
+                reversalAmounts[0].reversedOverageCents += remainderCents;
               } else {
-                reversalAmounts[0].reversedGuest = Math.round((reversalAmounts[0].reversedGuest + remainder) * 100) / 100;
+                reversalAmounts[0].reversedGuestCents += remainderCents;
               }
-              console.log(`[Payments] Applied rounding remainder of $${remainder.toFixed(2)} to first reversal entry`);
+              console.log(`[Payments] Applied rounding remainder of $${(remainderCents / 100).toFixed(2)} to first reversal entry`);
             }
           }
           
@@ -1917,7 +1917,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
             const entry = ledgerEntries.rows[i];
             const amounts = reversalAmounts[i];
             
-            if (amounts.reversedOverage !== 0 || amounts.reversedGuest !== 0) {
+            if (amounts.reversedOverageCents !== 0 || amounts.reversedGuestCents !== 0) {
               await pool.query(
                 `INSERT INTO usage_ledger 
                  (session_id, member_id, minutes_charged, overage_fee, guest_fee, payment_method, source, stripe_payment_intent_id)
@@ -1925,8 +1925,8 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
                 [
                   payment.sessionId, 
                   amounts.memberId,
-                  (-amounts.reversedOverage).toFixed(2),
-                  (-amounts.reversedGuest).toFixed(2),
+                  (-amounts.reversedOverageCents / 100).toFixed(2),
+                  (-amounts.reversedGuestCents / 100).toFixed(2),
                   paymentIntentId
                 ]
               );
@@ -1937,7 +1937,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
           const reversalType = isPartialRefund 
             ? `partial (${(refundProportion * 100).toFixed(1)}%)`
             : 'full';
-          console.log(`[Payments] Created ${reversalCount} ${reversalType} ledger reversal(s) for session ${payment.sessionId}, refund: $${refundAmountDollars.toFixed(2)}, linked to payment ${paymentIntentId}`);
+          console.log(`[Payments] Created ${reversalCount} ${reversalType} ledger reversal(s) for session ${payment.sessionId}, refund: $${(refundCents / 100).toFixed(2)}, linked to payment ${paymentIntentId}`);
         }
         
         console.log(`[Payments] Updated ledger and participants for session ${payment.sessionId}`);

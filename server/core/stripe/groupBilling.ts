@@ -681,65 +681,6 @@ export async function addCorporateMember(params: {
   const client = await pool.connect();
   
   try {
-    const existingMember = await db.select()
-      .from(groupMembers)
-      .where(and(
-        eq(groupMembers.memberEmail, params.memberEmail.toLowerCase()),
-        eq(groupMembers.isActive, true)
-      ))
-      .limit(1);
-    
-    if (existingMember.length > 0) {
-      return { success: false, error: 'This member is already part of a billing group' };
-    }
-    
-    // Check if user exists and their billing status
-    const userResult = await pool.query(
-      'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE LOWER(email) = $1',
-      [params.memberEmail.toLowerCase()]
-    );
-    
-    if (userResult.rows.length > 0) {
-      const user = userResult.rows[0];
-      
-      // If user is already in a different billing group, prevent the operation
-      if (user.billing_group_id !== null && user.billing_group_id !== params.billingGroupId) {
-        return { 
-          success: false, 
-          error: 'User is already in a billing group. Remove them first.' 
-        };
-      }
-      
-      // Guard against dual subscriptions - if user has their own active subscription (any provider), prevent adding to group
-      const hasActiveSubscription = user.stripe_subscription_id && 
-        (user.membership_status === 'active' || user.membership_status === 'past_due');
-      if (hasActiveSubscription) {
-        return {
-          success: false,
-          error: 'User already has their own active subscription. Cancel it before adding them to a corporate plan.'
-        };
-      }
-    }
-    
-    const group = await db.select()
-      .from(billingGroups)
-      .where(eq(billingGroups.id, params.billingGroupId))
-      .limit(1);
-    
-    if (group.length === 0) {
-      return { success: false, error: 'Billing group not found' };
-    }
-    
-    const currentMembers = await db.select()
-      .from(groupMembers)
-      .where(and(
-        eq(groupMembers.billingGroupId, params.billingGroupId),
-        eq(groupMembers.isActive, true)
-      ));
-    
-    const newMemberCount = currentMembers.length + 1;
-    const pricePerSeat = getCorporateVolumePrice(newMemberCount);
-    
     let originalQuantity: number | null = null;
     let originalPricePerSeat: number | null = null;
     let originalProductId: string | null = null;
@@ -747,9 +688,71 @@ export async function addCorporateMember(params: {
     let insertedMemberId: number | null = null;
     let stripeUpdated = false;
     let priceTierChanged = false;
+    let primaryStripeSubscriptionId: string | null = null;
     
     try {
       await client.query('BEGIN');
+
+      const existingMemberResult = await client.query(
+        `SELECT id FROM group_members WHERE LOWER(member_email) = $1 AND is_active = true LIMIT 1`,
+        [params.memberEmail.toLowerCase()]
+      );
+    
+      if (existingMemberResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: 'This member is already part of a billing group' };
+      }
+    
+      // Check if user exists and their billing status
+      const userResult = await client.query(
+        'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE LOWER(email) = $1',
+        [params.memberEmail.toLowerCase()]
+      );
+    
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+      
+        // If user is already in a different billing group, prevent the operation
+        if (user.billing_group_id !== null && user.billing_group_id !== params.billingGroupId) {
+          await client.query('ROLLBACK');
+          return { 
+            success: false, 
+            error: 'User is already in a billing group. Remove them first.' 
+          };
+        }
+      
+        // Guard against dual subscriptions - if user has their own active subscription (any provider), prevent adding to group
+        const hasActiveSubscription = user.stripe_subscription_id && 
+          (user.membership_status === 'active' || user.membership_status === 'past_due');
+        if (hasActiveSubscription) {
+          await client.query('ROLLBACK');
+          return {
+            success: false,
+            error: 'User already has their own active subscription. Cancel it before adding them to a corporate plan.'
+          };
+        }
+      }
+    
+      const groupResult = await client.query(
+        `SELECT * FROM billing_groups WHERE id = $1 LIMIT 1 FOR UPDATE`,
+        [params.billingGroupId]
+      );
+    
+      if (groupResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return { success: false, error: 'Billing group not found' };
+      }
+    
+      const group = [groupResult.rows[0]];
+      primaryStripeSubscriptionId = group[0].primary_stripe_subscription_id || null;
+    
+      const currentMembersResult = await client.query(
+        `SELECT id FROM group_members WHERE billing_group_id = $1 AND is_active = true`,
+        [params.billingGroupId]
+      );
+    
+      const newMemberCount = currentMembersResult.rows.length + 1;
+      const pricePerSeat = getCorporateVolumePrice(newMemberCount);
       
       const insertResult = await client.query(
         `INSERT INTO group_members (
@@ -821,14 +824,14 @@ export async function addCorporateMember(params: {
         console.log(`[GroupBilling] Created new user ${params.memberEmail} with tier ${params.memberTier}`);
       }
 
-      const hasPrePaidSeats = group[0].maxSeats && group[0].maxSeats > 0;
+      const hasPrePaidSeats = group[0].max_seats && group[0].max_seats > 0;
       
       if (hasPrePaidSeats) {
-        console.log(`[GroupBilling] Pre-paid seats mode: ${newMemberCount} of ${group[0].maxSeats} seats used (no Stripe billing change needed)`);
-      } else if (group[0].primaryStripeSubscriptionId) {
+        console.log(`[GroupBilling] Pre-paid seats mode: ${newMemberCount} of ${group[0].max_seats} seats used (no Stripe billing change needed)`);
+      } else if (group[0].primary_stripe_subscription_id) {
         try {
           const stripe = await getStripeClient();
-          const subscription = await stripe.subscriptions.retrieve(group[0].primaryStripeSubscriptionId, {
+          const subscription = await stripe.subscriptions.retrieve(group[0].primary_stripe_subscription_id, {
             expand: ['items.data'],
           });
           
@@ -850,7 +853,7 @@ export async function addCorporateMember(params: {
               // Preserve existing metadata from the old item while ensuring corporate_membership is set
               const existingMetadata = corporateItem.metadata || {};
               const newItem = await stripe.subscriptionItems.create({
-                subscription: group[0].primaryStripeSubscriptionId,
+                subscription: group[0].primary_stripe_subscription_id,
                 price_data: {
                   currency: 'usd',
                   product: originalProductId,
@@ -899,8 +902,8 @@ export async function addCorporateMember(params: {
         try {
           const stripe = await getStripeClient();
           
-          if (priceTierChanged && originalPricePerSeat && originalProductId) {
-            const currentSub = await stripe.subscriptions.retrieve(group[0].primaryStripeSubscriptionId, {
+          if (priceTierChanged && originalPricePerSeat && originalProductId && primaryStripeSubscriptionId) {
+            const currentSub = await stripe.subscriptions.retrieve(primaryStripeSubscriptionId, {
               expand: ['items.data'],
             });
             const currentCorporateItem = currentSub.items.data.find(
@@ -908,7 +911,7 @@ export async function addCorporateMember(params: {
             );
             if (currentCorporateItem) {
               await stripe.subscriptionItems.create({
-                subscription: group[0].primaryStripeSubscriptionId,
+                subscription: primaryStripeSubscriptionId,
                 price_data: {
                   currency: 'usd',
                   product: originalProductId,

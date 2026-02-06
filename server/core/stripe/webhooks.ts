@@ -1843,6 +1843,8 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
              stripe_customer_id = EXCLUDED.stripe_customer_id,
              billing_provider = 'stripe',
              membership_status = 'active',
+             role = 'member',
+             join_date = COALESCE(users.join_date, NOW()),
              tier = COALESCE(EXCLUDED.tier, users.tier),
              updated_at = NOW()`,
           [email, firstName || '', lastName || '', tierSlug, customerId]
@@ -2105,6 +2107,8 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
            billing_provider = 'stripe',
            stripe_current_period_end = COALESCE($9, users.stripe_current_period_end),
            tier = COALESCE(EXCLUDED.tier, users.tier),
+           role = 'member',
+           join_date = COALESCE(users.join_date, NOW()),
            first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
            last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
            phone = COALESCE(NULLIF(EXCLUDED.phone, ''), users.phone),
