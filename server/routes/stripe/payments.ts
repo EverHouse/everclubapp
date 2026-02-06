@@ -649,6 +649,15 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
       }
     });
 
+    logFromRequest(req, 'initiate_charge', 'payment', result.paymentIntentId, customerEmail, {
+      amountCents: numericAmount,
+      description: finalDescription,
+      productId: productId || null,
+      productName: finalProductName || null,
+      isNewCustomer: !!isNewCustomer,
+      source: 'pos_quick_charge'
+    });
+
     res.json({
       clientSecret: result.clientSecret,
       paymentIntentId: result.paymentIntentId
@@ -1134,6 +1143,15 @@ router.post('/api/payments/record-offline', isStaffOrAdmin, async (req: Request,
       newValue: `${paymentMethodDisplay} payment of ${formattedAmount} for ${category.replace('_', ' ')}${description ? `: ${description}` : ''}`,
       performedBy: staffEmail,
       performedByName: staffName
+    });
+
+    logFromRequest(req, 'record_charge', 'payment', undefined, memberEmail, {
+      paymentMethod,
+      category,
+      amountCents,
+      description: description || null,
+      notes: notes || null,
+      offline: true
     });
 
     console.log(`[Payments] Recorded offline ${paymentMethod} payment of ${formattedAmount} for ${memberEmail} by ${staffEmail}`);

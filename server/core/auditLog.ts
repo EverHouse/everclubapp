@@ -113,7 +113,8 @@ export type AuditAction =
   // Checkout/pricing security actions
   | 'checkout_pricing_calculated'
   | 'unauthorized_access_attempt'
-  | 'send_receipt';
+  | 'send_receipt'
+  | 'initiate_charge';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

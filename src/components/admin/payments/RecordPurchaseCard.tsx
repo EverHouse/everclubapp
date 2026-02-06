@@ -273,7 +273,7 @@ const RecordPurchaseCard: React.FC<SectionProps> = ({ onClose, variant = 'modal'
             ? 'terminal'
             : 'card';
 
-      await fetch('/api/purchases/send-receipt', {
+      const res = await fetch('/api/purchases/send-receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -291,6 +291,12 @@ const RecordPurchaseCard: React.FC<SectionProps> = ({ onClose, variant = 'modal'
           paymentIntentId: paymentIntentId || undefined,
         }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send receipt');
+      }
+
       setReceiptSent(true);
     } catch {
       setError('Failed to send receipt');
@@ -331,6 +337,11 @@ const RecordPurchaseCard: React.FC<SectionProps> = ({ onClose, variant = 'modal'
           <p className="text-xl font-bold text-primary dark:text-white">
             Payment of {totalFormatted} successful!
           </p>
+          {error && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-xl text-red-700 dark:text-red-300 text-sm w-full max-w-xs">
+              {error}
+            </div>
+          )}
           <div className="flex flex-col gap-3 w-full max-w-xs mt-4">
             <button
               onClick={handleSendReceipt}
