@@ -20,6 +20,8 @@ export const changelog: ChangelogEntry[] = [
       "Added: Next payment date now tracked automatically from Stripe — synced from subscription creation, renewal, and updates",
       "Added: Next payment date visible in the member directory for staff",
       "Fixed: Staff can now charge booking overage fees (was blocked by an incorrect permission check)",
+      "Fixed: 'Pay with Card' for booking fees (overage and guest fees) was crashing due to an undefined variable — now works correctly",
+      "Fixed: Member deletion now works for all members regardless of ID format",
       "Fixed: If a system error occurs while saving a new member's subscription, the Stripe subscription is now automatically cancelled to prevent orphaned charges"
     ]
   },

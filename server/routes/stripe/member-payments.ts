@@ -183,15 +183,15 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     }
 
     // Build description and purpose based on fee types present
-    const hasGuestFees = validParticipants.some(r => r.participant_type === 'guest');
-    const hasOverageFees = validParticipants.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
+    const hasGuestFees = pendingParticipants.rows.some(r => r.participant_type === 'guest');
+    const hasOverageFees = pendingParticipants.rows.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
     let description = 'Booking fees';
     let purpose: 'guest_fee' | 'overage_fee' = 'guest_fee';
     if (hasGuestFees && hasOverageFees) {
       description = `Overage & guest fees for booking ${bookingId}`;
       purpose = 'overage_fee'; // Mixed fees - categorize as overage
     } else if (hasGuestFees) {
-      const guestNames = validParticipants.filter(r => r.participant_type === 'guest').map(r => r.display_name).join(', ');
+      const guestNames = pendingParticipants.rows.filter(r => r.participant_type === 'guest').map(r => r.display_name).join(', ');
       description = `Guest fees for: ${guestNames}`;
       purpose = 'guest_fee';
     } else if (hasOverageFees) {
