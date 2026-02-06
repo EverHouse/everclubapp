@@ -24,7 +24,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Design System**: Liquid Glass (iOS-inspired glassmorphism) with WCAG AA compliance and `aria-label` attributes.
 - **Typography**: Playfair Display for headlines and Inter for body text.
 - **Color Palette**: Deep Green, Lavender, Bone, Background Dark.
-- **Navigation**: Unified header and Member Bottom Nav; Admin uses route-based navigation with React Router.
+- **Navigation**: Unified header and Member Bottom Nav; Admin uses route-based navigation with React Router. Sidebar sections: Main Nav (Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Training Guide), Admin (Products & Pricing, Manage Team, Gallery, FAQs, Inquiries, Bug Reports, Changelog, Data Integrity). Cafe Menu management is a sub-tab within Products & Pricing.
 - **Responsive Design**: Optimized for mobile, tablet, and desktop, with responsive table patterns.
 - **Theme System**: Supports Light, Dark, and System themes, persisted locally.
 - **Motion Architecture**: Pure CSS keyframe animations, staggered content, parallax, and entry/exit animations.
