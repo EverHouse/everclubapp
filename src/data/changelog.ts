@@ -13,6 +13,22 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "71.0.0",
+    date: "2026-02-06",
+    title: "Financials Redesign: POS Cash Register & Transactions Tab",
+    isMajor: true,
+    changes: [
+      "New: POS tab redesigned as a full cash register — products organized into Passes, Cafe, and Merch categories with a product grid, shopping cart, and checkout in one view",
+      "New: Cafe menu items now appear directly in the POS register — all 33 items across 6 categories (Breakfast, Lunch, Dessert, Kids, Shareables, Sides) pulled live from the database",
+      "New: Desktop POS layout — product grid on the left (2/3 width) with category tabs, customer search + cart + checkout on the right (1/3 width)",
+      "New: Mobile POS layout — product grid with sticky bottom bar showing cart total and quick checkout access",
+      "New: Transactions tab — all reporting and audit tools (Daily Summary, Recent Transactions, Pending Authorizations, Future Bookings, Overdue Payments, Failed Payments, Refunds) moved to their own dedicated tab",
+      "New: Day Pass redemption scanner now built into the POS tab below the cart for quick access",
+      "Improved: Financials page tabs reorganized from old layout to POS | Transactions | Subscriptions | Invoices — selling stuff is now clearly separated from reviewing what happened",
+      "Improved: FinancialsTab code reduced from 2,200+ lines to ~880 lines by extracting components into dedicated files"
+    ]
+  },
+  {
     version: "70.9.0",
     date: "2026-02-06",
     title: "Automatic Stripe Environment Validation & Fee Product Auto-Creation",
