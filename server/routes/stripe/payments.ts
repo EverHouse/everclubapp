@@ -960,6 +960,133 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
   }
 });
 
+router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { memberEmail, memberName, amountCents, description, productId } = req.body;
+    const { staffEmail, staffName } = getStaffInfo(req);
+
+    if (!memberEmail || !amountCents) {
+      return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
+    }
+
+    const numericAmount = Number(amountCents);
+    if (isNaN(numericAmount) || !Number.isFinite(numericAmount) || numericAmount < 50) {
+      return res.status(400).json({ error: 'Amount must be at least $0.50' });
+    }
+
+    if (numericAmount > 99999999) {
+      return res.status(400).json({ error: 'Amount exceeds maximum allowed' });
+    }
+
+    const memberResult = await pool.query(
+      `SELECT id, email, name, first_name, last_name, stripe_customer_id 
+       FROM users WHERE LOWER(email) = LOWER($1)`,
+      [memberEmail]
+    );
+
+    if (memberResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    const member = memberResult.rows[0];
+    const resolvedName = memberName || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
+
+    if (!member.stripe_customer_id) {
+      return res.status(400).json({
+        error: 'Customer does not have a Stripe account yet. Use Online Card instead.',
+        noStripeCustomer: true
+      });
+    }
+
+    const stripe = await getStripeClient();
+
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: member.stripe_customer_id,
+      type: 'card'
+    });
+
+    if (paymentMethods.data.length === 0) {
+      return res.status(400).json({
+        error: 'No saved card on file. Use Online Card instead.',
+        noSavedCard: true
+      });
+    }
+
+    const paymentMethod = paymentMethods.data[0];
+    const cardLast4 = paymentMethod.card?.last4 || '****';
+    const cardBrand = paymentMethod.card?.brand || 'card';
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: numericAmount,
+      currency: 'usd',
+      customer: member.stripe_customer_id,
+      payment_method: paymentMethod.id,
+      off_session: true,
+      confirm: true,
+      description: description || 'POS purchase',
+      metadata: {
+        type: 'staff_pos_saved_card',
+        staffEmail,
+        staffName: staffName || staffEmail,
+        memberId: member.id?.toString() || '',
+        memberEmail: member.email,
+        memberName: resolvedName,
+        source: 'pos',
+        productId: productId || ''
+      }
+    });
+
+    if (paymentIntent.status === 'succeeded') {
+      await pool.query(
+        `INSERT INTO billing_audit_log (payment_intent_id, member_email, member_id, amount_cents, description, staff_email, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        [paymentIntent.id, member.email, member.id, numericAmount, description || 'POS saved card charge', staffEmail]
+      );
+
+      logFromRequest(req, 'charge_saved_card', 'payment', paymentIntent.id, member.email, {
+        amountCents: numericAmount,
+        description: description || 'POS saved card charge',
+        cardLast4,
+        cardBrand,
+        source: 'pos'
+      });
+
+      console.log(`[Stripe] POS saved card charge: $${(numericAmount / 100).toFixed(2)} for ${member.email} (${cardBrand} ****${cardLast4}) by ${staffEmail}`);
+
+      res.json({
+        success: true,
+        paymentIntentId: paymentIntent.id,
+        cardLast4,
+        cardBrand
+      });
+    } else if (paymentIntent.status === 'requires_action') {
+      res.status(400).json({
+        error: 'Card requires additional verification. Use Online Card instead so the customer can authenticate.',
+        requiresAction: true
+      });
+    } else {
+      res.status(400).json({
+        error: `Payment not completed (status: ${paymentIntent.status}). Try Online Card instead.`
+      });
+    }
+  } catch (error: any) {
+    console.error('[Stripe] Error with POS saved card charge:', error);
+
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({
+        error: `Card declined: ${error.message}`,
+        cardError: true
+      });
+    }
+
+    await alertOnExternalServiceError('Stripe', error, 'pos saved card charge');
+    res.status(500).json({
+      error: 'Failed to charge card. Please try another payment method.',
+      retryable: true
+    });
+  }
+});
+
 // Check if member has a saved card on file
 router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { SimpleCheckoutForm } from '../../stripe/StripePaymentForm';
@@ -23,26 +23,13 @@ interface CartItem {
   icon: string;
 }
 
-type PaymentMethodType = 'online_card' | 'terminal' | 'cash_check';
+type PaymentMethodType = 'online_card' | 'terminal' | 'saved_card';
 type CategoryTab = 'all' | 'passes' | 'cafe' | 'merch';
 
 const PASS_PRODUCTS = [
   { productId: 'prod_TvPiZ9a7L3BqZX', name: 'Day Pass - Coworking', priceCents: 3500, icon: 'workspace_premium' },
   { productId: 'prod_TvPiHiafkZcoKR', name: 'Day Pass - Golf Sim', priceCents: 5000, icon: 'sports_golf' },
   { productId: 'prod_TvPiDx3od1F7xY', name: 'Guest Pass', priceCents: 2500, icon: 'badge' },
-];
-
-const CATEGORY_OPTIONS = [
-  { value: 'guest_fee', label: 'Guest Fee' },
-  { value: 'merchandise', label: 'Merchandise' },
-  { value: 'membership', label: 'Membership' },
-  { value: 'other', label: 'Other' },
-];
-
-const CASH_METHOD_OPTIONS = [
-  { value: 'cash', label: 'Cash', icon: 'payments' },
-  { value: 'check', label: 'Check', icon: 'money' },
-  { value: 'other', label: 'Other', icon: 'more_horiz' },
 ];
 
 const CAFE_CATEGORY_ICONS: Record<string, string> = {
@@ -97,9 +84,6 @@ const POSRegister: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType | null>(null);
-  const [cashSubType, setCashSubType] = useState<'cash' | 'check' | 'other'>('cash');
-  const [category, setCategory] = useState('guest_fee');
-  const [notes, setNotes] = useState('');
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
@@ -109,6 +93,9 @@ const POSRegister: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [receiptSent, setReceiptSent] = useState(false);
   const [receiptSending, setReceiptSending] = useState(false);
+
+  const [savedCard, setSavedCard] = useState<{ hasSavedCard: boolean; cardLast4?: string; cardBrand?: string } | null>(null);
+  const [checkingSavedCard, setCheckingSavedCard] = useState(false);
 
   const totalCents = cartItems.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
   const totalFormatted = `$${(totalCents / 100).toFixed(2)}`;
@@ -130,6 +117,30 @@ const POSRegister: React.FC = () => {
       cats.filter(c => !CAFE_CATEGORY_ORDER.includes(c))
     );
   }, [groupedCafeItems]);
+
+  const checkSavedCard = useCallback(async (email: string) => {
+    setCheckingSavedCard(true);
+    setSavedCard(null);
+    try {
+      const res = await fetch(`/api/stripe/staff/check-saved-card/${encodeURIComponent(email)}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedCard(data);
+      }
+    } catch {
+      setSavedCard({ hasSavedCard: false });
+    } finally {
+      setCheckingSavedCard(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedMember?.email) {
+      checkSavedCard(selectedMember.email);
+    } else {
+      setSavedCard(null);
+    }
+  }, [selectedMember?.email, checkSavedCard]);
 
   const addToCart = (product: { productId: string; name: string; priceCents: number; icon: string }) => {
     setCartItems(prev => {
@@ -280,7 +291,7 @@ const POSRegister: React.FC = () => {
     setSuccess(true);
   };
 
-  const handleRecordCashPayment = async () => {
+  const handleSavedCardCharge = async () => {
     const customer = getCustomerInfo();
     if (!customer || totalCents <= 0) return;
 
@@ -288,30 +299,29 @@ const POSRegister: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetch('/api/payments/record-offline', {
+      const res = await fetch('/api/stripe/staff/charge-saved-card-pos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           memberEmail: customer.email,
-          memberId: customer.id,
           memberName: customer.name,
           amountCents: totalCents,
-          paymentMethod: cashSubType,
-          category,
           description: buildDescription(),
-          notes: notes || undefined,
+          productId: cartItems.length === 1 ? cartItems[0].productId : undefined,
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to record payment');
+        throw new Error(data.error || 'Failed to charge card');
       }
 
+      setPaymentIntentId(data.paymentIntentId);
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to record payment');
+      setError(err.message || 'Failed to charge card on file');
     } finally {
       setIsProcessing(false);
     }
@@ -324,11 +334,9 @@ const POSRegister: React.FC = () => {
     setReceiptSending(true);
     try {
       const effectivePaymentMethod =
-        selectedPaymentMethod === 'cash_check'
-          ? cashSubType
-          : selectedPaymentMethod === 'terminal'
-            ? 'terminal'
-            : 'card';
+        selectedPaymentMethod === 'terminal'
+          ? 'terminal'
+          : 'card';
 
       const res = await fetch('/api/purchases/send-receipt', {
         method: 'POST',
@@ -374,9 +382,6 @@ const POSRegister: React.FC = () => {
     setDrawerOpen(false);
     setMobileCartOpen(false);
     setSelectedPaymentMethod(null);
-    setCashSubType('cash');
-    setCategory('guest_fee');
-    setNotes('');
     setClientSecret(null);
     setPaymentIntentId(null);
     setIsCreatingIntent(false);
@@ -768,26 +773,49 @@ const POSRegister: React.FC = () => {
           <h4 className="text-sm font-semibold text-primary/60 dark:text-white/60 uppercase tracking-wider mb-3">
             Payment Method
           </h4>
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              { key: 'online_card' as const, label: 'Online Card', icon: 'credit_card' },
-              { key: 'terminal' as const, label: 'Card Reader', icon: 'contactless' },
-              { key: 'cash_check' as const, label: 'Cash/Check', icon: 'payments' },
-            ] as const).map(method => (
+          <div className={`grid gap-2 ${savedCard?.hasSavedCard && !useNewCustomer ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <button
+              onClick={() => handleSelectPaymentMethod('online_card')}
+              className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'online_card'
+                  ? 'bg-primary dark:bg-lavender text-white shadow-sm'
+                  : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xl">credit_card</span>
+              Online Card
+            </button>
+            <button
+              onClick={() => handleSelectPaymentMethod('terminal')}
+              className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedPaymentMethod === 'terminal'
+                  ? 'bg-primary dark:bg-lavender text-white shadow-sm'
+                  : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xl">contactless</span>
+              Card Reader
+            </button>
+            {savedCard?.hasSavedCard && !useNewCustomer && (
               <button
-                key={method.key}
-                onClick={() => handleSelectPaymentMethod(method.key)}
+                onClick={() => handleSelectPaymentMethod('saved_card')}
                 className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
-                  selectedPaymentMethod === method.key
+                  selectedPaymentMethod === 'saved_card'
                     ? 'bg-primary dark:bg-lavender text-white shadow-sm'
                     : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
                 }`}
               >
-                <span className="material-symbols-outlined text-xl">{method.icon}</span>
-                {method.label}
+                <span className="material-symbols-outlined text-xl">wallet</span>
+                <span className="leading-tight text-center">Card on File{savedCard.cardLast4 ? ` ••${savedCard.cardLast4}` : ''}</span>
               </button>
-            ))}
+            )}
           </div>
+          {checkingSavedCard && (
+            <p className="text-xs text-primary/40 dark:text-white/40 mt-2 flex items-center gap-1">
+              <span className="animate-spin inline-block w-3 h-3 border border-primary/30 dark:border-white/30 border-t-transparent rounded-full" />
+              Checking saved card...
+            </p>
+          )}
         </div>
 
         {error && (
@@ -835,68 +863,31 @@ const POSRegister: React.FC = () => {
           />
         )}
 
-        {selectedPaymentMethod === 'cash_check' && (
+        {selectedPaymentMethod === 'saved_card' && (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">Type</label>
-              <div className="flex gap-2">
-                {CASH_METHOD_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setCashSubType(opt.value as typeof cashSubType)}
-                    className={`flex-1 py-2.5 px-3 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-colors ${
-                      cashSubType === opt.value
-                        ? 'bg-primary dark:bg-lavender text-white'
-                        : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-base">{opt.icon}</span>
-                    {opt.label}
-                  </button>
-                ))}
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/5'}`}>
+              <span className="material-symbols-outlined text-primary/60 dark:text-white/60">credit_card</span>
+              <div>
+                <p className="text-sm font-medium text-primary dark:text-white capitalize">
+                  {savedCard?.cardBrand || 'Card'} ending in {savedCard?.cardLast4 || '****'}
+                </p>
+                <p className="text-xs text-primary/50 dark:text-white/50">Will be charged instantly</p>
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-              >
-                {CATEGORY_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-primary dark:text-white mb-2">Notes (optional)</label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes..."
-                className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            </div>
-
             <button
-              onClick={handleRecordCashPayment}
+              onClick={handleSavedCardCharge}
               disabled={isProcessing}
               className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"
             >
               {isProcessing ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  Recording...
+                  Charging...
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined">payments</span>
-                  Record Payment
+                  <span className="material-symbols-outlined">bolt</span>
+                  Charge {totalFormatted}
                 </>
               )}
             </button>

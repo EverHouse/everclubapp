@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "71.1.0",
+    date: "2026-02-06",
+    title: "POS Checkout: Card-Only Payments & Card on File",
+    changes: [
+      "New: 'Card on File' payment option — when a customer has a saved card in Stripe, staff can charge it instantly with one tap from the POS checkout",
+      "New: POS automatically checks if the selected customer has a saved card and shows their card details (brand + last 4 digits) as a payment option",
+      "Improved: POS checkout now offers only Stripe-backed payment methods — Online Card, Card Reader (terminal), and Card on File — cash/check option removed",
+      "Improved: Redeem Day Pass section no longer overflows on smaller screens",
+      "Improved: Financials tab bar and product category tabs now scroll horizontally on mobile instead of text getting cut off"
+    ]
+  },
+  {
     version: "71.0.0",
     date: "2026-02-06",
     title: "Financials Redesign: POS Cash Register & Transactions Tab",
