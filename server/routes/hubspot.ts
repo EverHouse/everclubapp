@@ -1205,11 +1205,28 @@ router.post('/webhooks', async (req, res) => {
                   if (stripeCheck.rows.length > 0 && stripeCheck.rows[0].stripe_subscription_id) {
                     console.log(`[HubSpot Webhook] Skipping status change to 'non-member' for ${email} - has active Stripe subscription`);
                   } else {
+                    const prevStatusResult = await pool.query(
+                      'SELECT membership_status, first_name, last_name FROM users WHERE LOWER(email) = $1',
+                      [email]
+                    );
+                    const prevStatus = prevStatusResult.rows[0]?.membership_status;
+
                     await pool.query(
                       `UPDATE users SET membership_status = $1, updated_at = NOW() WHERE LOWER(email) = $2`,
                       [newStatus, email]
                     );
                     console.log(`[HubSpot Webhook] Updated DB membership_status for ${email} to: ${newStatus}`);
+
+                    if (prevStatus && prevStatus !== 'non-member' && prevStatus !== 'visitor') {
+                      const row = prevStatusResult.rows[0];
+                      const name = `${row.first_name || ''} ${row.last_name || ''}`.trim() || email;
+                      await notifyAllStaff(
+                        'Member Status Changed',
+                        `${name} (${email}) status changed to non-member via MindBody (was ${prevStatus}).`,
+                        'member_status_change',
+                        { sendPush: true, url: '/admin/members' }
+                      );
+                    }
                   }
                 } else {
                   await pool.query(

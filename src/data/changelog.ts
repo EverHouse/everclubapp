@@ -20,6 +20,7 @@ export const changelog: ChangelogEntry[] = [
       "New: Staff now receive instant push + in-app notifications when a new member joins via Stripe checkout — includes member name, email, and plan",
       "New: Staff now receive instant push + in-app notifications when a new member is activated via MindBody/HubSpot — includes member name, email, and tier",
       "New: Staff now receive instant push + in-app notifications when a member's status changes to inactive (expired, cancelled, etc.) via MindBody/HubSpot",
+      "New: Staff now receive instant push + in-app notifications when a member drops to non-member via MindBody — only fires for actual downgrades, not default contacts",
       "New: Staff now receive instant push + in-app notifications when a previously inactive member reactivates their Stripe subscription",
       "Improved: 'New Subscription Created' notification upgraded from in-app only to full push notification with direct link to member list"
     ]
