@@ -105,6 +105,61 @@ router.get('/api/announcements/banner', async (req, res) => {
   }
 });
 
+router.get('/api/announcements/export', isStaffOrAdmin, async (req, res) => {
+  try {
+    // Fetch all announcements
+    const results = await db.select().from(announcements).orderBy(desc(announcements.createdAt));
+    
+    // Helper function to escape CSV values
+    const escapeCsv = (value: any): string => {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      const str = String(value);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+    
+    // Build CSV headers
+    const headers = ['ID', 'Title', 'Description', 'Priority', 'Active', 'Start Date', 'End Date', 'Link Type', 'Link Target', 'Banner', 'Created By', 'Created At'];
+    
+    // Build CSV rows
+    const rows = results.map(a => {
+      const showBanner = (a as any).show_as_banner === true ? 'Yes' : 'No';
+      return [
+        a.id,
+        escapeCsv(a.title),
+        escapeCsv(a.message),
+        escapeCsv(a.priority || 'normal'),
+        a.isActive ? 'Yes' : 'No',
+        escapeCsv(a.startsAt ? formatDatePacific(new Date(a.startsAt)) : ''),
+        escapeCsv(a.endsAt ? formatDatePacific(new Date(a.endsAt)) : ''),
+        escapeCsv(a.linkType || ''),
+        escapeCsv(a.linkTarget || ''),
+        showBanner,
+        escapeCsv(a.createdBy || ''),
+        escapeCsv(a.createdAt ? formatDatePacific(new Date(a.createdAt)) : '')
+      ].join(',');
+    });
+    
+    // Combine headers and rows
+    const csv = [headers.join(','), ...rows].join('\n');
+    
+    // Set response headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="announcements_export.csv"');
+    
+    // Log audit trail
+    logFromRequest(req, 'export_announcements' as any, 'announcement', undefined, 'Announcements Export', {
+      totalRecords: results.length
+    });
+    
+    res.send(csv);
+  } catch (error: any) {
+    if (!isProduction) console.error('Announcements export error:', error);
+    res.status(500).json({ error: 'Failed to export announcements' });
+  }
+});
+
 router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
   try {
     const { title, description, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
