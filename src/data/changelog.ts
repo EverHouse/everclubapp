@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "72.0.0",
+    date: "2026-02-06",
+    title: "Booking Reschedule: Move Bookings to Any Bay & Time",
+    isMajor: true,
+    changes: [
+      "New: Staff can reschedule any upcoming booking to a different bay and/or time slot — the member, player roster, guest passes, and all booking details stay intact",
+      "New: Reschedule button appears in the Booking Details modal for all future simulator bookings",
+      "New: Two-step reschedule flow — first pick the new bay/date/time, then create the booking on Trackman, delete the old one, and paste the new Trackman ID to confirm",
+      "New: While a reschedule is in progress, the booking is protected from accidental cancellation — if the old Trackman booking's deletion webhook arrives, the system skips all fee adjustments and member notifications",
+      "New: Members receive a 'Booking Rescheduled' notification with the new bay, date, and time — no confusing cancellation notice",
+      "New: If a reschedule is started but never completed, the system auto-clears the hold after 30 minutes so the booking doesn't get stuck",
+      "New: Duration change warning — if the new time slot has a different duration, staff see a notice that fees may need recalculation"
+    ]
+  },
+  {
     version: "71.4.0",
     date: "2026-02-06",
     title: "Trackman Webhook Log on Import Page",

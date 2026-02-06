@@ -17,6 +17,7 @@ import { startUnresolvedTrackmanScheduler } from './unresolvedTrackmanScheduler'
 import { startGuestPassResetScheduler } from './guestPassResetScheduler';
 import { startMemberSyncScheduler } from './memberSyncScheduler';
 import { startDuplicateCleanupScheduler } from './duplicateCleanupScheduler';
+import { startRelocationCleanupScheduler } from './relocationCleanupScheduler';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
 
 export function initSchedulers(): void {
@@ -39,6 +40,7 @@ export function initSchedulers(): void {
   startMemberSyncScheduler();
   startDuplicateCleanupScheduler();
   startGuestPassResetScheduler();
+  startRelocationCleanupScheduler();
   startJobProcessor(5000);
 }
 

@@ -19,6 +19,7 @@ import { CompleteRosterModal } from '../../../components/staff-command-center/mo
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
+import { RescheduleBookingModal } from '../../../components/booking/RescheduleBookingModal';
 import { AnimatedPage } from '../../../components/motion';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
@@ -894,6 +895,7 @@ const SimulatorTab: React.FC = () => {
     const [playerCountDraft, setPlayerCountDraft] = useState<number>(1);
     const [savingPlayerCount, setSavingPlayerCount] = useState(false);
     const [membersEditorKey, setMembersEditorKey] = useState(0);
+    const [rescheduleModal, setRescheduleModal] = useState<{ isOpen: boolean; booking: any | null }>({ isOpen: false, booking: null });
     const [feeEstimate, setFeeEstimate] = useState<{
       totalFee: number;
       ownerTier: string | null;
@@ -3472,6 +3474,38 @@ const SimulatorTab: React.FC = () => {
                     )}
                     
                     <div className="flex flex-col gap-2 pt-3">
+                        {(() => {
+                            const isUpcoming = (() => {
+                                if (!selectedCalendarBooking) return false;
+                                const now = new Date();
+                                const pacificNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+                                const bookingDate = new Date(selectedCalendarBooking.request_date + 'T00:00:00');
+                                if (bookingDate > pacificNow) return true;
+                                if (bookingDate.toDateString() === pacificNow.toDateString()) {
+                                    const [h, m] = selectedCalendarBooking.start_time.split(':').map(Number);
+                                    const startMinutes = h * 60 + m;
+                                    const nowMinutes = pacificNow.getHours() * 60 + pacificNow.getMinutes();
+                                    return startMinutes > nowMinutes;
+                                }
+                                return false;
+                            })();
+                            const isCancelled = selectedCalendarBooking?.status === 'cancelled';
+                            const selectedResource = selectedCalendarBooking?.resource_id ? resources.find(r => r.id === selectedCalendarBooking.resource_id) : null;
+                            const isSimulator = !selectedResource || selectedResource.type === 'simulator';
+                            if (!isUpcoming || isCancelled || !isSimulator) return null;
+                            return (
+                                <button
+                                    onClick={() => {
+                                        setRescheduleModal({ isOpen: true, booking: selectedCalendarBooking });
+                                        setSelectedCalendarBooking(null);
+                                    }}
+                                    className="flex-1 py-3 px-4 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium flex items-center justify-center gap-2"
+                                >
+                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">schedule</span>
+                                    Reschedule
+                                </button>
+                            );
+                        })()}
                         <button
                             onClick={async () => {
                                 if (!selectedCalendarBooking) return;
@@ -3704,6 +3738,20 @@ return null;
               }}
               onOpenBillingModal={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
             />
+
+            {rescheduleModal.isOpen && rescheduleModal.booking && (
+              <RescheduleBookingModal
+                isOpen={rescheduleModal.isOpen}
+                onClose={() => setRescheduleModal({ isOpen: false, booking: null })}
+                booking={rescheduleModal.booking}
+                resources={resources}
+                onSuccess={() => {
+                  setRescheduleModal({ isOpen: false, booking: null });
+                  handleRefresh();
+                  window.dispatchEvent(new CustomEvent('booking-action-completed'));
+                }}
+              />
+            )}
 
             <ModalShell 
               isOpen={cancelConfirmModal.isOpen} 

@@ -188,6 +188,7 @@ export async function cancelBookingByTrackmanId(
     const result = await pool.query(
       `SELECT br.id, br.user_email, br.user_name, br.status, br.session_id, 
               br.request_date, br.start_time, br.resource_id,
+              br.is_relocating,
               r.name as resource_name
        FROM booking_requests br
        LEFT JOIN resources r ON br.resource_id = r.id
@@ -201,6 +202,17 @@ export async function cancelBookingByTrackmanId(
     
     const booking = result.rows[0];
     const bookingId = booking.id;
+
+    if (booking.is_relocating) {
+      logger.info('[Trackman Webhook] Skipping cancellation for relocating booking', {
+        extra: { bookingId, trackmanBookingId, isRelocating: true }
+      });
+      await pool.query(
+        `UPDATE booking_requests SET trackman_booking_id = NULL WHERE id = $1 AND trackman_booking_id = $2`,
+        [bookingId, trackmanBookingId]
+      );
+      return { cancelled: false };
+    }
     const memberEmail = booking.user_email;
     const memberName = booking.user_name || memberEmail || 'Unknown';
     const bookingDate = booking.request_date;
