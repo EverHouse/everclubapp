@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.3.1",
+    date: "2026-02-06",
+    title: "Terminal Card Reader: Default for Staff Billing & Reuse Existing Charges",
+    changes: [
+      "Improvement: Card Reader is now the default payment method in the staff check-in billing screen — no more switching from Online Card each time",
+      "New: When a member started an online overage payment but didn't finish, staff can now collect that same charge on the card reader instead of creating a duplicate",
+      "Fix: Incomplete overage charges in Stripe are now reused rather than orphaned — cleaner transaction history for members",
+      "Fix: Corporate group billing error recovery now properly references subscription data when rolling back Stripe changes",
+      "Fix: Refund calculations use precise math to prevent tiny rounding differences over many transactions",
+      "Fix: Day pass visitors who sign up for membership now properly get upgraded to member status automatically"
+    ]
+  },
+  {
     version: "7.3.0",
     date: "2026-02-06",
     title: "Announcements Export & Google Sheets Sync",

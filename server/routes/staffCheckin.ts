@@ -101,7 +101,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         r.name as resource_name,
         br.overage_minutes,
         br.overage_fee_cents,
-        br.overage_paid
+        br.overage_paid,
+        br.overage_payment_intent_id
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
@@ -415,7 +416,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
       overageMinutes,
       overageFeeCents,
       overagePaid,
-      hasUnpaidOverage
+      hasUnpaidOverage,
+      ...(hasUnpaidOverage && booking.overage_payment_intent_id && { overagePaymentIntentId: booking.overage_payment_intent_id })
     };
 
     res.json(context);

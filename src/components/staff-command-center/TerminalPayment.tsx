@@ -11,6 +11,7 @@ interface TerminalReader {
 interface TerminalPaymentProps {
   amount: number;
   subscriptionId?: string | null;
+  existingPaymentIntentId?: string;
   userId: string | null;
   description?: string;
   paymentMetadata?: Record<string, string>;
@@ -21,7 +22,8 @@ interface TerminalPaymentProps {
 
 export function TerminalPayment({ 
   amount, 
-  subscriptionId, 
+  subscriptionId,
+  existingPaymentIntentId,
   userId,
   description,
   paymentMetadata,
@@ -143,6 +145,16 @@ export function TerminalPayment({
             readerId: selectedReader,
             subscriptionId,
             userId
+          })
+        });
+      } else if (existingPaymentIntentId) {
+        res = await fetch('/api/stripe/terminal/process-existing-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            readerId: selectedReader,
+            paymentIntentId: existingPaymentIntentId
           })
         });
       } else {

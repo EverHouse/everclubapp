@@ -61,6 +61,7 @@ interface CheckinContext {
   overageFeeCents?: number;
   overagePaid?: boolean;
   hasUnpaidOverage?: boolean;
+  overagePaymentIntentId?: string | null;
 }
 
 interface CheckinBillingModalProps {
@@ -91,13 +92,14 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   } | null>(null);
   const [showOveragePayment, setShowOveragePayment] = useState(false);
   const [overageClientSecret, setOverageClientSecret] = useState<string | null>(null);
+  const [overagePaymentIntentId, setOveragePaymentIntentId] = useState<string | null>(null);
   const [savedCardInfo, setSavedCardInfo] = useState<{
     hasSavedCard: boolean;
     cardLast4?: string;
     cardBrand?: string;
   } | null>(null);
   const [checkingCard, setCheckingCard] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'terminal'>('online');
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'terminal'>('terminal');
 
   useEffect(() => {
     console.log('[CheckinBillingModal] Props changed:', { isOpen, bookingId });
@@ -117,6 +119,9 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       if (res.ok) {
         const data = await res.json();
         setContext(data);
+        if (data.overagePaymentIntentId) {
+          setOveragePaymentIntentId(data.overagePaymentIntentId);
+        }
       } else {
         setError(getApiErrorMessage(res, 'load billing context'));
       }
@@ -415,6 +420,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       if (res.ok) {
         const data = await res.json();
         setOverageClientSecret(data.clientSecret);
+        setOveragePaymentIntentId(data.paymentIntentId);
         setShowOveragePayment(true);
       } else {
         const data = await res.json();
@@ -432,6 +438,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     showToast('Overage payment successful!', 'success');
     setShowOveragePayment(false);
     setOverageClientSecret(null);
+    setOveragePaymentIntentId(null);
     setPaymentMethod('online');
     if (paymentIntentId) {
       await fetch('/api/stripe/confirm-payment', {
@@ -695,6 +702,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
             </div>
             {paymentMethod === 'terminal' ? (
               <TerminalPayment
+                existingPaymentIntentId={overagePaymentIntentId || undefined}
                 amount={context.overageFeeCents || 0}
                 subscriptionId={null}
                 userId={context.ownerId}
@@ -702,7 +710,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 paymentMetadata={{ bookingId: String(bookingId), ownerEmail: context.ownerEmail, userId: context.ownerId, ownerName: context.ownerName, paymentType: 'overage_fee' }}
                 onSuccess={(piId) => handleOveragePaymentSuccess(piId)}
                 onError={(msg) => showToast(msg, 'error')}
-                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); setPaymentMethod('online'); }}
+                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); setOveragePaymentIntentId(null); setPaymentMethod('online'); }}
               />
             ) : overageClientSecret ? (
               <StripePaymentForm
@@ -714,7 +722,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 purpose="overage_fee"
                 bookingId={bookingId}
                 onSuccess={handleOveragePaymentSuccess}
-                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); setPaymentMethod('online'); }}
+                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); setOveragePaymentIntentId(null); setPaymentMethod('online'); }}
               />
             ) : (
               <div className="flex items-center justify-center py-8">

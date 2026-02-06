@@ -588,4 +588,77 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
   }
 });
 
+router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { readerId, paymentIntentId } = req.body;
+
+    if (!readerId) {
+      return res.status(400).json({ error: 'Reader ID is required' });
+    }
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Payment Intent ID is required' });
+    }
+
+    const stripe = await getStripeClient();
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    const allowedStatuses = ['requires_payment_method', 'requires_confirmation'];
+    if (!allowedStatuses.includes(paymentIntent.status)) {
+      return res.status(400).json({
+        error: `Payment Intent is in "${paymentIntent.status}" state and cannot be sent to the terminal`,
+        status: paymentIntent.status
+      });
+    }
+
+    try {
+      await stripe.paymentIntents.update(paymentIntentId, {
+        payment_method_types: ['card_present'],
+        automatic_payment_methods: { enabled: false }
+      } as any);
+    } catch (updateErr: any) {
+      await stripe.paymentIntents.update(paymentIntentId, {
+        automatic_payment_methods: { enabled: false }
+      } as any);
+      await stripe.paymentIntents.update(paymentIntentId, {
+        payment_method_types: ['card_present']
+      });
+    }
+
+    const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
+      payment_intent: paymentIntentId
+    });
+
+    if (reader.device_type?.startsWith('simulated')) {
+      try {
+        await stripe.testHelpers.terminal.readers.presentPaymentMethod(readerId);
+      } catch (simErr: any) {
+        console.error('[Terminal] Simulated card presentation error (non-blocking):', simErr.message);
+      }
+    }
+
+    await logFromRequest(req, {
+      action: 'terminal_existing_payment_routed',
+      resourceType: 'payment',
+      resourceId: paymentIntentId,
+      details: {
+        paymentIntentId,
+        readerId,
+        originalStatus: paymentIntent.status,
+        amount: paymentIntent.amount
+      }
+    });
+
+    res.json({
+      success: true,
+      paymentIntentId,
+      readerId: reader.id,
+      readerAction: reader.action
+    });
+  } catch (error: any) {
+    console.error('[Terminal] Error processing existing payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to process existing payment on terminal' });
+  }
+});
+
 export default router;
