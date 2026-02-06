@@ -319,8 +319,8 @@ router.get('/api/staff/list', isStaffOrAdmin, async (req, res) => {
       SELECT su.id, su.email, su.first_name, su.last_name, su.role,
              u.id as user_id
       FROM staff_users su
-      INNER JOIN users u ON LOWER(u.email) = LOWER(su.email)
-      WHERE su.is_active = true AND u.archived_at IS NULL
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(su.email) AND u.archived_at IS NULL
+      WHERE su.is_active = true
       ORDER BY 
         CASE su.role 
           WHEN 'golf_instructor' THEN 1 
