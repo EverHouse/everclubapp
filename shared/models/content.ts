@@ -118,6 +118,7 @@ export const announcements = pgTable("announcements", {
   linkTarget: varchar("link_target"),
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: varchar("created_by"),
+  googleSheetRowId: integer("google_sheet_row_id"),
 });
 
 // Gallery images table - venue photos

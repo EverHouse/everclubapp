@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.3.0",
+    date: "2026-02-06",
+    title: "Announcements Export & Google Sheets Sync",
+    isMajor: true,
+    changes: [
+      "New: Export all announcements as a CSV file from the Announcements admin tab",
+      "New: Two-way Google Sheets sync for announcements — create a linked spreadsheet, add or edit rows in Google Sheets, and pull changes into the app",
+      "New: Auto-sync — when you create, edit, or delete an announcement in the app, changes are automatically pushed to the linked Google Sheet",
+      "New: 'Pull from Sheet' button imports new and updated announcements from the Google Sheet",
+      "New: 'Push to Sheet' button sends all current announcements to the linked Google Sheet",
+      "New: Connect/disconnect Google Sheet controls with link to open the sheet directly"
+    ]
+  },
+  {
     version: "7.2.3",
     date: "2026-02-06",
     title: "Smart Login Redirect",

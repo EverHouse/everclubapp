@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useData, Announcement } from '../../contexts/DataContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useToast } from '../Toast';
@@ -8,17 +8,44 @@ interface AnnouncementManagerProps {
     triggerCreate?: number;
 }
 
+interface SheetStatus {
+    connected: boolean;
+    sheetId: string | null;
+    sheetUrl: string | null;
+}
+
 const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate }) => {
     const { setPageReady } = usePageReady();
     const { showToast } = useToast();
-    const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
+    const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement, refreshAnnouncements } = useData();
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [newItem, setNewItem] = useState<Partial<Announcement>>({ type: 'announcement' });
 
+    const [sheetStatus, setSheetStatus] = useState<SheetStatus>({ connected: false, sheetId: null, sheetUrl: null });
+    const [sheetLoading, setSheetLoading] = useState(false);
+    const [syncingFrom, setSyncingFrom] = useState(false);
+    const [syncingTo, setSyncingTo] = useState(false);
+    const [exporting, setExporting] = useState(false);
+
     useEffect(() => {
         setPageReady(true);
     }, [setPageReady]);
+
+    const fetchSheetStatus = useCallback(async () => {
+        try {
+            const res = await fetch('/api/announcements/sheets/status', { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                setSheetStatus(data);
+            }
+        } catch {
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchSheetStatus();
+    }, [fetchSheetStatus]);
 
     const openCreate = () => {
         setNewItem({ type: 'announcement' });
@@ -76,6 +103,109 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
         } catch (err) {
             console.error('Failed to delete announcement:', err);
             showToast('Failed to delete announcement', 'error');
+        }
+    };
+
+    const handleExportCSV = async () => {
+        setExporting(true);
+        try {
+            const res = await fetch('/api/announcements/export', { credentials: 'include' });
+            if (!res.ok) throw new Error('Export failed');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'announcements_export.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            showToast('Announcements exported', 'success');
+        } catch {
+            showToast('Failed to export announcements', 'error');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleConnectSheet = async () => {
+        setSheetLoading(true);
+        try {
+            const res = await fetch('/api/announcements/sheets/connect', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to create sheet');
+            }
+            const data = await res.json();
+            setSheetStatus({ connected: true, sheetId: data.sheetId, sheetUrl: data.sheetUrl });
+            showToast('Google Sheet created and linked', 'success');
+        } catch (err: any) {
+            showToast(err.message || 'Failed to connect Google Sheet', 'error');
+        } finally {
+            setSheetLoading(false);
+        }
+    };
+
+    const handleSyncFromSheet = async () => {
+        setSyncingFrom(true);
+        try {
+            const res = await fetch('/api/announcements/sheets/sync-from', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Sync failed');
+            const data = await res.json();
+            const parts: string[] = [];
+            if (data.created > 0) parts.push(`${data.created} new`);
+            if (data.updated > 0) parts.push(`${data.updated} updated`);
+            if (parts.length === 0) parts.push('No changes found');
+            showToast(`Synced from Sheet: ${parts.join(', ')}`, 'success');
+            if (refreshAnnouncements) await refreshAnnouncements();
+        } catch {
+            showToast('Failed to sync from Google Sheet', 'error');
+        } finally {
+            setSyncingFrom(false);
+        }
+    };
+
+    const handleSyncToSheet = async () => {
+        setSyncingTo(true);
+        try {
+            const res = await fetch('/api/announcements/sheets/sync-to', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Sync failed');
+            const data = await res.json();
+            showToast(`Pushed ${data.pushed} announcements to Sheet`, 'success');
+        } catch {
+            showToast('Failed to push to Google Sheet', 'error');
+        } finally {
+            setSyncingTo(false);
+        }
+    };
+
+    const handleDisconnectSheet = async () => {
+        setSheetLoading(true);
+        try {
+            const res = await fetch('/api/announcements/sheets/disconnect', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Disconnect failed');
+            setSheetStatus({ connected: false, sheetId: null, sheetUrl: null });
+            showToast('Google Sheet disconnected', 'success');
+        } catch {
+            showToast('Failed to disconnect Google Sheet', 'error');
+        } finally {
+            setSheetLoading(false);
         }
     };
 
@@ -173,6 +303,104 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
             </SlideUpDrawer>
 
             <div className="space-y-4 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                {/* Tools Bar */}
+                <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                            <span aria-hidden="true" className="material-symbols-outlined text-[16px]">build</span>
+                            Tools
+                        </h3>
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={exporting || announcements.length === 0}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors disabled:opacity-50"
+                            aria-label="Export announcements as CSV"
+                        >
+                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">download</span>
+                            {exporting ? 'Exporting...' : 'Export CSV'}
+                        </button>
+                    </div>
+
+                    {/* Google Sheets Section */}
+                    <div className="border-t border-gray-200 dark:border-white/15 pt-3">
+                        <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="3" width="18" height="18" rx="2" fill="#0F9D58"/>
+                                <rect x="6" y="7" width="12" height="2" rx="0.5" fill="white"/>
+                                <rect x="6" y="11" width="12" height="2" rx="0.5" fill="white"/>
+                                <rect x="6" y="15" width="12" height="2" rx="0.5" fill="white"/>
+                                <rect x="11" y="7" width="2" height="10" rx="0.5" fill="#0F9D58" opacity="0.3"/>
+                            </svg>
+                            <span className="text-sm font-bold text-gray-700 dark:text-white">Google Sheets Sync</span>
+                            {sheetStatus.connected && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">Connected</span>
+                            )}
+                        </div>
+
+                        {!sheetStatus.connected ? (
+                            <div className="space-y-2">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Create a Google Sheet to manage announcements from a spreadsheet. Add or edit rows in the sheet, then sync them into the app.
+                                </p>
+                                <button
+                                    onClick={handleConnectSheet}
+                                    disabled={sheetLoading}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                >
+                                    <span aria-hidden="true" className="material-symbols-outlined text-[16px]">add_link</span>
+                                    {sheetLoading ? 'Creating Sheet...' : 'Create & Connect Sheet'}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <a
+                                    href={sheetStatus.sheetUrl || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                    Open Google Sheet
+                                </a>
+
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={handleSyncFromSheet}
+                                        disabled={syncingFrom}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
+                                        aria-label="Pull changes from Google Sheet"
+                                    >
+                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">cloud_download</span>
+                                        {syncingFrom ? 'Syncing...' : 'Pull from Sheet'}
+                                    </button>
+                                    <button
+                                        onClick={handleSyncToSheet}
+                                        disabled={syncingTo}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors disabled:opacity-50"
+                                        aria-label="Push announcements to Google Sheet"
+                                    >
+                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">cloud_upload</span>
+                                        {syncingTo ? 'Pushing...' : 'Push to Sheet'}
+                                    </button>
+                                    <button
+                                        onClick={handleDisconnectSheet}
+                                        disabled={sheetLoading}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                                        aria-label="Disconnect Google Sheet"
+                                    >
+                                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">link_off</span>
+                                        Disconnect
+                                    </button>
+                                </div>
+
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                                    Add rows in the Google Sheet and use "Pull from Sheet" to import them. Changes made in the app auto-sync to the sheet.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {announcements.length > 0 && (
                     <h3 className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
                         <span aria-hidden="true" className="material-symbols-outlined text-amber-500 text-[18px]">campaign</span>

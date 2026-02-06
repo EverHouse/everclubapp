@@ -79,6 +79,7 @@ interface DataContextType {
   addAnnouncement: (ann: Announcement) => Promise<void>;
   updateAnnouncement: (ann: Announcement) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
+  refreshAnnouncements: () => Promise<void>;
 
   updateMember: (member: MemberProfile) => void;
   refreshMembers: () => Promise<{ success: boolean; count: number }>;
@@ -1378,7 +1379,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     fetchMembersPaginated, membersPagination, isFetchingMembers,
     addCafeItem, updateCafeItem, deleteCafeItem, refreshCafeMenu,
     addEvent, updateEvent, deleteEvent, syncEventbrite,
-    addAnnouncement, updateAnnouncement, deleteAnnouncement,
+    addAnnouncement, updateAnnouncement, deleteAnnouncement, refreshAnnouncements,
     updateMember, refreshMembers, addBooking, deleteBooking
   }), [
     user, actualUser, viewAsUser, isViewingAs,
@@ -1388,7 +1389,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     fetchMembersPaginated, membersPagination, isFetchingMembers,
     addCafeItem, updateCafeItem, deleteCafeItem, refreshCafeMenu,
     addEvent, updateEvent, deleteEvent, syncEventbrite,
-    addAnnouncement, updateAnnouncement, deleteAnnouncement,
+    addAnnouncement, updateAnnouncement, deleteAnnouncement, refreshAnnouncements,
     updateMember, refreshMembers, addBooking, deleteBooking
   ]);
 
