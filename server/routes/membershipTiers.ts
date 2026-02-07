@@ -3,7 +3,6 @@ import { pool, isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { invalidateTierCache, clearTierCache } from '../core/tierService';
 import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts, syncTierFeaturesToStripe, syncCafeItemsToStripe, pullTierFeaturesFromStripe, pullCafeItemsFromStripe } from '../core/stripe/products';
-import { syncAllCustomerMetadata } from '../core/stripe/customers';
 import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
@@ -243,15 +242,6 @@ router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) 
     const cafeResult = await syncCafeItemsToStripe();
     console.log(`[Admin] Cafe sync complete: ${cafeResult.synced} synced, ${cafeResult.failed} failed, ${cafeResult.skipped} skipped`);
     
-    // Step 5: Sync customer metadata to Stripe
-    let customerMetadataResult = { synced: 0, failed: 0 };
-    try {
-      customerMetadataResult = await syncAllCustomerMetadata();
-      console.log(`[Admin] Customer metadata sync complete: ${customerMetadataResult.synced} synced, ${customerMetadataResult.failed} failed`);
-    } catch (metaErr: any) {
-      console.error('[Admin] Customer metadata sync error (non-fatal):', metaErr.message);
-    }
-    
     res.json({ 
       success: syncResult.success && cleanupResult.success && featureResult.success && cafeResult.success, 
       synced: syncResult.synced,
@@ -264,7 +254,6 @@ router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) 
       cleanupDetails: cleanupResult.results,
       featureSync: featureResult,
       cafeSync: cafeResult,
-      customerMetadata: customerMetadataResult
     });
   } catch (error: any) {
     console.error('[Admin] Stripe sync error:', error);
