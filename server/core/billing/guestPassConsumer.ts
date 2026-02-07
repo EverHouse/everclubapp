@@ -66,7 +66,14 @@ export async function consumeGuestPassForParticipant(
       );
       passesRemaining = insertResult.rows[0]?.remaining ?? (tierGuestPasses - 1);
     } else {
-      const { passes_used, passes_total } = existingPass.rows[0];
+      let { passes_used, passes_total } = existingPass.rows[0];
+      if (tierGuestPasses > passes_total) {
+        await client.query(
+          `UPDATE guest_passes SET passes_total = $1 WHERE LOWER(member_email) = $2`,
+          [tierGuestPasses, ownerEmailLower]
+        );
+        passes_total = tierGuestPasses;
+      }
       if (passes_used >= passes_total) {
         await client.query('ROLLBACK');
         return {

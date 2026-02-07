@@ -335,9 +335,9 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         const calculatedFee = feeMap.get(p.participant_id) || 0;
         const cachedFee = parseFloat(p.cached_total_fee) || 0;
         
-        // IMPORTANT: Honor the cached/snapshot fee from approval time
-        // Only use calculated fee if no snapshot exists (legacy bookings or system error)
-        const totalFee = cachedFee > 0 ? cachedFee : calculatedFee;
+        // Use the lower of cached vs calculated fee - protects members from fee increases
+        // while honoring tier upgrades that reduce their fees
+        const totalFee = cachedFee > 0 ? Math.min(cachedFee, calculatedFee) : calculatedFee;
         
         const breakdownItem = breakdown.participants.find(bp => bp.participantId === p.participant_id);
         const overageFee = breakdownItem ? breakdownItem.overageCents / 100 : 0;

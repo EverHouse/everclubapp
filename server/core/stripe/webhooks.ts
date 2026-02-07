@@ -2882,7 +2882,8 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
     }
 
     // CRITICAL: Update the user's membership status to cancelled, preserve tier in last_tier
-    await pool.query(
+    // Only cancel if the deleted subscription matches their current one (or they have none)
+    const cancelResult = await pool.query(
       `UPDATE users SET 
         last_tier = tier,
         tier = NULL,
@@ -2891,9 +2892,15 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
         grace_period_start = NULL,
         grace_period_email_count = 0,
         updated_at = NOW()
-      WHERE LOWER(email) = LOWER($1)`,
-      [email]
+      WHERE LOWER(email) = LOWER($1) AND (stripe_subscription_id = $2 OR stripe_subscription_id IS NULL)`,
+      [email, subscriptionId]
     );
+
+    if (cancelResult.rowCount === 0) {
+      console.log(`[Stripe Webhook] Skipping cancellation for ${email} - subscription ${subscriptionId} is not their current subscription`);
+      return deferredActions;
+    }
+
     console.log(`[Stripe Webhook] Updated ${email} membership_status to cancelled, tier cleared`);
 
     // Sync cancelled status to HubSpot (include billing_provider to ensure it stays as 'stripe')

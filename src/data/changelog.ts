@@ -24,7 +24,10 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Free guest passes are now only counted when actually used — previously, paying cash for a guest still counted against the member's monthly free pass allowance",
       "Fix: When updating corporate group billing in Stripe, if part of the update fails mid-way, the system now properly rolls back Stripe charges to prevent double-billing",
       "Fix: New membership subscriptions created in Stripe are no longer accidentally skipped if Stripe sends status updates out of order",
-      "Safety: The 'Pull from Stripe' sync now refuses to overwrite tier limits (like daily simulator minutes) with zero if the current value is positive — prevents accidental billing breakage from missing Stripe feature keys"
+      "Safety: The 'Pull from Stripe' sync now refuses to overwrite tier limits (like daily simulator minutes) with zero if the current value is positive — prevents accidental billing breakage from missing Stripe feature keys",
+      "Fix: If a member cancels and immediately resubscribes, the old cancellation notice from Stripe no longer accidentally locks out their new subscription",
+      "Fix: Members who upgrade their tier now immediately get access to their new guest pass allowance — previously the old pass count stayed locked at the previous tier's limit",
+      "Fix: At check-in, if a member upgraded their tier since booking, the system now charges the lower fee instead of the old higher one from booking time"
     ]
   },
   {

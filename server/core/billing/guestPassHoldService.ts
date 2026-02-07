@@ -38,6 +38,13 @@ export async function getAvailableGuestPasses(
     if (guestPassResult.rows.length > 0) {
       passesUsed = guestPassResult.rows[0].passes_used || 0;
       passesTotal = guestPassResult.rows[0].passes_total || tierGuestPasses;
+      if (tierGuestPasses > passesTotal) {
+        await client.query(
+          `UPDATE guest_passes SET passes_total = $1 WHERE LOWER(member_email) = $2`,
+          [tierGuestPasses, emailLower]
+        );
+        passesTotal = tierGuestPasses;
+      }
     }
     
     const holdsResult = await client.query(
