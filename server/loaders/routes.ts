@@ -60,6 +60,7 @@ export function registerRoutes(app: Express): void {
   app.use(calendarRouter);
   app.use(eventsRouter);
   app.use(authRouter);
+  app.use(authGoogleRouter);
   app.use('/api/auth', testAuthRouter);
   app.use(hubspotRouter);
   app.use(hubspotDealsRouter);
@@ -108,6 +109,5 @@ export function registerRoutes(app: Express): void {
   app.use(resendWebhooksRouter);
   app.use(conferencePrepaymentRouter);
   app.use(pricingRouter);
-  app.use(authGoogleRouter);
   registerObjectStorageRoutes(app);
 }

@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.8.1",
+    date: "2026-02-07",
+    title: "Google Sign-In Production Fix",
+    changes: [
+      "Fix: Google Sign-In was returning 'Not found' in production — caused by a route registration order conflict where the test auth middleware intercepted Google auth requests before they could reach the proper handler",
+      "Fix: Google Sign-In, Google account linking, and Google account status endpoints now all work correctly in production",
+    ],
+  },
+  {
     version: "7.8.0",
     date: "2026-02-07",
     title: "Rebrand: Ever House → Ever Club",
