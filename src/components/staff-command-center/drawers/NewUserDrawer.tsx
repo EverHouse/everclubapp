@@ -981,8 +981,9 @@ function MemberFlow({
       const updated: Record<number, { base64: string; mimeType: string }> = {};
       for (const [key, val] of Object.entries(prev)) {
         const k = Number(key);
+        if (k === index) continue;
         if (k < index) updated[k] = val;
-        else if (k > index) updated[k - 1] = val;
+        else updated[k - 1] = val;
       }
       return updated;
     });
