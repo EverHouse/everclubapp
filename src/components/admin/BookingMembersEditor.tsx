@@ -5,6 +5,7 @@ import { useData } from '../../contexts/DataContext';
 import { useToast } from '../Toast';
 import { StripePaymentForm } from '../stripe/StripePaymentForm';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../utils/errorHandling';
+import { usePricing } from '../../hooks/usePricing';
 
 interface BookingMember {
   id: number;
@@ -190,6 +191,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   showHeader = false
 }) => {
   const { members: allMembersList } = useData();
+  const { guestFeeDollars } = usePricing();
   const [members, setMembers] = useState<BookingMember[]>([]);
   const [guests, setGuests] = useState<BookingGuest[]>([]);
   const [validation, setValidation] = useState<ValidationInfo | null>(null);
@@ -1269,14 +1271,14 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
                           ) : (
                             <>
                               <span className="material-symbols-outlined text-sm">person_add</span>
-                              {guestPassesRemaining > 0 ? 'Add Guest (Free)' : 'Add Guest ($25)'}
+                              {guestPassesRemaining > 0 ? 'Add Guest (Free)' : `Add Guest ($${guestFeeDollars})`}
                             </>
                           )}
                         </button>
                       </>
                     )}
                     {guestPassesRemaining === 0 && (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400">No guest passes remaining - $25 fee applies</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400">{`No guest passes remaining - $${guestFeeDollars} fee applies`}</p>
                     )}
                   </div>
                 ) : (
@@ -1456,7 +1458,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
             </div>
             
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-              Adding them as a member ensures proper tier-based billing. Adding as a guest uses a $25 guest pass fee instead.
+              {`Adding them as a member ensures proper tier-based billing. Adding as a guest uses a $${guestFeeDollars} guest pass fee instead.`}
             </p>
             
             <div className="flex gap-2">

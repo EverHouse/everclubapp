@@ -8,6 +8,7 @@ import Avatar from '../Avatar';
 import Input from '../Input';
 import MemberPaymentModal from './MemberPaymentModal';
 import GuestPaymentChoiceModal from './GuestPaymentChoiceModal';
+import { usePricing } from '../../hooks/usePricing';
 
 export interface RosterParticipant {
   id: number;
@@ -132,6 +133,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
   const { showToast } = useToast();
+  const { guestFeeDollars } = usePricing();
 
   const [loading, setLoading] = useState(true);
   const [participants, setParticipants] = useState<RosterParticipant[]>([]);
@@ -553,7 +555,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               <p className={`text-xs text-center ${guestPassesRemaining > 0 ? (isDark ? 'text-white/40' : 'text-[#293515]/40') : (isDark ? 'text-amber-400/70' : 'text-amber-600')}`}>
                 {guestPassesRemaining > 0
                   ? `${guestPassesRemaining} guest pass${guestPassesRemaining > 1 ? 'es' : ''} remaining this month`
-                  : 'No passes left — $25 guest fee applies'
+                  : `No passes left — $${guestFeeDollars} guest fee applies`
                 }
               </p>
             </div>
@@ -802,7 +804,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
             <p className={`text-sm ${guestPassesRemaining > 0 ? (isDark ? 'text-[#CCB8E4]' : 'text-[#5a4a6d]') : (isDark ? 'text-amber-400' : 'text-amber-700')}`}>
               {guestPassesRemaining > 0
                 ? <>You have <span className="font-semibold">{guestPassesRemaining}</span> guest pass{guestPassesRemaining !== 1 ? 'es' : ''} remaining</>
-                : 'No passes left — a $25 fee will apply'
+                : `No passes left — a $${guestFeeDollars} fee will apply`
               }
             </p>
           </div>

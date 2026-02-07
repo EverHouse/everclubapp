@@ -1627,7 +1627,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         }
       } else {
         fee = 25;
-        feeNote = 'Pending assignment - $25';
+        feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
       }
       
       return {
@@ -1662,8 +1662,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         guestPassesUsedThisBooking++;
         usedGuestPass = true;
       } else {
-        fee = 25;
-        feeNote = 'No passes - $25 due';
+        fee = PRICING.GUEST_FEE_DOLLARS;
+        feeNote = `No passes - $${PRICING.GUEST_FEE_DOLLARS} due`;
       }
       
       return {
@@ -1783,7 +1783,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           const participantFee = feeMap.get(gp.participant_id) || 0;
           guestsWithFees[i].fee = participantFee;
           guestsWithFees[i].usedGuestPass = gp.used_guest_pass || false;
-          guestsWithFees[i].feeNote = gp.used_guest_pass ? 'Guest Pass Used' : (participantFee > 0 ? 'No passes - $25 due' : 'No charge');
+          guestsWithFees[i].feeNote = gp.used_guest_pass ? 'Guest Pass Used' : (participantFee > 0 ? `No passes - $${PRICING.GUEST_FEE_DOLLARS} due` : 'No charge');
         }
         
         guestPassesUsedThisBooking = guestParticipants.filter(gp => gp.used_guest_pass).length;

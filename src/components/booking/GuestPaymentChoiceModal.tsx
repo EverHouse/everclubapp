@@ -3,6 +3,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
 import { StripePaymentForm } from '../stripe/StripePaymentForm';
 import SlideUpDrawer from '../SlideUpDrawer';
+import { usePricing } from '../../hooks/usePricing';
 
 interface GuestPaymentChoiceModalProps {
   bookingId: number;
@@ -43,6 +44,7 @@ export function GuestPaymentChoiceModal({
 }: GuestPaymentChoiceModalProps) {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
+  const { guestFeeDollars } = usePricing();
 
   const [step, setStep] = useState<'choice' | 'payment'>('choice');
   const [loading, setLoading] = useState(false);
@@ -280,7 +282,7 @@ export function GuestPaymentChoiceModal({
                       One-time charge for this visit
                     </p>
                     <p className={`text-lg font-bold mt-1 ${isDark ? 'text-white' : 'text-primary'}`}>
-                      $25.00
+                      ${guestFeeDollars.toFixed(2)}
                     </p>
                   </div>
                   {loading && guestPassesRemaining <= 0 && (

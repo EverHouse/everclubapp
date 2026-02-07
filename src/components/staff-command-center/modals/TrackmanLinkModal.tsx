@@ -3,6 +3,7 @@ import { SlideUpDrawer } from '../../SlideUpDrawer';
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import { useToast } from '../../Toast';
+import { usePricing } from '../../../hooks/usePricing';
 
 interface TrackmanLinkModalProps {
   isOpen: boolean;
@@ -60,6 +61,7 @@ export function TrackmanLinkModal({
   isLegacyReview,
   originalEmail
 }: TrackmanLinkModalProps) {
+  const { guestFeeDollars } = usePricing();
   const [slots, setSlots] = useState<SlotsArray>([
     { type: 'empty' },
     { type: 'empty' },
@@ -747,7 +749,7 @@ export function TrackmanLinkModal({
                   <p className="text-xs text-primary/60 dark:text-white/60">{slot.member.email}</p>
                 )}
                 {slot.type === 'guest_placeholder' && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">Guest fee: $25</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{`Guest fee: $${guestFeeDollars}`}</p>
                 )}
               </div>
             </div>
@@ -1310,7 +1312,7 @@ export function TrackmanLinkModal({
               className="w-full py-2 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-sm">person_add</span>
-              Quick Add Guest (+$25)
+              {`Quick Add Guest (+$${guestFeeDollars})`}
             </button>
           )}
         </div>
