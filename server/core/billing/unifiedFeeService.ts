@@ -54,18 +54,18 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
     let params: any[];
     
     if (sessionId) {
-      // Calculate session duration from session times (most accurate)
-      // Fall back to booking's duration_minutes if session times are missing
-      // When multiple bookings share a session, use the one with matching duration to avoid bugs
+      // Use the GREATER of session duration and booking duration
+      // Session times come from Trackman imports and may not reflect booking extensions
+      // Booking duration reflects staff-updated times and is authoritative
       query = `
         SELECT 
           bs.id as session_id,
           br.id as booking_id,
           bs.session_date,
           COALESCE(bs.start_time, br.start_time) as start_time,
-          COALESCE(
-            EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60,
-            br.duration_minutes
+          GREATEST(
+            COALESCE(EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60, 0),
+            COALESCE(br.duration_minutes, 0)
           )::int as duration_minutes,
           COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
           br.user_email as host_email,
@@ -79,14 +79,17 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
       `;
       params = [sessionId];
     } else {
-      // First try with session join
+      // First try with session join - use GREATEST to handle session/booking time mismatches
       query = `
         SELECT 
           bs.id as session_id,
           br.id as booking_id,
           COALESCE(bs.session_date, br.request_date) as session_date,
           br.start_time,
-          br.duration_minutes,
+          GREATEST(
+            COALESCE(EXTRACT(EPOCH FROM (bs.end_time - bs.start_time)) / 60, 0),
+            COALESCE(br.duration_minutes, 0)
+          )::int as duration_minutes,
           COALESCE(br.declared_player_count, br.trackman_player_count, br.guest_count + 1, 1) as declared_player_count,
           br.user_email as host_email,
           COALESCE(r.type, 'simulator') as resource_type

@@ -10,6 +10,7 @@ import { getStripeClient } from '../../core/stripe/client';
 import { getOrCreateStripeCustomer } from '../../core/stripe/customers';
 import { recordUsage } from '../../core/bookingService/sessionManager';
 import { updateVisitorTypeByUserId } from '../../core/visitors';
+import { PRICING } from '../../core/billing/pricingConfig';
 
 const router = Router();
 
@@ -1783,6 +1784,10 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         
         guestPassesUsedThisBooking = guestParticipants.filter(gp => gp.used_guest_pass).length;
         guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+        
+        const emptySlots = membersWithFees.filter(m => !m.userEmail);
+        const emptySlotFees = emptySlots.length * PRICING.GUEST_FEE_DOLLARS;
+        guestFeesWithoutPass += emptySlotFees;
       } else {
         const ownerMember = membersWithFees.find(m => m.isPrimary);
         const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);

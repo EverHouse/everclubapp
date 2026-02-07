@@ -27,7 +27,9 @@ export const changelog: ChangelogEntry[] = [
       "Safety: The 'Pull from Stripe' sync now refuses to overwrite tier limits (like daily simulator minutes) with zero if the current value is positive — prevents accidental billing breakage from missing Stripe feature keys",
       "Fix: If a member cancels and immediately resubscribes, the old cancellation notice from Stripe no longer accidentally locks out their new subscription",
       "Fix: Members who upgrade their tier now immediately get access to their new guest pass allowance — previously the old pass count stayed locked at the previous tier's limit",
-      "Fix: At check-in, if a member upgraded their tier since booking, the system now charges the lower fee instead of the old higher one from booking time"
+      "Fix: At check-in, if a member upgraded their tier since booking, the system now charges the lower fee instead of the old higher one from booking time",
+      "Fix: Bookings with empty player slots (e.g., 4-player booking with only 1 member assigned) now correctly show the $25/slot guest fee for unfilled positions — previously showed 'No fees due'",
+      "Fix: Fee calculations now use the longer of the Trackman session time vs. the booking time — when staff extend a booking (e.g., from 4 hours to 5 hours), the financial summary now matches the displayed booking duration instead of using the shorter original session time"
     ]
   },
   {
