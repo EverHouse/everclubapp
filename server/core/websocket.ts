@@ -598,7 +598,9 @@ export function broadcastToStaff(notification: {
   });
 
   let sent = 0;
-  clients.forEach((connections) => {
+  // Performance optimization: iterate only over staff connections (O(M)) instead of all clients (O(N))
+  staffEmails.forEach((email) => {
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -620,12 +622,12 @@ export function broadcastBookingEvent(event: BookingEvent) {
   });
 
   let sent = 0;
-  let totalConnections = 0;
   let staffConnections = 0;
   
-  clients.forEach((connections, email) => {
+  // Performance optimization: iterate only over staff connections (O(M)) instead of all clients (O(N))
+  staffEmails.forEach((email) => {
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
-      totalConnections++;
       if (conn.isStaff) {
         staffConnections++;
         if (conn.ws.readyState === WebSocket.OPEN) {
@@ -639,7 +641,7 @@ export function broadcastBookingEvent(event: BookingEvent) {
   if (sent > 0) {
     console.log(`[WebSocket] Broadcast booking event ${event.eventType} to ${sent} staff connections`);
   } else {
-    console.log(`[WebSocket] No staff connections for booking event ${event.eventType} (total: ${totalConnections}, staff: ${staffConnections}, staffEmails: ${Array.from(staffEmails).join(', ')})`);
+    console.log(`[WebSocket] No staff connections for booking event ${event.eventType} (staff: ${staffConnections}, staffEmails: ${Array.from(staffEmails).join(', ')})`);
   }
   return sent;
 }
@@ -726,7 +728,9 @@ export function broadcastDirectoryUpdate(action: 'synced' | 'updated' | 'created
   });
 
   let sent = 0;
-  clients.forEach((connections) => {
+  // Performance optimization: iterate only over staff connections (O(M)) instead of all clients (O(N))
+  staffEmails.forEach((email) => {
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -793,7 +797,9 @@ export function broadcastMemberDataUpdated(changedEmails: string[] = []) {
   });
 
   let sent = 0;
-  clients.forEach((connections) => {
+  // Performance optimization: iterate only over staff connections (O(M)) instead of all clients (O(N))
+  staffEmails.forEach((email) => {
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -825,8 +831,13 @@ export function broadcastMemberStatsUpdated(memberEmail: string, data: { guestPa
     }
   });
 
-  // Also broadcast to staff
-  clients.forEach((connections) => {
+  const memberEmailNormalized = memberEmail.toLowerCase();
+  // Also broadcast to staff (O(M) optimization)
+  staffEmails.forEach((email) => {
+    // Skip if we already sent to this member's connections above
+    if (email === memberEmailNormalized) return;
+
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -865,8 +876,13 @@ export function broadcastTierUpdate(data: {
     }
   });
 
-  // Also broadcast to all staff
-  clients.forEach((connections) => {
+  const memberEmailNormalized = memberEmail.toLowerCase();
+  // Also broadcast to all staff (O(M) optimization)
+  staffEmails.forEach((email) => {
+    // Skip if we already sent to this member's connections above
+    if (email === memberEmailNormalized) return;
+
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -889,7 +905,9 @@ export function broadcastDataIntegrityUpdate(action: 'check_complete' | 'issue_r
   });
 
   let sent = 0;
-  clients.forEach((connections) => {
+  // Performance optimization: iterate only over staff connections (O(M)) instead of all clients (O(N))
+  staffEmails.forEach((email) => {
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -937,8 +955,13 @@ export function broadcastBillingUpdate(data: {
     });
   }
 
-  // Also broadcast to all staff
-  clients.forEach((connections) => {
+  const memberEmailNormalized = data.memberEmail?.toLowerCase();
+  // Also broadcast to all staff (O(M) optimization)
+  staffEmails.forEach((email) => {
+    // Skip if we already sent to this member's connections above
+    if (memberEmailNormalized && email === memberEmailNormalized) return;
+
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
@@ -969,7 +992,9 @@ export function broadcastDayPassUpdate(data: {
   });
 
   let sent = 0;
-  clients.forEach((connections) => {
+  // Performance optimization: iterate only over staff connections (O(M)) instead of all clients (O(N))
+  staffEmails.forEach((email) => {
+    const connections = clients.get(email) || [];
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
         conn.ws.send(payload);
