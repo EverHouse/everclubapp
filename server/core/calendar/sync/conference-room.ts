@@ -406,6 +406,18 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
         const memberEmail = memberMatch.userEmail;
         const memberName = memberMatch.userName;
 
+        let memberId: string | null = null;
+        if (memberEmail) {
+          const userLookup = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(ilike(users.email, memberEmail))
+            .limit(1);
+          if (userLookup.length > 0) {
+            memberId = userLookup[0].id;
+          }
+        }
+
         const [startHour, startMin] = startTime.split(':').map(Number);
         const [endHour, endMin] = endTime.split(':').map(Number);
         const rawDuration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
@@ -458,6 +470,10 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           if (matchedBooking.status === 'pending') {
             updates.status = eventStatus;
           }
+          if (memberId && !matchedBooking.userId) {
+            updates.userId = memberId;
+            updates.userEmail = memberEmail;
+          }
           await db
             .update(bookingRequests)
             .set(updates)
@@ -467,6 +483,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           await db.insert(bookingRequests).values({
             userEmail: memberEmail || 'unknown@mindbody.com',
             userName: memberName,
+            userId: memberId,
             resourceId: conferenceRoomId,
             requestDate: eventDate,
             startTime: startTime,
