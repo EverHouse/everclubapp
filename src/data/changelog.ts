@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.7.0",
+    date: "2026-02-07",
+    title: "Sign in with Google — Link Your Google Account",
+    isMajor: true,
+    changes: [
+      "New: 'Sign in with Google' button on the login page — members can now tap to sign in instantly with their Google account instead of waiting for an email code",
+      "New: Connected Accounts section in profile settings — link or unlink your Google account anytime",
+      "New: Apple account linking coming soon (placeholder in settings)",
+      "Security: Google sign-in uses the same email matching system as OTP login — if your Google email is a known alternate, you'll be matched to your existing account automatically",
+    ],
+  },
+  {
     version: "7.6.2",
     date: "2026-02-07",
     title: "Login & HubSpot Sync Deduplication — Final Gaps Closed",

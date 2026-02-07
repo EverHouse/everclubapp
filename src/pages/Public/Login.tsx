@@ -5,6 +5,7 @@ import { useData } from '../../contexts/DataContext';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 
 const Spinner = () => (
   <WalkingGolferSpinner size="sm" variant="light" />
@@ -39,12 +40,44 @@ const Login: React.FC = () => {
   const [otpInputs, setOtpInputs] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   
+  const [googleLoading, setGoogleLoading] = useState(false);
+  
   const isDev = import.meta.env.DEV;
   
   const isPWA = typeof window !== 'undefined' && (
     (window.navigator as any).standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches
   );
+
+  const handleGoogleLogin = async (credential: string) => {
+    setGoogleLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/auth/google/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+        credentials: 'include'
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Google sign-in failed');
+      }
+      
+      loginWithMember(data.member);
+      
+      const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
+      startNavigation();
+      navigate(isStaff ? '/admin' : '/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Google sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const checkStaffAdmin = useCallback(async (emailToCheck: string) => {
     if (!emailToCheck || !emailToCheck.includes('@')) return;
@@ -447,6 +480,26 @@ const Login: React.FC = () => {
                     </button>
                   )}
                 </form>
+
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-black/10"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-white px-3 text-primary/40 font-medium">or</span>
+                  </div>
+                </div>
+
+                <GoogleSignInButton
+                  onSuccess={handleGoogleLogin}
+                  onError={(err) => setError(err)}
+                  disabled={loading || googleLoading}
+                />
+                {googleLoading && (
+                  <div className="text-center text-sm text-primary/60">
+                    Signing in with Google...
+                  </div>
+                )}
 
                 {showPasswordField && hasPassword && (
                   <div className="animate-pop-in">

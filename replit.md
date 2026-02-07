@@ -41,6 +41,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, transactional with row-level locking.
 - **Trackman Integration**: Unified 1:1 sync with CSV imports and webhooks for real-time booking and delta billing.
 - **Linked Email Addresses**: Supports alternate emails and auto-learns associations from Trackman imports.
+- **Google Sign-In**: Members can sign in with Google (via Google Identity Services popup) or link their Google account in profile settings. Uses `resolveUserByEmail()` for dedup safety. Backend verifies Google ID tokens via `google-auth-library`. Stores `google_id`, `google_email`, `google_linked_at` on the users table.
 - **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware.
 - **Notifications**: In-app real-time notifications and sequential notice dismissal, with 3-channel delivery.
 - **Real-Time Sync**: Instant updates via WebSocket and Supabase Realtime.
