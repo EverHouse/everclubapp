@@ -701,7 +701,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
                           </v:roundrect>
                           <![endif]-->
                           <!--[if !mso]><!-->
-                          <img src="${logoUrl}" alt="Ever Club" width="180" height="60" style="display: block; margin: 0 auto 24px auto; border: 0;">
+                          <img src="${logoUrl}" alt="Ever Club" width="180" height="60" style="display: block; margin: 0 auto 24px auto; border: 0; background-color: #ffffff;">
                           <!--<![endif]-->
                           <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #293515; font-family: 'Georgia', serif;">Hi ${firstName},</h1>
                           <p style="margin: 0; font-size: 16px; color: #666666; line-height: 1.5;">
@@ -737,7 +737,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
                         <td style="padding: 24px 40px; background-color: #f8f8f6; border-radius: 0 0 16px 16px; text-align: center;">
                           <p style="margin: 0; font-size: 12px; color: #999999;">
                             Ever Members Club<br>
-                            <span style="color: #CCB8E4;">Golf & Wellness</span>
+                            <span style="color: #293515;">Golf & Wellness</span>
                           </p>
                         </td>
                       </tr>
