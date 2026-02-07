@@ -1392,10 +1392,18 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
 
     broadcastMemberStatsUpdated(member.email, { lifetimeVisits: newVisitCount });
 
+    notifyMember({
+      userEmail: member.email,
+      title: 'Check-In Complete',
+      message: "Welcome back! You've been checked in by staff.",
+      type: 'booking',
+      relatedType: 'booking'
+    }).catch(err => console.error('[QR Checkin] Failed to send notification:', err));
+
     await pool.query(
-      `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      [member.email, 'Check-In Complete', `Welcome back! You've been checked in by staff.`, 'booking', 'booking']
+      `INSERT INTO walk_in_visits (member_email, member_id, checked_in_by, checked_in_by_name, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [member.email, memberId, staffEmail, staffName]
     );
 
     const pinnedNotesResult = await pool.query<{ content: string; created_by_name: string | null }>(

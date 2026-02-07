@@ -261,6 +261,16 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     }
   }, [isOpen, member, fetchMemberData]);
 
+  useEffect(() => {
+    const handleStatsUpdate = (event: CustomEvent) => {
+      if (isOpen && member?.email && event.detail?.memberEmail?.toLowerCase() === member.email.toLowerCase()) {
+        fetchMemberData();
+      }
+    };
+    window.addEventListener('member-stats-updated', handleStatsUpdate as EventListener);
+    return () => window.removeEventListener('member-stats-updated', handleStatsUpdate as EventListener);
+  }, [isOpen, member?.email, fetchMemberData]);
+
   useScrollLock(isOpen, onClose);
 
   const handleRemoveLinkedEmail = async (email: string) => {
