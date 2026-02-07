@@ -911,7 +911,7 @@ const Dashboard: React.FC = () => {
                   <div className="absolute inset-0 bg-glossy opacity-50"></div>
                   <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
                     <div className="flex justify-between items-start">
-                      <img src={useDarkLogo ? "/assets/logos/monogram-dark.webp" : "/assets/logos/monogram-white.webp"} className={`w-8 h-8 ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" />
+                      <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-6 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" />
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${cardTextColor}99` }}>Ever Club</span>
                         {isExpired && (
@@ -1440,7 +1440,7 @@ const Dashboard: React.FC = () => {
 
               {/* Header with Logo */}
               <div className="pt-6 pb-4 px-6 flex justify-center" style={{ backgroundColor: cardBgColor }}>
-                <img src={useDarkLogo ? "/assets/logos/monogram-dark.webp" : "/assets/logos/monogram-white.webp"} className="w-12 h-12" alt="" />
+                <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className="h-8 w-auto" alt="" />
               </div>
               
               {/* Member Info */}

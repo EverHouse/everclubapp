@@ -669,7 +669,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
     });
     
     // Send email synchronously to ensure delivery before responding
-    const logoUrl = 'https://everclub.app/assets/logos/monogram-dark.webp';
+    const logoUrl = 'https://everclub.app/images/everclub-logo-dark.webp';
     const startTime = Date.now();
     console.log(`[OTP Email] Starting send to ${normalizedEmail.substring(0, 5)}***`);
     
@@ -701,7 +701,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
                           </v:roundrect>
                           <![endif]-->
                           <!--[if !mso]><!-->
-                          <img src="${logoUrl}" alt="EH" width="72" height="72" style="display: block; margin: 0 auto 24px auto; border-radius: 50%; border: 0;">
+                          <img src="${logoUrl}" alt="Ever Club" width="180" height="60" style="display: block; margin: 0 auto 24px auto; border: 0;">
                           <!--<![endif]-->
                           <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #293515; font-family: 'Georgia', serif;">Hi ${firstName},</h1>
                           <p style="margin: 0; font-size: 16px; color: #666666; line-height: 1.5;">

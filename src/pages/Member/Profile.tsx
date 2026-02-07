@@ -1077,7 +1077,7 @@ const Profile: React.FC = () => {
 
                {/* Header with Logo */}
                <div className="pt-6 pb-4 px-6 flex justify-center" style={{ backgroundColor: cardBgColor }}>
-                   <img src={useDarkLogo ? "/assets/logos/monogram-dark.webp" : "/assets/logos/monogram-white.webp"} className="w-12 h-12" alt="" />
+                   <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className="h-8 w-auto" alt="" />
                </div>
                
                {/* Member Info */}

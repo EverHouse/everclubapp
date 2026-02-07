@@ -43,7 +43,7 @@ function getEmailWrapper(content: string): string {
           <!-- Logo -->
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
-              <img src="https://everclub.app/assets/logos/monogram-dark.webp" alt="Ever Club" width="60" height="60" style="display: inline-block;">
+              <img src="https://everclub.app/images/everclub-logo-dark.webp" alt="Ever Club" width="180" height="60" style="display: inline-block;">
             </td>
           </tr>
           
