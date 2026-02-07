@@ -106,6 +106,7 @@ async function gatherMemberData(email: string): Promise<MemberDataExport> {
       membership_status, role, join_date, 
       email_notifications_enabled, sms_notifications_enabled,
       booking_reminders_enabled, marketing_emails_enabled,
+      id_image_url,
       created_at, updated_at
     FROM users 
     WHERE LOWER(email) = $1

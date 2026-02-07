@@ -808,7 +808,7 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
     const sessionUser = getSessionUser(req);
     
     const userResult = await pool.query(
-      `SELECT id, email, first_name, last_name, membership_status, stripe_customer_id 
+      `SELECT id, email, first_name, last_name, membership_status, stripe_customer_id, id_image_url 
        FROM users WHERE id = $1`,
       [userId]
     );
@@ -832,6 +832,14 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
         console.log(`[Stripe] Deleted Stripe customer ${user.stripe_customer_id} for pending user cleanup`);
       } catch (stripeErr: any) {
         console.error(`[Stripe] Failed to delete Stripe customer during cleanup:`, stripeErr.message);
+      }
+    }
+    
+    if (user.id_image_url) {
+      try {
+        await pool.query('UPDATE users SET id_image_url = NULL WHERE id = $1', [userId]);
+      } catch (idErr: any) {
+        console.error(`[Stripe] Failed to clear ID image during cleanup:`, idErr.message);
       }
     }
     
