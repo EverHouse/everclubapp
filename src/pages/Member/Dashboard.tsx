@@ -1481,11 +1481,11 @@ const Dashboard: React.FC = () => {
               {/* QR Code for check-in */}
               {!isExpiredModal && user.id && (
                 <div className="px-6 pb-2 flex flex-col items-center" style={{ backgroundColor: cardBgColor }}>
-                  <div className="bg-white p-2.5 rounded-xl shadow-md">
+                  <div className="w-full bg-white p-3 rounded-xl shadow-md flex items-center justify-center">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`MEMBER:${user.id}`)}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`MEMBER:${user.id}`)}`}
                       alt="Member QR Code"
-                      className="w-28 h-28"
+                      className="w-full h-auto"
                     />
                   </div>
                   <p className="text-xs mt-2 opacity-50" style={{ color: cardTextColor }}>Show for quick check-in</p>
