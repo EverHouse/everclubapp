@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.4.2",
+    date: "2026-02-07",
+    title: "Complete Dynamic Pricing Coverage",
+    changes: [
+      "New: /api/pricing endpoint provides current guest fee and overage rate to all frontend components",
+      "Fix: Guest payment choice modal now shows the real Stripe price instead of hardcoded $25",
+      "Fix: Trackman link modal guest fee labels and Quick Add Guest button now show the real price",
+      "Fix: Roster manager 'no passes left' messaging now shows the real guest fee",
+      "Fix: Booking members editor guest add buttons and fee notices now show the real price",
+      "Fix: Trackman admin fee notes (pending assignment, no passes) now use the real guest fee from Stripe",
+      "Improvement: All components use a shared pricing hook with 5-minute caching for efficient updates"
+    ]
+  },
+  {
     version: "7.4.1",
     date: "2026-02-07",
     title: "Dynamic Stripe-Sourced Pricing",
