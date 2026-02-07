@@ -4,6 +4,7 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import Logo from '../components/Logo';
 import EmptyState from '../components/EmptyState';
+import { usePricing } from '@/hooks/usePricing';
 
 interface DayPassProduct {
   id: string;
@@ -128,21 +129,6 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
   );
 }
 
-function getCorporatePriceDisplay(count: number): number {
-  if (count >= 50) return 249;
-  if (count >= 20) return 275;
-  if (count >= 10) return 299;
-  if (count >= 5) return 325;
-  return 350;
-}
-
-function getPriceTier(count: number): string {
-  if (count >= 50) return '50+ employees';
-  if (count >= 20) return '20-49 employees';
-  if (count >= 10) return '10-19 employees';
-  return '5-9 employees';
-}
-
 interface CorporateCheckoutFormProps {
   tier: string;
   email?: string;
@@ -150,6 +136,7 @@ interface CorporateCheckoutFormProps {
 }
 
 function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateCheckoutFormProps) {
+  const { getCorporatePrice, corporateTiers } = usePricing();
   const [companyName, setCompanyName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [quantity, setQuantity] = useState(Math.max(initialQuantity, 5));
@@ -160,8 +147,16 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
   const [contactEmail, setContactEmail] = useState('');
   const [phone, setPhone] = useState('');
 
-  const pricePerSeat = getCorporatePriceDisplay(quantity);
+  const pricePerSeat = getCorporatePrice(quantity);
   const totalMonthly = pricePerSeat * quantity;
+
+  const getPriceTier = (count: number): string => {
+    const sorted = [...corporateTiers].sort((a, b) => b.minMembers - a.minMembers);
+    for (const t of sorted) {
+      if (count >= t.minMembers) return `${t.minMembers}+ employees`;
+    }
+    return '1-4 employees';
+  };
   const priceTier = getPriceTier(quantity);
 
   const handleQuantityChange = (delta: number) => {
@@ -372,10 +367,23 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
         <div className="mt-4 pt-4 border-t border-primary/10 dark:border-white/10">
           <h4 className="text-xs font-medium text-primary/60 dark:text-white/60 uppercase tracking-wide mb-2">Volume Discounts</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className={`p-2 rounded-lg ${quantity >= 5 && quantity < 10 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>5-9 seats: $325/mo</div>
-            <div className={`p-2 rounded-lg ${quantity >= 10 && quantity < 20 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>10-19 seats: $299/mo</div>
-            <div className={`p-2 rounded-lg ${quantity >= 20 && quantity < 50 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>20-49 seats: $275/mo</div>
-            <div className={`p-2 rounded-lg ${quantity >= 50 ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>50+ seats: $249/mo</div>
+            {corporateTiers.length > 0 && (
+              <div className={`p-2 rounded-lg ${quantity < (corporateTiers.reduce((min, t) => Math.min(min, t.minMembers), Infinity)) ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>
+                1-{Math.min(...corporateTiers.map(t => t.minMembers)) - 1} seats: ${corporateBasePrice}/mo
+              </div>
+            )}
+            {[...corporateTiers].sort((a, b) => a.minMembers - b.minMembers).map((t, i, arr) => {
+              const nextTier = arr[i + 1];
+              const label = nextTier ? `${t.minMembers}-${nextTier.minMembers - 1}` : `${t.minMembers}+`;
+              const isActive = nextTier
+                ? quantity >= t.minMembers && quantity < nextTier.minMembers
+                : quantity >= t.minMembers;
+              return (
+                <div key={t.minMembers} className={`p-2 rounded-lg ${isActive ? 'bg-accent/20 text-accent font-medium' : 'text-primary/60 dark:text-white/60'}`}>
+                  {label} seats: ${t.priceDollars}/mo
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

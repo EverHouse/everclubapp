@@ -60,7 +60,7 @@ const MembershipOverview: React.FC = () => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
-  const { guestFeeDollars } = usePricing();
+  const { guestFeeDollars, dayPassPrices } = usePricing();
   const [selectedPass, setSelectedPass] = useState<'workspace' | 'sim' | null>(null);
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,7 +276,7 @@ const MembershipOverview: React.FC = () => {
               <span className={`material-symbols-outlined font-light ${selectedPass === 'workspace' ? 'text-white' : 'text-primary'}`}>work</span>
               <div>
                  <p className="font-semibold text-sm">Workspace</p>
-                 <p className={`text-xs font-medium ${selectedPass === 'workspace' ? 'text-white/80' : 'text-primary/60'}`}>$35 / day</p>
+                 <p className={`text-xs font-medium ${selectedPass === 'workspace' ? 'text-white/80' : 'text-primary/60'}`}>${dayPassPrices['day-pass-coworking'] ?? 35} / day</p>
               </div>
            </button>
            <button 
@@ -286,7 +286,7 @@ const MembershipOverview: React.FC = () => {
               <span className={`material-symbols-outlined font-light ${selectedPass === 'sim' ? 'text-white' : 'text-primary'}`}>sports_golf</span>
               <div>
                  <p className="font-semibold text-sm">Golf Sim</p>
-                 <p className={`text-xs font-medium ${selectedPass === 'sim' ? 'text-white/80' : 'text-primary/60'}`}>$50 / 60min</p>
+                 <p className={`text-xs font-medium ${selectedPass === 'sim' ? 'text-white/80' : 'text-primary/60'}`}>${dayPassPrices['day-pass-golf-sim'] ?? 50} / 60min</p>
               </div>
            </button>
         </div>
@@ -352,21 +352,18 @@ const MembershipCard: React.FC<any> = ({ title, price, suffix="/mo", desc, featu
 
 const Corporate: React.FC = () => {
     const { setPageReady } = usePageReady();
+    const { getCorporatePrice, corporateTiers, corporateBasePrice } = usePricing();
     const [employeeCount, setEmployeeCount] = useState(5);
 
     const getPricePerEmployee = (count: number): number => {
-      if (count >= 50) return 249;
-      if (count >= 20) return 275;
-      if (count >= 10) return 299;
-      if (count >= 5) return 325;
-      return 350;
+      return getCorporatePrice(count);
     };
 
     const getPricingTier = (count: number): string => {
-      if (count >= 50) return '50+ employees';
-      if (count >= 20) return '20-49 employees';
-      if (count >= 10) return '10-19 employees';
-      if (count >= 5) return '5-9 employees';
+      const sorted = [...corporateTiers].sort((a, b) => b.minMembers - a.minMembers);
+      for (const t of sorted) {
+        if (count >= t.minMembers) return `${t.minMembers}+ employees`;
+      }
       return '1-4 employees';
     };
 
@@ -430,11 +427,17 @@ const Corporate: React.FC = () => {
              </div>
              
              <div className="bg-white/40 backdrop-blur-md rounded-[2rem] border border-white/60 shadow-sm overflow-hidden divide-y divide-primary/5">
-                <DiscountRow count="1–4" price="$350" icon="1+" isActive={employeeCount < 5} />
-                <DiscountRow count="5–9" price="$325" icon="5+" isActive={employeeCount >= 5 && employeeCount < 10} />
-                <DiscountRow count="10–19" price="$299" icon="10+" isActive={employeeCount >= 10 && employeeCount < 20} />
-                <DiscountRow count="20–49" price="$275" icon="20+" isActive={employeeCount >= 20 && employeeCount < 50} />
-                <DiscountRow count="50+" price="$249" icon="50+" isActive={employeeCount >= 50} />
+                <DiscountRow count="1–4" price={`$${corporateBasePrice}`} icon="1+" isActive={employeeCount < 5} />
+                {[...corporateTiers].sort((a, b) => a.minMembers - b.minMembers).map((t, i, arr) => {
+                  const nextTier = arr[i + 1];
+                  const label = nextTier ? `${t.minMembers}–${nextTier.minMembers - 1}` : `${t.minMembers}+`;
+                  const isActive = nextTier
+                    ? employeeCount >= t.minMembers && employeeCount < nextTier.minMembers
+                    : employeeCount >= t.minMembers;
+                  return (
+                    <DiscountRow key={t.minMembers} count={label} price={`$${t.priceDollars}`} icon={`${t.minMembers}+`} isActive={isActive} />
+                  );
+                })}
              </div>
 
              <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-sm p-6 mt-6">

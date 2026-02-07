@@ -15,8 +15,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "7.4.3",
     date: "2026-02-07",
-    title: "Complete Dynamic Pricing — Final Sweep",
+    title: "Complete Dynamic Pricing — All Prices From Stripe",
     changes: [
+      "New: /api/pricing endpoint now also serves corporate volume tier pricing and day pass prices from Stripe",
+      "New: Corporate volume discount tables on Membership page and Checkout page now pull prices dynamically from Stripe",
+      "New: Day pass prices (Workspace and Golf Sim) on Membership page now pull from the database, synced with Stripe",
       "New: /api/pricing endpoint provides current guest fee and overage rate to all frontend components",
       "Fix: Guest payment choice modal now shows the real Stripe price instead of hardcoded $25",
       "Fix: Trackman link modal guest fee labels and Quick Add Guest button now show the real price",
