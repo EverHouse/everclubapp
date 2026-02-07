@@ -622,16 +622,16 @@ const TiersTab: React.FC = () => {
                                     label="Active"
                                 />
                             </label>
-                            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors">
-                                <span className="text-sm text-primary dark:text-white">Show on Membership Page</span>
-                                <Toggle
-                                    checked={selectedTier?.show_on_membership_page ?? true}
-                                    onChange={(val) => selectedTier && setSelectedTier({...selectedTier, show_on_membership_page: val})}
-                                    label="Show on Membership Page"
-                                />
-                            </label>
                             {isMembershipTier && (
                                 <>
+                                    <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors">
+                                        <span className="text-sm text-primary dark:text-white">Show on Membership Page</span>
+                                        <Toggle
+                                            checked={selectedTier?.show_on_membership_page ?? true}
+                                            onChange={(val) => selectedTier && setSelectedTier({...selectedTier, show_on_membership_page: val})}
+                                            label="Show on Membership Page"
+                                        />
+                                    </label>
                                     <div>
                                         <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Button Text</label>
                                         <input 

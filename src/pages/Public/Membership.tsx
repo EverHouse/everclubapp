@@ -77,7 +77,7 @@ const MembershipOverview: React.FC = () => {
         const response = await fetch('/api/membership-tiers?active=true');
         if (response.ok) {
           const data = await response.json();
-          const filteredTiers = data.filter((t: MembershipTier) => t.show_on_membership_page !== false);
+          const filteredTiers = data.filter((t: MembershipTier) => t.show_on_membership_page !== false && t.product_type === 'subscription');
           setTiers(filteredTiers);
         }
       } catch (error) {
