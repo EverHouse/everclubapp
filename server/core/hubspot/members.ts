@@ -372,10 +372,22 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
   }
   
   try {
-    const existingUser = await pool.query(
-      `SELECT id, email, role, membership_status FROM users WHERE LOWER(email) = $1`,
-      [normalizedEmail]
-    );
+    const { resolveUserByEmail } = await import('../stripe/customers');
+    const resolved = await resolveUserByEmail(normalizedEmail);
+
+    const existingUser = resolved
+      ? await pool.query(
+          `SELECT id, email, role, membership_status FROM users WHERE id = $1`,
+          [resolved.userId]
+        )
+      : await pool.query(
+          `SELECT id, email, role, membership_status FROM users WHERE LOWER(email) = $1`,
+          [normalizedEmail]
+        );
+
+    if (resolved && resolved.matchType !== 'direct') {
+      console.log(`[AddMember] Email ${normalizedEmail} resolved to existing user ${resolved.primaryEmail} via ${resolved.matchType}`);
+    }
     
     if (existingUser.rows.length > 0) {
       const existing = existingUser.rows[0];
@@ -556,10 +568,22 @@ export async function createMemberWithDeal(input: AddMemberInput): Promise<AddMe
   const normalizedEmail = email.toLowerCase().trim();
   
   try {
-    const existingUser = await pool.query(
-      'SELECT id, email FROM users WHERE LOWER(email) = $1',
-      [normalizedEmail]
-    );
+    const { resolveUserByEmail } = await import('../stripe/customers');
+    const resolved = await resolveUserByEmail(normalizedEmail);
+
+    const existingUser = resolved
+      ? await pool.query(
+          'SELECT id, email FROM users WHERE id = $1',
+          [resolved.userId]
+        )
+      : await pool.query(
+          'SELECT id, email FROM users WHERE LOWER(email) = $1',
+          [normalizedEmail]
+        );
+
+    if (resolved && resolved.matchType !== 'direct') {
+      console.log(`[AddMemberWithDeal] Email ${normalizedEmail} resolved to existing user ${resolved.primaryEmail} via ${resolved.matchType}`);
+    }
     
     if (existingUser.rows.length > 0) {
       return { success: false, error: 'A member with this email already exists' };

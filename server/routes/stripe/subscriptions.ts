@@ -340,11 +340,24 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       return res.status(400).json({ error: 'email and tierSlug are required' });
     }
     
-    const existingUser = await pool.query(
-      `SELECT id, first_name, last_name, membership_status, created_at 
-       FROM users WHERE LOWER(email) = $1`,
-      [email.toLowerCase()]
-    );
+    const { resolveUserByEmail } = await import('../../core/stripe/customers');
+    const resolved = await resolveUserByEmail(email);
+
+    const existingUser = resolved
+      ? await pool.query(
+          `SELECT id, first_name, last_name, membership_status, created_at 
+           FROM users WHERE id = $1`,
+          [resolved.userId]
+        )
+      : await pool.query(
+          `SELECT id, first_name, last_name, membership_status, created_at 
+           FROM users WHERE LOWER(email) = $1`,
+          [email.toLowerCase()]
+        );
+
+    if (resolved && resolved.matchType !== 'direct') {
+      console.log(`[Stripe] Email ${email} resolved to existing user ${resolved.primaryEmail} via ${resolved.matchType}`);
+    }
     
     if (existingUser.rows.length > 0) {
       const existing = existingUser.rows[0];
@@ -624,11 +637,24 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
       return res.status(400).json({ error: 'email and tierSlug are required' });
     }
     
-    const existingUser = await pool.query(
-      `SELECT id, first_name, last_name, membership_status, created_at 
-       FROM users WHERE LOWER(email) = $1`,
-      [email.toLowerCase()]
-    );
+    const { resolveUserByEmail } = await import('../../core/stripe/customers');
+    const resolved = await resolveUserByEmail(email);
+
+    const existingUser = resolved
+      ? await pool.query(
+          `SELECT id, first_name, last_name, membership_status, created_at 
+           FROM users WHERE id = $1`,
+          [resolved.userId]
+        )
+      : await pool.query(
+          `SELECT id, first_name, last_name, membership_status, created_at 
+           FROM users WHERE LOWER(email) = $1`,
+          [email.toLowerCase()]
+        );
+
+    if (resolved && resolved.matchType !== 'direct') {
+      console.log(`[Activation Link] Email ${email} resolved to existing user ${resolved.primaryEmail} via ${resolved.matchType}`);
+    }
     
     if (existingUser.rows.length > 0) {
       const existing = existingUser.rows[0];

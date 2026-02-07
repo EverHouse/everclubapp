@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.6.1",
+    date: "2026-02-07",
+    title: "Deduplication Coverage Audit — 5 Additional Entry Points Secured",
+    changes: [
+      "Fix: New member signup (online checkout) now checks linked emails before creating a user — prevents duplicates when someone signs up with an alternate email we already know about",
+      "Fix: Activation link member creation now checks linked emails before creating a user — same protection for staff-initiated signups",
+      "Fix: HubSpot member creation (local) now checks linked emails before creating a user — prevents duplicates when staff adds members through HubSpot flow",
+      "Fix: HubSpot member creation (with deal) now checks linked emails before creating a user — same protection for deal-based member creation",
+      "Fix: Visitor creation now checks linked emails before creating a new visitor record — prevents duplicate visitors when someone uses an alternate email",
+      "Fix: Group billing family path now always uses ID-based updates when a user is resolved (consistent with corporate path)",
+      "Fix: resolveUserByEmail() now logs errors instead of silently swallowing them — database issues in linked-email checks will surface in logs immediately",
+    ],
+  },
+  {
     version: "7.6.0",
     date: "2026-02-07",
     title: "Comprehensive Stripe & User Deduplication — All Entry Points Protected",

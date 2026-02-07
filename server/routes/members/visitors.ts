@@ -464,10 +464,22 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     
     const normalizedEmail = email.toLowerCase().trim();
     
-    const existingUser = await pool.query(
-      'SELECT id, email, role, membership_status, first_name, last_name FROM users WHERE LOWER(email) = $1',
-      [normalizedEmail]
-    );
+    const { resolveUserByEmail } = await import('../../core/stripe/customers');
+    const resolved = await resolveUserByEmail(normalizedEmail);
+
+    const existingUser = resolved
+      ? await pool.query(
+          'SELECT id, email, role, membership_status, first_name, last_name FROM users WHERE id = $1',
+          [resolved.userId]
+        )
+      : await pool.query(
+          'SELECT id, email, role, membership_status, first_name, last_name FROM users WHERE LOWER(email) = $1',
+          [normalizedEmail]
+        );
+
+    if (resolved && resolved.matchType !== 'direct') {
+      console.log(`[Visitors] Email ${normalizedEmail} resolved to existing user ${resolved.primaryEmail} via ${resolved.matchType}`);
+    }
     
     if (existingUser.rows.length > 0) {
       const user = existingUser.rows[0];
