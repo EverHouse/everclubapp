@@ -17,7 +17,7 @@ import { logSystemAction } from '../auditLog';
 import { queueJobInTransaction } from '../jobQueue';
 import { pullTierFeaturesFromStripe, pullCafeItemsFromStripe } from './products';
 import { clearTierCache } from '../tierService';
-import { updateFamilyDiscountPercent } from '../billing/pricingConfig';
+import { updateFamilyDiscountPercent, updateOverageRate, updateGuestFee } from '../billing/pricingConfig';
 import type { PoolClient } from 'pg';
 
 const EVENT_DEDUP_WINDOW_DAYS = 7;
@@ -3136,6 +3136,16 @@ async function handlePriceChange(client: PoolClient, price: any): Promise<Deferr
         console.log(`[Stripe Webhook] Updated tier "${row.name}" price to ${priceCents} cents ($${priceDecimal})`);
       }
       clearTierCache();
+
+      const slugResult = await client.query(
+        `SELECT slug FROM membership_tiers WHERE stripe_product_id = $1`, [productId]
+      );
+      const slug = slugResult.rows[0]?.slug;
+      if (slug === 'simulator-overage-30min') {
+        updateOverageRate(priceCents);
+      } else if (slug === 'guest-pass') {
+        updateGuestFee(priceCents);
+      }
     }
   } catch (error) {
     console.error('[Stripe Webhook] Error handling price change:', error);

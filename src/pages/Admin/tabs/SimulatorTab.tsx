@@ -82,7 +82,7 @@ interface Bay {
 
 // Estimate fees based on tier, duration, and player count (when no session exists yet)
 // Returns estimated fee in dollars
-// IMPORTANT: Guest slots ALWAYS incur $25 fee unless a Core+ member fills the slot or guest pass is used
+// IMPORTANT: Guest slots ALWAYS incur guest fee unless a Core+ member fills the slot or guest pass is used
 function estimateFeeByTier(
     tier: string | null | undefined, 
     durationMinutes: number,
@@ -93,7 +93,7 @@ function estimateFeeByTier(
     const playerCount = Math.max(1, declaredPlayerCount);
     const guestCount = Math.max(0, playerCount - 1); // All non-owner slots are guests by default
     
-    // Guest fees: $25 per guest slot (always charged unless member with Core+ or guest pass)
+    // Guest fees per guest slot (default $25, actual value comes from API fee estimate)
     const guestFees = guestCount * 25;
     
     // If no tier, only charge guest fees
@@ -121,7 +121,7 @@ function estimateFeeByTier(
     // Calculate owner's overage (only owner pays overage based on their tier)
     const ownerOverageMinutes = Math.max(0, perPersonMinutes - includedMinutes);
     
-    // Fee is $25 per 30 min block, rounded up
+    // Fee per 30 min overage block (default $25, actual value comes from API fee estimate)
     const ownerOverageBlocks = ownerOverageMinutes > 0 ? Math.ceil(ownerOverageMinutes / 30) : 0;
     const ownerOverageFee = ownerOverageBlocks * 25;
     
@@ -908,6 +908,8 @@ const SimulatorTab: React.FC = () => {
         guestsUsingPasses: number;
         guestsCharged: number;
         guestFees: number;
+        guestFeePerUnit?: number;
+        overageRatePerBlock?: number;
       };
       note: string;
     } | null>(null);
@@ -2812,7 +2814,7 @@ const SimulatorTab: React.FC = () => {
                                             )}
                                             {feeEstimate.feeBreakdown.guestsCharged > 0 && (
                                                 <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-gray-600 dark:text-gray-400">{feeEstimate.feeBreakdown.guestsCharged} guest{feeEstimate.feeBreakdown.guestsCharged > 1 ? 's' : ''} @ $25</span>
+                                                    <span className="text-gray-600 dark:text-gray-400">{feeEstimate.feeBreakdown.guestsCharged} guest{feeEstimate.feeBreakdown.guestsCharged > 1 ? 's' : ''} @ ${feeEstimate.feeBreakdown.guestFeePerUnit || 25}</span>
                                                     <span className="text-amber-700 dark:text-amber-300">${feeEstimate.feeBreakdown.guestFees}</span>
                                                 </div>
                                             )}

@@ -52,7 +52,8 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Admin Tools**: Admin-configurable features, data integrity dashboard, and migration tools.
 - **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, data export, and admin audit log.
 - **Waiver Management**: Tracks waiver versions and enforces signing on login.
-- **Unified Fee Service**: Centralized `computeFeeBreakdown()` for all fee calculations.
+- **Unified Fee Service**: Centralized `computeFeeBreakdown()` for all fee calculations. Empty booking slots generate synthetic guest fee line items. Duration uses GREATEST(session, booking) to handle extensions.
+- **Dynamic Stripe-Sourced Pricing**: Guest fee and overage rate are pulled from Stripe product prices at startup and updated via webhooks. Only business logic (empty slots = guest fee, 30-min overage blocks, guest pass rules) is hardcoded; dollar amounts always come from Stripe.
 - **Webhook Safety**: Transactional dedup for Stripe webhooks, deferred action pattern, resource-based ordering.
 - **Roster Protection**: Optimistic locking with `roster_version` and row-level locking.
 - **Billing Management**: Staff Payments Dashboard, unified payment history, member billing, self-service portal, tier change wizard with proration, dunning, and refund processing.

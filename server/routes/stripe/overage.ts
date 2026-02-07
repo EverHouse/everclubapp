@@ -109,8 +109,10 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       return res.status(500).json({ error: 'Simulator overage product is not set up in Stripe yet. This usually resolves itself on server restart. Try refreshing in a minute.' });
     }
     
+    const { PRICING } = await import('../../core/billing/pricingConfig');
     const overageBlocks = Math.ceil(booking.overage_minutes / 30);
-    const description = `Simulator Overage: ${booking.overage_minutes} min (${overageBlocks} × 30 min @ $25)`;
+    const overageRateStr = (PRICING.OVERAGE_RATE_CENTS / 100).toFixed(0);
+    const description = `Simulator Overage: ${booking.overage_minutes} min (${overageBlocks} × 30 min @ $${overageRateStr})`;
     
     const paymentIntent = await stripe.paymentIntents.create({
       amount: booking.overage_fee_cents,

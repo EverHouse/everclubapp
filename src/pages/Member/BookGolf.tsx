@@ -116,6 +116,8 @@ interface FeeEstimateResponse {
     guestsUsingPasses: number;
     guestsCharged: number;
     guestPassesRemaining: number;
+    guestFeePerUnit?: number;
+    overageRatePerBlock?: number;
   };
 }
 
@@ -449,7 +451,8 @@ const BookGolf: React.FC = () => {
     if (!feeEstimateData) {
       return {
         overageFee: 0, guestFees: 0, totalFee: 0, guestCount: 0, overageMinutes: 0,
-        guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0, isLoading: feeEstimateLoading
+        guestsUsingPasses: 0, guestsCharged: 0, passesRemainingAfter: guestPassInfo?.passes_remaining ?? 0, isLoading: feeEstimateLoading,
+        guestFeePerUnit: 25, overageRatePerBlock: 25
       };
     }
     return {
@@ -461,7 +464,9 @@ const BookGolf: React.FC = () => {
       guestsUsingPasses: feeEstimateData.feeBreakdown.guestsUsingPasses,
       guestsCharged: feeEstimateData.feeBreakdown.guestsCharged,
       passesRemainingAfter: Math.max(0, feeEstimateData.feeBreakdown.guestPassesRemaining - feeEstimateData.feeBreakdown.guestCount),
-      isLoading: feeEstimateLoading
+      isLoading: feeEstimateLoading,
+      guestFeePerUnit: feeEstimateData.feeBreakdown.guestFeePerUnit || 25,
+      overageRatePerBlock: feeEstimateData.feeBreakdown.overageRatePerBlock || 25
     };
   }, [feeEstimateData, feeEstimateLoading, guestPassInfo?.passes_remaining]);
 
@@ -1940,7 +1945,7 @@ const BookGolf: React.FC = () => {
               {activeTab === 'simulator' && estimatedFees.guestsCharged > 0 && (
                 <div className="flex justify-between items-center">
                   <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                    {estimatedFees.guestsCharged} guest{estimatedFees.guestsCharged > 1 ? 's' : ''} @ $25
+                    {estimatedFees.guestsCharged} guest{estimatedFees.guestsCharged > 1 ? 's' : ''} @ ${estimatedFees.guestFeePerUnit || 25}
                   </span>
                   <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
                 </div>

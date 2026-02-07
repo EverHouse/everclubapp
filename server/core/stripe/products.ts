@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { getHubSpotClientWithFallback } from '../integrations';
 import { clearTierCache } from '../tierService';
-import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateCorporateVolumePricing, VolumeTier } from '../billing/pricingConfig';
+import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateCorporateVolumePricing, updateOverageRate, updateGuestFee, VolumeTier } from '../billing/pricingConfig';
 
 export interface HubSpotProduct {
   id: string;
@@ -891,6 +891,16 @@ export async function ensureSimulatorOverageProduct(): Promise<{
       .where(eq(membershipTiers.id, tierId));
     
     console.log(`[Overage Product] ${OVERAGE_NAME} ready (${stripePriceId})`);
+
+    try {
+      const actualPrice = await stripe.prices.retrieve(stripePriceId);
+      if (actualPrice.unit_amount && actualPrice.unit_amount > 0) {
+        updateOverageRate(actualPrice.unit_amount);
+      }
+    } catch (priceReadErr) {
+      console.warn('[Overage Product] Failed to read Stripe price, using default:', priceReadErr);
+    }
+
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
   } catch (error: any) {
     console.error('[Overage Product] Error:', error.message);
@@ -996,6 +1006,16 @@ export async function ensureGuestPassProduct(): Promise<{
       .where(eq(membershipTiers.id, tierId));
     
     console.log(`[Guest Pass Product] ${GUEST_PASS_NAME} ready (${stripePriceId})`);
+
+    try {
+      const actualPrice = await stripe.prices.retrieve(stripePriceId);
+      if (actualPrice.unit_amount && actualPrice.unit_amount > 0) {
+        updateGuestFee(actualPrice.unit_amount);
+      }
+    } catch (priceReadErr) {
+      console.warn('[Guest Pass Product] Failed to read Stripe price, using default:', priceReadErr);
+    }
+
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
   } catch (error: any) {
     console.error('[Guest Pass Product] Error:', error.message);

@@ -1327,7 +1327,9 @@ async function calculateFeeEstimate(params: {
         guestPassesRemaining: breakdown.totals.guestPassesAvailable,
         guestsUsingPasses,
         guestsCharged,
-        guestFees
+        guestFees,
+        guestFeePerUnit: Math.round(PRICING.GUEST_FEE_CENTS / 100),
+        overageRatePerBlock: Math.round(PRICING.OVERAGE_RATE_CENTS / 100),
       },
       totalFee: Math.round(breakdown.totals.totalCents / 100),
       note: isSocialTier 

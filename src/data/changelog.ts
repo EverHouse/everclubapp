@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.4.1",
+    date: "2026-02-07",
+    title: "Dynamic Stripe-Sourced Pricing",
+    changes: [
+      "Improvement: Guest fee and overage rate are now pulled directly from their Stripe products at startup — if you change the price on the Guest Pass or Simulator Overage product in Stripe, the app automatically picks up the new price",
+      "Improvement: When Stripe sends a price update notification (webhook), the app updates the in-memory price instantly — no server restart needed",
+      "Fix: All fee displays (booking page, member dashboard, staff simulator tab, overage payment dialog) now show the actual Stripe product price instead of a hardcoded $25",
+      "Technical: The only hardcoded logic is the business rules — empty slots = guest fee, 30-minute overage blocks, guest pass usage — the dollar amounts always come from Stripe"
+    ]
+  },
+  {
     version: "7.4.0",
     date: "2026-02-07",
     title: "Critical Billing & Payment Safety Fixes",

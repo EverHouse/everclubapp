@@ -1346,7 +1346,7 @@ const Dashboard: React.FC = () => {
               ${(overagePaymentBooking.amount / 100).toFixed(2)}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Overage: {overagePaymentBooking.minutes} minutes ({Math.ceil(overagePaymentBooking.minutes / 30)} x 30 min @ $25)
+              Overage: {overagePaymentBooking.minutes} minutes ({Math.ceil(overagePaymentBooking.minutes / 30)} × 30 min @ {overagePaymentBooking.minutes > 0 ? `$${Math.round((overagePaymentBooking.amount / 100) / Math.ceil(overagePaymentBooking.minutes / 30))}` : '$25'})
             </p>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-300">

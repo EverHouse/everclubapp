@@ -5,16 +5,34 @@
  * NEVER hardcode $25 or 2500 cents anywhere else.
  */
 
+let _overageRateCents = 2500;
+let _guestFeeCents = 2500;
+
 export const PRICING = {
-  // Overage rates
-  OVERAGE_RATE_DOLLARS: 25,
-  OVERAGE_RATE_CENTS: 2500,
+  get OVERAGE_RATE_DOLLARS() { return _overageRateCents / 100; },
+  get OVERAGE_RATE_CENTS() { return _overageRateCents; },
   OVERAGE_BLOCK_MINUTES: 30,
-  
-  // Guest fees
-  GUEST_FEE_DOLLARS: 25,
-  GUEST_FEE_CENTS: 2500,
-} as const;
+  get GUEST_FEE_DOLLARS() { return _guestFeeCents / 100; },
+  get GUEST_FEE_CENTS() { return _guestFeeCents; },
+};
+
+export function updateOverageRate(cents: number): void {
+  _overageRateCents = cents;
+  console.log('[PricingConfig] Overage rate updated from Stripe:', { cents, dollars: cents / 100 });
+}
+
+export function updateGuestFee(cents: number): void {
+  _guestFeeCents = cents;
+  console.log('[PricingConfig] Guest fee updated from Stripe:', { cents, dollars: cents / 100 });
+}
+
+export function getOverageRateCents(): number {
+  return _overageRateCents;
+}
+
+export function getGuestFeeCents(): number {
+  return _guestFeeCents;
+}
 
 export function calculateOverageCents(overageMinutes: number): number {
   return Math.ceil(overageMinutes / PRICING.OVERAGE_BLOCK_MINUTES) * PRICING.OVERAGE_RATE_CENTS;
