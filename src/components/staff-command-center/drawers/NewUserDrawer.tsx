@@ -8,6 +8,7 @@ import { SimpleCheckoutForm } from '../../stripe/StripePaymentForm';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { TerminalPayment } from '../TerminalPayment';
 import { formatPhoneInput } from '../../../utils/formatting';
+import IdScannerModal from '../modals/IdScannerModal';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
@@ -157,6 +158,8 @@ export function NewUserDrawer({
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   
   const [createdUser, setCreatedUser] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [showIdScanner, setShowIdScanner] = useState(false);
+  const [scannedIdImage, setScannedIdImage] = useState<{ base64: string; mimeType: string } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -176,6 +179,7 @@ export function NewUserDrawer({
     setError(null);
     setPendingUserToCleanup(null);
     setCreatedUser(null);
+    setScannedIdImage(null);
   }, [defaultMode]);
   
   const handleCleanupPendingUser = async () => {
@@ -261,6 +265,36 @@ export function NewUserDrawer({
     onClose();
   }, [onClose, setDrawerOpen]);
 
+  const handleIdScanComplete = useCallback((data: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    streetAddress: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    imageBase64: string;
+    imageMimeType: string;
+  }) => {
+    setScannedIdImage({ base64: data.imageBase64, mimeType: data.imageMimeType });
+    if (mode === 'member') {
+      setMemberForm(prev => ({
+        ...prev,
+        firstName: data.firstName || prev.firstName,
+        lastName: data.lastName || prev.lastName,
+        dob: data.dateOfBirth || prev.dob,
+      }));
+    } else {
+      setVisitorForm(prev => ({
+        ...prev,
+        firstName: data.firstName || prev.firstName,
+        lastName: data.lastName || prev.lastName,
+        dob: data.dateOfBirth || prev.dob,
+      }));
+    }
+    setShowIdScanner(false);
+  }, [mode]);
+
   const handleModeChange = (newMode: Mode) => {
     setMode(newMode);
     setError(null);
@@ -279,6 +313,7 @@ export function NewUserDrawer({
   };
 
   return (
+    <>
     <SlideUpDrawer
       isOpen={isOpen}
       onClose={handleClose}
@@ -368,13 +403,34 @@ export function NewUserDrawer({
             setCreatedUser(user);
             setMemberStep('success');
             onSuccess?.({ ...user, mode: 'member' });
+            if (scannedIdImage) {
+              fetch('/api/admin/save-id-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  userId: user.id,
+                  image: scannedIdImage.base64,
+                  mimeType: scannedIdImage.mimeType,
+                }),
+              }).catch(err => console.error('Failed to save ID image:', err));
+            }
           }}
           createdUser={createdUser}
           onClose={handleClose}
           showToast={showToast}
+          scannedIdImage={scannedIdImage}
+          onShowIdScanner={() => setShowIdScanner(true)}
         />
       </div>
     </SlideUpDrawer>
+    <IdScannerModal
+      isOpen={showIdScanner}
+      onClose={() => setShowIdScanner(false)}
+      onScanComplete={handleIdScanComplete}
+      isDark={isDark}
+    />
+  </>
   );
 }
 
@@ -395,6 +451,8 @@ interface MemberFlowProps {
   createdUser: { id: string; email: string; name: string } | null;
   onClose: () => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  scannedIdImage: { base64: string; mimeType: string } | null;
+  onShowIdScanner: () => void;
 }
 
 function MemberFlow({
@@ -414,6 +472,8 @@ function MemberFlow({
   createdUser,
   onClose,
   showToast,
+  scannedIdImage,
+  onShowIdScanner,
 }: MemberFlowProps) {
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -1337,6 +1397,26 @@ function MemberFlow({
 
   return (
     <div className="space-y-4">
+      <button
+        type="button"
+        onClick={onShowIdScanner}
+        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 border-dashed transition-colors ${
+          isDark
+            ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
+            : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
+        }`}
+      >
+        <span className="material-symbols-outlined text-xl">photo_camera</span>
+        <span className="text-sm font-medium">Scan Driver's License / ID</span>
+      </button>
+      {scannedIdImage && (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
+          isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+        }`}>
+          <span className="material-symbols-outlined text-sm">check_circle</span>
+          ID scanned — fields auto-filled
+        </div>
+      )}
       <div className="space-y-1">
         <label className={labelClass}>Membership Tier *</label>
         <select
@@ -1663,6 +1743,8 @@ interface VisitorFlowProps {
   onClose: () => void;
   onBookNow: () => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  scannedIdImage: { base64: string; mimeType: string } | null;
+  onShowIdScanner: () => void;
 }
 
 function VisitorFlow({
@@ -1680,6 +1762,8 @@ function VisitorFlow({
   onClose,
   onBookNow,
   showToast,
+  scannedIdImage,
+  onShowIdScanner,
 }: VisitorFlowProps) {
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -1756,8 +1840,21 @@ function VisitorFlow({
 
       const confirmData = await confirmRes.json();
       showToast('Day pass purchased successfully!', 'success');
+      const visitorId = confirmData.userId || 'visitor-' + Date.now();
+      if (scannedIdImage && visitorId && !visitorId.startsWith('visitor-')) {
+        fetch('/api/admin/save-id-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            userId: visitorId,
+            image: scannedIdImage.base64,
+            mimeType: scannedIdImage.mimeType,
+          }),
+        }).catch(err => console.error('Failed to save ID image:', err));
+      }
       onSuccess({
-        id: confirmData.userId || 'visitor-' + Date.now(),
+        id: visitorId,
         email: form.email,
         name: `${form.firstName} ${form.lastName}`
       });
@@ -1943,6 +2040,26 @@ function VisitorFlow({
 
   return (
     <div className="space-y-4">
+      <button
+        type="button"
+        onClick={onShowIdScanner}
+        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 border-dashed transition-colors ${
+          isDark
+            ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
+            : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
+        }`}
+      >
+        <span className="material-symbols-outlined text-xl">photo_camera</span>
+        <span className="text-sm font-medium">Scan Driver's License / ID</span>
+      </button>
+      {scannedIdImage && (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${
+          isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+        }`}>
+          <span className="material-symbols-outlined text-sm">check_circle</span>
+          ID scanned — fields auto-filled
+        </div>
+      )}
       <div className="space-y-1">
         <label className={labelClass}>Day Pass Product *</label>
         <select

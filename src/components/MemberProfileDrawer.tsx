@@ -12,6 +12,7 @@ import MemberBillingTab from './admin/MemberBillingTab';
 import MemberActivityTab from './admin/MemberActivityTab';
 import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 import { TIER_NAMES } from '../../shared/constants/tiers';
+import IdScannerModal from './staff-command-center/modals/IdScannerModal';
 
 const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '';
 
@@ -188,6 +189,12 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [isApplyingCredit, setIsApplyingCredit] = useState(false);
   const [creditAmount, setCreditAmount] = useState('');
   const [creditDescription, setCreditDescription] = useState('');
+  const [idImageUrl, setIdImageUrl] = useState<string | null>(null);
+  const [isLoadingIdImage, setIsLoadingIdImage] = useState(false);
+  const [showIdScanner, setShowIdScanner] = useState(false);
+  const [showIdImageFull, setShowIdImageFull] = useState(false);
+  const [isSavingIdImage, setIsSavingIdImage] = useState(false);
+  const [isDeletingIdImage, setIsDeletingIdImage] = useState(false);
 
   useEffect(() => {
     setDisplayedTier(member?.rawTier || member?.tier || '');
@@ -253,6 +260,22 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     }
   }, [member?.email]);
 
+  const fetchIdImage = useCallback(async () => {
+    if (!member?.id || !isAdmin) return;
+    setIsLoadingIdImage(true);
+    try {
+      const res = await fetch(`/api/admin/member/${encodeURIComponent(member.id)}/id-image`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setIdImageUrl(data.idImageUrl);
+      }
+    } catch (err) {
+      console.error('Failed to fetch ID image:', err);
+    } finally {
+      setIsLoadingIdImage(false);
+    }
+  }, [member?.id, isAdmin]);
+
   useEffect(() => {
     if (isOpen && member) {
       setActiveTab('overview');
@@ -260,6 +283,12 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       fetchMemberData();
     }
   }, [isOpen, member, fetchMemberData]);
+
+  useEffect(() => {
+    if (isOpen && member && isAdmin) {
+      fetchIdImage();
+    }
+  }, [isOpen, member, isAdmin, fetchIdImage]);
 
   useEffect(() => {
     const handleStatsUpdate = (event: CustomEvent) => {
@@ -272,6 +301,61 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   }, [isOpen, member?.email, fetchMemberData]);
 
   useScrollLock(isOpen, onClose);
+
+  const handleIdScanComplete = useCallback(async (data: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    streetAddress: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    imageBase64: string;
+    imageMimeType: string;
+  }) => {
+    if (!member?.id) return;
+    setShowIdScanner(false);
+    setIsSavingIdImage(true);
+    try {
+      const res = await fetch('/api/admin/save-id-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: member.id,
+          image: data.imageBase64,
+          mimeType: data.imageMimeType,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setIdImageUrl(result.imageUrl);
+      }
+    } catch (err) {
+      console.error('Failed to save ID image:', err);
+    } finally {
+      setIsSavingIdImage(false);
+    }
+  }, [member?.id]);
+
+  const handleDeleteIdImage = useCallback(async () => {
+    if (!member?.id) return;
+    setIsDeletingIdImage(true);
+    try {
+      const res = await fetch(`/api/admin/member/${encodeURIComponent(member.id)}/id-image`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setIdImageUrl(null);
+        setShowIdImageFull(false);
+      }
+    } catch (err) {
+      console.error('Failed to delete ID image:', err);
+    } finally {
+      setIsDeletingIdImage(false);
+    }
+  }, [member?.id]);
 
   const handleRemoveLinkedEmail = async (email: string) => {
     if (!member || !isAdmin) return;
@@ -653,10 +737,81 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               </div>
             )}
 
-            {(member?.dateOfBirth || member?.companyName || hasAddress || member?.emailOptIn !== null || member?.smsOptIn !== null) && (
+            {isAdmin && (
               <div 
                 className="animate-slide-up-stagger"
                 style={{ '--stagger-index': 2 } as React.CSSProperties}
+              >
+                <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <span className="material-symbols-outlined text-[18px]">badge</span>
+                      ID on File
+                    </h4>
+                    <button
+                      onClick={() => setShowIdScanner(true)}
+                      className={`text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
+                        isDark ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-emerald-600 hover:bg-emerald-50'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">photo_camera</span>
+                      {idImageUrl ? 'Re-scan' : 'Scan ID'}
+                    </button>
+                  </div>
+                  {isLoadingIdImage || isSavingIdImage ? (
+                    <div className="flex items-center justify-center py-6">
+                      <span className="material-symbols-outlined text-2xl text-gray-400 animate-spin">progress_activity</span>
+                    </div>
+                  ) : idImageUrl ? (
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setShowIdImageFull(true)}
+                        className="w-full rounded-lg overflow-hidden border border-white/10 hover:opacity-90 transition-opacity"
+                      >
+                        <img
+                          src={idImageUrl}
+                          alt="ID Document"
+                          className="w-full h-32 object-cover"
+                        />
+                      </button>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Tap to view full size
+                        </span>
+                        <button
+                          onClick={handleDeleteIdImage}
+                          disabled={isDeletingIdImage}
+                          className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <span className="material-symbols-outlined text-3xl mb-1">badge</span>
+                      <p className="text-xs">No ID on file</p>
+                      <button
+                        onClick={() => setShowIdScanner(true)}
+                        className={`mt-2 text-xs px-3 py-1.5 rounded-lg border border-dashed transition-colors ${
+                          isDark
+                            ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
+                            : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                      >
+                        Scan or Upload ID
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(member?.dateOfBirth || member?.companyName || hasAddress || member?.emailOptIn !== null || member?.smsOptIn !== null) && (
+              <div 
+                className="animate-slide-up-stagger"
+                style={{ '--stagger-index': 3 } as React.CSSProperties}
               >
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
                   <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -716,7 +871,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             {isAdmin && linkedEmails.length > 0 && (
               <div 
                 className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 3 } as React.CSSProperties}
+                style={{ '--stagger-index': 4 } as React.CSSProperties}
               >
                 <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
                   <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1746,6 +1901,32 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           {renderContent()}
         </div>
       </div>
+      {showIdImageFull && idImageUrl && (
+        <div 
+          className="fixed inset-0 z-[10060] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowIdImageFull(false)}
+        >
+          <div className="relative max-w-lg w-full" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowIdImageFull(false)}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <img
+              src={idImageUrl}
+              alt="ID Document Full Size"
+              className="w-full rounded-xl"
+            />
+          </div>
+        </div>
+      )}
+      <IdScannerModal
+        isOpen={showIdScanner}
+        onClose={() => setShowIdScanner(false)}
+        onScanComplete={handleIdScanComplete}
+        isDark={isDark}
+      />
     </div>
   );
 

@@ -62,6 +62,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Grace Period System**: 3-day grace period for billing failures.
 - **Day Pass System**: Non-member day pass purchases with visitor matching and QR code delivery.
 - **QR Code System**: QR codes for day passes and member check-in (on membership card popup). Walk-in QR check-in records visits without a booking. Staff sees confirmation modal with member name, tier, and pinned notes.
+- **ID/License Scanning**: Staff can scan driver's licenses or ID cards when registering new members/visitors. Uses OpenAI Vision (GPT-4o) to extract name, DOB, and address fields. Includes live camera preview with guide overlay, file upload option, and image quality feedback. Scanned ID images are stored in object storage and linked to the user record (`id_image_url` column). Staff can view, re-scan, or remove ID images from the Member Profile Drawer. Routes: `POST /api/admin/scan-id`, `POST /api/admin/save-id-image`, `GET/DELETE /api/admin/member/:userId/id-image`. Component: `IdScannerModal.tsx`.
 - **Corporate Membership**: Unified billing groups, volume pricing, corporate checkout, HubSpot sync, individual tracking.
 - **Data Integrity Architecture**: Stripe as source of truth for billing, transaction rollback, webhook idempotency, and dual-source active tracking with HubSpot.
 - **Stripe Member Auto-Fix**: Login flow verifies Stripe subscription status and corrects `membership_status`.

@@ -86,6 +86,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by"),
+  idImageUrl: text("id_image_url"),
 }, (table) => [
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
   index("users_membership_status_idx").on(table.membershipStatus),
