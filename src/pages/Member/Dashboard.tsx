@@ -904,7 +904,7 @@ const Dashboard: React.FC = () => {
               return (
                 <div 
                   onClick={() => setIsCardOpen(true)} 
-                  className={`relative h-48 lg:h-full lg:min-h-48 w-full rounded-[1.5rem] overflow-hidden cursor-pointer transform transition-transform active:scale-95 shadow-layered group animate-slide-up-stagger ${isExpired ? 'grayscale-[30%]' : ''}`}
+                  className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-[1.5rem] overflow-hidden cursor-pointer transform transition-transform active:scale-95 shadow-layered group animate-slide-up-stagger ${isExpired ? 'grayscale-[30%]' : ''}`}
                   style={{ '--stagger-index': 2 } as React.CSSProperties}
                 >
                   <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
@@ -1427,8 +1427,6 @@ const Dashboard: React.FC = () => {
         const tierColors = getTierColor(user.tier || 'Social');
         const cardBgColor = isExpiredModal ? '#6B7280' : (isStaffOrAdminProfile ? '#293515' : tierColors.bg);
         const cardTextColor = isExpiredModal ? '#F9FAFB' : (isStaffOrAdminProfile ? '#F2F2EC' : tierColors.text);
-        const baseTier = getBaseTier(user.tier || 'Social');
-        const useDarkLogo = isExpiredModal || (!isStaffOrAdminProfile && ['Social', 'Premium', 'VIP'].includes(baseTier));
         return (
           <div className="flex flex-col items-center">
             <div className={`w-full rounded-[2rem] relative overflow-hidden shadow-2xl flex flex-col ${isExpiredModal ? 'grayscale-[30%]' : ''}`} style={{ backgroundColor: cardBgColor }}>
@@ -1438,13 +1436,8 @@ const Dashboard: React.FC = () => {
                 <span className="material-symbols-outlined text-sm">close</span>
               </button>
 
-              {/* Header with Logo */}
-              <div className="pt-6 pb-4 px-6 flex justify-center" style={{ backgroundColor: cardBgColor }}>
-                <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className="h-8 w-auto" alt="" />
-              </div>
-              
               {/* Member Info */}
-              <div className="px-6 pb-6 text-center" style={{ backgroundColor: cardBgColor }}>
+              <div className="pt-6 px-6 pb-4 text-center" style={{ backgroundColor: cardBgColor }}>
                 <h2 className="text-2xl font-bold mb-3" style={{ color: cardTextColor }}>{user.name}</h2>
                 
                 <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
@@ -1481,7 +1474,7 @@ const Dashboard: React.FC = () => {
               {/* QR Code for check-in */}
               {!isExpiredModal && user.id && (
                 <div className="px-6 pb-2 flex flex-col items-center" style={{ backgroundColor: cardBgColor }}>
-                  <div className="bg-white p-2.5 rounded-xl shadow-md flex items-center justify-center" style={{ width: '45%', aspectRatio: '1' }}>
+                  <div className="bg-white p-2.5 rounded-xl shadow-md flex items-center justify-center" style={{ width: '55%', aspectRatio: '1' }}>
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`MEMBER:${user.id}`)}`}
                       alt="Member QR Code"
