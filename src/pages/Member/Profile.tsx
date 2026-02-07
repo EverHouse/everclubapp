@@ -424,9 +424,15 @@ const Profile: React.FC = () => {
            </div>
          )}
 
+         <Section title="Account" isDark={isDark} staggerIndex={1}>
+            <Row icon="person" label="Name" value={user.name} isDark={isDark} />
+            <Row icon="mail" label="Email" value={user.email} isDark={isDark} />
+            <Row icon="call" label="Phone" value={formatPhoneNumber(staffDetails?.phone || user.phone)} isDark={isDark} />
+         </Section>
+
          {/* Account Balance Section - only for members, not staff/admin */}
          {!isStaffOrAdminProfile && (
-           <Section title="Account Balance" isDark={isDark} staggerIndex={1}>
+           <Section title="Account Balance" isDark={isDark} staggerIndex={2}>
              <div className={`p-4 ${isDark ? '' : ''}`}>
                <div className="flex items-center justify-between mb-4">
                  <div className="flex items-center gap-4">
@@ -484,13 +490,14 @@ const Profile: React.FC = () => {
            </Section>
          )}
 
-         <Section title="Account" isDark={isDark} staggerIndex={2}>
-            <Row icon="person" label="Name" value={user.name} isDark={isDark} />
-            <Row icon="mail" label="Email" value={user.email} isDark={isDark} />
-            <Row icon="call" label="Phone" value={formatPhoneNumber(staffDetails?.phone || user.phone)} isDark={isDark} />
-         </Section>
+         {/* Billing Section - only for members, not staff/admin */}
+         {!isStaffOrAdminProfile && (
+           <Section title="Billing & Invoices" isDark={isDark} staggerIndex={3}>
+             <BillingSection isDark={isDark} />
+           </Section>
+         )}
 
-         <Section title="Settings" isDark={isDark} staggerIndex={3}>
+         <Section title="Settings" isDark={isDark} staggerIndex={4}>
             <div className={`p-4 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>
               <div className="flex items-center gap-4">
                 <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>notifications</span>
@@ -627,7 +634,7 @@ const Profile: React.FC = () => {
             <Row icon="lock" label="Privacy" arrow isDark={isDark} onClick={() => setShowPrivacyModal(true)} />
          </Section>
 
-         <Section title="Connected Accounts" isDark={isDark} staggerIndex={3.5}>
+         <Section title="Connected Accounts" isDark={isDark} staggerIndex={5}>
            <div className={`p-4 transition-colors ${isDark ? '' : ''}`}>
              <div className="flex items-center justify-between">
                <div className="flex items-center gap-4">
@@ -688,13 +695,6 @@ const Profile: React.FC = () => {
              </div>
            </div>
          </Section>
-
-         {/* Billing Section - only for members, not staff/admin */}
-         {!isStaffOrAdminProfile && (
-           <Section title="Billing & Invoices" isDark={isDark} staggerIndex={4}>
-             <BillingSection isDark={isDark} />
-           </Section>
-         )}
 
          {/* Password Setup Banner for Staff/Admin */}
          {showPasswordSetupBanner && isStaffOrAdminProfile && (
