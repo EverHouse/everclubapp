@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.10.1",
+    date: "2026-02-07",
+    title: "ID Scan Address Auto-Fill",
+    changes: [
+      "Improvement: ID scanning now auto-fills address fields (street, city, state, zip) in addition to name and date of birth — for new members, visitors, and sub-members",
+      "Improvement: Address data from scanned IDs is now saved to the member's record and syncs to HubSpot",
+      "Improvement: All user creation flows (new member signup, day pass purchase, group member add, activation link) now pass address through to the database",
+    ],
+  },
+  {
     version: "7.10.0",
     date: "2026-02-07",
     title: "ID & Driver's License Scanning",
