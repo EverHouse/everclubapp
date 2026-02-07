@@ -12,6 +12,7 @@ import { useIsMobile } from '../../../hooks/useBreakpoint';
 import { useCafeMenu } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 import RedeemDayPassSection from './RedeemPassCard';
+import IdScannerModal from '../../staff-command-center/modals/IdScannerModal';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
@@ -79,6 +80,8 @@ const POSRegister: React.FC = () => {
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+  const [showIdScanner, setShowIdScanner] = useState(false);
+  const [scannedIdImage, setScannedIdImage] = useState<{ base64: string; mimeType: string } | null>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -408,7 +411,55 @@ const POSRegister: React.FC = () => {
     setSuccess(false);
     setReceiptSent(false);
     setReceiptSending(false);
+    setScannedIdImage(null);
   };
+
+  const handleIdScanComplete = useCallback((data: {
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    streetAddress: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    imageBase64: string;
+    imageMimeType: string;
+  }) => {
+    setScannedIdImage({ base64: data.imageBase64, mimeType: data.imageMimeType });
+    setNewCustomerFirstName(data.firstName || '');
+    setNewCustomerLastName(data.lastName || '');
+    setShowIdScanner(false);
+  }, []);
+
+  useEffect(() => {
+    if (!success || !scannedIdImage || !useNewCustomer) return;
+    const email = newCustomerEmail.trim();
+    if (!email) return;
+
+    (async () => {
+      try {
+        const searchRes = await fetch(`/api/members/search?q=${encodeURIComponent(email)}&limit=1`, { credentials: 'include' });
+        if (searchRes.ok) {
+          const results = await searchRes.json();
+          const user = Array.isArray(results) ? results.find((u: any) => u.email?.toLowerCase() === email.toLowerCase()) : null;
+          if (user?.id) {
+            await fetch('/api/admin/save-id-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                userId: user.id,
+                image: scannedIdImage.base64,
+                mimeType: scannedIdImage.mimeType,
+              }),
+            });
+          }
+        }
+      } catch (err) {
+        console.error('[POS] Failed to save scanned ID image:', err);
+      }
+    })();
+  }, [success, scannedIdImage, useNewCustomer, newCustomerEmail]);
 
   const renderProductCard = (product: { productId: string; name: string; priceCents: number; icon: string }) => (
     <button
@@ -630,20 +681,31 @@ const POSRegister: React.FC = () => {
       <div className="space-y-3">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm font-medium text-primary dark:text-white">New Customer</span>
-          <button
-            type="button"
-            onClick={() => {
-              setUseNewCustomer(false);
-              setNewCustomerFirstName('');
-              setNewCustomerLastName('');
-              setNewCustomerEmail('');
-              setNewCustomerPhone('');
-            }}
-            className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-base">search</span>
-            Search existing
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowIdScanner(true)}
+              className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-base">badge</span>
+              Scan ID
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUseNewCustomer(false);
+                setNewCustomerFirstName('');
+                setNewCustomerLastName('');
+                setNewCustomerEmail('');
+                setNewCustomerPhone('');
+                setScannedIdImage(null);
+              }}
+              className="text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-base">search</span>
+              Search existing
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -695,6 +757,12 @@ const POSRegister: React.FC = () => {
             className="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
           />
         </div>
+        {scannedIdImage && (
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs mt-1">
+            <span className="material-symbols-outlined text-sm">check_circle</span>
+            ID scanned — image will be saved with this customer
+          </div>
+        )}
       </div>
     );
   };
@@ -1159,6 +1227,13 @@ const POSRegister: React.FC = () => {
       >
         {renderDrawerContent()}
       </SlideUpDrawer>
+
+      <IdScannerModal
+        isOpen={showIdScanner}
+        onClose={() => setShowIdScanner(false)}
+        onScanComplete={handleIdScanComplete}
+        isDark={isDark}
+      />
     </div>
   );
 };
