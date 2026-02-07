@@ -4,6 +4,7 @@ import { trainingSections } from '../../shared/schema';
 import { eq, asc, and } from 'drizzle-orm';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
+import { PRICING } from '../core/billing/pricingConfig';
 
 const router = Router();
 
@@ -66,7 +67,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Player Slots', content: 'Empty slots appear as dashed boxes with an "ADD Player" button. The number of slots is determined by the player count set when the booking was made.' },
       { title: 'Adding Members', content: 'Tap "ADD Player" to search for club members by name or email. When you select a member, they are immediately added to the booking.' },
       { title: 'Adding Guests', content: 'To add a non-member guest, use the guest option. You\'ll need to provide the guest\'s name and email (required for billing purposes).' },
-      { title: 'Guest Pass Status', content: 'Green badge = Member has guest passes available, no fee charged. Blue badge = No passes remaining, $25 guest fee applies.' },
+      { title: 'Guest Pass Status', content: `Green badge = Member has guest passes available, no fee charged. Blue badge = No passes remaining, $${PRICING.GUEST_FEE_DOLLARS} guest fee applies.` },
       { title: 'Roster Status Bar', content: 'Green status bar = all player slots are filled and ready. Amber status bar = slots still unfilled, needs attention before check-in.' },
       { title: 'Check-In Requirement', content: 'Check-in is disabled until all player slots are filled. This ensures accurate billing for all participants.' },
       { title: 'Removing Players', content: 'Tap the X button on any non-owner player to remove them from the booking. Guests can be removed the same way.' },
@@ -84,8 +85,8 @@ export const TRAINING_SEED_DATA = [
       { title: 'Starting Check-In', content: 'When a member arrives for their booking, tap the check-in button on the booking card. This opens the billing screen.', pageIcon: 'point_of_sale' },
       { title: 'Complete Roster First', content: 'Check-in is disabled until all player slots are filled. If the roster is incomplete, you\'ll see a prompt to add the remaining players before proceeding.' },
       { title: 'Understanding the Fee Breakdown', content: 'The billing screen shows each person on the booking with their individual fees. Color-coded badges help you quickly see what type of fee applies.' },
-      { title: 'Orange Badge = Time Overage', content: 'An orange badge means the person exceeded their daily time allowance and owes an overage fee ($25 per extra 30-minute block).' },
-      { title: 'Blue Badge = Guest Fee', content: 'A blue badge indicates a flat $25 guest fee for bringing a non-member who doesn\'t have a guest pass covering them.' },
+      { title: 'Orange Badge = Time Overage', content: `An orange badge means the person exceeded their daily time allowance and owes an overage fee ($${PRICING.OVERAGE_RATE_DOLLARS} per extra ${PRICING.OVERAGE_BLOCK_MINUTES}-minute block).` },
+      { title: 'Blue Badge = Guest Fee', content: `A blue badge indicates a flat $${PRICING.GUEST_FEE_DOLLARS} guest fee for bringing a non-member who doesn't have a guest pass covering them.` },
       { title: 'Green Badge = Guest Pass Used', content: 'A green badge means the member used one of their monthly guest passes, so no guest fee is charged for that guest.' },
       { title: 'Tier & Allowance Info', content: 'Each person\'s row shows their membership tier and how much daily time they have left. This helps explain why overage fees apply.' },
       { title: 'Confirming Payments', content: 'You can mark individual payments as paid, or confirm all at once. Use "Waive" if a fee should be forgiven (you must enter a reason).' },

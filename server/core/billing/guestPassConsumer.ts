@@ -290,7 +290,7 @@ export async function refundGuestPassForParticipant(
         }
       }
     } catch (err) {
-      console.warn('[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $25:', err);
+      console.warn(`[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $${PRICING.GUEST_FEE_DOLLARS}:`, err);
     }
     
     await client.query(

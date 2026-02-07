@@ -6,6 +6,7 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
+import { usePricing } from '../../hooks/usePricing';
 
 interface MembershipTier {
   id: number;
@@ -59,6 +60,7 @@ const MembershipOverview: React.FC = () => {
   const navigate = useNavigate();
   const { startNavigation } = useNavigationLoading();
   const { setPageReady } = usePageReady();
+  const { guestFeeDollars } = usePricing();
   const [selectedPass, setSelectedPass] = useState<'workspace' | 'sim' | null>(null);
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -415,7 +417,7 @@ const Corporate: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-semibold text-primary text-lg leading-tight mb-2">15 Annual Guest Passes</h3>
-                        <p className="text-sm text-primary/60 leading-relaxed font-light">Bring clients or partners anytime. After 15 passes, guests are just $25/visit.</p>
+                        <p className="text-sm text-primary/60 leading-relaxed font-light">Bring clients or partners anytime. After 15 passes, guests are just ${guestFeeDollars}/visit.</p>
                     </div>
                 </li>
             </ul>

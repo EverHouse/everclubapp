@@ -23,6 +23,9 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Roster manager 'no passes left' messaging now shows the real guest fee",
       "Fix: Booking members editor guest add buttons and fee notices now show the real price",
       "Fix: Trackman admin fee notes (pending assignment, no passes) now use the real guest fee from Stripe",
+      "Fix: Public membership page now shows the real guest fee in the '15 Annual Guest Passes' description",
+      "Fix: Member dashboard overage dialog fallback now uses the real overage rate instead of hardcoded $25",
+      "Fix: Staff training guide content now displays the real guest fee and overage rate from Stripe",
       "Improvement: All components use a shared pricing hook with 5-minute caching for efficient updates"
     ]
   },

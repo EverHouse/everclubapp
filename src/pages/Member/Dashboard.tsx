@@ -13,6 +13,7 @@ import WelcomeBanner from '../../components/WelcomeBanner';
 import { formatDateShort, getTodayString, getPacificHour, CLUB_TIMEZONE, formatDateTimePacific, formatMemberSince, formatTime12Hour, getNowTimePacific } from '../../utils/dateUtils';
 import { downloadICalFile } from '../../utils/icalUtils';
 import { DashboardSkeleton } from '../../components/skeletons';
+import { usePricing } from '../../hooks/usePricing';
 import { SmoothReveal } from '../../components/motion/SmoothReveal';
 import { getBaseTier, isFoundingMember } from '../../utils/permissions';
 import { getTierColor } from '../../utils/tierUtils';
@@ -153,6 +154,7 @@ const Dashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const { user, actualUser, viewAsUser, isViewingAs, addBooking, deleteBooking } = useData();
   const { effectiveTheme } = useTheme();
+  const { overageRatePerBlockDollars } = usePricing();
   
   const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
   // For View As mode, use the viewed member's email for API calls
@@ -1346,7 +1348,7 @@ const Dashboard: React.FC = () => {
               ${(overagePaymentBooking.amount / 100).toFixed(2)}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Overage: {overagePaymentBooking.minutes} minutes ({Math.ceil(overagePaymentBooking.minutes / 30)} × 30 min @ {overagePaymentBooking.minutes > 0 ? `$${Math.round((overagePaymentBooking.amount / 100) / Math.ceil(overagePaymentBooking.minutes / 30))}` : '$25'})
+              Overage: {overagePaymentBooking.minutes} minutes ({Math.ceil(overagePaymentBooking.minutes / 30)} × 30 min @ {overagePaymentBooking.minutes > 0 ? `$${Math.round((overagePaymentBooking.amount / 100) / Math.ceil(overagePaymentBooking.minutes / 30))}` : `$${overageRatePerBlockDollars}`})
             </p>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-300">
