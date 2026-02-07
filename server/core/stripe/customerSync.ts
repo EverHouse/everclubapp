@@ -1,6 +1,5 @@
 import { pool } from '../db';
-import { getStripeClient } from './client';
-import { isPlaceholderEmail } from './customers';
+import { isPlaceholderEmail, getOrCreateStripeCustomer } from './customers';
 
 export interface CustomerSyncResult {
   success: boolean;
@@ -27,8 +26,6 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
   };
 
   try {
-    const stripe = await getStripeClient();
-    
     console.log('[Stripe Customer Sync] Starting sync for MindBody members...');
     
     const membersResult = await pool.query(`
@@ -61,40 +58,17 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
           continue;
         }
         
-        const existingCustomers = await stripe.customers.list({
-          email: member.email.toLowerCase(),
-          limit: 1
-        });
-        
-        let customerId: string;
-        let action: 'created' | 'linked';
-        
-        if (existingCustomers.data.length > 0) {
-          customerId = existingCustomers.data[0].id;
-          action = 'linked';
-          result.linked++;
-          console.log(`[Stripe Customer Sync] Linked existing customer ${customerId} for ${member.email}`);
-        } else {
-          const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
-          const customer = await stripe.customers.create({
-            email: member.email.toLowerCase(),
-            name: fullName,
-            metadata: {
-              source: 'mindbody_presync',
-              tier: member.tier || '',
-              userId: member.id,
-            }
-          });
-          customerId = customer.id;
-          action = 'created';
+        const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
+        const custResult = await getOrCreateStripeCustomer(member.id, member.email.toLowerCase(), fullName, member.tier);
+        const customerId = custResult.customerId;
+        const action: 'created' | 'linked' = custResult.isNew ? 'created' : 'linked';
+        if (custResult.isNew) {
           result.created++;
           console.log(`[Stripe Customer Sync] Created customer ${customerId} for ${member.email}`);
+        } else {
+          result.linked++;
+          console.log(`[Stripe Customer Sync] Linked existing customer ${customerId} for ${member.email}`);
         }
-        
-        await pool.query(
-          `UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2`,
-          [customerId, member.id]
-        );
         
         result.details.push({
           email: member.email,

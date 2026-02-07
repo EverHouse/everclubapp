@@ -119,42 +119,32 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       }
     } else if (metadata?.ownerEmail) {
       try {
-        const existingCustomers = await stripe.customers.list({
-          email: metadata.ownerEmail,
-          limit: 1
-        });
-        if (existingCustomers.data.length > 0) {
-          customerId = existingCustomers.data[0].id;
-          try {
-            await pool.query(
-              `UPDATE users SET stripe_customer_id = $1, updated_at = NOW()
-               WHERE LOWER(email) = LOWER($2) AND stripe_customer_id IS NULL`,
-              [customerId, metadata.ownerEmail]
-            );
-          } catch (linkErr: any) {
-            console.warn('[Terminal] Could not link existing Stripe customer (non-blocking):', linkErr.message);
-          }
+        const { resolveUserByEmail, getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+        const resolved = await resolveUserByEmail(metadata.ownerEmail);
+        if (resolved) {
+          const custResult = await getOrCreateStripeCustomer(resolved.userId, metadata.ownerEmail, metadata.ownerName);
+          customerId = custResult.customerId;
         } else {
-          const customer = await stripe.customers.create({
-            email: metadata.ownerEmail,
-            name: metadata.ownerName || undefined,
-            metadata: {
-              source: 'terminal_pos',
-            }
-          });
-          customerId = customer.id;
+          const custResult = await getOrCreateStripeCustomer(metadata.ownerEmail, metadata.ownerEmail, metadata.ownerName);
+          customerId = custResult.customerId;
 
           try {
             const nameParts = (metadata.ownerName || '').trim().split(/\s+/);
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
-            const existingUser = await pool.query(
-              'SELECT id, stripe_customer_id FROM users WHERE LOWER(email) = LOWER($1)',
-              [metadata.ownerEmail]
-            );
-
-            if (existingUser.rows.length === 0) {
+            // Check if this email resolves to an existing user via linked email
+            const { resolveUserByEmail: resolveTerminalUser } = await import('../../core/stripe/customers');
+            const resolvedTerminal = await resolveTerminalUser(metadata.ownerEmail);
+            if (resolvedTerminal) {
+              if (!resolvedTerminal.stripeCustomerId) {
+                await pool.query(
+                  'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+                  [customerId, resolvedTerminal.userId]
+                );
+              }
+              console.log(`[Terminal] Linked Stripe customer to existing user ${resolvedTerminal.primaryEmail} via ${resolvedTerminal.matchType}`);
+            } else {
               const crypto = await import('crypto');
               const visitorId = crypto.randomUUID();
               await pool.query(
@@ -165,15 +155,9 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
                    first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
                    last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
                    updated_at = NOW()`,
-                [visitorId, metadata.ownerEmail, firstName, lastName, customer.id]
+                [visitorId, metadata.ownerEmail, firstName, lastName, customerId]
               );
               console.log(`[Terminal] Created/updated visitor record for POS customer: ${metadata.ownerEmail}`);
-            } else if (!existingUser.rows[0].stripe_customer_id) {
-              await pool.query(
-                'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
-                [customer.id, existingUser.rows[0].id]
-              );
-              console.log(`[Terminal] Linked Stripe customer ${customer.id} to existing user: ${metadata.ownerEmail}`);
             }
           } catch (visitorErr: any) {
             console.warn('[Terminal] Could not create visitor record for new POS customer (non-blocking):', visitorErr.message);

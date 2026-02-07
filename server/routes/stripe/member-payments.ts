@@ -12,6 +12,7 @@ import {
   getInvoice,
   createBalanceAwarePayment
 } from '../../core/stripe';
+import { resolveUserByEmail } from '../../core/stripe/customers';
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core/billing/unifiedFeeService';
 import { GUEST_FEE_CENTS } from './helpers';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
@@ -208,8 +209,13 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
 
     // Get or create Stripe customer for balance-aware payment
     const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || booking.user_name || booking.user_email.split('@')[0];
+    let resolvedUserId = booking.user_id;
+    if (!resolvedUserId) {
+      const resolved = await resolveUserByEmail(booking.user_email);
+      resolvedUserId = resolved?.userId || booking.user_email;
+    }
     const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(
-      booking.user_id || booking.user_email,
+      resolvedUserId,
       booking.user_email,
       memberName
     );
@@ -650,7 +656,7 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
 
     let stripeCustomerId = user.stripe_customer_id;
     if (!stripeCustomerId) {
-      const customerResult = await getOrCreateStripeCustomer(sessionEmail, sessionEmail, memberName);
+      const customerResult = await getOrCreateStripeCustomer(user.id, sessionEmail, memberName);
       stripeCustomerId = customerResult.customerId;
     }
 
@@ -1096,8 +1102,10 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     }
 
     // Get or create Stripe customer for balance-aware payment
+    const resolvedMember = await resolveUserByEmail(memberEmail);
+    const resolvedMemberUserId = resolvedMember?.userId || memberEmail;
     const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(
-      memberEmail,
+      resolvedMemberUserId,
       memberEmail,
       memberName
     );

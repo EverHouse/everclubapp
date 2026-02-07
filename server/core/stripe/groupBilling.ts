@@ -442,11 +442,24 @@ export async function addGroupMember(params: {
       return { success: false, error: 'This member is already part of a billing group' };
     }
     
+    // Check if user exists via linked email resolution
+    const { resolveUserByEmail: resolveFamilyEmail } = await import('./customers');
+    const resolvedFamily = await resolveFamilyEmail(params.memberEmail);
+    
     // Check if user exists and their billing status
-    const userResult = await pool.query(
-      'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE LOWER(email) = $1',
-      [params.memberEmail.toLowerCase()]
-    );
+    const userResult = resolvedFamily
+      ? await pool.query(
+          'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE id = $1',
+          [resolvedFamily.userId]
+        )
+      : await pool.query(
+          'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE LOWER(email) = $1',
+          [params.memberEmail.toLowerCase()]
+        );
+    
+    if (resolvedFamily && resolvedFamily.matchType !== 'direct') {
+      console.log(`[GroupBilling] Email ${params.memberEmail} resolved to existing user ${resolvedFamily.primaryEmail} via ${resolvedFamily.matchType}`);
+    }
     
     let userExists = userResult.rows.length > 0;
     
@@ -546,12 +559,21 @@ export async function addGroupMember(params: {
           updateValues.push(params.dob);
         }
         
-        updateValues.push(params.memberEmail.toLowerCase());
-        await client.query(
-          `UPDATE users SET ${updateFields.join(', ')} WHERE LOWER(email) = $${paramIndex}`,
-          updateValues
-        );
-        console.log(`[GroupBilling] Updated existing user ${params.memberEmail} with family group`);
+        if (resolvedFamily) {
+          updateValues.push(resolvedFamily.userId);
+          await client.query(
+            `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
+            updateValues
+          );
+          console.log(`[GroupBilling] Updated existing user ${resolvedFamily.primaryEmail} (matched ${params.memberEmail} via ${resolvedFamily.matchType}) with family group`);
+        } else {
+          updateValues.push(params.memberEmail.toLowerCase());
+          await client.query(
+            `UPDATE users SET ${updateFields.join(', ')} WHERE LOWER(email) = $${paramIndex}`,
+            updateValues
+          );
+          console.log(`[GroupBilling] Updated existing user ${params.memberEmail} with family group`);
+        }
       } else {
         // Auto-create user so they can log in
         const userId = randomUUID();
@@ -704,11 +726,23 @@ export async function addCorporateMember(params: {
         return { success: false, error: 'This member is already part of a billing group' };
       }
     
-      // Check if user exists and their billing status
-      const userResult = await client.query(
-        'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE LOWER(email) = $1',
-        [params.memberEmail.toLowerCase()]
-      );
+      // Check if user exists via linked email resolution
+      const { resolveUserByEmail: resolveCorporateEmail } = await import('./customers');
+      const resolvedCorporate = await resolveCorporateEmail(params.memberEmail);
+      
+      const userResult = resolvedCorporate
+        ? await client.query(
+            'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE id = $1',
+            [resolvedCorporate.userId]
+          )
+        : await client.query(
+            'SELECT id, billing_group_id, stripe_subscription_id, membership_status FROM users WHERE LOWER(email) = $1',
+            [params.memberEmail.toLowerCase()]
+          );
+    
+      if (resolvedCorporate && resolvedCorporate.matchType !== 'direct') {
+        console.log(`[GroupBilling] Email ${params.memberEmail} resolved to existing user ${resolvedCorporate.primaryEmail} via ${resolvedCorporate.matchType}`);
+      }
     
       if (userResult.rows.length > 0) {
         const user = userResult.rows[0];
@@ -773,10 +807,12 @@ export async function addCorporateMember(params: {
       
       insertedMemberId = insertResult.rows[0].id;
       
-      const existingUserCheck = await client.query(
-        'SELECT id FROM users WHERE LOWER(email) = $1',
-        [params.memberEmail.toLowerCase()]
-      );
+      const existingUserCheck = resolvedCorporate
+        ? { rows: [{ id: resolvedCorporate.userId }] }
+        : await client.query(
+            'SELECT id FROM users WHERE LOWER(email) = $1',
+            [params.memberEmail.toLowerCase()]
+          );
       
       if (existingUserCheck.rows.length > 0) {
         const updateFields: string[] = ['billing_group_id = $1', 'tier = $2', "billing_provider = 'stripe'", "membership_status = 'active'"];
@@ -800,12 +836,21 @@ export async function addCorporateMember(params: {
           updateValues.push(params.dob);
         }
         
-        updateValues.push(params.memberEmail.toLowerCase());
-        await client.query(
-          `UPDATE users SET ${updateFields.join(', ')} WHERE LOWER(email) = $${paramIndex}`,
-          updateValues
-        );
-        console.log(`[GroupBilling] Updated existing user ${params.memberEmail} with corporate group`);
+        if (resolvedCorporate) {
+          updateValues.push(resolvedCorporate.userId);
+          await client.query(
+            `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
+            updateValues
+          );
+          console.log(`[GroupBilling] Updated existing user ${resolvedCorporate.primaryEmail} (matched ${params.memberEmail} via ${resolvedCorporate.matchType}) with corporate group`);
+        } else {
+          updateValues.push(params.memberEmail.toLowerCase());
+          await client.query(
+            `UPDATE users SET ${updateFields.join(', ')} WHERE LOWER(email) = $${paramIndex}`,
+            updateValues
+          );
+          console.log(`[GroupBilling] Updated existing user ${params.memberEmail} with corporate group`);
+        }
       } else {
         const userId = randomUUID();
         await client.query(

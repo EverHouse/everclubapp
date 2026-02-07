@@ -561,38 +561,16 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
       
       resolvedName = `${firstName} ${lastName}`.trim();
       
-      const stripe = await getStripeClient();
-      
-      const existingCustomers = await stripe.customers.list({
-        email: memberEmail,
-        limit: 1
-      });
-      
-      if (existingCustomers.data.length > 0) {
-        stripeCustomerId = existingCustomers.data[0].id;
-        console.log(`[Stripe] Found existing customer ${stripeCustomerId} for quick charge: ${memberEmail}`);
-        try {
-          await pool.query(
-            `UPDATE users SET stripe_customer_id = $1, updated_at = NOW()
-             WHERE LOWER(email) = LOWER($2) AND stripe_customer_id IS NULL`,
-            [stripeCustomerId, memberEmail]
-          );
-        } catch (linkErr: any) {
-          console.warn('[QuickCharge] Could not link existing Stripe customer (non-blocking):', linkErr.message);
-        }
+      const { resolveUserByEmail, getOrCreateStripeCustomer: getOrCreateCust } = await import('../../core/stripe/customers');
+      const resolved = await resolveUserByEmail(memberEmail);
+      if (resolved) {
+        const custResult = await getOrCreateCust(resolved.userId, memberEmail, resolvedName);
+        stripeCustomerId = custResult.customerId;
+        console.log(`[Stripe] ${custResult.isNew ? 'Created' : 'Found existing'} customer ${stripeCustomerId} for quick charge: ${memberEmail}`);
       } else {
-        const customer = await stripe.customers.create({
-          email: memberEmail,
-          name: resolvedName,
-          phone: phone || undefined,
-          metadata: {
-            source: 'staff_quick_charge',
-            createdBy: staffEmail,
-            tier: tierSlug || undefined
-          }
-        });
-        stripeCustomerId = customer.id;
-        console.log(`[Stripe] Created new customer ${customer.id} for quick charge: ${memberEmail}`);
+        const custResult = await getOrCreateCust(memberEmail, memberEmail, resolvedName);
+        stripeCustomerId = custResult.customerId;
+        console.log(`[Stripe] ${custResult.isNew ? 'Created' : 'Found existing'} customer ${stripeCustomerId} for quick charge: ${memberEmail}`);
 
         try {
           const existingUser = await pool.query(
@@ -610,15 +588,15 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
                  first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
                  last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
                  updated_at = NOW()`,
-              [visitorId, memberEmail, firstName, lastName, customer.id]
+              [visitorId, memberEmail, firstName, lastName, stripeCustomerId]
             );
             console.log(`[QuickCharge] Created visitor record for new customer: ${memberEmail}`);
           } else if (!existingUser.rows[0].stripe_customer_id) {
             await pool.query(
               'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
-              [customer.id, existingUser.rows[0].id]
+              [stripeCustomerId, existingUser.rows[0].id]
             );
-            console.log(`[QuickCharge] Linked Stripe customer ${customer.id} to existing user: ${memberEmail}`);
+            console.log(`[QuickCharge] Linked Stripe customer ${stripeCustomerId} to existing user: ${memberEmail}`);
           }
         } catch (visitorErr: any) {
           console.warn('[QuickCharge] Could not create visitor record (non-blocking):', visitorErr.message);
@@ -760,12 +738,18 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
       );
       const validatedTierName = tierResult.rows[0]?.name || tierName;
       
-      const existingUser = await pool.query(
-        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
-        [memberEmail]
-      );
-      
-      if (existingUser.rows.length === 0) {
+      // Check if this email resolves to an existing user via linked email
+      const { resolveUserByEmail } = await import('../../core/stripe/customers');
+      const resolved = await resolveUserByEmail(memberEmail);
+      if (resolved) {
+        // Update existing user (found directly or via linked email)
+        await pool.query(
+          `UPDATE users SET tier = $1, billing_provider = 'stripe', stripe_customer_id = COALESCE($2, stripe_customer_id)
+           WHERE id = $3`,
+          [validatedTierName, stripeCustomerId, resolved.userId]
+        );
+        console.log(`[Stripe] Updated user ${resolved.primaryEmail} with tier ${validatedTierName} after payment confirmation (matched via ${resolved.matchType})`);
+      } else {
         const userId = require('crypto').randomUUID();
         await pool.query(
           `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, stripe_customer_id, created_at)
@@ -773,13 +757,6 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
           [userId, memberEmail.toLowerCase(), firstName, lastName, phone, dob, validatedTierName, stripeCustomerId || null]
         );
         console.log(`[Stripe] Created user ${memberEmail} with tier ${validatedTierName} after payment confirmation`);
-      } else {
-        await pool.query(
-          `UPDATE users SET tier = $1, billing_provider = 'stripe', stripe_customer_id = COALESCE($2, stripe_customer_id)
-           WHERE LOWER(email) = LOWER($3)`,
-          [validatedTierName, stripeCustomerId, memberEmail]
-        );
-        console.log(`[Stripe] Updated user ${memberEmail} with tier ${validatedTierName} after payment confirmation`);
       }
     }
 

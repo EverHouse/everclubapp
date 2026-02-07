@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
-import { isPlaceholderEmail } from '../core/stripe/customers';
+import { isPlaceholderEmail, getOrCreateStripeCustomer } from '../core/stripe/customers';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
@@ -241,7 +241,7 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
     const targetEmail = (req.body.email && isStaff) ? String(req.body.email) : sessionUser.email;
     
     const result = await pool.query(
-      `SELECT stripe_customer_id, billing_provider, email, role, first_name, last_name FROM users WHERE LOWER(email) = $1`,
+      `SELECT id, stripe_customer_id, billing_provider, email, role, first_name, last_name, tier FROM users WHERE LOWER(email) = $1`,
       [targetEmail.toLowerCase()]
     );
     
@@ -261,35 +261,18 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
     let customerId = member.stripe_customer_id;
     
     if (!customerId) {
-      const customers = await stripe.customers.list({ email: member.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        await pool.query(
-          `UPDATE users SET stripe_customer_id = $1, billing_provider = 'stripe' WHERE LOWER(email) = $2`,
-          [customerId, targetEmail.toLowerCase()]
-        );
-        // Sync billing_provider change to HubSpot
-        try {
-          const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
-          await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
-        } catch (e: any) {
-          console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, e?.message || e);
-        }
-      } else {
-        const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
-        const customer = await stripe.customers.create({ email: member.email, name: fullName });
-        customerId = customer.id;
-        await pool.query(
-          `UPDATE users SET stripe_customer_id = $1, billing_provider = 'stripe' WHERE LOWER(email) = $2`,
-          [customerId, targetEmail.toLowerCase()]
-        );
-        // Sync billing_provider change to HubSpot
-        try {
-          const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
-          await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
-        } catch (e: any) {
-          console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, e?.message || e);
-        }
+      const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
+      const result = await getOrCreateStripeCustomer(member.id, member.email, fullName, member.tier);
+      customerId = result.customerId;
+      await pool.query(
+        `UPDATE users SET billing_provider = 'stripe' WHERE LOWER(email) = $1 AND billing_provider != 'stripe'`,
+        [targetEmail.toLowerCase()]
+      );
+      try {
+        const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
+        await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
+      } catch (e: any) {
+        console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, e?.message || e);
       }
     }
     
@@ -323,7 +306,7 @@ router.post('/api/my/billing/add-payment-method-for-extras', requireAuth, async 
     }
     
     const result = await pool.query(
-      `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id
+      `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id, tier
        FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
@@ -338,23 +321,9 @@ router.post('/api/my/billing/add-payment-method-for-extras', requireAuth, async 
     
     // Create or find Stripe customer (but don't mark for migration)
     if (!customerId) {
-      const customers = await stripe.customers.list({ email: member.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-      } else {
-        const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
-        const customer = await stripe.customers.create({
-          email: member.email,
-          name: fullName,
-        });
-        customerId = customer.id;
-      }
-      
-      // Save customer ID but NOT billing_migration_requested_at
-      await pool.query(
-        `UPDATE users SET stripe_customer_id = $1 WHERE id = $2`,
-        [customerId, member.id]
-      );
+      const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
+      const custResult = await getOrCreateStripeCustomer(member.id, member.email, fullName, member.tier);
+      customerId = custResult.customerId;
     }
     
     const returnUrl = process.env.REPLIT_DEV_DOMAIN
@@ -390,7 +359,7 @@ router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) =
     }
     
     const result = await pool.query(
-      `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id
+      `SELECT id, email, first_name, last_name, billing_provider, stripe_customer_id, tier
        FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
@@ -408,22 +377,14 @@ router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) =
     let customerId = member.stripe_customer_id;
     
     if (!customerId) {
-      const customers = await stripe.customers.list({ email: member.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-      } else {
-        const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
-        const customer = await stripe.customers.create({
-          email: member.email,
-          name: fullName,
-        });
-        customerId = customer.id;
-      }
+      const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
+      const custResult = await getOrCreateStripeCustomer(member.id, member.email, fullName, member.tier);
+      customerId = custResult.customerId;
     }
     
     await pool.query(
-      `UPDATE users SET stripe_customer_id = $1, billing_migration_requested_at = NOW() WHERE id = $2`,
-      [customerId, member.id]
+      `UPDATE users SET billing_migration_requested_at = NOW() WHERE id = $1`,
+      [member.id]
     );
     
     const returnUrl = process.env.REPLIT_DEV_DOMAIN
@@ -564,7 +525,7 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
     }
     
     const result = await pool.query(
-      `SELECT id, stripe_customer_id, first_name, last_name, role FROM users WHERE LOWER(email) = $1`,
+      `SELECT id, stripe_customer_id, first_name, last_name, role, tier FROM users WHERE LOWER(email) = $1`,
       [email.toLowerCase()]
     );
     
@@ -582,13 +543,9 @@ router.post('/api/my/add-funds', requireAuth, async (req, res) => {
     
     let customerId = member.stripe_customer_id;
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email,
-        name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || undefined,
-        metadata: { userId: member.id.toString() }
-      });
-      customerId = customer.id;
-      await pool.query(`UPDATE users SET stripe_customer_id = $1 WHERE id = $2`, [customerId, member.id]);
+      const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || undefined;
+      const custResult = await getOrCreateStripeCustomer(member.id, email, fullName, member.tier);
+      customerId = custResult.customerId;
     }
     
     const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
@@ -693,38 +650,11 @@ router.post('/api/member-billing/:email/sync-stripe', requireStaffAuth, async (r
       return res.json({ success: true, created: false, customerId: member.stripe_customer_id });
     }
     
-    const stripe = await getStripeClient();
-    
-    // Search for existing customer by email
-    const existingCustomers = await stripe.customers.search({
-      query: `email:'${targetEmail}'`,
-    });
-    
-    let customerId: string;
-    let created = false;
-    
-    if (existingCustomers.data.length > 0) {
-      customerId = existingCustomers.data[0].id;
-      console.log(`[SyncStripe] Found existing Stripe customer ${customerId} for ${targetEmail}`);
-    } else {
-      const newCustomer = await stripe.customers.create({
-        email: targetEmail,
-        name: [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined,
-        metadata: {
-          userId: member.id.toString(),
-          tier: member.tier || '',
-          source: 'member_portal_sync',
-        },
-      });
-      customerId = newCustomer.id;
-      created = true;
-      console.log(`[SyncStripe] Created new Stripe customer ${customerId} for ${targetEmail}`);
-    }
-    
-    await pool.query(
-      `UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2`,
-      [customerId, member.id]
-    );
+    const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
+    const custResult = await getOrCreateStripeCustomer(member.id, targetEmail, fullName, member.tier);
+    const customerId = custResult.customerId;
+    const created = custResult.isNew;
+    console.log(`[SyncStripe] ${created ? 'Created' : 'Found existing'} Stripe customer ${customerId} for ${targetEmail}`);
     
     res.json({ success: true, created, customerId });
   } catch (error: any) {

@@ -509,36 +509,13 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
     let stripeCustomerId = member.stripe_customer_id;
     
     if (!stripeCustomerId) {
-      // First, search for existing customer by email in Stripe
-      const existingCustomers = await stripe.customers.list({
-        email: email.toLowerCase(),
-        limit: 1
-      });
-      
-      if (existingCustomers.data.length > 0) {
-        stripeCustomerId = existingCustomers.data[0].id;
-        console.log(`[MemberBilling] Found existing Stripe customer ${stripeCustomerId} for ${email}`);
-      } else {
-        console.log(`[MemberBilling] Creating new Stripe customer for ${email}`);
-        const customer = await stripe.customers.create({
-          email: email.toLowerCase(),
-          name: member.first_name && member.last_name 
-            ? `${member.first_name} ${member.last_name}` 
-            : email,
-          metadata: {
-            userId: email,
-            tier: member.tier || 'unknown',
-            source: 'credit_application'
-          }
-        });
-        stripeCustomerId = customer.id;
-        console.log(`[MemberBilling] Created Stripe customer ${stripeCustomerId} for ${email}`);
-      }
-      
-      await pool.query(
-        'UPDATE users SET stripe_customer_id = $1 WHERE LOWER(email) = LOWER($2)',
-        [stripeCustomerId, email]
-      );
+      const { getOrCreateStripeCustomer } = await import('../core/stripe/customers');
+      const memberName = member.first_name && member.last_name 
+        ? `${member.first_name} ${member.last_name}` 
+        : email;
+      const custResult = await getOrCreateStripeCustomer(member.id, email, memberName, member.tier);
+      stripeCustomerId = custResult.customerId;
+      console.log(`[MemberBilling] ${custResult.isNew ? 'Created' : 'Found existing'} Stripe customer ${stripeCustomerId} for ${email}`);
     }
 
     const transaction = await stripe.customers.createBalanceTransaction(

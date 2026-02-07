@@ -300,6 +300,22 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               console.warn(`[Stripe Sync] Failed to create HubSpot contact for ${email}:`, hubspotErr.message);
             }
 
+            // Check if this email resolves to an existing user via linked email
+            const { resolveUserByEmail } = await import('./customers');
+            const resolved = await resolveUserByEmail(email);
+            if (resolved) {
+              // Update existing user found via linked email
+              await pool.query(
+                `UPDATE users SET stripe_customer_id = $1, stripe_subscription_id = $2, 
+                 membership_status = 'active', billing_provider = 'stripe', data_source = 'stripe_sync',
+                 tier = COALESCE($3, tier), hubspot_id = COALESCE($4, hubspot_id), updated_at = NOW()
+                 WHERE id = $5`,
+                [stripeCustomerId, stripeSubscriptionId, tier, hubspotId, resolved.userId]
+              );
+              result.updated++;
+              result.details.push({ email, action: 'updated', tier, reason: `Matched via ${resolved.matchType}` });
+              console.log(`[Stripe Sync] Updated existing user ${resolved.primaryEmail} (matched ${email} via ${resolved.matchType}) with tier ${tier}`);
+            } else {
             await pool.query(
               `INSERT INTO users (
                  email, first_name, last_name, role, tier, 
@@ -325,6 +341,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               tier,
             });
             console.log(`[Stripe Sync] Created user ${email} with tier ${tier}`);
+            }
           }
         } catch (err: any) {
           const errorEmail = (subscription.customer as Stripe.Customer)?.email || 'unknown';

@@ -83,20 +83,12 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       const result = await getOrCreateStripeCustomer(booking.user_id, booking.user_email, memberName);
       customerId = result.customerId;
     } else {
-      const existingCustomers = await stripe.customers.list({
-        email: booking.user_email.toLowerCase(),
-        limit: 1
-      });
-      if (existingCustomers.data.length > 0) {
-        customerId = existingCustomers.data[0].id;
-      } else {
-        const customer = await stripe.customers.create({
-          email: booking.user_email.toLowerCase(),
-          name: [booking.first_name, booking.last_name].filter(Boolean).join(' ') || undefined,
-          metadata: { source: 'overage_payment' }
-        });
-        customerId = customer.id;
-      }
+      const { resolveUserByEmail, getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+      const resolved = await resolveUserByEmail(booking.user_email);
+      const resolvedUserId = resolved?.userId || booking.user_email;
+      const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || undefined;
+      const custResult = await getOrCreateStripeCustomer(resolvedUserId, booking.user_email, memberName);
+      customerId = custResult.customerId;
     }
     
     const productResult = await pool.query(`

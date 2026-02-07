@@ -1802,29 +1802,49 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
         return deferredActions;
       }
       
-      // Check if user already exists
-      const existingUser = await pool.query(
-        'SELECT id, status FROM users WHERE LOWER(email) = LOWER($1)',
-        [email]
-      );
-      
-      if (existingUser.rows.length > 0) {
-        // User exists - update their Stripe customer ID, status, and billing provider
-        console.log(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID and billing provider`);
+      // Check if user exists via linked email resolution
+      const { resolveUserByEmail } = await import('../stripe/customers');
+      const resolved = await resolveUserByEmail(email);
+      if (resolved) {
+        // User exists via linked email (or direct match) - update their Stripe customer ID
+        console.log(`[Stripe Webhook] User found via ${resolved.matchType} for ${email} -> ${resolved.primaryEmail}, updating Stripe customer ID`);
         await pool.query(
-          `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
-          [customerId, email]
+          `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE id = $2`,
+          [customerId, resolved.userId]
         );
         
         // Sync to HubSpot for existing user update
         try {
           const { syncMemberToHubSpot } = await import('../hubspot/stages');
-          await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe', memberSince: new Date() });
-          console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot`);
+          await syncMemberToHubSpot({ email: resolved.primaryEmail, status: 'active', billingProvider: 'stripe', memberSince: new Date() });
+          console.log(`[Stripe Webhook] Synced existing user ${resolved.primaryEmail} to HubSpot`);
         } catch (hubspotError) {
           console.error('[Stripe Webhook] HubSpot sync failed for existing user:', hubspotError);
         }
       } else {
+        // Check if user already exists by exact email match
+        const existingUser = await pool.query(
+          'SELECT id, status FROM users WHERE LOWER(email) = LOWER($1)',
+          [email]
+        );
+        
+        if (existingUser.rows.length > 0) {
+          // User exists - update their Stripe customer ID, status, and billing provider
+          console.log(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID and billing provider`);
+          await pool.query(
+            `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+            [customerId, email]
+          );
+          
+          // Sync to HubSpot for existing user update
+          try {
+            const { syncMemberToHubSpot } = await import('../hubspot/stages');
+            await syncMemberToHubSpot({ email, status: 'active', billingProvider: 'stripe', memberSince: new Date() });
+            console.log(`[Stripe Webhook] Synced existing user ${email} to HubSpot`);
+          } catch (hubspotError) {
+            console.error('[Stripe Webhook] HubSpot sync failed for existing user:', hubspotError);
+          }
+        } else {
         // Create new user
         console.log(`[Stripe Webhook] Creating new user from staff invite: ${email}`);
         
@@ -1855,6 +1875,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
         );
         
         console.log(`[Stripe Webhook] Created user ${email} with tier ${tierSlug || 'none'}`);
+        }
       }
       
       // Sync to HubSpot with proper tier name and billing provider
@@ -2101,26 +2122,44 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
       }
       
       const actualStatus = subscription.status === 'trialing' ? 'trialing' : subscription.status === 'past_due' ? 'past_due' : 'active';
-      await pool.query(
-        `INSERT INTO users (email, first_name, last_name, phone, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, stripe_current_period_end, join_date, created_at, updated_at)
-         VALUES ($1, $2, $3, $8, $4, $7, $5, $6, 'stripe', $9, NOW(), NOW(), NOW())
-         ON CONFLICT (email) DO UPDATE SET 
-           stripe_customer_id = EXCLUDED.stripe_customer_id,
-           stripe_subscription_id = EXCLUDED.stripe_subscription_id,
-           membership_status = $7,
-           billing_provider = 'stripe',
-           stripe_current_period_end = COALESCE($9, users.stripe_current_period_end),
-           tier = COALESCE(EXCLUDED.tier, users.tier),
-           role = 'member',
-           join_date = COALESCE(users.join_date, NOW()),
-           first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
-           last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
-           phone = COALESCE(NULLIF(EXCLUDED.phone, ''), users.phone),
-           updated_at = NOW()`,
-        [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus, metadataPhone || '', subscriptionPeriodEnd]
-      );
       
-      console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, phone ${metadataPhone || 'none'}, subscription ${subscription.id}`);
+      // Check if this email resolves to an existing user via linked email
+      const { resolveUserByEmail: resolveSubEmail } = await import('../stripe/customers');
+      const resolvedSub = await resolveSubEmail(customerEmail);
+      if (resolvedSub && resolvedSub.matchType !== 'direct') {
+        // This email is a linked email for an existing user — update the existing user instead
+        console.log(`[Stripe Webhook] Email ${customerEmail} resolved to existing user ${resolvedSub.primaryEmail} via ${resolvedSub.matchType}`);
+        await pool.query(
+          `UPDATE users SET 
+            stripe_customer_id = $1, stripe_subscription_id = $2, membership_status = $3,
+            billing_provider = 'stripe', stripe_current_period_end = COALESCE($4, stripe_current_period_end),
+            tier = COALESCE($5, tier), join_date = COALESCE(join_date, NOW()), updated_at = NOW()
+           WHERE id = $6`,
+          [customerId, subscription.id, actualStatus, subscriptionPeriodEnd, tierName, resolvedSub.userId]
+        );
+        console.log(`[Stripe Webhook] Updated existing user ${resolvedSub.primaryEmail} via linked email with tier ${tierName || 'none'}, subscription ${subscription.id}`);
+      } else {
+        await pool.query(
+          `INSERT INTO users (email, first_name, last_name, phone, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, stripe_current_period_end, join_date, created_at, updated_at)
+           VALUES ($1, $2, $3, $8, $4, $7, $5, $6, 'stripe', $9, NOW(), NOW(), NOW())
+           ON CONFLICT (email) DO UPDATE SET 
+             stripe_customer_id = EXCLUDED.stripe_customer_id,
+             stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+             membership_status = $7,
+             billing_provider = 'stripe',
+             stripe_current_period_end = COALESCE($9, users.stripe_current_period_end),
+             tier = COALESCE(EXCLUDED.tier, users.tier),
+             role = 'member',
+             join_date = COALESCE(users.join_date, NOW()),
+             first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
+             last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), users.last_name),
+             phone = COALESCE(NULLIF(EXCLUDED.phone, ''), users.phone),
+             updated_at = NOW()`,
+          [customerEmail, firstName, lastName, tierName, customerId, subscription.id, actualStatus, metadataPhone || '', subscriptionPeriodEnd]
+        );
+        
+        console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, phone ${metadataPhone || 'none'}, subscription ${subscription.id}`);
+      }
       
       try {
         const { findOrCreateHubSpotContact } = await import('../hubspot/members');

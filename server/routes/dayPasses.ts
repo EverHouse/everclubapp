@@ -3,7 +3,7 @@ import { db } from '../db';
 import { dayPassPurchases, membershipTiers } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
-import { getOrCreateStripeCustomer } from '../core/stripe/customers';
+import { getOrCreateStripeCustomer, resolveUserByEmail } from '../core/stripe/customers';
 import { createPaymentIntent } from '../core/stripe';
 import { upsertVisitor, linkPurchaseToUser } from '../core/visitors/matchingService';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
@@ -71,10 +71,20 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
       });
     }
 
+    const resolved = await resolveUserByEmail(email);
+    const resolvedUserId = resolved?.userId || email;
+    const resolvedName = resolved
+      ? [resolved.firstName, resolved.lastName].filter(Boolean).join(' ') || firstName || email.split('@')[0]
+      : firstName || email.split('@')[0];
+
+    if (resolved && ['active', 'trialing'].includes(resolved.membershipStatus || '')) {
+      console.log(`[DayPasses] Warning: active member ${resolved.primaryEmail} purchasing day pass with email ${email}`);
+    }
+
     const { customerId } = await getOrCreateStripeCustomer(
+      resolvedUserId,
       email,
-      email,
-      firstName || email.split('@')[0]
+      resolvedName
     );
 
     const stripe = await getStripeClient();
@@ -290,8 +300,10 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
       return res.status(400).json({ error: 'Invalid product price' });
     }
 
+    const resolvedStaff = await resolveUserByEmail(email);
+    const resolvedStaffUserId = resolvedStaff?.userId || email;
     const { customerId } = await getOrCreateStripeCustomer(
-      email,
+      resolvedStaffUserId,
       email,
       `${firstName} ${lastName}`
     );

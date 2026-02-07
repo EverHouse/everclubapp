@@ -209,8 +209,8 @@ export async function reconcileSubscriptions() {
             continue;
           }
           
-          // User doesn't exist - create them
-          console.warn(`[Reconcile] MISSING USER: Stripe subscription ${subscription.id} for ${customerEmail} has no DB user - creating...`);
+          // User doesn't exist - check linked emails before creating
+          console.warn(`[Reconcile] MISSING USER: Stripe subscription ${subscription.id} for ${customerEmail} has no DB user - checking linked emails...`);
           
           const customerName = customer.name || '';
           const nameParts = customerName.split(' ');
@@ -235,6 +235,19 @@ export async function reconcileSubscriptions() {
             }
           }
           
+          // Check if this email resolves to an existing user via linked email
+          const { resolveUserByEmail } = await import('./customers');
+          const resolved = await resolveUserByEmail(customerEmail);
+          if (resolved && resolved.matchType !== 'direct') {
+            await pool.query(
+              `UPDATE users SET stripe_customer_id = $1, stripe_subscription_id = $2,
+               membership_status = 'active', tier = COALESCE($3, tier), updated_at = NOW()
+               WHERE id = $4`,
+              [customer.id, subscription.id, tierSlug, resolved.userId]
+            );
+            console.log(`[Reconcile] Updated existing user ${resolved.primaryEmail} (matched ${customerEmail} via ${resolved.matchType})`);
+            usersCreated++;
+          } else {
           // Create user in DB
           await pool.query(
             `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, join_date, created_at, updated_at)
@@ -250,6 +263,7 @@ export async function reconcileSubscriptions() {
           
           console.log(`[Reconcile] Created user ${customerEmail} with tier ${tierSlug || 'none'}, subscription ${subscription.id}`);
           usersCreated++;
+          }
           
           // Sync to HubSpot
           try {

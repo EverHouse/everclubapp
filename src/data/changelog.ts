@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.6.0",
+    date: "2026-02-07",
+    title: "Comprehensive Stripe & User Deduplication — All Entry Points Protected",
+    isMajor: true,
+    changes: [
+      "New: Created resolveUserByEmail() helper that checks direct email, linked emails, and manually linked emails — used as the universal lookup before any Stripe customer or user creation",
+      "Fix: Eliminated 10 direct Stripe customer creation calls that bypassed all dedup logic — billing portal, payment methods, setup intents, account balance, Stripe sync, credit application, quick charge, POS terminal, overage fallback, and MindBody sync now all route through the centralized getOrCreateStripeCustomer function",
+      "Fix: Day pass checkout (public + staff-initiated) and 3 member-payment paths no longer pass email as user ID — they now resolve the real user first, enabling linked-email and HubSpot dedup checks",
+      "Fix: 8 user creation paths (webhook subscription, webhook staff invite, Stripe sync, reconciliation, payment confirmation, POS visitor, and 2 group billing paths) now check linked emails before inserting new records — preventing duplicate users when someone uses a different email that we know belongs to them",
+      "Fix: Active members purchasing day passes are now logged with a warning for staff visibility",
+      "Verified: Zero direct stripe.customers.create() calls remain outside the centralized function",
+    ],
+  },
+  {
     version: "7.5.0",
     date: "2026-02-07",
     title: "Cross-System Deduplication & Stripe Customer Consolidation",

@@ -25,6 +25,96 @@ export function isPlaceholderEmail(email: string): boolean {
   return PLACEHOLDER_EMAIL_PATTERNS.some(pattern => lowerEmail.includes(pattern));
 }
 
+export interface ResolvedUser {
+  userId: string;
+  primaryEmail: string;
+  stripeCustomerId: string | null;
+  membershipStatus: string | null;
+  tier: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  matchType: 'direct' | 'linked_email' | 'manually_linked';
+}
+
+export async function resolveUserByEmail(email: string): Promise<ResolvedUser | null> {
+  if (!email || isPlaceholderEmail(email)) return null;
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const directMatch = await pool.query(
+    `SELECT id, email, stripe_customer_id, membership_status, tier, first_name, last_name
+     FROM users WHERE LOWER(email) = $1 AND archived_at IS NULL`,
+    [normalizedEmail]
+  );
+  if (directMatch.rows.length > 0) {
+    const u = directMatch.rows[0];
+    return {
+      userId: u.id,
+      primaryEmail: u.email,
+      stripeCustomerId: u.stripe_customer_id,
+      membershipStatus: u.membership_status,
+      tier: u.tier,
+      firstName: u.first_name,
+      lastName: u.last_name,
+      matchType: 'direct',
+    };
+  }
+
+  try {
+    const linkedMatch = await pool.query(
+      `SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, u.tier, u.first_name, u.last_name
+       FROM user_linked_emails ule
+       INNER JOIN users u ON LOWER(u.email) = LOWER(ule.primary_email)
+       WHERE LOWER(ule.linked_email) = $1 AND u.archived_at IS NULL
+       LIMIT 1`,
+      [normalizedEmail]
+    );
+    if (linkedMatch.rows.length > 0) {
+      const u = linkedMatch.rows[0];
+      return {
+        userId: u.id,
+        primaryEmail: u.email,
+        stripeCustomerId: u.stripe_customer_id,
+        membershipStatus: u.membership_status,
+        tier: u.tier,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        matchType: 'linked_email',
+      };
+    }
+  } catch (err: any) {
+    console.error(`[resolveUserByEmail] Error checking linked emails for ${normalizedEmail}:`, err?.message || err);
+  }
+
+  try {
+    const manualMatch = await pool.query(
+      `SELECT id, email, stripe_customer_id, membership_status, tier, first_name, last_name
+       FROM users
+       WHERE COALESCE(manually_linked_emails, '[]'::jsonb) @> $1::jsonb
+         AND archived_at IS NULL
+       LIMIT 1`,
+      [JSON.stringify([normalizedEmail])]
+    );
+    if (manualMatch.rows.length > 0) {
+      const u = manualMatch.rows[0];
+      return {
+        userId: u.id,
+        primaryEmail: u.email,
+        stripeCustomerId: u.stripe_customer_id,
+        membershipStatus: u.membership_status,
+        tier: u.tier,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        matchType: 'manually_linked',
+      };
+    }
+  } catch (err: any) {
+    console.error(`[resolveUserByEmail] Error checking manually linked emails for ${normalizedEmail}:`, err?.message || err);
+  }
+
+  return null;
+}
+
 export async function getOrCreateStripeCustomer(
   userId: string,
   email: string,
