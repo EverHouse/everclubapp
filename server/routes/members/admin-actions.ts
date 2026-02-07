@@ -300,6 +300,7 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
         archivedAt: new Date(),
         archivedBy: archivedBy,
         membershipStatus: 'archived',
+        idImageUrl: null,
         updatedAt: new Date()
       })
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -381,7 +382,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
       firstName: users.firstName,
       lastName: users.lastName,
       stripeCustomerId: users.stripeCustomerId,
-      hubspotId: users.hubspotId
+      hubspotId: users.hubspotId,
+      idImageUrl: users.idImageUrl
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -397,6 +399,15 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     
     const deletionLog: string[] = [];
     const userIdStr = String(userId);
+    
+    if (userResult[0].idImageUrl) {
+      try {
+        await db.update(users).set({ idImageUrl: null }).where(eq(users.id, userId));
+        deletionLog.push('id_image');
+      } catch (idErr: any) {
+        console.error(`[Admin] Failed to clear ID image for ${normalizedEmail}:`, idErr.message);
+      }
+    }
     
     await pool.query('DELETE FROM member_notes WHERE LOWER(member_email) = $1', [normalizedEmail]);
     deletionLog.push('member_notes');
@@ -678,6 +689,7 @@ router.post('/api/members/:email/anonymize', isStaffOrAdmin, async (req, res) =>
         archivedAt: now,
         archivedBy: anonymizedBy,
         membershipStatus: 'deleted',
+        idImageUrl: null,
         updatedAt: now
       })
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
