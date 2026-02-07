@@ -424,6 +424,10 @@ export async function addGroupMember(params: {
   lastName?: string;
   phone?: string;
   dob?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   addedBy: string;
   addedByName: string;
 }): Promise<{ success: boolean; memberId?: number; error?: string }> {
@@ -558,6 +562,22 @@ export async function addGroupMember(params: {
           updateFields.push(`date_of_birth = $${paramIndex++}`);
           updateValues.push(params.dob);
         }
+        if (params.streetAddress) {
+          updateFields.push(`street_address = $${paramIndex++}`);
+          updateValues.push(params.streetAddress);
+        }
+        if (params.city) {
+          updateFields.push(`city = $${paramIndex++}`);
+          updateValues.push(params.city);
+        }
+        if (params.state) {
+          updateFields.push(`state = $${paramIndex++}`);
+          updateValues.push(params.state);
+        }
+        if (params.zipCode) {
+          updateFields.push(`zip_code = $${paramIndex++}`);
+          updateValues.push(params.zipCode);
+        }
         
         if (resolvedFamily) {
           updateValues.push(resolvedFamily.userId);
@@ -578,8 +598,8 @@ export async function addGroupMember(params: {
         // Auto-create user so they can log in
         const userId = randomUUID();
         await client.query(
-          `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, NOW())`,
+          `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, street_address, city, state, zip_code, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, $9, $10, $11, $12, NOW())`,
           [
             userId,
             params.memberEmail.toLowerCase(),
@@ -588,7 +608,11 @@ export async function addGroupMember(params: {
             params.phone || null,
             params.dob || null,
             params.memberTier,
-            params.billingGroupId
+            params.billingGroupId,
+            params.streetAddress || null,
+            params.city || null,
+            params.state || null,
+            params.zipCode || null
           ]
         );
         console.log(`[GroupBilling] Created new user ${params.memberEmail} for family group with tier ${params.memberTier}`);

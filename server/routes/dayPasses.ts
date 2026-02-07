@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { dayPassPurchases, membershipTiers } from '../../shared/schema';
+import { dayPassPurchases, membershipTiers, users } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
 import { getOrCreateStripeCustomer, resolveUserByEmail } from '../core/stripe/customers';
@@ -273,7 +273,7 @@ router.post('/api/day-passes/confirm', async (req: Request, res: Response) => {
  */
 router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { productSlug, email, firstName, lastName, phone, dob, notes } = req.body;
+    const { productSlug, email, firstName, lastName, phone, dob, notes, streetAddress, city, state, zipCode } = req.body;
     const sessionUser = getSessionUser(req);
     const staffEmail = sessionUser?.email || 'staff';
 
@@ -327,7 +327,11 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
         purchaser_last_name: lastName,
         purchaser_phone: phone || '',
         purchaser_dob: dob || '',
-        notes: notes || ''
+        notes: notes || '',
+        purchaser_street_address: streetAddress || '',
+        purchaser_city: city || '',
+        purchaser_state: state || '',
+        purchaser_zip_code: zipCode || '',
       }
     });
 
@@ -403,6 +407,19 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
       lastName,
       phone
     });
+
+    const purchaserStreetAddress = metadata.purchaser_street_address;
+    const purchaserCity = metadata.purchaser_city;
+    const purchaserState = metadata.purchaser_state;
+    const purchaserZipCode = metadata.purchaser_zip_code;
+    if (user.id && (purchaserStreetAddress || purchaserCity || purchaserState || purchaserZipCode)) {
+      const addressUpdate: Record<string, any> = { updatedAt: new Date() };
+      if (purchaserStreetAddress) addressUpdate.streetAddress = purchaserStreetAddress;
+      if (purchaserCity) addressUpdate.city = purchaserCity;
+      if (purchaserState) addressUpdate.state = purchaserState;
+      if (purchaserZipCode) addressUpdate.zipCode = purchaserZipCode;
+      await db.update(users).set(addressUpdate).where(eq(users.id, user.id));
+    }
 
     const [purchase] = await db
       .insert(dayPassPurchases)

@@ -54,6 +54,10 @@ interface GroupMember {
   phone: string;
   dob: string;
   tierId: number | null;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zipCode: string;
 }
 
 interface ExistingBillingGroup {
@@ -80,6 +84,10 @@ interface MemberFormData {
   joinExistingGroup: boolean;
   existingGroupId: number | null;
   existingGroupType: 'family' | 'corporate' | null;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zipCode: string;
 }
 
 interface VisitorFormData {
@@ -90,6 +98,10 @@ interface VisitorFormData {
   phone: string;
   dob: string;
   notes: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zipCode: string;
 }
 
 interface NewUserDrawerProps {
@@ -116,6 +128,10 @@ const initialMemberForm: MemberFormData = {
   joinExistingGroup: false,
   existingGroupId: null,
   existingGroupType: null,
+  streetAddress: '',
+  city: '',
+  state: '',
+  zipCode: '',
 };
 
 const initialVisitorForm: VisitorFormData = {
@@ -126,6 +142,10 @@ const initialVisitorForm: VisitorFormData = {
   phone: '',
   dob: '',
   notes: '',
+  streetAddress: '',
+  city: '',
+  state: '',
+  zipCode: '',
 };
 
 export function NewUserDrawer({
@@ -294,6 +314,10 @@ export function NewUserDrawer({
             firstName: data.firstName || m.firstName,
             lastName: data.lastName || m.lastName,
             dob: data.dateOfBirth || m.dob,
+            streetAddress: data.streetAddress || m.streetAddress,
+            city: data.city || m.city,
+            state: data.state || m.state,
+            zipCode: data.zipCode || m.zipCode,
           } : m
         ),
       }));
@@ -308,6 +332,10 @@ export function NewUserDrawer({
         firstName: data.firstName || prev.firstName,
         lastName: data.lastName || prev.lastName,
         dob: data.dateOfBirth || prev.dob,
+        streetAddress: data.streetAddress || prev.streetAddress,
+        city: data.city || prev.city,
+        state: data.state || prev.state,
+        zipCode: data.zipCode || prev.zipCode,
       }));
     } else {
       setVisitorForm(prev => ({
@@ -315,6 +343,10 @@ export function NewUserDrawer({
         firstName: data.firstName || prev.firstName,
         lastName: data.lastName || prev.lastName,
         dob: data.dateOfBirth || prev.dob,
+        streetAddress: data.streetAddress || prev.streetAddress,
+        city: data.city || prev.city,
+        state: data.state || prev.state,
+        zipCode: data.zipCode || prev.zipCode,
       }));
     }
     setShowIdScanner(false);
@@ -573,7 +605,11 @@ function MemberFlow({
             dob: form.dob || undefined,
             tierSlug: selectedTier.slug,
             tierName: selectedTier.name,
-            createUser: true
+            createUser: true,
+            streetAddress: form.streetAddress || undefined,
+            city: form.city || undefined,
+            state: form.state || undefined,
+            zipCode: form.zipCode || undefined,
           })
         });
 
@@ -600,7 +636,11 @@ function MemberFlow({
             phone: form.phone || undefined,
             dob: form.dob || undefined,
             tierSlug: selectedTier.slug,
-            couponId
+            couponId,
+            streetAddress: form.streetAddress || undefined,
+            city: form.city || undefined,
+            state: form.state || undefined,
+            zipCode: form.zipCode || undefined,
           })
         });
 
@@ -740,7 +780,11 @@ function MemberFlow({
                         firstName: member.firstName,
                         lastName: member.lastName,
                         phone: member.phone,
-                        dob: member.dob
+                        dob: member.dob,
+                        streetAddress: member.streetAddress || undefined,
+                        city: member.city || undefined,
+                        state: member.state || undefined,
+                        zipCode: member.zipCode || undefined,
                       })
                     });
 
@@ -968,7 +1012,7 @@ function MemberFlow({
   const addGroupMember = () => {
     setForm(prev => ({
       ...prev,
-      groupMembers: [...prev.groupMembers, { firstName: '', lastName: '', email: '', phone: '', dob: '', tierId: prev.tierId }],
+      groupMembers: [...prev.groupMembers, { firstName: '', lastName: '', email: '', phone: '', dob: '', tierId: prev.tierId, streetAddress: '', city: '', state: '', zipCode: '' }],
     }));
   };
 
@@ -1353,7 +1397,11 @@ function MemberFlow({
                                     firstName: member.firstName,
                                     lastName: member.lastName,
                                     phone: member.phone,
-                                    dob: member.dob
+                                    dob: member.dob,
+                                    streetAddress: member.streetAddress || undefined,
+                                    city: member.city || undefined,
+                                    state: member.state || undefined,
+                                    zipCode: member.zipCode || undefined,
                                   })
                                 });
 
@@ -1714,7 +1762,7 @@ function MemberFlow({
                 setForm(prev => ({
                   ...prev,
                   addGroupMembers: e.target.checked,
-                  groupMembers: e.target.checked ? [{ firstName: '', lastName: '', email: '', phone: '', dob: '', tierId: prev.tierId }] : [],
+                  groupMembers: e.target.checked ? [{ firstName: '', lastName: '', email: '', phone: '', dob: '', tierId: prev.tierId, streetAddress: '', city: '', state: '', zipCode: '' }] : [],
                 }));
               }}
               className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
@@ -1924,7 +1972,11 @@ function VisitorFlow({
           email: form.email,
           firstName: form.firstName,
           lastName: form.lastName,
-          phone: form.phone
+          phone: form.phone,
+          streetAddress: form.streetAddress || undefined,
+          city: form.city || undefined,
+          state: form.state || undefined,
+          zipCode: form.zipCode || undefined,
         })
       });
 

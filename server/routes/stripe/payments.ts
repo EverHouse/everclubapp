@@ -525,7 +525,7 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
 
 router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { memberEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone, dob, tierSlug, tierName, createUser } = req.body;
+    const { memberEmail, memberName, amountCents, description, productId, isNewCustomer, firstName, lastName, phone, dob, tierSlug, tierName, createUser, streetAddress, city, state, zipCode } = req.body;
     const { sessionUser, staffEmail } = getStaffInfo(req);
 
     if (!memberEmail || amountCents === undefined || amountCents === null) {
@@ -581,14 +581,18 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
             const crypto = await import('crypto');
             const visitorId = crypto.randomUUID();
             await pool.query(
-              `INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, 'visitor', $5, 'APP', 'day_pass', 'visitor', NOW(), NOW())
+              `INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, street_address, city, state, zip_code, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, 'visitor', $5, 'APP', 'day_pass', 'visitor', $6, $7, $8, $9, NOW(), NOW())
                ON CONFLICT (email) DO UPDATE SET
                  stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
                  first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
                  last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
+                 street_address = COALESCE(NULLIF(EXCLUDED.street_address, ''), users.street_address),
+                 city = COALESCE(NULLIF(EXCLUDED.city, ''), users.city),
+                 state = COALESCE(NULLIF(EXCLUDED.state, ''), users.state),
+                 zip_code = COALESCE(NULLIF(EXCLUDED.zip_code, ''), users.zip_code),
                  updated_at = NOW()`,
-              [visitorId, memberEmail, firstName, lastName, stripeCustomerId]
+              [visitorId, memberEmail, firstName, lastName, stripeCustomerId, streetAddress || null, city || null, state || null, zipCode || null]
             );
             console.log(`[QuickCharge] Created visitor record for new customer: ${memberEmail}`);
           } else if (!existingUser.rows[0].stripe_customer_id) {

@@ -333,7 +333,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
 
 router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { email, firstName, lastName, phone, dob, tierSlug, couponId } = req.body;
+    const { email, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
     const sessionUser = getSessionUser(req);
     
     if (!email || !tierSlug) {
@@ -393,9 +393,9 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
     const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
     
     await pool.query(
-      `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', NOW())`,
-      [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name]
+      `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, street_address, city, state, zip_code, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8, $9, $10, $11, NOW())`,
+      [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name, streetAddress || null, city || null, state || null, zipCode || null]
     );
     
     console.log(`[Stripe] Created pending user ${email} with tier ${tier.name}`);
@@ -630,7 +630,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
 
 router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { email, firstName, lastName, phone, dob, tierSlug, couponId } = req.body;
+    const { email, firstName, lastName, phone, dob, tierSlug, couponId, streetAddress, city, state, zipCode } = req.body;
     const sessionUser = getSessionUser(req);
     
     if (!email || !tierSlug) {
@@ -690,9 +690,9 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
     const memberName = `${firstName || ''} ${lastName || ''}`.trim() || email;
     
     await pool.query(
-      `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', NOW())`,
-      [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name]
+      `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, street_address, city, state, zip_code, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8, $9, $10, $11, NOW())`,
+      [userId, email.toLowerCase(), firstName || null, lastName || null, phone || null, dob || null, tier.name, streetAddress || null, city || null, state || null, zipCode || null]
     );
     
     console.log(`[Activation Link] Created pending user ${email} with tier ${tier.name}`);

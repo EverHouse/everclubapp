@@ -268,7 +268,7 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob } = req.body;
+    const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode } = req.body;
     const user = req.user as any;
     
     if (!memberEmail || !memberTier) {
@@ -284,6 +284,10 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
       lastName,
       phone,
       dob,
+      streetAddress,
+      city,
+      state,
+      zipCode,
       addedBy: user?.email || 'staff',
       addedByName: user?.displayName || 'Staff Member',
     });
@@ -368,7 +372,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
 router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob } = req.body;
+    const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode } = req.body;
     const user = req.user as any;
     
     if (!memberEmail || !memberTier) {
@@ -384,6 +388,10 @@ router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async
       lastName,
       phone,
       dob,
+      streetAddress,
+      city,
+      state,
+      zipCode,
       addedBy: user?.email || 'staff',
       addedByName: user?.displayName || 'Staff Member',
     });
