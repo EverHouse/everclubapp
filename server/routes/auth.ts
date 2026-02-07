@@ -694,15 +694,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 24px rgba(41, 53, 21, 0.08);">
                       <tr>
                         <td style="padding: 48px 40px 32px 40px; text-align: center;">
-                          <!--[if mso]>
-                          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" style="height:72px;width:72px;v-text-anchor:middle;" arcsize="50%" fillcolor="#293515">
-                            <w:anchorlock/>
-                            <center style="color:#ffffff;font-size:28px;font-weight:600;font-family:Georgia,serif;">EH</center>
-                          </v:roundrect>
-                          <![endif]-->
-                          <!--[if !mso]><!-->
-                          <img src="${logoUrl}" alt="Ever Club" width="180" height="60" style="display: block; margin: 0 auto 24px auto; border: 0; background-color: #ffffff;">
-                          <!--<![endif]-->
+                          <img src="${logoUrl}" alt="Ever Club" width="180" height="60" style="display: inline-block; margin-bottom: 24px;">
                           <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: #293515; font-family: 'Georgia', serif;">Hi ${firstName},</h1>
                           <p style="margin: 0; font-size: 16px; color: #666666; line-height: 1.5;">
                             Enter this code in the Ever Club app to sign in:
