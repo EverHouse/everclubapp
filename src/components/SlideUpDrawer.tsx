@@ -179,8 +179,7 @@ export function SlideUpDrawer({
         className={`fixed inset-x-0 bottom-0 flex flex-col ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl shadow-2xl transition-transform duration-200 ease-out ${isClosing ? 'translate-y-full' : 'animate-slide-up-drawer'} ${className}`}
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragState.isDragging ? 'none' : undefined,
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+          transition: dragState.isDragging ? 'none' : undefined
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -220,7 +219,8 @@ export function SlideUpDrawer({
           style={{ 
             WebkitOverflowScrolling: 'touch', 
             touchAction: 'pan-y',
-            overscrollBehavior: 'contain'
+            overscrollBehavior: 'contain',
+            paddingBottom: stickyFooter ? undefined : 'env(safe-area-inset-bottom, 0px)'
           }}
           onScroll={onContentScroll}
         >
