@@ -160,6 +160,8 @@ export function NewUserDrawer({
   const [createdUser, setCreatedUser] = useState<{ id: string; email: string; name: string } | null>(null);
   const [showIdScanner, setShowIdScanner] = useState(false);
   const [scannedIdImage, setScannedIdImage] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [subMemberScannedIds, setSubMemberScannedIds] = useState<Record<number, { base64: string; mimeType: string }>>({});
+  const [scanningSubMemberIndex, setScanningSubMemberIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -180,6 +182,8 @@ export function NewUserDrawer({
     setPendingUserToCleanup(null);
     setCreatedUser(null);
     setScannedIdImage(null);
+    setSubMemberScannedIds({});
+    setScanningSubMemberIndex(null);
   }, [defaultMode]);
   
   const handleCleanupPendingUser = async () => {
@@ -276,6 +280,27 @@ export function NewUserDrawer({
     imageBase64: string;
     imageMimeType: string;
   }) => {
+    if (scanningSubMemberIndex !== null) {
+      const index = scanningSubMemberIndex;
+      setSubMemberScannedIds(prev => ({
+        ...prev,
+        [index]: { base64: data.imageBase64, mimeType: data.imageMimeType },
+      }));
+      setMemberForm(prev => ({
+        ...prev,
+        groupMembers: prev.groupMembers.map((m, i) => 
+          i === index ? {
+            ...m,
+            firstName: data.firstName || m.firstName,
+            lastName: data.lastName || m.lastName,
+            dob: data.dateOfBirth || m.dob,
+          } : m
+        ),
+      }));
+      setScanningSubMemberIndex(null);
+      setShowIdScanner(false);
+      return;
+    }
     setScannedIdImage({ base64: data.imageBase64, mimeType: data.imageMimeType });
     if (mode === 'member') {
       setMemberForm(prev => ({
@@ -293,7 +318,7 @@ export function NewUserDrawer({
       }));
     }
     setShowIdScanner(false);
-  }, [mode]);
+  }, [mode, scanningSubMemberIndex]);
 
   const handleModeChange = (newMode: Mode) => {
     setMode(newMode);
@@ -426,7 +451,7 @@ export function NewUserDrawer({
     </SlideUpDrawer>
     <IdScannerModal
       isOpen={showIdScanner}
-      onClose={() => setShowIdScanner(false)}
+      onClose={() => { setShowIdScanner(false); setScanningSubMemberIndex(null); }}
       onScanComplete={handleIdScanComplete}
       isDark={isDark}
     />
@@ -700,7 +725,8 @@ function MemberFlow({
                 let addedCount = 0;
                 let failedCount = 0;
 
-                for (const member of form.groupMembers) {
+                for (let i = 0; i < form.groupMembers.length; i++) {
+                  const member = form.groupMembers[i];
                   try {
                     const memberTierSlug = tiers.find(t => t.id === member.tierId)?.slug || selectedTier?.slug;
                     const addMemberRes = await fetch(`/api/family-billing/groups/${groupId}/members`, {
@@ -720,6 +746,19 @@ function MemberFlow({
 
                     if (addMemberRes.ok) {
                       addedCount++;
+                      const addData = await addMemberRes.json();
+                      if (subMemberScannedIds[i] && addData.memberId) {
+                        fetch('/api/admin/save-id-image', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({
+                            userId: addData.memberId,
+                            image: subMemberScannedIds[i].base64,
+                            mimeType: subMemberScannedIds[i].mimeType,
+                          }),
+                        }).catch(err => console.error('Failed to save sub-member ID image:', err));
+                      }
                     } else {
                       failedCount++;
                       const addData = await addMemberRes.json();
@@ -914,6 +953,20 @@ function MemberFlow({
       ...prev,
       groupMembers: prev.groupMembers.filter((_, i) => i !== index),
     }));
+    setSubMemberScannedIds(prev => {
+      const updated: Record<number, { base64: string; mimeType: string }> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const k = Number(key);
+        if (k < index) updated[k] = val;
+        else if (k > index) updated[k - 1] = val;
+      }
+      return updated;
+    });
+    if (scanningSubMemberIndex === index) {
+      setScanningSubMemberIndex(null);
+    } else if (scanningSubMemberIndex !== null && scanningSubMemberIndex > index) {
+      setScanningSubMemberIndex(scanningSubMemberIndex - 1);
+    }
   };
 
   const updateGroupMember = (index: number, field: keyof GroupMember, value: string) => {
@@ -1260,7 +1313,8 @@ function MemberFlow({
                             let addedCount = 0;
                             let failedCount = 0;
 
-                            for (const member of form.groupMembers) {
+                            for (let i = 0; i < form.groupMembers.length; i++) {
+                              const member = form.groupMembers[i];
                               try {
                                 const memberTierSlug = tiers.find(t => t.id === member.tierId)?.slug || selectedTier?.slug;
                                 const addMemberRes = await fetch(`/api/family-billing/groups/${groupId}/members`, {
@@ -1280,6 +1334,19 @@ function MemberFlow({
 
                                 if (addMemberRes.ok) {
                                   addedCount++;
+                                  const addData = await addMemberRes.json();
+                                  if (subMemberScannedIds[i] && addData.memberId) {
+                                    fetch('/api/admin/save-id-image', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      credentials: 'include',
+                                      body: JSON.stringify({
+                                        userId: addData.memberId,
+                                        image: subMemberScannedIds[i].base64,
+                                        mimeType: subMemberScannedIds[i].mimeType,
+                                      }),
+                                    }).catch(err => console.error('Failed to save sub-member ID image:', err));
+                                  }
                                 } else {
                                   failedCount++;
                                   const addData = await addMemberRes.json();
@@ -1645,12 +1712,25 @@ function MemberFlow({
                     <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       Sub-Member {index + 1}
                     </span>
-                    <button
-                      onClick={() => removeGroupMember(index)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <span className="material-symbols-outlined text-sm">close</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScanningSubMemberIndex(index);
+                          setShowIdScanner(true);
+                        }}
+                        className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">badge</span>
+                        Scan ID
+                      </button>
+                      <button
+                        onClick={() => removeGroupMember(index)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <span className="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    </div>
                   </div>
                   <div className="mb-2">
                     <select
@@ -1699,6 +1779,23 @@ function MemberFlow({
                       className={`${inputClass} text-sm py-2`}
                     />
                   </div>
+                  <div className="mt-2">
+                    <input
+                      type="date"
+                      value={member.dob}
+                      onChange={(e) => updateGroupMember(index, 'dob', e.target.value)}
+                      placeholder="Date of birth"
+                      className={`${inputClass} text-sm py-2`}
+                    />
+                  </div>
+                  {subMemberScannedIds[index] && (
+                    <div className={`flex items-center gap-2 mt-2 text-xs ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-600'
+                    }`}>
+                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      ID scanned
+                    </div>
+                  )}
                 </div>
               ))}
               <button
