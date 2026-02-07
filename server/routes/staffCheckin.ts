@@ -12,6 +12,7 @@ import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessio
 import { consumeGuestPassForParticipant, canUseGuestPass } from '../core/billing/guestPassConsumer';
 import { createPrepaymentIntent } from '../core/billing/prepaymentService';
 import { logFromRequest } from '../core/auditLog';
+import { PRICING } from '../core/billing/pricingConfig';
 import { enforceSocialTierRules, type ParticipantForValidation } from '../core/bookingService/tierRules';
 import { broadcastMemberStatsUpdated } from '../core/websocket';
 
@@ -1151,7 +1152,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
       await pool.query(`
         INSERT INTO booking_participants 
           (session_id, participant_type, display_name, invite_status, payment_status, cached_fee_cents, slot_duration)
-        VALUES ($1, 'guest', $2, 'accepted', 'pending', 2500, $3)
+        VALUES ($1, 'guest', $2, 'accepted', 'pending', ${PRICING.GUEST_FEE_CENTS}, $3)
       `, [sessionId, guestName, slotDuration]);
 
       await pool.query(`

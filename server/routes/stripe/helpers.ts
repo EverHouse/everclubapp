@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { getSessionUser } from '../../types/session';
+import { PRICING } from '../../core/billing/pricingConfig';
 
 export function getStaffInfo(req: Request) {
   const sessionUser = getSessionUser(req);
@@ -22,4 +23,4 @@ export function escapeHtml(str: string): string {
 }
 
 export const MAX_RETRY_ATTEMPTS = 3;
-export const GUEST_FEE_CENTS = 2500;
+export const GUEST_FEE_CENTS = PRICING.GUEST_FEE_CENTS;

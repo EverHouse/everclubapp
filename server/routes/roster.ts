@@ -1689,7 +1689,7 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
       return res.status(500).json({ error: 'Failed to add guest participant' });
     }
 
-    const guestFeeCents = 2500;
+    const guestFeeCents = PRICING.GUEST_FEE_CENTS;
 
     await db.update(bookingParticipants)
       .set({ 
@@ -1839,13 +1839,13 @@ router.post('/api/bookings/:bookingId/confirm-guest-payment', async (req: Reques
         booking?.owner_email?.toLowerCase(),
         `Guest Fee - ${paymentIntent.metadata?.guestName || 'Guest'}`,
         'guest_fee',
-        2500,
+        paymentIntent.amount || PRICING.GUEST_FEE_CENTS,
         1,
-        2500,
+        paymentIntent.amount || PRICING.GUEST_FEE_CENTS,
         0,
         0,
         0,
-        2500,
+        paymentIntent.amount || PRICING.GUEST_FEE_CENTS,
         'stripe',
         new Date(),
         booking?.session_id,

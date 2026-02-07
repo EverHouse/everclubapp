@@ -26,6 +26,10 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Public membership page now shows the real guest fee in the '15 Annual Guest Passes' description",
       "Fix: Member dashboard overage dialog fallback now uses the real overage rate instead of hardcoded $25",
       "Fix: Staff training guide content now displays the real guest fee and overage rate from Stripe",
+      "Fix: Staff check-in guest addition now uses the real guest fee from Stripe instead of hardcoded $25",
+      "Fix: Roster guest fee assignment now uses the real guest fee from Stripe config",
+      "Fix: Guest fee payment recording now uses the actual Stripe payment amount instead of hardcoded $25",
+      "Fix: Stripe payment helpers fallback now references the centralized pricing config",
       "Improvement: All components use a shared pricing hook with 5-minute caching for efficient updates"
     ]
   },
