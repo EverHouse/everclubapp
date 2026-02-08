@@ -29,9 +29,61 @@ export const TRAINING_SEED_DATA = [
       { title: 'Command Center Overview', content: 'The Home dashboard is your command center. It shows pending booking requests, today\'s schedule, facility status, upcoming tours, and recent activity at a glance.', pageIcon: 'home' },
       { title: 'Bottom Navigation', content: 'Use the bottom navigation bar to quickly access the main sections: Home, Bookings, Financials, Calendar, and Directory.', pageIcon: 'menu' },
       { title: 'Updates (Header Icon)', content: 'The megaphone/campaign icon in the header takes you to the Updates page where you can view your activity notifications and manage member announcements.', pageIcon: 'campaign' },
-      { title: 'Mobile Hamburger Menu', content: 'On mobile, tap the hamburger menu (three lines) in the top left to access all navigation items including: Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources (Cafe, Training Guide), and Admin settings (Stripe Config, Manage Team, Gallery, FAQs, Inquiries, Bug Reports, Changelog, Data Integrity).', pageIcon: 'menu' },
+      { title: 'Mobile Hamburger Menu', content: 'On mobile, tap the hamburger menu (three lines) in the top left to access all navigation items including: Dashboard, Bookings, Financials, Tours, Calendar, Facility, Updates, Directory, Resources (Cafe, Training Guide), and Admin settings (Stripe Config, Manage Team, Gallery, FAQs, Inquiries, Bug Reports, Changelog, Data Integrity). The Training Guide can be found under the Resources section.', pageIcon: 'menu' },
       { title: 'Profile Access', content: 'Tap your avatar in the top right to access your profile, where you can manage push notifications and set up a password for faster login.', pageIcon: 'person' },
       { title: 'Sidebar Navigation', content: 'On larger screens (desktop/tablet), the sidebar provides quick access to all main sections plus Facility/Notices for managing closures and announcements.' },
+      { title: 'Google Sign-In', content: 'Members can sign in with their Google account instead of waiting for an email code. If their Google email matches a known member email (including alternate emails), they are automatically connected to their existing account.', pageIcon: 'login' },
+      { title: 'Linking Google Account', content: 'Members can link or unlink their Google account from Profile > Connected Accounts. This lets them use Google Sign-In for faster access in the future.', pageIcon: 'link' },
+    ]
+  },
+  {
+    guideId: 'staff-fab',
+    icon: 'add_circle',
+    title: 'Staff Quick Actions (FAB)',
+    description: 'Use the floating action button for common staff tasks',
+    sortOrder: 2,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Floating Action Button', content: 'The floating action button (+) in the bottom-right corner of the screen gives you quick access to the most common staff actions. Tap it to see the available options.', pageIcon: 'add_circle' },
+      { title: 'New User', content: 'Opens the registration drawer where you can add a new member, visitor, or sub-member. Fill in their details (or scan their ID to auto-fill) and submit.', pageIcon: 'person_add' },
+      { title: 'New Announcement', content: 'Quick-create an announcement for all members. Enter a title and message, optionally send a push notification or set it as a homepage banner.', pageIcon: 'campaign' },
+      { title: 'New Booking', content: 'Create a manual booking for walk-ins or phone reservations. Select the member, choose a bay, pick the date and time, and set the booking source.', pageIcon: 'event' },
+      { title: 'QR Scanner', content: 'Scan a member\'s QR code to record a walk-in check-in. This logs a visit without needing a booking — useful for members who just drop in to use the facility.', pageIcon: 'qr_code_scanner' },
+    ]
+  },
+  {
+    guideId: 'id-scanning',
+    icon: 'badge',
+    title: 'ID & License Scanning',
+    description: 'Scan IDs to auto-fill member registration and verify identity',
+    sortOrder: 3,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Where to Find It', content: 'ID scanning is available from the New User drawer when registering members, visitors, or sub-members. It is also available in the POS Register when adding a new customer, and from the member profile drawer if you need to re-scan or update an ID on file.', pageIcon: 'badge' },
+      { title: 'How to Scan', content: 'Tap "Scan ID" to open the camera. A guide overlay (similar to a banking app) helps you position the ID correctly within the frame. Hold the ID steady and tap capture.', pageIcon: 'photo_camera' },
+      { title: 'File Upload Option', content: 'If the camera is not working or you already have a photo of the ID, tap "Upload Photo" instead. You can select an existing image from your device.', pageIcon: 'upload_file' },
+      { title: 'AI Auto-Fill', content: 'After capturing the image, the system uses AI to read the ID and automatically fills in the person\'s name, date of birth, and address (street, city, state, zip). This saves time and reduces manual entry errors.', pageIcon: 'auto_fix_high' },
+      { title: 'Quality Feedback', content: 'If the image is blurry, too dark, has glare, or is partially obscured, you will see a warning with suggestions for improvement. You can retake the photo to get a better result.', pageIcon: 'warning' },
+      { title: 'Review & Confirm', content: 'After scanning, review the extracted information before tapping "Use This Info" to fill the form. You can always edit the fields manually afterward if anything needs correction.', pageIcon: 'fact_check' },
+      { title: 'ID Image Storage', content: 'The scanned ID image is saved on the member\'s record for future reference. Staff can view it later from the member profile drawer in the Directory.', pageIcon: 'save' },
+      { title: 'Viewing Stored IDs', content: 'In the member profile drawer (Directory), staff can see the "ID on File" section. From there you can view the ID image full-size, re-scan with a new ID, or remove the image.', pageIcon: 'visibility' },
+      { title: 'POS Register', content: 'When processing a new customer at the register, tap "Scan ID" to quickly fill in their info before checkout. This works the same way as scanning during registration.', pageIcon: 'point_of_sale' },
+    ]
+  },
+  {
+    guideId: 'qr-checkin',
+    icon: 'qr_code_scanner',
+    title: 'QR Code Check-In',
+    description: 'Scan member QR codes for booking and walk-in check-ins',
+    sortOrder: 4,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Two Types of QR Check-In', content: 'There are two ways to use QR check-in: Booking check-in (checking in a member at a scheduled session) and Walk-in check-in (no booking needed, just records a visit to the facility).', pageIcon: 'qr_code_scanner' },
+      { title: 'Walk-In QR Check-In', content: 'Open the QR scanner from the floating action button (+). Scan the member\'s QR code. A confirmation popup shows the member\'s name, tier, status, and any pinned staff notes. The visit is automatically recorded in the system.', pageIcon: 'login' },
+      { title: 'Where Members Find Their QR Code', content: 'Members tap their membership card on the dashboard to show their QR code. They can present it at the front desk for quick check-in.', pageIcon: 'credit_card' },
+      { title: 'Confirmation Popup', content: 'After scanning, a brief modal shows the member\'s name, tier, and any pinned staff notes. It auto-dismisses after a few seconds. Status warnings appear in amber for cancelled, suspended, or inactive members.', pageIcon: 'check_circle' },
+      { title: 'Duplicate Scan Protection', content: 'If the same member is scanned twice within 2 minutes, you will see a friendly "already checked in" message instead of an error. This prevents accidental duplicate check-ins.', pageIcon: 'shield' },
+      { title: 'Visit Tracking', content: 'Walk-in check-ins automatically count toward the member\'s lifetime visits. Visit counts are displayed on the membership card, in the staff profile drawer, and in the member directory. Visits also sync to HubSpot.', pageIcon: 'trending_up' },
     ]
   },
   {
@@ -39,7 +91,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'event_note',
     title: 'Managing Booking Requests',
     description: 'Handle simulator and conference room bookings with Trackman integration',
-    sortOrder: 2,
+    sortOrder: 5,
     isAdminOnly: false,
     steps: [
       { title: 'Booking Workflow Overview', content: 'Members submit booking requests (status: Pending). Staff reviews requests in the Bookings tab, books the slot in the Trackman portal, then Trackman webhooks automatically confirm and link the booking.', pageIcon: 'event_note' },
@@ -59,7 +111,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'group_add',
     title: 'Managing Players & Guests',
     description: 'Add players and guests to bookings, manage the roster',
-    sortOrder: 3,
+    sortOrder: 6,
     isAdminOnly: false,
     steps: [
       { title: 'Opening the Manage Players Modal', content: 'Look for the "X/Y Players" button on any booking card. This shows current players vs total slots. Tap it to open the Manage Players modal.', pageIcon: 'group_add' },
@@ -79,7 +131,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'point_of_sale',
     title: 'Check-In & Billing',
     description: 'Check in bookings and handle payments',
-    sortOrder: 4,
+    sortOrder: 7,
     isAdminOnly: false,
     steps: [
       { title: 'Starting Check-In', content: 'When a member arrives for their booking, tap the check-in button on the booking card. This opens the billing screen.', pageIcon: 'point_of_sale' },
@@ -92,6 +144,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Confirming Payments', content: 'You can mark individual payments as paid, or confirm all at once. Use "Waive" if a fee should be forgiven (you must enter a reason).' },
       { title: 'Payment Methods', content: 'Payment options include: "Charge Card on File" (use the member\'s saved card), "Pay with Card" (enter a new card), "Mark Paid (Cash/External)" (record cash or external payment), or "Waive All Fees" (forgive fees with a required reason). All payments are tracked for daily reconciliation.' },
       { title: 'Payment Audit Trail', content: 'All payment actions are logged with your name and timestamp for accountability.' },
+      { title: 'Prepayment', content: 'After a booking is approved or linked to Trackman, the member receives a prepayment request for expected fees (overage, guests). Members can pay from their dashboard. Check-in is blocked until fees are paid. If the booking is cancelled, any prepayment is automatically refunded.', pageIcon: 'payment' },
     ]
   },
   {
@@ -99,19 +152,21 @@ export const TRAINING_SEED_DATA = [
     icon: 'payments',
     title: 'Financials Page',
     description: 'Process payments, view subscriptions, and manage invoices',
-    sortOrder: 5,
+    sortOrder: 8,
     isAdminOnly: false,
     steps: [
       { title: 'Access Financials', content: 'Go to the Financials tab from the bottom navigation. This is your hub for all payment-related activities.', pageIcon: 'payments' },
       { title: 'Three Main Tabs', content: 'The Financials page has three tabs: POS (Point of Sale for daily transactions including Record Purchase, Redeem Pass, Pending Authorizations, Overdue Payments, Failed Payments, Refunds, and Recent Transactions), Subscriptions (member billing), and Invoices (payment history).' },
       { title: 'POS: Record Purchase', content: 'Charge a member for merchandise, guest fees, or custom amounts. Search for the member, enter the amount and description, and select card or cash payment.' },
       { title: 'POS: Redeem Pass', content: 'Scan a QR code or manually enter a pass ID to redeem day passes. The system validates the pass and marks it as used.' },
+      { title: 'POS: Register (New Customer)', content: 'Staff can process new walk-in customers at the register. Tap "Add Customer" to fill in their details, or tap "Scan ID" to auto-fill from a driver\'s license. Complete the purchase with card payment.', pageIcon: 'person_add' },
       { title: 'POS: Overdue Payments', content: 'Shows bookings from the last 30 days with unpaid balances. Tap any item to open the check-in billing modal and collect the outstanding amount.' },
       { title: 'POS: Recent Transactions', content: 'A live feed of all recent payments showing member name, amount, type, and timestamp. Use this to verify transactions.' },
       { title: 'POS: Daily Summary', content: 'Shows today\'s totals broken down by payment type: guest fees, overage fees, merchandise, membership payments, cash collected, check payments, and other.' },
       { title: 'POS: Failed Payments', content: 'Payments that failed to process appear here. You can retry the charge or mark it as manually collected if the member paid another way.' },
       { title: 'POS: Pending Authorizations', content: 'Card holds that are awaiting capture. These are pre-authorized amounts that haven\'t been finalized yet.' },
       { title: 'POS: Refunds', content: 'Process full or partial refunds for payments made in the last 30 days. Select a payment, choose full or partial refund, enter amount (if partial), select a reason, and confirm.' },
+      { title: 'POS: Dynamic Pricing', content: 'All prices (guest fees, overage rates, day pass prices) come directly from Stripe. If prices change in Stripe, they update automatically in the app. There is no need to update prices manually in the staff portal.', pageIcon: 'sync' },
       { title: 'Subscriptions Tab', content: 'View all active Stripe subscriptions. See member name, plan, amount, status, and next billing date. Filter by status: all, active, past_due, or canceled. You can also sync subscriptions from Stripe to update the local database.' },
       { title: 'Invoices Tab', content: 'View all Stripe invoices. Filter by status: all, paid, open, or uncollectible. You can also filter by date range. Download PDF receipts or open the Stripe-hosted invoice page.' },
       { title: 'Payment Failure Handling', content: 'When a membership payment fails, the system automatically sets the member to "past due" status, starts a grace period, and notifies both the member and staff. Members in past due status are flagged in their profile.' },
@@ -119,11 +174,26 @@ export const TRAINING_SEED_DATA = [
     ]
   },
   {
+    guideId: 'day-passes',
+    icon: 'confirmation_number',
+    title: 'Day Pass Sales',
+    description: 'Sell and redeem one-time access passes for non-members',
+    sortOrder: 9,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What Are Day Passes?', content: 'Day passes are one-time access passes for non-members. There are two types: Golf Sim day passes and Coworking day passes. They allow visitors to use the facility for a single day without a membership.', pageIcon: 'confirmation_number' },
+      { title: 'Selling a Day Pass (Staff)', content: 'From the New User drawer (via the floating action button), select "Visitor" mode. Choose the day pass product (Golf Sim or Coworking), fill in the visitor\'s info (or scan their ID to auto-fill), and complete the payment.', pageIcon: 'sell' },
+      { title: 'QR Code Delivery', content: 'After purchase, the visitor receives a QR code via email that can be redeemed at the front desk. The email includes the pass details and instructions for redemption.', pageIcon: 'qr_code' },
+      { title: 'Redeeming at POS', content: 'Go to Financials > POS > Redeem Pass. Scan the visitor\'s QR code or enter the pass ID manually. The system validates the pass and marks it as redeemed.', pageIcon: 'redeem' },
+      { title: 'Pricing', content: 'Day pass prices are managed in Stripe and update automatically in the app. If prices change in Stripe, the new prices are reflected everywhere without any manual updates needed.', pageIcon: 'attach_money' },
+    ]
+  },
+  {
     guideId: 'billing-providers',
     icon: 'account_balance',
     title: 'Billing Providers',
     description: 'Understand member billing sources and how to manage them',
-    sortOrder: 6,
+    sortOrder: 10,
     isAdminOnly: false,
     steps: [
       { title: 'What is a Billing Provider?', content: 'Each member has a billing provider that determines how their subscription and payments are managed. This is shown in the member\'s Billing tab.', pageIcon: 'account_balance' },
@@ -142,7 +212,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'directions_walk',
     title: 'Tours',
     description: 'View and manage scheduled facility tours',
-    sortOrder: 7,
+    sortOrder: 11,
     isAdminOnly: false,
     steps: [
       { title: 'Access Tours', content: 'Go to the Tours tab from the sidebar or hamburger menu to view all scheduled facility tours.', pageIcon: 'directions_walk' },
@@ -159,7 +229,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'notifications',
     title: 'Notices (Facility)',
     description: 'Schedule notices and facility closures',
-    sortOrder: 8,
+    sortOrder: 12,
     isAdminOnly: false,
     steps: [
       { title: 'Access Notices', content: 'Go to Facility from the sidebar or hamburger menu to manage facility notices and closures.', pageIcon: 'notifications' },
@@ -182,7 +252,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'calendar_month',
     title: 'Events, Wellness & Blocks',
     description: 'Manage events, wellness classes, and availability blocks',
-    sortOrder: 9,
+    sortOrder: 13,
     isAdminOnly: false,
     steps: [
       { title: 'Access the Calendar', content: 'Go to the Calendar tab to view and manage events, wellness classes, and availability blocks.', pageIcon: 'calendar_month' },
@@ -203,7 +273,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'campaign',
     title: 'Updates & Announcements',
     description: 'Create announcements and view activity',
-    sortOrder: 10,
+    sortOrder: 14,
     isAdminOnly: false,
     steps: [
       { title: 'Access Updates', content: 'Click the megaphone/campaign icon in the header to go to the Updates page.', pageIcon: 'campaign' },
@@ -223,7 +293,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'groups',
     title: 'Member Directory',
     description: 'Search and view member and visitor profiles',
-    sortOrder: 11,
+    sortOrder: 15,
     isAdminOnly: false,
     steps: [
       { title: 'Access Directory', content: 'Go to Directory from the bottom navigation, sidebar, or the hamburger menu on mobile.', pageIcon: 'groups' },
@@ -234,6 +304,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Search', content: 'Use the search bar to find people by name, email, phone, or tier. Type "founding" to find founding members.' },
       { title: 'Filter by Tier', content: 'Use the tier filter buttons (All, Social, Core, Premium, Corporate, VIP, etc.) to narrow down the list.' },
       { title: 'Member Profile Drawer', content: 'Tap a member to open their profile drawer with tabs for: Overview (contact info, tier, tags), History (bookings, events, wellness), Billing, and Staff Notes.' },
+      { title: 'ID on File', content: 'In the member profile drawer, staff can view a stored ID image if one was scanned during registration. Options include viewing the ID full-size, re-scanning with a new ID, or removing the image from the record.', pageIcon: 'badge' },
       { title: 'Billing Tab', content: 'The Billing tab shows the member\'s billing provider and subscription details. For Stripe members, you can pause, apply discounts, change tier, or cancel the subscription.' },
       { title: 'Booking History', content: 'In the History tab, view all member bookings and mark them as Attended or No Show directly from the profile.' },
       { title: 'View As Member (Admin Only)', content: 'Admins can tap "View As" to see the app from a member\'s perspective. A banner shows when viewing as another member. Exit by tapping the banner.' },
@@ -245,7 +316,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'mail',
     title: 'Inquiries',
     description: 'Manage form submissions (Admin only)',
-    sortOrder: 12,
+    sortOrder: 16,
     isAdminOnly: true,
     steps: [
       { title: 'Access Inquiries', content: 'Go to Inquiries from the Admin section of the sidebar or hamburger menu.', pageIcon: 'mail' },
@@ -261,7 +332,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'local_cafe',
     title: 'Cafe Menu',
     description: 'Update menu items and prices',
-    sortOrder: 13,
+    sortOrder: 17,
     isAdminOnly: false,
     steps: [
       { title: 'Access Cafe Menu', content: 'Go to Cafe Menu from the Resources section of the sidebar or hamburger menu.', pageIcon: 'local_cafe' },
@@ -276,7 +347,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'photo_library',
     title: 'Gallery',
     description: 'Manage venue photos (Admin only)',
-    sortOrder: 14,
+    sortOrder: 18,
     isAdminOnly: true,
     steps: [
       { title: 'Access Gallery', content: 'Go to Gallery from the Admin section of the sidebar or hamburger menu.', pageIcon: 'photo_library' },
@@ -291,7 +362,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'help_outline',
     title: 'FAQs',
     description: 'Edit frequently asked questions (Admin only)',
-    sortOrder: 15,
+    sortOrder: 19,
     isAdminOnly: true,
     steps: [
       { title: 'Access FAQs', content: 'Go to FAQs from the Admin section of the sidebar or hamburger menu.', pageIcon: 'help_outline' },
@@ -306,7 +377,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'shield_person',
     title: 'Manage Team',
     description: 'Manage staff and admin accounts',
-    sortOrder: 16,
+    sortOrder: 20,
     isAdminOnly: true,
     steps: [
       { title: 'Access Manage Team', content: 'Go to Manage Team from the Admin section of the sidebar or hamburger menu. This is admin-only.', pageIcon: 'shield_person' },
@@ -321,7 +392,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'loyalty',
     title: 'Membership Tiers',
     description: 'Configure tier settings and permissions',
-    sortOrder: 17,
+    sortOrder: 21,
     isAdminOnly: true,
     steps: [
       { title: 'Access Stripe Config', content: 'Go to Stripe Config from the Admin section of the sidebar or hamburger menu. This controls membership tier settings and Stripe integration.', pageIcon: 'loyalty' },
@@ -338,7 +409,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'badge',
     title: 'Team Directory',
     description: 'View staff and admin contact info',
-    sortOrder: 18,
+    sortOrder: 22,
     isAdminOnly: false,
     steps: [
       { title: 'Access Team Directory', content: 'Go to the Directory from the bottom navigation, then tap the Team tab to view staff and admin contacts.', pageIcon: 'badge' },
@@ -352,7 +423,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'upload_file',
     title: 'Trackman Import',
     description: 'Import historical booking data (Admin only)',
-    sortOrder: 19,
+    sortOrder: 23,
     isAdminOnly: true,
     steps: [
       { title: 'Access Trackman Import', content: 'Trackman Import is accessed from the Bookings tab. Look for the import/upload section when managing bookings. This is admin-only.', pageIcon: 'upload_file' },
@@ -368,7 +439,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'bug_report',
     title: 'Bug Reports',
     description: 'View and manage reported issues (Admin only)',
-    sortOrder: 20,
+    sortOrder: 24,
     isAdminOnly: true,
     steps: [
       { title: 'Access Bug Reports', content: 'Go to Bug Reports from the Admin section of the sidebar or hamburger menu.', pageIcon: 'bug_report' },
@@ -383,7 +454,7 @@ export const TRAINING_SEED_DATA = [
     icon: 'history',
     title: 'Changelog',
     description: 'View app updates and changes (Admin only)',
-    sortOrder: 21,
+    sortOrder: 25,
     isAdminOnly: true,
     steps: [
       { title: 'Access Changelog', content: 'Go to the Changelog from the sidebar/hamburger menu under Admin settings to view all app updates.', pageIcon: 'history' },
