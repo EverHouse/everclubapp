@@ -7,7 +7,7 @@ interface StaleWaiver {
   display_name: string;
   session_id: number;
   created_at: Date;
-  booking_id: number;
+  request_id: number;
   request_date: string;
   resource_name: string | null;
 }
@@ -27,12 +27,12 @@ export async function checkStaleWaivers(): Promise<{
         bp.display_name,
         bp.session_id,
         bp.created_at,
-        bs.booking_id,
+        br.id as request_id,
         br.request_date,
         r.name as resource_name
       FROM booking_participants bp
       JOIN booking_sessions bs ON bp.session_id = bs.id
-      JOIN booking_requests br ON bs.booking_id = br.id
+      JOIN booking_requests br ON br.session_id = bs.id
       LEFT JOIN resources r ON br.resource_id = r.id
       WHERE bp.payment_status = 'waived'
         AND bp.waiver_reviewed_at IS NULL
