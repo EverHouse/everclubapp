@@ -904,7 +904,7 @@ export function TrackmanLinkModal({
           </div>
           
           <MemberSearchInput
-            placeholder="Search member..."
+            placeholder="Search..."
             onSelect={(member) => handleMemberSelect(member, slotIndex)}
             showTier={true}
             autoFocus={true}
