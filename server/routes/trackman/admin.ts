@@ -1789,8 +1789,10 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         guestPassesUsedThisBooking = guestParticipants.filter(gp => gp.used_guest_pass).length;
         guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
         
-        const emptySlots = membersWithFees.filter(m => !m.userEmail);
-        const emptySlotFees = emptySlots.length * PRICING.GUEST_FEE_DOLLARS;
+        const emptyMemberSlots = membersWithFees.filter(m => !m.userEmail);
+        const guestParticipantCount = participantsResult.rows.filter(p => p.participant_type === 'guest').length;
+        const unaccountedEmptySlots = Math.max(0, emptyMemberSlots.length - guestParticipantCount);
+        const emptySlotFees = unaccountedEmptySlots * PRICING.GUEST_FEE_DOLLARS;
         guestFeesWithoutPass += emptySlotFees;
       } else {
         const ownerMember = membersWithFees.find(m => m.isPrimary);
@@ -1972,6 +1974,111 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
   } catch (error: any) {
     console.error('Add guest error:', error);
     res.status(500).json({ error: 'Failed to add guest' });
+  }
+});
+
+router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const guestId = parseInt(req.params.guestId);
+    const staffEmail = (req as any).session?.user?.email || 'admin';
+
+    const bookingResult = await pool.query(
+      `SELECT br.id, br.session_id, br.guest_count, br.user_email as owner_email
+       FROM booking_requests br
+       WHERE br.id = $1`,
+      [bookingId]
+    );
+
+    if (bookingResult.rowCount === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+    const sessionId = booking.session_id;
+
+    let guestDisplayName = 'Unknown guest';
+    let guestFound = false;
+
+    // Step 1: Try to find the guest in booking_guests (frontend passes booking_guests.id)
+    const guestBookingResult = await pool.query(
+      `SELECT id, guest_name, guest_email FROM booking_guests WHERE id = $1 AND booking_id = $2`,
+      [guestId, bookingId]
+    );
+
+    if (guestBookingResult.rowCount && guestBookingResult.rowCount > 0) {
+      guestFound = true;
+      const guestRecord = guestBookingResult.rows[0];
+      guestDisplayName = guestRecord.guest_name || guestDisplayName;
+
+      // Delete from booking_guests
+      await pool.query(
+        `DELETE FROM booking_guests WHERE id = $1`,
+        [guestId]
+      );
+
+      // Step 2: Find and delete corresponding booking_participants entry
+      // Match by session_id + display_name + participant_type='guest'
+      if (sessionId) {
+        const participantResult = await pool.query(
+          `SELECT id FROM booking_participants 
+           WHERE session_id = $1 AND participant_type = 'guest' AND display_name = $2`,
+          [sessionId, guestDisplayName]
+        );
+
+        if (participantResult.rowCount && participantResult.rowCount > 0) {
+          await pool.query(
+            `DELETE FROM booking_participants WHERE id = $1`,
+            [participantResult.rows[0].id]
+          );
+        }
+      }
+    } else if (sessionId) {
+      // Fallback: Try to find in booking_participants by ID directly (backward compatibility)
+      const participantResult = await pool.query(
+        `SELECT id, display_name FROM booking_participants WHERE id = $1 AND session_id = $2 AND participant_type = 'guest'`,
+        [guestId, sessionId]
+      );
+
+      if (participantResult.rowCount && participantResult.rowCount > 0) {
+        guestFound = true;
+        guestDisplayName = participantResult.rows[0].display_name || guestDisplayName;
+        await pool.query(`DELETE FROM booking_participants WHERE id = $1`, [guestId]);
+      }
+    }
+
+    if (!guestFound) {
+      return res.status(404).json({ error: 'Guest not found in booking_guests or booking_participants' });
+    }
+
+    // Step 3: Decrement guest_count on booking_requests
+    if (booking.guest_count && booking.guest_count > 0) {
+      await pool.query(
+        `UPDATE booking_requests SET guest_count = GREATEST(0, guest_count - 1), updated_at = NOW() WHERE id = $1`,
+        [bookingId]
+      );
+    }
+
+    // Step 4: Recalculate fees for the session
+    if (sessionId) {
+      await recalculateSessionFees(sessionId, 'roster_update');
+    }
+
+    await logFromRequest(req, {
+      action: 'update',
+      resourceType: 'booking',
+      resourceId: String(bookingId),
+      resourceName: `Remove guest ${guestDisplayName}`,
+      details: { guestId, guestDisplayName, staffEmail }
+    });
+
+    res.json({
+      success: true,
+      message: `Guest ${guestDisplayName} removed successfully`
+    });
+  } catch (error: any) {
+    console.error('Remove guest error:', error);
+    res.status(500).json({ error: 'Failed to remove guest' });
   }
 });
 

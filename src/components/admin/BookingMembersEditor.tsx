@@ -396,6 +396,33 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
     }
   };
 
+  const [removingGuestId, setRemovingGuestId] = useState<number | null>(null);
+
+  const handleRemoveGuest = async (guest: BookingGuest) => {
+    if (!window.confirm(`Remove guest "${guest.guestName || 'Guest'}" from this booking?`)) {
+      return;
+    }
+    setRemovingGuestId(guest.id);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/guests/${guest.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        showToast('Guest removed successfully', 'success');
+        await fetchBookingMembers();
+        onMemberLinked?.();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to remove guest');
+      }
+    } catch (err) {
+      setError(getNetworkErrorMessage());
+    } finally {
+      setRemovingGuestId(null);
+    }
+  };
+
   const handleLinkMatchedMember = async () => {
     if (!memberMatchWarning) return;
     setLinkingSlotId(memberMatchWarning.slotId);
@@ -1352,6 +1379,18 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
                     <span className="text-[9px] text-gray-500 dark:text-gray-400 max-w-[80px] truncate" title={guest.feeNote}>
                       {guest.feeNote}
                     </span>
+                    <button
+                      onClick={() => handleRemoveGuest(guest)}
+                      disabled={removingGuestId === guest.id}
+                      className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+                      title={`Remove ${guest.guestName || 'guest'}`}
+                    >
+                      {removingGuestId === guest.id ? (
+                        <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span className="text-xs font-bold">✕</span>
+                      )}
+                    </button>
                   </div>
                 </div>
               ))}

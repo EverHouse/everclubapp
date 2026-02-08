@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.10.8",
+    date: "2026-02-08",
+    title: "Guest Fee & Removal Improvements",
+    changes: [
+      "Fix: Guest fee double-counting resolved — when a booking had both a guest participant (like Nolan) AND an empty member slot, the system was charging $25 for the guest AND another $25 for the empty slot, resulting in $50 instead of the correct $25. The financial summary now correctly accounts for guests that already fill empty slots.",
+      "New: Staff can now remove guests from bookings using a remove button (X) next to each guest in the Booking Details modal — previously there was no way to remove a guest once added.",
+    ],
+  },
+  {
     version: "7.10.7",
     date: "2026-02-08",
     title: "Empty Slot Overage Fee Fix",
