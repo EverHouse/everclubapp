@@ -949,7 +949,7 @@ router.post('/api/rsvps', async (req, res) => {
       if (evt.maxAttendees && evt.maxAttendees > 0) {
         const rsvpCountResult = await tx.select({ count: sql<number>`count(*)::int` })
           .from(eventRsvps)
-          .where(eq(eventRsvps.eventId, event_id));
+          .where(and(eq(eventRsvps.eventId, event_id), eq(eventRsvps.status, 'confirmed')));
         
         const rsvpCount = rsvpCountResult[0]?.count || 0;
         
