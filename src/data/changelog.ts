@@ -13,7 +13,7 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.10.14",
+    version: "7.10.15",
     date: "2026-02-08",
     title: "Comprehensive Guest Pass Placeholder Protection",
     changes: [
@@ -22,6 +22,7 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Approval-flow guests with real names but no guest record now correctly receive guest pass benefits",
       "Fix: Added placeholder guard to the guest pass consumption function — staff cannot accidentally apply a pass to a 'Guest 1' placeholder slot",
       "Fix: Added placeholder guard to the standalone guest pass API endpoint and reusable function for defense-in-depth",
+      "Fix: Member fee estimate preview now correctly shows guest passes will apply — estimate uses distinct naming so passes preview correctly while real placeholder slots in bookings are still blocked",
     ],
   },
   {

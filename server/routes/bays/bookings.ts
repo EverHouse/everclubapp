@@ -1245,9 +1245,10 @@ async function calculateFeeEstimate(params: {
     { email: ownerEmail, displayName: 'Owner', participantType: 'owner' }
   ];
   
-  // Add guests based on count
+  // Add guests based on count (use "Estimated Guest" prefix to distinguish from
+  // placeholder "Guest N" entries in booking_participants, which should not consume passes)
   for (let i = 0; i < guestCount; i++) {
-    participants.push({ displayName: `Guest ${i + 1}`, participantType: 'guest' });
+    participants.push({ displayName: `Estimated Guest ${i + 1}`, participantType: 'guest' });
   }
   
   try {
