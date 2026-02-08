@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
@@ -185,6 +185,18 @@ const Dashboard: React.FC = () => {
   const [overagePaymentBooking, setOveragePaymentBooking] = useState<{ id: number; amount: number; minutes: number } | null>(null);
   const [isPayingOverage, setIsPayingOverage] = useState(false);
 
+  // Stable time state to prevent re-renders on every parent render tick
+  const [currentTime, setCurrentTime] = useState(getNowTimePacific());
+  const [currentDate, setCurrentDate] = useState(getTodayString());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(getNowTimePacific());
+      setCurrentDate(getTodayString());
+    }, 60000); // Update once per minute is sufficient for dashboard filters
+    return () => clearInterval(timer);
+  }, []);
+
   const isStaffOrAdminProfile = user?.role === 'admin' || user?.role === 'staff';
   const { permissions: tierPermissions } = useTierPermissions(user?.tier);
 
@@ -267,120 +279,120 @@ const Dashboard: React.FC = () => {
     refetchAllData();
   }, [refetchAllData]);
 
-  const allItems = [
-    ...dbBookings.map(b => {
-      const isLinkedMember = user?.email ? b.user_email?.toLowerCase() !== user.email.toLowerCase() : false;
-      const primaryBookerName = isLinkedMember && b.user_email 
-        ? b.user_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-        : null;
-      return {
-        id: `booking-${b.id}`,
-        dbId: b.id,
-        type: 'booking' as const,
-        title: b.resource_name || 'Booking',
-        resourceType: b.resource_type || 'simulator',
-        date: formatDate(b.booking_date),
-        rawDate: b.booking_date.split('T')[0],
-        time: formatTime12Hour(b.start_time),
-        endTime: formatTime12Hour(b.end_time),
-        details: `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`,
-        sortKey: `${b.booking_date}T${b.start_time}`,
-        status: b.status,
-        isLinkedMember,
-        primaryBookerName,
-        raw: b
-      };
-    }),
-    ...dbBookingRequests
+  // Performance Optimization: Memoize complex data transformations
+  const allItems = useMemo(() => {
+    const bookingIds = new Set(dbBookings.map(b => b.id));
+    const bookingRequestCalIds = new Set(dbBookingRequests
       .filter(r => ['pending', 'pending_approval', 'approved', 'confirmed', 'attended'].includes(r.status))
-      .filter(r => !dbBookings.some(b => b.id === r.id))
-      .map(r => {
-      const timeDetails = `${formatTime12Hour(r.start_time)} - ${formatTime12Hour(r.end_time)}`;
-      const linkedInfo = r.is_linked_member && r.primary_booker_name 
-        ? ` • Booked by ${r.primary_booker_name.split(' ')[0]}` 
-        : '';
-      return {
-        id: `request-${r.id}`,
-        dbId: r.id,
-        type: 'booking_request' as const,
-        title: r.resource_name || r.bay_name || (r.notes?.includes('Conference room') ? 'Conference Room' : 'Simulator'),
-        resourceType: r.notes?.includes('Conference room') ? 'conference_room' : 'simulator',
-        date: formatDate(r.request_date),
-        rawDate: r.request_date.split('T')[0],
-        time: formatTime12Hour(r.start_time),
-        endTime: formatTime12Hour(r.end_time),
-        details: `${timeDetails}${linkedInfo}`,
-        sortKey: `${r.request_date}T${r.start_time}`,
-        status: r.status,
-        isLinkedMember: r.is_linked_member || false,
-        primaryBookerName: r.primary_booker_name,
-        raw: r
-      };
-    }),
-    ...dbRSVPs.map(r => ({
-      id: `rsvp-${r.id}`,
-      dbId: r.id,
-      type: 'rsvp' as const,
-      title: r.title || 'Event',
-      resourceType: 'event',
-      date: formatDate(r.event_date),
-      rawDate: r.event_date.split('T')[0],
-      time: formatTime12Hour(r.start_time),
-      endTime: '',
-      details: r.location || '',
-      sortKey: `${r.event_date}T${r.start_time}`,
-      raw: r
-    })),
-    ...dbWellnessEnrollments.map(w => ({
-      id: `wellness-${w.id}`,
-      dbId: w.id,
-      classId: w.class_id,
-      type: 'wellness' as const,
-      title: w.title || 'Wellness Class',
-      resourceType: 'wellness_class',
-      date: formatDate(w.date),
-      rawDate: w.date.split('T')[0],
-      time: w.time,
-      endTime: '',
-      details: `${w.category} with ${w.instructor}`,
-      sortKey: `${w.date}T${w.time}`,
-      raw: w
-    })),
-    ...dbConferenceRoomBookings
-      .filter(c => {
-        const isDuplicate = dbBookingRequests.some(r => 
-          r.calendar_event_id === c.calendar_event_id && 
-          ['pending', 'pending_approval', 'approved', 'confirmed', 'attended'].includes(r.status)
-        );
-        return !isDuplicate;
-      })
-      .map(c => ({
-        id: c.id,
-        dbId: c.id,
-        type: 'conference_room_calendar' as const,
-        title: 'Conference Room',
-        resourceType: 'conference_room',
-        date: formatDate(c.request_date),
-        rawDate: c.request_date.split('T')[0],
-        time: formatTime12Hour(c.start_time),
-        endTime: formatTime12Hour(c.end_time),
-        details: `${formatTime12Hour(c.start_time)} - ${formatTime12Hour(c.end_time)}`,
-        sortKey: `${c.request_date}T${c.start_time}`,
-        raw: c,
-        source: 'calendar'
-      }))
-  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      .map(r => r.calendar_event_id)
+      .filter(Boolean));
 
-  const todayStr = getTodayString();
-  const nowTime = getNowTimePacific();
-  
-  const normalizeTime = (t: string) => {
+    return [
+      ...dbBookings.map(b => {
+        const isLinkedMember = user?.email ? b.user_email?.toLowerCase() !== user.email.toLowerCase() : false;
+        const primaryBookerName = isLinkedMember && b.user_email
+          ? b.user_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          : null;
+        return {
+          id: `booking-${b.id}`,
+          dbId: b.id,
+          type: 'booking' as const,
+          title: b.resource_name || 'Booking',
+          resourceType: b.resource_type || 'simulator',
+          date: formatDate(b.booking_date),
+          rawDate: b.booking_date.split('T')[0],
+          time: formatTime12Hour(b.start_time),
+          endTime: formatTime12Hour(b.end_time),
+          details: `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`,
+          sortKey: `${b.booking_date}T${b.start_time}`,
+          status: b.status,
+          isLinkedMember,
+          primaryBookerName,
+          raw: b
+        };
+      }),
+      ...dbBookingRequests
+        .filter(r => ['pending', 'pending_approval', 'approved', 'confirmed', 'attended'].includes(r.status))
+        .filter(r => !bookingIds.has(r.id))
+        .map(r => {
+        const timeDetails = `${formatTime12Hour(r.start_time)} - ${formatTime12Hour(r.end_time)}`;
+        const linkedInfo = r.is_linked_member && r.primary_booker_name
+          ? ` • Booked by ${r.primary_booker_name.split(' ')[0]}`
+          : '';
+        return {
+          id: `request-${r.id}`,
+          dbId: r.id,
+          type: 'booking_request' as const,
+          title: r.resource_name || r.bay_name || (r.notes?.includes('Conference room') ? 'Conference Room' : 'Simulator'),
+          resourceType: r.notes?.includes('Conference room') ? 'conference_room' : 'simulator',
+          date: formatDate(r.request_date),
+          rawDate: r.request_date.split('T')[0],
+          time: formatTime12Hour(r.start_time),
+          endTime: formatTime12Hour(r.end_time),
+          details: `${timeDetails}${linkedInfo}`,
+          sortKey: `${r.request_date}T${r.start_time}`,
+          status: r.status,
+          isLinkedMember: r.is_linked_member || false,
+          primaryBookerName: r.primary_booker_name,
+          raw: r
+        };
+      }),
+      ...dbRSVPs.map(r => ({
+        id: `rsvp-${r.id}`,
+        dbId: r.id,
+        type: 'rsvp' as const,
+        title: r.title || 'Event',
+        resourceType: 'event',
+        date: formatDate(r.event_date),
+        rawDate: r.event_date.split('T')[0],
+        time: formatTime12Hour(r.start_time),
+        endTime: '',
+        details: r.location || '',
+        sortKey: `${r.event_date}T${r.start_time}`,
+        raw: r
+      })),
+      ...dbWellnessEnrollments.map(w => ({
+        id: `wellness-${w.id}`,
+        dbId: w.id,
+        classId: w.class_id,
+        type: 'wellness' as const,
+        title: w.title || 'Wellness Class',
+        resourceType: 'wellness_class',
+        date: formatDate(w.date),
+        rawDate: w.date.split('T')[0],
+        time: w.time,
+        endTime: '',
+        details: `${w.category} with ${w.instructor}`,
+        sortKey: `${w.date}T${w.time}`,
+        raw: w
+      })),
+      ...dbConferenceRoomBookings
+        .filter(c => !bookingRequestCalIds.has(c.calendar_event_id))
+        .map(c => ({
+          id: c.id,
+          dbId: c.id,
+          type: 'conference_room_calendar' as const,
+          title: 'Conference Room',
+          resourceType: 'conference_room',
+          date: formatDate(c.request_date),
+          rawDate: c.request_date.split('T')[0],
+          time: formatTime12Hour(c.start_time),
+          endTime: formatTime12Hour(c.end_time),
+          details: `${formatTime12Hour(c.start_time)} - ${formatTime12Hour(c.end_time)}`,
+          sortKey: `${c.request_date}T${c.start_time}`,
+          raw: c,
+          source: 'calendar'
+        }))
+    ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }, [dbBookings, dbBookingRequests, dbRSVPs, dbWellnessEnrollments, dbConferenceRoomBookings, user?.email]);
+
+  const normalizeTime = useCallback((t: string) => {
     if (!t) return '';
     const parts = t.split(':');
     return `${parts[0].padStart(2, '0')}:${parts[1]?.padStart(2, '0') || '00'}`;
-  };
+  }, []);
   
-  const upcomingItems = allItems.filter(item => {
+  const upcomingItems = useMemo(() => allItems.filter(item => {
     let itemDate: string | undefined;
     let endTime: string | undefined;
     
@@ -408,22 +420,23 @@ const Dashboard: React.FC = () => {
     
     if (!itemDate) return false;
     
-    if (itemDate > todayStr) return true;
+    if (itemDate > currentDate) return true;
     
-    if (itemDate < todayStr) return false;
+    if (itemDate < currentDate) return false;
     
-    if (endTime && normalizeTime(endTime) < nowTime) {
+    if (endTime && normalizeTime(endTime) < currentTime) {
       return false;
     }
     
     return true;
-  });
+  }), [allItems, currentDate, currentTime, normalizeTime]);
 
-  const todayBookingsAll = allItems.filter(item => 
-    item.rawDate === todayStr && 
+  const todayBookingsAll = useMemo(() => allItems.filter(item =>
+    item.rawDate === currentDate &&
     (item.type === 'booking' || item.type === 'booking_request' || item.type === 'conference_room_calendar')
-  );
-  const simMinutesToday = todayBookingsAll
+  ), [allItems, currentDate]);
+
+  const simMinutesToday = useMemo(() => todayBookingsAll
     .filter(b => b.resourceType === 'simulator')
     .reduce((sum, b) => {
       const raw = b.raw as any;
@@ -435,8 +448,9 @@ const Dashboard: React.FC = () => {
       const memberShare = Math.ceil(totalMinutes / playerCount);
       
       return sum + memberShare;
-    }, 0);
-  const confMinutesToday = todayBookingsAll
+    }, 0), [todayBookingsAll]);
+
+  const confMinutesToday = useMemo(() => todayBookingsAll
     .filter(b => b.resourceType === 'conference_room')
     .reduce((sum, b) => {
       const raw = b.raw as any;
@@ -448,29 +462,30 @@ const Dashboard: React.FC = () => {
       const memberShare = Math.ceil(totalMinutes / playerCount);
       
       return sum + memberShare;
-    }, 0);
+    }, 0), [todayBookingsAll]);
 
-  const nextEvent = allEvents
-    .filter(e => e.event_date.split('T')[0] >= todayStr)
+  const nextEvent = useMemo(() => allEvents
+    .filter(e => e.event_date.split('T')[0] >= currentDate)
     .sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''))
-    [0];
-  const nextWellnessClass = allWellnessClasses
-    .filter(w => w.date.split('T')[0] >= todayStr)
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
-    [0];
+    [0], [allEvents, currentDate]);
 
-  const pendingInvites = dbBookingRequests.filter(r => 
+  const nextWellnessClass = useMemo(() => allWellnessClasses
+    .filter(w => w.date.split('T')[0] >= currentDate)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+    [0], [allWellnessClasses, currentDate]);
+
+  const pendingInvites = useMemo(() => dbBookingRequests.filter(r =>
     r.is_linked_member === true && 
     r.invite_status === 'pending' &&
     ['pending', 'pending_approval', 'approved', 'confirmed'].includes(r.status) &&
     // Exclude invites that have been optimistically accepted or declined
     !optimisticAcceptedInviteIds.has(r.id) &&
     !optimisticDeclinedInviteIds.has(r.id)
-  );
+  ), [dbBookingRequests, optimisticAcceptedInviteIds, optimisticDeclinedInviteIds]);
   
-  const pendingInviteIds = new Set(pendingInvites.map(p => p.id));
+  const pendingInviteIds = useMemo(() => new Set(pendingInvites.map(p => p.id)), [pendingInvites]);
   
-  const upcomingItemsFiltered = upcomingItems.filter(item => {
+  const upcomingItemsFiltered = useMemo(() => upcomingItems.filter(item => {
     if (item.type === 'booking_request' || item.type === 'booking') {
       const raw = item.raw as DBBookingRequest;
       if (raw) {
@@ -485,15 +500,20 @@ const Dashboard: React.FC = () => {
       }
     }
     return true;
-  });
+  }), [upcomingItems, optimisticCancelledIds, pendingInviteIds, optimisticAcceptedInviteIds]);
 
-  const upcomingBookings = upcomingItemsFiltered.filter(item => item.type === 'booking' || item.type === 'booking_request' || item.type === 'conference_room_calendar');
-  const upcomingEventsWellness = upcomingItemsFiltered.filter(item => item.type === 'rsvp' || item.type === 'wellness');
+  const upcomingBookings = useMemo(() => upcomingItemsFiltered.filter(item =>
+    item.type === 'booking' || item.type === 'booking_request' || item.type === 'conference_room_calendar'
+  ), [upcomingItemsFiltered]);
+
+  const upcomingEventsWellness = useMemo(() => upcomingItemsFiltered.filter(item =>
+    item.type === 'rsvp' || item.type === 'wellness'
+  ), [upcomingItemsFiltered]);
 
   const nextBooking = upcomingBookings[0];
   
   const nextItem = upcomingItemsFiltered[0];
-  const laterItems = upcomingItemsFiltered.slice(1);
+  const laterItems = useMemo(() => upcomingItemsFiltered.slice(1), [upcomingItemsFiltered]);
 
   const getIconForType = (type: string) => {
     switch(type) {

@@ -1,0 +1,3 @@
+## 2025-05-15 - Member Dashboard Performance Optimization
+**Learning:** The Member Dashboard was re-calculating complex data transformations (sorting, filtering, and O(N*M) deduplication) on every render, even when the data hadn't changed. Deriving time-based filters directly in the render body caused them to be unstable.
+**Action:** Use `useMemo` for all derived data transformations. Introduce a stable `currentTime`/`currentDate` state updated via `setInterval` (e.g., every 60s) to serve as a stable dependency for these memoized calculations. Memoize shared components like `GlassRow` and `MetricsGrid` with `React.memo` to reduce VDOM overhead in long lists.
