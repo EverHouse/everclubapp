@@ -212,6 +212,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   const [guestPassesRemaining, setGuestPassesRemaining] = useState<number>(0);
   const [guestPassesTotal, setGuestPassesTotal] = useState<number>(0);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
+  const [guestPassesUsedThisBooking, setGuestPassesUsedThisBooking] = useState<number>(0);
   const [memberMatchWarning, setMemberMatchWarning] = useState<{
     slotId: number;
     guestName: string;
@@ -262,6 +263,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
           setGuestPassesTotal(4); // Default fallback for display purposes
         }
         setFinancialSummary(data.financialSummary || null);
+        setGuestPassesUsedThisBooking(data.guestPassContext?.passesUsedThisBooking || 0);
       } else {
         setError(getApiErrorMessage(res, 'load booking members'));
       }
@@ -1204,7 +1206,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
                       ) : (
                         <>
                           <span className="material-symbols-outlined text-sm">person_add</span>
-                          {guestPassesRemaining > 0 ? 'Add Guest (Free)' : `Add Guest ($${guestFeeDollars})`}
+                          Add Guest
                         </>
                       )}
                     </button>
@@ -1335,9 +1337,15 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
               </div>
             )}
             
+            {guestPassesUsedThisBooking > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-green-600 dark:text-green-400">Guest pass{guestPassesUsedThisBooking > 1 ? 'es' : ''} used</span>
+                <span className="text-green-600 dark:text-green-400">{guestPassesUsedThisBooking} pass{guestPassesUsedThisBooking > 1 ? 'es' : ''} (free)</span>
+              </div>
+            )}
             {financialSummary.guestFeesWithoutPass > 0 && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600 dark:text-gray-400">Guest fees</span>
+                <span className="text-gray-600 dark:text-gray-400">Guest fees (no pass)</span>
                 <span className="text-gray-700 dark:text-gray-300">${financialSummary.guestFeesWithoutPass.toFixed(2)}</span>
               </div>
             )}
