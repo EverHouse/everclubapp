@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.10.6",
+    date: "2026-02-08",
+    title: "Billing & Payment Security Hardening",
+    changes: [
+      "Security: Staff charges over $500 on a member's saved card now require admin-level approval — prevents unauthorized large charges by non-admin staff",
+      "Security: Stripe sync and backfill operations now have a 5-minute cooldown between triggers — prevents accidental repeated runs that could cause rate limit issues or data inconsistencies",
+      "Security: Staff accessing another member's billing info (invoices, payments, balance, saved cards) is now logged in the audit trail — provides accountability for billing data access",
+      "Security: Public day-pass checkout and all sync operations now have request rate limits — prevents abuse and protects against automated attacks",
+      "Fix: Added missing audit action type for large charge approvals",
+    ],
+  },
+  {
     version: "7.10.5",
     date: "2026-02-08",
     title: "Deep Security Audit: Booking, Billing, Members & Integrations",
