@@ -197,7 +197,7 @@ export function TrackmanLinkModal({
       }
       setIsSearchingVisitors(true);
       try {
-        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10&includeStaff=true&includeMembers=true`, { credentials: 'include' });
+        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setVisitorSearchResults(data);
