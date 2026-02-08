@@ -2,6 +2,7 @@ import { db } from '../db';
 import { systemSettings } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { sendMorningClosureNotifications } from '../routes/push';
+import { getPacificHour, getTodayPacific } from '../utils/dateUtils';
 
 const MORNING_HOUR = 8;
 const MORNING_SETTING_KEY = 'last_morning_closure_notification_date';
@@ -34,9 +35,8 @@ async function tryClaimMorningSlot(todayStr: string): Promise<boolean> {
 
 async function checkAndSendMorningNotifications(): Promise<void> {
   try {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const todayStr = now.toISOString().split('T')[0];
+    const currentHour = getPacificHour();
+    const todayStr = getTodayPacific();
     
     if (currentHour === MORNING_HOUR) {
       const claimed = await tryClaimMorningSlot(todayStr);

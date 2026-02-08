@@ -2,6 +2,7 @@ import { db } from '../db';
 import { systemSettings } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { sendDailyReminders } from '../routes/push';
+import { getPacificHour, getTodayPacific } from '../utils/dateUtils';
 
 const REMINDER_HOUR = 18;
 const REMINDER_SETTING_KEY = 'last_daily_reminder_date';
@@ -34,9 +35,8 @@ async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
 
 async function checkAndSendReminders(): Promise<void> {
   try {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const todayStr = now.toISOString().split('T')[0];
+    const currentHour = getPacificHour();
+    const todayStr = getTodayPacific();
     
     if (currentHour === REMINDER_HOUR) {
       const claimed = await tryClaimReminderSlot(todayStr);

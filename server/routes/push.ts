@@ -4,7 +4,7 @@ import { pool, isProduction } from '../core/db';
 import { db } from '../db';
 import { pushSubscriptions, users, notifications, events, eventRsvps, bookingRequests, wellnessClasses, wellnessEnrollments, facilityClosures } from '../../shared/schema';
 import { eq, inArray, and, sql, or, isNull } from 'drizzle-orm';
-import { formatTime12Hour, getTodayPacific } from '../utils/dateUtils';
+import { formatTime12Hour, getTodayPacific, getTomorrowPacific } from '../utils/dateUtils';
 import { sendNotificationToUser } from '../core/websocket';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 
@@ -257,9 +257,7 @@ router.post('/api/push/test', isAuthenticated, async (req: any, res) => {
 export async function sendDailyReminders() {
   const results = { events: 0, bookings: 0, wellness: 0, pushFailed: 0, errors: [] as string[] };
   
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const tomorrowStr = getTomorrowPacific();
     
     const eventReminders = await db.select({
       userEmail: eventRsvps.userEmail,

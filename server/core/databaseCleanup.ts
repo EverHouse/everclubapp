@@ -212,6 +212,31 @@ export async function cleanupOldUnreadNotifications(daysOld: number = 60): Promi
   }
 }
 
+export async function cleanupOldAvailabilityBlocks(daysOld: number = 30): Promise<number> {
+  try {
+    const result = await db.execute(sql`
+      DELETE FROM availability_blocks 
+      WHERE block_date < CURRENT_DATE - ${daysOld} * INTERVAL '1 day'
+    `);
+    
+    const count = Number((result as any).rowCount || (result as any).rows?.length || 0);
+    
+    if (count > 0) {
+      logger.info(`[Cleanup] Removed ${count} old availability blocks (>${daysOld} days)`, {
+        extra: { event: 'cleanup.old_availability_blocks', count, daysOld }
+      });
+    }
+    
+    return count;
+  } catch (error) {
+    logger.error('[Cleanup] Old availability blocks cleanup failed', {
+      error: error instanceof Error ? error.message : String(error),
+      extra: { event: 'cleanup.old_availability_blocks_failed' }
+    });
+    throw error;
+  }
+}
+
 export async function runScheduledCleanup(): Promise<void> {
   logger.info('[Cleanup] Starting scheduled cleanup', {
     extra: { event: 'cleanup.scheduled_start' }
@@ -222,6 +247,7 @@ export async function runScheduledCleanup(): Promise<void> {
     await cleanupOldBookings(90);
     await cleanupOldNotifications(90);
     await cleanupOldUnreadNotifications(60);
+    await cleanupOldAvailabilityBlocks(30);
     
     logger.info('[Cleanup] Scheduled cleanup completed', {
       extra: { event: 'cleanup.scheduled_complete' }

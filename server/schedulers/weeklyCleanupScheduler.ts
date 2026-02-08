@@ -1,13 +1,16 @@
+import { getPacificDateParts } from '../utils/dateUtils';
+
 const CLEANUP_DAY = 0;
 const CLEANUP_HOUR = 3;
 let lastCleanupWeek = -1;
 
 async function checkAndRunCleanup(): Promise<void> {
   try {
-    const now = new Date();
-    const currentDay = now.getDay();
-    const currentHour = now.getHours();
-    const currentWeek = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
+    const parts = getPacificDateParts();
+    const pacificDate = new Date(parts.year, parts.month - 1, parts.day);
+    const currentDay = pacificDate.getDay();
+    const currentHour = parts.hour;
+    const currentWeek = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
     
     if (currentDay === CLEANUP_DAY && currentHour === CLEANUP_HOUR && currentWeek !== lastCleanupWeek) {
       lastCleanupWeek = currentWeek;
