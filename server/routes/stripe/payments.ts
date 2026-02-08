@@ -28,7 +28,7 @@ import {
 } from '../../core/stripe/paymentRepository';
 import { logFromRequest } from '../../core/auditLog';
 import { sendPurchaseReceipt, PurchaseReceiptItem } from '../../emails/paymentEmails';
-import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS } from './helpers';
+import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS, SAVED_CARD_APPROVAL_THRESHOLD_CENTS } from './helpers';
 import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 
@@ -444,6 +444,15 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
   try {
     const email = decodeURIComponent(req.params.email);
 
+    const { staffEmail } = getStaffInfo(req);
+    logFromRequest(req, {
+      action: 'staff_view_member_payments',
+      resourceType: 'payments',
+      resourceId: email,
+      resourceName: email,
+      details: { viewedBy: staffEmail, targetEmail: email }
+    });
+
     const result = await pool.query(
       `SELECT 
         spi.id,
@@ -788,7 +797,7 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
 router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { memberEmail, bookingId, sessionId, participantIds } = req.body;
-    const { staffEmail, staffName } = getStaffInfo(req);
+    const { staffEmail, staffName, sessionUser } = getStaffInfo(req);
 
     if (!memberEmail) {
       return res.status(400).json({ error: 'Missing required field: memberEmail' });
@@ -847,6 +856,22 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
 
     if (authoritativeAmountCents < 50) {
       return res.status(400).json({ error: 'Total amount too small to charge (minimum $0.50)' });
+    }
+
+    if (authoritativeAmountCents >= SAVED_CARD_APPROVAL_THRESHOLD_CENTS) {
+      if (sessionUser?.role !== 'admin') {
+        return res.status(403).json({
+          error: 'Charges above $500 require manager approval. Please ask an admin to process this charge.',
+          requiresApproval: true,
+          thresholdCents: SAVED_CARD_APPROVAL_THRESHOLD_CENTS
+        });
+      }
+      logFromRequest(req, 'large_charge_approved', 'payment', null, memberEmail, {
+        amountCents: authoritativeAmountCents,
+        approvedBy: staffEmail,
+        role: 'admin',
+        chargeType: 'saved_card'
+      });
     }
 
     const resolvedSessionId = participantResult.rows[0].session_id;
@@ -993,7 +1018,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
 router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { memberEmail, memberName, amountCents, description, productId } = req.body;
-    const { staffEmail, staffName } = getStaffInfo(req);
+    const { staffEmail, staffName, sessionUser } = getStaffInfo(req);
 
     if (!memberEmail || !amountCents) {
       return res.status(400).json({ error: 'Missing required fields: memberEmail, amountCents' });
@@ -1006,6 +1031,22 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
 
     if (numericAmount > 99999999) {
       return res.status(400).json({ error: 'Amount exceeds maximum allowed' });
+    }
+
+    if (numericAmount >= SAVED_CARD_APPROVAL_THRESHOLD_CENTS) {
+      if (sessionUser?.role !== 'admin') {
+        return res.status(403).json({
+          error: 'Charges above $500 require manager approval. Please ask an admin to process this charge.',
+          requiresApproval: true,
+          thresholdCents: SAVED_CARD_APPROVAL_THRESHOLD_CENTS
+        });
+      }
+      logFromRequest(req, 'large_charge_approved', 'payment', null, memberEmail, {
+        amountCents: numericAmount,
+        approvedBy: staffEmail,
+        role: 'admin',
+        chargeType: 'saved_card_pos'
+      });
     }
 
     const memberResult = await pool.query(
@@ -1122,6 +1163,15 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
   try {
     const memberEmail = decodeURIComponent(req.params.email).toLowerCase();
 
+    const { staffEmail } = getStaffInfo(req);
+    logFromRequest(req, {
+      action: 'staff_view_member_card_info',
+      resourceType: 'payment_method',
+      resourceId: memberEmail,
+      resourceName: memberEmail,
+      details: { viewedBy: staffEmail, targetEmail: memberEmail }
+    });
+
     const memberResult = await pool.query(
       `SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER($1)`,
       [memberEmail]
@@ -1159,6 +1209,15 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
 router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const memberEmail = decodeURIComponent(req.params.email).toLowerCase();
+
+    const { staffEmail } = getStaffInfo(req);
+    logFromRequest(req, {
+      action: 'staff_view_member_balance',
+      resourceType: 'balance',
+      resourceId: memberEmail,
+      resourceName: memberEmail,
+      details: { viewedBy: staffEmail, targetEmail: memberEmail }
+    });
 
     const result = await pool.query(
       `SELECT 

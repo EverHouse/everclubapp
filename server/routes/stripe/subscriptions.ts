@@ -17,6 +17,8 @@ import { logFromRequest } from '../../core/auditLog';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
 import { randomUUID } from 'crypto';
+import { checkSyncCooldown } from './helpers';
+import { sensitiveActionRateLimiter } from '../../middleware/rateLimiting';
 
 const router = Router();
 
@@ -138,8 +140,17 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
   }
 });
 
-router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   try {
+    const cooldown = checkSyncCooldown('sync_subscriptions');
+    if (!cooldown.allowed) {
+      return res.status(429).json({ 
+        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
+        cooldownRemaining: cooldown.remainingSeconds,
+        lastRunAt: cooldown.lastRunAt
+      });
+    }
+
     const result = await syncActiveSubscriptionsFromStripe();
     
     res.json({

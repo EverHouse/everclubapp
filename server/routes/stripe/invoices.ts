@@ -11,6 +11,7 @@ import {
   voidInvoice
 } from '../../core/stripe';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
+import { logFromRequest } from '../../core/auditLog';
 
 const router = Router();
 
@@ -226,6 +227,13 @@ router.get('/api/my-invoices', async (req: Request, res: Response) => {
       const userRole = sessionUser?.role;
       if (userRole === 'admin' || userRole === 'staff') {
         targetEmail = decodeURIComponent(requestedEmail);
+        logFromRequest(req, {
+          action: 'staff_view_member_billing',
+          resourceType: 'invoices',
+          resourceId: targetEmail,
+          resourceName: targetEmail,
+          details: { viewedBy: sessionEmail, targetEmail }
+        });
       }
     }
     

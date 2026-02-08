@@ -16,7 +16,8 @@ import {
 import { checkExpiringCards } from '../../core/billing/cardExpiryChecker';
 import { checkStaleWaivers } from '../../schedulers/waiverReviewScheduler';
 import { getBillingClassificationSummary, getMembersNeedingStripeMigration } from '../../scripts/classifyMemberBilling';
-import { escapeHtml } from './helpers';
+import { escapeHtml, checkSyncCooldown } from './helpers';
+import { sensitiveActionRateLimiter, checkoutRateLimiter } from '../../middleware/rateLimiting';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.get('/api/stripe/products', isStaffOrAdmin, async (req: Request, res: Res
   }
 });
 
-router.post('/api/stripe/products/sync', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/products/sync', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   try {
     const { hubspotProductId } = req.body;
     
@@ -88,8 +89,17 @@ router.post('/api/stripe/products/sync', isStaffOrAdmin, async (req: Request, re
   }
 });
 
-router.post('/api/stripe/products/sync-all', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/products/sync-all', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   try {
+    const cooldown = checkSyncCooldown('sync_all_products');
+    if (!cooldown.allowed) {
+      return res.status(429).json({ 
+        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
+        cooldownRemaining: cooldown.remainingSeconds,
+        lastRunAt: cooldown.lastRunAt
+      });
+    }
+
     const result = await syncAllHubSpotProductsToStripe();
     
     res.json({
@@ -114,8 +124,17 @@ router.get('/api/stripe/tiers/status', isStaffOrAdmin, async (req: Request, res:
   }
 });
 
-router.post('/api/stripe/tiers/sync', isAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/tiers/sync', isAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   try {
+    const cooldown = checkSyncCooldown('sync_tiers');
+    if (!cooldown.allowed) {
+      return res.status(429).json({ 
+        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
+        cooldownRemaining: cooldown.remainingSeconds,
+        lastRunAt: cooldown.lastRunAt
+      });
+    }
+
     const result = await syncMembershipTiersToStripe();
     
     res.json({
@@ -141,8 +160,17 @@ router.get('/api/stripe/discounts/status', isStaffOrAdmin, async (req: Request, 
   }
 });
 
-router.post('/api/stripe/discounts/sync', isAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/discounts/sync', isAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   try {
+    const cooldown = checkSyncCooldown('sync_discounts');
+    if (!cooldown.allowed) {
+      return res.status(429).json({ 
+        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
+        cooldownRemaining: cooldown.remainingSeconds,
+        lastRunAt: cooldown.lastRunAt
+      });
+    }
+
     const result = await syncDiscountRulesToStripeCoupons();
     
     res.json({
@@ -389,7 +417,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
   }
 });
 
-router.post('/api/public/day-pass/checkout', async (req: Request, res: Response) => {
+router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, passType, firstName, lastName } = req.body;
 
@@ -475,8 +503,17 @@ router.get('/api/stripe/customer-sync-status', isStaffOrAdmin, async (req: Reque
   }
 });
 
-router.post('/api/stripe/sync-customers', isStaffOrAdmin, async (req: Request, res: Response) => {
+router.post('/api/stripe/sync-customers', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   try {
+    const cooldown = checkSyncCooldown('sync_customers');
+    if (!cooldown.allowed) {
+      return res.status(429).json({ 
+        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
+        cooldownRemaining: cooldown.remainingSeconds,
+        lastRunAt: cooldown.lastRunAt
+      });
+    }
+
     console.log('[Stripe Customer Sync] Manual sync triggered by staff');
     const { syncStripeCustomersForMindBodyMembers } = await import('../../core/stripe/customerSync');
     const result = await syncStripeCustomersForMindBodyMembers();

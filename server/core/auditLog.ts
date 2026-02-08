@@ -120,7 +120,12 @@ export type AuditAction =
   | 'unauthorized_access_attempt'
   | 'send_receipt'
   | 'initiate_charge'
-  | 'pull_from_stripe';
+  | 'pull_from_stripe'
+  | 'staff_view_member_billing'
+  | 'staff_view_member_payments'
+  | 'staff_view_member_balance'
+  | 'staff_view_member_card_info'
+  | 'large_charge_approved';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
@@ -144,7 +149,11 @@ export type ResourceType =
   | 'system'
   | 'checkout'
   | 'authorization'
-  | 'user';
+  | 'user'
+  | 'invoices'
+  | 'payments'
+  | 'balance'
+  | 'payment_method';
 
 interface AuditLogParams {
   staffEmail: string;
