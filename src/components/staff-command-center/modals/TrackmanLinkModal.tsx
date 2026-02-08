@@ -197,7 +197,7 @@ export function TrackmanLinkModal({
       }
       setIsSearchingVisitors(true);
       try {
-        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10`, { credentials: 'include' });
+        const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(visitorSearch)}&limit=10&includeMembers=true`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           setVisitorSearchResults(data);
@@ -786,13 +786,13 @@ export function TrackmanLinkModal({
 
             <div>
               <label className="block text-xs font-medium text-primary dark:text-white mb-1">
-                Search Existing Visitors
+                Search Existing People
               </label>
               <div className="relative">
                 <span className="absolute left-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 dark:text-white/40 text-sm">search</span>
                 <input
                   type="text"
-                  placeholder="Search visitors..."
+                  placeholder="Search by name or email..."
                   value={visitorSearch}
                   onChange={(e) => setVisitorSearch(e.target.value)}
                   className="w-full pl-8 pr-3 py-2 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-sm"
