@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.10.9",
+    date: "2026-02-08",
+    title: "Guest Slot Display & Owner Overage Calculation",
+    changes: [
+      "Fix: Guests now appear directly in their assigned player slot instead of showing separately below the roster — makes it clearer who's occupying each position in the booking",
+      "Fix: Booking owner is now correctly charged overage fees for time used by guests and empty slots. When a guest (like Nolan) occupies a slot, that time counts toward the owner's daily usage for overage purposes. Member slots are not affected — members handle their own overage independently.",
+    ],
+  },
+  {
     version: "7.10.8",
     date: "2026-02-08",
     title: "Guest Fee & Removal Improvements",

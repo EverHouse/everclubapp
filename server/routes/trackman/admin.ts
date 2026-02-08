@@ -1644,7 +1644,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         tier,
         fee,
         feeNote,
-        feeBreakdown
+        feeBreakdown,
+        guestInfo: null as any
       };
     }));
     
@@ -1677,6 +1678,32 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         usedGuestPass
       };
     });
+    
+    const guestsToRemove: number[] = [];
+    for (let i = 0; i < guestsWithFees.length; i++) {
+      const guest = guestsWithFees[i];
+      // Try to match by slot number first, then fall back to first available empty slot
+      const emptySlot = (guest.slotNumber 
+        ? membersWithFees.find(m => !m.userEmail && !m.guestInfo && m.slotNumber === guest.slotNumber)
+        : null) || membersWithFees.find(m => !m.userEmail && !m.guestInfo);
+      if (emptySlot) {
+        emptySlot.guestInfo = {
+          guestId: guest.id,
+          guestName: guest.guestName,
+          guestEmail: guest.guestEmail,
+          fee: guest.fee,
+          feeNote: guest.feeNote,
+          usedGuestPass: guest.usedGuestPass
+        };
+        emptySlot.memberName = guest.guestName;
+        emptySlot.fee = guest.fee;
+        emptySlot.feeNote = guest.feeNote;
+        guestsToRemove.push(i);
+      }
+    }
+    for (let i = guestsToRemove.length - 1; i >= 0; i--) {
+      guestsWithFees.splice(guestsToRemove[i], 1);
+    }
     
     let guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
     
@@ -1789,7 +1816,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         guestPassesUsedThisBooking = guestParticipants.filter(gp => gp.used_guest_pass).length;
         guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
         
-        const emptyMemberSlots = membersWithFees.filter(m => !m.userEmail);
+        const emptyMemberSlots = membersWithFees.filter(m => !m.userEmail && !m.guestInfo);
         const guestParticipantCount = participantsResult.rows.filter(p => p.participant_type === 'guest').length;
         const unaccountedEmptySlots = Math.max(0, emptyMemberSlots.length - guestParticipantCount);
         const emptySlotFees = unaccountedEmptySlots * PRICING.GUEST_FEE_DOLLARS;
@@ -1797,7 +1824,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       } else {
         const ownerMember = membersWithFees.find(m => m.isPrimary);
         const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);
-        const emptySlots = membersWithFees.filter(m => !m.userEmail);
+        const emptySlots = membersWithFees.filter(m => !m.userEmail && !m.guestInfo);
         const emptySlotFees = emptySlots.length * PRICING.GUEST_FEE_DOLLARS;
         guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0) + emptySlotFees;
         ownerOverageFee = ownerMember?.fee || 0;
@@ -1812,7 +1839,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     } else {
       const ownerMember = membersWithFees.find(m => m.isPrimary);
       const nonOwnerMembers = membersWithFees.filter(m => !m.isPrimary && m.userEmail);
-      const emptySlots = membersWithFees.filter(m => !m.userEmail);
+      const emptySlots = membersWithFees.filter(m => !m.userEmail && !m.guestInfo);
       const emptySlotFees = emptySlots.length * PRICING.GUEST_FEE_DOLLARS;
       guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0) + emptySlotFees;
       ownerOverageFee = ownerMember?.fee || 0;
@@ -1861,7 +1888,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         filledMemberSlots,
         guestCount: effectiveGuestCount,
         playerCountMismatch,
-        emptySlots: membersResult.rows.filter(row => !row.user_email).length
+        emptySlots: membersWithFees.filter(m => !m.userEmail && !m.guestInfo).length
       },
       tierLimits: ownerTierLimits ? {
         can_book_simulators: ownerTierLimits.can_book_simulators,

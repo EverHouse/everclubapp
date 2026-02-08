@@ -19,6 +19,7 @@ interface BookingMember {
   tier: string | null;
   fee: number;
   feeNote: string;
+  guestInfo?: { guestId: number; guestName: string; guestEmail: string; fee: number; feeNote: string; usedGuestPass: boolean } | null;
 }
 
 interface BookingGuest {
@@ -769,17 +770,17 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
   };
 
   const emptySlots = useMemo(() => 
-    members.filter(m => !m.userEmail),
+    members.filter(m => !m.userEmail && !m.guestInfo),
     [members]
   );
   
   const filledSlots = useMemo(() => 
-    members.filter(m => m.userEmail),
+    members.filter(m => m.userEmail || m.guestInfo),
     [members]
   );
 
   const filledSlotCount = useMemo(() => 
-    members.filter(m => m.userEmail).length + guests.length,
+    members.filter(m => m.userEmail || m.guestInfo).length + guests.length,
     [members, guests]
   );
 
@@ -1069,6 +1070,61 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
         <div className="space-y-2">
           {filledSlots.map((member) => {
             const isOptimisticallyUnlinking = optimisticallyUnlinkedSlots.has(member.id);
+            
+            if (member.guestInfo && !member.userEmail) {
+              return (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-2 bg-amber-50/50 dark:bg-amber-500/5 rounded-lg border border-amber-100 dark:border-amber-500/20"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{member.slotNumber}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-primary dark:text-white truncate">
+                          {member.guestInfo.guestName || 'Guest'}
+                        </p>
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0">
+                          GUEST
+                        </span>
+                      </div>
+                      {member.guestInfo.guestEmail && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.guestInfo.guestEmail}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span
+                      className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${
+                        member.fee === 0
+                          ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                          : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                      }`}
+                      title={member.feeNote}
+                    >
+                      ${member.fee.toFixed(2)}
+                    </span>
+                    <span className="text-[9px] text-gray-500 dark:text-gray-400 max-w-[80px] truncate" title={member.feeNote}>
+                      {member.feeNote}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveGuest({ id: member.guestInfo!.guestId, bookingId: member.bookingId, guestName: member.guestInfo!.guestName, guestEmail: member.guestInfo!.guestEmail, slotNumber: member.slotNumber, fee: member.fee, feeNote: member.feeNote } as BookingGuest)}
+                      disabled={removingGuestId === member.guestInfo.guestId}
+                      className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-100 dark:hover:bg-red-500/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+                      title={`Remove ${member.guestInfo.guestName || 'guest'}`}
+                    >
+                      {removingGuestId === member.guestInfo.guestId ? (
+                        <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span className="text-xs font-bold">✕</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
             
             return (
               <div 
