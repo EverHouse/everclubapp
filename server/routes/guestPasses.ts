@@ -159,6 +159,10 @@ router.post('/api/guest-passes/:email/use', async (req, res) => {
     
     const { guest_name } = req.body;
     
+    if (guest_name && /^Guest \d+$/i.test(guest_name)) {
+      return res.status(400).json({ error: `Cannot use guest pass for placeholder "${guest_name}". Assign a real guest first.` });
+    }
+    
     // Use lowercase for consistent matching
     const normalizedEmail = requestedEmail.toLowerCase();
     
@@ -252,6 +256,10 @@ export async function useGuestPass(
   guestName?: string,
   sendNotification: boolean = true
 ): Promise<{ success: boolean; error?: string; remaining?: number }> {
+  if (guestName && /^Guest \d+$/i.test(guestName)) {
+    return { success: false, error: `Cannot use guest pass for placeholder "${guestName}". Assign a real guest first.` };
+  }
+  
   try {
     // Normalize email for consistent matching
     const normalizedEmail = memberEmail.toLowerCase();

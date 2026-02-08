@@ -15,6 +15,14 @@ export async function consumeGuestPassForParticipant(
   sessionDate: Date,
   staffEmail?: string
 ): Promise<GuestPassConsumptionResult> {
+  const isPlaceholderGuest = /^Guest \d+$/i.test(guestName || '');
+  if (isPlaceholderGuest) {
+    return {
+      success: false,
+      error: `Cannot use guest pass for placeholder slot "${guestName}". Please assign a real guest first.`
+    };
+  }
+  
   const client = await pool.connect();
   const ownerEmailLower = ownerEmail.toLowerCase().trim();
   
@@ -22,7 +30,7 @@ export async function consumeGuestPassForParticipant(
     await client.query('BEGIN');
     
     const alreadyUsed = await client.query(
-      `SELECT id, used_guest_pass FROM booking_participants WHERE id = $1`,
+      `SELECT id, used_guest_pass, guest_id FROM booking_participants WHERE id = $1`,
       [participantId]
     );
     
