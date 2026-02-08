@@ -13,6 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.10.7",
+    date: "2026-02-08",
+    title: "Empty Slot Overage Fee Fix",
+    changes: [
+      "Fix: When a booking has empty player slots, the owner is now correctly charged overage for the full booking duration. Previously, the owner was only charged for their split share (e.g., 60 min out of 120 min for a 2-player booking), even when the other slot was empty. Now the owner absorbs the empty slot time for overage purposes while the empty slot still generates the standard guest fee.",
+    ],
+  },
+  {
     version: "7.10.6",
     date: "2026-02-08",
     title: "Billing & Payment Security Hardening",

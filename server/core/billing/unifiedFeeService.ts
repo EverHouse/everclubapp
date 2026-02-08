@@ -669,6 +669,42 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   const emptySlots = Math.max(0, effectivePlayerCount - ownerCount - actualMemberCount - actualGuestCount);
 
   if (emptySlots > 0 && !isConferenceRoom) {
+    const emptySlotMinutes = emptySlots * minutesPerParticipant;
+    const ownerLineItem = lineItems.find(li => li.participantType === 'owner');
+    if (ownerLineItem) {
+      ownerLineItem.minutesAllocated += emptySlotMinutes;
+
+      const dailyAllowance = ownerLineItem.dailyAllowance ?? 0;
+      const usedMinutesToday = ownerLineItem.usedMinutesToday ?? 0;
+      const ownerTierLimits = ownerLineItem.tierName ? await getTierLimits(ownerLineItem.tierName) : null;
+      const unlimitedAccess = ownerTierLimits?.unlimited_access ?? false;
+
+      if (!unlimitedAccess && dailyAllowance < 999) {
+        const totalAfterSession = usedMinutesToday + ownerLineItem.minutesAllocated;
+        const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
+        const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
+
+        const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
+
+        totalOverageCents -= ownerLineItem.overageCents;
+        ownerLineItem.overageCents = overageFee * 100;
+        ownerLineItem.totalCents = ownerLineItem.overageCents;
+        totalOverageCents += ownerLineItem.overageCents;
+
+        logger.info('[FeeBreakdown] Owner overage recalculated with empty slot time', {
+          extra: {
+            emptySlots,
+            emptySlotMinutes,
+            newMinutesAllocated: ownerLineItem.minutesAllocated,
+            totalAfterSession,
+            newOverageCents: ownerLineItem.overageCents
+          }
+        });
+      }
+    }
+  }
+
+  if (emptySlots > 0 && !isConferenceRoom) {
     for (let i = 0; i < emptySlots; i++) {
       const emptyLineItem: FeeLineItem = {
         participantId: undefined,
