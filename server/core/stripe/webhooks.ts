@@ -197,7 +197,7 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
 async function cleanupOldProcessedEvents(): Promise<void> {
   try {
     const result = await pool.query(
-      `DELETE FROM webhook_processed_events WHERE processed_at < NOW() - INTERVAL '${EVENT_DEDUP_WINDOW_DAYS} days' RETURNING id`
+      `DELETE FROM webhook_processed_events WHERE processed_at < NOW() - INTERVAL '7 days' RETURNING id`
     );
     if (result.rowCount && result.rowCount > 0) {
       console.log(`[Stripe Webhook] Cleaned up ${result.rowCount} old processed events (>${EVENT_DEDUP_WINDOW_DAYS} days)`);

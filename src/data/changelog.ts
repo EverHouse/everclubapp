@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.10.3",
+    date: "2026-02-08",
+    title: "System Audit: Webhook & Job Queue Hardening",
+    changes: [
+      "Fix: Hardened a database query in the Stripe webhook cleanup to prevent potential issues with dynamic values in SQL",
+      "Improvement: Old completed and failed background jobs are now automatically cleaned up during weekly maintenance (older than 7 days) — prevents database bloat from accumulated job records",
+      "Verified: Stripe webhook system — transactional dedup, event ordering, deferred actions, and rollback all working correctly across 20+ event types",
+      "Verified: Background job processor — claim locking, retry logic with exponential backoff, and stuck job recovery all working correctly",
+      "Verified: Booking roster management — optimistic locking with version tracking and row-level locking prevents race conditions",
+      "Verified: Prepayment system — duplicate prevention, refund handling, and fee calculation all working correctly",
+      "Verified: Stripe Terminal integration — proper auth, audit logging, idempotency, and amount verification in place",
+    ],
+  },
+  {
     version: "7.10.2",
     date: "2026-02-08",
     title: "Scheduler Timezone Fixes & Cleanup Improvements",
