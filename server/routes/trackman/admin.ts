@@ -1652,6 +1652,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     let guestPassesAvailable = ownerGuestPassesRemaining;
     let guestPassesUsedThisBooking = 0;
+    let guestPassesRemainingAfterBooking = ownerGuestPassesRemaining;
     const guestsWithFees = guestsResult.rows.map(row => {
       let fee: number;
       let feeNote: string;
@@ -1851,7 +1852,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       }));
     }
     
-    const guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+    guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
     const grandTotal = ownerOverageFee + guestFeesWithoutPass + totalPlayersOwe;
     
     // Check if there are any fees that have been paid (to show "Paid" indicator)

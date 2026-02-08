@@ -226,7 +226,9 @@ export async function calculateSessionBilling(
       let guestFee = PRICING.GUEST_FEE_DOLLARS;
       let guestPassUsed = false;
       
-      if (participant.guestId && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
+      const isPlaceholderGuest = /^Guest \d+$/i.test(participant.displayName || '');
+      const isRealNamedGuest = participant.guestId || !isPlaceholderGuest;
+      if (isRealNamedGuest && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
         guestPassUsed = true;
         guestPassesRemaining--;
         guestPassesUsed++;
@@ -383,7 +385,9 @@ export async function calculateFullSessionBilling(
       let guestFee = PRICING.GUEST_FEE_DOLLARS;
       let guestPassUsed = false;
       
-      if (participant.guestId && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
+      const isPlaceholderGuest = /^Guest \d+$/i.test(participant.displayName || '');
+      const isRealNamedGuest = participant.guestId || !isPlaceholderGuest;
+      if (isRealNamedGuest && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
         guestPassUsed = true;
         guestPassesRemaining--;
         guestPassesUsed++;

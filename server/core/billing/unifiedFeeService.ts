@@ -40,6 +40,7 @@ interface SessionData {
   participants: Array<{
     participantId: number;
     userId?: string;
+    guestId?: number;
     email?: string;
     displayName: string;
     participantType: 'owner' | 'member' | 'guest';
@@ -110,6 +111,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
     let participants: Array<{
       participantId: number | undefined;
       userId: string | null;
+      guestId?: number | null;
       email: string | null;
       displayName: string;
       participantType: 'owner' | 'member' | 'guest';
@@ -121,6 +123,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         `SELECT 
           bp.id as participant_id,
           bp.user_id,
+          bp.guest_id,
           u.email,
           bp.display_name,
           bp.participant_type
@@ -133,6 +136,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
       participants = participantsResult.rows.map(row => ({
         participantId: row.participant_id,
         userId: row.user_id,
+        guestId: row.guest_id,
         email: row.email,
         displayName: row.display_name,
         participantType: row.participant_type as 'owner' | 'member' | 'guest'
@@ -534,6 +538,9 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       // Members incorrectly marked as guests should not be charged guest fees
       // This matches the logic in feeCalculator.ts for consistency
       const isActualGuest = !participant.userId;
+      const hasRealGuestId = !!(participant as any).guestId;
+      const isPlaceholderGuest = /^Guest \d+$/i.test(participant.displayName || '');
+      const isRealNamedGuest = isActualGuest && (hasRealGuestId || !isPlaceholderGuest);
       
       if (!isActualGuest) {
         // Member mistakenly marked as guest - don't charge guest fee
@@ -541,7 +548,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         logger.info('[FeeBreakdown] Skipping guest fee for member marked as guest', {
           extra: { participantId: (participant as any).participantId, userId: participant.userId }
         });
-      } else if (guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
+      } else if (isRealNamedGuest && guestPassInfo.hasGuestPassBenefit && guestPassesRemaining > 0) {
         lineItem.guestPassUsed = true;
         guestPassesRemaining--;
         guestPassesUsed++;
