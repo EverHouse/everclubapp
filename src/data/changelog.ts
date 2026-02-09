@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.15.2",
+    date: "2026-02-09",
+    title: "Unmatched Booking Resolution & Import Completeness",
+    changes: [
+      "Fix: Imports now match members via M: tag emails in notes when the CSV email field is empty — previously these bookings stayed as 'Unknown (Trackman)' even when member info existed in notes",
+      "Fix: Bookings from Trackman webhooks now get their name updated from CSV data even when no member email match is found, replacing 'Unknown (Trackman)' with the actual name",
+      "Fix: Guest name slots are now populated in all import paths (linked bookings and time-tolerance matches), not just new and updated bookings",
+      "Fix: Guest emails no longer incorrectly placed in member slots during imports, preventing double-counting of players and incorrect fee calculations",
+      "Improvement: Added database constraint to prevent duplicate guest entries on re-imports",
+    ],
+  },
+  {
     version: "7.15.1",
     date: "2026-02-09",
     title: "Booking Roster Population Fix",

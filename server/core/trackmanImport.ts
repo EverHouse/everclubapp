@@ -1606,6 +1606,18 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         }
       }
 
+      // FALLBACK: If no email match from CSV email field, try M: tag emails from notes
+      // This handles cases where Trackman's email field is empty but notes contain member emails
+      if (!matchedEmail && memberEmailsFromNotes.length > 0) {
+        const noteEmail = memberEmailsFromNotes[0].toLowerCase();
+        const existingMember = membersByEmail.get(noteEmail);
+        if (existingMember) {
+          matchedEmail = existingMember;
+          matchReason = 'Matched via M: tag in notes';
+          process.stderr.write(`[Trackman Import] Notes fallback match: ${noteEmail} -> ${existingMember} for "${row.userName}"\n`);
+        }
+      }
+
       // STRICT EMAIL-ONLY MATCHING: Do NOT fallback to name matching
       // Name matching causes data integrity issues when multiple members share similar names
       if (!matchedEmail && row.userName && !isPlaceholderEmail(row.userEmail)) {
@@ -1755,7 +1767,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               originalEmail !== matchedEmail.toLowerCase() &&
               !isPlaceholderEmail(originalEmail)) {
             try {
-              // Check if this email is already linked
               const existingLink = await pool.query(
                 `SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = $1`,
                 [originalEmail]
@@ -1770,12 +1781,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 process.stderr.write(`[Email Learning] Auto-linked ${originalEmail} -> ${matchedEmail} from import\n`);
               }
             } catch (linkErr: any) {
-              // Non-blocking - just log
               if (!linkErr.message?.includes('duplicate key')) {
                 process.stderr.write(`[Email Learning] Error: ${linkErr.message}\n`);
               }
             }
           }
+        } else if (existing.isUnmatched && !matchedEmail && row.userName && row.userName !== 'Unknown' && !existing.userName?.includes(row.userName)) {
+          updateFields.userName = row.userName;
+          changes.push(`name: "${existing.userName}" -> "${row.userName}" (still unmatched)`);
         }
         
         // Always update sync tracking fields
