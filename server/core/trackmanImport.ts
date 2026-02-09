@@ -845,55 +845,9 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
           continue;
         }
         
-        // If member has no userId (unmatched), try name-based matching as fallback
-        if (!memberUserId && member.name) {
-          const nameMatch = await findMembersByName(member.name);
-          
-          if (nameMatch.match === 'unique') {
-            // Single match found - use it
-            const matchedMember = nameMatch.members[0];
-            
-            // Check if this matched member is the owner (prevent duplicates)
-            if (matchedMember.id === ownerUserId) {
-              process.stderr.write(`[Trackman Import] Name match "${member.name}" resolved to owner - skipping\n`);
-              // Still auto-link the alternate email for future imports
-              if (member.email && member.email.toLowerCase() !== matchedMember.email.toLowerCase()) {
-                await autoLinkEmailToOwner(
-                  member.email, 
-                  matchedMember.email,
-                  `Owner name-match auto-link: "${member.name}" is owner, linking Trackman email ${member.email}`
-                );
-              }
-              continue;
-            }
-            
-            // Auto-link the unmatched email to the matched member for future imports
-            // This teaches the system that e.g. jessica.dinh@evenhouse.club belongs to jessicadinh4@gmail.com
-            if (member.email && member.email.toLowerCase() !== matchedMember.email.toLowerCase()) {
-              await autoLinkEmailToOwner(
-                member.email, 
-                matchedMember.email,
-                `Name-match auto-link: "${member.name}" matched to ${matchedMember.email}, linking Trackman email ${member.email}`
-              );
-            }
-            
-            const memberTier = await getMemberTierByEmail(matchedMember.email) || 'social';
-            
-            participantInputs.push({
-              userId: matchedMember.id,
-              participantType: 'member',
-              displayName: member.name,
-              slotDuration: perParticipantMinutes
-            });
-            
-            memberData.push({ userId: matchedMember.id, tier: memberTier, email: matchedMember.email });
-            process.stderr.write(`[Trackman Import] Name-matched "${member.name}" to ${matchedMember.email}\n`);
-            continue;
-          } else if (nameMatch.match === 'ambiguous') {
-            // Multiple matches - log for manual review but treat as guest for now
-            const matchList = nameMatch.members.map(m => `${m.name} (${m.email})`).join(', ');
-            process.stderr.write(`[Trackman Import] AMBIGUOUS: "${member.name}" matches multiple members: ${matchList} - treating as guest\n`);
-          }
+        // STRICT: No name-based matching fallback - email only for data integrity
+        if (!memberUserId && member.email) {
+          process.stderr.write(`[Trackman Import] Participant "${member.name}" (${member.email}) has no user match - adding as guest-type participant\n`);
         }
         
         // If still no userId (unmatched or ambiguous), treat them as a guest
@@ -1613,41 +1567,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         }
       }
 
-      if (!matchedEmail && row.userName) {
-        const normalizedName = row.userName.toLowerCase().trim();
-        const byNameEmails = membersByName.get(normalizedName);
-        if (byNameEmails && byNameEmails.length === 1) {
-          // Only match if name is unique (single member with this name)
-          matchedEmail = byNameEmails[0];
-          matchReason = 'Matched by name';
-        } else if (byNameEmails && byNameEmails.length > 1) {
-          // Ambiguous - multiple members have this name, skip name matching
-          process.stderr.write(`[Trackman Import] Skipping name match for "${row.userName}" - ${byNameEmails.length} members share this name\n`);
-        } else {
-          // Try partial name matching (first + last name)
-          const nameParts = normalizedName.split(' ');
-          if (nameParts.length >= 2) {
-            const firstName = nameParts[0];
-            const lastName = nameParts[nameParts.length - 1];
-            
-            let partialMatches: string[] = [];
-            let matchedName = '';
-            for (const [name, emails] of membersByName.entries()) {
-              if (name.includes(firstName) && name.includes(lastName)) {
-                partialMatches = partialMatches.concat(emails);
-                matchedName = name;
-              }
-            }
-            
-            // Only use partial match if it's unique
-            if (partialMatches.length === 1) {
-              matchedEmail = partialMatches[0];
-              matchReason = `Matched by partial name: ${matchedName}`;
-            } else if (partialMatches.length > 1) {
-              process.stderr.write(`[Trackman Import] Skipping partial name match for "${row.userName}" - ${partialMatches.length} potential matches\n`);
-            }
-          }
-        }
+      // STRICT EMAIL-ONLY MATCHING: Do NOT fallback to name matching
+      // Name matching causes data integrity issues when multiple members share similar names
+      if (!matchedEmail && row.userName && !isPlaceholderEmail(row.userEmail)) {
+        process.stderr.write(`[Trackman Import] No email match for "${row.userName}" (email: ${row.userEmail}) - name matching disabled for accuracy\n`);
       }
 
       const bookingDate = extractDate(row.startDate);
@@ -1932,6 +1855,145 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         }
         
         continue;
+      }
+      // PRIORITY 1: Merge with webhook-created placeholder/ghost bookings
+      // Look for existing bookings at same simulator/time that are unmatched or unknown
+      if (!existingBooking.length && parsedBayId && bookingDate && startTime) {
+        const placeholderBooking = await pool.query(
+          `SELECT id, user_email, user_name, status, session_id, trackman_booking_id, origin,
+                  ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) as time_diff_seconds
+           FROM booking_requests
+           WHERE resource_id = $1
+           AND request_date = $2
+           AND ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))) <= 120
+           AND trackman_booking_id IS NULL
+           AND (is_unmatched = true 
+                OR LOWER(user_name) LIKE '%unknown%' 
+                OR LOWER(user_name) LIKE '%unassigned%'
+                OR (user_email = '' AND user_name IS NOT NULL))
+           AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+           ORDER BY ABS(EXTRACT(EPOCH FROM (start_time::time - $3::time))), created_at DESC`,
+          [parsedBayId, bookingDate, startTime]
+        );
+        
+        if (placeholderBooking.rows.length > 1) {
+          process.stderr.write(`[Trackman Import] Multiple placeholder candidates (${placeholderBooking.rows.length}) for Trackman ${row.bookingId} on bay ${parsedBayId} at ${startTime} - skipping auto-merge, requires manual resolution\n`);
+        } else if (placeholderBooking.rows.length === 1) {
+          const placeholder = placeholderBooking.rows[0];
+          const mergeStatus = matchedEmail ? 'approved' : (normalizedStatus || 'approved');
+          
+          // UPDATE the placeholder with real data from CSV
+          const updateFields: any = {
+            trackman_booking_id: row.bookingId,
+            user_name: row.userName || placeholder.user_name,
+            start_time: startTime,
+            end_time: endTime,
+            duration_minutes: row.durationMins,
+            trackman_player_count: row.playerCount,
+            declared_player_count: row.playerCount,
+            notes: `[Trackman Import ID:${row.bookingId}] ${row.notes}`,
+            trackman_customer_notes: row.notes || null,
+            is_unmatched: !matchedEmail,
+            status: mergeStatus,
+            last_sync_source: 'trackman_import',
+            last_trackman_sync_at: new Date(),
+            updated_at: new Date(),
+            origin: 'trackman_import'
+          };
+          
+          if (matchedEmail) {
+            updateFields.user_email = matchedEmail;
+          }
+          
+          // Build SET clause dynamically
+          const setClauses: string[] = [];
+          const setValues: any[] = [];
+          let paramIdx = 1;
+          for (const [key, value] of Object.entries(updateFields)) {
+            setClauses.push(`${key} = $${paramIdx}`);
+            setValues.push(value);
+            paramIdx++;
+          }
+          setValues.push(placeholder.id);
+          
+          await pool.query(
+            `UPDATE booking_requests SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`,
+            setValues
+          );
+          
+          process.stderr.write(`[Trackman Import] MERGED: CSV row ${row.bookingId} into placeholder booking #${placeholder.id} (was: "${placeholder.user_name}", now: "${row.userName}"${matchedEmail ? `, linked to ${matchedEmail}` : ''})\n`);
+          
+          // Create booking_members for merged booking
+          if (matchedEmail) {
+            try {
+              // Check if booking_members already exist
+              const existingMembers = await pool.query(
+                `SELECT id FROM booking_members WHERE booking_id = $1`,
+                [placeholder.id]
+              );
+              
+              if (existingMembers.rows.length === 0) {
+                // Create primary member slot
+                await pool.query(
+                  `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, trackman_booking_id, linked_at, linked_by)
+                   VALUES ($1, $2, 1, true, $3, NOW(), 'trackman_import')`,
+                  [placeholder.id, matchedEmail, row.bookingId]
+                );
+                
+                // Create additional slots based on player count
+                for (let slot = 2; slot <= row.playerCount; slot++) {
+                  await pool.query(
+                    `INSERT INTO booking_members (booking_id, slot_number, is_primary, trackman_booking_id)
+                     VALUES ($1, $2, false, $3)`,
+                    [placeholder.id, slot, row.bookingId]
+                  );
+                }
+              }
+            } catch (memberErr: any) {
+              process.stderr.write(`[Trackman Import] Failed to create booking_members for merged booking #${placeholder.id}: ${memberErr.message}\n`);
+            }
+          }
+          
+          // Create billing session for merged booking if matched
+          if (matchedEmail && parsedBayId && bookingDate && startTime) {
+            try {
+              const parsedPlayers = parseNotesForPlayers(row.notes);
+              await createTrackmanSessionAndParticipants({
+                bookingId: placeholder.id,
+                trackmanBookingId: row.bookingId,
+                resourceId: parsedBayId,
+                sessionDate: bookingDate,
+                startTime: startTime,
+                endTime: endTime,
+                durationMinutes: row.durationMins,
+                ownerEmail: matchedEmail,
+                ownerName: row.userName || 'Unknown',
+                parsedPlayers: parsedPlayers,
+                membersByEmail: membersByEmail,
+                trackmanEmailMapping: trackmanEmailMapping,
+                isPast: !isUpcoming
+              });
+            } catch (sessionErr: any) {
+              process.stderr.write(`[Trackman Import] Session creation failed for merged booking #${placeholder.id}: ${sessionErr.message}\n`);
+            }
+          }
+          
+          // Auto-resolve legacy entry if exists
+          if (legacyIsUnresolved && existingUnmatched[0]) {
+            try {
+              await db.update(trackmanUnmatchedBookings)
+                .set({ 
+                  resolvedAt: new Date(),
+                  resolvedBy: 'trackman_import_merge',
+                  notes: sql`COALESCE(notes, '') || ' [Auto-resolved: merged with placeholder]'`
+                })
+                .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+            } catch (e) { /* non-blocking */ }
+          }
+          
+          updatedRows++;
+          continue;
+        }
       }
       if (!parsedBayId && row.bayNumber) {
         process.stderr.write(`[Trackman Import] Warning: Invalid bay number "${row.bayNumber}" for booking ${row.bookingId} (${row.userName})\n`);
@@ -2262,7 +2324,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             durationMinutes: row.durationMins,
             endTime: endTime,
             notes: `[Trackman Import ID:${row.bookingId}] ${row.notes}`,
-            status: normalizedStatus,
+            status: matchedEmail ? 'approved' : normalizedStatus,
             createdAt: originalBookedDate || new Date(),
             trackmanBookingId: row.bookingId,
             originalBookedDate: originalBookedDate,
@@ -2782,6 +2844,30 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
 
   if (removedFromUnmatched > 0 || cancelledBookings > 0 || updatedRows > 0) {
     process.stderr.write(`[Trackman Import] Cleanup: removed ${removedFromUnmatched} unmatched, cancelled ${cancelledBookings} matched bookings, updated ${updatedRows} existing bookings\n`);
+  }
+
+  // POST-IMPORT CLEANUP: Auto-approve any pending bookings from this import that are linked to a member
+  try {
+    const autoApproved = await pool.query(
+      `UPDATE booking_requests 
+       SET status = 'approved', updated_at = NOW(), staff_notes = COALESCE(staff_notes, '') || ' [Auto-approved by import: member linked]'
+       WHERE origin = 'trackman_import'
+       AND status = 'pending'
+       AND user_email IS NOT NULL 
+       AND user_email != ''
+       AND is_unmatched IS NOT TRUE
+       AND last_trackman_sync_at >= NOW() - INTERVAL '1 hour'
+       RETURNING id, user_email, user_name`
+    );
+    
+    if (autoApproved.rows.length > 0) {
+      process.stderr.write(`[Trackman Import] Post-import cleanup: Auto-approved ${autoApproved.rows.length} pending member-linked bookings\n`);
+      for (const approved of autoApproved.rows) {
+        process.stderr.write(`[Trackman Import]   Auto-approved booking #${approved.id} for ${approved.user_name || approved.user_email}\n`);
+      }
+    }
+  } catch (cleanupErr: any) {
+    process.stderr.write(`[Trackman Import] Post-import cleanup error: ${cleanupErr.message}\n`);
   }
 
   await db.insert(trackmanImportRuns).values({

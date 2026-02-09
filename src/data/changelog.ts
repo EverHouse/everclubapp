@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.15.0",
+    date: "2026-02-09",
+    title: "Trackman CSV Import Accuracy Overhaul",
+    isMajor: true,
+    changes: [
+      "New: CSV import now merges with webhook-created placeholder bookings — no more duplicate 'Unknown (Trackman)' entries alongside real member bookings",
+      "New: When a CSV row matches a simulator and time slot that has a placeholder/ghost booking, the system updates the existing record instead of creating a new one",
+      "Improvement: Member matching is now strict email-only — removed name-based fallback matching that caused incorrect member links when multiple people share similar names",
+      "Improvement: CSV-imported bookings linked to a member are now always set to 'Approved' status instead of staying 'Pending'",
+      "New: Post-import cleanup auto-approves any remaining pending bookings that were successfully linked to a member",
+      "Fix: Billing sessions are now created immediately after merging CSV data into placeholder bookings",
+      "Fix: Time matching uses ±2 minute tolerance to handle rounding differences between Trackman and the app",
+    ],
+  },
+  {
     version: "7.14.0",
     date: "2026-02-09",
     title: "Proper Trackman Cancellation Flow",
