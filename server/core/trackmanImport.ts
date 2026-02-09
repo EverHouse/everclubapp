@@ -2190,6 +2190,28 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   if (existingMembers.length > 0) {
                     process.stderr.write(`[Trackman Import] Preserved ${existingMembers.length} existing booking_members for booking #${existing.id}\n`);
                   }
+                  
+                  const linkedParsedPlayersForGuests = parseNotesForPlayers(row.notes);
+                  const linkedGuestPlayers = linkedParsedPlayersForGuests.filter(p => p.type === 'guest');
+                  
+                  for (let gi = 0; gi < linkedGuestPlayers.length; gi++) {
+                    const guest = linkedGuestPlayers[gi];
+                    const guestSlotNumber = gi + 2;
+                    if (guestSlotNumber <= targetPlayerCount && guest.name) {
+                      const existingGuest = await pool.query(
+                        `SELECT id FROM booking_guests WHERE booking_id = $1 AND slot_number = $2`,
+                        [existing.id, guestSlotNumber]
+                      );
+                      if (existingGuest.rows.length === 0) {
+                        await pool.query(
+                          `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
+                           VALUES ($1, $2, $3, $4, $5)`,
+                          [existing.id, guest.name, guest.email || null, guestSlotNumber, row.bookingId]
+                        );
+                        process.stderr.write(`[Trackman Import] Created booking_guest slot ${guestSlotNumber} for linked booking #${existing.id}: ${guest.name}\n`);
+                      }
+                    }
+                  }
                 }
                 
                 // Create booking_session for linked booking
@@ -2367,6 +2389,28 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 
                 if (existingMembers.length > 0) {
                   process.stderr.write(`[Trackman Import] Preserved ${existingMembers.length} existing booking_members for booking #${existing.id} (tolerance match)\n`);
+                }
+                
+                const toleranceParsedPlayersForGuests = parseNotesForPlayers(row.notes);
+                const toleranceGuestPlayers = toleranceParsedPlayersForGuests.filter(p => p.type === 'guest');
+                
+                for (let gi = 0; gi < toleranceGuestPlayers.length; gi++) {
+                  const guest = toleranceGuestPlayers[gi];
+                  const guestSlotNumber = gi + 2;
+                  if (guestSlotNumber <= targetPlayerCount && guest.name) {
+                    const existingGuest = await pool.query(
+                      `SELECT id FROM booking_guests WHERE booking_id = $1 AND slot_number = $2`,
+                      [existing.id, guestSlotNumber]
+                    );
+                    if (existingGuest.rows.length === 0) {
+                      await pool.query(
+                        `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
+                         VALUES ($1, $2, $3, $4, $5)`,
+                        [existing.id, guest.name, guest.email || null, guestSlotNumber, row.bookingId]
+                      );
+                      process.stderr.write(`[Trackman Import] Created booking_guest slot ${guestSlotNumber} for tolerance-matched booking #${existing.id}: ${guest.name}\n`);
+                    }
+                  }
                 }
               }
               
