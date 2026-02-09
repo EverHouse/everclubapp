@@ -768,6 +768,34 @@ async function notifyMemberBookingConfirmed(
   }
 }
 
+function formatNotifDateTime(slotDate: string, time24: string): string {
+  try {
+    const [year, month, day] = slotDate.split('-').map(Number);
+    const [h, m] = time24.split(':').map(Number);
+    const d = new Date(year, month - 1, day);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const timeStr = m === 0 ? `${h12} ${period}` : `${h12}:${String(m).padStart(2, '0')} ${period}`;
+    return `${dayNames[d.getDay()]}, ${monthNames[month - 1]} ${day} at ${timeStr}`;
+  } catch {
+    return `${slotDate} at ${time24}`;
+  }
+}
+
+function calcDurationMin(startTime: string, endTime?: string): number | null {
+  if (!endTime) return null;
+  try {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    return diff > 0 ? diff : null;
+  } catch {
+    return null;
+  }
+}
+
 async function notifyStaffBookingCreated(
   action: 'auto_approved' | 'auto_created' | 'unmatched',
   memberName: string,
@@ -775,27 +803,33 @@ async function notifyStaffBookingCreated(
   slotDate: string,
   startTime: string,
   bayName?: string,
-  bookingId?: number
+  bookingId?: number,
+  endTime?: string
 ): Promise<void> {
   try {
     let title: string;
     let message: string;
     let notificationType: string;
     
+    const friendly = formatNotifDateTime(slotDate, startTime);
+    const dur = calcDurationMin(startTime, endTime);
+    const durStr = dur ? ` (${dur} min)` : '';
+    const bayStr = bayName || 'Unknown bay';
+    
     switch (action) {
       case 'auto_approved':
         title = 'Booking Auto-Approved';
-        message = `${memberName}'s pending request for ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} was auto-approved via Trackman.`;
+        message = `${memberName}'s pending request for ${friendly}${durStr} — ${bayStr} — was auto-approved via Trackman.`;
         notificationType = 'trackman_booking';
         break;
       case 'auto_created':
         title = 'Booking Auto-Created';
-        message = `A booking for ${memberName} on ${slotDate} at ${startTime}${bayName ? ` (${bayName})` : ''} was auto-created from Trackman.`;
+        message = `Booking for ${memberName} on ${friendly}${durStr} — ${bayStr} — auto-created from Trackman.`;
         notificationType = 'trackman_booking';
         break;
       case 'unmatched':
         title = 'Unmatched Trackman Booking';
-        message = `Booking for "${memberName}" (${memberEmail || 'no email'}) on ${slotDate} at ${startTime} needs staff review.`;
+        message = `${bayStr} — ${friendly}${durStr} — ${memberEmail ? memberEmail : 'no member email'}, needs staff review.`;
         notificationType = 'trackman_unmatched';
         break;
     }
@@ -975,7 +1009,6 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       });
     }
     
-    // Notify staff about unmatched booking (no customer email in webhook)
     await notifyStaffBookingCreated(
       'unmatched',
       normalized.customerName || 'Unknown',
@@ -983,7 +1016,8 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       startParsed.date,
       startParsed.time,
       normalized.bayName,
-      unmatchedResult.bookingId
+      unmatchedResult.bookingId,
+      endParsed?.time
     );
     
     return { success: true, matchedBookingId: unmatchedResult.bookingId };
@@ -1035,7 +1069,8 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       startParsed.date,
       startParsed.time,
       normalized.bayName,
-      autoApproveResult.bookingId
+      autoApproveResult.bookingId,
+      endParsed?.time
     );
     
     linkAndNotifyParticipants(autoApproveResult.bookingId, {
@@ -1130,15 +1165,15 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
           bookingId: unmatchedResult.bookingId
         });
         
-        // Notify staff about unmatched booking (bay not mapped)
         await notifyStaffBookingCreated(
           'unmatched',
           normalized.customerName || 'Unknown',
           normalized.customerEmail,
           startParsed.date,
           startParsed.time,
-          undefined,  // No bay name since bay wasn't mapped
-          unmatchedResult.bookingId
+          undefined,
+          unmatchedResult.bookingId,
+          endParsed?.time
         );
       }
       
@@ -1176,7 +1211,8 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         startParsed.date,
         startParsed.time,
         normalized.bayName,
-        createResult.bookingId
+        createResult.bookingId,
+        endParsed?.time
       );
       
       // Broadcast availability update for real-time calendar refresh
@@ -1240,7 +1276,9 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     normalized.customerEmail,
     startParsed.date,
     startParsed.time,
-    normalized.bayName
+    normalized.bayName,
+    unmatchedResult.bookingId,
+    endParsed?.time
   );
   
   return { success: true, matchedBookingId };

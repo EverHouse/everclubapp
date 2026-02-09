@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.11.2",
+    date: "2026-02-09",
+    title: "Better Trackman Notification Messages",
+    changes: [
+      "Improvement: Trackman booking notifications now show bay number, day of week, 12-hour time, and duration instead of raw dates and 'Unknown'",
+      "Improvement: Unmatched booking alerts lead with the bay info so you can quickly tell which booking came through",
+    ],
+  },
+  {
     version: "7.11.1",
     date: "2026-02-09",
     title: "Notification Click Navigation",
