@@ -961,6 +961,82 @@ router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin
   }
 });
 
+router.post('/api/bookings/bulk-review-all-waivers', isStaffOrAdmin, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser?.email) {
+      client.release();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    await client.query('BEGIN');
+
+    const result = await client.query(`
+      UPDATE booking_participants
+      SET waiver_reviewed_at = NOW()
+      WHERE payment_status = 'waived'
+        AND waiver_reviewed_at IS NULL
+        AND (used_guest_pass IS NULL OR used_guest_pass = FALSE)
+        AND created_at < NOW() - INTERVAL '12 hours'
+      RETURNING id, session_id
+    `);
+
+    for (const row of result.rows) {
+      const bookingResult = await client.query(`
+        SELECT br.id FROM booking_requests br WHERE br.session_id = $1 LIMIT 1
+      `, [row.session_id]);
+      const bookingId = bookingResult.rows[0]?.id || null;
+
+      await client.query(`
+        INSERT INTO booking_payment_audit 
+          (booking_id, session_id, participant_id, action, staff_email, staff_name, reason, amount_affected)
+        VALUES ($1, $2, $3, 'payment_waived', $4, $5, 'Bulk reviewed by staff', 0)
+      `, [bookingId, row.session_id, row.id, sessionUser.email, sessionUser.name || null]);
+    }
+
+    const updatedCount = result.rows.length;
+
+    logFromRequest(req, 'review_waiver', 'bulk_waiver', 'all', 'Bulk waiver review', {
+      action: 'bulk_review_all_stale_waivers',
+      count: updatedCount
+    });
+
+    await client.query('COMMIT');
+    client.release();
+
+    res.json({ success: true, updatedCount });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    client.release();
+    logAndRespond(req, res, 500, 'Failed to bulk review waivers', error);
+  }
+});
+
+router.get('/api/bookings/stale-waivers', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT bp.id, bp.display_name, bp.created_at, bp.session_id,
+             br.id as request_id, br.request_date, br.start_time, br.end_time,
+             br.user_name as booking_owner,
+             r.name as resource_name
+      FROM booking_participants bp
+      JOIN booking_sessions bs ON bp.session_id = bs.id
+      JOIN booking_requests br ON br.session_id = bs.id
+      LEFT JOIN resources r ON br.resource_id = r.id
+      WHERE bp.payment_status = 'waived'
+        AND bp.waiver_reviewed_at IS NULL
+        AND (bp.used_guest_pass IS NULL OR bp.used_guest_pass = FALSE)
+        AND bp.created_at < NOW() - INTERVAL '12 hours'
+      ORDER BY bp.created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error: any) {
+    logAndRespond(req, res, 500, 'Failed to get stale waivers', error);
+  }
+});
+
 router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const bookingId = parseInt(req.params.id);

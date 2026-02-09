@@ -25,15 +25,41 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [billingModal, setBillingModal] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
+  const [bulkReviewing, setBulkReviewing] = useState(false);
+  const [staleWaiverCount, setStaleWaiverCount] = useState(0);
   const today = getTodayPacific();
   const isDesktop = variant === 'desktop';
 
+  const totalUnreviewedWaivers = overduePayments.reduce((sum, p) => sum + (p.unreviewedWaivers || 0), 0);
+
+  const handleBulkReviewWaivers = async () => {
+    if (!window.confirm(`Mark all ${staleWaiverCount} stale waivers as reviewed? This confirms the fee waivers were intentional.`)) return;
+    setBulkReviewing(true);
+    try {
+      const res = await fetch('/api/bookings/bulk-review-all-waivers', { method: 'POST', credentials: 'include' });
+      if (res.ok) {
+        fetchOverduePayments();
+      }
+    } catch (err) {
+      console.error('Failed to bulk review waivers:', err);
+    } finally {
+      setBulkReviewing(false);
+    }
+  };
+
   const fetchOverduePayments = useCallback(async () => {
     try {
-      const res = await fetch('/api/bookings/overdue-payments', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
+      const [overdueRes, staleRes] = await Promise.all([
+        fetch('/api/bookings/overdue-payments', { credentials: 'include' }),
+        fetch('/api/bookings/stale-waivers', { credentials: 'include' }),
+      ]);
+      if (overdueRes.ok) {
+        const data = await overdueRes.json();
         setOverduePayments(data);
+      }
+      if (staleRes.ok) {
+        const staleData = await staleRes.json();
+        setStaleWaiverCount(staleData.length);
       }
     } catch (err) {
       console.error('Failed to fetch overdue payments:', err);
@@ -80,6 +106,16 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
               </span>
             )}
           </div>
+          {staleWaiverCount > 0 && (
+            <button
+              onClick={handleBulkReviewWaivers}
+              disabled={bulkReviewing}
+              className="px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors disabled:opacity-50 flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              {bulkReviewing ? 'Reviewing...' : `Review All Waivers (${staleWaiverCount})`}
+            </button>
+          )}
         </div>
 
         {count === 0 ? (

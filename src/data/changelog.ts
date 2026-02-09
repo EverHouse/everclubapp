@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.11.6",
+    date: "2026-02-09",
+    title: "Bulk Waiver Review",
+    changes: [
+      "New: Staff can now bulk-review all stale waivers at once from the Overdue Payments panel or Command Center",
+      "New: Stale waivers API endpoint for listing all unreviewed fee waivers older than 12 hours",
+      "Improvement: 'Review All Waivers' button appears when unreviewed waivers exist, with confirmation before approving",
+    ],
+  },
+  {
     version: "7.11.5",
     date: "2026-02-09",
     title: "Fix Unknown Trackman Bookings in Request Queue",
