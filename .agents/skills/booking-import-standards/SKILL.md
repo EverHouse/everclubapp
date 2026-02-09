@@ -109,13 +109,29 @@ M|member@email.com|Member Name
 ```
 You MUST parse this `M|email|name` pattern to extract the member's email for matching. This is the primary source of member identity in the CSV data. Without parsing this, the system cannot link bookings to members.
 
-### Rule 10 — Parse G|name guest tags from Notes field
+### Rule 10 — Parse G|name guest tags from Notes field (including INLINE tags)
 
 The CSV `Notes` field also contains guest identification strings:
 ```
 G|Guest Name
 ```
-You MUST parse `G|name` tags to fill booking guest slots with actual guest names. This is critical because it directly prevents Rule 14 (empty slot = guest fee) from incorrectly charging guest fees when a guest name was actually provided in the data.
+You MUST parse `G|name` tags to fill booking guest slots with actual guest names. This is critical because it directly prevents Rule 17 (empty slot = guest fee) from incorrectly charging guest fees when a guest name was actually provided in the data.
+
+**CRITICAL: Inline G: tags must also be parsed.** Guest tags often appear inline on the same line as the M: tag or within freeform text, NOT on their own line:
+```
+M: member@email.com | Member Name Guests pay separately G: Chris G: Alex G: Dalton NO additional charge.
+```
+The parser (`parseNotesForPlayers()`) MUST scan for `G: Name` patterns anywhere in the line, not just at line start (`^G:`). The regex uses a negative lookahead to stop name capture before the next `G:`, `M:`, `NO`, `Used`, or `additional` keyword.
+
+### Rule 10a — Imported bookings must IMMEDIATELY populate booking_players
+
+When a Trackman CSV import identifies a member (via `M|email|name` parsing), the import MUST immediately populate the `booking_members` and `booking_participants` tables:
+
+1. **Owner at Slot 1**: Insert a `booking_members` record with `slot_number: 1`, `is_primary: true`, and the member's email.
+2. **Guests at Slots 2-4**: For each parsed `G: Name` guest tag, insert a `booking_members` record at the next available slot with `is_primary: false` and the guest name. Also insert into `booking_guests` with the guest name.
+3. **Session participants**: Call `createTrackmanSessionAndParticipants()` which creates `booking_participants` records (the table the roster UI reads from).
+
+This ensures the roster is fully populated immediately after import — no empty "Search" slots when guest names were provided in the CSV data. Without this, the roster shows 0/N players even though the owner appears in the booking header.
 
 ### Rule 11 — Strict email-only member matching
 
@@ -207,6 +223,7 @@ When adding any new booking-related code, verify:
 - [ ] Does it call `cancelPendingPaymentIntentsForBooking()` on cancel? (Rule 5)
 - [ ] Does it use `computeFeeBreakdown()` for fees? (Rule 15)
 - [ ] Does it check `roster_version` for participant changes? (Rule 18)
-- [ ] For CSV import: Does it parse `M|email|name` and `G|name` from Notes? (Rules 9-10)
+- [ ] For CSV import: Does it parse `M|email|name` and `G|name` from Notes (including INLINE G: tags)? (Rules 9-10)
+- [ ] For CSV import: Does it immediately populate booking_members AND booking_participants? (Rule 10a)
 - [ ] For CSV import: Does it force `approved` status for member-linked bookings? (Rule 13)
 - [ ] For CSV import: Does it attempt placeholder merge before creating new? (Rule 12)

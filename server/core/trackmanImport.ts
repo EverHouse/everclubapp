@@ -94,21 +94,46 @@ function parseNotesForPlayers(notes: string): ParsedPlayer[] {
     // LEGACY FORMAT: M: email | Name or M: email
     const memberMatch = trimmed.match(/^M:\s*([^\s|]+)(?:\s*\|\s*(.+))?$/i);
     if (memberMatch) {
+      let memberName = memberMatch[2]?.trim() || null;
+      
+      if (memberName) {
+        const guestTagIndex = memberName.search(/\bG:\s*/i);
+        if (guestTagIndex !== -1) {
+          const beforeGuests = memberName.substring(0, guestTagIndex).trim();
+          const guestPortion = memberName.substring(guestTagIndex);
+          
+          memberName = beforeGuests.replace(/\s+(Guests?\s+pay\s+separately|NO\s+additional|Used\s+\$).*$/i, '').trim() || null;
+          
+          const inlineGuestMatches = guestPortion.matchAll(/G:\s*([A-Za-z][A-Za-z'-]*(?:\s+(?!G:|M:|NO\b|Used\b|additional\b)[A-Za-z][A-Za-z'-]*)?)/gi);
+          for (const gm of inlineGuestMatches) {
+            const guestName = gm[1].trim();
+            if (guestName && guestName.length >= 2) {
+              players.push({
+                type: 'guest',
+                email: null,
+                name: guestName
+              });
+            }
+          }
+        } else {
+          memberName = memberName.replace(/\s+(Guests?\s+pay\s+separately|NO\s+additional|Used\s+\$).*$/i, '').trim() || null;
+        }
+      }
+      
       players.push({
         type: 'member',
         email: memberMatch[1].trim().toLowerCase(),
-        name: memberMatch[2]?.trim() || null
+        name: memberName
       });
       continue;
     }
     
-    // LEGACY FORMAT: G: email | Name or G: none | Name or G: Name
+    // LEGACY FORMAT: G: email | Name or G: none | Name or G: Name (at start of line)
     const guestMatch = trimmed.match(/^G:\s*(?:([^\s|]+)\s*\|\s*)?(.+)$/i);
     if (guestMatch) {
       const emailOrName = guestMatch[1]?.trim().toLowerCase();
       const name = guestMatch[2]?.trim();
       
-      // Check if first part is "none" or looks like an email
       if (emailOrName === 'none' || !emailOrName) {
         players.push({
           type: 'guest',
@@ -122,11 +147,25 @@ function parseNotesForPlayers(notes: string): ParsedPlayer[] {
           name: name || null
         });
       } else {
-        // No email, just name
         players.push({
           type: 'guest',
           email: null,
           name: emailOrName + (name ? ' ' + name : '')
+        });
+      }
+      continue;
+    }
+    
+    // INLINE G: tags on lines that don't start with M: or G:
+    // (e.g., "Guests pay separately G: Chris G: Alex G: Dalton")
+    const inlineGuestMatches = trimmed.matchAll(/G:\s*([A-Za-z][A-Za-z'-]*(?:\s+(?!G:|M:|NO\b|Used\b|additional\b)[A-Za-z][A-Za-z'-]*)?)/gi);
+    for (const gm of inlineGuestMatches) {
+      const guestName = gm[1].trim();
+      if (guestName && guestName.length >= 2) {
+        players.push({
+          type: 'guest',
+          email: null,
+          name: guestName
         });
       }
     }
@@ -1958,6 +1997,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           if (matchedEmail && parsedBayId && bookingDate && startTime) {
             try {
               const parsedPlayers = parseNotesForPlayers(row.notes);
+              if (parsedPlayers.length > 0) {
+                process.stderr.write(`[Trackman Import] Merged booking - parsed ${parsedPlayers.length} players from notes: ${parsedPlayers.map(p => `${p.type}:${p.name||p.email||'unknown'}`).join(', ')}\n`);
+              }
               await createTrackmanSessionAndParticipants({
                 bookingId: placeholder.id,
                 trackmanBookingId: row.bookingId,
@@ -2094,6 +2136,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 
                 // Create booking_session for linked booking
                 const linkedParsedPlayers = parseNotesForPlayers(row.notes);
+                if (linkedParsedPlayers.length > 0) {
+                  process.stderr.write(`[Trackman Import] Linked booking - parsed ${linkedParsedPlayers.length} players from notes: ${linkedParsedPlayers.map(p => `${p.type}:${p.name||p.email||'unknown'}`).join(', ')}\n`);
+                }
                 await createTrackmanSessionAndParticipants({
                   bookingId: existing.id,
                   trackmanBookingId: row.bookingId,
@@ -2314,6 +2359,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           // Parse notes BEFORE insert to count actual guests
           const parsedPlayers = parseNotesForPlayers(row.notes);
           const actualGuestCount = parsedPlayers.filter(p => p.type === 'guest').length;
+          if (parsedPlayers.length > 0) {
+            process.stderr.write(`[Trackman Import] Parsed ${parsedPlayers.length} players from notes: ${parsedPlayers.map(p => `${p.type}:${p.name||p.email||'unknown'}`).join(', ')}\n`);
+          }
           
           const insertResult = await db.insert(bookingRequests).values({
             userEmail: matchedEmail,
