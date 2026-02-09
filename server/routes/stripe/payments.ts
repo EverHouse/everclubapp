@@ -1059,7 +1059,6 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
         source: 'pos'
       });
 
-      console.log(`[Stripe] POS saved card charge: $${(numericAmount / 100).toFixed(2)} for ${member.email} (${cardBrand} ****${cardLast4}) by ${staffEmail}`);
 
       res.json({
         success: true,
