@@ -184,7 +184,7 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
       FROM booking_requests br
       LEFT JOIN resources r ON br.resource_id = r.id
       WHERE br.request_date = ${date}
-      AND br.status NOT IN ('cancelled', 'declined')
+      AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
     `;
     
     if (memberEmail) {
@@ -1246,19 +1246,19 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
               SELECT id as booking_id FROM booking_requests
               WHERE LOWER(user_email) = ${normalizedEmail}
                 AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-                AND status NOT IN ('cancelled', 'declined')
+                AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
               UNION
               SELECT br.id as booking_id FROM booking_requests br
               JOIN booking_members bm ON br.id = bm.booking_id
               WHERE LOWER(bm.user_email) = ${normalizedEmail}
                 AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-                AND br.status NOT IN ('cancelled', 'declined')
+                AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
               UNION
               SELECT br.id as booking_id FROM booking_requests br
               JOIN booking_guests bg ON br.id = bg.booking_id
               WHERE LOWER(bg.guest_email) = ${normalizedEmail}
                 AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-                AND br.status NOT IN ('cancelled', 'declined')
+                AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             ) all_bookings
           `);
           
@@ -1742,7 +1742,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
        LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
        WHERE br.trackman_booking_id IS NOT NULL
          AND br.session_id IS NULL
-         AND br.status NOT IN ('cancelled', 'declined')
+         AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
     `;
     
     if (startDate) {

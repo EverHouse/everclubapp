@@ -505,7 +505,7 @@ const BookGolf: React.FC = () => {
   // Cancel Booking Mutation
   const cancelBookingMutation = useMutation({
     mutationFn: async ({ bookingId, actingAsEmail }: { bookingId: number; actingAsEmail?: string }) => 
-      putWithCredentials<{ success: boolean }>(`/api/bookings/${bookingId}/member-cancel`, { acting_as_email: actingAsEmail }),
+      putWithCredentials<{ success: boolean; status?: string }>(`/api/bookings/${bookingId}/member-cancel`, { acting_as_email: actingAsEmail }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
     },
@@ -912,14 +912,18 @@ const BookGolf: React.FC = () => {
     const wasApproved = request?.status === 'approved';
     
     try {
-      await cancelBookingMutation.mutateAsync({
+      const result = await cancelBookingMutation.mutateAsync({
         bookingId: id,
         actingAsEmail: isAdminViewingAs ? effectiveUser?.email : undefined
       });
       
       haptic.success();
       playSound('success');
-      showToast(wasApproved ? 'Booking cancelled successfully' : 'Request cancelled', 'success');
+      if (result.status === 'cancellation_pending') {
+        showToast('Cancellation request submitted. You\'ll be notified when it\'s complete.', 'success');
+      } else {
+        showToast(wasApproved ? 'Booking cancelled successfully' : 'Request cancelled', 'success');
+      }
     } catch (err) {
       console.error('[BookGolf] Failed to cancel request:', err);
       haptic.error();
@@ -1586,34 +1590,52 @@ const BookGolf: React.FC = () => {
           )}
 
           {activeTab === 'simulator' && existingDayBooking && !existingBookingCheck?.hasExisting && (
-            <section className={`rounded-xl p-4 border ${isDark ? 'bg-accent/10 border-accent/30' : 'bg-accent/5 border-accent/30'}`}>
+            <section className={`rounded-xl p-4 border ${
+              existingDayBooking.status === 'cancellation_pending'
+                ? (isDark ? 'bg-orange-500/10 border-orange-500/30' : 'bg-orange-50 border-orange-200')
+                : (isDark ? 'bg-accent/10 border-accent/30' : 'bg-accent/5 border-accent/30')
+            }`}>
               <div className="flex items-start gap-3">
-                <span className={`material-symbols-outlined text-2xl text-accent`}>event_available</span>
+                <span className={`material-symbols-outlined text-2xl ${
+                  existingDayBooking.status === 'cancellation_pending' ? (isDark ? 'text-orange-400' : 'text-orange-600') : 'text-accent'
+                }`}>
+                  {existingDayBooking.status === 'cancellation_pending' ? 'hourglass_top' : 'event_available'}
+                </span>
                 <div className="flex-1">
                   <h4 className={`font-bold ${isDark ? 'text-white' : 'text-primary'}`}>
-                    You already have a booking for {formatDateShort(existingDayBooking.request_date)}
+                    {existingDayBooking.status === 'cancellation_pending'
+                      ? 'Cancellation in Progress'
+                      : `You already have a booking for ${formatDateShort(existingDayBooking.request_date)}`
+                    }
                   </h4>
                   <p className={`text-sm mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
                     {existingDayBooking.bay_name} - {formatTime12Hour(existingDayBooking.start_time)} - {formatTime12Hour(existingDayBooking.end_time)}
                   </p>
+                  {existingDayBooking.status === 'cancellation_pending' && (
+                    <p className={`text-xs mt-2 ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                      Your cancellation is being processed
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="mt-4">
-                <button
-                  onClick={() => {
-                    haptic.light();
-                    setShowCancelConfirm(true);
-                  }}
-                  className={`w-full py-3 rounded-xl font-bold text-sm border transition-colors flex items-center justify-center gap-2 ${
-                    isDark 
-                      ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' 
-                      : 'border-red-300 text-red-600 hover:bg-red-50'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">event_busy</span>
-                  Cancel Booking
-                </button>
-              </div>
+              {existingDayBooking.status !== 'cancellation_pending' && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => {
+                      haptic.light();
+                      setShowCancelConfirm(true);
+                    }}
+                    className={`w-full py-3 rounded-xl font-bold text-sm border transition-colors flex items-center justify-center gap-2 ${
+                      isDark 
+                        ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' 
+                        : 'border-red-300 text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-lg">event_busy</span>
+                    Cancel Booking
+                  </button>
+                </div>
+              )}
             </section>
           )}
           

@@ -39,7 +39,7 @@ The application uses a React 19 frontend with Vite and Tailwind CSS, connected t
 - **Member Management**: Supports tiers, tags, directory, and unified billing groups.
 - **Tier Features System**: Database-driven, flexible comparison table for tier features. Tier edit modal organized into 3 sections: Membership Page Card, Stripe-Managed Settings, and Compare Table. `show_on_membership_page` toggle controls which tiers display as pricing cards on the public membership page. Highlighted card features sync bidirectionally with Stripe Marketing Features.
 - **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, transactional with row-level locking.
-- **Trackman Integration**: Unified 1:1 sync with CSV imports and webhooks for real-time booking and delta billing.
+- **Trackman Integration**: Unified 1:1 sync with CSV imports and webhooks for real-time booking and delta billing. Proper cancellation flow: Trackman-linked approved bookings enter `cancellation_pending` status → staff cancels in Trackman → webhook completes cleanup (refunds, fee clearing, availability broadcast) → member notification. Manual completion fallback and 2-hour stuck-cancellation safety net included.
 - **Linked Email Addresses**: Supports alternate emails and auto-learns associations from Trackman imports.
 - **Google Sign-In**: Members can sign in with Google (via Google Identity Services popup) or link their Google account in profile settings. Uses `resolveUserByEmail()` for dedup safety. Backend verifies Google ID tokens via `google-auth-library`. Stores `google_id`, `google_email`, `google_linked_at` on the users table.
 - **Security**: Role-based access control with `isAdmin` and `isStaffOrAdmin` middleware.

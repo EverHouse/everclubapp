@@ -230,14 +230,14 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
           SELECT LOWER(user_email) as email, id as booking_id
           FROM booking_requests
           WHERE LOWER(user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-            AND status NOT IN ('cancelled', 'declined')
+            AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           UNION
           SELECT LOWER(bg.guest_email) as email, br.id as booking_id
           FROM booking_guests bg
           JOIN booking_requests br ON bg.booking_id = br.id
           WHERE LOWER(bg.guest_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-            AND br.status NOT IN ('cancelled', 'declined')
+            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           UNION
           SELECT LOWER(bm.user_email) as email, br.id as booking_id
@@ -245,7 +245,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
           JOIN booking_requests br ON bm.booking_id = br.id
           WHERE LOWER(bm.user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
             AND bm.is_primary IS NOT TRUE
-            AND br.status NOT IN ('cancelled', 'declined')
+            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
         ) all_bookings
         GROUP BY email
@@ -285,7 +285,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
           SELECT LOWER(user_email) as email, MAX(request_date) as last_date
           FROM booking_requests
           WHERE LOWER(user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)}) 
-            AND status NOT IN ('cancelled', 'declined')
+            AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(user_email)
           UNION ALL
@@ -293,7 +293,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
           FROM booking_guests bg
           JOIN booking_requests br ON bg.booking_id = br.id
           WHERE LOWER(bg.guest_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)}) 
-            AND br.status NOT IN ('cancelled', 'declined')
+            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(bg.guest_email)
           UNION ALL
@@ -302,7 +302,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
           JOIN booking_requests br ON bm.booking_id = br.id
           WHERE LOWER(bm.user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)}) 
             AND bm.is_primary IS NOT TRUE 
-            AND br.status NOT IN ('cancelled', 'declined')
+            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
             AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(bm.user_email)
           UNION ALL

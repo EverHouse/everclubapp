@@ -138,7 +138,7 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
             icon: 'login'
           });
         }
-      } else if (booking.status === 'cancelled' || booking.status === 'declined') {
+      } else if (booking.status === 'cancelled' || booking.status === 'cancellation_pending' || booking.status === 'declined') {
         if (booking.updatedAt && booking.updatedAt >= twentyFourHoursAgo) {
           activities.push({
             id: `cancellation_${booking.id}`,

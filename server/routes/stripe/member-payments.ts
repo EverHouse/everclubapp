@@ -47,7 +47,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
 
     const booking = bookingResult.rows[0];
 
-    if (booking.status === 'cancelled' || booking.status === 'declined') {
+    if (booking.status === 'cancelled' || booking.status === 'cancellation_pending' || booking.status === 'declined') {
       return res.status(400).json({ error: 'Cannot pay for a cancelled or declined booking' });
     }
 

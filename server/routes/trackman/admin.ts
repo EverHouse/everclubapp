@@ -895,7 +895,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, async (req, res) => {
     
     const matchedConditions: ReturnType<typeof sql>[] = [
       sql`(br.trackman_booking_id IS NOT NULL OR br.notes LIKE '%[Trackman Import ID:%')`,
-      sql`br.status NOT IN ('cancelled', 'declined')`,
+      sql`br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')`,
       sql`(
         COALESCE(br.trackman_player_count, 1) = 1
         OR (
@@ -2080,7 +2080,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, async (req, 
          WHERE br.request_date = ${unmatched.booking_date}
            AND ABS(EXTRACT(EPOCH FROM (br.start_time::time - ${unmatched.start_time}::time))) <= 1800
            AND br.trackman_booking_id IS NULL
-           AND br.status NOT IN ('cancelled', 'declined')
+           AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
          LIMIT 5`);
       
       if (matchingBookings.rows.length > 0) {
@@ -2745,7 +2745,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
         br.notes,
         br.trackman_booking_id
       FROM booking_requests br
-      WHERE br.status != 'cancelled'
+      WHERE br.status NOT IN ('cancelled', 'cancellation_pending')
         AND (
           LOWER(br.user_email) IN (${sql.join(INSTRUCTOR_EMAILS.map((e: string) => sql`${e}`), sql`, `)})
           OR LOWER(br.user_name) LIKE '%lesson%'

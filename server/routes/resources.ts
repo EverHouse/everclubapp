@@ -8,7 +8,7 @@ import { isAuthorizedForMemberBooking } from '../core/bookingAuth';
 import { isStaffOrAdmin } from '../core/middleware';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../core/calendar/index';
 import { logAndRespond, logger } from '../core/logger';
-import { sendPushNotification } from './push';
+import { sendPushNotification, sendPushNotificationToStaff } from './push';
 import { DEFAULT_TIER } from '../../shared/constants/tiers';
 import { withRetry } from '../core/retry';
 import { checkDailyBookingLimit } from '../core/tierService';
@@ -2395,7 +2395,8 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       resourceId: bookingRequests.resourceId,
       requestDate: bookingRequests.requestDate,
       startTime: bookingRequests.startTime,
-      sessionId: bookingRequests.sessionId
+      sessionId: bookingRequests.sessionId,
+      trackmanBookingId: bookingRequests.trackmanBookingId,
     })
       .from(bookingRequests)
       .where(eq(bookingRequests.id, bookingId));
@@ -2424,6 +2425,70 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
     
     if (existing.status === 'cancelled') {
       return res.status(400).json({ error: 'Booking is already cancelled' });
+    }
+    if (existing.status === 'cancellation_pending') {
+      return res.status(400).json({ error: 'Cancellation is already in progress' });
+    }
+    
+    const wasApproved = existing.status === 'approved';
+    const isTrackmanLinked = !!existing.trackmanBookingId;
+    const needsPendingCancel = wasApproved && isTrackmanLinked;
+    
+    if (needsPendingCancel) {
+      await db.update(bookingRequests)
+        .set({
+          status: 'cancellation_pending',
+          cancellationPendingAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(bookingRequests.id, bookingId));
+      
+      logFromRequest(req, 'cancellation_requested', 'booking', id, undefined, {
+        member_email: existing.userEmail,
+        trackman_booking_id: existing.trackmanBookingId
+      });
+      
+      const memberName = existing.userName || existing.userEmail;
+      const bookingDate = existing.requestDate;
+      const bookingTime = existing.startTime?.substring(0, 5) || '';
+      
+      let bayName = 'Simulator';
+      if (existing.resourceId) {
+        const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, existing.resourceId));
+        if (resource?.name) bayName = resource.name;
+      }
+      
+      const staffMessage = `${memberName} wants to cancel their booking on ${bookingDate} at ${bookingTime} (${bayName}). Please cancel in Trackman to complete the cancellation.`;
+      
+      await db.insert(notifications).values({
+        userEmail: 'staff@evenhouse.club',
+        title: 'Cancellation Request - Cancel in Trackman',
+        message: staffMessage,
+        type: 'cancellation_pending',
+        relatedId: bookingId,
+        relatedType: 'booking_request'
+      });
+      
+      sendPushNotificationToStaff({
+        title: 'Cancellation Request - Action Required',
+        body: staffMessage,
+        url: '/admin/bookings'
+      }).catch(err => console.error('Staff push notification failed:', err));
+      
+      await db.insert(notifications).values({
+        userEmail: existing.userEmail || '',
+        title: 'Cancellation Request Submitted',
+        message: `Your cancellation request for ${bookingDate} at ${bookingTime} has been submitted. You'll be notified once it's fully processed.`,
+        type: 'cancellation_pending',
+        relatedId: bookingId,
+        relatedType: 'booking_request'
+      });
+      
+      return res.json({ 
+        success: true, 
+        status: 'cancellation_pending',
+        message: 'Cancellation request submitted. You will be notified once it is fully processed.'
+      });
     }
     
     let resourceName: string | undefined;

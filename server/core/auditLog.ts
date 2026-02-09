@@ -125,7 +125,9 @@ export type AuditAction =
   | 'staff_view_member_payments'
   | 'staff_view_member_balance'
   | 'staff_view_member_card_info'
-  | 'large_charge_approved';
+  | 'large_charge_approved'
+  | 'cancellation_requested'
+  | 'complete_cancellation';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

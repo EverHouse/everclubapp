@@ -13,6 +13,24 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.14.0",
+    date: "2026-02-09",
+    title: "Proper Trackman Cancellation Flow",
+    isMajor: true,
+    changes: [
+      "New: Approved simulator bookings linked to Trackman now go through a proper cancellation process instead of instant cancel",
+      "New: When a member or staff cancels a Trackman-linked booking, it enters 'Cancellation Pending' status and staff are notified to cancel in Trackman first",
+      "New: Once staff cancels in Trackman and the webhook confirms it, the system automatically refunds charges, clears billing, and notifies the member",
+      "New: Staff can manually complete a pending cancellation via a 'Complete Cancellation' button if the Trackman webhook doesn't arrive",
+      "New: Scheduled safety net checks every 2 hours for cancellations stuck for 4+ hours and escalates to staff",
+      "New: Members see 'Cancellation Pending' status with messaging that their request is being processed",
+      "New: Staff see 'Cancellation Pending' badge with instructions to cancel in Trackman and a manual completion option",
+      "Improvement: Time slot stays reserved during pending cancellation — no double-booking risk",
+      "Improvement: Non-Trackman bookings (conference rooms, etc.) keep the existing instant cancel behavior",
+      "Fix: Updated 40+ booking queries across the codebase to properly handle the new cancellation_pending status",
+    ],
+  },
+  {
     version: "7.13.0",
     date: "2026-02-09",
     title: "Complete Session Creation Safety Coverage",

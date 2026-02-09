@@ -1327,7 +1327,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             AND start_time = ${startTime}
             AND (resource_id = ${resourceId} OR ${resourceId} IS NULL)
             AND trackman_booking_id IS NULL
-            AND status NOT IN ('cancelled', 'declined')
+            AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
           LIMIT 1`);
         
         if (matchingBooking.rows.length > 0) {

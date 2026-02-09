@@ -160,6 +160,13 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
         </span>
       );
     }
+    if (booking.status === 'cancellation_pending') {
+      return (
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 rounded-full">
+          Cancellation Pending
+        </span>
+      );
+    }
     if (booking.is_unmatched) {
       return (
         <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">

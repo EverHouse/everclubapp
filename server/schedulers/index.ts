@@ -18,6 +18,7 @@ import { startGuestPassResetScheduler } from './guestPassResetScheduler';
 import { startMemberSyncScheduler } from './memberSyncScheduler';
 import { startDuplicateCleanupScheduler } from './duplicateCleanupScheduler';
 import { startRelocationCleanupScheduler } from './relocationCleanupScheduler';
+import { startStuckCancellationScheduler } from './stuckCancellationScheduler';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
 
 export function initSchedulers(): void {
@@ -41,6 +42,7 @@ export function initSchedulers(): void {
   startDuplicateCleanupScheduler();
   startGuestPassResetScheduler();
   startRelocationCleanupScheduler();
+  startStuckCancellationScheduler();
   startJobProcessor(5000);
 }
 

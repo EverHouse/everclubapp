@@ -59,6 +59,8 @@ const getStatusBadgeStyle = (status: string, isDark: boolean): string => {
       return 'bg-yellow-100 text-yellow-700';
     case 'no_show':
       return 'bg-orange-100 text-orange-700';
+    case 'cancellation_pending':
+      return 'bg-orange-100 text-orange-700';
     case 'cancelled':
     case 'declined':
       return 'bg-red-100 text-red-700';
@@ -269,7 +271,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
             {booking.resourceName || booking.resourceType || 'Booking'}
           </span>
           <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${getStatusBadgeStyle(booking.status, isDark)}`}>
-            {booking.status === 'no_show' ? 'No Show' : booking.status}
+            {booking.status === 'no_show' ? 'No Show' : booking.status === 'cancellation_pending' ? 'Cancellation Pending' : booking.status}
           </span>
           {booking.guestCount > 0 && (
             <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>

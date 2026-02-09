@@ -136,7 +136,7 @@ export async function tryAutoApproveBooking(
 
 export async function cancelBookingByTrackmanId(
   trackmanBookingId: string
-): Promise<{ cancelled: boolean; bookingId?: number; refundedPasses?: number }> {
+): Promise<{ cancelled: boolean; bookingId?: number; refundedPasses?: number; wasPendingCancellation?: boolean }> {
   try {
     const result = await pool.query(
       `SELECT br.id, br.user_email, br.user_name, br.status, br.session_id, 
@@ -175,6 +175,8 @@ export async function cancelBookingByTrackmanId(
     if (booking.status === 'cancelled') {
       return { cancelled: true, bookingId };
     }
+    
+    const wasPendingCancellation = booking.status === 'cancellation_pending';
     
     await pool.query(
       `UPDATE booking_requests 
@@ -353,8 +355,10 @@ export async function cancelBookingByTrackmanId(
         ? `. Refunded: ${refundedPasses} guest pass${refundedPasses > 1 ? 'es' : ''}`
         : '';
       
-      const notificationTitle = 'Booking Cancelled via TrackMan';
-      const notificationMessage = `Booking cancelled via TrackMan: ${memberName}'s booking on ${formattedDate} at ${formattedTime}${bayInfo}${refundInfo}`;
+      const notificationTitle = wasPendingCancellation ? 'Cancellation Completed via TrackMan' : 'Booking Cancelled via TrackMan';
+      const notificationMessage = wasPendingCancellation
+        ? `Cancellation completed via TrackMan: ${memberName}'s booking on ${formattedDate} at ${formattedTime}${bayInfo}${refundInfo}`
+        : `Booking cancelled via TrackMan: ${memberName}'s booking on ${formattedDate} at ${formattedTime}${bayInfo}${refundInfo}`;
       
       broadcastToStaff({
         type: 'booking_cancelled',
@@ -413,11 +417,58 @@ export async function cancelBookingByTrackmanId(
       });
     }
     
+    // If this was completing a member-requested cancellation, notify the member
+    if (wasPendingCancellation && memberEmail) {
+      try {
+        const memberFormattedDate = bookingDate ? formatDatePacific(new Date(bookingDate)) : 'Unknown date';
+        const memberFormattedTime = startTime ? formatTimePacific(startTime) : 'Unknown time';
+        
+        await notifyMember(
+          {
+            userEmail: memberEmail,
+            title: 'Booking Cancelled',
+            message: `Your booking on ${memberFormattedDate} at ${memberFormattedTime} has been cancelled and any charges have been refunded.`,
+            type: 'booking_cancelled',
+            relatedId: bookingId,
+            relatedType: 'booking_request',
+            url: '/member/bookings'
+          },
+          {
+            sendPush: true,
+            sendWebSocket: true,
+            sendEmail: false
+          }
+        );
+        
+        logger.info('[Trackman Webhook] Sent cancellation confirmation to member', {
+          extra: { bookingId, memberEmail, wasPendingCancellation: true }
+        });
+      } catch (memberNotifyErr) {
+        logger.warn('[Trackman Webhook] Failed to send member cancellation confirmation', {
+          extra: { bookingId, memberEmail, error: (memberNotifyErr as Error).message }
+        });
+      }
+    }
+    
+    // Broadcast availability update now that the slot is freed
+    try {
+      broadcastAvailabilityUpdate({
+        resourceId: booking.resource_id || undefined,
+        resourceType: 'simulator',
+        date: bookingDate,
+        action: 'cancelled'
+      });
+    } catch (broadcastErr) {
+      logger.warn('[Trackman Webhook] Failed to broadcast availability update', {
+        extra: { bookingId, error: (broadcastErr as Error).message }
+      });
+    }
+    
     logger.info('[Trackman Webhook] Cancelled booking via Trackman ID', {
-      extra: { bookingId, trackmanBookingId, refundedPasses }
+      extra: { bookingId, trackmanBookingId, refundedPasses, wasPendingCancellation }
     });
     
-    return { cancelled: true, bookingId, refundedPasses };
+    return { cancelled: true, bookingId, refundedPasses, wasPendingCancellation };
   } catch (e) {
     logger.error('[Trackman Webhook] Failed to cancel booking', { error: e as Error });
     return { cancelled: false };

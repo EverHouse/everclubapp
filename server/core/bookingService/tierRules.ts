@@ -188,7 +188,7 @@ export async function getGuestPassesRemaining(memberEmail: string): Promise<numb
          AND bp.used_guest_pass = true
          AND bs.session_date >= $1
          AND bs.session_date <= $2
-         AND br.status NOT IN ('cancelled', 'declined')
+         AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
          AND EXISTS (
            SELECT 1 FROM booking_participants owner_bp
            WHERE owner_bp.session_id = bs.id

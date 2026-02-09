@@ -2251,7 +2251,7 @@ const SimulatorTab: React.FC = () => {
                                                     <SwipeableListItem
                                                         key={`upcoming-${booking.id}`}
                                                         leftActions={[]}
-                                                        rightActions={isOptimisticNew || isActionPending ? [] : [
+                                                        rightActions={isOptimisticNew || isActionPending || booking.status === 'cancellation_pending' ? [] : [
                                                             {
                                                                 id: 'cancel',
                                                                 icon: 'close',
@@ -2332,8 +2332,60 @@ const SimulatorTab: React.FC = () => {
                                                             )}
                                                             
                                                             {/* Action Buttons - Full Width */}
+                                                            {booking.status === 'cancellation_pending' && (
+                                                                <div className="flex items-center gap-2 mt-2">
+                                                                    <span className="px-2.5 py-1 text-xs font-semibold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 rounded-lg flex items-center gap-1">
+                                                                        <span className="material-symbols-outlined text-xs">hourglass_top</span>
+                                                                        Cancellation Pending
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                             <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                                                                {isUnmatched ? (
+                                                                {booking.status === 'cancellation_pending' ? (
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            const confirmed = await confirm({
+                                                                                title: 'Complete Cancellation',
+                                                                                message: 'Complete this cancellation? This will cancel the billing session and refund any charges.',
+                                                                                confirmText: 'Complete Cancellation',
+                                                                                variant: 'warning'
+                                                                            });
+                                                                            if (!confirmed) return;
+                                                                            
+                                                                            const bookingKey = `${booking.source || 'booking'}-${booking.id}`;
+                                                                            setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
+                                                                            
+                                                                            try {
+                                                                                const res = await fetch(`/api/booking-requests/${booking.id}/complete-cancellation`, {
+                                                                                    method: 'PUT',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    credentials: 'include'
+                                                                                });
+                                                                                
+                                                                                if (!res.ok) {
+                                                                                    const errData = await res.json();
+                                                                                    throw new Error(errData.error || 'Failed to complete cancellation');
+                                                                                }
+                                                                                
+                                                                                showToast('Cancellation completed successfully', 'success');
+                                                                                queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+                                                                                queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
+                                                                            } catch (err: any) {
+                                                                                showToast(err.message || 'Failed to complete cancellation', 'error');
+                                                                            } finally {
+                                                                                setActionInProgress(prev => {
+                                                                                    const next = { ...prev };
+                                                                                    delete next[bookingKey];
+                                                                                    return next;
+                                                                                });
+                                                                            }
+                                                                        }}
+                                                                        className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-200"
+                                                                    >
+                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
+                                                                        Complete Cancellation
+                                                                    </button>
+                                                                ) : isUnmatched ? (
                                                                     <button
                                                                         onClick={() => setTrackmanLinkModal({
                                                                             isOpen: true,
@@ -3496,9 +3548,58 @@ const SimulatorTab: React.FC = () => {
                                 return false;
                             })();
                             const isCancelled = selectedCalendarBooking?.status === 'cancelled';
+                            const isCancellationPending = selectedCalendarBooking?.status === 'cancellation_pending';
                             const selectedResource = selectedCalendarBooking?.resource_id ? resources.find(r => r.id === selectedCalendarBooking.resource_id) : null;
                             const isSimulator = !selectedResource || selectedResource.type === 'simulator';
                             if (!isUpcoming || isCancelled || !isSimulator) return null;
+                            if (isCancellationPending) {
+                                return (
+                                    <button
+                                        onClick={async () => {
+                                            if (!selectedCalendarBooking) return;
+                                            const confirmed = await confirm({
+                                                title: 'Complete Cancellation',
+                                                message: 'Complete this cancellation? This will cancel the billing session and refund any charges.',
+                                                confirmText: 'Complete Cancellation',
+                                                variant: 'warning'
+                                            });
+                                            if (!confirmed) return;
+                                            
+                                            setIsCancellingFromModal(true);
+                                            try {
+                                                const res = await fetch(`/api/booking-requests/${selectedCalendarBooking.id}/complete-cancellation`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    credentials: 'include'
+                                                });
+                                                
+                                                if (!res.ok) {
+                                                    const errData = await res.json();
+                                                    throw new Error(errData.error || 'Failed to complete cancellation');
+                                                }
+                                                
+                                                showToast('Cancellation completed successfully', 'success');
+                                                queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+                                                queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
+                                                setSelectedCalendarBooking(null);
+                                            } catch (err: any) {
+                                                showToast(err.message || 'Failed to complete cancellation', 'error');
+                                            } finally {
+                                                setIsCancellingFromModal(false);
+                                            }
+                                        }}
+                                        disabled={isCancellingFromModal}
+                                        className="flex-1 py-3 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isCancellingFromModal ? (
+                                            <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                        ) : (
+                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
+                                        )}
+                                        Complete Cancellation
+                                    </button>
+                                );
+                            }
                             return (
                                 <button
                                     onClick={() => {
@@ -3512,7 +3613,7 @@ const SimulatorTab: React.FC = () => {
                                 </button>
                             );
                         })()}
-                        <button
+                        {selectedCalendarBooking?.status !== 'cancellation_pending' && <button
                             onClick={async () => {
                                 if (!selectedCalendarBooking) return;
                                 const confirmed = await confirm({
@@ -3577,7 +3678,7 @@ const SimulatorTab: React.FC = () => {
                                     <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
                                 )}
                                 Cancel
-                            </button>
+                            </button>}
                         {(() => {
                             const isTrackmanBooking = !!(selectedCalendarBooking as any)?.trackman_booking_id || (selectedCalendarBooking?.notes && selectedCalendarBooking.notes.includes('[Trackman Import ID:'));
                             const emailLower = selectedCalendarBooking?.user_email?.toLowerCase() || '';

@@ -37,7 +37,7 @@ router.post('/api/admin/booking/:id/reschedule/start', isStaffOrAdmin, async (re
 
     const booking = result.rows[0];
 
-    if (booking.status === 'cancelled') {
+    if (booking.status === 'cancelled' || booking.status === 'cancellation_pending') {
       return res.status(400).json({ error: 'Cannot reschedule a cancelled booking' });
     }
 
@@ -107,7 +107,7 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
 
     const booking = bookingResult.rows[0];
 
-    if (booking.status === 'cancelled') {
+    if (booking.status === 'cancelled' || booking.status === 'cancellation_pending') {
       return res.status(400).json({ error: 'Cannot reschedule a cancelled booking' });
     }
 

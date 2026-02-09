@@ -6,6 +6,7 @@ export type BookingStatus =
   | 'attended' 
   | 'declined' 
   | 'cancelled' 
+  | 'cancellation_pending'
   | 'expired'
   | 'no_show';
 
@@ -38,6 +39,8 @@ export function getStatusColor(status: string, isDark: boolean): string {
       return isDark ? 'bg-red-500/20 text-red-300' : 'bg-red-500/20 text-red-700';
     case 'no_show':
       return isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-500/20 text-orange-700';
+    case 'cancellation_pending':
+      return isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-500/20 text-orange-700';
     case 'cancelled':
       return isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-500/20 text-gray-500';
     case 'expired':
@@ -60,6 +63,8 @@ export function getStatusBadge(status: string): string {
     case 'declined':
     case 'cancelled':
       return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300';
+    case 'cancellation_pending':
+      return 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300';
     case 'expired':
       return 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400';
     default:
@@ -109,6 +114,8 @@ export function formatStatusLabel(status: string): string {
       return 'Pending Approval';
     case 'no_show':
       return 'No Show';
+    case 'cancellation_pending':
+      return 'Cancellation Pending';
     case 'in_progress':
       return 'In Progress';
     case 'wont_fix':

@@ -701,7 +701,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       const bookingId = parseInt(id, 10);
       const { cancelled_by } = req.body;
       
-      const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom } = await db.transaction(async (tx) => {
+      const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending } = await db.transaction(async (tx) => {
         const [existing] = await tx.select({
           id: bookingRequests.id,
           calendarEventId: bookingRequests.calendarEventId,
@@ -715,13 +715,61 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           overagePaymentIntentId: bookingRequests.overagePaymentIntentId,
           overagePaid: bookingRequests.overagePaid,
           overageFeeCents: bookingRequests.overageFeeCents,
-          sessionId: bookingRequests.sessionId
+          sessionId: bookingRequests.sessionId,
+          staffNotes: bookingRequests.staffNotes
         })
           .from(bookingRequests)
           .where(eq(bookingRequests.id, bookingId));
         
         if (!existing) {
           throw { statusCode: 404, error: 'Booking request not found' };
+        }
+        
+        if (existing.status === 'cancellation_pending') {
+          return {
+            updated: existing as any,
+            bookingData: existing,
+            pushInfo: null as any,
+            overageRefundResult: {},
+            isConferenceRoom: false,
+            isPendingCancel: true,
+            alreadyPending: true
+          };
+        }
+        
+        const isTrackmanLinked = !!existing.trackmanBookingId;
+        const wasApproved = existing.status === 'approved';
+        const needsPendingCancel = isTrackmanLinked && wasApproved;
+        
+        if (needsPendingCancel) {
+          const [updatedRow] = await tx.update(bookingRequests)
+            .set({
+              status: 'cancellation_pending',
+              cancellationPendingAt: new Date(),
+              staffNotes: (existing.staffNotes || '') + '\n[Staff initiated cancellation - awaiting Trackman cancellation]',
+              updatedAt: new Date()
+            })
+            .where(eq(bookingRequests.id, bookingId))
+            .returning();
+          
+          const memberName = existing.userName || existing.userEmail || 'Member';
+          const bookingDate = existing.requestDate;
+          const bookingTime = existing.startTime?.substring(0, 5) || '';
+          let bayName = 'Bay';
+          if (existing.resourceId) {
+            const [resource] = await tx.select({ name: resources.name }).from(resources).where(eq(resources.id, existing.resourceId));
+            if (resource?.name) bayName = resource.name;
+          }
+          
+          return {
+            updated: updatedRow,
+            bookingData: existing,
+            pushInfo: { type: 'staff' as const, memberName, bookingDate, bookingTime, bayName },
+            overageRefundResult: {},
+            isConferenceRoom: false,
+            isPendingCancel: true,
+            alreadyPending: false
+          };
         }
         
         let isConferenceRoom = false;
@@ -943,10 +991,10 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         const memberName = existing.userName || memberEmail;
         const bookingDate = existing.requestDate;
         const memberCancelled = cancelled_by === memberEmail;
-        const wasApproved = existing.status === 'approved';
+        const existingWasApproved = existing.status === 'approved';
         
         const friendlyDateTime = formatNotificationDateTime(bookingDate, existing.startTime || '00:00');
-        const statusLabel = wasApproved ? 'booking' : 'booking request';
+        const statusLabel = existingWasApproved ? 'booking' : 'booking request';
         
         if (memberCancelled) {
           const staffMessage = `${memberName} has cancelled their ${statusLabel} for ${friendlyDateTime}.`;
@@ -1015,8 +1063,57 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           });
         }
         
-        return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom };
+        return { updated: updatedRow, bookingData: existing, pushInfo, overageRefundResult, isConferenceRoom, isPendingCancel: false, alreadyPending: false };
       });
+      
+      if (isPendingCancel) {
+        if (alreadyPending) {
+          return res.json({ success: true, status: 'cancellation_pending' });
+        }
+        
+        const { memberName, bookingDate, bookingTime, bayName } = pushInfo;
+        
+        const staffMessage = `Booking cancellation pending for ${memberName} on ${bookingDate} at ${bookingTime} (${bayName}). Please cancel in Trackman to complete.`;
+        await db.insert(notifications).values({
+          userEmail: 'staff@evenhouse.club',
+          title: 'Cancel in Trackman Required',
+          message: staffMessage,
+          type: 'cancellation_pending',
+          relatedId: bookingId,
+          relatedType: 'booking_request'
+        });
+        
+        sendPushNotificationToStaff({
+          title: 'Cancel in Trackman Required',
+          body: staffMessage,
+          url: '/admin/bookings'
+        }).catch(err => console.error('Staff push notification failed:', err));
+        
+        await db.insert(notifications).values({
+          userEmail: bookingData.userEmail || '',
+          title: 'Booking Cancellation in Progress',
+          message: `Your booking for ${bookingDate} at ${bookingTime} is being cancelled. You'll be notified once it's fully processed.`,
+          type: 'cancellation_pending',
+          relatedId: bookingId,
+          relatedType: 'booking_request'
+        });
+        
+        if (bookingData.userEmail) {
+          sendPushNotification(bookingData.userEmail, {
+            title: 'Booking Cancellation in Progress',
+            body: `Your booking for ${bookingDate} at ${bookingTime} is being cancelled. You'll be notified once it's fully processed.`,
+            url: '/sims'
+          }).catch(err => console.error('Member push notification failed:', err));
+        }
+        
+        logFromRequest(req, 'cancellation_requested', 'booking', id.toString(), undefined, {
+          member_email: bookingData.userEmail,
+          trackman_booking_id: bookingData.trackmanBookingId,
+          initiated_by: 'staff'
+        });
+        
+        return res.json({ success: true, status: 'cancellation_pending' });
+      }
       
       await releaseGuestPassHold(bookingId);
       
@@ -1194,9 +1291,8 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     // Allow checking in cancelled bookings if they have a session (for overdue payment recovery)
     const hasSession = existing.session_id !== null;
     const allowedStatuses = ['approved', 'confirmed'];
-    if (hasSession && currentStatus === 'cancelled') {
-      // Allow recovery of cancelled bookings with sessions (overdue payment scenarios)
-      allowedStatuses.push('cancelled');
+    if (hasSession && (currentStatus === 'cancelled' || currentStatus === 'cancellation_pending')) {
+      allowedStatuses.push('cancelled', 'cancellation_pending');
     }
     
     if (!allowedStatuses.includes(currentStatus)) {
@@ -1703,6 +1799,245 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
     });
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to confirm booking', error);
+  }
+});
+
+router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, async (req, res) => {
+  try {
+    const staffEmail = getSessionUser(req)?.email;
+    if (!staffEmail) return res.status(401).json({ error: 'Authentication required' });
+    
+    const bookingId = parseInt(req.params.id, 10);
+    
+    const [existing] = await db.select({
+      id: bookingRequests.id,
+      userEmail: bookingRequests.userEmail,
+      userName: bookingRequests.userName,
+      requestDate: bookingRequests.requestDate,
+      startTime: bookingRequests.startTime,
+      endTime: bookingRequests.endTime,
+      status: bookingRequests.status,
+      resourceId: bookingRequests.resourceId,
+      trackmanBookingId: bookingRequests.trackmanBookingId,
+      sessionId: bookingRequests.sessionId,
+      overagePaymentIntentId: bookingRequests.overagePaymentIntentId,
+      overagePaid: bookingRequests.overagePaid,
+      overageFeeCents: bookingRequests.overageFeeCents
+    })
+      .from(bookingRequests)
+      .where(eq(bookingRequests.id, bookingId));
+    
+    if (!existing) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    if (existing.status !== 'cancellation_pending') {
+      return res.status(400).json({ error: `Cannot complete cancellation — booking status is '${existing.status}', expected 'cancellation_pending'` });
+    }
+    
+    // Track errors that occur during financial cleanup
+    const errors: string[] = [];
+    
+    // 1. Handle overage payment refund/cancellation FIRST
+    if (existing.overagePaymentIntentId) {
+      try {
+        const stripe = await getStripeClient();
+        if (existing.overagePaid) {
+          const paymentIntent = await stripe.paymentIntents.retrieve(existing.overagePaymentIntentId);
+          if (paymentIntent.status === 'succeeded' && paymentIntent.latest_charge) {
+            await stripe.refunds.create({
+              charge: paymentIntent.latest_charge as string,
+              reason: 'requested_by_customer'
+            });
+          }
+        } else {
+          await cancelPaymentIntent(existing.overagePaymentIntentId);
+        }
+      } catch (paymentErr: any) {
+        errors.push(`Overage refund failed: ${paymentErr.message}`);
+        console.error('[Complete Cancellation] Failed to handle overage payment:', paymentErr);
+      }
+      
+      // Always clear overage fields regardless of refund success
+      try {
+        await db.update(bookingRequests)
+          .set({ overagePaymentIntentId: null, overageFeeCents: 0 })
+          .where(eq(bookingRequests.id, bookingId));
+      } catch (clearErr) {
+        console.error('[Complete Cancellation] Failed to clear overage fields:', clearErr);
+      }
+    }
+    
+    // 2. Cancel pending payment intents
+    try {
+      const pendingIntents = await pool.query(
+        `SELECT stripe_payment_intent_id 
+         FROM stripe_payment_intents 
+         WHERE booking_id = $1 AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+        [bookingId]
+      );
+      for (const row of pendingIntents.rows) {
+        try {
+          await cancelPaymentIntent(row.stripe_payment_intent_id);
+        } catch (cancelErr: any) {
+          errors.push(`Failed to cancel payment intent ${row.stripe_payment_intent_id.substring(0, 8)}: ${cancelErr.message}`);
+          console.error(`[Complete Cancellation] Failed to cancel payment intent:`, cancelErr.message);
+        }
+      }
+    } catch (err: any) {
+      errors.push(`Failed to query pending intents: ${err.message}`);
+      console.error('[Complete Cancellation] Failed to query pending intents:', err);
+    }
+    
+    // 3. Clear pending fees and refund paid participant fees
+    if (existing.sessionId) {
+      try {
+        await pool.query(
+          `UPDATE booking_participants 
+           SET cached_fee_cents = 0, payment_status = 'waived'
+           WHERE session_id = $1 AND payment_status = 'pending'`,
+          [existing.sessionId]
+        );
+      } catch (clearErr) {
+        errors.push(`Failed to clear pending fees: ${(clearErr as any).message}`);
+        console.error('[Complete Cancellation] Failed to clear pending fees:', clearErr);
+      }
+      
+      try {
+        const paidParticipants = await pool.query(
+          `SELECT id, stripe_payment_intent_id, cached_fee_cents, display_name
+           FROM booking_participants 
+           WHERE session_id = $1 
+           AND payment_status = 'paid' 
+           AND stripe_payment_intent_id IS NOT NULL 
+           AND stripe_payment_intent_id != ''
+           AND stripe_payment_intent_id NOT LIKE 'balance-%'
+           AND refunded_at IS NULL`,
+          [existing.sessionId]
+        );
+        
+        if (paidParticipants.rows.length > 0) {
+          const stripe = await getStripeClient();
+          for (const participant of paidParticipants.rows) {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(participant.stripe_payment_intent_id);
+              if (pi.status === 'succeeded' && pi.latest_charge) {
+                const refund = await stripe.refunds.create({
+                  charge: typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge as any).id,
+                  reason: 'requested_by_customer',
+                  metadata: {
+                    type: 'cancellation_completed_by_staff',
+                    bookingId: bookingId.toString(),
+                    participantId: participant.id.toString()
+                  }
+                });
+                await pool.query(
+                  `UPDATE booking_participants SET refunded_at = NOW(), payment_status = 'waived' WHERE id = $1`,
+                  [participant.id]
+                );
+                console.log(`[Complete Cancellation] Refunded ${participant.display_name}: $${(participant.cached_fee_cents / 100).toFixed(2)}`);
+              }
+            } catch (refundErr: any) {
+              errors.push(`Failed to refund ${participant.display_name}: ${refundErr.message}`);
+              console.error(`[Complete Cancellation] Failed to refund participant ${participant.id}:`, refundErr.message);
+            }
+          }
+        }
+      } catch (feeErr: any) {
+        errors.push(`Failed to handle participant refunds: ${feeErr.message}`);
+        console.error('[Complete Cancellation] Failed to handle fees:', feeErr);
+      }
+      
+      // 4. Refund guest passes
+      try {
+        const guestParticipants = await pool.query(
+          `SELECT id, display_name FROM booking_participants 
+           WHERE session_id = $1 AND participant_type = 'guest'`,
+          [existing.sessionId]
+        );
+        for (const guest of guestParticipants.rows) {
+          try {
+            await refundGuestPass(existing.userEmail || '', guest.display_name || undefined, false);
+          } catch (guestErr: any) {
+            errors.push(`Failed to refund guest pass for ${guest.display_name}: ${guestErr.message}`);
+            console.error('[Complete Cancellation] Failed to refund guest pass:', guestErr);
+          }
+        }
+      } catch (err: any) {
+        errors.push(`Failed to query guest participants: ${err.message}`);
+        console.error('[Complete Cancellation] Failed to query guest participants:', err);
+      }
+    }
+    
+    // 5. Release guest pass holds
+    try {
+      await releaseGuestPassHold(bookingId);
+    } catch (err: any) {
+      errors.push(`Failed to release guest pass holds: ${err.message}`);
+      console.error('[Complete Cancellation] Failed to release guest pass holds:', err);
+    }
+    
+    // 6. NOW mark as cancelled with any error details in staff notes
+    const errorNote = errors.length > 0 
+      ? `\n[Cancellation completed with ${errors.length} error(s): ${errors.join('; ')}]`
+      : '';
+    
+    await db.update(bookingRequests)
+      .set({
+        status: 'cancelled',
+        staffNotes: sql`COALESCE(staff_notes, '') || ${'\n[Cancellation completed manually by ' + staffEmail + ']' + errorNote}`,
+        updatedAt: new Date()
+      })
+      .where(eq(bookingRequests.id, bookingId));
+    
+    // 7. Broadcast availability, notify member, audit log (after status update)
+    broadcastAvailabilityUpdate({
+      resourceId: existing.resourceId || undefined,
+      resourceType: 'simulator',
+      date: existing.requestDate,
+      action: 'cancelled'
+    });
+    
+    const memberName = existing.userName || existing.userEmail || 'Member';
+    const bookingDate = existing.requestDate;
+    const bookingTime = existing.startTime?.substring(0, 5) || '';
+    
+    await db.insert(notifications).values({
+      userEmail: existing.userEmail || '',
+      title: 'Booking Cancelled',
+      message: `Your booking on ${bookingDate} at ${bookingTime} has been cancelled and any charges have been refunded.`,
+      type: 'booking_cancelled',
+      relatedId: bookingId,
+      relatedType: 'booking_request'
+    });
+    
+    logFromRequest(req, 'complete_cancellation', 'booking', req.params.id, staffEmail, {
+      member_email: existing.userEmail,
+      trackman_booking_id: existing.trackmanBookingId,
+      completed_manually: true,
+      cleanup_errors: errors.length > 0 ? errors : undefined
+    });
+    
+    bookingEvents.publish('booking_cancelled', {
+      bookingId,
+      userEmail: existing.userEmail || '',
+      resourceId: existing.resourceId || undefined,
+      date: bookingDate,
+      cancelledBy: 'staff',
+      source: 'manual_completion'
+    });
+    
+    console.log(`[Complete Cancellation] Staff ${staffEmail} manually completed cancellation of booking ${bookingId}${errors.length > 0 ? ` with ${errors.length} error(s)` : ''}`);
+    
+    return res.json({ 
+      success: true, 
+      status: 'cancelled',
+      message: 'Cancellation completed successfully. Member has been notified.',
+      cleanup_errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (err: any) {
+    console.error('[Complete Cancellation] Error:', err);
+    return res.status(500).json({ error: 'Failed to complete cancellation' });
   }
 });
 

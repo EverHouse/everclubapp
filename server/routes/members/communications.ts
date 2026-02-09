@@ -218,7 +218,7 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE LOWER(br.user_email) = ${targetEmail}
           AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          AND br.status NOT IN ('cancelled', 'declined')
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
         
         UNION ALL
         
@@ -241,7 +241,7 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
           AND (bm.is_primary IS NOT TRUE OR bm.is_primary IS NULL)
           AND LOWER(br.user_email) != ${targetEmail}
           AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          AND br.status NOT IN ('cancelled', 'declined')
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
         
         UNION ALL
         
@@ -262,7 +262,7 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
         LEFT JOIN users host_user ON LOWER(br.user_email) = LOWER(host_user.email)
         WHERE LOWER(bg.guest_email) = ${targetEmail}
           AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          AND br.status NOT IN ('cancelled', 'declined')
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
         
         UNION ALL
         

@@ -245,7 +245,7 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
         WHERE bs.payment_status IN ('outstanding', 'partially_paid')
         AND bs.cancelled_at IS NULL
         AND bs.fee_status = 'finalized'
-        AND br.status NOT IN ('cancelled', 'declined')
+        AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
       `);
       results.overduePaymentsCount = parseInt(overdueCount.rows[0]?.count || '0');
     } catch { /* table may not exist */ }

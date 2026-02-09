@@ -1959,7 +1959,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 AND request_date = ${bookingDate}
                 AND start_time = ${startTime}
                 AND resource_id = ${parsedBayId}
-                AND status NOT IN ('cancelled', 'declined')
+                AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
               `)
               .limit(1);
 
@@ -2131,7 +2131,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 LOWER(user_email) = LOWER(${matchedEmail})
                 AND request_date = ${bookingDate}
                 AND resource_id = ${parsedBayId}
-                AND status NOT IN ('cancelled', 'declined')
+                AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
                 AND trackman_booking_id IS NULL
               `);
             
@@ -2725,7 +2725,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     .from(bookingRequests)
     .where(sql`
       trackman_booking_id IS NOT NULL 
-      AND status NOT IN ('cancelled', 'attended', 'no_show')
+      AND status NOT IN ('cancelled', 'attended', 'no_show', 'cancellation_pending')
       AND request_date >= ${csvMinDate}::date 
       AND request_date <= ${csvMaxDate}::date
     `) : [];
@@ -2916,7 +2916,7 @@ async function insertBookingIfNotExists(
         AND request_date = ${booking.bookingDate}
         AND start_time = ${booking.startTime}
         AND resource_id = ${resourceId}
-        AND status NOT IN ('cancelled', 'declined')
+        AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
       `)
       .limit(1);
 
@@ -3716,7 +3716,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       br.trackman_booking_id,
       br.session_id
     FROM booking_requests br
-    WHERE br.status NOT IN ('cancelled')
+    WHERE br.status NOT IN ('cancelled', 'cancellation_pending')
       AND br.archived_at IS NULL
       AND (
         LOWER(br.user_email) = ANY($1)

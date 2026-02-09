@@ -162,6 +162,13 @@
       "when": 1769255159856,
       "tag": "0022_wooden_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1770671847064,
+      "tag": "0023_fast_warstar",
+      "breakpoints": true
     }
   ]
 }

@@ -427,7 +427,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   const lastActivityResult = await db.execute(sql`SELECT email, MAX(activity_date) as last_activity FROM (
       SELECT LOWER(user_email) as email, request_date as activity_date
       FROM booking_requests 
-      WHERE LOWER(user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)}) AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND status NOT IN ('cancelled', 'declined')
+      WHERE LOWER(user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)}) AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
       UNION ALL
       SELECT LOWER(er.user_email) as email, e.event_date as activity_date
       FROM event_rsvps er
@@ -452,7 +452,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
      FROM booking_requests
      WHERE LOWER(user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})
        AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-       AND status NOT IN ('cancelled', 'declined')
+       AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
      GROUP BY LOWER(user_email)`);
   for (const row of pastBookingsResult.rows) {
     pastBookingsMap[row.email] = row.count;

@@ -105,7 +105,7 @@ interface DBBookingRequest {
   end_time: string;
   duration_minutes: number;
   notes: string | null;
-  status: 'pending' | 'approved' | 'confirmed' | 'attended' | 'no_show' | 'declined' | 'cancelled';
+  status: 'pending' | 'approved' | 'confirmed' | 'attended' | 'no_show' | 'declined' | 'cancelled' | 'cancellation_pending';
   staff_notes: string | null;
   suggested_time: string | null;
   created_at: string;
@@ -292,7 +292,7 @@ const Dashboard: React.FC = () => {
       };
     }),
     ...dbBookingRequests
-      .filter(r => ['pending', 'pending_approval', 'approved', 'confirmed', 'attended'].includes(r.status))
+      .filter(r => ['pending', 'pending_approval', 'approved', 'confirmed', 'attended', 'cancellation_pending'].includes(r.status))
       .filter(r => !dbBookings.some(b => b.id === r.id))
       .map(r => {
       const timeDetails = `${formatTime12Hour(r.start_time)} - ${formatTime12Hour(r.end_time)}`;
@@ -538,18 +538,24 @@ const Dashboard: React.FC = () => {
           }
 
           if (res.ok) {
-            // Optimistic UI: mark as cancelled before data refresh
+            const data = await res.json().catch(() => ({}));
+            
             setOptimisticCancellingIds(prev => {
               const next = new Set(prev);
               next.delete(bookingId);
               return next;
             });
-            setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
             
-            setSelectedBooking(null);
-            deleteBooking(String(bookingId));
-            showToast('Booking cancelled successfully', 'success');
-            refetchAllData();
+            if (data.status === 'cancellation_pending') {
+              showToast('Cancellation request submitted. You\'ll be notified when it\'s complete.', 'success');
+              refetchAllData();
+            } else {
+              setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
+              setSelectedBooking(null);
+              deleteBooking(String(bookingId));
+              showToast('Booking cancelled successfully', 'success');
+              refetchAllData();
+            }
           } else {
             // Revert optimistic state on failure
             setOptimisticCancellingIds(prev => {
@@ -1120,8 +1126,10 @@ const Dashboard: React.FC = () => {
                   
                   const primaryBookerName = (item as any).primaryBookerName;
                   
-                  // When cancelling, show no actions (disabled state)
-                  if (isCancelling) {
+                  const isCancellationPending = (item as any).status === 'cancellation_pending';
+                  
+                  // When cancelling or cancellation_pending, show no actions (disabled state)
+                  if (isCancelling || isCancellationPending) {
                     actions = [];
                   } else {
                     actions = [
@@ -1190,7 +1198,16 @@ const Dashboard: React.FC = () => {
                   if (status) {
                     badges.push(
                       <span key="status" className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadgeColor(status)}`}>
+                        {status === 'cancellation_pending' && <span className="material-symbols-outlined text-xs mr-0.5">hourglass_top</span>}
                         {formatStatusLabel(status)}
+                      </span>
+                    );
+                  }
+                  
+                  if (status === 'cancellation_pending') {
+                    badges.push(
+                      <span key="cancel-pending-info" className="text-xs text-orange-600 dark:text-orange-400">
+                        Your cancellation is being processed
                       </span>
                     );
                   }
