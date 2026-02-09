@@ -1382,6 +1382,7 @@ async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
     LEFT JOIN users u ON br.user_id = u.id
     WHERE br.status IN ('approved', 'attended', 'confirmed')
       AND (br.session_id IS NULL OR bs.id IS NULL)
+      AND (br.is_unmatched = false OR br.is_unmatched IS NULL)
     ORDER BY br.request_date DESC
     LIMIT 100
   `);

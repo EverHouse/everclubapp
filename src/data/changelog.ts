@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.11.7",
+    date: "2026-02-09",
+    title: "Fix False Positives in Session Integrity Check",
+    changes: [
+      "Fix: 'Active Bookings Without Sessions' data integrity check no longer counts unmatched Trackman walk-in bookings — only real member bookings are flagged",
+      "Fix: Backfill Sessions tool now skips unmatched Trackman bookings that have no member to bill",
+      "Result: Count drops from ~38 to ~8 — only genuine missing sessions remain",
+    ],
+  },
+  {
     version: "7.11.6",
     date: "2026-02-09",
     title: "Bulk Waiver Review",

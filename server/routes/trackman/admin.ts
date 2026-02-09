@@ -2347,7 +2347,8 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
       FROM booking_requests br
       WHERE br.session_id IS NULL
         AND br.status IN ('attended', 'approved', 'confirmed')
-        AND br.resource_id IS NOT NULL`);
+        AND br.resource_id IS NOT NULL
+        AND (br.is_unmatched = false OR br.is_unmatched IS NULL)`);
     
     const totalCount = parseInt(countResult.rows[0].total);
     
@@ -2370,6 +2371,7 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
       WHERE br.session_id IS NULL
         AND br.status IN ('attended', 'approved', 'confirmed')
         AND br.resource_id IS NOT NULL
+        AND (br.is_unmatched = false OR br.is_unmatched IS NULL)
       ORDER BY br.request_date DESC, br.start_time DESC
       LIMIT 10`);
     
@@ -2424,6 +2426,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
       WHERE br.session_id IS NULL
         AND br.status IN ('attended', 'approved', 'confirmed')
         AND br.resource_id IS NOT NULL
+        AND (br.is_unmatched = false OR br.is_unmatched IS NULL)
       ORDER BY br.request_date ASC
     `);
     
