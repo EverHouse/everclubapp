@@ -1799,11 +1799,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           matchedRows++;
         }
         
-        // BACKFILL: Create missing booking_members slots for WEBHOOK-ORIGINATED bookings only
-        // This prevents inflation of player slots when re-importing CSV files for non-webhook bookings
-        // Use request's declared_player_count as source of truth; only fall back to Trackman count if no request exists
-        if (isWebhookCreated && row.playerCount >= 1) {
-          // Use request's declared player count if available, otherwise use Trackman's count
+        // BACKFILL: Create/populate booking_members and booking_guests for ALL bookings
+        // Handles both webhook-originated and CSV-imported bookings
+        if (row.playerCount >= 1) {
           const requestPlayerCount = existing.declaredPlayerCount || 0;
           const targetPlayerCount = requestPlayerCount > 0 ? requestPlayerCount : row.playerCount;
           
@@ -1815,7 +1813,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             .from(bookingMembers)
             .where(eq(bookingMembers.bookingId, existing.id));
           
-          // Build set of existing slot numbers to find truly missing slots (handles non-contiguous slots)
           const existingSlotNumbers = new Set(existingMembers.map(m => m.slotNumber));
           const slotsToCreate: number[] = [];
           for (let slot = 1; slot <= targetPlayerCount; slot++) {
@@ -1824,28 +1821,73 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             }
           }
           
+          const parsedPlayers = parseNotesForPlayers(row.notes);
+          const guestPlayers = parsedPlayers.filter(p => p.type === 'guest');
+          
           if (slotsToCreate.length > 0) {
-            // Parse players from notes to try to fill slots with actual player info
-            const parsedPlayers = parseNotesForPlayers(row.notes);
-            
-            // Create only the missing slots (preserves existing participants from request)
             for (const slot of slotsToCreate) {
-              const playerInfo = parsedPlayers.find(p => p.slotNumber === slot);
-              const slotEmail = playerInfo?.email || null;
               const isPrimary = slot === 1;
+              const guestIndex = slot - 2;
+              const guestInfo = guestIndex >= 0 ? guestPlayers[guestIndex] : null;
               
               await db.insert(bookingMembers).values({
                 bookingId: existing.id,
-                userEmail: isPrimary && matchedEmail ? matchedEmail : slotEmail,
+                userEmail: isPrimary && matchedEmail ? matchedEmail : null,
                 slotNumber: slot,
                 isPrimary: isPrimary,
                 trackmanBookingId: row.bookingId,
-                linkedAt: slotEmail || (isPrimary && matchedEmail) ? new Date() : null,
-                linkedBy: slotEmail || (isPrimary && matchedEmail) ? 'trackman_import' : null
+                linkedAt: isPrimary && matchedEmail ? new Date() : null,
+                linkedBy: isPrimary && matchedEmail ? 'trackman_import' : null
               });
+              
+              if (!isPrimary && guestInfo?.name) {
+                await pool.query(
+                  `INSERT INTO booking_guests (booking_id, guest_name, slot_number, trackman_booking_id)
+                   VALUES ($1, $2, $3, $4)
+                   ON CONFLICT DO NOTHING`,
+                  [existing.id, guestInfo.name, slot, row.bookingId]
+                );
+              }
             }
             
-            process.stderr.write(`[Trackman Import] Created ${slotsToCreate.length} player slots (${slotsToCreate.join(',')}) for webhook booking #${existing.id} (target: ${targetPlayerCount}, source: ${requestPlayerCount > 0 ? 'request' : 'trackman'})\n`);
+            process.stderr.write(`[Trackman Import] Created ${slotsToCreate.length} player slots (${slotsToCreate.join(',')}) for booking #${existing.id} (target: ${targetPlayerCount})\n`);
+          }
+          
+          // BACKFILL: Populate empty existing booking_members with owner email and guest names
+          const emptySlot1 = existingMembers.find(m => m.slotNumber === 1 && !m.userEmail);
+          if (emptySlot1 && matchedEmail) {
+            await pool.query(
+              `UPDATE booking_members SET user_email = $1, linked_at = NOW(), linked_by = 'trackman_import'
+               WHERE id = $2`,
+              [matchedEmail, emptySlot1.id]
+            );
+            process.stderr.write(`[Trackman Import] Backfilled slot 1 email for booking #${existing.id}: ${matchedEmail}\n`);
+          }
+          
+          const emptyGuestSlots = existingMembers
+            .filter(m => m.slotNumber > 1 && !m.userEmail)
+            .sort((a, b) => a.slotNumber - b.slotNumber);
+          
+          if (emptyGuestSlots.length > 0 && guestPlayers.length > 0) {
+            for (let gi = 0; gi < Math.min(emptyGuestSlots.length, guestPlayers.length); gi++) {
+              const slot = emptyGuestSlots[gi];
+              const guest = guestPlayers[gi];
+              
+              if (guest.name) {
+                const existingGuest = await pool.query(
+                  `SELECT id FROM booking_guests WHERE booking_id = $1 AND slot_number = $2`,
+                  [existing.id, slot.slotNumber]
+                );
+                if (existingGuest.rows.length === 0) {
+                  await pool.query(
+                    `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [existing.id, guest.name, guest.email || null, slot.slotNumber, row.bookingId]
+                  );
+                  process.stderr.write(`[Trackman Import] Backfilled guest slot ${slot.slotNumber} for booking #${existing.id}: ${guest.name}\n`);
+                }
+              }
+            }
           }
         }
         
@@ -1962,30 +2004,46 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           process.stderr.write(`[Trackman Import] MERGED: CSV row ${row.bookingId} into placeholder booking #${placeholder.id} (was: "${placeholder.user_name}", now: "${row.userName}"${matchedEmail ? `, linked to ${matchedEmail}` : ''})\n`);
           
-          // Create booking_members for merged booking
+          // Create booking_members and booking_guests for merged booking
           if (matchedEmail) {
             try {
-              // Check if booking_members already exist
               const existingMembers = await pool.query(
                 `SELECT id FROM booking_members WHERE booking_id = $1`,
                 [placeholder.id]
               );
               
               if (existingMembers.rows.length === 0) {
-                // Create primary member slot
+                const mergeParsedPlayers = parseNotesForPlayers(row.notes);
+                const mergeGuestPlayers = mergeParsedPlayers.filter(p => p.type === 'guest');
+                
                 await pool.query(
                   `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, trackman_booking_id, linked_at, linked_by)
                    VALUES ($1, $2, 1, true, $3, NOW(), 'trackman_import')`,
                   [placeholder.id, matchedEmail, row.bookingId]
                 );
                 
-                // Create additional slots based on player count
                 for (let slot = 2; slot <= row.playerCount; slot++) {
+                  const guestIndex = slot - 2;
+                  const guestInfo = guestIndex < mergeGuestPlayers.length ? mergeGuestPlayers[guestIndex] : null;
+                  
                   await pool.query(
                     `INSERT INTO booking_members (booking_id, slot_number, is_primary, trackman_booking_id)
                      VALUES ($1, $2, false, $3)`,
                     [placeholder.id, slot, row.bookingId]
                   );
+                  
+                  if (guestInfo?.name) {
+                    await pool.query(
+                      `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
+                       VALUES ($1, $2, $3, $4, $5)
+                       ON CONFLICT DO NOTHING`,
+                      [placeholder.id, guestInfo.name, guestInfo.email || null, slot, row.bookingId]
+                    );
+                  }
+                }
+                
+                if (mergeGuestPlayers.length > 0) {
+                  process.stderr.write(`[Trackman Import] Created ${row.playerCount} member slots with ${mergeGuestPlayers.length} guest names for merged booking #${placeholder.id}\n`);
                 }
               }
             } catch (memberErr: any) {
