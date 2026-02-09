@@ -780,7 +780,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
     const participantResult = await db.execute(sql`SELECT bp.id, bp.session_id, bp.cached_fee_cents, bp.payment_status, bs.booking_id
        FROM booking_participants bp
        JOIN booking_sessions bs ON bp.session_id = bs.id
-       WHERE bp.id = ANY(${participantIds}::int[]) AND bp.payment_status = 'pending'`);
+       WHERE bp.id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)}) AND bp.payment_status = 'pending'`);
 
     if (participantResult.rows.length === 0) {
       return res.status(400).json({ error: 'No pending participants found for the provided IDs' });
@@ -885,7 +885,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
            SET payment_status = 'paid', 
                stripe_payment_intent_id = ${paymentIntent.id},
                paid_at = NOW()
-           WHERE id = ANY(${participantIds}::int[])`);
+           WHERE id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)})`);
         console.log(`[Stripe] Staff charged saved card: $${(authoritativeAmountCents / 100).toFixed(2)} for ${member.email}, marked ${participantIds.length} participants as paid`);
       }
 

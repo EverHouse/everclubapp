@@ -1043,13 +1043,13 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
         await db.execute(sql`
           UPDATE booking_participants 
           SET payment_status = 'paid', paid_at = NOW()
-          WHERE id = ANY(${participantIds})
+          WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})
         `);
       } else {
         await db.execute(sql`
           UPDATE booking_participants 
           SET payment_status = 'pending'
-          WHERE id = ANY(${participantIds})
+          WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})
         `);
       }
     }

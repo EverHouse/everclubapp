@@ -613,7 +613,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
       
       const cleanResult = await db.execute(sql`UPDATE users 
          SET mindbody_client_id = NULL, updated_at = NOW() 
-         WHERE LOWER(email) = ANY(${emailsToClean}::text[])
+         WHERE LOWER(email) IN (${sql.join(emailsToClean.map((e: string) => sql`${e}`), sql`, `)})
          RETURNING email`);
       
       cleanedCount = cleanResult.rowCount || 0;
@@ -662,7 +662,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
     `;
     
     if (emails && Array.isArray(emails) && emails.length > 0) {
-      queryBuilder.append(sql` AND LOWER(email) = ANY(${emails.map((e: string) => e.toLowerCase())}::text[])`);
+      queryBuilder.append(sql` AND LOWER(email) IN (${sql.join(emails.map((e: string) => sql`${e.toLowerCase()}`), sql`, `)})`);
     }
     
     queryBuilder.append(sql` ORDER BY email LIMIT 100`);

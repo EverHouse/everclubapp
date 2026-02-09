@@ -418,7 +418,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   
   // Get user data including id for matched_user_id joins
   const dbResult = await db.execute(sql`SELECT id, email, join_date, joined_on, mindbody_client_id, manually_linked_emails 
-     FROM users WHERE LOWER(email) = ANY(${emails})`);
+     FROM users WHERE LOWER(email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})`);
   for (const row of dbResult.rows) {
     dbUserMap[row.email.toLowerCase()] = row;
   }
@@ -427,17 +427,17 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   const lastActivityResult = await db.execute(sql`SELECT email, MAX(activity_date) as last_activity FROM (
       SELECT LOWER(user_email) as email, request_date as activity_date
       FROM booking_requests 
-      WHERE LOWER(user_email) = ANY(${emails}) AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND status NOT IN ('cancelled', 'declined')
+      WHERE LOWER(user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)}) AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND status NOT IN ('cancelled', 'declined')
       UNION ALL
       SELECT LOWER(er.user_email) as email, e.event_date as activity_date
       FROM event_rsvps er
       JOIN events e ON er.event_id = e.id
-      WHERE LOWER(er.user_email) = ANY(${emails}) AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND er.status != 'cancelled'
+      WHERE LOWER(er.user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)}) AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND er.status != 'cancelled'
       UNION ALL
       SELECT LOWER(we.user_email) as email, wc.date as activity_date
       FROM wellness_enrollments we
       JOIN wellness_classes wc ON we.class_id = wc.id
-      WHERE LOWER(we.user_email) = ANY(${emails}) AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND we.status != 'cancelled'
+      WHERE LOWER(we.user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)}) AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date AND we.status != 'cancelled'
     ) combined
     GROUP BY email`);
   for (const row of lastActivityResult.rows) {
@@ -450,7 +450,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   // Count past bookings (excluding cancelled/declined)
   const pastBookingsResult = await db.execute(sql`SELECT LOWER(user_email) as email, COUNT(*)::int as count
      FROM booking_requests
-     WHERE LOWER(user_email) = ANY(${emails})
+     WHERE LOWER(user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})
        AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
        AND status NOT IN ('cancelled', 'declined')
      GROUP BY LOWER(user_email)`);
@@ -463,7 +463,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
      FROM users u
      JOIN event_rsvps er ON (LOWER(er.user_email) = LOWER(u.email) OR er.matched_user_id = u.id)
      JOIN events e ON er.event_id = e.id
-     WHERE LOWER(u.email) = ANY(${emails})
+     WHERE LOWER(u.email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})
        AND er.status != 'cancelled'
        AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
      GROUP BY u.email`);
@@ -475,7 +475,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   const wellnessVisitsResult = await db.execute(sql`SELECT LOWER(we.user_email) as email, COUNT(*)::int as count
      FROM wellness_enrollments we
      JOIN wellness_classes wc ON we.class_id = wc.id
-     WHERE LOWER(we.user_email) = ANY(${emails})
+     WHERE LOWER(we.user_email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})
        AND we.status != 'cancelled'
        AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
      GROUP BY LOWER(we.user_email)`);

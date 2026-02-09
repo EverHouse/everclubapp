@@ -251,7 +251,7 @@ router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async 
        SET is_unmatched = false,
            staff_notes = COALESCE(staff_notes, '') || ${` [Dismissed as ${dismissReason} by ${staffEmail} on ${new Date().toISOString()}]`},
            updated_at = NOW()
-       WHERE id = ANY(${bookingIds}::int[])
+       WHERE id IN (${sql.join(bookingIds.map((id: number) => sql`${id}`), sql`, `)})
          AND is_unmatched = true
        RETURNING id, trackman_booking_id`);
     
@@ -1923,8 +1923,10 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
         
         if (matchingGuest.rowCount && matchingGuest.rowCount > 0) {
           const guestIds = matchingGuest.rows.map(r => r.id);
-          await db.execute(sql`DELETE FROM booking_participants WHERE id = ANY(${guestIds})`);
-          console.log(`[Link Member] Removed ${guestIds.length} duplicate guest entries for member ${memberEmail} in session ${sessionId}`);
+          if (guestIds.length > 0) {
+            await db.execute(sql`DELETE FROM booking_participants WHERE id IN (${sql.join(guestIds.map((id: number) => sql`${id}`), sql`, `)})`);
+            console.log(`[Link Member] Removed ${guestIds.length} duplicate guest entries for member ${memberEmail} in session ${sessionId}`);
+          }
         }
         
         await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, invite_status, slot_duration)
@@ -2807,6 +2809,9 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
     let resolvedUnmatched = 0;
 
     // 1. Find bookings that look like lessons based on patterns
+    if (INSTRUCTOR_EMAILS.length === 0) {
+      return res.json({ success: true, convertedBookings: 0, resolvedUnmatched: 0, blocksCreated: 0 });
+    }
     const lessonBookings = await db.execute(sql`SELECT 
         br.id,
         br.user_name,
@@ -2821,7 +2826,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
       FROM booking_requests br
       WHERE br.status != 'cancelled'
         AND (
-          LOWER(br.user_email) = ANY(${INSTRUCTOR_EMAILS})
+          LOWER(br.user_email) IN (${sql.join(INSTRUCTOR_EMAILS.map((e: string) => sql`${e}`), sql`, `)})
           OR LOWER(br.user_name) LIKE '%lesson%'
           OR LOWER(br.notes) LIKE '%lesson%'
           OR (LOWER(br.user_name) LIKE '%rebecca%' AND LOWER(br.user_name) LIKE '%lee%')

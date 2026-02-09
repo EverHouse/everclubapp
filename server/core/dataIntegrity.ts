@@ -1745,13 +1745,17 @@ async function checkHubSpotIdDuplicates(): Promise<IntegrityCheckResult> {
       const statuses = dup.statuses as string[];
       const tiers = dup.tiers as string[];
       
-      const linkedCheck = await db.execute(sql`
-        SELECT COUNT(*) as linked_count 
-        FROM user_linked_emails 
-        WHERE LOWER(primary_email) = LOWER(${emails[0]}) 
-          AND LOWER(linked_email) = ANY(${emails.slice(1).map((e: string) => e.toLowerCase())})
-      `);
-      const alreadyLinked = parseInt((linkedCheck.rows[0] as any)?.linked_count || '0') > 0;
+      const remainingEmails = emails.slice(1);
+      let alreadyLinked = false;
+      if (remainingEmails.length > 0) {
+        const linkedCheck = await db.execute(sql`
+          SELECT COUNT(*) as linked_count 
+          FROM user_linked_emails 
+          WHERE LOWER(primary_email) = LOWER(${emails[0]}) 
+            AND LOWER(linked_email) IN (${sql.join(remainingEmails.map((e: string) => sql`${e.toLowerCase()}`), sql`, `)})
+        `);
+        alreadyLinked = parseInt((linkedCheck.rows[0] as any)?.linked_count || '0') > 0;
+      }
       
       const userDetails = emails.map((email: string, idx: number) => 
         `${email} (${statuses[idx]}, ${tiers[idx]})`
