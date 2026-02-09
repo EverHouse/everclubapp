@@ -18,6 +18,7 @@ import {
   linkParticipants, 
   getSessionParticipants,
   createSession,
+  ensureSessionForBooking,
   linkBookingRequestToSession,
   type ParticipantInput 
 } from '../core/bookingService/sessionManager';
@@ -347,20 +348,25 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
         extra: { bookingId, ownerEmail: booking.owner_email }
       });
       
-      const { session } = await createSession(
-        {
-          resourceId: booking.resource_id,
-          sessionDate: booking.request_date,
-          startTime: booking.start_time,
-          endTime: booking.end_time,
-          createdBy: userEmail
-        },
-        [],
-        'staff_manual'
-      );
+      // Pass the existing transaction client to ensureSessionForBooking so the session
+      // creation happens within the same transaction as the roster lock
+      const sessionResult = await ensureSessionForBooking({
+        bookingId,
+        resourceId: booking.resource_id,
+        sessionDate: booking.request_date,
+        startTime: booking.start_time,
+        endTime: booking.end_time,
+        ownerEmail: booking.owner_email,
+        source: 'staff_manual',
+        createdBy: userEmail
+      }, client);
       
-      await linkBookingRequestToSession(bookingId, session.id);
-      sessionId = session.id;
+      sessionId = sessionResult.sessionId || null;
+      
+      if (!sessionId || sessionResult.error) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: 'Failed to create billing session for this booking. Staff has been notified.' });
+      }
       
       logger.info('[roster] Session created and linked to booking', {
         extra: { bookingId, sessionId }
@@ -376,6 +382,7 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
     const effectiveCount = ownerInParticipants ? existingParticipants.length : (1 + existingParticipants.length);
     
     if (effectiveCount >= declaredCount) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ 
         error: 'Cannot add more participants. Maximum slot limit reached.',
         declaredPlayerCount: declaredCount,
@@ -1620,20 +1627,26 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
         extra: { bookingId, ownerEmail: booking.owner_email }
       });
 
-      const { session } = await createSession(
-        {
-          resourceId: booking.resource_id,
-          sessionDate: booking.request_date,
-          startTime: booking.start_time,
-          endTime: booking.end_time,
-          createdBy: userEmail
-        },
-        [],
-        'staff_manual'
-      );
+      await ensureSessionForBooking({
+        bookingId,
+        resourceId: booking.resource_id,
+        sessionDate: booking.request_date,
+        startTime: booking.start_time,
+        endTime: booking.end_time,
+        ownerEmail: booking.owner_email,
+        source: 'staff_manual',
+        createdBy: userEmail
+      });
 
-      await linkBookingRequestToSession(bookingId, session.id);
-      sessionId = session.id;
+      const updatedBooking = await db.select({ session_id: bookingRequests.sessionId })
+        .from(bookingRequests)
+        .where(eq(bookingRequests.id, bookingId))
+        .limit(1);
+      sessionId = updatedBooking[0]?.session_id ?? null;
+
+      if (!sessionId) {
+        return res.status(500).json({ error: 'Failed to create billing session for this booking. Staff has been notified.' });
+      }
     }
 
     const existingParticipants = await getSessionParticipants(sessionId);

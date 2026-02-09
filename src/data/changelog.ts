@@ -18,6 +18,8 @@ export const changelog: ChangelogEntry[] = [
     title: "Session Reliability & Data Integrity Hardening",
     changes: [
       "Fix: Session creation now retries automatically and flags bookings with a staff note if it ultimately fails — no more silent billing gaps",
+      "Fix: Roster confirmation and guest fee checkout now use the hardened session creation path with retry and staff-note safety",
+      "Fix: Conference room auto-confirm no longer silently swallows session creation failures — staff notes are written if something goes wrong",
       "Fix: Trackman CSV import falls back to a minimal owner-only session on failure instead of silently skipping billing",
       "Fix: Google Calendar conference room sync now creates billing sessions for approved bookings",
       "Fix: Delete user now properly cleans up booking participants and removes empty sessions to prevent orphaned data",

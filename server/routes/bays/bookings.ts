@@ -715,22 +715,19 @@ router.post('/api/booking-requests', async (req, res) => {
     }
     
     // Ensure session exists for auto-confirmed conference room bookings
+    // ensureSessionForBooking handles retries and writes staff_notes on failure internally
     if (isConferenceRoom && row.resourceId) {
-      try {
-        await ensureSessionForBooking({
-          bookingId: row.id,
-          resourceId: row.resourceId,
-          sessionDate: request_date,
-          startTime: start_time,
-          endTime: row.endTime || end_time,
-          ownerEmail: user_email.toLowerCase(),
-          ownerName: user_name || undefined,
-          source: 'member_request',
-          createdBy: 'conference_room_auto_confirm'
-        });
-      } catch (sessionErr) {
-        console.error('[Conference Room] Failed to ensure session:', sessionErr);
-      }
+      await ensureSessionForBooking({
+        bookingId: row.id,
+        resourceId: row.resourceId,
+        sessionDate: request_date,
+        startTime: start_time,
+        endTime: row.endTime || end_time,
+        ownerEmail: user_email.toLowerCase(),
+        ownerName: user_name || undefined,
+        source: 'member_request',
+        createdBy: 'conference_room_auto_confirm'
+      });
     }
 
     let resourceName = 'Bay';
