@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.15.1",
+    date: "2026-02-09",
+    title: "Booking Roster Population Fix",
+    changes: [
+      "Fix: Imported bookings now correctly show all players in the roster instead of showing 0 players",
+      "Fix: Guest names from inline tags (e.g., 'G: Chris G: Alex G: Dalton') are now properly parsed and added to the roster",
+      "Fix: Guest name parsing no longer accidentally captures text from the next guest tag when multiple guests are listed on one line",
+      "Improvement: Diagnostic logging added to track participant creation during imports for easier troubleshooting",
+    ],
+  },
+  {
     version: "7.15.0",
     date: "2026-02-09",
     title: "Trackman CSV Import Accuracy Overhaul",
