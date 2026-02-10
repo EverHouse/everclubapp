@@ -854,7 +854,24 @@ export function MemberFlow({
                       });
                       if (!confirmRes.ok) {
                         const data = await confirmRes.json();
-                        throw new Error(data.error || 'Failed to confirm payment');
+                        if (!data.autoRefunded) {
+                          try {
+                            await fetch('/api/stripe/terminal/refund-payment', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ paymentIntentId: piId })
+                            });
+                            showToast('Payment activation failed. The charge has been automatically refunded.', 'error');
+                          } catch (refundErr) {
+                            console.error('Auto-refund attempt failed:', refundErr);
+                            showToast(`Payment activation failed: ${data.error}. Please refund manually in Stripe.`, 'error');
+                          }
+                        } else {
+                          showToast('Member account not found. Payment has been automatically refunded.', 'error');
+                        }
+                        setStripeError(data.error || 'Failed to confirm payment');
+                        return;
                       }
                       showToast('Payment received! Membership activated.', 'success');
 

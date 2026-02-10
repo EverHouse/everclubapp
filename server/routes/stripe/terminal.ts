@@ -369,6 +369,20 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       return res.status(400).json({ error: 'User ID is required' });
     }
     
+    const userCheck = await pool.query(
+      'SELECT id, email, membership_status FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found. Cannot process payment without a linked member account.' });
+    }
+    const pendingUser = userCheck.rows[0];
+    if (pendingUser.membership_status !== 'pending') {
+      return res.status(400).json({ 
+        error: `Cannot process payment for member with status "${pendingUser.membership_status}". Expected "pending" status.`
+      });
+    }
+    
     const stripe = await getStripeClient();
     
     const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
@@ -493,6 +507,28 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     const [existingUser] = await db.select().from(users).where(eq(users.id, userId));
     
     const stripe = await getStripeClient();
+    
+    if (!existingUser) {
+      let autoRefunded = false;
+      try {
+        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+        if (pi.status === 'succeeded') {
+          await stripe.refunds.create({ payment_intent: paymentIntentId, reason: 'requested_by_customer' });
+          autoRefunded = true;
+          console.error(`[Terminal] Auto-refunded PI ${paymentIntentId} - user ${userId} not found during activation`);
+        } else {
+          console.error(`[Terminal] Cannot refund PI ${paymentIntentId} in status "${pi.status}" - user ${userId} not found`);
+        }
+      } catch (refundErr: any) {
+        console.error(`[Terminal] CRITICAL: Failed to auto-refund PI ${paymentIntentId} for missing user ${userId}:`, refundErr.message);
+      }
+      return res.status(400).json({ 
+        error: autoRefunded 
+          ? 'Member account not found. Payment has been automatically refunded.'
+          : 'Member account not found. Payment could not be automatically refunded. Please refund manually in Stripe.',
+        autoRefunded
+      });
+    }
     
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     if (paymentIntent.status !== 'succeeded') {
@@ -633,6 +669,46 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
   } catch (error: any) {
     console.error('[Terminal] Error confirming subscription payment:', error);
     res.status(500).json({ error: error.message || 'Failed to confirm subscription payment' });
+  }
+});
+
+router.post('/api/stripe/terminal/refund-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId } = req.body;
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'Payment Intent ID is required' });
+    }
+    
+    const stripe = await getStripeClient();
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({ error: `Cannot refund payment in "${paymentIntent.status}" state` });
+    }
+    
+    const refund = await stripe.refunds.create({
+      payment_intent: paymentIntentId,
+      reason: 'requested_by_customer'
+    });
+    
+    await logFromRequest(req, {
+      action: 'terminal_payment_refunded',
+      resourceType: 'payment',
+      resourceId: paymentIntentId,
+      resourceName: paymentIntent.metadata?.email || paymentIntent.metadata?.userId || 'unknown',
+      details: {
+        refundId: refund.id,
+        amount: paymentIntent.amount,
+        reason: 'activation_failed'
+      }
+    });
+    
+    console.log(`[Terminal] Auto-refunded PI ${paymentIntentId}, refund ${refund.id}`);
+    
+    res.json({ success: true, refundId: refund.id });
+  } catch (error: any) {
+    console.error('[Terminal] Error refunding payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to refund payment' });
   }
 });
 
