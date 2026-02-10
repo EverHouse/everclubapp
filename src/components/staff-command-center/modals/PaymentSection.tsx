@@ -31,7 +31,7 @@ interface PaymentSectionProps {
   handleWaiveFees: () => void;
   onCollectPayment?: (bookingId: number) => void;
 
-  renderTierBadge: (tier: string | null | undefined) => React.ReactNode;
+  renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
 }
 
 export function PaymentSection({
@@ -125,7 +125,7 @@ export function PaymentSection({
                 <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
                   <span className="flex items-center gap-1">
                     {p.name}
-                    {renderTierBadge(p.tier)}
+                    {renderTierBadge(p.tier, p.membershipStatus)}
                   </span>
                   <span className={p.tier === 'Staff' ? 'text-blue-600 dark:text-blue-400' : ''}>
                     {p.tier === 'Staff' ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}

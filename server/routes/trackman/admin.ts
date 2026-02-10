@@ -1373,7 +1373,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
     }
     
-    let membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier
+    let membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
        FROM booking_members bm
        LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
        WHERE bm.booking_id = ${id}
@@ -1396,7 +1396,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         }
       }
       
-      membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier
+      membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
          FROM booking_members bm
          LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
          WHERE bm.booking_id = ${id}
@@ -1507,6 +1507,13 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
       }
       
+      const membershipStatus = row.membership_status || null;
+      const isInactiveMember = membershipStatus && membershipStatus !== 'active' && !row.is_primary;
+      
+      if (isInactiveMember && fee > 0) {
+        feeNote = `${membershipStatus} member — fee charged to host`;
+      }
+      
       return {
         id: row.id,
         bookingId: row.booking_id,
@@ -1522,6 +1529,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         fee,
         feeNote,
         feeBreakdown,
+        membershipStatus,
+        isInactiveMember: !!isInactiveMember,
         guestInfo: null as any
       };
     }));
@@ -1594,7 +1603,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     let ownerOverageFee = 0;
     let guestFeesWithoutPass = 0;
     let totalPlayersOwe = 0;
-    let playerBreakdownFromSession: Array<{ name: string; tier: string | null; fee: number; feeNote: string }> = [];
+    let playerBreakdownFromSession: Array<{ name: string; tier: string | null; fee: number; feeNote: string; membershipStatus?: string | null }> = [];
     
     const feeEligibleMembers = membersWithFees.filter(m => m.slotNumber <= expectedPlayerCount);
     
@@ -1608,7 +1617,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           bp.payment_status,
           bp.cached_fee_cents,
           u.tier as user_tier,
-          u.email as user_email
+          u.email as user_email,
+          u.membership_status
         FROM booking_participants bp
         LEFT JOIN users u ON u.id = bp.user_id
         WHERE bp.session_id = ${sessionId}
@@ -1647,14 +1657,20 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               });
             }
           } else if (p.participant_type === 'member') {
-            if (!isPaid && !participantIsStaff) {
+            const memberStatus = p.membership_status || null;
+            const isInactive = memberStatus && memberStatus !== 'active';
+            
+            if (isInactive && !isPaid && !participantIsStaff && participantFee > 0) {
+              ownerOverageFee += participantFee;
+            } else if (!isPaid && !participantIsStaff) {
               totalPlayersOwe += participantFee;
             }
             playerBreakdownFromSession.push({
               name: p.display_name || 'Unknown Member',
               tier: participantIsStaff ? 'Staff' : (p.user_tier || null),
-              fee: (isPaid || participantIsStaff) ? 0 : participantFee,
-              feeNote: participantIsStaff ? 'Staff — included' : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within allowance'))
+              fee: (isPaid || participantIsStaff || isInactive) ? 0 : participantFee,
+              feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within allowance'))),
+              membershipStatus: memberStatus
             });
             if (email) {
               emailToFeeMap.set(email, {
@@ -1725,12 +1741,19 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         const emptySlotFees = emptySlots.length * PRICING.GUEST_FEE_DOLLARS;
         guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0) + emptySlotFees;
         ownerOverageFee = ownerMember?.fee || 0;
-        totalPlayersOwe = nonOwnerMembers.reduce((sum, m) => sum + m.fee, 0);
+        
+        const activeNonOwners = nonOwnerMembers.filter(m => !m.isInactiveMember);
+        const inactiveNonOwners = nonOwnerMembers.filter(m => m.isInactiveMember);
+        const inactiveFeeTotal = inactiveNonOwners.reduce((sum, m) => sum + m.fee, 0);
+        ownerOverageFee += inactiveFeeTotal;
+        
+        totalPlayersOwe = activeNonOwners.reduce((sum, m) => sum + m.fee, 0);
         playerBreakdownFromSession = nonOwnerMembers.map(m => ({
           name: m.memberName,
           tier: m.tier,
-          fee: m.fee,
-          feeNote: m.feeNote
+          fee: m.isInactiveMember ? 0 : m.fee,
+          feeNote: m.isInactiveMember ? `${m.membershipStatus} — $${m.fee} charged to host` : m.feeNote,
+          membershipStatus: m.membershipStatus
         }));
       }
     } else {
@@ -1740,12 +1763,19 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       const emptySlotFees = emptySlots.length * PRICING.GUEST_FEE_DOLLARS;
       guestFeesWithoutPass = guestsWithFees.filter(g => !g.usedGuestPass).reduce((sum, g) => sum + g.fee, 0) + emptySlotFees;
       ownerOverageFee = ownerMember?.fee || 0;
-      totalPlayersOwe = nonOwnerMembers.reduce((sum, m) => sum + m.fee, 0);
+      
+      const activeNonOwners = nonOwnerMembers.filter(m => !m.isInactiveMember);
+      const inactiveNonOwners = nonOwnerMembers.filter(m => m.isInactiveMember);
+      const inactiveFeeTotal = inactiveNonOwners.reduce((sum, m) => sum + m.fee, 0);
+      ownerOverageFee += inactiveFeeTotal;
+      
+      totalPlayersOwe = activeNonOwners.reduce((sum, m) => sum + m.fee, 0);
       playerBreakdownFromSession = nonOwnerMembers.map(m => ({
         name: m.memberName,
         tier: m.tier,
-        fee: m.fee,
-        feeNote: m.feeNote
+        fee: m.isInactiveMember ? 0 : m.fee,
+        feeNote: m.isInactiveMember ? `${m.membershipStatus} — $${m.fee} charged to host` : m.feeNote,
+        membershipStatus: m.membershipStatus
       }));
     }
     

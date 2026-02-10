@@ -131,7 +131,12 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
   const isManageMode = mode === 'manage';
 
-  const renderTierBadge = (tier: string | null | undefined) => {
+  const renderTierBadge = (tier: string | null | undefined, membershipStatus?: string | null) => {
+    if (membershipStatus && membershipStatus !== 'active') {
+      return React.createElement('span', { 
+        className: 'px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 rounded uppercase' 
+      }, membershipStatus.toUpperCase());
+    }
     if (!tier) return null;
     if (tier === 'Staff') {
       return (

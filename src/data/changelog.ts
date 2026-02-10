@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.24.1",
+    date: "2026-02-10",
+    title: "Inactive Member Handling & Dead Code Cleanup",
+    changes: [
+      "Feature: Inactive/suspended members now show a red uppercase status badge (e.g., SUSPENDED, CANCELLED) instead of their tier name in the booking roster",
+      "Feature: Inactive member fees are automatically redirected to the booking owner (host) since inactive members cannot log in to pay — fee notes explain the charge transfer",
+      "Feature: Backend roster API now includes membership_status for each player, enabling proper status-aware UI rendering across all booking views",
+      "Cleanup: Removed dead useOptimisticBookings.ts file (209 lines, not imported anywhere in the app)",
+      "Fix: Restored forward optimistic bay-status update in StaffCommandCenter check-in flow for immediate UI feedback",
+    ],
+  },
+  {
     version: "7.24.0",
     date: "2026-02-10",
     title: "Single Source of Truth — Unified Booking Actions",

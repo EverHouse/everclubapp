@@ -8,6 +8,7 @@ export interface BookingMember {
   linkedBy: string | null;
   memberName: string;
   tier: string | null;
+  membershipStatus?: string | null;
   fee: number;
   feeNote: string;
   guestInfo?: { guestId: number; guestName: string; guestEmail: string; fee: number; feeNote: string; usedGuestPass: boolean } | null;
@@ -38,7 +39,7 @@ export interface FinancialSummary {
   totalOwnerOwes: number;
   totalPlayersOwe: number;
   grandTotal: number;
-  playerBreakdown: Array<{ name: string; tier: string | null; fee: number; feeNote: string }>;
+  playerBreakdown: Array<{ name: string; tier: string | null; fee: number; feeNote: string; membershipStatus?: string | null }>;
   allPaid?: boolean;
 }
 

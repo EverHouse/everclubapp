@@ -375,6 +375,16 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       b.id === booking.id ? { ...b, status: optimisticStatus } : b
     ));
     
+    updateBayStatuses(prev => prev.map(bay => {
+      if (bay.currentBooking?.id === booking.id) {
+        return {
+          ...bay,
+          currentBooking: { ...bay.currentBooking, status: optimisticStatus }
+        };
+      }
+      return bay;
+    }));
+    
     const newActivity: RecentActivity = {
       id: `checkin-${id}-${Date.now()}`,
       type: 'booking_checked_in',
@@ -394,6 +404,15 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       updateTodaysBookings(prev => prev.map(b => 
         b.id === booking.id ? { ...b, status: originalStatus } : b
       ));
+      updateBayStatuses(prev => prev.map(bay => {
+        if (bay.currentBooking?.id === booking.id) {
+          return {
+            ...bay,
+            currentBooking: { ...bay.currentBooking, status: originalStatus }
+          };
+        }
+        return bay;
+      }));
       updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       
       if (result.requiresRoster) {

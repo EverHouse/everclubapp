@@ -24,7 +24,7 @@ interface ManageModeRosterProps {
   handleManageModeLinkMember: (slotId: number, memberEmail: string) => Promise<void>;
   handleManageModeAddGuest: (slotNumber: number, forceAddAsGuest?: boolean) => Promise<void>;
   handleManageModeMemberMatchResolve: (action: 'member' | 'guest') => Promise<void>;
-  renderTierBadge: (tier: string | null | undefined) => React.ReactNode;
+  renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
 }
 
 export function ManageModeRoster({
@@ -105,7 +105,7 @@ export function ManageModeRoster({
                     Owner
                   </span>
                 )}
-                {renderTierBadge(member.tier)}
+                {renderTierBadge(member.tier, member.membershipStatus)}
                 {isGuestSlot && (
                   <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 rounded">
                     Guest

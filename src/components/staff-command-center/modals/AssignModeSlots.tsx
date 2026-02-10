@@ -29,7 +29,7 @@ interface AssignModeSlotsProps {
   handleAddGuestPlaceholder: (slotIndex: number) => void;
   handleSelectExistingVisitor: (visitor: VisitorSearchResult) => void;
   handleCreateVisitorAndAssign: () => Promise<void>;
-  renderTierBadge: (tier: string | null | undefined) => React.ReactNode;
+  renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
 }
 
 export function AssignModeSlots({
