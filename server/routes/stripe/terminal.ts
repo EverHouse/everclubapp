@@ -399,6 +399,28 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       return res.status(400).json({ error: 'Invoice has no amount due' });
     }
     
+    const customerId = subscription.customer as string;
+    try {
+      const existingPIs = await stripe.paymentIntents.list({
+        customer: customerId,
+        limit: 10
+      });
+      for (const pi of existingPIs.data) {
+        if (pi.metadata?.subscription_id === subscriptionId && 
+            pi.metadata?.source === 'membership_inline_payment' &&
+            (pi.status === 'requires_payment_method' || pi.status === 'requires_confirmation' || pi.status === 'requires_action')) {
+          try {
+            await stripe.paymentIntents.cancel(pi.id);
+            console.log(`[Terminal] Cancelled stale inline PI ${pi.id} for subscription ${subscriptionId}`);
+          } catch (cancelErr: any) {
+            console.error(`[Terminal] Failed to cancel stale PI ${pi.id}:`, cancelErr.message);
+          }
+        }
+      }
+    } catch (listErr: any) {
+      console.error(`[Terminal] Error listing existing PIs:`, listErr.message);
+    }
+
     const invoicePI = invoice.payment_intent as any;
     let paymentIntent: any;
     
@@ -599,7 +621,7 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
       console.log(`[Terminal] Payment record created for PI ${paymentIntentId}`);
     }
     
-    if (existingUser?.membership_status === 'active') {
+    if (existingUser?.membershipStatus === 'active') {
       console.log(`[Terminal] User ${userId} already active, payment record ensured, returning early`);
       return res.json({
         success: true,
@@ -612,15 +634,17 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     
     if (paymentIntent.payment_method) {
       try {
-        await stripe.paymentMethods.attach(paymentIntent.payment_method as string, {
-          customer: customerId
-        });
-        
-        await stripe.customers.update(customerId, {
-          invoice_settings: {
-            default_payment_method: paymentIntent.payment_method as string
-          }
-        });
+        const pm = await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string);
+        if (pm.type !== 'card_present') {
+          await stripe.paymentMethods.attach(paymentIntent.payment_method as string, {
+            customer: customerId
+          });
+          await stripe.customers.update(customerId, {
+            invoice_settings: {
+              default_payment_method: paymentIntent.payment_method as string
+            }
+          });
+        }
       } catch (attachError: any) {
         if (!attachError.message?.includes('already been attached')) {
           console.error('[Terminal] Error attaching payment method:', attachError);
@@ -630,8 +654,8 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
     
     await db.update(users)
       .set({ 
-        membership_status: 'active',
-        updated_at: new Date()
+        membershipStatus: 'active',
+        updatedAt: new Date()
       })
       .where(eq(users.id, userId));
     
