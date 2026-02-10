@@ -2213,7 +2213,20 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
         }
       }
       
-      const actualStatus = subscription.status === 'trialing' ? 'trialing' : subscription.status === 'past_due' ? 'past_due' : 'active';
+      const statusMap: Record<string, string> = {
+        'active': 'active',
+        'trialing': 'trialing',
+        'past_due': 'past_due',
+        'incomplete': 'pending',
+        'incomplete_expired': 'pending',
+        'canceled': 'cancelled',
+        'unpaid': 'past_due',
+        'paused': 'frozen'
+      };
+      const actualStatus = statusMap[subscription.status] || 'pending';
+      if (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired') {
+        console.log(`[Stripe Webhook] Subscription ${subscription.id} has status '${subscription.status}' - member will stay pending until payment completes`);
+      }
       
       // Check if this email resolves to an existing user via linked email
       const { resolveUserByEmail: resolveSubEmail } = await import('../stripe/customers');
@@ -2399,17 +2412,17 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
             stripe_subscription_id = COALESCE(stripe_subscription_id, $4),
             stripe_current_period_end = COALESCE($5, stripe_current_period_end),
             membership_status = CASE 
-              WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN 'active' 
+              WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN $6
               ELSE membership_status 
             END, 
             updated_at = NOW() 
           WHERE LOWER(email) = LOWER($2) 
           RETURNING id`,
-          [tierName || tierSlug, email, customerId, subscription.id, subscriptionPeriodEnd]
+          [tierName || tierSlug, email, customerId, subscription.id, subscriptionPeriodEnd, (subscription.status === 'active' || subscription.status === 'trialing') ? 'active' : 'pending']
         );
           
           if (updateResult.rowCount && updateResult.rowCount > 0) {
-            console.log(`[Stripe Webhook] User activation: ${email} tier updated to ${tierSlug}, membership_status conditionally set to active`);
+            console.log(`[Stripe Webhook] User activation: ${email} tier updated to ${tierSlug}, membership_status conditionally set to ${(subscription.status === 'active' || subscription.status === 'trialing') ? 'active' : 'pending'} (subscription status: ${subscription.status})`);
             
             // Sync membership status, tier, and billing provider to HubSpot for existing users
             try {
@@ -2494,7 +2507,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                       `UPDATE users SET 
                         tier = $1, 
                         membership_status = CASE 
-                          WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN 'active' 
+                          WHEN membership_status IS NULL OR membership_status IN ('pending', 'inactive', 'non-member') THEN $4
                           ELSE membership_status 
                         END,
                         billing_provider = 'stripe',
@@ -2502,7 +2515,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
                         updated_at = NOW() 
                       WHERE email = $2 
                       RETURNING id`,
-                      [tierName, email, subscriptionPeriodEnd]
+                      [tierName, email, subscriptionPeriodEnd, (subscription.status === 'active' || subscription.status === 'trialing') ? 'active' : 'pending']
                     );
                     
                     if (updateResult.rowCount && updateResult.rowCount > 0) {

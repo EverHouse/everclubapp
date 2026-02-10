@@ -52,17 +52,25 @@ const TierBadge: React.FC<TierBadgeProps> = ({ tier, size = 'sm', showNoTier = f
 
   const displayTier = getDisplayTier(tier);
   const colors = getTierColor(tier);
+  const isPending = membershipStatus?.toLowerCase() === 'pending';
 
   return (
-    <span
-      className={`inline-flex items-center font-bold rounded ${sizeClasses}`}
-      style={{
-        backgroundColor: colors.bg,
-        color: colors.text,
-        border: `1px solid ${colors.border}`,
-      }}
-    >
-      {displayTier}
+    <span className="inline-flex items-center gap-1.5 flex-wrap">
+      <span
+        className={`inline-flex items-center font-bold rounded ${sizeClasses}`}
+        style={{
+          backgroundColor: colors.bg,
+          color: colors.text,
+          border: `1px solid ${colors.border}`,
+        }}
+      >
+        {displayTier}
+      </span>
+      {isPending && (
+        <span className={`inline-flex items-center font-medium rounded ${size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'} bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-700`}>
+          Pending
+        </span>
+      )}
     </span>
   );
 };

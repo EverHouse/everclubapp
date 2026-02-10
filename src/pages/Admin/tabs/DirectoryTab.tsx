@@ -1479,7 +1479,7 @@ const DirectoryTab: React.FC = () => {
                                         </div>
                                         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                {member.tier && <TierBadge tier={member.tier} size="sm" />}
+                                                {member.tier && <TierBadge tier={member.tier} size="sm" membershipStatus={member.membershipStatus} />}
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                     member.is_active 
                                                         ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' 
@@ -1566,7 +1566,7 @@ const DirectoryTab: React.FC = () => {
                                             <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                     <div className="flex items-center gap-1">
-                                                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} />
+                                                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
                                                         {isMemberPendingUpdate(m.email) && (
                                                             <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender animate-spin">progress_activity</span>
                                                         )}
@@ -1623,7 +1623,7 @@ const DirectoryTab: React.FC = () => {
                                         <div style={{ width: '20%' }} className="p-4">
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 <div className="flex items-center gap-1">
-                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} />
+                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
                                                     {isMemberPendingUpdate(m.email) && (
                                                         <span className="material-symbols-outlined text-[12px] text-primary dark:text-lavender animate-spin">progress_activity</span>
                                                     )}

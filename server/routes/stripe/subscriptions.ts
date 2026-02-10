@@ -260,16 +260,19 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
     // Store subscription for potential rollback in case of database failure
     const stripeSubscription = subscriptionResult.subscription;
     
+    const subStatus = stripeSubscription?.status;
+    const memberStatus = (subStatus === 'active' || subStatus === 'trialing') ? 'active' : 'pending';
+    
     try {
       await pool.query(
         `UPDATE users SET 
           billing_provider = 'stripe',
           tier = $1,
           stripe_subscription_id = $2,
-          membership_status = 'active',
+          membership_status = $4,
           updated_at = NOW()
         WHERE id = $3`,
-        [tierName, stripeSubscription?.subscriptionId, member.id]
+        [tierName, stripeSubscription?.subscriptionId, member.id, memberStatus]
       );
     } catch (dbError) {
       // Database update failed after Stripe subscription was created
@@ -310,8 +313,8 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
     // Sync to HubSpot
     try {
       const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
-      await syncMemberToHubSpot({ email: member.email, status: 'active', tier: tierName, billingProvider: 'stripe', memberSince: new Date() });
-      console.log(`[Stripe] Synced ${member.email} to HubSpot: status=active, tier=${tierName}, billing=stripe, memberSince=now`);
+      await syncMemberToHubSpot({ email: member.email, status: memberStatus, tier: tierName, billingProvider: 'stripe', memberSince: new Date() });
+      console.log(`[Stripe] Synced ${member.email} to HubSpot: status=${memberStatus}, tier=${tierName}, billing=stripe, memberSince=now`);
     } catch (hubspotError) {
       console.error('[Stripe] HubSpot sync failed for subscription creation:', hubspotError);
     }

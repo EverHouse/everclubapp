@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.34.0",
+    date: "2026-02-10",
+    title: "Payment Status Enforcement & Pending Badge System",
+    isMajor: false,
+    changes: [
+      "CRITICAL FIX: Members are now correctly set to 'pending' status until their Stripe subscription payment actually succeeds — previously members were activated before payment completed, creating a critical billing gap",
+      "Feature: Added 'Pending' badge that appears next to the tier badge (e.g., 'Premium' + 'Pending') in both the member profile drawer and the directory — staff can now clearly see when payment hasn't been completed yet",
+      "Fix: Stripe webhook now properly maps all subscription statuses — incomplete subscriptions no longer trigger member activation",
+      "Data Correction: Corrected 3 test members' status back to pending after recent billing changes",
+    ],
+  },
+  {
     version: "7.33.3",
     date: "2026-02-10",
     title: "Activation Link Endpoint Fix",
