@@ -1443,6 +1443,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     const bookingId = parseInt(id);
     
+    const staffEmailsResult = await db.execute(sql`SELECT LOWER(email) as email FROM staff_users WHERE is_active = true`);
+    const staffEmailSet = new Set(staffEmailsResult.rows.map(r => r.email));
+    
     const membersWithFees = await Promise.all(membersResult.rows.map(async (row) => {
       let tier: string | null = null;
       let fee = 0;
@@ -1461,7 +1464,16 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       const hasActiveMembership = membershipStatus && ['active', 'trial', 'past_due'].includes(membershipStatus);
       
       if (row.user_email) {
-        if (hasActiveMembership) {
+        const isStaffMember = staffEmailSet.has(row.user_email.toLowerCase());
+        if (isStaffMember) {
+          tier = 'Staff';
+          fee = 0;
+          feeNote = 'Staff — included';
+          feeBreakdown = {
+            perPersonMins, dailyAllowance: 999, usedToday: 0,
+            overageMinutes: 0, fee: 0, isUnlimited: true, isSocialTier: false
+          };
+        } else if (hasActiveMembership) {
           tier = row.user_tier || await getMemberTierByEmail(row.user_email);
           
           if (tier) {
@@ -1533,7 +1545,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
       }
       
-      const isInactiveMember = !hasActiveMembership && !!row.user_email && !row.is_primary;
+      const isStaffUser = row.user_email ? staffEmailSet.has(row.user_email.toLowerCase()) : false;
+      const isInactiveMember = !hasActiveMembership && !!row.user_email && !row.is_primary && !isStaffUser;
       
       return {
         id: row.id,
@@ -1552,6 +1565,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         feeBreakdown,
         membershipStatus,
         isInactiveMember: !!isInactiveMember,
+        isStaff: isStaffUser,
         guestInfo: null as any
       };
     }));
