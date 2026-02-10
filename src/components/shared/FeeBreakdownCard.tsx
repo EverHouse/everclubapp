@@ -15,6 +15,7 @@ export interface FeeBreakdownCardProps {
   resourceType?: 'simulator' | 'conference';
   isDark?: boolean;
   compact?: boolean;
+  guestsWithoutInfo?: number;
 }
 
 const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
@@ -31,6 +32,7 @@ const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
   resourceType = 'simulator',
   isDark = false,
   compact = false,
+  guestsWithoutInfo,
 }) => {
   const isSimulator = resourceType === 'simulator';
   const isSocial = tierLabel?.toLowerCase() === 'social';
@@ -69,7 +71,7 @@ const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
             <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${guestFees}</span>
           </div>
         )}
-        {isSimulator && guestCount > 0 && passesRemainingAfter !== undefined && passesTotal !== undefined && (
+        {isSimulator && guestCount > 0 && passesRemainingAfter !== undefined && passesTotal !== undefined && (!guestsWithoutInfo || guestsWithoutInfo === 0) && (
           <div className="flex justify-between items-center">
             <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
               Passes remaining after booking
@@ -77,6 +79,12 @@ const FeeBreakdownCard: React.FC<FeeBreakdownCardProps> = ({
             <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
               {passesRemainingAfter} of {passesTotal}
             </span>
+          </div>
+        )}
+        {isSimulator && guestCount > 0 && guestsWithoutInfo !== undefined && guestsWithoutInfo > 0 && (
+          <div className={`flex items-center gap-1.5 text-xs mt-1 ${isDark ? 'text-amber-400/70' : 'text-amber-600/80'}`}>
+            <span className="material-symbols-outlined text-xs">info</span>
+            Enter guest details above to use passes
           </div>
         )}
         {totalFee === 0 && (resourceType === 'conference' || guestCount === 0) && (

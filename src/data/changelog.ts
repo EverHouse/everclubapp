@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.31.1",
+    date: "2026-02-10",
+    title: "Guest Booking UX Improvements",
+    changes: [
+      "Improvement: Split single 'Guest name' field into separate 'First name' and 'Last name' fields — guest passes now collect proper names for identification",
+      "Fix: Fee estimate no longer shows confusing '0 of 15' passes remaining when guest details haven't been entered — now shows helpful 'Enter guest details above to use passes' message",
+      "Improvement: Guest pass eligibility now requires first name, last name, AND email — per-slot indicator updated to show exactly what's needed",
+      "Improvement: Info banner updated to clearly state 'first name, last name, and email' requirement for guest pass usage",
+    ],
+  },
+  {
     version: "7.31.0",
     date: "2026-02-10",
     title: "Major Code Organization Refactoring",

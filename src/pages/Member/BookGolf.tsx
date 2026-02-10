@@ -266,7 +266,7 @@ const BookGolf: React.FC = () => {
     : 0;
   const effectivePlayerCount = activeTab === 'simulator' ? playerCount : 1;
   const guestsWithInfo = activeTab === 'simulator'
-    ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || (slot.email && slot.email.includes('@')))).length
+    ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || (slot.firstName?.trim() && slot.lastName?.trim() && slot.email && slot.email.includes('@')))).length
     : 0;
   const feeEstimateParams = useMemo(() => {
     if (!duration || !selectedDateObj?.date) return '';
@@ -427,7 +427,7 @@ const BookGolf: React.FC = () => {
       if (prev.length === slotsNeeded) return prev;
       const newSlots: PlayerSlot[] = [];
       for (let i = 0; i < slotsNeeded; i++) {
-        newSlots.push(prev[i] || { email: '', name: '', type: 'guest', searchQuery: '' });
+        newSlots.push(prev[i] || { email: '', name: '', firstName: '', lastName: '', type: 'guest', searchQuery: '' });
       }
       return newSlots;
     });
@@ -1549,6 +1549,7 @@ const BookGolf: React.FC = () => {
             tierLabel={effectiveUser?.tier}
             resourceType={activeTab === 'conference' ? 'conference' : 'simulator'}
             isDark={isDark}
+            guestsWithoutInfo={estimatedFees.guestCount - guestsWithInfo > 0 ? estimatedFees.guestCount - guestsWithInfo : undefined}
           />
           <button 
             onClick={() => { haptic.heavy(); handleConfirm(); }}

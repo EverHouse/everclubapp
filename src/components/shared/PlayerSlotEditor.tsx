@@ -4,6 +4,8 @@ import { MemberSearchInput, SelectedMember } from './MemberSearchInput';
 export interface PlayerSlot {
   email: string;
   name: string;
+  firstName: string;
+  lastName: string;
   type: 'member' | 'guest';
   searchQuery: string;
   selectedId?: string;
@@ -44,13 +46,13 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
 
   const handleTypeChange = useCallback((index: number, type: 'member' | 'guest') => {
     const newSlots = [...slots];
-    newSlots[index] = { ...newSlots[index], type, searchQuery: '', selectedId: undefined, selectedName: undefined, email: '', name: '' };
+    newSlots[index] = { ...newSlots[index], type, searchQuery: '', selectedId: undefined, selectedName: undefined, email: '', name: '', firstName: '', lastName: '' };
     onSlotsChange(newSlots);
   }, [slots, onSlotsChange]);
 
   const handleClearSelection = useCallback((index: number) => {
     const newSlots = [...slots];
-    newSlots[index] = { ...newSlots[index], selectedId: undefined, selectedName: undefined, searchQuery: '', email: '', name: '' };
+    newSlots[index] = { ...newSlots[index], selectedId: undefined, selectedName: undefined, searchQuery: '', email: '', name: '', firstName: '', lastName: '' };
     onSlotsChange(newSlots);
   }, [slots, onSlotsChange]);
 
@@ -105,14 +107,14 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
 
           <div className={`mb-3 p-3 rounded-lg text-sm ${isDark ? 'bg-blue-500/10 border border-blue-500/30 text-blue-300' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
             <span className="material-symbols-outlined text-sm mr-1 align-middle">info</span>
-            Provide guest name and email to use your guest passes. Unfilled slots are charged the full guest fee.
+            Provide guest first name, last name, and email to use your guest passes. Unfilled slots are charged the full guest fee.
           </div>
 
           <div className="space-y-4">
             {slots.map((slot, index) => {
-              const isGuestComplete = slot.type === 'guest' && slot.name.trim() !== '' && slot.email.includes('@');
-              const isGuestIncomplete = slot.type === 'guest' && !slot.selectedId && (!slot.name.trim() || !slot.email.includes('@'));
-              const showIndicator = slot.type === 'guest' && !slot.selectedId && (slot.name.trim() !== '' || slot.email.trim() !== '');
+              const isGuestComplete = slot.type === 'guest' && slot.firstName.trim() !== '' && slot.lastName.trim() !== '' && slot.email.includes('@');
+              const isGuestIncomplete = slot.type === 'guest' && !slot.selectedId && (!slot.firstName.trim() || !slot.lastName.trim() || !slot.email.includes('@'));
+              const showIndicator = slot.type === 'guest' && !slot.selectedId && (slot.firstName.trim() !== '' || slot.lastName.trim() !== '' || slot.email.trim() !== '');
 
               return (
                 <div key={index} className="space-y-2">
@@ -184,17 +186,30 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                       />
                     ) : (
                       <div className="space-y-2">
-                        <input
-                          type="text"
-                          placeholder="Guest name..."
-                          value={slot.name}
-                          onChange={(e) => updateSlot(index, { name: e.target.value })}
-                          className={`w-full px-3 py-2.5 rounded-lg border text-sm transition-all focus:ring-2 focus:ring-accent focus:outline-none ${
-                            isDark 
-                              ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
-                              : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
-                          }`}
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="First name..."
+                            value={slot.firstName}
+                            onChange={(e) => updateSlot(index, { firstName: e.target.value, name: `${e.target.value} ${slot.lastName}`.trim() })}
+                            className={`flex-1 px-3 py-2.5 rounded-lg border text-sm transition-all focus:ring-2 focus:ring-accent focus:outline-none ${
+                              isDark 
+                                ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
+                                : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
+                            }`}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Last name..."
+                            value={slot.lastName}
+                            onChange={(e) => updateSlot(index, { lastName: e.target.value, name: `${slot.firstName} ${e.target.value}`.trim() })}
+                            className={`flex-1 px-3 py-2.5 rounded-lg border text-sm transition-all focus:ring-2 focus:ring-accent focus:outline-none ${
+                              isDark 
+                                ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
+                                : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
+                            }`}
+                          />
+                        </div>
                         <input
                           type="email"
                           placeholder="Guest email..."
@@ -215,7 +230,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                             <span className="material-symbols-outlined text-sm">
                               {isGuestComplete ? 'check_circle' : 'warning'}
                             </span>
-                            {isGuestComplete ? 'Pass eligible' : 'Guest fee applies'}
+                            {isGuestComplete ? 'Pass eligible' : 'Provide first name, last name & email to use pass'}
                           </div>
                         )}
                       </div>
