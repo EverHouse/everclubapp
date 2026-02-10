@@ -16,7 +16,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { TabType, tabToPath } from '../layout/types';
 import { CheckinBillingModal } from '../../../components/staff-command-center/modals/CheckinBillingModal';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
-import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
+import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
 import { RescheduleBookingModal } from '../../../components/booking/RescheduleBookingModal';
 import { AnimatedPage } from '../../../components/motion';
@@ -3771,9 +3771,10 @@ return null;
               initialMode={staffManualBookingDefaults.initialMode}
             />
 
-            <TrackmanLinkModal
+            <UnifiedBookingSheet
               isOpen={trackmanLinkModal.isOpen}
               onClose={() => setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null })}
+              mode={trackmanLinkModal.mode || 'assign'}
               trackmanBookingId={trackmanLinkModal.trackmanBookingId}
               bayName={trackmanLinkModal.bayName}
               bookingDate={trackmanLinkModal.bookingDate}
@@ -3785,7 +3786,6 @@ return null;
               importedName={trackmanLinkModal.importedName}
               notes={trackmanLinkModal.notes}
               bookingId={trackmanLinkModal.bookingId || undefined}
-              mode={trackmanLinkModal.mode}
               ownerName={trackmanLinkModal.ownerName}
               ownerEmail={trackmanLinkModal.ownerEmail}
               declaredPlayerCount={trackmanLinkModal.declaredPlayerCount}

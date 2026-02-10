@@ -5,7 +5,7 @@ import EmptyState from '../../../components/EmptyState';
 import { getCheckMetadata, sortBySeverity, CheckSeverity } from '../../../data/integrityCheckMetadata';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
-import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
+import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import type { MemberProfile } from '../../../types/data';
 
 interface SyncComparisonData {
@@ -2733,9 +2733,10 @@ const DataIntegrityTab: React.FC = () => {
         }}
       />
 
-      <TrackmanLinkModal
+      <UnifiedBookingSheet
         isOpen={trackmanLinkModal.isOpen}
         onClose={() => setTrackmanLinkModal({ isOpen: false, bookingId: null })}
+        mode="manage"
         trackmanBookingId={trackmanLinkModal.trackmanBookingId || null}
         bayName={trackmanLinkModal.bayName}
         bookingDate={trackmanLinkModal.bookingDate}

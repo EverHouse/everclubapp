@@ -9,7 +9,7 @@ import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import ModalShell from '../../../components/ModalShell';
 import PullToRefresh from '../../../components/PullToRefresh';
 import RosterManager from '../../../components/booking/RosterManager';
-import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
+import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import { TrackmanTabSkeleton } from '../../../components/skeletons';
 import TrackmanWebhookEventsSection from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
@@ -787,12 +787,12 @@ const TrackmanTab: React.FC = () => {
         <TrackmanWebhookEventsSection />
       </div>
 
-      <TrackmanLinkModal
+      <UnifiedBookingSheet
         isOpen={!!managePlayersModal}
         onClose={() => setManagePlayersModal(null)}
+        mode="manage"
         trackmanBookingId={null}
         bookingId={managePlayersModal?.bookingId}
-        mode="manage"
         ownerName={managePlayersModal?.bookingContext?.ownerName}
         bookingContext={managePlayersModal?.bookingContext ? {
           requestDate: managePlayersModal.bookingContext.requestDate,
@@ -1057,9 +1057,10 @@ const TrackmanTab: React.FC = () => {
       </ModalShell>
 
       {assignPlayersModal && (
-        <TrackmanLinkModal
+        <UnifiedBookingSheet
           isOpen={assignPlayersModal.isOpen}
           onClose={() => setAssignPlayersModal(null)}
+          mode="assign"
           trackmanBookingId={assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id}
           bayName={`Bay ${assignPlayersModal.booking.bayNumber || assignPlayersModal.booking.bay_number}`}
           bookingDate={formatDateDisplayWithDay(assignPlayersModal.booking.bookingDate || assignPlayersModal.booking.booking_date)}

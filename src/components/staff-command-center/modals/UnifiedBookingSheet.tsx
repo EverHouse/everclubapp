@@ -6,6 +6,9 @@ import { useToast } from '../../Toast';
 import { usePricing } from '../../../hooks/usePricing';
 import TierBadge from '../../TierBadge';
 
+export type BookingType = 'simulator' | 'conference_room' | 'lesson' | 'staff_block';
+export type SheetMode = 'assign' | 'manage';
+
 interface BookingMember {
   id: number;
   bookingId: number;
@@ -60,33 +63,14 @@ interface BookingContextType {
   notes?: string;
 }
 
-interface TrackmanLinkModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  trackmanBookingId: string | null;
-  bayName?: string;
-  bookingDate?: string;
-  timeSlot?: string;
-  matchedBookingId?: number | string;
-  currentMemberName?: string;
-  currentMemberEmail?: string;
-  isRelink?: boolean;
-  onSuccess?: (options?: { markedAsEvent?: boolean; memberEmail?: string; memberName?: string }) => void;
-  onOpenBillingModal?: (bookingId: number) => void;
-  importedName?: string;
-  notes?: string;
-  isLegacyReview?: boolean;
-  originalEmail?: string;
-  bookingId?: number;
-  mode?: 'assign' | 'manage';
-  ownerName?: string;
-  ownerEmail?: string;
-  declaredPlayerCount?: number;
-  bookingContext?: BookingContextType;
-  onRosterUpdated?: () => void;
-  checkinMode?: boolean;
-  onCheckinComplete?: () => void;
-  onCollectPayment?: (bookingId: number) => void;
+interface ManageModeRosterData {
+  members: BookingMember[];
+  guests: BookingGuest[];
+  validation: ValidationInfo;
+  ownerGuestPassesRemaining: number;
+  tierLimits?: { guest_passes_per_month: number };
+  guestPassContext?: { passesBeforeBooking: number; passesUsedThisBooking: number };
+  financialSummary?: FinancialSummary;
 }
 
 interface VisitorSearchResult {
@@ -108,25 +92,47 @@ interface SlotState {
 
 type SlotsArray = [SlotState, SlotState, SlotState, SlotState];
 
-interface ManageModeRosterData {
-  members: BookingMember[];
-  guests: BookingGuest[];
-  validation: ValidationInfo;
-  ownerGuestPassesRemaining: number;
-  tierLimits?: { guest_passes_per_month: number };
-  guestPassContext?: { passesBeforeBooking: number; passesUsedThisBooking: number };
-  financialSummary?: FinancialSummary;
-}
-
 interface MemberMatchWarning {
   slotNumber: number;
   guestData: { guestName: string; guestEmail: string; guestPhone?: string };
   memberMatch: { email: string; name: string; tier: string; status: string; note: string };
 }
 
-export function TrackmanLinkModal({ 
-  isOpen, 
-  onClose, 
+export interface UnifiedBookingSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  mode: SheetMode;
+  bookingType?: BookingType;
+  trackmanBookingId?: string | null;
+  bayName?: string;
+  bookingDate?: string;
+  timeSlot?: string;
+  matchedBookingId?: number | string;
+  currentMemberName?: string;
+  currentMemberEmail?: string;
+  isRelink?: boolean;
+  importedName?: string;
+  notes?: string;
+  isLegacyReview?: boolean;
+  originalEmail?: string;
+  bookingId?: number;
+  ownerName?: string;
+  ownerEmail?: string;
+  declaredPlayerCount?: number;
+  bookingContext?: BookingContextType;
+  checkinMode?: boolean;
+  onSuccess?: (options?: { markedAsEvent?: boolean; memberEmail?: string; memberName?: string }) => void;
+  onOpenBillingModal?: (bookingId: number) => void;
+  onRosterUpdated?: () => void;
+  onCheckinComplete?: () => void;
+  onCollectPayment?: (bookingId: number) => void;
+}
+
+export function UnifiedBookingSheet({
+  isOpen,
+  onClose,
+  mode,
+  bookingType,
   trackmanBookingId,
   bayName,
   bookingDate,
@@ -135,23 +141,26 @@ export function TrackmanLinkModal({
   currentMemberName,
   currentMemberEmail,
   isRelink,
-  onSuccess,
-  onOpenBillingModal,
   importedName,
   notes,
   isLegacyReview,
   originalEmail,
   bookingId,
-  mode,
   ownerName,
   ownerEmail,
   declaredPlayerCount,
   bookingContext,
-  onRosterUpdated,
   checkinMode,
+  onSuccess,
+  onOpenBillingModal,
+  onRosterUpdated,
   onCheckinComplete,
-  onCollectPayment
-}: TrackmanLinkModalProps) {
+  onCollectPayment,
+}: UnifiedBookingSheetProps) {
+  const resolvedBookingType: BookingType = bookingType || 'simulator';
+  const isConferenceRoom = resolvedBookingType === 'conference_room';
+  const isLessonOrStaffBlock = resolvedBookingType === 'lesson' || resolvedBookingType === 'staff_block';
+
   const { guestFeeDollars } = usePricing();
   const [slots, setSlots] = useState<SlotsArray>([
     { type: 'empty' },
@@ -198,7 +207,17 @@ export function TrackmanLinkModal({
   const [savingChanges, setSavingChanges] = useState(false);
   const membersSnapshotRef = useRef<BookingMember[]>([]);
 
-  const isManageMode = !!(bookingId && mode === 'manage');
+  const isManageMode = mode === 'manage';
+
+  const renderTierBadge = (tier: string | null | undefined) => {
+    if (!tier) return null;
+    if (tier === 'Staff') {
+      return (
+        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">Staff</span>
+      );
+    }
+    return <TierBadge tier={tier} size="sm" />;
+  };
 
   const isPlaceholderEmail = (email: string): boolean => {
     if (!email) return true;
@@ -1126,8 +1145,6 @@ export function TrackmanLinkModal({
     }
   };
 
-  if (!isManageMode && !trackmanBookingId && !matchedBookingId) return null;
-
   const renderSlot = (slotIndex: number, isOwnerSlot: boolean) => {
     const slot = slots[slotIndex];
     const isActive = activeSlotIndex === slotIndex;
@@ -1153,9 +1170,11 @@ export function TrackmanLinkModal({
                 {slot.member?.email && (
                   <p className="text-xs text-primary/60 dark:text-white/60">{slot.member.email}</p>
                 )}
-                {slot.type === 'guest_placeholder' && (
+                {slot.member?.tier === 'Staff' ? (
+                  <p className="text-xs text-blue-600 dark:text-blue-400">$0.00 — Staff — included</p>
+                ) : slot.type === 'guest_placeholder' ? (
                   <p className="text-xs text-amber-600 dark:text-amber-400">{`Guest fee: $${guestFeeDollars}`}</p>
-                )}
+                ) : null}
               </div>
             </div>
             <button
@@ -1374,6 +1393,7 @@ export function TrackmanLinkModal({
     const isGuestSlot = !!member.guestInfo;
     const isRemoving = isGuestSlot && removingGuestId === member.guestInfo?.guestId;
     const showGuestPassBadge = isGuestSlot && member.guestInfo?.usedGuestPass === true && member.guestInfo?.fee === 0;
+    const isStaff = member.tier === 'Staff';
 
     return (
       <div 
@@ -1411,13 +1431,7 @@ export function TrackmanLinkModal({
                     Owner
                   </span>
                 )}
-                {member.tier === 'Staff' ? (
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">
-                    Staff
-                  </span>
-                ) : member.tier ? (
-                  <TierBadge tier={member.tier} size="sm" />
-                ) : null}
+                {renderTierBadge(member.tier)}
                 {isGuestSlot && (
                   <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 rounded">
                     Guest
@@ -1433,14 +1447,15 @@ export function TrackmanLinkModal({
               <p className="text-xs text-primary/60 dark:text-white/60 truncate">
                 {isGuestSlot ? member.guestInfo?.guestEmail : member.userEmail}
               </p>
-              {member.fee > 0 && (
+              {isStaff ? (
+                <p className="text-xs text-blue-600 dark:text-blue-400">$0.00 — Staff — included</p>
+              ) : member.fee > 0 ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   ${member.fee.toFixed(2)} — {member.feeNote}
                 </p>
-              )}
-              {member.fee === 0 && member.feeNote && (
+              ) : member.fee === 0 && member.feeNote ? (
                 <p className="text-xs text-green-600 dark:text-green-400">{member.feeNote}</p>
-              )}
+              ) : null}
             </div>
           </div>
           {!isOwner && (
@@ -1648,6 +1663,7 @@ export function TrackmanLinkModal({
   };
 
   const renderManageModeFinancialSummary = () => {
+    if (isConferenceRoom) return null;
     const fs = rosterData?.financialSummary;
     if (!fs) return null;
 
@@ -1693,15 +1709,11 @@ export function TrackmanLinkModal({
                 <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
                   <span className="flex items-center gap-1">
                     {p.name}
-                    {p.tier === 'Staff' ? (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">
-                        Staff
-                      </span>
-                    ) : p.tier ? (
-                      <TierBadge tier={p.tier} size="sm" />
-                    ) : null}
+                    {renderTierBadge(p.tier)}
                   </span>
-                  <span className={p.tier === 'Staff' ? 'text-blue-600 dark:text-blue-400' : ''}>{p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}</span>
+                  <span className={p.tier === 'Staff' ? 'text-blue-600 dark:text-blue-400' : ''}>
+                    {p.tier === 'Staff' ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1816,36 +1828,38 @@ export function TrackmanLinkModal({
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>
-                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                    filledCount === totalCount 
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                  }`}>
-                    {filledCount}/{totalCount} Assigned
-                  </span>
+              {!isConferenceRoom && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      filledCount === totalCount 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                    }`}>
+                      {filledCount}/{totalCount} Assigned
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-primary/60 dark:text-white/60">Players:</label>
+                    <select
+                      value={editingPlayerCount}
+                      onChange={(e) => handleManageModeUpdatePlayerCount(Number(e.target.value))}
+                      disabled={isUpdatingPlayerCount}
+                      className="px-2 py-1 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-xs disabled:opacity-50"
+                    >
+                      {[1, 2, 3, 4].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                    {isUpdatingPlayerCount && (
+                      <span className="material-symbols-outlined animate-spin text-sm text-primary/50 dark:text-white/50">progress_activity</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-primary/60 dark:text-white/60">Players:</label>
-                  <select
-                    value={editingPlayerCount}
-                    onChange={(e) => handleManageModeUpdatePlayerCount(Number(e.target.value))}
-                    disabled={isUpdatingPlayerCount}
-                    className="px-2 py-1 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-xs disabled:opacity-50"
-                  >
-                    {[1, 2, 3, 4].map(n => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                  {isUpdatingPlayerCount && (
-                    <span className="material-symbols-outlined animate-spin text-sm text-primary/50 dark:text-white/50">progress_activity</span>
-                  )}
-                </div>
-              </div>
+              )}
 
-              {renderManageModeGuestPassInfo()}
+              {!isConferenceRoom && renderManageModeGuestPassInfo()}
 
               {bookingContext && (
                 <div className="p-3 bg-primary/5 dark:bg-white/5 rounded-xl text-xs text-primary/70 dark:text-white/70 grid grid-cols-2 gap-2">
@@ -1876,10 +1890,18 @@ export function TrackmanLinkModal({
                 </div>
               )}
 
-              <div className="space-y-2">
-                {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
-                {emptySlotNumbers.map(slotNum => renderManageModeEmptySlot(slotNum))}
-              </div>
+              {!isConferenceRoom && (
+                <div className="space-y-2">
+                  {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
+                  {emptySlotNumbers.map(slotNum => renderManageModeEmptySlot(slotNum))}
+                </div>
+              )}
+
+              {isConferenceRoom && filledMembers.length > 0 && (
+                <div className="space-y-2">
+                  {filledMembers.filter(m => m.isPrimary).map((member, idx) => renderManageModeSlot(member, idx))}
+                </div>
+              )}
 
               {renderManageModeFinancialSummary()}
             </>
@@ -1889,11 +1911,11 @@ export function TrackmanLinkModal({
     );
   }
 
-  const drawerTitle = `${bayName || 'Trackman'}${timeSlot ? ` • ${timeSlot}` : ''}`;
+  const drawerTitle = `${bayName || 'Booking'}${timeSlot ? ` • ${timeSlot}` : ''}`;
 
   const stickyFooterContent = (
     <div className="p-4 space-y-2">
-      {feeEstimate && feeEstimate.totalCents > 0 && (
+      {!isConferenceRoom && feeEstimate && feeEstimate.totalCents > 0 && (
         <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1914,7 +1936,7 @@ export function TrackmanLinkModal({
           </div>
         </div>
       )}
-      {isCalculatingFees && (
+      {!isConferenceRoom && isCalculatingFees && (
         <div className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center gap-2 text-sm text-primary/50 dark:text-white/50">
           <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
           Calculating fees...
@@ -2092,100 +2114,144 @@ export function TrackmanLinkModal({
           </div>
         )}
         
-        <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
-            Trackman Booking Details
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-sm text-amber-700 dark:text-amber-400">
-            {importedName && (
-              <p className="flex items-center gap-1 col-span-2 font-semibold">
-                <span className="material-symbols-outlined text-sm">person</span>
-                {importedName}
-              </p>
-            )}
-            {bayName && (
-              <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">sports_golf</span>
-                {bayName}
-              </p>
-            )}
-            {bookingDate && (
-              <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">calendar_today</span>
-                {bookingDate}
-              </p>
-            )}
-            {timeSlot && (
-              <p className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">schedule</span>
-                {timeSlot}
-              </p>
-            )}
-            <p className="flex items-center gap-1 text-xs opacity-70">
-              <span className="material-symbols-outlined text-xs">tag</span>
-              ID: #{trackmanBookingId}
+        {!isConferenceRoom && trackmanBookingId && (
+          <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+              Booking Details
             </p>
+            <div className="grid grid-cols-2 gap-2 text-sm text-amber-700 dark:text-amber-400">
+              {importedName && (
+                <p className="flex items-center gap-1 col-span-2 font-semibold">
+                  <span className="material-symbols-outlined text-sm">person</span>
+                  {importedName}
+                </p>
+              )}
+              {bayName && (
+                <p className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">sports_golf</span>
+                  {bayName}
+                </p>
+              )}
+              {bookingDate && (
+                <p className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">calendar_today</span>
+                  {bookingDate}
+                </p>
+              )}
+              {timeSlot && (
+                <p className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">schedule</span>
+                  {timeSlot}
+                </p>
+              )}
+              <p className="flex items-center gap-1 text-xs opacity-70">
+                <span className="material-symbols-outlined text-xs">tag</span>
+                ID: #{trackmanBookingId}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {isConferenceRoom && (
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-lg">
+            <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300 mb-2">
+              Conference Room Booking
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-sm text-indigo-700 dark:text-indigo-400">
+              {bayName && (
+                <p className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">meeting_room</span>
+                  {bayName}
+                </p>
+              )}
+              {bookingDate && (
+                <p className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">calendar_today</span>
+                  {bookingDate}
+                </p>
+              )}
+              {timeSlot && (
+                <p className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">schedule</span>
+                  {timeSlot}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {notes && (
           <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
             <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">notes</span>
-              Notes from Import
+              Notes
             </p>
             <p className="text-sm text-blue-700 dark:text-blue-400 whitespace-pre-wrap">{notes}</p>
           </div>
         )}
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>
-            {filledSlotsCount > 0 && (
-              <span className="text-xs text-primary/60 dark:text-white/60">
-                {filledSlotsCount} player{filledSlotsCount !== 1 ? 's' : ''}
-                {guestCount > 0 && ` (${guestCount} guest${guestCount !== 1 ? 's' : ''} = $${guestCount * guestFeeDollars})`}
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">Slot 1: Owner (Required)</p>
-              {renderSlot(0, true)}
+        {!isConferenceRoom && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>
+              {filledSlotsCount > 0 && (
+                <span className="text-xs text-primary/60 dark:text-white/60">
+                  {filledSlotsCount} player{filledSlotsCount !== 1 ? 's' : ''}
+                  {guestCount > 0 && ` (${guestCount} guest${guestCount !== 1 ? 's' : ''} = $${guestCount * guestFeeDollars})`}
+                </span>
+              )}
             </div>
-            
-            <div className="border-t border-primary/10 dark:border-white/10 pt-2">
-              <p className="text-xs text-primary/50 dark:text-white/50 mb-1">Additional Players (Optional)</p>
-              {isLegacyReview ? (
-                <p className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg">
-                  Add additional players after assigning the owner. This booking needs review first.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {[1, 2, 3].map(index => (
-                    <div key={index}>
-                      {renderSlot(index, false)}
+
+            <div className="space-y-2">
+              <div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">Slot 1: Owner (Required)</p>
+                {renderSlot(0, true)}
+              </div>
+              
+              {!isLessonOrStaffBlock && (
+                <div className="border-t border-primary/10 dark:border-white/10 pt-2">
+                  <p className="text-xs text-primary/50 dark:text-white/50 mb-1">Additional Players (Optional)</p>
+                  {isLegacyReview ? (
+                    <p className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg">
+                      Add additional players after assigning the owner. This booking needs review first.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(index => (
+                        <div key={index}>
+                          {renderSlot(index, false)}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
-          </div>
 
-          {slots.slice(1).some(s => s.type === 'empty') && (
-            <button
-              onClick={() => {
-                const emptyIndex = slots.findIndex((s, i) => i > 0 && s.type === 'empty');
-                if (emptyIndex > 0) handleAddGuestPlaceholder(emptyIndex);
-              }}
-              className="w-full py-2 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-sm">person_add</span>
-              {`Quick Add Guest (+$${guestFeeDollars})`}
-            </button>
-          )}
-        </div>
+            {!isLessonOrStaffBlock && slots.slice(1).some(s => s.type === 'empty') && (
+              <button
+                onClick={() => {
+                  const emptyIndex = slots.findIndex((s, i) => i > 0 && s.type === 'empty');
+                  if (emptyIndex > 0) handleAddGuestPlaceholder(emptyIndex);
+                }}
+                className="w-full py-2 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-sm">person_add</span>
+                {`Quick Add Guest (+$${guestFeeDollars})`}
+              </button>
+            )}
+          </div>
+        )}
+
+        {isConferenceRoom && (
+          <div className="space-y-3">
+            <h4 className="font-medium text-primary dark:text-white">Assign To</h4>
+            <div>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">Owner (Required)</p>
+              {renderSlot(0, true)}
+            </div>
+          </div>
+        )}
 
         {shouldShowRememberEmail() && (
           <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30">

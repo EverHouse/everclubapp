@@ -25,7 +25,7 @@ import { CheckinBillingModal } from './modals/CheckinBillingModal';
 import QrScannerModal from './modals/QrScannerModal';
 import CheckInConfirmationModal from './modals/CheckInConfirmationModal';
 import { TrackmanBookingModal } from './modals/TrackmanBookingModal';
-import { TrackmanLinkModal } from './modals/TrackmanLinkModal';
+import { UnifiedBookingSheet } from './modals/UnifiedBookingSheet';
 import { StaffManualBookingModal, type StaffManualBookingData } from './modals/StaffManualBookingModal';
 import { NewUserDrawer } from './drawers/NewUserDrawer';
 import type { SelectedMember } from '../shared/MemberSearchInput';
@@ -751,7 +751,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         onConfirm={handleTrackmanConfirm}
       />
 
-      <TrackmanLinkModal
+      <UnifiedBookingSheet
         isOpen={trackmanLinkModal.isOpen}
         onClose={() => setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null })}
         trackmanBookingId={trackmanLinkModal.trackmanBookingId}
@@ -764,7 +764,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         notes={trackmanLinkModal.notes}
         originalEmail={trackmanLinkModal.originalEmail}
         bookingId={trackmanLinkModal.bookingId || undefined}
-        mode={trackmanLinkModal.mode}
+        mode={trackmanLinkModal.mode || 'assign'}
         ownerName={trackmanLinkModal.ownerName}
         ownerEmail={trackmanLinkModal.ownerEmail}
         declaredPlayerCount={trackmanLinkModal.declaredPlayerCount}

@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.17.0",
+    date: "2026-02-10",
+    title: "Unified Booking Sheet & Staff Fee Exemption",
+    isMajor: true,
+    changes: [
+      "Major: Replaced the old Trackman Link Modal with a brand-new Unified Booking Sheet that handles all booking operations — assigning members, managing rosters, and reviewing fees — in one place",
+      "Feature: Staff members are now fully exempt from all fees (overage, guest, and session fees) with a clear 'Staff — included' label shown in blue",
+      "Feature: Staff users display a blue 'Staff' badge instead of the default tier badge throughout booking management",
+      "Feature: Booking type detection — conference room bookings automatically hide Trackman, roster, and financial sections; lesson and staff block bookings show only the owner slot",
+      "Feature: Dual-mode operation — 'assign' mode for linking members to bookings and 'manage' mode for editing rosters and reviewing financials",
+      "Improvement: All four entry points (Simulator tab, Trackman tab, Staff Command Center, Data Integrity) now use the unified component for consistent behavior everywhere",
+      "Fix: Financial summary was showing fees at 1/100th their actual value — now displays correct dollar amounts",
+    ],
+  },
+  {
     version: "7.16.1",
     date: "2026-02-10",
     title: "Financial Summary Fee Display Fix",
