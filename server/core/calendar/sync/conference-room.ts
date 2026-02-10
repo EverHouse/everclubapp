@@ -29,13 +29,16 @@ export async function getConferenceRoomBookingsFromCalendar(
       maxResults: 100,
       singleEvents: true,
       orderBy: 'startTime',
+      showDeleted: true,
     });
     
     const events = response.data.items || [];
     const bookings: ConferenceRoomBooking[] = [];
     
     for (const event of events) {
-      if (!event.id || !event.summary) continue;
+      if (!event.id) continue;
+      
+      if (event.status === 'cancelled' || !event.summary) continue;
       
       const summary = event.summary;
       let extractedName: string | null = null;
@@ -354,13 +357,16 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
         singleEvents: true,
         orderBy: 'startTime',
         pageToken: pageToken,
+        showDeleted: true,
       });
 
       const calendarEvents = response.data.items || [];
       pageToken = response.data.nextPageToken || undefined;
 
       for (const event of calendarEvents) {
-        if (!event.id || !event.summary) continue;
+        if (!event.id) continue;
+        
+        if (event.status === 'cancelled' || !event.summary) continue;
 
         const googleEventId = event.id;
         const summary = event.summary;

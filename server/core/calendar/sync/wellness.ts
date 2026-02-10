@@ -28,16 +28,23 @@ export async function syncWellnessCalendarEvents(): Promise<{ synced: number; cr
       maxResults: 250,
       singleEvents: true,
       orderBy: 'startTime',
+      showDeleted: true,
     });
     
     const events = response.data.items || [];
     const fetchedEventIds = new Set<string>();
+    const cancelledEventIds = new Set<string>();
     let created = 0;
     let updated = 0;
     let pushedToCalendar = 0;
     
     for (const event of events) {
-      if (!event.id || !event.summary) continue;
+      if (!event.id) continue;
+      
+      if (event.status === 'cancelled' || !event.summary) {
+        cancelledEventIds.add(event.id);
+        continue;
+      }
       
       const googleEventId = event.id;
       const googleEtag = event.etag || null;
@@ -291,7 +298,7 @@ export async function syncWellnessCalendarEvents(): Promise<{ synced: number; cr
     
     let deleted = 0;
     for (const dbClass of existingClasses.rows) {
-      if (!fetchedEventIds.has(dbClass.google_calendar_id)) {
+      if (cancelledEventIds.has(dbClass.google_calendar_id) || !fetchedEventIds.has(dbClass.google_calendar_id)) {
         await pool.query('UPDATE wellness_classes SET is_active = false WHERE id = $1', [dbClass.id]);
         deleted++;
       }

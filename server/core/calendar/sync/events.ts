@@ -27,16 +27,23 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
       maxResults: 250,
       singleEvents: true,
       orderBy: 'startTime',
+      showDeleted: true,
     });
     
     const calendarEvents = response.data.items || [];
     const fetchedEventIds = new Set<string>();
+    const cancelledEventIds = new Set<string>();
     let created = 0;
     let updated = 0;
     let pushedToCalendar = 0;
     
     for (const event of calendarEvents) {
-      if (!event.id || !event.summary) continue;
+      if (!event.id) continue;
+      
+      if (event.status === 'cancelled' || !event.summary) {
+        cancelledEventIds.add(event.id);
+        continue;
+      }
       
       const googleEventId = event.id;
       const googleEtag = event.etag || null;
@@ -262,7 +269,7 @@ export async function syncGoogleCalendarEvents(): Promise<{ synced: number; crea
     
     let deleted = 0;
     for (const dbEvent of existingEvents) {
-      if (!fetchedEventIds.has(dbEvent.googleCalendarId!)) {
+      if (cancelledEventIds.has(dbEvent.googleCalendarId!) || !fetchedEventIds.has(dbEvent.googleCalendarId!)) {
         await db.delete(events).where(eq(events.id, dbEvent.id));
         deleted++;
       }

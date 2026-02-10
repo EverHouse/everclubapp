@@ -258,15 +258,22 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       maxResults: 100,
       singleEvents: true,
       orderBy: 'startTime',
+      showDeleted: true,
     });
     
     const events = response.data.items || [];
     const fetchedEventIds = new Set<string>();
+    const cancelledEventIds = new Set<string>();
     let created = 0;
     let updated = 0;
     
     for (const event of events) {
-      if (!event.id || !event.summary) continue;
+      if (!event.id) continue;
+      
+      if (event.status === 'cancelled' || !event.summary) {
+        cancelledEventIds.add(event.id);
+        continue;
+      }
       
       fetchedEventIds.add(event.id);
       const internalCalendarId = event.id;
@@ -391,7 +398,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     
     let deleted = 0;
     for (const closure of existingClosures.rows) {
-      if (!fetchedEventIds.has(closure.internal_calendar_id)) {
+      if (cancelledEventIds.has(closure.internal_calendar_id) || !fetchedEventIds.has(closure.internal_calendar_id)) {
         await deleteAvailabilityBlocks(closure.id);
         await pool.query('UPDATE facility_closures SET is_active = false WHERE id = $1', [closure.id]);
         console.log(`[Calendar Sync] Deactivated closure #${closure.id} and removed availability blocks`);
