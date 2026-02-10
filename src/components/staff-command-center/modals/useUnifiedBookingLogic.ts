@@ -6,6 +6,7 @@ import TierBadge from '../../TierBadge';
 import type { BookingMember, BookingGuest, ValidationInfo, FinancialSummary, BookingContextType, ManageModeRosterData, MemberMatchWarning, FetchedContext } from './bookingSheetTypes';
 import { isPlaceholderEmail } from './bookingSheetTypes';
 import type { UnifiedBookingSheetProps } from './UnifiedBookingSheet';
+import { useBookingActions } from '../../../hooks/useBookingActions';
 import React from 'react';
 
 export interface VisitorSearchResult {
@@ -67,6 +68,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const isConferenceRoom = resolvedBookingType === 'conference_room';
   const isLessonOrStaffBlock = resolvedBookingType === 'lesson' || resolvedBookingType === 'staff_block';
 
+  const { checkInBooking, chargeCardOnFile } = useBookingActions();
   const { guestFeeDollars } = usePricing();
   const [slots, setSlots] = useState<SlotsArray>([
     { type: 'empty' },
@@ -746,32 +748,23 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
   const handleInlineChargeSavedCard = async () => {
     if (!bookingId || !rosterData || !savedCardInfo?.hasSavedCard) return;
-    const pendingParticipants = rosterData.financialSummary?.playerBreakdown?.filter((p: any) => p.fee > 0) || [];
     setInlinePaymentAction('charge-card');
     try {
-      const res = await fetch('/api/stripe/staff/charge-saved-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          memberEmail: ownerEmail || fetchedContext?.ownerEmail || rosterData.members?.find(m => m.isPrimary)?.userEmail || '',
-          bookingId,
-          sessionId: rosterData.sessionId
-        })
+      const result = await chargeCardOnFile({
+        memberEmail: ownerEmail || fetchedContext?.ownerEmail || rosterData.members?.find(m => m.isPrimary)?.userEmail || '',
+        bookingId,
+        sessionId: rosterData.sessionId
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast(data.message || 'Card charged successfully', 'success');
+      if (result.success) {
+        showToast(result.message || 'Card charged successfully', 'success');
         setPaymentSuccess(true);
         setShowInlinePayment(false);
         await fetchRosterData();
+      } else if (result.noSavedCard) {
+        showToast('No saved card on file', 'warning');
+        setSavedCardInfo({ hasSavedCard: false });
       } else {
-        if (data.noSavedCard || data.noStripeCustomer) {
-          showToast('No saved card on file', 'warning');
-          setSavedCardInfo({ hasSavedCard: false });
-        } else {
-          showToast(data.error || 'Failed to charge card', 'error');
-        }
+        showToast(result.error || 'Failed to charge card', 'error');
       }
     } catch (err) {
       showToast('Failed to charge card', 'error');
@@ -855,14 +848,9 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     setSavingChanges(true);
     try {
       if (checkinMode && bookingId) {
-        const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include'
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || 'Failed to check in');
+        const result = await checkInBooking(bookingId);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to check in');
         }
         showToast('Check-in complete', 'success');
         onCheckinComplete?.();

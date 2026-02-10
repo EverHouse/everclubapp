@@ -19,6 +19,7 @@ import { TrackmanBookingModal } from '../../../components/staff-command-center/m
 import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
 import { RescheduleBookingModal } from '../../../components/booking/RescheduleBookingModal';
+import { useBookingActions } from '../../../hooks/useBookingActions';
 import { AnimatedPage } from '../../../components/motion';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
@@ -36,8 +37,6 @@ import {
     useBayAvailability,
     useApproveBookingRequest,
     useDeclineBookingRequest,
-    useCancelBookingWithOptimistic,
-    useUpdateBookingStatus,
     bookingsKeys,
     simulatorKeys,
 } from '../../../hooks/queries/useBookingsQueries';
@@ -760,6 +759,7 @@ const SimulatorTab: React.FC = () => {
     );
     
     const { showToast } = useToast();
+    const { checkInWithToast } = useBookingActions();
     const { effectiveTheme } = useTheme();
     const isDark = effectiveTheme === 'dark';
     const [activeView, setActiveView] = useState<'requests' | 'calendar'>('requests');
@@ -864,8 +864,6 @@ const SimulatorTab: React.FC = () => {
     // Mutation hooks for booking actions
     const approveBookingMutation = useApproveBookingRequest();
     const declineBookingMutation = useDeclineBookingRequest();
-    const cancelBookingMutation = useCancelBookingWithOptimistic();
-    const updateStatusMutation = useUpdateBookingStatus();
     
     const [selectedRequest, setSelectedRequest] = useState<BookingRequest | null>(null);
     const [actionModal, setActionModal] = useState<'approve' | 'decline' | null>(null);
@@ -1261,81 +1259,41 @@ const SimulatorTab: React.FC = () => {
         );
         
         try {
-            console.log('[Check-in v2] Making API call', { bookingId, newStatus, source: booking.source });
-            const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ status: newStatus, source: booking.source })
-            });
-            console.log('[Check-in v2] API response', { status: res.status, ok: res.ok });
+            const result = await checkInWithToast(bookingId, { status: newStatus, source: booking.source });
             
-            if (res.status === 402) {
-                const errorData = await res.json();
-                // Revert optimistic update
+            if (!result.success) {
                 queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
                 
-                // Open the appropriate modal based on what's needed
-                if (errorData.requiresRoster) {
+                if (result.requiresRoster) {
                     setBookingSheet({
                         isOpen: true,
                         trackmanBookingId: null,
                         bookingId,
                         mode: 'manage' as const,
                     });
-                } else {
+                } else if (result.requiresPayment) {
                     setBillingModal({ isOpen: true, bookingId });
+                }
+                if (newStatus === 'attended') {
+                    checkinInProgressRef.current.delete(bookingId);
                 }
                 return false;
             }
             
-            if (res.status === 400) {
-                const errorData = await res.json();
-                // If billing session not generated, allow user to proceed anyway
-                if (errorData.requiresSync) {
-                    // Retry with skipPaymentCheck to bypass the billing session check
-                    const retryRes = await fetch(`/api/bookings/${bookingId}/checkin`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({ status: newStatus, skipPaymentCheck: true })
-                    });
-                    if (retryRes.ok) {
-                        showToast('Booking checked in (billing session pending)', 'success');
-                        return true;
-                    } else {
-                        const retryErr = await retryRes.json();
-                        throw new Error(retryErr.error || 'Failed to check in');
-                    }
-                }
-                throw new Error(errorData.error || 'Failed to update status');
-            }
-            
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to update status');
-            }
-            
-            const statusLabel = newStatus === 'attended' ? 'checked in' : 
-                              newStatus === 'no_show' ? 'marked as no show' : 'cancelled';
-            showToast(`Booking ${statusLabel}`, 'success');
-            // Invalidate queries to ensure fresh data after successful status change
             queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
             queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
-            // Don't clean up ref on success - booking is now checked in
             return true;
         } catch (err: any) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
-            showToast(err.message || 'Failed to update booking', 'error');
-            // Clean up ref on error to allow retry
+            showToast(err.message || 'Failed to update status', 'error');
             if (newStatus === 'attended') {
                 checkinInProgressRef.current.delete(bookingId);
             }
             return false;
         }
-    }, [queryClient, startDate, endDate, showToast]);
+    }, [queryClient, startDate, endDate, showToast, checkInWithToast]);
 
     const showCancelConfirmation = useCallback((booking: BookingRequest) => {
         const hasTrackman = !!(booking.trackman_booking_id) || 
@@ -3343,21 +3301,9 @@ const SimulatorTab: React.FC = () => {
                 }
               }}
               onCheckIn={async (bookingId) => {
-                try {
-                  const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include'
-                  });
-                  if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.error || 'Check-in failed');
-                  }
-                  showToast('Check-in complete', 'success');
-                  setBookingSheet({ isOpen: false, trackmanBookingId: null });
+                const result = await checkInWithToast(bookingId);
+                if (result.success) {
                   handleRefresh();
-                } catch (err: any) {
-                  showToast(err.message || 'Check-in failed', 'error');
                 }
               }}
             />

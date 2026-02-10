@@ -13,6 +13,24 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.24.0",
+    date: "2026-02-10",
+    title: "Single Source of Truth — Unified Booking Actions",
+    isMajor: true,
+    changes: [
+      "Architecture: Created useBookingActions hook — a single source of truth for check-in, card charging, and staff cancel actions across the entire app",
+      "Refactor: Consolidated 9 separate check-in implementations into one shared function with consistent 402 payment-required handling, billing sync retry logic, and error messaging",
+      "Refactor: Consolidated 2 separate charge-saved-card implementations into one shared function with consistent card-declined, no-card, and verification-required handling",
+      "Refactor: StaffCommandCenter now uses useBookingActions for check-in — local optimistic UI updates preserved, API logic delegated",
+      "Refactor: SimulatorTab now uses useBookingActions for both its main check-in flow and the booking sheet's check-in callback — removed duplicate retry logic",
+      "Refactor: CompleteRosterModal, MemberProfileDrawer, and CheckinBillingModal all now use useBookingActions instead of inline fetch calls",
+      "Refactor: useUnifiedBookingLogic now delegates check-in and charge-card calls to useBookingActions instead of raw fetch",
+      "Cleanup: Removed unused useUpdateBookingStatus and useCancelBookingWithOptimistic imports from SimulatorTab",
+      "Cleanup: Identified useOptimisticBookings.ts as dead code (not imported anywhere in the app)",
+      "Impact: Business rule changes (e.g. 'Staff are free', 'Skip billing for certain tiers') now only need to be updated in one place and automatically apply to Dashboard, Calendar, Mobile, and all modals",
+    ],
+  },
+  {
     version: "7.23.0",
     date: "2026-02-10",
     title: "Deep Logic Extraction — Booking Sheet Under 400 Lines",

@@ -12,6 +12,7 @@ import { getTodayPacific, formatTime12Hour, formatDateShort } from '../../utils/
 import { StaffCommandCenterSkeleton } from '../skeletons';
 import { AnimatedPage } from '../motion';
 import { useStaffWebSocketContext } from '../../contexts/StaffWebSocketContext';
+import { useBookingActions } from '../../hooks/useBookingActions';
 
 import { useCommandCenterData } from './hooks/useCommandCenterData';
 import { formatLastSynced, formatTodayDate } from './helpers';
@@ -35,8 +36,7 @@ import type { StaffCommandCenterProps, BookingRequest, RecentActivity, TabType }
 interface OptimisticUpdateRef {
   bookingId: number | string;
   originalStatus: string;
-  optimisticStatus: string;
-  timestamp: number;
+  newStatus: string;
 }
 
 const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: onTabChangeProp, isAdmin }) => {
@@ -46,6 +46,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   const isMobile = useIsMobile();
   const { actualUser, refreshMembers } = useData();
   const { isConnected: wsConnected } = useStaffWebSocketContext();
+  const { checkInWithToast } = useBookingActions();
   
   const navigateToTab = useCallback((tab: TabType) => {
     if (tabToPath[tab as keyof typeof tabToPath]) {
@@ -367,26 +368,16 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     optimisticUpdateRef.current = {
       bookingId: booking.id,
       originalStatus,
-      optimisticStatus,
-      timestamp: Date.now()
+      newStatus: optimisticStatus
     };
     
     updateTodaysBookings(prev => prev.map(b => 
       b.id === booking.id ? { ...b, status: optimisticStatus } : b
     ));
-    updateBayStatuses(prev => prev.map(bay => {
-      if (bay.currentBooking?.id === booking.id) {
-        return {
-          ...bay,
-          currentBooking: bay.currentBooking ? { ...bay.currentBooking, status: optimisticStatus } : null
-        };
-      }
-      return bay;
-    }));
     
     const newActivity: RecentActivity = {
       id: `checkin-${id}-${Date.now()}`,
-      type: 'check_in',
+      type: 'booking_checked_in',
       timestamp: new Date().toISOString(),
       primary_text: booking.user_name || 'Member',
       secondary_text: booking.bay_name || 'Bay',
@@ -394,40 +385,30 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     };
     updateRecentActivity(prev => [newActivity, ...prev]);
     
-    try {
-      const res = await fetch(`/api/bookings/${id}/checkin`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
+    const result = await checkInWithToast(id);
+    
+    if (result.success) {
+      optimisticUpdateRef.current = null;
+    } else {
+      optimisticUpdateRef.current = null;
+      updateTodaysBookings(prev => prev.map(b => 
+        b.id === booking.id ? { ...b, status: originalStatus } : b
+      ));
+      updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
       
-      if (res.ok) {
-        optimisticUpdateRef.current = null;
-        showToast('Member checked in', 'success');
-      } else if (res.status === 402) {
-        const errorData = await res.json();
-        safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-        
-        if (errorData.requiresRoster) {
-          setBookingSheet({
-            isOpen: true,
-            trackmanBookingId: null,
-            bookingId: id,
-            mode: 'manage' as const,
-          });
-        } else {
-          setBillingModal({ isOpen: true, bookingId: id });
-        }
-      } else {
-        safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-        showToast('Failed to check in', 'error');
+      if (result.requiresRoster) {
+        setBookingSheet({
+          isOpen: true,
+          trackmanBookingId: null,
+          bookingId: id,
+          mode: 'manage' as const,
+        });
+      } else if (result.requiresPayment) {
+        setBillingModal({ isOpen: true, bookingId: id });
       }
-    } catch (err) {
-      safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
-      showToast('Failed to check in', 'error');
-    } finally {
-      setActionInProgress(null);
     }
+    
+    setActionInProgress(null);
   };
 
   const handleBillingModalComplete = useCallback(() => {

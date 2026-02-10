@@ -13,6 +13,7 @@ import MemberActivityTab from './admin/MemberActivityTab';
 import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import IdScannerModal from './staff-command-center/modals/IdScannerModal';
+import { useBookingActions } from '../hooks/useBookingActions';
 
 const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '';
 
@@ -120,6 +121,7 @@ const VISITOR_TABS: TabType[] = ['billing', 'activity', 'communications', 'notes
 const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, member, isAdmin, onClose, onViewAs, onMemberDeleted, visitorMode = false }) => {
   const { effectiveTheme } = useTheme();
   const { setDrawerOpen } = useBottomNav();
+  const { checkInWithToast } = useBookingActions();
   const isDark = effectiveTheme === 'dark';
   
   useEffect(() => {
@@ -418,13 +420,8 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const handleUpdateBookingStatus = async (bookingId: number | string, newStatus: 'attended' | 'no_show' | 'cancelled') => {
     setUpdatingBookingId(bookingId);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
+      const result = await checkInWithToast(bookingId, { status: newStatus });
+      if (result.success) {
         setHistory(prev => {
           if (!prev) return prev;
           return {
@@ -438,8 +435,6 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           };
         });
       }
-    } catch (err) {
-      console.error('Failed to update booking status:', err);
     } finally {
       setUpdatingBookingId(null);
     }

@@ -4,6 +4,7 @@ import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 import { TerminalPayment } from '../TerminalPayment';
 import SlideUpDrawer from '../../SlideUpDrawer';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
+import { useBookingActions } from '../../../hooks/useBookingActions';
 
 function formatTime12Hour(time: string | undefined): string {
   if (!time) return '';
@@ -78,6 +79,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   onCheckinComplete
 }) => {
   const { showToast } = useToast();
+  const { checkInWithToast, chargeCardWithToast } = useBookingActions();
   const [context, setContext] = useState<CheckinContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -196,41 +198,20 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
 
     setActionInProgress('charge-saved-card');
     try {
-      // Backend computes authoritative amount from cached fees - we only send participant IDs
-      const res = await fetch('/api/stripe/staff/charge-saved-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          memberEmail: context.ownerEmail,
-          bookingId,
-          sessionId: context.sessionId,
-          participantIds
-        })
+      const result = await chargeCardWithToast({
+        memberEmail: context.ownerEmail,
+        bookingId,
+        sessionId: context.sessionId!,
+        participantIds
       });
       
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
-        showToast(data.message || 'Card charged successfully', 'success');
+      if (result.success) {
         await fetchContext();
         onCheckinComplete();
         onClose();
-      } else {
-        if (data.noSavedCard || data.noStripeCustomer) {
-          showToast('No saved card on file - use the card payment option', 'warning');
-          setSavedCardInfo({ hasSavedCard: false });
-        } else if (data.requiresAction) {
-          showToast('Card requires additional verification - use the card payment option', 'warning');
-        } else if (data.cardError) {
-          showToast(`Card declined: ${data.error}`, 'error');
-        } else {
-          showToast(data.error || 'Failed to charge card', 'error');
-        }
+      } else if (result.noSavedCard) {
+        setSavedCardInfo({ hasSavedCard: false });
       }
-    } catch (err) {
-      console.error('Failed to charge saved card:', err);
-      showToast('Failed to charge card - please try again', 'error');
     } finally {
       setActionInProgress(null);
     }
@@ -372,20 +353,13 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const handleCheckinWithPayment = async () => {
     setActionInProgress('checkin');
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'attended', confirmPayment: true })
-      });
-      if (res.ok) {
+      const result = await checkInWithToast(bookingId, { status: 'attended' });
+      if (result.success) {
         onCheckinComplete();
         onClose();
       } else {
-        setError(getApiErrorMessage(res, 'check in'));
+        setError(result.error || 'Failed to check in');
       }
-    } catch (err) {
-      setError(getNetworkErrorMessage());
     } finally {
       setActionInProgress(null);
     }
@@ -497,22 +471,16 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           body: JSON.stringify({ paymentIntentId })
         });
       }
-      const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'attended', confirmPayment: true })
-      });
-      if (res.ok) {
+      const result = await checkInWithToast(bookingId, { status: 'attended' });
+      if (result.success) {
         onCheckinComplete();
         onClose();
       } else {
-        const data = await res.json();
-        if (data.requiresRoster) {
+        if (result.requiresRoster) {
           showToast('Payment recorded! Please fill in guest details before check-in.', 'warning');
           await fetchContext();
         } else {
-          showToast(data.error || 'Payment succeeded but check-in failed - please retry', 'error');
+          showToast(result.error || 'Payment succeeded but check-in failed - please retry', 'error');
         }
       }
     } catch (err) {

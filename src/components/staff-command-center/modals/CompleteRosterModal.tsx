@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useToast } from '../../Toast';
 import BookingMembersEditor from '../../admin/BookingMembersEditor';
+import { useBookingActions } from '../../../hooks/useBookingActions';
 import { CheckinBillingModal } from './CheckinBillingModal';
 import SlideUpDrawer from '../../SlideUpDrawer';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
+import { useToast } from '../../Toast';
 
 interface BookingContext {
   bookingId: number;
@@ -33,6 +34,7 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
   onRosterComplete,
   onBillingRequired
 }) => {
+  const { checkInWithToast } = useBookingActions();
   const { showToast } = useToast();
   const [context, setContext] = useState<BookingContext | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,32 +104,19 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
   const handleCheckIn = async () => {
     setIsCheckingIn(true);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      
-      if (res.ok) {
-        showToast('Member checked in successfully', 'success');
+      const result = await checkInWithToast(bookingId);
+
+      if (result.success) {
         onRosterComplete();
         onClose();
-      } else if (res.status === 402) {
-        const data = await res.json();
-        if (data.requiresRoster) {
-          setError('Please assign all player slots before checking in');
-          await fetchContext();
-        } else {
-          onClose();
-          if (onBillingRequired) {
-            onBillingRequired(bookingId);
-          }
+      } else if (result.requiresRoster) {
+        showToast('Please complete the roster before checking in', 'warning');
+      } else if (result.requiresPayment) {
+        onClose();
+        if (onBillingRequired) {
+          onBillingRequired(bookingId);
         }
-      } else {
-        setError(getApiErrorMessage(res, 'check in'));
       }
-    } catch (err) {
-      setError(getNetworkErrorMessage());
     } finally {
       setIsCheckingIn(false);
     }
