@@ -6,6 +6,7 @@ import POSRegister from '../../../components/admin/payments/POSRegister';
 import {
   useSubscriptions,
   useInvoices,
+  useOverduePayments,
 } from '../../../hooks/queries/useFinancialsQueries';
 
 interface SubscriptionListItem {
@@ -36,6 +37,8 @@ interface InvoiceListItem {
 }
 
 const FinancialsTab: React.FC = () => {
+  const { data: overduePayments } = useOverduePayments();
+  const overdueCount = overduePayments?.length || 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const subtabParam = searchParams.get('subtab');
   const activeTab: 'POS' | 'Transactions' | 'Subscriptions' | 'Invoices' = subtabParam === 'transactions' ? 'Transactions' : subtabParam === 'subscriptions' ? 'Subscriptions' : subtabParam === 'invoices' ? 'Invoices' : 'POS';
@@ -74,7 +77,14 @@ const FinancialsTab: React.FC = () => {
               : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60'
           }`}
         >
-          Transactions
+          <span className="flex items-center gap-1.5">
+            Transactions
+            {overdueCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                {overdueCount}
+              </span>
+            )}
+          </span>
         </button>
         <button
           onClick={() => setActiveTab('Subscriptions')}

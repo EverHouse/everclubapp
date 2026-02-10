@@ -21,7 +21,11 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Fee button now shows the full estimated total (owner overage + guest fees) instead of just the owner's cached fee, matching what the Unified Booking Sheet shows",
       "Fix: Check-in payment flow now opens the Unified Booking Sheet when payment is required, instead of the old billing modal",
       "Fix: 'Mark Paid (Cash/External)' button now works inline within the Unified Booking Sheet instead of opening a separate modal",
-      "Cleanup: Removed old billing modal from the Simulator page (still available elsewhere during transition)",
+      "Fix: Overdue Payments now opens the Unified Booking Sheet instead of the old billing modal — consistent across Transactions tab and Staff Command Center",
+      "Fix: Overdue payment amounts now include estimated guest fees for unfilled roster slots, matching the Unified Booking Sheet total",
+      "Improvement: Overdue Payments section moved to the top of the right column on desktop Transactions tab — immediately visible without scrolling",
+      "Improvement: Transactions tab now shows a red badge with the overdue payment count so staff can see at a glance if there are unpaid fees",
+      "Layout: Pending Authorizations and Future Bookings moved to left column; Overdue Payments, Failed Payments, and Refunds grouped in right column",
     ],
   },
   {

@@ -733,6 +733,8 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
           br.start_time,
           br.end_time,
           r.name as resource_name,
+          br.declared_player_count,
+          COUNT(DISTINCT bp.id) FILTER (WHERE bp.id IS NOT NULL) as filled_participant_count,
           COALESCE(SUM(
             CASE 
               WHEN bp.payment_status = 'pending' AND COALESCE(bp.cached_fee_cents, 0) > 0
@@ -759,7 +761,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
           AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
           AND br.session_id IS NOT NULL
         GROUP BY br.id, br.session_id, br.user_email, br.user_name, 
-                 br.request_date, br.start_time, br.end_time, r.name
+                 br.request_date, br.start_time, br.end_time, r.name, br.declared_player_count
         HAVING SUM(
           CASE WHEN bp.payment_status = 'pending' 
                AND (COALESCE(bp.cached_fee_cents, 0) > 0 
@@ -782,6 +784,12 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
       const bookingDate = row.booking_date instanceof Date 
         ? row.booking_date.toISOString().split('T')[0]
         : String(row.booking_date || '').split('T')[0];
+      const declaredPlayers = parseInt(row.declared_player_count) || 1;
+      const filledPlayers = parseInt(row.filled_participant_count) || 0;
+      const unfilledGuests = Math.max(0, declaredPlayers - filledPlayers);
+      const guestFeePerSlot = 25;
+      const unfilledGuestFees = unfilledGuests * guestFeePerSlot;
+      const dbOutstanding = parseFloat(row.total_outstanding) || 0;
       return {
         bookingId: row.booking_id,
         sessionId: row.session_id,
@@ -791,7 +799,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         startTime: row.start_time,
         endTime: row.end_time,
         resourceName: row.resource_name || 'Unknown',
-        totalOutstanding: parseFloat(row.total_outstanding) || 0,
+        totalOutstanding: dbOutstanding + unfilledGuestFees,
         unreviewedWaivers: parseInt(row.unreviewed_waivers) || 0
       };
     });

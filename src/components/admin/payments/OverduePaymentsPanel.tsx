@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../EmptyState';
-import { CheckinBillingModal } from '../../staff-command-center/modals/CheckinBillingModal';
+import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
 import { getTodayPacific } from '../../../utils/dateUtils';
 
 export interface SectionProps {
@@ -24,7 +24,7 @@ export interface OverduePayment {
 const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [billingModal, setBillingModal] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
+  const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
   const [bulkReviewing, setBulkReviewing] = useState(false);
   const [staleWaiverCount, setStaleWaiverCount] = useState(0);
   const today = getTodayPacific();
@@ -82,7 +82,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
       {overduePayments.map(payment => (
         <button
           key={payment.bookingId}
-          onClick={() => setBillingModal({ isOpen: true, bookingId: payment.bookingId })}
+          onClick={() => setBookingSheet({ isOpen: true, bookingId: payment.bookingId })}
           className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors text-left"
         >
           <div className="flex flex-col items-center justify-center min-w-[44px] h-[44px] rounded-lg bg-red-100 dark:bg-red-900/30">
@@ -169,11 +169,16 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
         </div>
       )}
 
-      <CheckinBillingModal
-        isOpen={billingModal.isOpen}
-        onClose={() => setBillingModal({ isOpen: false, bookingId: null })}
-        bookingId={billingModal.bookingId || 0}
-        onCheckinComplete={fetchOverduePayments}
+      <UnifiedBookingSheet
+        isOpen={bookingSheet.isOpen}
+        onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
+        mode="manage"
+        bookingId={bookingSheet.bookingId || undefined}
+        onSuccess={() => {
+          setBookingSheet({ isOpen: false, bookingId: null });
+          fetchOverduePayments();
+        }}
+        onRosterUpdated={() => fetchOverduePayments()}
       />
     </>
   );

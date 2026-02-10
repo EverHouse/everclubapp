@@ -1331,10 +1331,10 @@ const DesktopTransactionsView: React.FC = () => {
       <div className="col-span-6 space-y-6">
         <DailySummaryCard variant="card" />
         <RecentTransactionsSection variant="card" />
-      </div>
-      <div className="col-span-6 space-y-6">
         <PendingAuthorizationsSection variant="card" />
         <FutureBookingsSection variant="card" />
+      </div>
+      <div className="col-span-6 space-y-6">
         <OverduePaymentsPanel variant="card" />
         <FailedPaymentsSection variant="card" />
         <RefundsSection variant="card" />
