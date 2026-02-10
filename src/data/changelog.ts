@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.33.2",
+    date: "2026-02-10",
+    title: "Trial Onboarding Email Flow",
+    changes: [
+      "Feature: First-visit confirmation email sent automatically when a trial member checks in via QR code for the first time",
+      "Feature: Email includes step-by-step guide on how to use the app — booking golf simulators, browsing events, and exploring wellness services",
+      "Fix: Paused members are now correctly blocked from logging in (account preserved for future renewal)",
+    ],
+  },
+  {
     version: "7.33.1",
     date: "2026-02-10",
     title: "Terminal Card Saving Gap Coverage",
