@@ -248,8 +248,15 @@ export function StripePaymentForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const intentCreatedRef = React.useRef(false);
+  const paymentIntentIdRef = React.useRef<string | null>(null);
+  const paymentSucceededRef = React.useRef(false);
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
+
+  const wrappedOnSuccess = React.useCallback(() => {
+    paymentSucceededRef.current = true;
+    onSuccess();
+  }, [onSuccess]);
 
   useEffect(() => {
     if (intentCreatedRef.current) {
@@ -289,6 +296,9 @@ export function StripePaymentForm({
 
         const data = await res.json();
         setClientSecret(data.clientSecret);
+        if (data.paymentIntentId) {
+          paymentIntentIdRef.current = data.paymentIntentId;
+        }
       } catch (err: any) {
         setError(err.message || 'Failed to initialize payment');
         intentCreatedRef.current = false;
@@ -298,6 +308,17 @@ export function StripePaymentForm({
     };
 
     initStripe();
+
+    return () => {
+      if (paymentIntentIdRef.current && !paymentSucceededRef.current) {
+        fetch('/api/stripe/cancel-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ paymentIntentId: paymentIntentIdRef.current }),
+        }).catch(() => {});
+      }
+    };
   }, []);
 
   if (loading) {
@@ -341,7 +362,7 @@ export function StripePaymentForm({
             ${amount.toFixed(2)}
           </span>
         </div>
-        <CheckoutForm onSuccess={onSuccess} onCancel={onCancel} />
+        <CheckoutForm onSuccess={wrappedOnSuccess} onCancel={onCancel} />
       </div>
     </Elements>
   );
