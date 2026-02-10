@@ -1,3 +1,8 @@
+---
+name: billing-stripe-expert
+description: Expert rules for Stripe payments, billing, fee calculations, subscriptions, webhooks, and product catalog in the Ever Club Members App. Use whenever creating or modifying Stripe API calls, payment processing, fee calculation, subscription lifecycle, day passes, prepayments, or billing reconciliation code.
+---
+
 # Billing & Stripe Expert
 
 ## When to Use This Skill

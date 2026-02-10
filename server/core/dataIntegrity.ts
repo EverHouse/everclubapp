@@ -1833,13 +1833,13 @@ async function checkSessionsWithoutParticipants(): Promise<IntegrityCheckResult>
   const issues: IntegrityIssue[] = [];
 
   const emptySessions = await db.execute(sql`
-    SELECT bs.id, bs.booking_date, bs.resource_id, bs.start_time, bs.end_time, bs.created_at,
+    SELECT bs.id, bs.session_date, bs.resource_id, bs.start_time, bs.end_time, bs.created_at,
            r.name as resource_name
     FROM booking_sessions bs
     LEFT JOIN booking_participants bp ON bp.session_id = bs.id
     LEFT JOIN resources r ON bs.resource_id = r.id
     WHERE bp.id IS NULL
-      AND bs.booking_date >= CURRENT_DATE - INTERVAL '30 days'
+      AND bs.session_date >= CURRENT_DATE - INTERVAL '30 days'
     LIMIT 100
   `);
 
@@ -1849,10 +1849,10 @@ async function checkSessionsWithoutParticipants(): Promise<IntegrityCheckResult>
       severity: 'warning',
       table: 'booking_sessions',
       recordId: row.id,
-      description: `Session on ${row.booking_date} at ${row.start_time}–${row.end_time} (${row.resource_name || 'unknown resource'}) has zero participants`,
+      description: `Session on ${row.session_date} at ${row.start_time}–${row.end_time} (${row.resource_name || 'unknown resource'}) has zero participants`,
       suggestion: 'Review session and add participants or remove empty session',
       context: {
-        bookingDate: row.booking_date || undefined,
+        bookingDate: row.session_date || undefined,
         startTime: row.start_time || undefined,
         endTime: row.end_time || undefined,
         resourceName: row.resource_name || undefined,

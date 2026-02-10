@@ -2586,6 +2586,64 @@ const DataIntegrityTab: React.FC = () => {
                 </div>
               )}
             </div>
+
+            <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
+              <h4 className="text-sm font-medium text-primary dark:text-white flex items-center gap-2">
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_remove</span>
+                Stripe Customer Cleanup
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Scan your Stripe account for customers with zero transactions (no charges, subscriptions, invoices, or payment intents) and delete them to keep your account clean.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleCleanupStripeCustomers(true)}
+                  disabled={isRunningStripeCustomerCleanup}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                  Scan & Preview
+                </button>
+                <button
+                  onClick={() => handleCleanupStripeCustomers(false)}
+                  disabled={isRunningStripeCustomerCleanup || !stripeCleanupResult?.dryRun}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
+                  Delete Empty Customers
+                </button>
+              </div>
+              {stripeCleanupResult && (
+                <div className={`p-3 rounded-lg ${stripeCleanupResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                  {stripeCleanupResult.dryRun && (
+                    <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only — No Changes Made</p>
+                  )}
+                  <p className={`text-xs ${stripeCleanupResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                    {stripeCleanupResult.message}
+                  </p>
+                  {stripeCleanupResult.dryRun && stripeCleanupResult.customers && stripeCleanupResult.customers.length > 0 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                      <p className="font-medium mb-1">{stripeCleanupResult.emptyCount} empty customers found:</p>
+                      {stripeCleanupResult.customers.map((c: any, i: number) => (
+                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                          {c.email || 'No email'} — {c.name || 'No name'} ({c.id})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!stripeCleanupResult.dryRun && stripeCleanupResult.deleted && stripeCleanupResult.deleted.length > 0 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                      <p className="font-medium mb-1">{stripeCleanupResult.deletedCount} customers deleted:</p>
+                      {stripeCleanupResult.deleted.map((c: any, i: number) => (
+                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                          {c.email || 'No email'} ({c.id})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
