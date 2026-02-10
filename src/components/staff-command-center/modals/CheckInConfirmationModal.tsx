@@ -41,8 +41,10 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   if (!isOpen) return null;
 
   const statusLower = membershipStatus?.toLowerCase() || '';
+  const isActive = statusLower === 'active';
   const isExpired = statusLower === 'expired';
-  const isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid'].includes(statusLower);
+  const isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid', 'terminated', 'past_due', 'paused'].includes(statusLower);
+  const showWarning = !isActive && statusLower !== '';
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
@@ -51,7 +53,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
         className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gradient-to-br from-primary via-primary/95 to-primary/85 p-6 text-center">
+        <div className={`p-6 text-center ${showWarning ? 'bg-gradient-to-br from-red-700 via-red-600 to-red-800' : 'bg-gradient-to-br from-primary via-primary/95 to-primary/85'}`}>
           <div className="flex justify-end mb-2">
             <button
               onClick={onClose}
@@ -61,9 +63,15 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
             </button>
           </div>
 
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-            <span className="material-symbols-outlined text-3xl text-white">check_circle</span>
-          </div>
+          {showWarning ? (
+            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+              <span className="material-symbols-outlined text-3xl text-yellow-300">warning</span>
+            </div>
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+              <span className="material-symbols-outlined text-3xl text-white">check_circle</span>
+            </div>
+          )}
 
           <h2 className="text-xl font-bold text-white mb-1">{memberName}</h2>
           <p className="text-white/80 text-sm font-medium">Checked In</p>
@@ -74,15 +82,13 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
             </div>
           )}
 
-          {isExpired && (
-            <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-red-500/30 text-red-200 text-xs font-bold uppercase tracking-wider">
-              Expired Membership
-            </div>
-          )}
-
-          {isInactive && (
-            <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-amber-500/30 text-amber-200 text-xs font-bold uppercase tracking-wider">
-              {membershipStatus} Membership
+          {showWarning && (
+            <div className="mt-3 flex flex-col items-center gap-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-400/20 border border-yellow-400/40 text-yellow-200 text-sm font-bold uppercase tracking-wider">
+                <span className="material-symbols-outlined text-base">error</span>
+                {membershipStatus} Membership
+              </div>
+              <p className="text-yellow-200/80 text-xs mt-1">Please verify membership before granting access</p>
             </div>
           )}
         </div>
