@@ -22,7 +22,6 @@ import { ResourcesSection, NoticeBoardWidget } from './sections/ResourcesSection
 import { AlertsCard } from './sections/AlertsCard';
 import { QuickActionsGrid } from './sections/QuickActionsGrid';
 import { CheckinBillingModal } from './modals/CheckinBillingModal';
-import { CompleteRosterModal } from './modals/CompleteRosterModal';
 import QrScannerModal from './modals/QrScannerModal';
 import CheckInConfirmationModal from './modals/CheckInConfirmationModal';
 import { TrackmanBookingModal } from './modals/TrackmanBookingModal';
@@ -60,7 +59,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
   const [billingModal, setBillingModal] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
-  const [rosterModal, setRosterModal] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
   const [newUserDrawerOpen, setNewUserDrawerOpen] = useState(false);
   const [newUserDrawerMode, setNewUserDrawerMode] = useState<'member' | 'visitor'>('member');
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
@@ -87,6 +85,11 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     importedName?: string;
     notes?: string;
     originalEmail?: string;
+    bookingId?: number | null;
+    mode?: 'assign' | 'manage';
+    ownerName?: string;
+    ownerEmail?: string;
+    declaredPlayerCount?: number;
   }>({ isOpen: false, trackmanBookingId: null });
   
   const optimisticUpdateRef = useRef<OptimisticUpdateRef | null>(null);
@@ -406,8 +409,12 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
         
         if (errorData.requiresRoster) {
-          // Open the Complete Roster modal directly instead of switching tabs
-          setRosterModal({ isOpen: true, bookingId: id });
+          setTrackmanLinkModal({
+            isOpen: true,
+            trackmanBookingId: null,
+            bookingId: id,
+            mode: 'manage' as const,
+          });
         } else {
           setBillingModal({ isOpen: true, bookingId: id });
         }
@@ -553,7 +560,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-              onRosterClick={(bookingId) => setRosterModal({ isOpen: true, bookingId })}
+              onRosterClick={(bookingId) => setTrackmanLinkModal({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
               onAssignMember={(booking) => setTrackmanLinkModal({
                 isOpen: true,
                 trackmanBookingId: booking.trackman_booking_id || null,
@@ -598,7 +605,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-              onRosterClick={(bookingId) => setRosterModal({ isOpen: true, bookingId })}
+              onRosterClick={(bookingId) => setTrackmanLinkModal({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
               onAssignMember={(booking) => setTrackmanLinkModal({
                 isOpen: true,
                 trackmanBookingId: booking.trackman_booking_id || null,
@@ -686,7 +693,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             onDeny={handleDeny}
             onCheckIn={handleCheckIn}
             onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-            onRosterClick={(bookingId) => setRosterModal({ isOpen: true, bookingId })}
+            onRosterClick={(bookingId) => setTrackmanLinkModal({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
             onAssignMember={(booking) => setTrackmanLinkModal({
                 isOpen: true,
                 trackmanBookingId: booking.trackman_booking_id || null,
@@ -756,6 +763,11 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         importedName={trackmanLinkModal.importedName}
         notes={trackmanLinkModal.notes}
         originalEmail={trackmanLinkModal.originalEmail}
+        bookingId={trackmanLinkModal.bookingId || undefined}
+        mode={trackmanLinkModal.mode}
+        ownerName={trackmanLinkModal.ownerName}
+        ownerEmail={trackmanLinkModal.ownerEmail}
+        declaredPlayerCount={trackmanLinkModal.declaredPlayerCount}
         onSuccess={(options) => {
           if (!options?.markedAsEvent) {
             showToast('Member assigned to booking', 'success');
@@ -763,7 +775,9 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           window.dispatchEvent(new CustomEvent('booking-action-completed'));
           refresh();
         }}
+        onRosterUpdated={() => refresh()}
         onOpenBillingModal={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
+        onCollectPayment={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
       />
 
       {createPortal(
@@ -887,13 +901,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         onCheckinComplete={handleBillingModalComplete}
       />
       
-      <CompleteRosterModal
-        isOpen={rosterModal.isOpen}
-        onClose={() => setRosterModal({ isOpen: false, bookingId: null })}
-        bookingId={rosterModal.bookingId || 0}
-        onRosterComplete={handleBillingModalComplete}
-        onBillingRequired={(id) => setBillingModal({ isOpen: true, bookingId: id })}
-      />
       
       <NewUserDrawer
         isOpen={newUserDrawerOpen}

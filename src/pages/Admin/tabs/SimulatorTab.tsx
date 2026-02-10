@@ -14,9 +14,7 @@ import ModalShell from '../../../components/ModalShell';
 import { useToast } from '../../../components/Toast';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { TabType, tabToPath } from '../layout/types';
-import BookingMembersEditor from '../../../components/admin/BookingMembersEditor';
 import { CheckinBillingModal } from '../../../components/staff-command-center/modals/CheckinBillingModal';
-import { CompleteRosterModal } from '../../../components/staff-command-center/modals/CompleteRosterModal';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
@@ -895,7 +893,6 @@ const SimulatorTab: React.FC = () => {
     const [editingTrackmanId, setEditingTrackmanId] = useState(false);
     const [trackmanIdDraft, setTrackmanIdDraft] = useState('');
     const [savingTrackmanId, setSavingTrackmanId] = useState(false);
-    const [membersEditorKey, setMembersEditorKey] = useState(0);
     const [rescheduleModal, setRescheduleModal] = useState<{ isOpen: boolean; booking: any | null }>({ isOpen: false, booking: null });
     const [feeEstimate, setFeeEstimate] = useState<{
       totalFee: number;
@@ -916,7 +913,6 @@ const SimulatorTab: React.FC = () => {
     } | null>(null);
     const [isFetchingFeeEstimate, setIsFetchingFeeEstimate] = useState(false);
     const [billingModal, setBillingModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
-    const [rosterModal, setRosterModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
     const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
     const [trackmanLinkModal, setTrackmanLinkModal] = useState<{ 
@@ -931,6 +927,11 @@ const SimulatorTab: React.FC = () => {
         isRelink?: boolean;
         importedName?: string;
         notes?: string;
+        bookingId?: number | null;
+        mode?: 'assign' | 'manage';
+        ownerName?: string;
+        ownerEmail?: string;
+        declaredPlayerCount?: number;
     }>({ isOpen: false, trackmanBookingId: null });
     const [cancelConfirmModal, setCancelConfirmModal] = useState<{
         isOpen: boolean;
@@ -1252,7 +1253,12 @@ const SimulatorTab: React.FC = () => {
                 
                 // Open the appropriate modal based on what's needed
                 if (errorData.requiresRoster) {
-                    setRosterModal({ isOpen: true, bookingId });
+                    setTrackmanLinkModal({
+                        isOpen: true,
+                        trackmanBookingId: null,
+                        bookingId,
+                        mode: 'manage' as const,
+                    });
                 } else {
                     setBillingModal({ isOpen: true, bookingId });
                 }
@@ -2433,7 +2439,12 @@ const SimulatorTab: React.FC = () => {
                                                                     <button
                                                                         onClick={() => {
                                                                             const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                            setRosterModal({ isOpen: true, bookingId });
+                                                                            setTrackmanLinkModal({
+                                                                                isOpen: true,
+                                                                                trackmanBookingId: null,
+                                                                                bookingId,
+                                                                                mode: 'manage' as const,
+                                                                            });
                                                                         }}
                                                                         className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
                                                                     >
@@ -3457,15 +3468,23 @@ const SimulatorTab: React.FC = () => {
                     })()}
 
                     {selectedCalendarBooking && (
-                        <BookingMembersEditor 
-                            id="booking-members-editor"
-                            key={`members-editor-${selectedCalendarBooking.id}-${membersEditorKey}`}
-                            bookingId={selectedCalendarBooking.id}
-                            onMemberLinked={() => {
-                                handleRefresh();
+                        <button
+                            onClick={() => {
+                                setTrackmanLinkModal({
+                                    isOpen: true,
+                                    trackmanBookingId: null,
+                                    bookingId: selectedCalendarBooking.id,
+                                    mode: 'manage' as const,
+                                    ownerName: (selectedCalendarBooking as any).user_name || (selectedCalendarBooking as any).member_name,
+                                    ownerEmail: (selectedCalendarBooking as any).user_email || (selectedCalendarBooking as any).member_email,
+                                    declaredPlayerCount: (selectedCalendarBooking as any).declared_player_count || (selectedCalendarBooking as any).player_count || 1,
+                                });
                             }}
-                            onCollectPayment={(bookingId) => setBillingModal({isOpen: true, bookingId})}
-                        />
+                            className="w-full py-2.5 px-4 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors border border-blue-200 dark:border-blue-500/20"
+                        >
+                            <span className="material-symbols-outlined text-lg">group</span>
+                            Manage Players
+                        </button>
                     )}
                     
                     <div className="flex flex-col gap-2 pt-3">
@@ -3731,15 +3750,6 @@ return null;
               }}
             />
             
-            <CompleteRosterModal
-              isOpen={rosterModal.isOpen}
-              bookingId={rosterModal.bookingId || 0}
-              onClose={() => setRosterModal({isOpen: false, bookingId: null})}
-              onRosterComplete={() => {
-                setRosterModal({isOpen: false, bookingId: null});
-                handleRefresh();
-              }}
-            />
 
             <TrackmanBookingModal
               isOpen={trackmanModal.isOpen}
@@ -3774,13 +3784,20 @@ return null;
               isRelink={trackmanLinkModal.isRelink}
               importedName={trackmanLinkModal.importedName}
               notes={trackmanLinkModal.notes}
+              bookingId={trackmanLinkModal.bookingId || undefined}
+              mode={trackmanLinkModal.mode}
+              ownerName={trackmanLinkModal.ownerName}
+              ownerEmail={trackmanLinkModal.ownerEmail}
+              declaredPlayerCount={trackmanLinkModal.declaredPlayerCount}
               onSuccess={(options) => {
                 if (!options?.markedAsEvent) {
                   showToast(trackmanLinkModal.isRelink ? 'Booking owner changed' : 'Trackman booking linked to member', 'success');
                 }
                 handleRefresh();
               }}
+              onRosterUpdated={() => handleRefresh()}
               onOpenBillingModal={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
+              onCollectPayment={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
             />
 
             {rescheduleModal.isOpen && rescheduleModal.booking && (

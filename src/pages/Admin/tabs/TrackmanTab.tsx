@@ -8,7 +8,6 @@ import { formatDateTimePacific, formatDateDisplayWithDay } from '../../../utils/
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import ModalShell from '../../../components/ModalShell';
 import PullToRefresh from '../../../components/PullToRefresh';
-import BookingMembersEditor from '../../../components/admin/BookingMembersEditor';
 import RosterManager from '../../../components/booking/RosterManager';
 import { TrackmanLinkModal } from '../../../components/staff-command-center/modals/TrackmanLinkModal';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
@@ -788,35 +787,22 @@ const TrackmanTab: React.FC = () => {
         <TrackmanWebhookEventsSection />
       </div>
 
-      {managePlayersModal && (
-        <ModalShell
-          isOpen={!!managePlayersModal}
-          onClose={() => setManagePlayersModal(null)}
-          title="Manage Players"
-          size="lg"
-          showCloseButton={true}
-        >
-          <div className="p-4">
-            <BookingMembersEditor
-              bookingId={managePlayersModal.bookingId}
-              bookingContext={managePlayersModal.bookingContext}
-              showHeader={true}
-              onMemberLinked={() => {
-                invalidateTrackmanQueries();
-              }}
-            />
-          </div>
-          <div className="sticky bottom-0 p-4 border-t border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1d15]">
-            <button
-              onClick={() => setManagePlayersModal(null)}
-              className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-sm">check</span>
-              Done
-            </button>
-          </div>
-        </ModalShell>
-      )}
+      <TrackmanLinkModal
+        isOpen={!!managePlayersModal}
+        onClose={() => setManagePlayersModal(null)}
+        trackmanBookingId={null}
+        bookingId={managePlayersModal?.bookingId}
+        mode="manage"
+        ownerName={managePlayersModal?.bookingContext?.ownerName}
+        bookingContext={managePlayersModal?.bookingContext ? {
+          requestDate: managePlayersModal.bookingContext.requestDate,
+          startTime: managePlayersModal.bookingContext.startTime,
+          endTime: managePlayersModal.bookingContext.endTime,
+          resourceName: managePlayersModal.bookingContext.resourceName,
+        } : undefined}
+        onRosterUpdated={() => invalidateTrackmanQueries()}
+        onSuccess={() => invalidateTrackmanQueries()}
+      />
 
       <ModalShell isOpen={!!viewDetailBooking} onClose={() => setViewDetailBooking(null)} title="Booking Details">
         {viewDetailBooking && (

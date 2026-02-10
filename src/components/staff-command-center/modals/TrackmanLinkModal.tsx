@@ -1,9 +1,64 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import TrackmanIcon from '../../icons/TrackmanIcon';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import { useToast } from '../../Toast';
 import { usePricing } from '../../../hooks/usePricing';
+import TierBadge from '../../TierBadge';
+
+interface BookingMember {
+  id: number;
+  bookingId: number;
+  userEmail: string | null;
+  slotNumber: number;
+  isPrimary: boolean;
+  linkedAt: string | null;
+  linkedBy: string | null;
+  memberName: string;
+  tier: string | null;
+  fee: number;
+  feeNote: string;
+  guestInfo?: { guestId: number; guestName: string; guestEmail: string; fee: number; feeNote: string; usedGuestPass: boolean } | null;
+}
+
+interface BookingGuest {
+  id: number;
+  bookingId: number;
+  guestName: string | null;
+  guestEmail: string | null;
+  slotNumber: number;
+  fee: number;
+  feeNote: string;
+}
+
+interface ValidationInfo {
+  expectedPlayerCount: number;
+  actualPlayerCount: number;
+  filledMemberSlots: number;
+  guestCount: number;
+  playerCountMismatch: boolean;
+  emptySlots: number;
+}
+
+interface FinancialSummary {
+  ownerOverageFee: number;
+  guestFeesWithoutPass: number;
+  totalOwnerOwes: number;
+  totalPlayersOwe: number;
+  grandTotal: number;
+  playerBreakdown: Array<{ name: string; tier: string | null; fee: number; feeNote: string }>;
+  allPaid?: boolean;
+}
+
+interface BookingContextType {
+  requestDate?: string;
+  startTime?: string;
+  endTime?: string;
+  resourceId?: number;
+  resourceName?: string;
+  durationMinutes?: number;
+  notes?: string;
+}
 
 interface TrackmanLinkModalProps {
   isOpen: boolean;
@@ -22,6 +77,16 @@ interface TrackmanLinkModalProps {
   notes?: string;
   isLegacyReview?: boolean;
   originalEmail?: string;
+  bookingId?: number;
+  mode?: 'assign' | 'manage';
+  ownerName?: string;
+  ownerEmail?: string;
+  declaredPlayerCount?: number;
+  bookingContext?: BookingContextType;
+  onRosterUpdated?: () => void;
+  checkinMode?: boolean;
+  onCheckinComplete?: () => void;
+  onCollectPayment?: (bookingId: number) => void;
 }
 
 interface VisitorSearchResult {
@@ -43,6 +108,22 @@ interface SlotState {
 
 type SlotsArray = [SlotState, SlotState, SlotState, SlotState];
 
+interface ManageModeRosterData {
+  members: BookingMember[];
+  guests: BookingGuest[];
+  validation: ValidationInfo;
+  ownerGuestPassesRemaining: number;
+  tierLimits?: { guest_passes_per_month: number };
+  guestPassContext?: { passesBeforeBooking: number; passesUsedThisBooking: number };
+  financialSummary?: FinancialSummary;
+}
+
+interface MemberMatchWarning {
+  slotNumber: number;
+  guestData: { guestName: string; guestEmail: string; guestPhone?: string };
+  memberMatch: { email: string; name: string; tier: string; status: string; note: string };
+}
+
 export function TrackmanLinkModal({ 
   isOpen, 
   onClose, 
@@ -59,7 +140,17 @@ export function TrackmanLinkModal({
   importedName,
   notes,
   isLegacyReview,
-  originalEmail
+  originalEmail,
+  bookingId,
+  mode,
+  ownerName,
+  ownerEmail,
+  declaredPlayerCount,
+  bookingContext,
+  onRosterUpdated,
+  checkinMode,
+  onCheckinComplete,
+  onCollectPayment
 }: TrackmanLinkModalProps) {
   const { guestFeeDollars } = usePricing();
   const [slots, setSlots] = useState<SlotsArray>([
@@ -91,6 +182,24 @@ export function TrackmanLinkModal({
   const [feeEstimate, setFeeEstimate] = useState<{ totalCents: number; overageCents: number; guestCents: number } | null>(null);
   const [isCalculatingFees, setIsCalculatingFees] = useState(false);
 
+  const [rosterData, setRosterData] = useState<ManageModeRosterData | null>(null);
+  const [isLoadingRoster, setIsLoadingRoster] = useState(false);
+  const [rosterError, setRosterError] = useState<string | null>(null);
+  const [editingPlayerCount, setEditingPlayerCount] = useState<number>(declaredPlayerCount || 1);
+  const [isUpdatingPlayerCount, setIsUpdatingPlayerCount] = useState(false);
+  const [manageModeGuestForm, setManageModeGuestForm] = useState<number | null>(null);
+  const [manageModeGuestData, setManageModeGuestData] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [isAddingManageGuest, setIsAddingManageGuest] = useState(false);
+  const [memberMatchWarning, setMemberMatchWarning] = useState<MemberMatchWarning | null>(null);
+  const [unlinkingSlotId, setUnlinkingSlotId] = useState<number | null>(null);
+  const [removingGuestId, setRemovingGuestId] = useState<number | null>(null);
+  const [manageModeSearchSlot, setManageModeSearchSlot] = useState<number | null>(null);
+  const [isLinkingMember, setIsLinkingMember] = useState(false);
+  const [savingChanges, setSavingChanges] = useState(false);
+  const membersSnapshotRef = useRef<BookingMember[]>([]);
+
+  const isManageMode = !!(bookingId && mode === 'manage');
+
   const isPlaceholderEmail = (email: string): boolean => {
     if (!email) return true;
     const lower = email.toLowerCase();
@@ -103,12 +212,104 @@ export function TrackmanLinkModal({
   };
 
   const shouldShowRememberEmail = (): boolean => {
+    if (isManageMode) return false;
     const ownerSlot = slots[0];
     if (ownerSlot.type !== 'member' && ownerSlot.type !== 'visitor') return false;
     if (!originalEmail || isPlaceholderEmail(originalEmail)) return false;
     const selectedEmail = ownerSlot.member?.email?.toLowerCase() || '';
     return originalEmail.toLowerCase() !== selectedEmail;
   };
+
+  const fetchRosterData = useCallback(async () => {
+    if (!bookingId) return;
+    setIsLoadingRoster(true);
+    setRosterError(null);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/members`, { credentials: 'include' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to load roster');
+      }
+      const data: ManageModeRosterData = await res.json();
+      setRosterData(data);
+      membersSnapshotRef.current = [...data.members];
+
+      if (data.validation) {
+        setEditingPlayerCount(data.validation.expectedPlayerCount);
+      }
+
+      const newSlots: SlotsArray = [
+        { type: 'empty' },
+        { type: 'empty' },
+        { type: 'empty' },
+        { type: 'empty' }
+      ];
+
+      const primary = data.members.find(m => m.isPrimary);
+      if (primary) {
+        if (primary.userEmail) {
+          newSlots[0] = {
+            type: 'member',
+            member: {
+              id: String(primary.id),
+              email: primary.userEmail,
+              name: primary.memberName,
+              tier: primary.tier
+            }
+          };
+        } else if (primary.guestInfo) {
+          newSlots[0] = {
+            type: 'guest_placeholder',
+            guestName: primary.guestInfo.guestName,
+            member: {
+              id: String(primary.guestInfo.guestId),
+              email: primary.guestInfo.guestEmail || '',
+              name: primary.guestInfo.guestName,
+              tier: null
+            }
+          };
+        }
+      }
+
+      const others = data.members
+        .filter(m => !m.isPrimary)
+        .sort((a, b) => a.slotNumber - b.slotNumber);
+
+      let slotIdx = 1;
+      for (const member of others) {
+        if (slotIdx > 3) break;
+        if (member.guestInfo) {
+          newSlots[slotIdx] = {
+            type: 'guest_placeholder',
+            guestName: member.guestInfo.guestName,
+            member: {
+              id: String(member.guestInfo.guestId),
+              email: member.guestInfo.guestEmail || '',
+              name: member.guestInfo.guestName,
+              tier: null
+            }
+          };
+        } else if (member.userEmail) {
+          newSlots[slotIdx] = {
+            type: 'member',
+            member: {
+              id: String(member.id),
+              email: member.userEmail,
+              name: member.memberName,
+              tier: member.tier
+            }
+          };
+        }
+        slotIdx++;
+      }
+
+      setSlots(newSlots);
+    } catch (err: any) {
+      setRosterError(err.message || 'Failed to load roster data');
+    } finally {
+      setIsLoadingRoster(false);
+    }
+  }, [bookingId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -133,8 +334,21 @@ export function TrackmanLinkModal({
       setOverlappingNotices([]);
       setFeeEstimate(null);
       setIsCalculatingFees(false);
+      setRosterData(null);
+      setRosterError(null);
+      setManageModeGuestForm(null);
+      setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
+      setMemberMatchWarning(null);
+      setManageModeSearchSlot(null);
+      setSavingChanges(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && isManageMode) {
+      fetchRosterData();
+    }
+  }, [isOpen, isManageMode, fetchRosterData]);
 
   useEffect(() => {
     const fetchStaffList = async () => {
@@ -156,6 +370,7 @@ export function TrackmanLinkModal({
   }, [showStaffList]);
 
   useEffect(() => {
+    if (isManageMode) return;
     const checkDuplicates = async () => {
       const fullName = `${visitorData.firstName} ${visitorData.lastName}`.trim();
       if (fullName.length < 3) {
@@ -187,9 +402,10 @@ export function TrackmanLinkModal({
     
     const timeoutId = setTimeout(checkDuplicates, 500);
     return () => clearTimeout(timeoutId);
-  }, [visitorData.firstName, visitorData.lastName]);
+  }, [visitorData.firstName, visitorData.lastName, isManageMode]);
 
   useEffect(() => {
+    if (isManageMode) return;
     const searchVisitors = async () => {
       if (!visitorSearch || visitorSearch.length < 2) {
         setVisitorSearchResults([]);
@@ -210,9 +426,10 @@ export function TrackmanLinkModal({
     };
     const timeoutId = setTimeout(searchVisitors, 300);
     return () => clearTimeout(timeoutId);
-  }, [visitorSearch]);
+  }, [visitorSearch, isManageMode]);
 
   useEffect(() => {
+    if (isManageMode) return;
     const calculateFees = async () => {
       const ownerSlot = slots[0];
       if (ownerSlot.type !== 'member' && ownerSlot.type !== 'visitor') {
@@ -271,7 +488,7 @@ export function TrackmanLinkModal({
     };
     
     calculateFees();
-  }, [slots, timeSlot, bookingDate]);
+  }, [slots, timeSlot, bookingDate, isManageMode]);
 
   const updateSlot = (index: number, slotState: SlotState) => {
     setSlots(prev => {
@@ -377,6 +594,198 @@ export function TrackmanLinkModal({
     }
   };
 
+  const handleManageModeUpdatePlayerCount = async (newCount: number) => {
+    if (!bookingId || isUpdatingPlayerCount) return;
+    setIsUpdatingPlayerCount(true);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/player-count`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ playerCount: newCount })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update player count');
+      }
+      setEditingPlayerCount(newCount);
+      showToast(`Player count updated to ${newCount}`, 'success');
+      await fetchRosterData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update player count', 'error');
+    } finally {
+      setIsUpdatingPlayerCount(false);
+    }
+  };
+
+  const handleManageModeLinkMember = async (slotId: number, memberEmail: string) => {
+    if (!bookingId) return;
+    setIsLinkingMember(true);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/members/${slotId}/link`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ memberEmail })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to link member');
+      }
+      showToast('Member linked successfully', 'success');
+      await fetchRosterData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to link member', 'error');
+    } finally {
+      setIsLinkingMember(false);
+      setManageModeSearchSlot(null);
+    }
+  };
+
+  const handleManageModeUnlinkMember = async (slotId: number) => {
+    if (!bookingId) return;
+    membersSnapshotRef.current = rosterData ? [...rosterData.members] : [];
+    setUnlinkingSlotId(slotId);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/members/${slotId}/unlink`, {
+        method: 'PUT',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to unlink member');
+      }
+      showToast('Member removed', 'success');
+      await fetchRosterData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to unlink member', 'error');
+      if (rosterData) {
+        setRosterData({ ...rosterData, members: membersSnapshotRef.current });
+      }
+    } finally {
+      setUnlinkingSlotId(null);
+    }
+  };
+
+  const handleManageModeAddGuest = async (slotNumber: number, forceAddAsGuest?: boolean) => {
+    if (!bookingId) return;
+    setIsAddingManageGuest(true);
+    try {
+      const body: any = {
+        guestName: `${manageModeGuestData.firstName} ${manageModeGuestData.lastName}`.trim(),
+        guestEmail: manageModeGuestData.email,
+        slotId: slotNumber
+      };
+      if (manageModeGuestData.phone) body.guestPhone = manageModeGuestData.phone;
+      if (forceAddAsGuest) body.forceAddAsGuest = true;
+
+      const res = await fetch(`/api/admin/booking/${bookingId}/guests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+
+      if (res.status === 409) {
+        const errData = await res.json();
+        if (errData.memberMatch) {
+          setMemberMatchWarning({
+            slotNumber,
+            guestData: {
+              guestName: body.guestName,
+              guestEmail: body.guestEmail,
+              guestPhone: manageModeGuestData.phone
+            },
+            memberMatch: errData.memberMatch
+          });
+          setIsAddingManageGuest(false);
+          return;
+        }
+        throw new Error(errData.error || 'Conflict adding guest');
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to add guest');
+      }
+
+      showToast('Guest added successfully', 'success');
+      setManageModeGuestForm(null);
+      setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
+      setMemberMatchWarning(null);
+      await fetchRosterData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to add guest', 'error');
+    } finally {
+      setIsAddingManageGuest(false);
+    }
+  };
+
+  const handleManageModeRemoveGuest = async (guestId: number) => {
+    if (!bookingId) return;
+    setRemovingGuestId(guestId);
+    try {
+      const res = await fetch(`/api/admin/booking/${bookingId}/guests/${guestId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to remove guest');
+      }
+      showToast('Guest removed', 'success');
+      await fetchRosterData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to remove guest', 'error');
+    } finally {
+      setRemovingGuestId(null);
+    }
+  };
+
+  const handleManageModeMemberMatchResolve = async (action: 'member' | 'guest') => {
+    if (!memberMatchWarning) return;
+    if (action === 'member') {
+      const member = rosterData?.members.find(m => m.slotNumber === memberMatchWarning.slotNumber);
+      if (member) {
+        await handleManageModeLinkMember(member.id, memberMatchWarning.memberMatch.email);
+      }
+      setMemberMatchWarning(null);
+      setManageModeGuestForm(null);
+      setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
+    } else {
+      setMemberMatchWarning(null);
+      await handleManageModeAddGuest(memberMatchWarning.slotNumber, true);
+    }
+  };
+
+  const handleManageModeSave = async () => {
+    setSavingChanges(true);
+    try {
+      if (checkinMode && bookingId) {
+        const res = await fetch(`/api/bookings/${bookingId}/checkin`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to check in');
+        }
+        showToast('Check-in complete', 'success');
+        onCheckinComplete?.();
+        onClose();
+      } else {
+        showToast('Changes saved', 'success');
+        onRosterUpdated?.();
+        onClose();
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save changes', 'error');
+    } finally {
+      setSavingChanges(false);
+    }
+  };
+
   const ownerSlot = slots[0];
   const hasOwner = ownerSlot.type !== 'empty';
   const filledSlotsCount = slots.filter(s => s.type !== 'empty').length;
@@ -408,8 +817,6 @@ export function TrackmanLinkModal({
       let resultBookingId = matchedBookingId;
 
       if (isLegacyReview && matchedBookingId) {
-        // Resolve legacy requires-review booking from trackman_unmatched_bookings table
-        // Extract numeric ID from string or use as-is if already numeric
         let numericId: number;
         if (typeof matchedBookingId === 'string') {
           numericId = parseInt(matchedBookingId.replace('review-', ''), 10);
@@ -438,7 +845,6 @@ export function TrackmanLinkModal({
         const data = await res.json();
         feesRecalculated = data.feesRecalculated === true;
         if (data.booking?.id) {
-          // Ensure resultBookingId is numeric for billing modal
           resultBookingId = typeof data.booking.id === 'number' ? data.booking.id : parseInt(data.booking.id, 10);
         }
       } else if (matchedBookingId && !isLegacyReview) {
@@ -502,7 +908,6 @@ export function TrackmanLinkModal({
       onClose();
       
       if (feesRecalculated && resultBookingId && onOpenBillingModal) {
-        // Ensure numeric ID for billing modal
         const numericBookingId = typeof resultBookingId === 'number' 
           ? resultBookingId 
           : parseInt(String(resultBookingId).replace('review-', ''), 10);
@@ -579,8 +984,8 @@ export function TrackmanLinkModal({
     
     setMarkingAsEvent(true);
     try {
-      const bookingId = matchedBookingId;
-      if (!bookingId && !trackmanBookingId) {
+      const bkId = matchedBookingId;
+      if (!bkId && !trackmanBookingId) {
         throw new Error('No booking to mark as event');
       }
 
@@ -589,7 +994,7 @@ export function TrackmanLinkModal({
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          booking_id: bookingId,
+          booking_id: bkId,
           trackman_booking_id: trackmanBookingId,
           existingClosureId
         })
@@ -654,7 +1059,7 @@ export function TrackmanLinkModal({
             owner: {
               email: staff.email,
               name: staffName,
-              member_id: staff.user_id
+              member_id: staff.user_id || staff.id
             },
             additional_players: [],
             rememberEmail: false
@@ -675,7 +1080,7 @@ export function TrackmanLinkModal({
             owner: {
               email: staff.email,
               name: staffName,
-              member_id: staff.user_id
+              member_id: staff.user_id || staff.id
             },
             additional_players: [],
             rememberEmail: false
@@ -721,7 +1126,7 @@ export function TrackmanLinkModal({
     }
   };
 
-  if (!trackmanBookingId && !matchedBookingId) return null;
+  if (!isManageMode && !trackmanBookingId && !matchedBookingId) return null;
 
   const renderSlot = (slotIndex: number, isOwnerSlot: boolean) => {
     const slot = slots[slotIndex];
@@ -962,6 +1367,515 @@ export function TrackmanLinkModal({
       </button>
     );
   };
+
+  const renderManageModeSlot = (member: BookingMember, index: number) => {
+    const isOwner = member.isPrimary;
+    const isUnlinking = unlinkingSlotId === member.id;
+    const isGuestSlot = !!member.guestInfo;
+    const isRemoving = isGuestSlot && removingGuestId === member.guestInfo?.guestId;
+    const showGuestPassBadge = isGuestSlot && member.guestInfo?.usedGuestPass === true && member.guestInfo?.fee === 0;
+
+    return (
+      <div 
+        key={member.id}
+        className={`relative p-3 rounded-xl border transition-all ${
+          isOwner 
+            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+            : isGuestSlot
+              ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700'
+              : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+        }`}
+      >
+        {(isUnlinking || isRemoving) && (
+          <div className="absolute inset-0 bg-white/60 dark:bg-black/40 rounded-xl flex items-center justify-center z-10">
+            <span className="material-symbols-outlined animate-spin text-red-500">progress_activity</span>
+            <span className="ml-2 text-sm text-red-600 dark:text-red-400">Removing...</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+              isOwner 
+                ? 'bg-green-200 dark:bg-green-800 text-green-700 dark:text-green-300'
+                : 'bg-primary/10 dark:bg-white/10 text-primary/60 dark:text-white/60'
+            }`}>
+              {member.slotNumber}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium text-sm text-primary dark:text-white truncate">
+                  {isGuestSlot ? member.guestInfo?.guestName : member.memberName}
+                </p>
+                {isOwner && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 rounded">
+                    Owner
+                  </span>
+                )}
+                {member.tier && <TierBadge tier={member.tier} size="sm" />}
+                {isGuestSlot && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 rounded">
+                    Guest
+                  </span>
+                )}
+                {showGuestPassBadge && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 rounded flex items-center gap-0.5">
+                    <span className="material-symbols-outlined text-[10px]">redeem</span>
+                    Guest Pass Used
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-primary/60 dark:text-white/60 truncate">
+                {isGuestSlot ? member.guestInfo?.guestEmail : member.userEmail}
+              </p>
+              {member.fee > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ${(member.fee / 100).toFixed(2)} — {member.feeNote}
+                </p>
+              )}
+              {member.fee === 0 && member.feeNote && (
+                <p className="text-xs text-green-600 dark:text-green-400">{member.feeNote}</p>
+              )}
+            </div>
+          </div>
+          {!isOwner && (
+            <button
+              onClick={() => {
+                if (isGuestSlot && member.guestInfo) {
+                  handleManageModeRemoveGuest(member.guestInfo.guestId);
+                } else {
+                  handleManageModeUnlinkMember(member.id);
+                }
+              }}
+              disabled={isUnlinking || isRemoving}
+              className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors flex-shrink-0"
+              title="Remove"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderManageModeEmptySlot = (slotNumber: number) => {
+    const isSearching = manageModeSearchSlot === slotNumber;
+    const isGuestForm = manageModeGuestForm === slotNumber;
+    const memberSlot = rosterData?.members.find(m => m.slotNumber === slotNumber);
+
+    if (isGuestForm) {
+      return (
+        <div key={`empty-${slotNumber}`} className="p-3 rounded-xl border border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-primary/10 dark:bg-white/10 text-primary/60 dark:text-white/60">
+                {slotNumber}
+              </div>
+              <span className="text-xs font-medium text-primary dark:text-white">New Guest</span>
+            </div>
+            <button
+              onClick={() => {
+                setManageModeGuestForm(null);
+                setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
+                setMemberMatchWarning(null);
+              }}
+              className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              placeholder="First Name *"
+              value={manageModeGuestData.firstName}
+              onChange={(e) => setManageModeGuestData({ ...manageModeGuestData, firstName: e.target.value })}
+              className="px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-xs"
+            />
+            <input
+              type="text"
+              placeholder="Last Name *"
+              value={manageModeGuestData.lastName}
+              onChange={(e) => setManageModeGuestData({ ...manageModeGuestData, lastName: e.target.value })}
+              className="px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-xs"
+            />
+          </div>
+          <input
+            type="email"
+            placeholder="Email Address *"
+            value={manageModeGuestData.email}
+            onChange={(e) => setManageModeGuestData({ ...manageModeGuestData, email: e.target.value })}
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-xs"
+          />
+          <input
+            type="tel"
+            placeholder="Phone (optional)"
+            value={manageModeGuestData.phone}
+            onChange={(e) => setManageModeGuestData({ ...manageModeGuestData, phone: e.target.value })}
+            className="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/50 dark:placeholder:text-white/50 text-xs"
+          />
+
+          {memberMatchWarning && memberMatchWarning.slotNumber === slotNumber && (
+            <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/30 rounded-lg space-y-2">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                This email matches an existing member
+              </p>
+              <p className="text-xs text-primary/70 dark:text-white/70">
+                {memberMatchWarning.memberMatch.name} ({memberMatchWarning.memberMatch.tier}) — {memberMatchWarning.memberMatch.note}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleManageModeMemberMatchResolve('member')}
+                  className="flex-1 py-1.5 px-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Add as Member
+                </button>
+                <button
+                  onClick={() => handleManageModeMemberMatchResolve('guest')}
+                  className="flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                >
+                  Add as Guest Anyway
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => handleManageModeAddGuest(slotNumber)}
+            disabled={!manageModeGuestData.firstName || !manageModeGuestData.lastName || !manageModeGuestData.email || isAddingManageGuest}
+            className="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
+          >
+            {isAddingManageGuest ? (
+              <>
+                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                Adding...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-sm">person_add</span>
+                Add Guest
+              </>
+            )}
+          </button>
+        </div>
+      );
+    }
+
+    if (isSearching) {
+      return (
+        <div key={`empty-${slotNumber}`} className="p-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 space-y-2">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-primary/10 dark:bg-white/10 text-primary/60 dark:text-white/60">
+                {slotNumber}
+              </div>
+              <span className="text-xs font-medium text-primary/60 dark:text-white/60">Search Member</span>
+            </div>
+            <button
+              onClick={() => setManageModeSearchSlot(null)}
+              className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+          <MemberSearchInput
+            placeholder="Search member..."
+            onSelect={(selected) => {
+              if (memberSlot) {
+                handleManageModeLinkMember(memberSlot.id, selected.email);
+              }
+            }}
+            showTier={true}
+            autoFocus={true}
+            includeVisitors={true}
+            disabled={isLinkingMember}
+          />
+          {isLinkingMember && (
+            <div className="flex items-center justify-center gap-2 text-sm text-primary/50 dark:text-white/50">
+              <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+              Linking...
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div key={`empty-${slotNumber}`} className="p-3 rounded-xl border-2 border-dashed border-primary/20 dark:border-white/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-primary/10 dark:bg-white/10 text-primary/40 dark:text-white/40">
+              {slotNumber}
+            </div>
+            <div>
+              <p className="text-sm text-primary/50 dark:text-white/50">Empty Slot</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">${guestFeeDollars} fee applies</p>
+            </div>
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => {
+                setManageModeSearchSlot(slotNumber);
+                setManageModeGuestForm(null);
+              }}
+              className="py-1 px-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-xs">search</span>
+              Search
+            </button>
+            <button
+              onClick={() => {
+                setManageModeGuestForm(slotNumber);
+                setManageModeSearchSlot(null);
+                setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
+              }}
+              className="py-1 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-xs">person_add</span>
+              New Guest
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderManageModeFinancialSummary = () => {
+    const fs = rosterData?.financialSummary;
+    if (!fs) return null;
+
+    const guestPassesUsed = rosterData?.members.filter(
+      m => m.guestInfo && m.guestInfo.usedGuestPass === true && m.guestInfo.fee === 0
+    ).length || 0;
+
+    return (
+      <div className="p-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 space-y-2">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg">payments</span>
+          <h4 className="font-medium text-sm text-primary dark:text-white">Financial Summary</h4>
+          {fs.allPaid && (
+            <span className="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              Paid
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-1 text-xs">
+          {fs.ownerOverageFee > 0 && (
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>Owner overage fee</span>
+              <span>${(fs.ownerOverageFee / 100).toFixed(2)}</span>
+            </div>
+          )}
+          {fs.guestFeesWithoutPass > 0 && (
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>Guest fees (no pass)</span>
+              <span>${(fs.guestFeesWithoutPass / 100).toFixed(2)}</span>
+            </div>
+          )}
+          {guestPassesUsed > 0 && (
+            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+              <span>Guest passes used</span>
+              <span>{guestPassesUsed}</span>
+            </div>
+          )}
+          {fs.playerBreakdown && fs.playerBreakdown.length > 0 && (
+            <div className="pt-1 border-t border-primary/10 dark:border-white/10 space-y-0.5">
+              {fs.playerBreakdown.map((p, idx) => (
+                <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
+                  <span className="flex items-center gap-1">
+                    {p.name}
+                    {p.tier && <TierBadge tier={p.tier} size="sm" />}
+                  </span>
+                  <span>{p.fee > 0 ? `$${(p.fee / 100).toFixed(2)}` : p.feeNote || 'Included'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="pt-1 border-t border-primary/10 dark:border-white/10 flex justify-between font-semibold text-sm text-primary dark:text-white">
+            <span>Owner Pays</span>
+            <span>${(fs.totalOwnerOwes / 100).toFixed(2)}</span>
+          </div>
+          {fs.grandTotal > 0 && fs.grandTotal !== fs.totalOwnerOwes && (
+            <div className="flex justify-between text-primary/70 dark:text-white/70">
+              <span>Grand Total</span>
+              <span>${(fs.grandTotal / 100).toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+
+        {!fs.allPaid && fs.grandTotal > 0 && bookingId && onCollectPayment && (
+          <button
+            onClick={() => onCollectPayment(bookingId)}
+            className="w-full mt-2 py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1"
+          >
+            <span className="material-symbols-outlined text-sm">payments</span>
+            Collect ${(fs.grandTotal / 100).toFixed(2)}
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderManageModeGuestPassInfo = () => {
+    if (!rosterData) return null;
+    const total = rosterData.tierLimits?.guest_passes_per_month;
+    if (!total) return null;
+    const remaining = rosterData.ownerGuestPassesRemaining;
+
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <span className="material-symbols-outlined text-emerald-500 text-sm">redeem</span>
+        <span className="text-primary/70 dark:text-white/70">
+          Guest Passes: <span className="font-semibold text-primary dark:text-white">{remaining}/{total}</span> remaining
+        </span>
+      </div>
+    );
+  };
+
+  if (isManageMode) {
+    const validation = rosterData?.validation;
+    const filledCount = validation ? validation.actualPlayerCount : 0;
+    const totalCount = validation ? validation.expectedPlayerCount : (declaredPlayerCount || 1);
+    const filledMembers = rosterData?.members.filter(m => m.userEmail || m.guestInfo) || [];
+    const emptySlotNumbers: number[] = [];
+    if (rosterData?.members) {
+      for (const m of rosterData.members) {
+        if (!m.userEmail && !m.guestInfo) {
+          emptySlotNumbers.push(m.slotNumber);
+        }
+      }
+    }
+
+    const manageModeTitle = `Manage Players - ${ownerName || 'Booking'}`;
+
+    const manageModeFooter = (
+      <div className="p-4 space-y-2">
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleManageModeSave}
+            disabled={savingChanges}
+            className="flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+          >
+            {savingChanges ? (
+              <>
+                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                {checkinMode ? 'Checking In...' : 'Saving...'}
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-sm">{checkinMode ? 'how_to_reg' : 'save'}</span>
+                {checkinMode ? 'Complete Check-In' : 'Save Changes'}
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+
+    return (
+      <SlideUpDrawer
+        isOpen={isOpen}
+        onClose={onClose}
+        title={manageModeTitle}
+        maxHeight="full"
+        stickyFooter={manageModeFooter}
+      >
+        <div className="p-4 space-y-4">
+          {isLoadingRoster ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+            </div>
+          ) : rosterError ? (
+            <div className="text-center py-8">
+              <span className="material-symbols-outlined text-4xl text-red-500 mb-2">error</span>
+              <p className="text-red-600 dark:text-red-400">{rosterError}</p>
+              <button onClick={fetchRosterData} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">
+                Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                    filledCount === totalCount 
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                  }`}>
+                    {filledCount}/{totalCount} Assigned
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-primary/60 dark:text-white/60">Players:</label>
+                  <select
+                    value={editingPlayerCount}
+                    onChange={(e) => handleManageModeUpdatePlayerCount(Number(e.target.value))}
+                    disabled={isUpdatingPlayerCount}
+                    className="px-2 py-1 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-xs disabled:opacity-50"
+                  >
+                    {[1, 2, 3, 4].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  {isUpdatingPlayerCount && (
+                    <span className="material-symbols-outlined animate-spin text-sm text-primary/50 dark:text-white/50">progress_activity</span>
+                  )}
+                </div>
+              </div>
+
+              {renderManageModeGuestPassInfo()}
+
+              {bookingContext && (
+                <div className="p-3 bg-primary/5 dark:bg-white/5 rounded-xl text-xs text-primary/70 dark:text-white/70 grid grid-cols-2 gap-2">
+                  {bookingContext.resourceName && (
+                    <p className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">sports_golf</span>
+                      {bookingContext.resourceName}
+                    </p>
+                  )}
+                  {bookingContext.requestDate && (
+                    <p className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">calendar_today</span>
+                      {bookingContext.requestDate}
+                    </p>
+                  )}
+                  {bookingContext.startTime && bookingContext.endTime && (
+                    <p className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">schedule</span>
+                      {bookingContext.startTime} - {bookingContext.endTime}
+                    </p>
+                  )}
+                  {bookingContext.durationMinutes && (
+                    <p className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">timer</span>
+                      {bookingContext.durationMinutes} min
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
+                {emptySlotNumbers.map(slotNum => renderManageModeEmptySlot(slotNum))}
+              </div>
+
+              {renderManageModeFinancialSummary()}
+            </>
+          )}
+        </div>
+      </SlideUpDrawer>
+    );
+  }
 
   const drawerTitle = `${bayName || 'Trackman'}${timeSlot ? ` • ${timeSlot}` : ''}`;
 

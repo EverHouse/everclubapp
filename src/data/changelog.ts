@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.16.0",
+    date: "2026-02-10",
+    title: "Unified Player Management Modal",
+    isMajor: true,
+    changes: [
+      "Major: All player and roster management is now handled by a single unified modal instead of three separate ones — no more confusion about which modal to use",
+      "Feature: 'Manage Players' button in booking details opens the unified modal with the current roster pre-loaded, showing all assigned members, guests, fees, and guest passes",
+      "Feature: Player count can be edited directly from the modal (1-4 players) with real-time roster updates",
+      "Feature: Financial summary section shows owner overage, guest fees, guest pass usage, and total amount due — with a 'Collect Payment' button when there's an unpaid balance",
+      "Feature: Guest pass tracking shows remaining passes and which guests used them (green badge for free passes)",
+      "Feature: New Guest form with member match detection — if a guest's email matches an existing member, staff gets a warning with option to add as member instead",
+      "Feature: Optimistic unlink/remove with rollback on failure for instant-feeling slot management",
+      "Improvement: Unified modal works from all entry points: booking detail drawer, calendar grid 'Players' button, check-in error handler, Trackman tab, and Staff Command Center",
+      "Cleanup: Deprecated BookingMembersEditor and CompleteRosterModal — all call sites now route through the unified modal",
+    ],
+  },
+  {
     version: "7.15.4",
     date: "2026-02-10",
     title: "Unified Player Count Editing",
