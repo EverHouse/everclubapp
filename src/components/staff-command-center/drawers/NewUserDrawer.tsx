@@ -357,18 +357,6 @@ export function NewUserDrawer({
             setCreatedUser(user);
             setMemberStep('success');
             onSuccess?.({ ...user, mode: 'member' });
-            if (scannedIdImage) {
-              fetch('/api/admin/save-id-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                  userId: user.id,
-                  image: scannedIdImage.base64,
-                  mimeType: scannedIdImage.mimeType,
-                }),
-              }).catch(err => console.error('Failed to save ID image:', err));
-            }
           }}
           createdUser={createdUser}
           onClose={handleClose}
