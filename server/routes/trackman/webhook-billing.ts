@@ -582,6 +582,7 @@ export async function linkByExternalBookingId(
        WHERE trackman_external_id = $1
          OR calendar_event_id = $1
          OR id::text = $1
+         OR trackman_booking_id = $1
        LIMIT 1`,
       [externalBookingId]
     );

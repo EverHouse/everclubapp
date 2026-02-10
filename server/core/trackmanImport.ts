@@ -2469,6 +2469,142 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             }
           }
 
+          // PRIORITY: Check if a ghost booking already exists with this trackman_booking_id
+          // This prevents creating duplicates when CSV re-imports a booking that was already
+          // created by webhook as a ghost/placeholder booking
+          const existingByTrackmanId = await db.select({
+            id: bookingRequests.id,
+            trackmanBookingId: bookingRequests.trackmanBookingId,
+            userEmail: bookingRequests.userEmail,
+            status: bookingRequests.status,
+            sessionId: bookingRequests.sessionId,
+            isUnmatched: bookingRequests.isUnmatched,
+          }).from(bookingRequests)
+            .where(eq(bookingRequests.trackmanBookingId, row.bookingId))
+            .limit(1);
+
+          if (existingByTrackmanId.length > 0) {
+            const existingGhost = existingByTrackmanId[0];
+            const ghostUpdateStatus = matchedEmail ? 'approved' : (normalizedStatus || existingGhost.status);
+
+            const ghostUpdateFields: Record<string, any> = {
+              userName: row.userName || undefined,
+              startTime: startTime,
+              endTime: endTime,
+              durationMinutes: row.durationMins,
+              trackmanPlayerCount: row.playerCount,
+              declaredPlayerCount: row.playerCount,
+              notes: `[Trackman Import ID:${row.bookingId}] ${row.notes}`,
+              trackmanCustomerNotes: row.notes || null,
+              isUnmatched: !matchedEmail,
+              status: ghostUpdateStatus,
+              lastSyncSource: 'trackman_import',
+              lastTrackmanSyncAt: new Date(),
+              updatedAt: new Date(),
+              origin: 'trackman_import',
+            };
+
+            if (matchedEmail) {
+              ghostUpdateFields.userEmail = matchedEmail;
+            }
+            if (parsedBayId) {
+              ghostUpdateFields.resourceId = parsedBayId;
+            }
+            if (bookingDate) {
+              ghostUpdateFields.requestDate = bookingDate;
+            }
+
+            await db.update(bookingRequests)
+              .set(ghostUpdateFields)
+              .where(eq(bookingRequests.id, existingGhost.id));
+
+            process.stderr.write(`[Trackman Import] UPDATED ghost booking #${existingGhost.id} (trackman_booking_id=${row.bookingId}) instead of creating duplicate${matchedEmail ? `, assigned to ${matchedEmail}` : ''}\n`);
+
+            if (matchedEmail) {
+              try {
+                const existingMembers = await pool.query(
+                  `SELECT id FROM booking_members WHERE booking_id = $1`,
+                  [existingGhost.id]
+                );
+
+                if (existingMembers.rows.length === 0) {
+                  const ghostParsedPlayers = parseNotesForPlayers(row.notes);
+                  const ghostGuestPlayers = ghostParsedPlayers.filter(p => p.type === 'guest');
+
+                  await pool.query(
+                    `INSERT INTO booking_members (booking_id, user_email, slot_number, is_primary, trackman_booking_id, linked_at, linked_by)
+                     VALUES ($1, $2, 1, true, $3, NOW(), 'trackman_import')`,
+                    [existingGhost.id, matchedEmail, row.bookingId]
+                  );
+
+                  for (let slot = 2; slot <= row.playerCount; slot++) {
+                    const guestIndex = slot - 2;
+                    const guestInfo = guestIndex < ghostGuestPlayers.length ? ghostGuestPlayers[guestIndex] : null;
+
+                    await pool.query(
+                      `INSERT INTO booking_members (booking_id, slot_number, is_primary, trackman_booking_id)
+                       VALUES ($1, $2, false, $3)`,
+                      [existingGhost.id, slot, row.bookingId]
+                    );
+
+                    if (guestInfo?.name) {
+                      await pool.query(
+                        `INSERT INTO booking_guests (booking_id, guest_name, guest_email, slot_number, trackman_booking_id)
+                         VALUES ($1, $2, $3, $4, $5)
+                         ON CONFLICT DO NOTHING`,
+                        [existingGhost.id, guestInfo.name, guestInfo.email || null, slot, row.bookingId]
+                      );
+                    }
+                  }
+
+                  if (ghostGuestPlayers.length > 0) {
+                    process.stderr.write(`[Trackman Import] Created ${row.playerCount} member slots with ${ghostGuestPlayers.length} guest names for updated ghost booking #${existingGhost.id}\n`);
+                  }
+                }
+              } catch (memberErr: any) {
+                process.stderr.write(`[Trackman Import] Failed to create booking_members for ghost booking #${existingGhost.id}: ${memberErr.message}\n`);
+              }
+
+              if (parsedBayId && bookingDate && startTime && !existingGhost.sessionId) {
+                try {
+                  const ghostSessionPlayers = parseNotesForPlayers(row.notes);
+                  await createTrackmanSessionAndParticipants({
+                    bookingId: existingGhost.id,
+                    trackmanBookingId: row.bookingId,
+                    resourceId: parsedBayId,
+                    sessionDate: bookingDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    durationMinutes: row.durationMins,
+                    ownerEmail: matchedEmail,
+                    ownerName: row.userName || 'Unknown',
+                    parsedPlayers: ghostSessionPlayers,
+                    membersByEmail: membersByEmail,
+                    trackmanEmailMapping: trackmanEmailMapping,
+                    isPast: !isUpcoming
+                  });
+                } catch (sessionErr: any) {
+                  process.stderr.write(`[Trackman Import] Session creation failed for ghost booking #${existingGhost.id}: ${sessionErr.message}\n`);
+                }
+              }
+            }
+
+            if (legacyIsUnresolved && existingUnmatched[0]) {
+              try {
+                await db.update(trackmanUnmatchedBookings)
+                  .set({
+                    resolvedAt: new Date(),
+                    resolvedBy: 'trackman_import_ghost_update',
+                    notes: sql`COALESCE(notes, '') || ' [Auto-resolved: ghost booking updated with member info]'`
+                  })
+                  .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
+              } catch (e) { /* non-blocking */ }
+            }
+
+            updatedRows++;
+            continue;
+          }
+
           const originalBookedDate = row.bookedDate ? new Date(row.bookedDate.replace(' ', 'T') + ':00') : null;
           
           // Parse notes BEFORE insert to count actual guests

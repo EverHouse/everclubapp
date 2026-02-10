@@ -101,6 +101,37 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const [checkingCard, setCheckingCard] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'terminal'>('terminal');
 
+  const cancelOverageIntent = async () => {
+    if (overagePaymentIntentId) {
+      const intentId = overagePaymentIntentId;
+      setOveragePaymentIntentId(null);
+      setOverageClientSecret(null);
+      try {
+        await fetch('/api/stripe/cancel-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ paymentIntentId: intentId })
+        });
+      } catch (err) {
+        console.error('Failed to cancel overage intent:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (overagePaymentIntentId) {
+        fetch('/api/stripe/cancel-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ paymentIntentId: overagePaymentIntentId })
+        }).catch(err => console.error('Failed to cancel overage intent on unmount:', err));
+      }
+    };
+  }, [overagePaymentIntentId]);
+
   useEffect(() => {
     console.log('[CheckinBillingModal] Props changed:', { isOpen, bookingId });
     if (isOpen && bookingId) {
@@ -534,6 +565,14 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   
   const hasUnreviewedWaivers = context?.participants.some(p => p.waiverNeedsReview) || false;
 
+  const handleClose = () => {
+    if (showOveragePayment && overagePaymentIntentId) {
+      cancelOverageIntent();
+      setShowOveragePayment(false);
+    }
+    onClose();
+  };
+
   const drawerTitle = context 
     ? `${context.resourceName} • ${formatBookingDate(context.bookingDate)}`
     : 'Check-In & Billing';
@@ -542,7 +581,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     <div className="px-6 py-4">
       {showOveragePayment ? (
         <button
-          onClick={() => { setShowOveragePayment(false); setOverageClientSecret(null); setPaymentMethod('online'); }}
+          onClick={() => { cancelOverageIntent(); setShowOveragePayment(false); setPaymentMethod('online'); }}
           className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
         >
           Back
@@ -649,7 +688,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
             </button>
           )}
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
           >
             Cancel
@@ -662,7 +701,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   return (
     <SlideUpDrawer
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={drawerTitle}
       maxHeight="full"
       stickyFooter={footerContent}
@@ -710,7 +749,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 paymentMetadata={{ bookingId: String(bookingId), ownerEmail: context.ownerEmail, userId: context.ownerId, ownerName: context.ownerName, paymentType: 'overage_fee' }}
                 onSuccess={(piId) => handleOveragePaymentSuccess(piId)}
                 onError={(msg) => showToast(msg, 'error')}
-                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); setOveragePaymentIntentId(null); setPaymentMethod('online'); }}
+                onCancel={() => { cancelOverageIntent(); setShowOveragePayment(false); setPaymentMethod('online'); }}
               />
             ) : overageClientSecret ? (
               <StripePaymentForm
@@ -722,7 +761,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 purpose="overage_fee"
                 bookingId={bookingId}
                 onSuccess={handleOveragePaymentSuccess}
-                onCancel={() => { setShowOveragePayment(false); setOverageClientSecret(null); setOveragePaymentIntentId(null); setPaymentMethod('online'); }}
+                onCancel={() => { cancelOverageIntent(); setShowOveragePayment(false); setPaymentMethod('online'); }}
               />
             ) : (
               <div className="flex items-center justify-center py-8">

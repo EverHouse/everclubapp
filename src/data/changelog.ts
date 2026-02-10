@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.21.0",
+    date: "2026-02-10",
+    title: "Stripe Clarity & Trackman Import Intelligence",
+    isMajor: true,
+    changes: [
+      "Feature: Stripe Dashboard now shows the booking number in every charge description (e.g. '#19607382 - Simulator Bay 2') so you can instantly see which booking a payment belongs to without clicking into metadata",
+      "Feature: Overage payment intents are now reused — if an overage charge already exists for a booking, the system returns the same payment link instead of creating a duplicate 'Incomplete' charge",
+      "Feature: Overage payment intents are now automatically cancelled when staff closes or backs out of the payment flow, preventing orphaned 'Incomplete' charges in Stripe",
+      "Feature: Trackman webhook matching now also searches by the short booking number, making automatic linking more reliable",
+      "Feature: CSV import now detects existing ghost bookings by their Trackman booking number and updates them in place instead of creating duplicates",
+      "Improvement: Conference room and ad-hoc bookings (without a standard booking ID) now skip the duplicate payment check and are tagged with 'conference_booking' metadata in Stripe for easy identification",
+      "Improvement: Member-facing payment descriptions now show the booking number prefix for guest fees, overage fees, and combined charges",
+    ],
+  },
+  {
     version: "7.20.4",
     date: "2026-02-10",
     title: "Terminal Payment Reconciliation & Trackman Import Fix",

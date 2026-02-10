@@ -91,6 +91,16 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         error: 'Missing required fields: email, amountCents, purpose, description' 
       });
     }
+
+    let finalDescription = description;
+    if (bookingId) {
+      const trackmanLookup = await db.execute(sql`SELECT trackman_booking_id FROM booking_requests WHERE id = ${bookingId}`);
+      const trackmanId = trackmanLookup.rows[0]?.trackman_booking_id;
+      const displayId = trackmanId || bookingId;
+      if (!description.startsWith('#')) {
+        finalDescription = `#${displayId} - ${description}`;
+      }
+    }
     
     if (typeof amountCents !== 'number' || amountCents < 50 || !Number.isFinite(amountCents)) {
       return res.status(400).json({ 
@@ -263,7 +273,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         purpose,
         bookingId,
         sessionId,
-        description,
+        description: finalDescription,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined
       });
     } catch (stripeErr) {

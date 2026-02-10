@@ -21,7 +21,7 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
     const bookingResult = await db.execute(sql`
       SELECT br.id, br.user_email, br.overage_fee_cents, br.overage_paid, br.overage_minutes,
              br.request_date, br.start_time, br.duration_minutes,
-             br.session_id, br.declared_player_count,
+             br.session_id, br.declared_player_count, br.overage_payment_intent_id,
              u.stripe_customer_id, u.id as user_id, u.first_name, u.last_name
       FROM booking_requests br
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
@@ -92,6 +92,30 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       customerId = custResult.customerId;
     }
     
+    if (booking.overage_payment_intent_id) {
+      try {
+        const existingPI = await stripe.paymentIntents.retrieve(booking.overage_payment_intent_id as string);
+        if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(existingPI.status) 
+            && existingPI.amount === verifiedOverageCents) {
+          console.log(`[Overage Payment] Reusing existing intent ${existingPI.id} for booking ${bookingId}`);
+          return res.json({
+            clientSecret: existingPI.client_secret,
+            paymentIntentId: existingPI.id,
+            amount: verifiedOverageCents,
+            overageMinutes: booking.overage_minutes,
+            overageBlocks: Math.ceil(booking.overage_minutes / 30),
+            reused: true
+          });
+        }
+        if (existingPI.status === 'succeeded' && !booking.overage_paid) {
+          await db.execute(sql`UPDATE booking_requests SET overage_paid = true, updated_at = NOW() WHERE id = ${bookingId}`);
+          return res.status(200).json({ alreadyPaid: true, message: 'Overage already paid' });
+        }
+      } catch (piErr) {
+        console.warn('[Overage Payment] Could not retrieve existing intent, creating new one:', (piErr as Error).message);
+      }
+    }
+    
     const productResult = await db.execute(sql`
       SELECT stripe_price_id, stripe_product_id 
       FROM membership_tiers 
@@ -102,10 +126,8 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       return res.status(500).json({ error: 'Simulator overage product is not set up in Stripe yet. This usually resolves itself on server restart. Try refreshing in a minute.' });
     }
     
-    const { PRICING } = await import('../../core/billing/pricingConfig');
     const overageBlocks = Math.ceil(booking.overage_minutes / 30);
-    const overageRateStr = (PRICING.OVERAGE_RATE_CENTS / 100).toFixed(0);
-    const description = `Simulator Overage: ${booking.overage_minutes} min (${overageBlocks} × 30 min @ $${overageRateStr})`;
+    const description = `#${bookingId} - Additional Fees / Overage: ${booking.overage_minutes} min`;
     
     const paymentIntent = await stripe.paymentIntents.create({
       amount: booking.overage_fee_cents,

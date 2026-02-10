@@ -112,6 +112,7 @@ export async function createPaymentIntent(
   };
   
   if (bookingId) stripeMetadata.bookingId = bookingId.toString();
+  if (!bookingId) stripeMetadata.type = 'conference_booking';
   if (sessionId) stripeMetadata.sessionId = sessionId.toString();
   if (metadata?.participantFees) stripeMetadata.participantFees = metadata.participantFees;
   if (productId) stripeMetadata.productId = productId;

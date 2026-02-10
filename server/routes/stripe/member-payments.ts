@@ -34,7 +34,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     }
 
     const bookingResult = await pool.query(
-      `SELECT br.id, br.session_id, br.user_email, br.user_name, br.status, u.id as user_id, u.first_name, u.last_name
+      `SELECT br.id, br.session_id, br.user_email, br.user_name, br.status, br.trackman_booking_id, u.id as user_id, u.first_name, u.last_name
        FROM booking_requests br
        LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
        WHERE br.id = $1`,
@@ -186,17 +186,19 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     // Build description and purpose based on fee types present
     const hasGuestFees = pendingParticipants.rows.some(r => r.participant_type === 'guest');
     const hasOverageFees = pendingParticipants.rows.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
-    let description = 'Booking fees';
+    const trackmanId = booking.trackman_booking_id;
+    const displayId = trackmanId || bookingId;
+    let description = `#${displayId} - Booking Fees`;
     let purpose: 'guest_fee' | 'overage_fee' = 'guest_fee';
     if (hasGuestFees && hasOverageFees) {
-      description = `Overage & guest fees for booking ${bookingId}`;
-      purpose = 'overage_fee'; // Mixed fees - categorize as overage
+      description = `#${displayId} - Overage & Guest Fees`;
+      purpose = 'overage_fee';
     } else if (hasGuestFees) {
       const guestNames = pendingParticipants.rows.filter(r => r.participant_type === 'guest').map(r => r.display_name).join(', ');
-      description = `Guest fees for: ${guestNames}`;
+      description = `#${displayId} - Guest Fees: ${guestNames}`;
       purpose = 'guest_fee';
     } else if (hasOverageFees) {
-      description = `Overage fees for booking ${bookingId}`;
+      description = `#${displayId} - Additional Fees / Overage`;
       purpose = 'overage_fee';
     }
 

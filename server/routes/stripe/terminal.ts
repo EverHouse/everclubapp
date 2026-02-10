@@ -175,12 +175,29 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       purpose: 'one_time_purchase'
     };
 
+    let finalDescription = description || 'Terminal payment';
+    if (metadata?.bookingId) {
+      try {
+        const bookingLookup = await pool.query(
+          'SELECT trackman_booking_id FROM booking_requests WHERE id = $1',
+          [metadata.bookingId]
+        );
+        const trackmanId = bookingLookup.rows[0]?.trackman_booking_id;
+        const displayId = trackmanId || metadata.bookingId;
+        if (finalDescription && !finalDescription.startsWith('#')) {
+          finalDescription = `#${displayId} - ${finalDescription}`;
+        }
+      } catch (lookupErr) {
+        console.warn('[Terminal] Could not look up booking for description prefix:', (lookupErr as Error).message);
+      }
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount),
       currency,
       payment_method_types: ['card_present'],
       capture_method: 'automatic',
-      description: description || 'Terminal payment',
+      description: finalDescription,
       metadata: finalMetadata,
       ...(customerId ? { customer: customerId } : {}),
       ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
@@ -199,7 +216,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
             customerId || null,
             Math.round(amount),
             'one_time_purchase',
-            description || 'Terminal payment',
+            finalDescription,
             'pending',
             null,
             metadata?.items || null
