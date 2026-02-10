@@ -209,7 +209,7 @@ export function UnifiedBookingSheet({
   const [fetchedContext, setFetchedContext] = useState<{
     bayName?: string; bookingDate?: string; timeSlot?: string;
     trackmanBookingId?: string; bookingStatus?: string;
-    ownerName?: string; ownerEmail?: string; durationMinutes?: number;
+    ownerName?: string; ownerEmail?: string; ownerUserId?: string; durationMinutes?: number;
     resourceId?: number; notes?: string;
   } | null>(null);
 
@@ -433,6 +433,7 @@ export function UnifiedBookingSheet({
           bookingStatus: data.status || undefined,
           ownerName: data.user_name || undefined,
           ownerEmail: data.user_email || undefined,
+          ownerUserId: data.user_id?.toString() || undefined,
           durationMinutes: data.duration_minutes || undefined,
           resourceId: data.resource_id || undefined,
           notes: data.notes || undefined,
@@ -461,10 +462,11 @@ export function UnifiedBookingSheet({
   }, []);
 
   useEffect(() => {
-    if (isOpen && isManageMode && ownerEmail) {
-      checkSavedCard(ownerEmail);
+    const email = ownerEmail || fetchedContext?.ownerEmail;
+    if (isOpen && isManageMode && email) {
+      checkSavedCard(email);
     }
-  }, [isOpen, isManageMode, ownerEmail, checkSavedCard]);
+  }, [isOpen, isManageMode, ownerEmail, fetchedContext?.ownerEmail, checkSavedCard]);
 
   useEffect(() => {
     const fetchStaffList = async () => {
@@ -872,7 +874,7 @@ export function UnifiedBookingSheet({
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          memberEmail: ownerEmail,
+          memberEmail: ownerEmail || fetchedContext?.ownerEmail || rosterData.members?.find(m => m.isPrimary)?.userEmail || '',
           bookingId,
           sessionId: rosterData.sessionId
         })
@@ -1955,9 +1957,9 @@ export function UnifiedBookingSheet({
               <StripePaymentForm
                 amount={fs.grandTotal}
                 description={`${bayName || fetchedContext?.bayName || 'Booking'} • ${bookingDate || fetchedContext?.bookingDate || ''}`}
-                userId={rosterData?.ownerId || ''}
-                userEmail={ownerEmail || fetchedContext?.ownerEmail || ''}
-                memberName={ownerName || fetchedContext?.ownerName || ''}
+                userId={rosterData?.ownerId || fetchedContext?.ownerUserId || ''}
+                userEmail={ownerEmail || fetchedContext?.ownerEmail || rosterData?.members?.find(m => m.isPrimary)?.userEmail || ''}
+                memberName={ownerName || fetchedContext?.ownerName || rosterData?.members?.find(m => m.isPrimary)?.memberName || ''}
                 purpose="overage_fee"
                 bookingId={bookingId}
                 sessionId={rosterData?.sessionId}

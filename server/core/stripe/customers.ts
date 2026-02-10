@@ -177,14 +177,30 @@ export async function getOrCreateStripeCustomer(
   
   if (existingFromLinkedResult.rows[0]?.stripe_customer_id) {
     const existingCustomerId = existingFromLinkedResult.rows[0].stripe_customer_id;
-    console.log(`[Stripe] Found existing customer ${existingCustomerId} via linked email for user ${userId}`);
-    
-    await pool.query(
-      'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
-      [existingCustomerId, userId]
-    );
-    
-    return { customerId: existingCustomerId, isNew: false };
+    try {
+      const stripeForValidation = await getStripeClient();
+      await stripeForValidation.customers.retrieve(existingCustomerId);
+      console.log(`[Stripe] Found existing customer ${existingCustomerId} via linked email for user ${userId}`);
+      
+      await pool.query(
+        'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+        [existingCustomerId, userId]
+      );
+      
+      return { customerId: existingCustomerId, isNew: false };
+    } catch (validationError: any) {
+      if (validationError.code === 'resource_missing') {
+        console.warn(`[Stripe] Stale linked customer ${existingCustomerId} for ${email} — clearing and creating new`);
+        await pool.query('UPDATE users SET stripe_customer_id = NULL WHERE stripe_customer_id = $1', [existingCustomerId]);
+      } else {
+        console.log(`[Stripe] Found existing customer ${existingCustomerId} via linked email for user ${userId}`);
+        await pool.query(
+          'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+          [existingCustomerId, userId]
+        );
+        return { customerId: existingCustomerId, isNew: false };
+      }
+    }
   }
 
   const hubspotResult = await pool.query(
@@ -209,14 +225,30 @@ export async function getOrCreateStripeCustomer(
 
     if (hubspotMatchResult.rows[0]?.stripe_customer_id) {
       const existingCustomerId = hubspotMatchResult.rows[0].stripe_customer_id;
-      console.log(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId} (matched user: ${hubspotMatchResult.rows[0].email})`);
-      
-      await pool.query(
-        'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
-        [existingCustomerId, userId]
-      );
-      
-      return { customerId: existingCustomerId, isNew: false };
+      try {
+        const stripeForValidation = await getStripeClient();
+        await stripeForValidation.customers.retrieve(existingCustomerId);
+        console.log(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId} (matched user: ${hubspotMatchResult.rows[0].email})`);
+        
+        await pool.query(
+          'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+          [existingCustomerId, userId]
+        );
+        
+        return { customerId: existingCustomerId, isNew: false };
+      } catch (validationError: any) {
+        if (validationError.code === 'resource_missing') {
+          console.warn(`[Stripe] Stale HubSpot-matched customer ${existingCustomerId} for ${email} — clearing and creating new`);
+          await pool.query('UPDATE users SET stripe_customer_id = NULL WHERE stripe_customer_id = $1', [existingCustomerId]);
+        } else {
+          console.log(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId}`);
+          await pool.query(
+            'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+            [existingCustomerId, userId]
+          );
+          return { customerId: existingCustomerId, isNew: false };
+        }
+      }
     }
   }
 

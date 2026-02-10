@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.20.2",
+    date: "2026-02-10",
+    title: "Booking Sheet Reliability & Stale Stripe Customer Fix",
+    changes: [
+      "Fix: Opening a booking via the '1/4 Players' button now fully loads all booking details (owner, bay, time) even when limited info is passed — payment, check-in, and card-on-file features all work correctly",
+      "Fix: Charge Card on File and Pay with Card buttons now find the correct member email through multiple fallback sources, preventing 'missing required fields' errors",
+      "Fix: Stale Stripe customer IDs (from test environments) are now detected and auto-cleared when creating payment intents — instead of crashing, the system creates a fresh Stripe customer and proceeds normally",
+      "Fix: Saved card check now triggers correctly when booking context is loaded asynchronously, so staff see the 'Charge Card on File' option without needing to reopen the sheet",
+    ],
+  },
+  {
     version: "7.20.1",
     date: "2026-02-10",
     title: "Critical Bug Fixes & Stability Improvements",
