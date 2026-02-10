@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.32.1",
+    date: "2026-02-10",
+    title: "Private Hire Page Updates",
+    changes: [
+      "Improvement: Updated venue capacities — Main Hall now shows 600 max, Private Dining Room shows 30 seated",
+      "Improvement: Removed firepit and outdoor heating references from Terrace listing",
+      "Feature: Added comprehensive services section to Private Hire page — Flexible Floorplans, Golf Facilities, Custom Décor, Live Music, Food & Beverage Programs, Advanced AV, and Parking details",
+    ],
+  },
+  {
     version: "7.32.0",
     date: "2026-02-10",
     title: "Visitor Directory Cleanup & Archive System",

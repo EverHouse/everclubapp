@@ -99,31 +99,67 @@ const PrivateHire: React.FC = () => {
              <span className="text-xs font-bold text-primary/50 bg-[#E8E8E0] px-2 py-1 rounded uppercase tracking-widest">Select One</span>
           </div>
           
-          <SpaceCard 
+          <SpaceCard
             title="The Main Hall"
-            cap="150 Max"
+            cap="600 Max"
             img="/images/events-crowd-optimized.webp"
             tags={['AV System', 'Full Bar', 'Stage']}
             desc="Our signature space featuring vaulted ceilings, abundant natural light, and a dedicated stage area."
             index={0}
           />
-          <SpaceCard 
+          <SpaceCard
             title="The Private Dining Room"
-            cap="20 Seated"
+            cap="30 Seated"
             img="/images/private-dining-optimized.webp"
             tags={['Private Service', 'Custom Menu']}
             desc="An exclusive enclave for business meetings or family gatherings, offering complete privacy."
             index={1}
           />
-          <SpaceCard 
+          <SpaceCard
             title="The Terrace"
             cap="60 Standing"
             img="/images/terrace-optimized.webp"
-            tags={['Outdoor Heating', 'Fire Pit']}
+            tags={['Lush Setting', 'Cocktail Hours']}
             desc="Enjoy the California breeze in our lush outdoor setting, perfect for cocktail hours."
             index={2}
           />
        </div>
+
+       <section className="py-20 px-4 md:px-6 bg-[#F2F2EC]">
+         <div className="max-w-7xl mx-auto">
+           <div className="text-center mb-12 px-2">
+             <h2 className="text-3xl md:text-4xl font-light text-primary mb-4 font-serif">
+               Tailored to Your Vision
+             </h2>
+             <p className="text-primary/60 max-w-2xl mx-auto">
+               From floorplan to final toast, every detail is crafted around your event.
+             </p>
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             {[
+               { icon: 'dashboard_customize', title: 'Flexible Floorplans', desc: 'Our space adapts to your occasion with configurable layouts, furniture rentals, dance floor installations, and seamless room transitions.' },
+               { icon: 'sports_golf', title: 'Golf Facilities & Programming', desc: 'Four TrackMan simulator bays and a custom 9-hole putting and chipping course create interactive experiences for all skill levels. From casual closest-to-the-pin and longest drive contests to fully structured 18-hole tournaments, complete with prizes to elevate the fun.' },
+               { icon: 'palette', title: 'Custom Décor & Event Styling', desc: 'Personalized décor, lighting, florals, and branded touches designed to transform the space and bring your vision to life.' },
+               { icon: 'music_note', title: 'Live Music & Entertainment', desc: 'From DJs and acoustic musicians to full live bands, we curate entertainment that fits the tone of your event and keeps energy flowing all night.' },
+               { icon: 'restaurant', title: 'Custom Food Experiences', desc: "Tailored culinary offerings including passed hors d'oeuvres, buffet-style dining, plated meals, smoothie bars, and more\u2014designed for your guests and your flow." },
+               { icon: 'local_bar', title: 'Custom Beverage Programs', desc: 'Choose from hosted or ticketed bars, craft cocktails, premium mocktails, and fully customized drink menus.' },
+               { icon: 'speaker_group', title: 'Advanced Audio & Visual', desc: 'A 180" projection screen, wireless microphones, and a zoned overhead sound system support everything from presentations to live performances.' },
+               { icon: 'local_parking', title: 'Abundant On-Site Parking', desc: 'Over 400 on-site parking spaces make arrival and departure effortless for guests of all sizes.' },
+             ].map((feature, i) => (
+               <div
+                 key={feature.title}
+                 className="flex flex-col p-6 bg-white/40 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] animate-slide-up-stagger"
+                 style={{ '--stagger-index': i } as React.CSSProperties}
+               >
+                 <span className="material-symbols-outlined text-3xl text-primary mb-3">{feature.icon}</span>
+                 <h4 className="text-lg font-bold text-primary mb-2">{feature.title}</h4>
+                 <p className="text-sm text-primary/60 leading-relaxed">{feature.desc}</p>
+               </div>
+             ))}
+           </div>
+         </div>
+       </section>
+
        </div>
        
        <Footer />
