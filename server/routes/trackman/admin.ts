@@ -42,7 +42,7 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
       SELECT COUNT(*) FROM (
         SELECT br.id
         FROM booking_requests br
-        INNER JOIN booking_sessions bs ON bs.booking_id = br.id
+        INNER JOIN booking_sessions bs ON bs.id = br.session_id
         LEFT JOIN booking_participants bp ON bp.session_id = bs.id
         WHERE ${whereFragment}
         GROUP BY br.id, bs.id, bs.declared_player_count, br.trackman_player_count
@@ -67,7 +67,7 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
         COALESCE(bs.declared_player_count, br.trackman_player_count, 1) as expected_player_count,
         COUNT(bp.id)::int as assigned_count
       FROM booking_requests br
-      INNER JOIN booking_sessions bs ON bs.booking_id = br.id
+      INNER JOIN booking_sessions bs ON bs.id = br.session_id
       LEFT JOIN booking_participants bp ON bp.session_id = bs.id
       WHERE ${whereFragment}
       GROUP BY br.id, bs.id, bs.declared_player_count, br.trackman_player_count
