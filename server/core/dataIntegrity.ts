@@ -210,7 +210,7 @@ async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
   
   try {
     const unmatchedBookings = await db.execute(sql`
-      SELECT tub.id, tub.trackman_booking_id, tub.user_name, tub.user_email, tub.booking_date, tub.bay_number, tub.start_time, tub.end_time, tub.notes, tub.original_email
+      SELECT tub.id, tub.trackman_booking_id, tub.user_name, tub.original_email, tub.booking_date, tub.bay_number, tub.start_time, tub.end_time, tub.notes
       FROM trackman_unmatched_bookings tub
       WHERE tub.resolved_at IS NULL
         AND NOT EXISTS (
@@ -238,12 +238,12 @@ async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
         severity: 'warning',
         table: 'trackman_unmatched_bookings',
         recordId: row.id,
-        description: `Trackman booking for "${row.user_name || 'Unknown'}" (${row.user_email || 'no email'}) on ${row.booking_date} has no matching member`,
+        description: `Trackman booking for "${row.user_name || 'Unknown'}" (${row.original_email || 'no email'}) on ${row.booking_date} has no matching member`,
         suggestion: 'Use the Trackman Unmatched Bookings section to link this booking to a member or create a visitor record',
         context: {
           trackmanBookingId: row.trackman_booking_id || undefined,
           userName: row.user_name || undefined,
-          userEmail: row.user_email || undefined,
+          userEmail: row.original_email || undefined,
           bookingDate: row.booking_date || undefined,
           bayNumber: row.bay_number || undefined,
           startTime: row.start_time || undefined,
@@ -1799,7 +1799,7 @@ async function checkOrphanedFeeSnapshots(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
 
   const orphans = await db.execute(sql`
-    SELECT bfs.id, bfs.booking_id, bfs.participant_id, bfs.fee_cents, bfs.payment_status, bfs.created_at
+    SELECT bfs.id, bfs.booking_id, bfs.total_cents, bfs.status, bfs.created_at
     FROM booking_fee_snapshots bfs
     LEFT JOIN booking_requests br ON bfs.booking_id = br.id
     WHERE br.id IS NULL
@@ -1812,10 +1812,10 @@ async function checkOrphanedFeeSnapshots(): Promise<IntegrityCheckResult> {
       severity: 'error',
       table: 'booking_fee_snapshots',
       recordId: row.id,
-      description: `Fee snapshot (booking_id: ${row.booking_id}, participant_id: ${row.participant_id}) references a deleted booking — ${row.fee_cents} cents, status: ${row.payment_status}`,
+      description: `Fee snapshot (booking_id: ${row.booking_id}) references a deleted booking — ${row.total_cents} cents, status: ${row.status}`,
       suggestion: 'Delete orphaned fee snapshot or investigate missing booking',
       context: {
-        status: row.payment_status || undefined
+        status: row.status || undefined
       }
     });
   }
@@ -1874,11 +1874,11 @@ async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
 
   const orphans = await db.execute(sql`
-    SELECT bfs.id, bfs.booking_id, bfs.stripe_payment_intent_id, bfs.fee_cents, bfs.payment_status, bfs.created_at
+    SELECT bfs.id, bfs.booking_id, bfs.stripe_payment_intent_id, bfs.total_cents, bfs.status, bfs.created_at
     FROM booking_fee_snapshots bfs
     LEFT JOIN booking_requests br ON bfs.booking_id = br.id
     WHERE bfs.stripe_payment_intent_id IS NOT NULL
-      AND bfs.payment_status IN ('pending', 'requires_action')
+      AND bfs.status IN ('pending', 'requires_action')
       AND (br.id IS NULL OR br.status IN ('cancelled', 'denied', 'expired'))
     LIMIT 100
   `);
@@ -1889,11 +1889,11 @@ async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResult> {
       severity: 'error',
       table: 'booking_fee_snapshots',
       recordId: row.id,
-      description: `Payment intent ${row.stripe_payment_intent_id} (${row.fee_cents} cents, status: ${row.payment_status}) references a deleted or cancelled booking (booking_id: ${row.booking_id})`,
+      description: `Payment intent ${row.stripe_payment_intent_id} (${row.total_cents} cents, status: ${row.status}) references a deleted or cancelled booking (booking_id: ${row.booking_id})`,
       suggestion: 'Cancel the Stripe payment intent and clean up the fee snapshot',
       context: {
         stripeCustomerId: row.stripe_payment_intent_id || undefined,
-        status: row.payment_status || undefined
+        status: row.status || undefined
       }
     });
   }
