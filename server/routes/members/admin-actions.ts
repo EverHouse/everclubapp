@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq, sql, and } from 'drizzle-orm';
 import { db } from '../../db';
 import { users, membershipTiers, wellnessEnrollments, eventRsvps, staffUsers } from '../../../shared/schema';
-import { isProduction } from '../../core/db';
+import { isProduction, pool } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
@@ -61,17 +61,28 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       });
     }
     
-    await db.update(users)
-      .set({ tier: normalizedTier, updatedAt: new Date() })
-      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
-    
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'UPDATE users SET tier = $1, updated_at = $2 WHERE LOWER(email) = $3',
+        [normalizedTier, new Date(), normalizedEmail]
+      );
+      await client.query('COMMIT');
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
+
     const performedBy = sessionUser?.email || 'unknown';
     const performedByName = sessionUser?.firstName 
       ? `${sessionUser.firstName} ${sessionUser.lastName || ''}`.trim() 
       : sessionUser?.email?.split('@')[0] || 'Staff';
-    
+
     let hubspotResult = { success: true, oldLineItemRemoved: false, newLineItemAdded: false };
-    
+
     if (normalizedTier) {
       hubspotResult = await handleTierChange(
         normalizedEmail,
@@ -80,7 +91,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         performedBy,
         performedByName
       );
-      
+
       if (!hubspotResult.success && hubspotResult.error) {
         console.warn(`[Members] HubSpot tier change failed for ${normalizedEmail}, queuing for retry: ${hubspotResult.error}`);
         await queueTierSync({
@@ -94,15 +105,15 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
     } else {
       console.log(`[Members] Tier cleared for ${normalizedEmail}, skipping HubSpot sync (no product mapping for cleared tier)`);
     }
-    
+
     let stripeSync = { success: true, warning: null as string | null };
-    
+
     if (member.billingProvider === 'stripe' && member.stripeSubscriptionId && normalizedTier) {
       const tierRecord = await db.select()
         .from(membershipTiers)
         .where(eq(membershipTiers.name, normalizedTier))
         .limit(1);
-      
+
       if (tierRecord.length > 0 && tierRecord[0].stripePriceId) {
         const isUpgrade = getTierRank(normalizedTier) > getTierRank(oldTierDisplay || '');
         const stripeResult = await changeSubscriptionTier(
@@ -110,7 +121,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
           tierRecord[0].stripePriceId,
           immediate || isUpgrade
         );
-        
+
         if (!stripeResult.success) {
           stripeSync = { success: false, warning: `Stripe update failed: ${stripeResult.error}. Manual billing adjustment may be needed.` };
         }
@@ -122,7 +133,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
     } else if (!normalizedTier) {
       stripeSync = { success: true, warning: null };
     }
-    
+
     const isUpgrade = normalizedTier ? getTierRank(normalizedTier) > getTierRank(oldTierDisplay || '') : false;
     const isFirstTier = !oldTierDisplay && normalizedTier;
     const changeType = isFirstTier ? 'set' : (normalizedTier ? (isUpgrade ? 'upgraded' : 'changed') : 'cleared');
@@ -137,7 +148,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       type: 'system',
       url: '/member/profile'
     });
-    
+
     broadcastTierUpdate({
       action: normalizedTier ? 'updated' : 'removed',
       memberEmail: normalizedEmail,
@@ -145,7 +156,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
       previousTier: actualTier,
       assignedBy: performedBy
     });
-    
+
     await logFromRequest(req, {
       action: 'change_tier',
       resourceType: 'member',
@@ -160,7 +171,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         stripeSynced: stripeSync.success
       }
     });
-    
+
     res.json({
       success: true,
       message: isFirstTier 
@@ -225,9 +236,20 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
     const member = userResult[0];
     
     if (member.billingProvider === 'mindbody') {
-      await db.update(users)
-        .set({ membershipStatus: 'suspended', updatedAt: new Date() })
-        .where(eq(users.id, id));
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          'UPDATE users SET membership_status = $1, updated_at = $2 WHERE id = $3',
+          ['suspended', new Date(), id]
+        );
+        await client.query('COMMIT');
+      } catch (txError) {
+        await client.query('ROLLBACK');
+        throw txError;
+      } finally {
+        client.release();
+      }
       
       return res.json({ 
         success: true, 
@@ -243,10 +265,21 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
         return res.status(500).json({ error: result.error || 'Failed to pause subscription' });
       }
       
-      await db.update(users)
-        .set({ membershipStatus: 'suspended', updatedAt: new Date() })
-        .where(eq(users.id, id));
-      
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          'UPDATE users SET membership_status = $1, updated_at = $2 WHERE id = $3',
+          ['suspended', new Date(), id]
+        );
+        await client.query('COMMIT');
+      } catch (txError) {
+        await client.query('ROLLBACK');
+        throw txError;
+      } finally {
+        client.release();
+      }
+
       await notifyMember({
         userEmail: member.email || '',
         title: 'Membership Paused',
@@ -295,15 +328,22 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Member is already archived' });
     }
     
-    await db.update(users)
-      .set({
-        archivedAt: new Date(),
-        archivedBy: archivedBy,
-        membershipStatus: 'archived',
-        idImageUrl: null,
-        updatedAt: new Date()
-      })
-      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        'UPDATE users SET archived_at = $1, archived_by = $2, membership_status = $3, id_image_url = $4, updated_at = $5 WHERE LOWER(email) = $6',
+        [new Date(), archivedBy, 'archived', null, new Date(), normalizedEmail]
+      );
+
+      await client.query('COMMIT');
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
     
     let subscriptionCancelled = false;
     const stripeSubscriptionId = userResult[0].stripeSubscriptionId;

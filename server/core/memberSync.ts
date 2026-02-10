@@ -858,6 +858,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 joinDate = createDate.toISOString().split('T')[0];
               }
             } catch (e) {
+              console.error('[MemberSync] Failed to parse createdate:', e);
             }
           }
           
@@ -1118,6 +1119,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                   .onConflictDoNothing();
                 linkedEmailsAdded++;
               } catch (err) {
+                console.error('[MemberSync] Failed to add linked email from HubSpot merge:', err);
               }
             }
           }

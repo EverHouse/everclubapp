@@ -44,7 +44,11 @@ const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'Items Needing Review': 'low',
   'Stale Past Tours': 'low',
   'Unmatched Trackman Bookings': 'medium',
-  'HubSpot ID Duplicates': 'high'
+  'HubSpot ID Duplicates': 'high',
+  'Orphaned Fee Snapshots': 'critical',
+  'Sessions Without Participants': 'low',
+  'Orphaned Payment Intents': 'critical',
+  'Guest Passes Without Members': 'medium'
 };
 
 function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -1791,6 +1795,152 @@ async function checkHubSpotIdDuplicates(): Promise<IntegrityCheckResult> {
   };
 }
 
+async function checkOrphanedFeeSnapshots(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const orphans = await db.execute(sql`
+    SELECT bfs.id, bfs.booking_id, bfs.participant_id, bfs.fee_cents, bfs.payment_status, bfs.created_at
+    FROM booking_fee_snapshots bfs
+    LEFT JOIN booking_requests br ON bfs.booking_id = br.id
+    WHERE br.id IS NULL
+    LIMIT 100
+  `);
+
+  for (const row of orphans.rows as any[]) {
+    issues.push({
+      category: 'orphan_record',
+      severity: 'error',
+      table: 'booking_fee_snapshots',
+      recordId: row.id,
+      description: `Fee snapshot (booking_id: ${row.booking_id}, participant_id: ${row.participant_id}) references a deleted booking — ${row.fee_cents} cents, status: ${row.payment_status}`,
+      suggestion: 'Delete orphaned fee snapshot or investigate missing booking',
+      context: {
+        status: row.payment_status || undefined
+      }
+    });
+  }
+
+  return {
+    checkName: 'Orphaned Fee Snapshots',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+async function checkSessionsWithoutParticipants(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const emptySessions = await db.execute(sql`
+    SELECT bs.id, bs.booking_date, bs.resource_id, bs.start_time, bs.end_time, bs.created_at,
+           r.name as resource_name
+    FROM booking_sessions bs
+    LEFT JOIN booking_participants bp ON bp.session_id = bs.id
+    LEFT JOIN resources r ON bs.resource_id = r.id
+    WHERE bp.id IS NULL
+      AND bs.booking_date >= CURRENT_DATE - INTERVAL '30 days'
+    LIMIT 100
+  `);
+
+  for (const row of emptySessions.rows as any[]) {
+    issues.push({
+      category: 'orphan_record',
+      severity: 'warning',
+      table: 'booking_sessions',
+      recordId: row.id,
+      description: `Session on ${row.booking_date} at ${row.start_time}–${row.end_time} (${row.resource_name || 'unknown resource'}) has zero participants`,
+      suggestion: 'Review session and add participants or remove empty session',
+      context: {
+        bookingDate: row.booking_date || undefined,
+        startTime: row.start_time || undefined,
+        endTime: row.end_time || undefined,
+        resourceName: row.resource_name || undefined,
+        resourceId: row.resource_id || undefined
+      }
+    });
+  }
+
+  return {
+    checkName: 'Sessions Without Participants',
+    status: issues.length === 0 ? 'pass' : issues.length > 5 ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const orphans = await db.execute(sql`
+    SELECT bfs.id, bfs.booking_id, bfs.stripe_payment_intent_id, bfs.fee_cents, bfs.payment_status, bfs.created_at
+    FROM booking_fee_snapshots bfs
+    LEFT JOIN booking_requests br ON bfs.booking_id = br.id
+    WHERE bfs.stripe_payment_intent_id IS NOT NULL
+      AND bfs.payment_status IN ('pending', 'requires_action')
+      AND (br.id IS NULL OR br.status IN ('cancelled', 'denied', 'expired'))
+    LIMIT 100
+  `);
+
+  for (const row of orphans.rows as any[]) {
+    issues.push({
+      category: 'data_quality',
+      severity: 'error',
+      table: 'booking_fee_snapshots',
+      recordId: row.id,
+      description: `Payment intent ${row.stripe_payment_intent_id} (${row.fee_cents} cents, status: ${row.payment_status}) references a deleted or cancelled booking (booking_id: ${row.booking_id})`,
+      suggestion: 'Cancel the Stripe payment intent and clean up the fee snapshot',
+      context: {
+        stripeCustomerId: row.stripe_payment_intent_id || undefined,
+        status: row.payment_status || undefined
+      }
+    });
+  }
+
+  return {
+    checkName: 'Orphaned Payment Intents',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+async function checkGuestPassesForNonExistentMembers(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  const orphans = await db.execute(sql`
+    SELECT gp.id, gp.member_email, gp.passes_used, gp.passes_total
+    FROM guest_passes gp
+    LEFT JOIN users u ON LOWER(gp.member_email) = LOWER(u.email)
+    WHERE u.id IS NULL
+    LIMIT 100
+  `);
+
+  for (const row of orphans.rows as any[]) {
+    issues.push({
+      category: 'orphan_record',
+      severity: 'warning',
+      table: 'guest_passes',
+      recordId: row.id,
+      description: `Guest pass for "${row.member_email}" (${row.passes_used}/${row.passes_total} used) references a non-existent member`,
+      suggestion: 'Delete orphaned guest pass record or verify the member email',
+      context: {
+        memberEmail: row.member_email || undefined
+      }
+    });
+  }
+
+  return {
+    checkName: 'Guest Passes Without Members',
+    status: issues.length === 0 ? 'pass' : issues.length > 5 ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
   const checks = await Promise.all([
     checkOrphanBookingParticipants(),
@@ -1813,7 +1963,11 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     checkDuplicateStripeCustomers(),
     checkMindBodyStaleSyncMembers(),
     checkMindBodyStatusMismatch(),
-    checkHubSpotIdDuplicates()
+    checkHubSpotIdDuplicates(),
+    checkOrphanedFeeSnapshots(),
+    checkSessionsWithoutParticipants(),
+    checkOrphanedPaymentIntents(),
+    checkGuestPassesForNonExistentMembers()
   ]);
   
   const now = new Date();

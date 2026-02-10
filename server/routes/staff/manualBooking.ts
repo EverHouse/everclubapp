@@ -263,6 +263,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
           resourceName = resource.name;
         }
       } catch (e) {
+        console.error('[ManualBooking] Failed to fetch resource name:', e);
       }
     }
     

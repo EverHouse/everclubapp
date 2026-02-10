@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.26.0",
+    date: "2026-02-10",
+    title: "Silent Failure Audit & Data Safety Net",
+    isMajor: true,
+    changes: [
+      "Feature: New 'safeDbOperation' wrapper for critical database writes — automatically logs failures and alerts staff, preventing silent errors",
+      "Feature: New 'safeDbTransaction' wrapper — provides automatic transaction management with rollback on failure and staff notifications",
+      "Fix: Eliminated all 7 empty catch blocks across billing webhooks, bookings, manual bookings, member sync, and bay helpers — errors are now always logged",
+      "Integrity: Added 4 new nightly data integrity checks — orphaned fee snapshots, sessions without participants, orphaned payment intents, and guest passes for non-existent members",
+      "Safety: Wrapped 3 critical member management endpoints (tier change, suspend, and archive) in database transactions to prevent half-finished data",
+      "Prevention: All critical database operations now use proper error handling — no error can go unnoticed",
+    ],
+  },
+  {
     version: "7.25.1",
     date: "2026-02-10",
     title: "Booking Spam Prevention",

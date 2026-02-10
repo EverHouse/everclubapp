@@ -758,6 +758,7 @@ router.post('/api/booking-requests', async (req, res) => {
           resourceName = resource.name;
         }
       } catch (e) {
+        console.error('[Bookings] Failed to fetch resource name:', e);
       }
     }
     

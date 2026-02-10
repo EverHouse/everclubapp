@@ -44,6 +44,7 @@ export const setCache = (key: string, data: any) => {
   try {
     localStorage.setItem(`sync_${key}`, JSON.stringify(cache));
   } catch (e) {
+    console.error('[BackgroundSync] Sync operation failed:', e);
   }
 };
 

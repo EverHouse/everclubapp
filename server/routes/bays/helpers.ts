@@ -15,6 +15,7 @@ export async function getCalendarNameForBayAsync(bayId: number | null): Promise<
       return CALENDAR_CONFIG.conference.name;
     }
   } catch (e) {
+    console.error('[Bays] Failed to get calendar name for bay:', e);
   }
   
   return null;

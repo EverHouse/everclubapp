@@ -18,7 +18,7 @@ The Ever Club Members App is a private members club application for golf and wel
 - Do not make changes to the file `Y`.
 
 ## System Architecture
-The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Express.js backend, utilizing a PostgreSQL database. Current app version: 7.25.1 (package.json version: 3.13).
+The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Express.js backend, utilizing a PostgreSQL database. Current app version: 7.26.0 (package.json version: 3.13).
 
 ### UI/UX Decisions
 - **Design System**: Liquid Glass (iOS-inspired glassmorphism) with WCAG AA compliance.
@@ -104,5 +104,6 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Apple Messages for Business**: Direct messaging link (contact page).
 
 ## Recent Changes
+- **v7.26.0 (2026-02-10)**: Silent Failure Audit & Data Safety Net — safeDbOperation/safeDbTransaction wrappers, fixed 7 empty catch blocks, 4 new orphan record integrity checks, transactions on tier change/suspend/archive endpoints.
 - **v7.25.1 (2026-02-10)**: Booking Spam Prevention — members limited to one pending request at a time, staff/admin exempt.
 - **v7.25.0 (2026-02-10)**: Staff = VIP Rule — automatic VIP tier and active status for all staff on login, $0 booking fees safety net, inactive warning suppression for staff owners, tier dropdown cleanup.
