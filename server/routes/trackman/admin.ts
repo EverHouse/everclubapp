@@ -1835,26 +1835,27 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
     let grandTotal = ownerOverageFee + guestFeesWithoutPass + totalPlayersOwe;
-    if (hasCompletedFeeSnapshot && snapshotTotalCents > 0) {
-      const snapshotTotal = snapshotTotalCents / 100;
-      if (snapshotTotal > grandTotal) {
-        grandTotal = snapshotTotal;
-      }
-    }
     
     let hasPaidFees = false;
     let hasOriginalFees = false;
+    let pendingFeeCount = 0;
     if (sessionId) {
       const paidCheck = await db.execute(sql`SELECT 
           COUNT(*) FILTER (WHERE payment_status = 'paid' AND cached_fee_cents > 0) as paid_count,
-          COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status = 'paid') as total_with_fees
+          COUNT(*) FILTER (WHERE cached_fee_cents > 0 OR payment_status = 'paid') as total_with_fees,
+          COUNT(*) FILTER (WHERE payment_status = 'pending' AND cached_fee_cents > 0) as pending_count
         FROM booking_participants 
         WHERE session_id = ${sessionId}`);
       hasPaidFees = parseInt(paidCheck.rows[0]?.paid_count || '0') > 0;
       hasOriginalFees = parseInt(paidCheck.rows[0]?.total_with_fees || '0') > 0;
+      pendingFeeCount = parseInt(paidCheck.rows[0]?.pending_count || '0');
     }
     
-    const allPaid = hasCompletedFeeSnapshot || (hasOriginalFees && grandTotal === 0 && hasPaidFees);
+    if (hasCompletedFeeSnapshot && snapshotTotalCents > 0 && pendingFeeCount === 0) {
+      grandTotal = Math.max(grandTotal, snapshotTotalCents / 100);
+    }
+    
+    const allPaid = (hasCompletedFeeSnapshot && pendingFeeCount === 0) || (hasOriginalFees && grandTotal === 0 && hasPaidFees);
     
     const isOwnerStaff = ownerEmail ? staffEmailSet.has(ownerEmail.toLowerCase()) : false;
     
