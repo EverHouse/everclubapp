@@ -338,8 +338,13 @@ const loginLimiter = rateLimit({
 app.use('/api/auth/login', loginLimiter);
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300
+  windowMs: 60 * 1000,
+  max: 600,
+  keyGenerator: (req) => {
+    const userId = req.session?.user?.id;
+    return userId ? `api:${userId}` : `api:${req.ip || 'unknown'}`;
+  },
+  validate: false,
 });
 app.use('/api/', apiLimiter);
 
