@@ -17,8 +17,10 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-02-10",
     title: "Fee Display Fix & Code Cleanup",
     changes: [
+      "Fix: My Balance card now includes expected guest fees for unfilled player slots — previously only showed owner's overage fee",
       "Fix: Booking card fee button now shows correct total ($125 instead of $75) — was ignoring database-computed fees when player slots were unfilled",
       "Fix: Fee estimate calculation no longer splits booking duration across players — owner uses full duration for overage (matches real billing engine)",
+      "Improvement: Member 'Add Guest' form now uses separate First Name and Last Name fields (matching staff-side UX from v7.31.1)",
       "Cleanup: Removed 6 orphaned component files no longer used anywhere (~1,526 lines of dead code)",
       "Cleanup: Consolidated duplicate PlayerSlot type — single source of truth in shared PlayerSlotEditor, re-exported by bookGolfTypes",
       "Cleanup: Removed 9 unused imports across 5 files (unused React hooks, utility functions, type imports, components)",

@@ -149,7 +149,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [searchLoading, setSearchLoading] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
 
-  const [guestName, setGuestName] = useState('');
+  const [guestFirstName, setGuestFirstName] = useState('');
+  const [guestLastName, setGuestLastName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestEmailError, setGuestEmailError] = useState<string | undefined>(undefined);
   const [addingGuest, setAddingGuest] = useState(false);
@@ -349,8 +350,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   };
 
   const handleAddGuest = () => {
-    if (!guestName.trim()) {
-      showToast('Please enter the guest name', 'error');
+    if (!guestFirstName.trim() || !guestLastName.trim()) {
+      showToast('Please enter the guest first and last name', 'error');
       return;
     }
     
@@ -362,11 +363,12 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     
     haptic.light();
     
-    setPendingGuestName(guestName.trim());
+    setPendingGuestName(`${guestFirstName.trim()} ${guestLastName.trim()}`);
     setPendingGuestEmail(guestEmail.trim());
     setShowGuestModal(false);
     setShowGuestPaymentChoiceModal(true);
-    setGuestName('');
+    setGuestFirstName('');
+    setGuestLastName('');
     setGuestEmail('');
     setGuestEmailError(undefined);
   };
@@ -773,7 +775,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         isOpen={showGuestModal}
         onClose={() => {
           setShowGuestModal(false);
-          setGuestName('');
+          setGuestFirstName('');
+          setGuestLastName('');
           setGuestEmail('');
           setGuestEmailError(undefined);
         }}
@@ -782,10 +785,18 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       >
         <div className="p-4 space-y-4">
           <Input
-            label="Guest Name"
-            placeholder="Enter guest's full name"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
+            label="First Name"
+            placeholder="Enter first name"
+            value={guestFirstName}
+            onChange={(e) => setGuestFirstName(e.target.value)}
+            icon="person"
+          />
+          
+          <Input
+            label="Last Name"
+            placeholder="Enter last name"
+            value={guestLastName}
+            onChange={(e) => setGuestLastName(e.target.value)}
             icon="person"
           />
           
@@ -811,9 +822,9 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           
           <button
             onClick={handleAddGuest}
-            disabled={!guestName.trim() || !guestEmail.trim()}
+            disabled={!guestFirstName.trim() || !guestLastName.trim() || !guestEmail.trim()}
             className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-              guestName.trim() && guestEmail.trim()
+              guestFirstName.trim() && guestLastName.trim() && guestEmail.trim()
                 ? 'bg-[#293515] text-white hover:bg-[#3a4a20] active:scale-[0.98]'
                 : isDark
                   ? 'bg-white/10 text-white/40 cursor-not-allowed'

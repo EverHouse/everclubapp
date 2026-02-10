@@ -910,6 +910,52 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
       });
     }
 
+    const unfilledResult = await pool.query(
+      `SELECT 
+        bs.id as session_id,
+        bs.session_date,
+        bs.start_time,
+        bs.end_time,
+        r.name as resource_name,
+        COALESCE(br.declared_player_count, 1) as declared_player_count,
+        (SELECT COUNT(*) FROM booking_participants bp2 
+         WHERE bp2.session_id = bs.id 
+           AND bp2.participant_type != 'owner'
+           AND bp2.payment_status != 'cancelled') as non_owner_count
+       FROM booking_participants bp
+       JOIN booking_sessions bs ON bs.id = bp.session_id
+       JOIN booking_requests br ON br.session_id = bs.id
+       JOIN users pu ON pu.id = bp.user_id
+       LEFT JOIN resources r ON r.id = bs.resource_id
+       WHERE LOWER(pu.email) = $1
+         AND bp.participant_type = 'owner'
+         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND COALESCE(br.declared_player_count, 1) > 1
+         AND (bs.session_date AT TIME ZONE 'America/Los_Angeles')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+       GROUP BY bs.id, bs.session_date, bs.start_time, bs.end_time, r.name, br.declared_player_count, bp.user_id`,
+      [memberEmail]
+    );
+
+    for (const row of unfilledResult.rows) {
+      const declaredCount = parseInt(row.declared_player_count, 10) || 1;
+      const nonOwnerCount = parseInt(row.non_owner_count, 10) || 0;
+      const unfilledSlots = Math.max(0, declaredCount - 1 - nonOwnerCount);
+      
+      if (unfilledSlots > 0) {
+        const dateStr = row.session_date ? new Date(row.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        for (let i = 0; i < unfilledSlots; i++) {
+          breakdown.push({
+            id: -row.session_id * 1000 - i,
+            sessionId: row.session_id,
+            type: 'guest',
+            description: `Guest fee (unfilled) - ${dateStr}`,
+            date: row.session_date,
+            amountCents: GUEST_FEE_CENTS
+          });
+        }
+      }
+    }
+
     const totalCents = breakdown.reduce((sum, item) => sum + item.amountCents, 0);
 
     res.json({
