@@ -1168,7 +1168,7 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
           .from(bookingRequests)
           .where(eq(bookingRequests.id, input.bookingId));
         const existingNotes = bookingForNote?.staffNotes || '';
-        const failureNote = `[SESSION_PARTIAL] Full session creation failed at ${new Date().toISOString()}. Created owner-only session. Error: ${innerError.message}. Additional participants may need to be added manually.`;
+        const failureNote = `[SESSION_PARTIAL] Owner-only session created (${new Date().toISOString().split('T')[0]}). Additional participants may need to be added manually.`;
         const updatedNotes = existingNotes ? `${existingNotes}\n${failureNote}` : failureNote;
         await db.update(bookingRequests)
           .set({ staffNotes: updatedNotes })
@@ -1182,7 +1182,7 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
             .from(bookingRequests)
             .where(eq(bookingRequests.id, input.bookingId));
           const existingCriticalNotes = bookingForCriticalNote?.staffNotes || '';
-          const criticalNote = `[SESSION_CREATION_FAILED] Session creation completely failed at ${new Date().toISOString()}. Error: ${innerError.message}. Fallback error: ${fallbackError.message}. Please create a session manually.`;
+          const criticalNote = `[SESSION_CREATION_FAILED] Auto session failed (${new Date().toISOString().split('T')[0]}). Please create a session manually.`;
           const updatedCriticalNotes = existingCriticalNotes ? `${existingCriticalNotes}\n${criticalNote}` : criticalNote;
           await db.update(bookingRequests)
             .set({ staffNotes: updatedCriticalNotes })

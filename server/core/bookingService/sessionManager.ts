@@ -224,7 +224,8 @@ export async function ensureSessionForBooking(params: {
           .limit(1);
 
         const existingNotes = existing[0]?.staffNotes || '';
-        const failureNote = `[SESSION_CREATION_FAILED] Automatic session creation failed at ${new Date().toISOString()}. Error: ${errorMsg}. Please create a session manually.`;
+        const shortError = errorMsg.length > 80 ? errorMsg.substring(0, 80) + '...' : errorMsg;
+        const failureNote = `[SESSION_CREATION_FAILED] Auto session failed (${new Date().toISOString().split('T')[0]}). Please create a session manually.`;
         const updatedNotes = existingNotes ? `${existingNotes}\n${failureNote}` : failureNote;
 
         await db
