@@ -1348,6 +1348,13 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const ownerName = bookingResult.rows[0]?.owner_name;
     const sessionId = bookingResult.rows[0]?.session_id || null;
     const ownerUserId = bookingResult.rows[0]?.owner_user_id || null;
+    let resolvedOwnerUserId = ownerUserId;
+    if (!resolvedOwnerUserId && ownerEmail && !ownerEmail.includes('unmatched') && !ownerEmail.includes('@trackman.import')) {
+      const userLookup = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${ownerEmail}) LIMIT 1`);
+      if (userLookup.rows.length > 0) {
+        resolvedOwnerUserId = userLookup.rows[0].id;
+      }
+    }
     const sessionDurationMinutes = bookingResult.rows[0]?.session_duration_minutes;
     const bookingDuration = bookingResult.rows[0]?.duration_minutes || 60;
     const durationMinutes = Math.max(bookingDuration, sessionDurationMinutes || 0);
@@ -1761,7 +1768,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     res.json({
       sessionId,
-      ownerId: ownerUserId,
+      ownerId: resolvedOwnerUserId,
       ownerGuestPassesRemaining,
       bookingNotes: {
         notes: bookingResult.rows[0]?.notes || null,

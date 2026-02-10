@@ -86,9 +86,9 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       participantFees
     } = req.body;
 
-    if (!userId || !email || !amountCents || !purpose || !description) {
+    if (!email || !amountCents || !purpose || !description) {
       return res.status(400).json({ 
-        error: 'Missing required fields: userId, email, amountCents, purpose, description' 
+        error: 'Missing required fields: email, amountCents, purpose, description' 
       });
     }
     
@@ -103,6 +103,15 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       return res.status(400).json({ 
         error: `Invalid purpose. Must be one of: ${validPurposes.join(', ')}` 
       });
+    }
+
+    let resolvedUserId = userId || '';
+    if (!resolvedUserId && email) {
+      const { resolveUserByEmail } = await import('../../core/stripe/customers');
+      const resolved = await resolveUserByEmail(email);
+      if (resolved) {
+        resolvedUserId = resolved.userId;
+      }
     }
 
     let snapshotId: number | null = null;
@@ -247,7 +256,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
     let result;
     try {
       result = await createPaymentIntent({
-        userId,
+        userId: resolvedUserId,
         email,
         memberName: memberName || email.split('@')[0],
         amountCents: serverTotal,

@@ -1958,7 +1958,7 @@ export function UnifiedBookingSheet({
               (() => {
                 const resolvedUserId = rosterData?.ownerId || fetchedContext?.ownerUserId || '';
                 const resolvedUserEmail = ownerEmail || fetchedContext?.ownerEmail || rosterData?.members?.find(m => m.isPrimary)?.userEmail || '';
-                if (!resolvedUserId && !resolvedUserEmail) {
+                if (!resolvedUserEmail) {
                   return (
                     <div className="text-center py-4 space-y-2">
                       <span className="material-symbols-outlined text-3xl text-red-500">error</span>
@@ -1966,14 +1966,6 @@ export function UnifiedBookingSheet({
                       <button onClick={() => setInlinePaymentAction(null)} className="py-2 px-4 rounded-lg text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                         <span className="material-symbols-outlined text-sm align-middle mr-1">arrow_back</span>Go Back
                       </button>
-                    </div>
-                  );
-                }
-                if (!resolvedUserId || !resolvedUserEmail) {
-                  return (
-                    <div className="flex items-center justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary dark:border-white border-t-transparent" />
-                      <span className="ml-2 text-sm text-primary/60 dark:text-white/60">Loading payment info...</span>
                     </div>
                   );
                 }
@@ -2006,6 +1998,16 @@ export function UnifiedBookingSheet({
                   paymentType: 'booking_fee',
                 }}
                 onSuccess={async (paymentIntentId) => {
+                  try {
+                    await fetch(`/api/bookings/${bookingId}/payments`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ action: 'confirm_all' })
+                    });
+                  } catch (err) {
+                    console.error('Failed to mark participants as paid after terminal payment:', err);
+                  }
                   showToast('Terminal payment successful!', 'success');
                   setPaymentSuccess(true);
                   setShowInlinePayment(false);
