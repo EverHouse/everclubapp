@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.31.0",
+    date: "2026-02-10",
+    title: "Major Code Organization Refactoring",
+    isMajor: true,
+    changes: [
+      "Improvement: Split 6 large files (2,000-3,500 lines each) into modular subdirectories — EventsTab (94% smaller), NewUserDrawer (85% smaller), MemberProfileDrawer (29% smaller), BookGolf (23% smaller), SimulatorTab (50% smaller), DataIntegrityTab (45% smaller)",
+      "New: Shared FeeBreakdownCard component — reusable fee display for both member and staff booking interfaces, showing overage, guest fees, and pass usage in one consistent layout",
+      "New: Shared PlayerSlotEditor component — unified player/guest management with per-slot member search (privacy-safe redacted emails for members), guest name + email fields, clear guest pass eligibility messaging, and per-slot status indicators (green 'Pass eligible' vs amber 'Guest fee applies')",
+      "Improvement: Consolidated duplicate status badge functions across 3 billing files into shared statusColors utility with new getSubscriptionStatusBadge, getInvoiceStatusBadge, and getBillingStatusBadge functions",
+      "Improvement: Extracted shared closure display utilities (getNoticeTypeLabel, formatAffectedAreas, isBlockingClosure) — replaced duplicate logic in 3 files (Updates page, ClosureAlert, ResourcesSection)",
+      "Improvement: No visual or behavioral changes — all refactoring is internal code organization for better maintainability",
+    ],
+  },
+  {
     version: "7.30.2",
     date: "2026-02-10",
     title: "Timezone & Reliability Fixes",

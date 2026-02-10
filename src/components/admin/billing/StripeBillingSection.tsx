@@ -1,4 +1,5 @@
 import React from 'react';
+import { getBillingStatusBadge } from '../../../utils/statusColors';
 
 interface Subscription {
   id: string;
@@ -132,20 +133,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
   onCreateSubscription,
   hasStripeCustomer = false,
 }) => {
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      active: isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700',
-      paused: isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700',
-      canceled: isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700',
-      past_due: isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700',
-      trialing: isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700',
-      paid: isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700',
-      open: isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700',
-      draft: isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600',
-      uncollectible: isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700',
-    };
-    return styles[status] || (isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600');
-  };
+  const getStatusBadge = (status: string) => getBillingStatusBadge(status, isDark);
 
   const isPaused = activeSubscription?.isPaused === true;
 

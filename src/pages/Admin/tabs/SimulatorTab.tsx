@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
-import ReactDOM from 'react-dom';
-import EmptyState from '../../../components/EmptyState';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
-import { getTodayPacific, addDaysToPacificDate, formatDateDisplayWithDay, formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime } from '../../../utils/dateUtils';
-import { getStatusBadge, formatStatusLabel } from '../../../utils/statusColors';
-import TierBadge from '../../../components/TierBadge';
+import { getTodayPacific, addDaysToPacificDate, formatTime12Hour } from '../../../utils/dateUtils';
 import { usePricing } from '../../../hooks/usePricing';
-import { SwipeableListItem } from '../../../components/SwipeableListItem';
 import ModalShell from '../../../components/ModalShell';
 import { useToast } from '../../../components/Toast';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -32,711 +27,15 @@ import {
     useCalendarClosures,
     useAvailabilityBlocks,
     useMemberContacts,
-    useFeeEstimate,
-    useBayAvailability,
-    useApproveBookingRequest,
-    useDeclineBookingRequest,
     bookingsKeys,
     simulatorKeys,
 } from '../../../hooks/queries/useBookingsQueries';
 
-interface BookingRequest {
-    id: number | string;
-    user_email: string | null;
-    user_name: string | null;
-    resource_id: number | null;
-    bay_name: string | null;
-    resource_preference: string | null;
-    request_date: string;
-    start_time: string;
-    end_time: string;
-    duration_minutes: number | null;
-    notes: string | null;
-    status: 'pending' | 'pending_approval' | 'approved' | 'declined' | 'cancelled' | 'confirmed' | 'attended' | 'no_show';
-    staff_notes: string | null;
-    suggested_time: string | null;
-    created_at: string | null;
-    source?: 'booking_request' | 'booking' | 'calendar';
-    resource_name?: string;
-    first_name?: string;
-    last_name?: string;
-    reschedule_booking_id?: number | null;
-    tier?: string | null;
-    trackman_booking_id?: string | null;
-    has_unpaid_fees?: boolean;
-    total_owed?: number;
-    guardian_name?: string | null;
-    guardian_relationship?: string | null;
-    guardian_phone?: string | null;
-    guardian_consent_at?: string | null;
-}
-
-interface Bay {
-    id: number;
-    name: string;
-    description: string;
-}
-
-// Estimate fees based on tier, duration, and player count (when no session exists yet)
-// Returns estimated fee in dollars
-// IMPORTANT: Guest slots ALWAYS incur guest fee unless a Core+ member fills the slot or guest pass is used
-function estimateFeeByTier(
-    tier: string | null | undefined, 
-    durationMinutes: number,
-    declaredPlayerCount: number = 1,
-    guestFeeRate: number = 25,
-    overageRate: number = 25
-): number {
-    if (durationMinutes <= 0) return 0;
-    
-    const playerCount = Math.max(1, declaredPlayerCount);
-    const guestCount = Math.max(0, playerCount - 1); // All non-owner slots are guests by default
-    
-    // Guest fees per guest slot (actual value comes from API fee estimate)
-    const guestFees = guestCount * guestFeeRate;
-    
-    // If no tier, only charge guest fees
-    if (!tier) return guestFees;
-    
-    const tierLower = tier.toLowerCase();
-    
-    // VIP has unlimited access - only pay guest fees
-    if (tierLower === 'vip') {
-        return guestFees;
-    }
-    
-    // Tier-based included minutes (per person, per day)
-    let includedMinutes = 0;
-    if (tierLower === 'corporate' || tierLower === 'premium') {
-        includedMinutes = 90;
-    } else if (tierLower === 'core') {
-        includedMinutes = 60;
-    }
-    // Social, Base, Day Pass, etc. have 0 included minutes
-    
-    // Calculate per-person minutes (time is split across all players)
-    const perPersonMinutes = Math.floor(durationMinutes / playerCount);
-    
-    // Calculate owner's overage (only owner pays overage based on their tier)
-    const ownerOverageMinutes = Math.max(0, perPersonMinutes - includedMinutes);
-    
-    // Fee per 30 min overage block (actual value comes from API fee estimate)
-    const ownerOverageBlocks = ownerOverageMinutes > 0 ? Math.ceil(ownerOverageMinutes / 30) : 0;
-    const ownerOverageFee = ownerOverageBlocks * overageRate;
-    
-    return ownerOverageFee + guestFees;
-}
-
-interface Resource {
-    id: number;
-    name: string;
-    type: string;
-    description: string | null;
-}
-
-interface CalendarClosure {
-    id: number;
-    title: string;
-    startDate: string;
-    endDate: string;
-    startTime: string | null;
-    endTime: string | null;
-    affectedAreas: string;
-    reason: string | null;
-}
-
-interface AvailabilityBlock {
-    id: number;
-    resourceId: number;
-    blockDate: string;
-    startTime: string;
-    endTime: string;
-    blockType: string;
-    notes: string | null;
-    closureTitle?: string | null;
-}
-
-const formatDateShortAdmin = (dateStr: string): string => {
-    if (!dateStr) return 'No Date';
-    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-    return formatDateDisplayWithDay(datePart);
-};
-
-interface MemberSearchResult {
-    email: string;
-    firstName: string | null;
-    lastName: string | null;
-    tier: string | null;
-    status: string | null;
-}
-
-interface ManualBookingResult {
-    id: number;
-    user_email: string;
-    user_name: string | null;
-    resource_id: number;
-    bay_name: string | null;
-    request_date: string;
-    start_time: string;
-    end_time: string;
-    duration_minutes: number;
-    status: 'approved' | 'confirmed';
-    notes: string | null;
-    staff_notes: string | null;
-}
-
-const ManualBookingModal: React.FC<{
-    resources: Resource[];
-    onClose: () => void;
-    onSuccess: (booking?: ManualBookingResult) => void;
-    defaultMemberEmail?: string;
-    defaultResourceId?: number;
-    defaultDate?: string;
-    defaultStartTime?: string;
-}> = ({ resources, onClose, onSuccess, defaultMemberEmail, defaultResourceId, defaultDate, defaultStartTime }) => {
-    const { showToast } = useToast();
-    const [memberEmail, setMemberEmail] = useState(defaultMemberEmail || '');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<MemberSearchResult[]>([]);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [isSearching, setIsSearching] = useState(false);
-    const [allMembers, setAllMembers] = useState<MemberSearchResult[]>([]);
-    const [memberLookupStatus, setMemberLookupStatus] = useState<'idle' | 'checking' | 'found' | 'not_found'>('idle');
-    const [memberName, setMemberName] = useState<string | null>(null);
-    const [memberTier, setMemberTier] = useState<string | null>(null);
-    const [bookingDate, setBookingDate] = useState(() => defaultDate || getTodayPacific());
-    const [startTime, setStartTime] = useState(defaultStartTime || '10:00');
-    const [durationMinutes, setDurationMinutes] = useState(60);
-    const [resourceId, setResourceId] = useState<number | ''>(defaultResourceId || '');
-    const [guestCount, setGuestCount] = useState(0);
-    const [bookingSource, setBookingSource] = useState<string>('Trackman');
-    const [notes, setNotes] = useState('');
-    const [staffNotes, setStaffNotes] = useState('');
-    const [trackmanBookingId, setTrackmanBookingId] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [existingBookingWarning, setExistingBookingWarning] = useState<string | null>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const availableDurations = useMemo(() => [30, 60, 90, 120, 150, 180, 210, 240, 270, 300], []);
-
-    const lookupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    useEffect(() => {
-        if (defaultResourceId !== undefined) setResourceId(defaultResourceId || '');
-    }, [defaultResourceId]);
-
-    useEffect(() => {
-        if (defaultDate !== undefined) setBookingDate(defaultDate || getTodayPacific());
-    }, [defaultDate]);
-
-    useEffect(() => {
-        if (defaultStartTime !== undefined) setStartTime(defaultStartTime || '10:00');
-    }, [defaultStartTime]);
-
-    useEffect(() => {
-        const fetchMembers = async () => {
-            try {
-                const res = await fetch('/api/hubspot/contacts', { credentials: 'include' });
-                if (res.ok) {
-                    const rawData = await res.json();
-                    const data = Array.isArray(rawData) ? rawData : (rawData.contacts || []);
-                    const members: MemberSearchResult[] = data.map((m: { email: string; firstName?: string; lastName?: string; tier?: string }) => ({
-                        email: m.email,
-                        firstName: m.firstName || null,
-                        lastName: m.lastName || null,
-                        tier: m.tier || null
-                    }));
-                    setAllMembers(members);
-                }
-            } catch (err) {
-                console.error('Failed to fetch members:', err);
-            }
-        };
-        fetchMembers();
-    }, []);
-
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-                inputRef.current && !inputRef.current.contains(e.target as Node)) {
-                setShowDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    useEffect(() => {
-        if (!searchQuery || searchQuery.length < 2) {
-            setSearchResults([]);
-            setShowDropdown(false);
-            return;
-        }
-
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-
-        setIsSearching(true);
-        searchTimeoutRef.current = setTimeout(() => {
-            const query = searchQuery.toLowerCase();
-            const filtered = allMembers.filter(m => {
-                const fullName = `${m.firstName || ''} ${m.lastName || ''}`.toLowerCase();
-                return m.email.toLowerCase().includes(query) || fullName.includes(query);
-            }).slice(0, 10);
-            setSearchResults(filtered);
-            setShowDropdown(filtered.length > 0);
-            setIsSearching(false);
-        }, 200);
-
-        return () => {
-            if (searchTimeoutRef.current) {
-                clearTimeout(searchTimeoutRef.current);
-            }
-        };
-    }, [searchQuery, allMembers]);
-
-    const handleSelectMember = (member: MemberSearchResult) => {
-        setMemberEmail(member.email);
-        setSearchQuery('');
-        setShowDropdown(false);
-        setMemberLookupStatus('found');
-        setMemberName(member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : null);
-        setMemberTier(member.tier);
-    };
-
-    useEffect(() => {
-        if (!memberEmail || !memberEmail.includes('@')) {
-            setMemberLookupStatus('idle');
-            setMemberName(null);
-            setMemberTier(null);
-            return;
-        }
-
-        if (lookupTimeoutRef.current) {
-            clearTimeout(lookupTimeoutRef.current);
-        }
-
-        setMemberLookupStatus('checking');
-        lookupTimeoutRef.current = setTimeout(async () => {
-            try {
-                const normalizedEmail = memberEmail.toLowerCase().trim();
-                const res = await fetch(`/api/members/${encodeURIComponent(normalizedEmail)}/details`, {
-                    credentials: 'include'
-                });
-                if (res.ok) {
-                    const member = await res.json();
-                    setMemberLookupStatus('found');
-                    setMemberName(member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : null);
-                    if (member.tier && !memberTier) {
-                        setMemberTier(member.tier);
-                    }
-                } else {
-                    setMemberLookupStatus('not_found');
-                    setMemberName(null);
-                    setMemberTier(null);
-                }
-            } catch (err) {
-                setMemberLookupStatus('not_found');
-                setMemberName(null);
-                setMemberTier(null);
-            }
-        }, 500);
-
-        return () => {
-            if (lookupTimeoutRef.current) {
-                clearTimeout(lookupTimeoutRef.current);
-            }
-        };
-    }, [memberEmail]);
-
-    useEffect(() => {
-        if (!memberEmail || memberLookupStatus !== 'found' || !bookingDate || !resourceId) {
-            setExistingBookingWarning(null);
-            return;
-        }
-
-        const checkExistingBookings = async () => {
-            try {
-                const selectedResource = resources.find(r => r.id === resourceId);
-                const resourceType = selectedResource?.type || 'simulator';
-                
-                const res = await fetch(`/api/bookings/check-existing-staff?member_email=${encodeURIComponent(memberEmail)}&date=${bookingDate}&resource_type=${resourceType}`, {
-                    credentials: 'include'
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.hasExisting) {
-                        const typeLabel = resourceType === 'conference_room' ? 'conference room' : 'bay';
-                        setExistingBookingWarning(`This member already has a ${typeLabel} booking on ${bookingDate}`);
-                    } else {
-                        setExistingBookingWarning(null);
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to check existing bookings:', err);
-            }
-        };
-
-        checkExistingBookings();
-    }, [memberEmail, memberLookupStatus, bookingDate, resourceId, resources]);
-
-    const handleSubmit = async () => {
-        if (!memberEmail || memberLookupStatus !== 'found') {
-            setError('Please enter a valid member email');
-            return;
-        }
-        if (!resourceId) {
-            setError('Please select a resource');
-            return;
-        }
-        if (!bookingDate || !startTime) {
-            setError('Please select date and time');
-            return;
-        }
-
-        setIsSubmitting(true);
-        setError(null);
-
-        try {
-            const res = await fetch('/api/staff/bookings/manual', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    member_email: memberEmail.toLowerCase().trim(),
-                    resource_id: resourceId,
-                    booking_date: bookingDate,
-                    start_time: startTime,
-                    duration_minutes: durationMinutes,
-                    guest_count: guestCount,
-                    booking_source: bookingSource,
-                    notes: notes || undefined,
-                    staff_notes: staffNotes || undefined,
-                    trackman_booking_id: trackmanBookingId || undefined
-                })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                showToast('Booking created successfully!', 'success');
-                
-                const selectedResource = resources.find(r => r.id === resourceId);
-                const endTimeCalc = (() => {
-                    const [h, m] = startTime.split(':').map(Number);
-                    const totalMins = h * 60 + m + durationMinutes;
-                    const endHour = Math.floor(totalMins / 60) % 24;
-                    return `${endHour.toString().padStart(2, '0')}:${(totalMins % 60).toString().padStart(2, '0')}`;
-                })();
-                
-                const bookingResult: ManualBookingResult = {
-                    id: data.id || data.booking?.id || Date.now(),
-                    user_email: memberEmail.toLowerCase().trim(),
-                    user_name: memberName,
-                    resource_id: resourceId as number,
-                    bay_name: selectedResource?.name || null,
-                    request_date: bookingDate,
-                    start_time: startTime,
-                    end_time: endTimeCalc,
-                    duration_minutes: durationMinutes,
-                    status: 'confirmed',
-                    notes: notes || null,
-                    staff_notes: staffNotes || null
-                };
-                
-                onSuccess(bookingResult);
-            } else {
-                const data = await res.json();
-                setError(data.message || data.error || 'Failed to create booking');
-            }
-        } catch (err) {
-            setError('Network error. Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const timeSlots = useMemo(() => {
-        const slots: string[] = [];
-        for (let hour = 8; hour <= 21; hour++) {
-            for (let minute = 0; minute < 60; minute += 5) {
-                if (hour === 21 && minute > 30) break;
-                slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-            }
-        }
-        return slots;
-    }, []);
-
-    const bookingSources = ['Trackman', 'YGB', 'Mindbody', 'Texted Concierge', 'Called', 'Other'];
-
-    return (
-        <ModalShell isOpen={true} onClose={onClose} title="Manual Booking" showCloseButton={true}>
-            <div className="p-6 space-y-4">
-                {error && (
-                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg">
-                            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                        </div>
-                    )}
-
-                    <div className="space-y-4">
-                        <div className="relative">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Member *</label>
-                            {memberEmail && memberLookupStatus === 'found' ? (
-                                <div className="w-full p-3 rounded-lg border border-green-300 dark:border-green-500/30 bg-green-50 dark:bg-green-500/10 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-primary dark:text-white">{memberName || memberEmail}</p>
-                                        {memberName && <p className="text-xs text-gray-500 dark:text-gray-400">{memberEmail}</p>}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setMemberEmail('');
-                                            setMemberName(null);
-                                            setMemberTier(null);
-                                            setMemberLookupStatus('idle');
-                                            setSearchQuery('');
-                                            setExistingBookingWarning(null);
-                                        }}
-                                        className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-                                    >
-                                        <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm">close</span>
-                                    </button>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="relative">
-                                        <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-500 text-lg">search</span>
-                                        <input
-                                            ref={inputRef}
-                                            type="text"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            onFocus={() => searchQuery.length >= 2 && searchResults.length > 0 && setShowDropdown(true)}
-                                            placeholder="Search by name or email..."
-                                            className="w-full p-3 pl-10 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                                        />
-                                        {isSearching && (
-                                            <span aria-hidden="true" className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-500 text-lg animate-spin">progress_activity</span>
-                                        )}
-                                    </div>
-                                    {showDropdown && searchResults.length > 0 && (
-                                        <div 
-                                            ref={dropdownRef}
-                                            className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/20 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                                        >
-                                            {searchResults.map((member, idx) => (
-                                                <button
-                                                    key={member.email}
-                                                    type="button"
-                                                    onClick={() => handleSelectMember(member)}
-                                                    className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/5 flex items-center justify-between ${idx !== searchResults.length - 1 ? 'border-b border-gray-200 dark:border-white/20' : ''}`}
-                                                >
-                                                    <div>
-                                                        <p className="text-sm font-medium text-primary dark:text-white">
-                                                            {member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.email}
-                                                        </p>
-                                                        {member.firstName && member.lastName && (
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{member.email}</p>
-                                                        )}
-                                                    </div>
-                                                    {member.tier && (
-                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-primary dark:text-accent font-medium">
-                                                            {member.tier}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
-                                        <EmptyState
-                                            icon="group"
-                                            title={`No members found matching "${searchQuery}"`}
-                                            variant="compact"
-                                        />
-                                    )}
-                                </>
-                            )}
-                            {memberLookupStatus === 'checking' && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
-                                    Looking up member...
-                                </p>
-                            )}
-                            {memberLookupStatus === 'not_found' && (
-                                <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-xs">error</span>
-                                    Member not found
-                                </p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Resource *</label>
-                            <select
-                                value={resourceId}
-                                onChange={(e) => setResourceId(e.target.value ? Number(e.target.value) : '')}
-                                className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                            >
-                                <option value="">Select a bay or room...</option>
-                                {resources.map(r => (
-                                    <option key={r.id} value={r.id}>
-                                        {r.type === 'conference_room' ? 'Conference Room' : r.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date *</label>
-                                <input
-                                    type="date"
-                                    value={bookingDate}
-                                    onChange={(e) => setBookingDate(e.target.value)}
-                                    className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Time *</label>
-                                <select
-                                    value={startTime}
-                                    onChange={(e) => setStartTime(e.target.value)}
-                                    className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                                >
-                                    {timeSlots.map(slot => (
-                                        <option key={slot} value={slot}>{formatTime12Hour(slot)}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {existingBookingWarning && (
-                            <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
-                                <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-base">warning</span>
-                                    {existingBookingWarning}
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Duration *
-                                    {memberTier && (
-                                        <span className="ml-1 text-xs text-gray-600 dark:text-gray-500 font-normal">
-                                            ({memberTier})
-                                        </span>
-                                    )}
-                                </label>
-                                <select
-                                    value={durationMinutes}
-                                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                                    className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                                >
-                                    {availableDurations.map(d => (
-                                        <option key={d} value={d}>{d} minutes</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Guests</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="10"
-                                    value={guestCount}
-                                    onChange={(e) => setGuestCount(Math.max(0, parseInt(e.target.value) || 0))}
-                                    className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking Source *</label>
-                            <select
-                                value={bookingSource}
-                                onChange={(e) => setBookingSource(e.target.value)}
-                                className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white"
-                            >
-                                {bookingSources.map(source => (
-                                    <option key={source} value={source}>{source}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes (optional)</label>
-                            <textarea
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Any additional notes..."
-                                rows={2}
-                                className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-white dark:bg-black/20 text-primary dark:text-white resize-none"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Staff Notes (optional)
-                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">- Staff only, not visible to member</span>
-                            </label>
-                            <textarea
-                                value={staffNotes}
-                                onChange={(e) => setStaffNotes(e.target.value)}
-                                placeholder="Internal notes about this booking (e.g., private event, Trackman import, special arrangements)..."
-                                rows={2}
-                                className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-primary dark:text-white resize-none"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">
-                                Trackman Booking ID <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={trackmanBookingId}
-                                onChange={(e) => setTrackmanBookingId(e.target.value)}
-                                placeholder="e.g., TM-12345"
-                                className="w-full p-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-primary dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                            />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Enter the ID from Trackman to link this booking for easier import matching
-                            </p>
-                        </div>
-                    </div>
-
-                <div className="flex gap-3 mt-6">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium"
-                        disabled={isSubmitting}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || memberLookupStatus !== 'found' || !resourceId}
-                        className="flex-1 py-3 px-4 rounded-lg bg-primary text-white font-medium flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isSubmitting ? (
-                            <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                        ) : (
-                            <span aria-hidden="true" className="material-symbols-outlined text-sm">add</span>
-                        )}
-                        Create Booking
-                    </button>
-                </div>
-            </div>
-        </ModalShell>
-    );
-};
+import type { BookingRequest, Bay, Resource, CalendarClosure, AvailabilityBlock } from './simulator/simulatorTypes';
+import { estimateFeeByTier, formatDateShortAdmin } from './simulator/simulatorUtils';
+import ManualBookingModal from './simulator/MemberSearchPopover';
+import CalendarGrid from './simulator/CalendarGrid';
+import BookingRequestsPanel from './simulator/BookingRequestsPanel';
 
 const SimulatorTab: React.FC = () => {
     const navigate = useNavigate();
@@ -751,7 +50,6 @@ const SimulatorTab: React.FC = () => {
         }
     }, [navigate]);
     
-    // Create a Set of active member emails for fast lookup
     const activeMemberEmails = useMemo(() => 
         new Set(members.map(m => m.email.toLowerCase())),
         [members]
@@ -764,7 +62,6 @@ const SimulatorTab: React.FC = () => {
     const [activeView, setActiveView] = useState<'requests' | 'calendar'>('requests');
     const [calendarDate, setCalendarDate] = useState(() => getTodayPacific());
 
-    // React Query hooks for data fetching
     const { data: resourcesData = [], isLoading: resourcesLoading } = useResources();
     const { data: baysData = [], isLoading: baysLoading } = useBays();
     const { data: bookingRequestsData = [], isLoading: requestsLoading } = useAllBookingRequests();
@@ -772,7 +69,6 @@ const SimulatorTab: React.FC = () => {
     const { data: memberContactsData = [] } = useMemberContacts('all');
     const { data: closuresData = [] } = useCalendarClosures();
     
-    // Calculate date range for approved bookings
     const today = getTodayPacific();
     const baseDate = activeView === 'calendar' ? calendarDate : today;
     const startDate = addDaysToPacificDate(baseDate, -60);
@@ -781,17 +77,14 @@ const SimulatorTab: React.FC = () => {
     const { data: approvedBookingsData = [], isLoading: approvedLoading } = useApprovedBookings(startDate, endDate);
     const { data: availabilityBlocksData = [] } = useAvailabilityBlocks(calendarDate);
     
-    // Derive combined loading state
     const isLoading = resourcesLoading || baysLoading || requestsLoading || approvedLoading;
     
-    // Derive resources, bays, and closures from React Query
     const resources: Resource[] = resourcesData;
     const bays: Bay[] = baysData;
     const closures: CalendarClosure[] = closuresData.filter((c: CalendarClosure) => 
         c.startDate <= endDate && c.endDate >= startDate
     );
     
-    // Derive availability blocks with proper mapping
     const availabilityBlocks: AvailabilityBlock[] = useMemo(() => 
         availabilityBlocksData.map((b: any) => ({
             id: b.id,
@@ -806,7 +99,6 @@ const SimulatorTab: React.FC = () => {
         [availabilityBlocksData]
     );
     
-    // Combine booking requests and pending bookings
     const requests: BookingRequest[] = useMemo(() => {
         const fromRequests = bookingRequestsData.map((r: any) => ({ ...r, source: 'booking_request' as const }));
         const fromPending = pendingBookingsData.map((b: any) => ({
@@ -831,10 +123,8 @@ const SimulatorTab: React.FC = () => {
         return [...fromRequests, ...fromPending];
     }, [bookingRequestsData, pendingBookingsData]);
     
-    // Use approved bookings from React Query
     const approvedBookings: BookingRequest[] = approvedBookingsData;
     
-    // Build member status and name maps from React Query data
     const { memberStatusMap, memberNameMap } = useMemo(() => {
         const statusMap: Record<string, string> = {};
         const nameMap: Record<string, string> = {};
@@ -860,9 +150,8 @@ const SimulatorTab: React.FC = () => {
         return { memberStatusMap: statusMap, memberNameMap: nameMap };
     }, [memberContactsData]);
     
-    // Mutation hooks for booking actions
-    const approveBookingMutation = useApproveBookingRequest();
-    const declineBookingMutation = useDeclineBookingRequest();
+    const approveBookingMutation = undefined;
+    const declineBookingMutation = undefined;
     
     const [selectedRequest, setSelectedRequest] = useState<BookingRequest | null>(null);
     const [actionModal, setActionModal] = useState<'approve' | 'decline' | null>(null);
@@ -945,16 +234,13 @@ const SimulatorTab: React.FC = () => {
         initialMode?: 'member' | 'lesson' | 'conference';
     }>({});
     
-    // Per-booking optimistic action tracking for visual feedback
-    const [actionInProgress, setActionInProgress] = useState<Record<string, 'approving' | 'declining' | 'cancelling' | 'checking_in'>>({});
+    const [actionInProgress, setActionInProgress] = useState<Record<string, string>>({});
     const [isCreatingBooking, setIsCreatingBooking] = useState(false);
     const [optimisticNewBooking, setOptimisticNewBooking] = useState<BookingRequest | null>(null);
     
-    // Refs for syncing queue height to calendar height
     const calendarColRef = useRef<HTMLDivElement>(null);
     const [queueMaxHeight, setQueueMaxHeight] = useState<number | null>(null);
     
-    // Sync queue height to match calendar height
     useLayoutEffect(() => {
         const syncHeights = () => {
             if (calendarColRef.current) {
@@ -965,13 +251,10 @@ const SimulatorTab: React.FC = () => {
             }
         };
         
-        // Small delay to ensure calendar is rendered
         const timer = setTimeout(syncHeights, 100);
         
-        // Also sync on window resize
         window.addEventListener('resize', syncHeights);
         
-        // Use ResizeObserver to detect calendar content changes
         const observer = new ResizeObserver(syncHeights);
         if (calendarColRef.current) {
             observer.observe(calendarColRef.current);
@@ -989,7 +272,6 @@ const SimulatorTab: React.FC = () => {
             setPageReady(true);
         }
     }, [isLoading, setPageReady]);
-
 
     useEffect(() => {
         const openBookingById = async (bookingId: number | string) => {
@@ -1045,7 +327,6 @@ const SimulatorTab: React.FC = () => {
         };
         window.addEventListener('open-booking-details', handleOpenBookingDetails);
         
-        // Check for pending roster booking from StaffCommandCenter check-in
         const pendingBookingId = sessionStorage.getItem('pendingRosterBookingId');
         if (pendingBookingId) {
             sessionStorage.removeItem('pendingRosterBookingId');
@@ -1066,7 +347,6 @@ const SimulatorTab: React.FC = () => {
         };
     }, [actionModal, showTrackmanConfirm, markStatusModal.booking]);
 
-    // React Query handles data fetching - use invalidateQueries to refresh
     const handleRefresh = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
         queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
@@ -1140,17 +420,14 @@ const SimulatorTab: React.FC = () => {
             name: p.member?.name || p.name
         })).filter(p => p.email || p.userId);
 
-        // Show creating state immediately for visual feedback
         setIsCreatingBooking(true);
         
-        // Calculate end time for optimistic display
         const [startHour, startMin] = data.startTime.split(':').map(Number);
         const endTotalMins = startHour * 60 + startMin + data.durationMinutes;
         const endHour = Math.floor(endTotalMins / 60) % 24;
         const endMin = endTotalMins % 60;
         const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
         
-        // Create optimistic booking for immediate visual feedback
         const optimisticId = `creating-${Date.now()}`;
         const optimisticBooking: BookingRequest = {
             id: optimisticId,
@@ -1172,7 +449,6 @@ const SimulatorTab: React.FC = () => {
         };
         setOptimisticNewBooking(optimisticBooking);
         
-        // Close modal immediately for snappy feedback
         setStaffManualBookingModalOpen(false);
 
         try {
@@ -1226,12 +502,10 @@ const SimulatorTab: React.FC = () => {
         booking: BookingRequest,
         newStatus: 'attended' | 'no_show' | 'cancelled'
     ): Promise<boolean> => {
-        // Parse booking ID to handle cal_ prefix from calendar-sourced bookings
         const bookingId = typeof booking.id === 'string' 
             ? parseInt(String(booking.id).replace('cal_', '')) 
             : booking.id;
         
-        // Prevent double-execution using ref
         if (newStatus === 'attended' && checkinInProgressRef.current.has(bookingId)) {
             console.log('[Check-in v2] Already in progress for booking', bookingId);
             return false;
@@ -1240,11 +514,9 @@ const SimulatorTab: React.FC = () => {
             checkinInProgressRef.current.add(bookingId);
         }
         
-        // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
         
-        // Optimistic update via React Query cache
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === booking.id ? { ...r, status: newStatus } : r
@@ -1317,14 +589,11 @@ const SimulatorTab: React.FC = () => {
         const bookingKey = `${booking.source || 'booking'}-${booking.id}`;
         setCancelConfirmModal(prev => ({ ...prev, isCancelling: true }));
         
-        // Track action in progress for visual feedback on booking card
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'cancelling' }));
         
-        // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         const previousApproved = queryClient.getQueryData(simulatorKeys.approvedBookings(startDate, endDate));
         
-        // Optimistic update via React Query cache
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === booking.id && r.source === booking.source 
@@ -1368,7 +637,6 @@ const SimulatorTab: React.FC = () => {
             showToast(err.message || 'Failed to cancel booking', 'error');
             setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
         } finally {
-            // Clear action in progress
             setActionInProgress(prev => {
                 const next = { ...prev };
                 delete next[bookingKey];
@@ -1517,19 +785,12 @@ const SimulatorTab: React.FC = () => {
         }
     }, [actionModal, selectedRequest]);
 
-    // Queue shows pending requests, unmatched webhook bookings, AND requires-review partial matches
     const pendingRequests = requests.filter(r => 
         r.status === 'pending' || 
         r.status === 'pending_approval'
     );
     
-    // Include unmatched webhook bookings in the queue for staff visibility
-    // Only show TODAY and FUTURE bookings - historical ones go to Trackman Admin panel
     const unmatchedWebhookBookings = approvedBookings.filter(b => {
-        // A booking is unmatched if:
-        // 1. is_unmatched flag is true, OR
-        // 2. user_email is null/empty, OR
-        // 3. user_email matches placeholder patterns
         const email = (b.user_email || '').toLowerCase();
         const isPlaceholderEmail = !email || 
             email.includes('@trackman.local') ||
@@ -1543,17 +804,14 @@ const SimulatorTab: React.FC = () => {
             isPlaceholderEmail ||
             (b.user_name || '').includes('Unknown (Trackman)');
         
-        // Only include if it's today or in the future
         const bookingDate = b.request_date || '';
         return isUnmatched && bookingDate >= today;
     });
     
-    // Combined queue: all items sorted chronologically by date/time for staff visibility
     const queueItems = [
         ...pendingRequests.map(r => ({ ...r, queueType: 'pending' as const })),
         ...unmatchedWebhookBookings.map(b => ({ ...b, queueType: 'unmatched' as const }))
     ].sort((a, b) => {
-        // Sort chronologically by date first, then time
         if (a.request_date !== b.request_date) {
             return a.request_date.localeCompare(b.request_date);
         }
@@ -1573,14 +831,12 @@ const SimulatorTab: React.FC = () => {
             return d.toISOString().split('T')[0];
         })();
         
-        // Include optimistic new booking if it exists and matches the current filter
         const bookingsToFilter = optimisticNewBooking 
             ? [...approvedBookings, optimisticNewBooking]
             : approvedBookings;
         
         return bookingsToFilter
             .filter(b => {
-                // Include approved/confirmed, plus attended for today only (so checked-in bookings stay visible)
                 const isScheduledStatus = b.status === 'approved' || b.status === 'confirmed';
                 const isCheckedInToday = b.status === 'attended' && b.request_date === today;
                 if (!(isScheduledStatus || isCheckedInToday) || b.request_date < today) return false;
@@ -1599,10 +855,6 @@ const SimulatorTab: React.FC = () => {
     }, [approvedBookings, scheduledFilter, optimisticNewBooking]);
 
     const isBookingUnmatched = useCallback((booking: BookingRequest): boolean => {
-        // A booking is unmatched if:
-        // 1. is_unmatched flag is true, OR
-        // 2. user_email is null/empty, OR
-        // 3. user_email matches placeholder patterns
         const email = (booking.user_email || '').toLowerCase();
         const isPlaceholderEmail = !email || 
             email.includes('@trackman.local') ||
@@ -1635,13 +887,10 @@ const SimulatorTab: React.FC = () => {
         setIsProcessing(true);
         setError(null);
         
-        // Track action in progress for visual feedback
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'approving' }));
         
-        // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         
-        // Optimistic UI: update status immediately via cache
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === selectedRequest.id && r.source === selectedRequest.source 
@@ -1679,7 +928,6 @@ const SimulatorTab: React.FC = () => {
             }
             
             if (!res.ok) {
-                // Revert on failure
                 queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 const errData = await res.json();
                 setError(errData.message || errData.error || 'Failed to approve');
@@ -1687,18 +935,15 @@ const SimulatorTab: React.FC = () => {
             } else {
                 showToast('Booking approved', 'success');
                 window.dispatchEvent(new CustomEvent('booking-action-completed'));
-                // Invalidate to sync with server
                 queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
                 queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
             }
         } catch (err: any) {
-            // Revert on error
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             setError(err.message);
             showToast(err.message || 'Failed to approve booking', 'error');
         } finally {
             setIsProcessing(false);
-            // Clear action in progress
             setActionInProgress(prev => {
                 const next = { ...prev };
                 delete next[bookingKey];
@@ -1717,13 +962,10 @@ const SimulatorTab: React.FC = () => {
         const newStatus = selectedRequest.status === 'approved' ? 'cancelled' : 'declined';
         const wasPending = selectedRequest.status === 'pending' || selectedRequest.status === 'pending_approval';
         
-        // Track action in progress for visual feedback
         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'declining' }));
         
-        // Store previous data for rollback
         const previousRequests = queryClient.getQueryData(simulatorKeys.allRequests());
         
-        // Optimistic UI: update status immediately via cache
         queryClient.setQueryData(simulatorKeys.allRequests(), (old: any[] | undefined) => 
             (old || []).map(r => 
                 r.id === selectedRequest.id && r.source === selectedRequest.source 
@@ -1763,7 +1005,6 @@ const SimulatorTab: React.FC = () => {
             }
             
             if (!res.ok) {
-                // Revert on failure
                 queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                 const errData = await res.json();
                 setError(errData.error || 'Failed to process request');
@@ -1774,151 +1015,21 @@ const SimulatorTab: React.FC = () => {
                 if (wasPending) {
                     window.dispatchEvent(new CustomEvent('booking-action-completed'));
                 }
-                // Invalidate to sync with server
                 queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
                 queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
             }
         } catch (err: any) {
-            // Revert on error
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             setError(err.message);
             showToast(err.message || 'Failed to process request', 'error');
         } finally {
             setIsProcessing(false);
-            // Clear action in progress
             setActionInProgress(prev => {
                 const next = { ...prev };
                 delete next[bookingKey];
                 return next;
             });
         }
-    };
-
-
-    const groupBookingsByDate = (bookings: BookingRequest[]): Map<string, BookingRequest[]> => {
-        const grouped = new Map<string, BookingRequest[]>();
-        for (const booking of bookings) {
-            const date = booking.request_date;
-            if (!grouped.has(date)) {
-                grouped.set(date, []);
-            }
-            grouped.get(date)!.push(booking);
-        }
-        return grouped;
-    };
-
-    const timeSlots = useMemo(() => {
-        const slots: string[] = [];
-        for (let hour = 8; hour <= 21; hour++) {
-            slots.push(`${hour.toString().padStart(2, '0')}:00`);
-            if (hour < 21) {
-                slots.push(`${hour.toString().padStart(2, '0')}:15`);
-                slots.push(`${hour.toString().padStart(2, '0')}:30`);
-                slots.push(`${hour.toString().padStart(2, '0')}:45`);
-            }
-        }
-        return slots;
-    }, []);
-
-    const parseAffectedBayIds = (affectedAreas: string): number[] => {
-        if (affectedAreas === 'entire_facility') {
-            return resources.map(r => r.id);
-        }
-        
-        if (affectedAreas === 'all_bays') {
-            return resources.filter(r => r.type === 'simulator').map(r => r.id);
-        }
-        
-        if (affectedAreas === 'conference_room') {
-            return [11];
-        }
-        
-        if (affectedAreas.startsWith('bay_') && !affectedAreas.includes(',') && !affectedAreas.includes('[')) {
-            const areaId = parseInt(affectedAreas.replace('bay_', ''));
-            return isNaN(areaId) ? [] : [areaId];
-        }
-        
-        if (affectedAreas.includes(',') && !affectedAreas.startsWith('[')) {
-            const ids: number[] = [];
-            for (const item of affectedAreas.split(',')) {
-                const trimmed = item.trim();
-                if (trimmed.startsWith('bay_')) {
-                    const areaId = parseInt(trimmed.replace('bay_', ''));
-                    if (!isNaN(areaId)) ids.push(areaId);
-                } else {
-                    const areaId = parseInt(trimmed);
-                    if (!isNaN(areaId)) ids.push(areaId);
-                }
-            }
-            return ids;
-        }
-        
-        try {
-            const parsed = JSON.parse(affectedAreas);
-            if (Array.isArray(parsed)) {
-                const ids: number[] = [];
-                for (const item of parsed) {
-                    if (typeof item === 'number') {
-                        ids.push(item);
-                    } else if (typeof item === 'string') {
-                        if (item.startsWith('bay_')) {
-                            const areaId = parseInt(item.replace('bay_', ''));
-                            if (!isNaN(areaId)) ids.push(areaId);
-                        } else {
-                            const areaId = parseInt(item);
-                            if (!isNaN(areaId)) ids.push(areaId);
-                        }
-                    }
-                }
-                return ids;
-            }
-        } catch {}
-        
-        return [];
-    };
-
-    const getClosureForSlot = (resourceId: number, date: string, slotStart: number, slotEnd: number): CalendarClosure | null => {
-        for (const closure of closures) {
-            if (closure.startDate > date || closure.endDate < date) continue;
-            
-            const affectedBayIds = parseAffectedBayIds(closure.affectedAreas);
-            if (!affectedBayIds.includes(resourceId)) continue;
-            
-            if (!closure.startTime && !closure.endTime) {
-                return closure;
-            }
-            
-            const closureStartMinutes = closure.startTime 
-                ? parseInt(closure.startTime.split(':')[0]) * 60 + parseInt(closure.startTime.split(':')[1] || '0') 
-                : 0;
-            const closureEndMinutes = closure.endTime 
-                ? parseInt(closure.endTime.split(':')[0]) * 60 + parseInt(closure.endTime.split(':')[1] || '0') 
-                : 24 * 60;
-            
-            if (slotStart < closureEndMinutes && slotEnd > closureStartMinutes) {
-                return closure;
-            }
-        }
-        return null;
-    };
-
-    const getBlockForSlot = (resourceId: number, date: string, slotStart: number, slotEnd: number): AvailabilityBlock | null => {
-        for (const block of availabilityBlocks) {
-            if (block.blockDate !== date) continue;
-            if (block.resourceId !== resourceId) continue;
-            
-            const blockStartMinutes = block.startTime 
-                ? parseInt(block.startTime.split(':')[0]) * 60 + parseInt(block.startTime.split(':')[1] || '0') 
-                : 0;
-            const blockEndMinutes = block.endTime 
-                ? parseInt(block.endTime.split(':')[0]) * 60 + parseInt(block.endTime.split(':')[1] || '0') 
-                : 24 * 60;
-            
-            if (slotStart < blockEndMinutes && slotEnd > blockStartMinutes) {
-                return block;
-            }
-        }
-        return null;
     };
 
     return (
@@ -1969,884 +1080,67 @@ const SimulatorTab: React.FC = () => {
                 <SimulatorTabSkeleton />
             ) : (
                 <div className="flex flex-col lg:grid lg:grid-cols-[400px_1fr] xl:grid-cols-[450px_1fr] lg:items-start flex-1">
-                    <div 
-                        className={`lg:border border-gray-200 dark:border-white/25 relative rounded-xl ${activeView === 'requests' ? 'block' : 'hidden lg:block'}`}
-                        style={queueMaxHeight ? { height: queueMaxHeight, overflow: 'hidden' } : undefined}
-                    >
-                        <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-t-xl" />
-                        <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-b-xl" />
-                        <div className="space-y-6 p-5 animate-slide-up-stagger h-full overflow-y-auto pb-10" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-                    <div className="animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
-                        <div className="flex flex-col gap-2 mb-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-bold text-primary dark:text-white flex items-center gap-2">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-yellow-500">pending</span>
-                                    Queue ({queueItems.length})
-                                </h3>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => navigateToTab('trackman')}
-                                    className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 rounded-lg transition-colors shadow-sm"
-                                    title="Import bookings from Trackman CSV"
-                                >
-                                    <span className="material-symbols-outlined text-sm">upload_file</span>
-                                    <span>Import</span>
-                                </button>
-                            </div>
-                            </div>
-                            {queueItems.length > 0 && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {pendingRequests.length > 0 && `${pendingRequests.length} pending`}
-                                    {pendingRequests.length > 0 && unmatchedWebhookBookings.length > 0 && ', '}
-                                    {unmatchedWebhookBookings.length > 0 && `${unmatchedWebhookBookings.length} unassigned`}
-                                </p>
-                            )}
-                        </div>
-                        {queueItems.length === 0 ? (
-                            <div className="py-8 text-center border-2 border-dashed border-gray-200 dark:border-white/25 rounded-xl">
-                                <p className="text-gray-600 dark:text-white/70">No items in queue</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {queueItems.map((item, index) => {
-                                    const isUnmatchedItem = item.queueType === 'unmatched';
-                                    const req = item;
-                                    
-                                    if (isUnmatchedItem) {
-                                        // Unmatched webhook booking card
-                                        return (
-                                            <div 
-                                                key={`unmatched-${item.id}`} 
-                                                className="bg-amber-50/80 dark:bg-amber-500/10 p-4 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/30 animate-slide-up-stagger cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:scale-[1.01] active:scale-[0.98] shadow-sm hover:shadow-md transition-all duration-200" 
-                                                style={{ '--stagger-index': index + 2 } as React.CSSProperties}
-                                                onClick={() => setBookingSheet({
-                                                    isOpen: true,
-                                                    trackmanBookingId: (item as any).trackman_booking_id || null,
-                                                    matchedBookingId: item.id,
-                                                    bayName: (item as any).bay_name || `Bay ${item.resource_id}`,
-                                                    bookingDate: formatDateShortAdmin(item.request_date),
-                                                    timeSlot: `${formatTime12Hour(item.start_time)} - ${formatTime12Hour(item.end_time)}`,
-                                                    importedName: item.user_name || (item as any).userName,
-                                                    notes: (item as any).notes || (item as any).trackman_customer_notes || (item as any).staff_notes
-                                                })}
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="px-2.5 py-1 text-xs font-semibold bg-amber-200 dark:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg">
-                                                            Needs Assignment
-                                                        </span>
-                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                                                            {(item as any).bay_name || `Bay ${item.resource_id}`}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <p className="text-sm text-amber-700 dark:text-amber-400 mb-1">
-                                                    {formatDateShortAdmin(item.request_date)} • {formatTime12Hour(item.start_time)} - {formatTime12Hour(item.end_time)}
-                                                </p>
-                                                {(item.user_name && item.user_name !== 'Unknown (Trackman)') && (
-                                                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                                                        {item.user_name}
-                                                    </p>
-                                                )}
-                                                {item.user_email && !item.user_email.includes('unmatched@') && (
-                                                    <p className="text-xs text-amber-600 dark:text-amber-500">
-                                                        {item.user_email}
-                                                    </p>
-                                                )}
-                                                {(item as any).trackman_booking_id && (
-                                                    <p className="text-xs text-amber-600/70 dark:text-amber-500/70">
-                                                        Trackman ID: {(item as any).trackman_booking_id}
-                                                    </p>
-                                                )}
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setBookingSheet({
-                                                            isOpen: true,
-                                                            trackmanBookingId: (item as any).trackman_booking_id || null,
-                                                            matchedBookingId: item.id,
-                                                            bayName: (item as any).bay_name || `Bay ${item.resource_id}`,
-                                                            bookingDate: formatDateShortAdmin(item.request_date),
-                                                            timeSlot: `${formatTime12Hour(item.start_time)} - ${formatTime12Hour(item.end_time)}`,
-                                                            importedName: item.user_name || (item as any).userName,
-                                                            notes: (item as any).notes || (item as any).trackman_customer_notes || (item as any).staff_notes
-                                                        });
-                                                    }}
-                                                    className="w-full mt-3 py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-all duration-200"
-                                                >
-                                                    <span aria-hidden="true" className="material-symbols-outlined text-sm">person_add</span>
-                                                    Assign Member
-                                                </button>
-                                            </div>
-                                        );
-                                    }
-                                    
-                                    // Pending request card (existing design)
-                                    const actionKey = `${req.source || 'request'}-${req.id}`;
-                                    const actionState = actionInProgress[actionKey];
-                                    const isActionPending = !!actionState;
-                                    return (
-                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 animate-slide-up-stagger shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''}`} style={{ '--stagger-index': index + 2 } as React.CSSProperties}>
-                                        {isActionPending && (
-                                            <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
-                                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                </svg>
-                                                <span className="capitalize">{actionState}...</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <p className="font-bold text-primary dark:text-white">{req.user_name || req.user_email}</p>
-                                                    {req.tier && <TierBadge tier={req.tier} size="sm" />}
-                                                </div>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {formatDateShortAdmin(req.request_date)} • {formatTime12Hour(req.start_time)} - {formatTime12Hour(req.end_time)}
-                                                </p>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">{formatDuration(req.duration_minutes || 0)}</p>
-                                            </div>
-                                            <div className="flex flex-col items-end gap-1">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${getStatusBadge(req.status)}`}>
-                                                    {formatStatusLabel(req.status)}
-                                                </span>
-                                                {req.created_at && (
-                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                                                        Requested {formatRelativeTime(req.created_at)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        {(req.bay_name || req.resource_preference) && (
-                                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                                                <span className="font-medium">Bay preference:</span> {req.bay_name || req.resource_preference}
-                                            </p>
-                                        )}
-                                        {req.notes && (
-                                            <p className="text-sm text-gray-600 dark:text-gray-300 italic mb-3">"{req.notes}"</p>
-                                        )}
-                                        
-                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-2">
-                                            Book in Trackman to confirm - it will auto-link
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setTrackmanModal({ isOpen: true, booking: req })}
-                                                className="flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 hover:shadow-md active:scale-95 transition-all duration-200"
-                                            >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">sports_golf</span>
-                                                Book on Trackman
-                                            </button>
-                                            <button
-                                                onClick={() => { setSelectedRequest(req); setActionModal('decline'); }}
-                                                className="flex-1 py-2 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-200 dark:hover:bg-red-900/50 hover:shadow-md active:scale-95 transition-all duration-200"
-                                            >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
-                                                Deny
-                                            </button>
-                                        </div>
-                                        {import.meta.env.DEV && (
-                                            <button
-                                                onClick={async () => {
-                                                    try {
-                                                        const res = await fetch(`/api/admin/bookings/${req.id}/dev-confirm`, {
-                                                            method: 'POST',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            credentials: 'include'
-                                                        });
-                                                        const data = await res.json();
-                                                        if (res.ok) {
-                                                            const totalFee = (data.totalFeeCents || 0) / 100;
-                                                            showToast(`Confirmed! Total fees: $${totalFee.toFixed(2)}`, 'success');
-                                                            handleRefresh();
-                                                        } else {
-                                                            showToast(data.error || 'Failed to confirm', 'error');
-                                                        }
-                                                    } catch (err) {
-                                                        showToast('Failed to confirm booking', 'error');
-                                                    }
-                                                }}
-                                                className="w-full mt-2 py-1.5 px-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors border border-dashed border-green-400 dark:border-green-500/50"
-                                            >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
-                                                Dev Confirm
-                                            </button>
-                                        )}
-                                    </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
-                        <h3 className="font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
-                            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-accent">calendar_today</span>
-                            Scheduled ({scheduledBookings.length})
-                        </h3>
-                        
-                        <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide -mx-1 px-1 mb-3 scroll-fade-right">
-                            {(['all', 'today', 'tomorrow', 'week'] as const).map(filter => (
-                                <button
-                                    key={filter}
-                                    onClick={() => setScheduledFilter(filter)}
-                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                                        scheduledFilter === filter 
-                                            ? 'bg-primary dark:bg-lavender text-white shadow-md' 
-                                            : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'
-                                    }`}
-                                >
-                                    {filter === 'all' ? 'All' : filter === 'week' ? 'This Week' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                                </button>
-                            ))}
-                        </div>
-                        
-                        {scheduledBookings.length === 0 ? (
-                            <div className="py-8 text-center border-2 border-dashed border-primary/10 dark:border-white/25 rounded-xl">
-                                <p className="text-primary/70 dark:text-white/70">No scheduled bookings {scheduledFilter !== 'all' ? `for ${scheduledFilter === 'week' ? 'this week' : scheduledFilter}` : ''}</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {Array.from(groupBookingsByDate(scheduledBookings)).map(([date, bookings]) => (
-                                    <div key={date}>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-xs font-bold text-primary/70 dark:text-white/70 uppercase tracking-wide">
-                                                {getRelativeDateLabel(date)}
-                                            </span>
-                                            <span className="text-xs text-primary/70 dark:text-white/70">
-                                                {formatDateShortAdmin(date)}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {bookings.map((booking, index) => {
-                                                const isToday = booking.request_date === getTodayPacific();
-                                                const bookingEmail = booking.user_email?.toLowerCase() || '';
-                                                const displayName = bookingEmail && memberNameMap[bookingEmail] 
-                                                    ? memberNameMap[bookingEmail] 
-                                                    : booking.user_name || booking.user_email;
-                                                const bookingResource = resources.find(r => r.id === booking.resource_id);
-                                                const isConferenceRoom = bookingResource?.type === 'conference_room';
-                                                const isUnmatched = isBookingUnmatched(booking);
-                                                const actionKey = `${booking.source || 'booking'}-${booking.id}`;
-                                                const actionState = actionInProgress[actionKey];
-                                                const isActionPending = !!actionState;
-                                                const isOptimisticNew = String(booking.id).startsWith('creating-');
-                                                return (
-                                                    <SwipeableListItem
-                                                        key={`upcoming-${booking.id}`}
-                                                        leftActions={[]}
-                                                        rightActions={isOptimisticNew || isActionPending || booking.status === 'cancellation_pending' ? [] : [
-                                                            {
-                                                                id: 'cancel',
-                                                                icon: 'close',
-                                                                label: 'Cancel',
-                                                                color: 'red',
-                                                                onClick: () => cancelBookingOptimistic(booking)
-                                                            }
-                                                        ]}
-                                                    >
-                                                        <div 
-                                                            className={`p-4 rounded-2xl animate-pop-in cursor-pointer shadow-sm ${
-                                                                isOptimisticNew
-                                                                    ? 'bg-green-50/80 dark:bg-green-500/10 border-2 border-dashed border-green-300 dark:border-green-500/30 opacity-70'
-                                                                    : isActionPending
-                                                                        ? 'opacity-60 pointer-events-none glass-card border border-primary/10 dark:border-white/25'
-                                                                        : isUnmatched 
-                                                                            ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30 hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:shadow-md hover:scale-[1.01]' 
-                                                                            : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
-                                                            } transition-all duration-200`} 
-                                                            style={{ '--stagger-index': index } as React.CSSProperties}
-                                                            onClick={() => !isOptimisticNew && !isActionPending && setBookingSheet({
-                                                                isOpen: true,
-                                                                trackmanBookingId: (booking as any).trackman_booking_id || null,
-                                                                bookingId: booking.id,
-                                                                mode: isUnmatched ? 'assign' as const : 'manage' as const,
-                                                                bayName: bookingResource?.name || booking.bay_name || booking.resource_name,
-                                                                bookingDate: formatDateShortAdmin(booking.request_date),
-                                                                timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
-                                                                matchedBookingId: Number(booking.id),
-                                                                currentMemberName: isUnmatched ? undefined : (booking.user_name || undefined),
-                                                                currentMemberEmail: isUnmatched ? undefined : (booking.user_email || undefined),
-                                                                ownerName: booking.user_name || undefined,
-                                                                ownerEmail: booking.user_email || undefined,
-                                                                declaredPlayerCount: (booking as any).declared_player_count || (booking as any).player_count || 1,
-                                                                isRelink: !isUnmatched,
-                                                                importedName: (booking as any).user_name || (booking as any).userName,
-                                                                notes: (booking as any).notes || (booking as any).note,
-                                                                bookingStatus: booking.status,
-                                                                bookingContext: { requestDate: booking.request_date, startTime: booking.start_time, endTime: booking.end_time, resourceId: booking.resource_id || undefined, resourceName: (bookingResource?.name || booking.bay_name || booking.resource_name) || undefined, durationMinutes: booking.duration_minutes || undefined },
-                                                            })}
-                                                        >
-                                                            {(isActionPending || isOptimisticNew) && (
-                                                                <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
-                                                                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                                    </svg>
-                                                                    <span className="capitalize">{isOptimisticNew ? 'Creating booking...' : `${actionState}...`}</span>
-                                                                </div>
-                                                            )}
-                                                            {/* Header: Name/Badge + Status */}
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                {isUnmatched ? (
-                                                                    <>
-                                                                        <span className="px-2.5 py-1 text-xs font-semibold bg-amber-200 dark:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg">
-                                                                            Needs Assignment
-                                                                        </span>
-                                                                        {isConferenceRoom ? (
-                                                                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
-                                                                                Conf
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                                                                                {booking.bay_name || `Bay ${booking.resource_id}`}
-                                                                            </span>
-                                                                        )}
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <p className="font-semibold text-base text-primary dark:text-white">
-                                                                            {displayName}
-                                                                        </p>
-                                                                        {(booking as any).tier && <TierBadge tier={(booking as any).tier} size="sm" />}
-                                                                        {isConferenceRoom ? (
-                                                                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
-                                                                                Conf
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 dark:bg-white/10 text-primary/70 dark:text-white/70">
-                                                                                {booking.bay_name || `Bay ${booking.resource_id}`}
-                                                                            </span>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                            
-                                                            {/* Date & Time */}
-                                                            <p className={`text-sm mb-1 ${isUnmatched ? 'text-amber-700 dark:text-amber-400' : 'text-primary/80 dark:text-white/80'}`}>
-                                                                {new Date(booking.request_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} • {formatTime12Hour(booking.start_time)} - {formatTime12Hour(booking.end_time)}
-                                                            </p>
-                                                            
-                                                            {/* Trackman ID - only for simulators, not conference room */}
-                                                            {booking.trackman_booking_id && !isConferenceRoom && (
-                                                                <p className="text-xs text-orange-600 dark:text-orange-400 font-mono mt-2">
-                                                                    Trackman ID: {booking.trackman_booking_id}
-                                                                </p>
-                                                            )}
-                                                            
-                                                            {/* Action Buttons - Full Width */}
-                                                            {booking.status === 'cancellation_pending' && (
-                                                                <div className="flex items-center gap-2 mt-2">
-                                                                    <span className="px-2.5 py-1 text-xs font-semibold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 rounded-lg flex items-center gap-1">
-                                                                        <span className="material-symbols-outlined text-xs">hourglass_top</span>
-                                                                        Cancellation Pending
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                            <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                                                                {booking.status === 'cancellation_pending' ? (
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            const confirmed = await confirm({
-                                                                                title: 'Complete Cancellation',
-                                                                                message: 'Complete this cancellation? This will cancel the billing session and refund any charges.',
-                                                                                confirmText: 'Complete Cancellation',
-                                                                                variant: 'warning'
-                                                                            });
-                                                                            if (!confirmed) return;
-                                                                            
-                                                                            const bookingKey = `${booking.source || 'booking'}-${booking.id}`;
-                                                                            setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
-                                                                            
-                                                                            try {
-                                                                                const res = await fetch(`/api/booking-requests/${booking.id}/complete-cancellation`, {
-                                                                                    method: 'PUT',
-                                                                                    headers: { 'Content-Type': 'application/json' },
-                                                                                    credentials: 'include'
-                                                                                });
-                                                                                
-                                                                                if (!res.ok) {
-                                                                                    const errData = await res.json();
-                                                                                    throw new Error(errData.error || 'Failed to complete cancellation');
-                                                                                }
-                                                                                
-                                                                                showToast('Cancellation completed successfully', 'success');
-                                                                                queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
-                                                                                queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
-                                                                            } catch (err: any) {
-                                                                                showToast(err.message || 'Failed to complete cancellation', 'error');
-                                                                            } finally {
-                                                                                setActionInProgress(prev => {
-                                                                                    const next = { ...prev };
-                                                                                    delete next[bookingKey];
-                                                                                    return next;
-                                                                                });
-                                                                            }
-                                                                        }}
-                                                                        className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-200"
-                                                                    >
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
-                                                                        Complete Cancellation
-                                                                    </button>
-                                                                ) : isUnmatched ? (
-                                                                    <button
-                                                                        onClick={() => setBookingSheet({
-                                                                            isOpen: true,
-                                                                            trackmanBookingId: booking.trackman_booking_id || null,
-                                                                            bayName: bookingResource ? (bookingResource.type === 'conference_room' ? 'Conference Room' : bookingResource.name) : (booking.bay_name || `Bay ${booking.resource_id}`),
-                                                                            bookingDate: formatDateShortAdmin(booking.request_date),
-                                                                            timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
-                                                                            matchedBookingId: Number(booking.id),
-                                                                            isRelink: false,
-                                                                            importedName: (booking as any).user_name || (booking as any).userName,
-                                                                            notes: (booking as any).notes || (booking as any).note
-                                                                        })}
-                                                                        className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-200"
-                                                                    >
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">person_add</span>
-                                                                        Assign Member
-                                                                    </button>
-                                                                ) : !isConferenceRoom && isToday && booking.status === 'attended' ? (
-                                                                    <span className="flex-1 py-2.5 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2">
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
-                                                                        Checked In
-                                                                    </span>
-                                                                ) : !isConferenceRoom && isToday && (() => {
-                                                                    const declPlayers = (booking as any).declared_player_count || 1;
-                                                                    const filledPlayers = (booking as any).filled_player_count || 0;
-                                                                    const dbOwed = booking.total_owed || 0;
-                                                                    const estimatedFee = estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers, guestFeeDollars, overageRatePerBlockDollars);
-                                                                    // Only show fee button if: actual fees owed OR (roster incomplete AND estimated fees > 0)
-                                                                    return booking.has_unpaid_fees === true || dbOwed > 0 || (filledPlayers < declPlayers && estimatedFee > 0);
-                                                                })() ? (
-                                                                    (() => {
-                                                                        const declPlayers = (booking as any).declared_player_count || 1;
-                                                                        const filledPlayers = (booking as any).filled_player_count || 0;
-                                                                        const dbOwed = booking.total_owed || 0;
-                                                                        const estimatedFee = (filledPlayers < declPlayers) 
-                                                                          ? estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers, guestFeeDollars, overageRatePerBlockDollars)
-                                                                          : (dbOwed > 0 ? dbOwed : estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers, guestFeeDollars, overageRatePerBlockDollars));
-                                                                        const isEstimate = !booking.has_unpaid_fees && dbOwed === 0;
-                                                                        return (
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                                    setBookingSheet({
-                                                                                        isOpen: true,
-                                                                                        trackmanBookingId: null,
-                                                                                        bookingId,
-                                                                                        mode: 'manage' as const,
-                                                                                    });
-                                                                                }}
-                                                                                className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
-                                                                            >
-                                                                                <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
-                                                                                {isEstimate ? `~$${estimatedFee} Est` : `$${estimatedFee.toFixed(0)} Due`}
-                                                                            </button>
-                                                                        );
-                                                                    })()
-                                                                ) : !isConferenceRoom && (booking as any).declared_player_count > 0 && (booking as any).declared_player_count > ((booking as any).filled_player_count || 0) ? (
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                            setBookingSheet({
-                                                                                isOpen: true,
-                                                                                trackmanBookingId: null,
-                                                                                bookingId,
-                                                                                mode: 'manage' as const,
-                                                                            });
-                                                                        }}
-                                                                        className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
-                                                                    >
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">group</span>
-                                                                        {(booking as any).filled_player_count || 0}/{(booking as any).declared_player_count || 1} Players
-                                                                    </button>
-                                                                ) : !isConferenceRoom && isToday ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={async (e) => {
-                                                                            e.stopPropagation();
-                                                                            e.preventDefault();
-                                                                            const btn = e.currentTarget;
-                                                                            if (btn.disabled) return;
-                                                                            btn.disabled = true;
-                                                                            // Use centralized check-in handler to prevent duplicate toasts
-                                                                            await updateBookingStatusOptimistic(booking, 'attended');
-                                                                            btn.disabled = false;
-                                                                        }}
-                                                                        className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50"
-                                                                    >
-                                                                        <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
-                                                                        Check In
-                                                                    </button>
-                                                                ) : null}
-                                                            </div>
-                                                        </div>
-                                                    </SwipeableListItem>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                        </div>
-                    </div>
+                    <BookingRequestsPanel
+                        queueItems={queueItems}
+                        pendingRequests={pendingRequests}
+                        unmatchedWebhookBookings={unmatchedWebhookBookings}
+                        scheduledBookings={scheduledBookings}
+                        scheduledFilter={scheduledFilter}
+                        setScheduledFilter={setScheduledFilter}
+                        resources={resources}
+                        memberNameMap={memberNameMap}
+                        actionInProgress={actionInProgress}
+                        navigateToTab={navigateToTab}
+                        setBookingSheet={setBookingSheet}
+                        setTrackmanModal={setTrackmanModal}
+                        setSelectedRequest={setSelectedRequest}
+                        setActionModal={setActionModal}
+                        cancelBookingOptimistic={cancelBookingOptimistic}
+                        updateBookingStatusOptimistic={updateBookingStatusOptimistic}
+                        isBookingUnmatched={isBookingUnmatched}
+                        handleRefresh={handleRefresh}
+                        showToast={showToast}
+                        confirm={confirm}
+                        guestFeeDollars={guestFeeDollars}
+                        overageRatePerBlockDollars={overageRatePerBlockDollars}
+                        optimisticNewBooking={optimisticNewBooking}
+                        startDate={startDate}
+                        endDate={endDate}
+                        queryClient={queryClient}
+                        simulatorKeys={simulatorKeys}
+                        activeView={activeView}
+                        queueMaxHeight={queueMaxHeight}
+                        setActionInProgress={setActionInProgress}
+                    />
                     
-                    <div ref={calendarColRef} className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
-                    <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-                        <div className="flex items-center justify-center px-2 relative">
-                            <div className="flex items-center gap-2 relative">
-                                <button
-                                    onClick={() => {
-                                        const d = new Date(calendarDate);
-                                        d.setDate(d.getDate() - 1);
-                                        setCalendarDate(d.toISOString().split('T')[0]);
-                                    }}
-                                    className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-                                >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-xl">chevron_left</span>
-                                </button>
-                                <button
-                                    onClick={() => setShowDatePicker(!showDatePicker)}
-                                    className="font-semibold text-primary dark:text-white min-w-[120px] text-center text-sm py-1 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 transition-colors flex items-center justify-center gap-1"
-                                >
-                                    {formatDateShortAdmin(calendarDate)}
-                                    <span className="material-symbols-outlined text-sm opacity-60">calendar_month</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        const d = new Date(calendarDate);
-                                        d.setDate(d.getDate() + 1);
-                                        setCalendarDate(d.toISOString().split('T')[0]);
-                                    }}
-                                    className="p-1.5 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-                                >
-                                    <span aria-hidden="true" className="material-symbols-outlined text-xl">chevron_right</span>
-                                </button>
-                                
-                                {showDatePicker && ReactDOM.createPortal(
-                                    <div 
-                                        className="fixed inset-0 bg-black/30 flex items-center justify-center"
-                                        style={{ zIndex: 9999 }}
-                                        onMouseDown={() => setShowDatePicker(false)}
-                                    >
-                                        <div 
-                                            className={`rounded-xl shadow-2xl p-5 min-w-[220px] ${isDark ? 'bg-[#1a1d15] border border-white/10' : 'bg-white border border-gray-300'}`}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                        >
-                                            <div className="flex flex-col gap-4">
-                                                <div className={`text-center text-sm font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-700'}`}>
-                                                    Jump to Date
-                                                </div>
-                                                <input
-                                                    type="date"
-                                                    value={calendarDate}
-                                                    onChange={(e) => {
-                                                        if (e.target.value) {
-                                                            setCalendarDate(e.target.value);
-                                                            setShowDatePicker(false);
-                                                        }
-                                                    }}
-                                                    className={`w-full px-4 py-3 rounded-lg text-base font-medium focus:outline-none focus:ring-2 cursor-pointer ${isDark ? 'border border-white/20 bg-white/10 text-white focus:ring-lavender' : 'border border-gray-300 bg-gray-50 text-gray-900 focus:ring-primary'}`}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onMouseDown={(e) => {
-                                                        e.stopPropagation();
-                                                        setCalendarDate(getTodayPacific());
-                                                        setShowDatePicker(false);
-                                                    }}
-                                                    className={`w-full py-3 px-4 rounded-lg text-base font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg ${isDark ? 'bg-[#CCB8E4] text-[#1a1d15]' : 'bg-primary text-white'}`}
-                                                >
-                                                    <span className="material-symbols-outlined text-lg">today</span>
-                                                    Today
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onMouseDown={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowDatePicker(false);
-                                                    }}
-                                                    className={`w-full py-2 text-sm font-medium ${isDark ? 'text-red-400 hover:text-red-300' : 'text-gray-500 hover:text-gray-700'}`}
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>,
-                                    document.body
-                                )}
-                            </div>
-                            <div className="absolute right-2 flex items-center gap-2">
-                                {lastRefresh && (
-                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap hidden sm:inline">
-                                        Updated {lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                    </span>
-                                )}
-                                <button
-                                    onClick={async () => {
-                                        if (isSyncing) return;
-                                        setIsSyncing(true);
-                                        try {
-                                            const syncRes = await fetch('/api/admin/bookings/sync-calendar', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                credentials: 'include'
-                                            });
-                                            const syncData = await syncRes.json();
-                                            
-                                            await handleRefresh();
-                                            
-                                            if (syncRes.ok && syncData.conference_room?.synced > 0) {
-                                                showToast(`Refreshed calendar + synced ${syncData.conference_room.synced} conference room bookings`, 'success');
-                                            } else {
-                                                showToast('Calendar refreshed', 'success');
-                                            }
-                                        } catch (err: any) {
-                                            const errorMsg = err?.message || 'Network error - please check your connection';
-                                            showToast(`Refresh failed: ${errorMsg}`, 'error');
-                                        } finally {
-                                            setIsSyncing(false);
-                                        }
-                                    }}
-                                    disabled={isSyncing}
-                                    className="p-1.5 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
-                                    title={lastRefresh ? `Refresh calendar (Last: ${lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })})` : 'Refresh calendar data'}
-                                >
-                                    <span className={`material-symbols-outlined text-lg ${isSyncing ? 'animate-spin' : ''}`}>sync</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="flex-1 relative animate-slide-up-stagger overflow-x-auto scroll-smooth" style={{ '--stagger-index': 1 } as React.CSSProperties}>
-                        <div className="w-full px-1 sm:px-2 pb-4">
-                            <div className="w-full">
-                            <div className="grid gap-0.5 w-full" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>
-                                <div className="h-8 sm:h-10 sticky top-0 z-20 bg-white dark:bg-[#1a1f1a] flex items-center justify-center text-[10px] sm:text-xs font-bold text-primary dark:text-white rounded-t-lg border border-gray-200 dark:border-white/25 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
-                                    <span className="hidden sm:inline">Time</span>
-                                    <span className="sm:hidden">T</span>
-                                </div>
-                                {[...resources].sort((a, b) => {
-                                    if (a.type === 'conference_room' && b.type !== 'conference_room') return 1;
-                                    if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
-                                    return 0;
-                                }).map(resource => (
-                                    <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 sticky top-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
-                                        <span className="hidden sm:inline">{resource.type === 'conference_room' ? 'Conf' : resource.name.replace('Simulator Bay ', 'Bay ')}</span>
-                                        <span className="sm:hidden">{resource.type === 'conference_room' ? 'CR' : resource.name.replace('Simulator Bay ', 'B')}</span>
-                                    </div>
-                                ))}
-                                
-                                {timeSlots.map(slot => {
-                                    const slotHour = parseInt(slot.split(':')[0]);
-                                    const isEvenHour = slotHour % 2 === 0;
-                                    return (
-                                    <React.Fragment key={slot}>
-                                        <div className={`h-7 sm:h-8 flex items-center justify-end pr-0.5 sm:pr-1 text-[9px] sm:text-[10px] text-gray-600 dark:text-white/70 font-medium whitespace-nowrap border-r border-gray-200 dark:border-white/15 ${isEvenHour ? 'bg-white dark:bg-surface-dark' : 'bg-gray-50 dark:bg-white/3'}`}>
-                                            <span className="hidden sm:inline">{formatTime12Hour(slot)}</span>
-                                            <span className="sm:hidden">{formatTime12Hour(slot).replace(':00', '').replace(' AM', 'a').replace(' PM', 'p')}</span>
-                                        </div>
-                                        {[...resources].sort((a, b) => {
-                                            if (a.type === 'conference_room' && b.type !== 'conference_room') return 1;
-                                            if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
-                                            return 0;
-                                        }).map(resource => {
-                                            const [slotHour, slotMin] = slot.split(':').map(Number);
-                                            const slotStart = slotHour * 60 + slotMin;
-                                            const slotEnd = slotStart + 15;
-                                            
-                                            const closure = getClosureForSlot(resource.id, calendarDate, slotStart, slotEnd);
-                                            const eventBlock = !closure ? getBlockForSlot(resource.id, calendarDate, slotStart, slotEnd) : null;
-                                            
-                                            const booking = approvedBookings.find(b => {
-                                                if (b.resource_id !== resource.id || b.request_date !== calendarDate) return false;
-                                                const [bh, bm] = b.start_time.split(':').map(Number);
-                                                const [eh, em] = b.end_time.split(':').map(Number);
-                                                const bookStart = bh * 60 + bm;
-                                                const bookEnd = eh * 60 + em;
-                                                return slotStart < bookEnd && slotEnd > bookStart;
-                                            });
-                                            
-                                            // Check for pending requests (awaiting Trackman webhook sync)
-                                            const pendingRequest = !booking ? pendingRequests.find(pr => {
-                                                if (pr.resource_id !== resource.id || pr.request_date !== calendarDate) return false;
-                                                const [prh, prm] = pr.start_time.split(':').map(Number);
-                                                const [preh, prem] = pr.end_time.split(':').map(Number);
-                                                const prStart = prh * 60 + prm;
-                                                const prEnd = preh * 60 + prem;
-                                                return slotStart < prEnd && slotEnd > prStart;
-                                            }) : null;
-                                            
-                                            const isConference = resource.type === 'conference_room';
-                                            const bookingEmail = booking?.user_email?.toLowerCase() || '';
-                                            const bookingMemberStatus = bookingEmail ? memberStatusMap[bookingEmail] : null;
-                                            // Prefer member directory name over Trackman import name
-                                            const bookingDisplayName = bookingEmail && memberNameMap[bookingEmail] 
-                                                ? memberNameMap[bookingEmail] 
-                                                : booking?.user_name || 'Booked';
-                                            const isTrackmanMatched = !!(booking as any)?.trackman_booking_id || (booking?.notes && booking.notes.includes('[Trackman Import ID:'));
-                                            const hasKnownInactiveStatus = bookingMemberStatus && bookingMemberStatus.toLowerCase() !== 'active' && bookingMemberStatus.toLowerCase() !== 'unknown';
-                                            const isInactiveMember = booking && bookingEmail && isTrackmanMatched && hasKnownInactiveStatus;
-                                            const isUnmatched = !!(booking as any)?.is_unmatched || (booking && (() => {
-                                                const e = (booking.user_email || '').toLowerCase();
-                                                return !e || e.includes('@trackman.local') || e.includes('@visitors.evenhouse.club') || e.startsWith('unmatched-') || e.startsWith('golfnow-') || e.startsWith('classpass-') || e === 'unmatched@trackman.import' || booking.user_name === 'Unknown (Trackman)';
-                                            })());
-                                            const declaredPlayers = (booking as any)?.declared_player_count ?? 1;
-                                            const unfilledSlots = (booking as any)?.unfilled_slots ?? 0;
-                                            const filledSlots = Math.max(0, declaredPlayers - unfilledSlots);
-                                            const hasPartialRoster = !isConference && booking && declaredPlayers > 1 && filledSlots < declaredPlayers;
-                                            const isEmptyCell = !closure && !eventBlock && !booking && !pendingRequest;
-                                            
-                                            return (
-                                                <div
-                                                    key={`${resource.id}-${slot}`}
-                                                    title={closure ? `CLOSED: ${closure.title}` : eventBlock ? `EVENT BLOCK: ${eventBlock.closureTitle || eventBlock.blockType || 'Blocked'}` : booking ? `${bookingDisplayName}${isUnmatched ? ' (UNMATCHED - Click to assign member)' : isInactiveMember ? ' (Inactive Member)' : ''} - Click for details` : pendingRequest ? `PENDING: ${pendingRequest.user_name || 'Request'} - Awaiting Trackman sync` : `${resource.type === 'conference_room' ? 'Conference Room' : resource.name} - ${formatTime12Hour(slot)} (Available)`}
-                                                    onClick={closure || eventBlock ? undefined : isEmptyCell ? () => {
-                                                        setStaffManualBookingDefaults({
-                                                            resourceId: resource.id,
-                                                            startTime: slot,
-                                                            date: calendarDate,
-                                                            initialMode: resource.type === 'conference_room' ? 'conference' : 'member'
-                                                        });
-                                                        setStaffManualBookingModalOpen(true);
-                                                    } : booking ? () => setBookingSheet({
-                                                        isOpen: true,
-                                                        trackmanBookingId: (booking as any).trackman_booking_id || null,
-                                                        bookingId: booking.id,
-                                                        mode: isUnmatched ? 'assign' as const : 'manage' as const,
-                                                        bayName: resource.type === 'conference_room' ? 'Conference Room' : resource.name,
-                                                        bookingDate: formatDateShortAdmin(booking.request_date),
-                                                        timeSlot: `${formatTime12Hour(booking.start_time)} - ${formatTime12Hour(booking.end_time)}`,
-                                                        matchedBookingId: Number(booking.id),
-                                                        currentMemberName: isUnmatched ? undefined : ((booking as any).user_name || undefined),
-                                                        currentMemberEmail: isUnmatched ? undefined : ((booking as any).user_email || undefined),
-                                                        ownerName: (booking as any).user_name || undefined,
-                                                        ownerEmail: (booking as any).user_email || undefined,
-                                                        declaredPlayerCount: (booking as any).declared_player_count || (booking as any).player_count || 1,
-                                                        isRelink: !isUnmatched,
-                                                        importedName: (booking as any).user_name || (booking as any).userName,
-                                                        notes: (booking as any).notes || (booking as any).note,
-                                                        bookingStatus: (booking as any).status,
-                                                        bookingContext: { requestDate: booking.request_date, startTime: booking.start_time, endTime: booking.end_time, resourceId: booking.resource_id || undefined, resourceName: (resource.type === 'conference_room' ? 'Conference Room' : resource.name) || undefined, durationMinutes: (booking as any).duration_minutes || undefined, trackmanCustomerNotes: (booking as any).trackman_customer_notes || undefined },
-                                                        ownerMembershipStatus: bookingMemberStatus || null,
-                                                    }) : pendingRequest ? () => setTrackmanModal({ isOpen: true, booking: pendingRequest }) : undefined}
-                                                    className={`h-7 sm:h-8 rounded ${
-                                                        closure
-                                                            ? 'bg-red-100 dark:bg-red-500/20 border border-red-300 dark:border-red-500/30'
-                                                            : eventBlock
-                                                                ? 'bg-orange-100 dark:bg-orange-500/20 border border-orange-300 dark:border-orange-500/30'
-                                                            : booking 
-                                                                ? isConference
-                                                                    ? 'bg-purple-100 dark:bg-purple-500/20 border border-purple-300 dark:border-purple-500/30 cursor-pointer hover:bg-purple-200 dark:hover:bg-purple-500/30'
-                                                                    : isUnmatched
-                                                                        ? 'bg-amber-100 dark:bg-amber-500/20 border-2 border-dashed border-amber-400 dark:border-amber-400/50 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-500/30'
-                                                                    : isInactiveMember
-                                                                        ? 'bg-green-100/50 dark:bg-green-500/10 border border-dashed border-orange-300 dark:border-orange-500/40 cursor-pointer hover:bg-green-200/50 dark:hover:bg-green-500/20'
-                                                                        : hasPartialRoster
-                                                                            ? 'bg-blue-100 dark:bg-blue-600/20 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-600/30'
-                                                                            : 'bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/30 cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30' 
-                                                                : pendingRequest
-                                                                        ? 'bg-blue-50 dark:bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20'
-                                                                        : 'bg-white dark:bg-white/5 border border-gray-200 dark:border-white/15 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10'
-                                                    } transition-all duration-150`}
-                                                >
-                                                    {closure ? (
-                                                        <div className="px-0.5 sm:px-1 h-full flex items-center justify-center">
-                                                            <span className="hidden sm:block text-[9px] sm:text-[10px] font-medium truncate text-red-600 dark:text-red-400">
-                                                                CLOSED
-                                                            </span>
-                                                            <span className="sm:hidden text-[8px] font-bold text-red-600 dark:text-red-400">X</span>
-                                                        </div>
-                                                    ) : eventBlock ? (
-                                                        <div className="px-0.5 sm:px-1 h-full flex items-center justify-center">
-                                                            <span className="hidden sm:block text-[9px] sm:text-[10px] font-medium truncate text-orange-600 dark:text-orange-400">
-                                                                EVENT
-                                                            </span>
-                                                            <span className="sm:hidden text-[8px] font-bold text-orange-600 dark:text-orange-400">E</span>
-                                                        </div>
-                                                    ) : booking ? (
-                                                        <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start relative">
-                                                            {/* Calculate slot data once for both views */}
-                                                            {(() => {
-                                                                const unfilledSlots = (booking as any)?.unfilled_slots ?? 0;
-                                                                const declaredPlayers = (booking as any)?.declared_player_count ?? 1;
-                                                                const filledSlots = Math.max(0, declaredPlayers - unfilledSlots);
-                                                                const estimatedFromTier = estimateFeeByTier((booking as any)?.tier, (booking as any)?.duration_minutes || 0, declaredPlayers, guestFeeDollars, overageRatePerBlockDollars);
-                                                                // Only use estimate for incomplete rosters; use actual database value when roster is complete
-                                                                const dbTotalOwed = (booking as any)?.total_owed ?? 0;
-                                                                const hasUnpaidFees = ((booking as any)?.has_unpaid_fees === true) || 
-                                                                    (dbTotalOwed > 0) || 
-                                                                    (filledSlots < declaredPlayers && estimatedFromTier > 0);
-                                                                const totalOwed = dbTotalOwed > 0 ? dbTotalOwed : (filledSlots < declaredPlayers ? estimatedFromTier : 0);
-                                                                const isPartialRoster = !isConference && declaredPlayers > 1 && filledSlots < declaredPlayers;
-                                                                const textColor = isConference 
-                                                                    ? 'text-purple-700 dark:text-purple-300' 
-                                                                    : isUnmatched
-                                                                        ? 'text-amber-700 dark:text-amber-300'
-                                                                    : isInactiveMember 
-                                                                        ? 'text-green-600/70 dark:text-green-400/70' 
-                                                                    : isPartialRoster
-                                                                        ? 'text-blue-700 dark:text-blue-300'
-                                                                        : 'text-green-700 dark:text-green-300';
-                                                                
-                                                                return (
-                                                                    <>
-                                                                        {/* Desktop: show name + X/Y inline when there are multiple players */}
-                                                                        <span className={`hidden sm:flex items-center gap-1 text-[9px] sm:text-[10px] font-medium truncate ${textColor}`}>
-                                                                            <span className="truncate">{bookingDisplayName}</span>
-                                                                            {declaredPlayers > 1 && (
-                                                                                <span className="text-[8px] opacity-70" title={`${filledSlots}/${declaredPlayers} slots filled`}>
-                                                                                    {filledSlots}/{declaredPlayers}
-                                                                                </span>
-                                                                            )}
-                                                                        </span>
-                                                                        
-                                                                        {/* Mobile: show X/Y player count when >1 player OR unpaid, else show dot */}
-                                                                        {declaredPlayers > 1 || hasUnpaidFees ? (
-                                                                            <span className={`sm:hidden text-[9px] font-bold ${hasUnpaidFees ? 'text-red-600 dark:text-red-400' : textColor}`} title={`${bookingDisplayName}${hasUnpaidFees ? ` - $${totalOwed.toFixed(2)} owed` : ''}`}>
-                                                                                {filledSlots}/{declaredPlayers}
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className={`sm:hidden w-3 h-3 rounded-full ${isConference ? 'bg-purple-500 dark:bg-purple-400' : isUnmatched ? 'bg-amber-500 dark:bg-amber-400' : 'bg-green-500 dark:bg-green-400'}`} title={bookingDisplayName}></span>
-                                                                        )}
-                                                                        
-                                                                        {/* Desktop: Red badge for unpaid fees - top right */}
-                                                                        {hasUnpaidFees && (
-                                                                            <span className="hidden sm:block absolute -top-1 -right-1 group">
-                                                                                <span className="w-2.5 h-2.5 rounded-full bg-red-500 dark:bg-red-400 block cursor-help border border-white dark:border-gray-800"></span>
-                                                                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-800 dark:bg-gray-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                                                                                    ${totalOwed.toFixed(2)} owed
-                                                                                </span>
-                                                                            </span>
-                                                                        )}
-                                                                    </>
-                                                                );
-                                                            })()}
-                                                        </div>
-                                                    ) : pendingRequest && (
-                                                        <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start">
-                                                            <span className="hidden sm:block text-[9px] sm:text-[10px] font-medium truncate text-blue-600 dark:text-blue-400">
-                                                                {pendingRequest.user_name || 'Pending'}
-                                                            </span>
-                                                            <span className="sm:hidden w-3 h-3 rounded-full border-2 border-dashed border-blue-400 dark:border-blue-400" title={pendingRequest.user_name || 'Pending'}></span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </React.Fragment>
-                                    )
-                                })}
-                            </div>
-                            </div>
-                        </div>
-                    </div>
-                    </div>
+                    <CalendarGrid
+                        resources={resources}
+                        calendarDate={calendarDate}
+                        setCalendarDate={setCalendarDate}
+                        showDatePicker={showDatePicker}
+                        setShowDatePicker={setShowDatePicker}
+                        approvedBookings={approvedBookings}
+                        pendingRequests={pendingRequests}
+                        closures={closures}
+                        availabilityBlocks={availabilityBlocks}
+                        memberStatusMap={memberStatusMap}
+                        memberNameMap={memberNameMap}
+                        setBookingSheet={setBookingSheet}
+                        setStaffManualBookingDefaults={setStaffManualBookingDefaults}
+                        setStaffManualBookingModalOpen={setStaffManualBookingModalOpen}
+                        setTrackmanModal={setTrackmanModal}
+                        handleRefresh={handleRefresh}
+                        isSyncing={isSyncing}
+                        setIsSyncing={setIsSyncing}
+                        lastRefresh={lastRefresh}
+                        setLastRefresh={setLastRefresh}
+                        isDark={isDark}
+                        showToast={showToast}
+                        calendarColRef={calendarColRef}
+                        activeView={activeView}
+                        guestFeeDollars={guestFeeDollars}
+                        overageRatePerBlockDollars={overageRatePerBlockDollars}
+                    />
                 </div>
             )}
             
@@ -3215,7 +1509,6 @@ const SimulatorTab: React.FC = () => {
                 </div>
             </ModalShell>
 
-            
 
             <TrackmanBookingModal
               isOpen={trackmanModal.isOpen}
@@ -3433,7 +1726,6 @@ const SimulatorTab: React.FC = () => {
             </ModalShell>
                 </div>
 
-                {/* FAB for Staff Manual Booking */}
                 <FloatingActionButton
                   onClick={() => setStaffManualBookingModalOpen(true)}
                   icon="add"

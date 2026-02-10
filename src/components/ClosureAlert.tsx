@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useData } from '../contexts/DataContext';
 import { getTodayPacific } from '../utils/dateUtils';
+import { isBlockingClosure, getAffectedAreasList, getNoticeLabel as getNoticeLabelUtil } from '../utils/closureUtils';
 
 interface Closure {
   id: number;
@@ -17,56 +18,6 @@ interface Closure {
   notifyMembers: boolean;
 }
 
-const formatAffectedAreas = (areas: string): string => {
-  if (areas === 'entire_facility') return 'Entire Facility';
-  if (areas === 'all_bays') return 'All Simulator Bays';
-  if (areas === 'none') return 'No booking restrictions';
-  
-  const areaList = areas.split(',').map(a => a.trim());
-  const formatted = areaList.map(area => {
-    if (area === 'entire_facility') return 'Entire Facility';
-    if (area === 'all_bays') return 'All Simulator Bays';
-    if (area === 'conference_room') return 'Conference Room';
-    if (area === 'none') return 'No booking restrictions';
-    if (area.startsWith('bay_')) {
-      const bayNum = area.replace('bay_', '');
-      return `Bay ${bayNum}`;
-    }
-    return area;
-  });
-  return formatted.join(', ');
-};
-
-const getAffectedAreasList = (areas: string): string[] => {
-  if (!areas || areas === 'none') return [];
-  if (areas === 'entire_facility') return ['Entire Facility'];
-  if (areas === 'all_bays') return ['All Simulator Bays'];
-  
-  return areas.split(',').map(a => a.trim()).map(area => {
-    if (area === 'entire_facility') return 'Entire Facility';
-    if (area === 'all_bays') return 'All Simulator Bays';
-    if (area === 'conference_room') return 'Conference Room';
-    if (area === 'none') return '';
-    if (area.startsWith('bay_')) {
-      const bayNum = area.replace('bay_', '');
-      return `Bay ${bayNum}`;
-    }
-    return area;
-  }).filter(a => a);
-};
-
-const getNoticeDisplayText = (closure: Closure): string => {
-  if (closure.noticeType && closure.noticeType.trim()) {
-    return closure.noticeType;
-  }
-  if (closure.reason && closure.reason.trim()) {
-    return closure.reason;
-  }
-  if (closure.affectedAreas) {
-    return formatAffectedAreas(closure.affectedAreas);
-  }
-  return closure.title || 'Notice';
-};
 
 const ClosureAlert: React.FC = () => {
   const navigate = useNavigate();
@@ -163,7 +114,7 @@ const ClosureAlert: React.FC = () => {
   };
 
   const isBlocking = (areas: string | null): boolean => {
-    return areas !== 'none' && areas !== '' && areas !== null;
+    return isBlockingClosure(areas);
   };
 
   const formatTime12Hour = (time: string): string => {
@@ -188,18 +139,7 @@ const ClosureAlert: React.FC = () => {
   
   // For informational notices (not blocking), always show "Notice" unless a specific type is set
   // "Closure" type should only show for blocking notices
-  const getNoticeLabel = () => {
-    if (!blocking) {
-      // Informational notice - show type if meaningful, otherwise "Notice"
-      if (closure.noticeType && closure.noticeType.toLowerCase() !== 'closure') {
-        return closure.noticeType;
-      }
-      return 'Notice';
-    }
-    // Blocking notice - show type or default to "Closure"
-    return closure.noticeType || 'Closure';
-  };
-  const noticeLabel = getNoticeLabel();
+  const noticeLabel = getNoticeLabelUtil(closure);
 
   return (
     <div 

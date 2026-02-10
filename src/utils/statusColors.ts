@@ -207,6 +207,57 @@ export function getMemberStatusLabel(status: string | undefined | null): string 
   return getMemberStatusInfo(status).label;
 }
 
+export function getSubscriptionStatusBadge(status: string): string {
+  switch (status?.toLowerCase()) {
+    case 'active':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+    case 'past_due':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+    case 'canceled':
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-700/30 dark:text-gray-400';
+    case 'trialing':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+    case 'unpaid':
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+    default:
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400';
+  }
+}
+
+export function getInvoiceStatusBadge(status: string): string {
+  switch (status?.toLowerCase()) {
+    case 'paid':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+    case 'open':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+    case 'uncollectible':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+    case 'void':
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-700/30 dark:text-gray-400';
+    case 'draft':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+    default:
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400';
+  }
+}
+
+export function getBillingStatusBadge(status: string, isDark: boolean): string {
+  const styles: Record<string, { dark: string; light: string }> = {
+    active: { dark: 'bg-green-500/20 text-green-400', light: 'bg-green-100 text-green-700' },
+    paused: { dark: 'bg-yellow-500/20 text-yellow-400', light: 'bg-yellow-100 text-yellow-700' },
+    canceled: { dark: 'bg-red-500/20 text-red-400', light: 'bg-red-100 text-red-700' },
+    past_due: { dark: 'bg-orange-500/20 text-orange-400', light: 'bg-orange-100 text-orange-700' },
+    trialing: { dark: 'bg-blue-500/20 text-blue-400', light: 'bg-blue-100 text-blue-700' },
+    paid: { dark: 'bg-green-500/20 text-green-400', light: 'bg-green-100 text-green-700' },
+    open: { dark: 'bg-yellow-500/20 text-yellow-400', light: 'bg-yellow-100 text-yellow-700' },
+    draft: { dark: 'bg-gray-500/20 text-gray-400', light: 'bg-gray-100 text-gray-600' },
+    uncollectible: { dark: 'bg-red-500/20 text-red-400', light: 'bg-red-100 text-red-700' },
+  };
+  const style = styles[status?.toLowerCase()];
+  if (style) return isDark ? style.dark : style.light;
+  return isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600';
+}
+
 export type UserRole = 'admin' | 'staff' | 'member';
 
 export function getRoleColor(role: string | null): string {

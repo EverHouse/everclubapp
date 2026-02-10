@@ -8,14 +8,17 @@ import { formatPhoneNumber } from '../utils/formatting';
 import { getMemberStatusColor, getMemberStatusLabel } from '../utils/statusColors';
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { MemberProfile } from '../types/data';
-import MemberBillingTab from './admin/MemberBillingTab';
-import MemberActivityTab from './admin/MemberActivityTab';
 import MemberSearchInput, { SelectedMember } from './shared/MemberSearchInput';
 import { TIER_NAMES } from '../../shared/constants/tiers';
 import IdScannerModal from './staff-command-center/modals/IdScannerModal';
 import { useBookingActions } from '../hooks/useBookingActions';
-
-const stripHtml = (html: string) => html?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '';
+import { formatDatePacific } from './memberProfile/memberProfileTypes';
+import type { MemberHistory, GuestVisit, MemberNote, CommunicationLog, TabType } from './memberProfile/memberProfileTypes';
+import OverviewTab from './memberProfile/OverviewTab';
+import BillingTab from './memberProfile/BillingTab';
+import ActivityTab from './memberProfile/ActivityTab';
+import NotesTab from './memberProfile/NotesTab';
+import CommunicationsTab from './memberProfile/CommunicationsTab';
 
 interface MemberProfileDrawerProps {
   isOpen: boolean;
@@ -27,57 +30,6 @@ interface MemberProfileDrawerProps {
   visitorMode?: boolean;
 }
 
-interface MemberHistory {
-  bookingHistory: any[];
-  bookingRequestsHistory: any[];
-  eventRsvpHistory: any[];
-  wellnessHistory: any[];
-  guestPassInfo: any | null;
-  guestCheckInsHistory: any[];
-  visitHistory: any[];
-  pastBookingsCount?: number;
-  pastEventsCount?: number;
-  pastWellnessCount?: number;
-  attendedVisitsCount?: number;
-}
-
-interface GuestVisit {
-  id: number;
-  bookingId: number;
-  guestName: string | null;
-  guestEmail: string | null;
-  visitDate: string;
-  startTime: string;
-  resourceName: string | null;
-}
-
-interface MemberNote {
-  id: number;
-  memberEmail: string;
-  content: string;
-  createdBy: string;
-  createdByName: string;
-  isPinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface CommunicationLog {
-  id: number;
-  memberEmail: string;
-  type: string;
-  direction: string;
-  subject: string;
-  body: string;
-  status: string;
-  occurredAt: string;
-  loggedBy: string;
-  loggedByName: string;
-  createdAt: string;
-}
-
-type TabType = 'overview' | 'billing' | 'activity' | 'notes' | 'communications';
-
 const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'dashboard' },
   { id: 'billing', label: 'Billing', icon: 'payments' },
@@ -85,36 +37,6 @@ const TABS: { id: TabType; label: string; icon: string }[] = [
   { id: 'notes', label: 'Notes', icon: 'sticky_note_2' },
   { id: 'communications', label: 'Comms', icon: 'chat' },
 ];
-
-const formatDatePacific = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return '';
-  try {
-    // For date-only strings (YYYY-MM-DD), append noon time to avoid UTC midnight timezone shift
-    const normalizedDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
-    const d = new Date(normalizedDate);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
-  } catch {
-    return dateStr;
-  }
-};
-
-const formatDateTimePacific = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' });
-  } catch {
-    return dateStr;
-  }
-};
-
-const formatTime12Hour = (timeStr: string): string => {
-  if (!timeStr) return '';
-  const [hours, minutes] = timeStr.substring(0, 5).split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const hour12 = hours % 12 || 12;
-  return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
-};
 
 const VISITOR_TABS: TabType[] = ['billing', 'activity', 'communications', 'notes'];
 
@@ -604,585 +526,104 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
     switch (activeTab) {
       case 'overview':
-        const hasAddress = member?.streetAddress || member?.city || member?.state || member?.zipCode;
-        const addressParts = [member?.streetAddress, member?.city, member?.state, member?.zipCode].filter(Boolean);
-        const formattedAddress = addressParts.length > 0 
-          ? (member?.streetAddress ? member.streetAddress + ', ' : '') + 
-            [member?.city, member?.state].filter(Boolean).join(', ') + 
-            (member?.zipCode ? ' ' + member.zipCode : '')
-          : null;
-        
         return (
-          <div className="space-y-4">
-            <div 
-              className="animate-slide-up-stagger grid grid-cols-2 gap-3"
-              style={{ '--stagger-index': 0 } as React.CSSProperties}
-            >
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-lg text-brand-green">event_note</span>
-                  <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{bookingsCount}</span>
-                </div>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Bookings</p>
-              </div>
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-lg text-purple-500">celebration</span>
-                  <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{eventsCount}</span>
-                </div>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Event RSVPs</p>
-              </div>
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-lg text-pink-500">spa</span>
-                  <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{wellnessCount}</span>
-                </div>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Wellness Classes</p>
-              </div>
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="material-symbols-outlined text-lg text-emerald-500">check_circle</span>
-                  <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{visitsCount}</span>
-                </div>
-                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Attended Visits</p>
-              </div>
-            </div>
-
-            {isAdmin && !visitorMode && (
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 1 } as React.CSSProperties}
-              >
-                <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
-                      Account Balance
-                    </h4>
-                  <span className={`text-xl font-bold font-serif ${(accountBalance?.balanceDollars || 0) > 0 ? 'text-green-500' : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>
-                    ${(accountBalance?.balanceDollars || 0).toFixed(2)}
-                  </span>
-                </div>
-                <p className={`text-xs mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Available credit applied to guest fees & overages
-                </p>
-                
-                {showApplyCreditModal ? (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={creditAmount}
-                          onChange={(e) => setCreditAmount(e.target.value)}
-                          placeholder="Amount ($)"
-                          className={`w-full px-3 py-2 rounded-lg border text-sm ${
-                            isDark
-                              ? 'bg-white/10 border-white/20 text-white placeholder:text-gray-500'
-                              : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    <input
-                      type="text"
-                      value={creditDescription}
-                      onChange={(e) => setCreditDescription(e.target.value)}
-                      placeholder="Reason (optional)"
-                      className={`w-full px-3 py-2 rounded-lg border text-sm ${
-                        isDark
-                          ? 'bg-white/10 border-white/20 text-white placeholder:text-gray-500'
-                          : 'bg-white border-gray-200 text-gray-900 placeholder:text-gray-400'
-                      }`}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setShowApplyCreditModal(false);
-                          setCreditAmount('');
-                          setCreditDescription('');
-                        }}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
-                          isDark ? 'bg-white/10 text-white' : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleApplyCredit}
-                        disabled={isApplyingCredit || !creditAmount || parseFloat(creditAmount) <= 0}
-                        className="flex-1 px-3 py-2 bg-brand-green text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                      >
-                        {isApplyingCredit ? 'Applying...' : 'Apply Credit'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowApplyCreditModal(true)}
-                    className="w-full py-2.5 bg-brand-green text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-                  >
-                    <span className="material-symbols-outlined text-lg">add</span>
-                    Apply Credit
-                  </button>
-                )}
-              </div>
-              </div>
-            )}
-
-            {(
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 2 } as React.CSSProperties}
-              >
-                <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <span className="material-symbols-outlined text-[18px]">badge</span>
-                      ID on File
-                    </h4>
-                    <button
-                      onClick={() => setShowIdScanner(true)}
-                      className={`text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
-                        isDark ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-emerald-600 hover:bg-emerald-50'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-sm">photo_camera</span>
-                      {idImageUrl ? 'Re-scan' : 'Scan ID'}
-                    </button>
-                  </div>
-                  {isLoadingIdImage || isSavingIdImage ? (
-                    <div className="flex items-center justify-center py-6">
-                      <span className="material-symbols-outlined text-2xl text-gray-400 animate-spin">progress_activity</span>
-                    </div>
-                  ) : idImageUrl ? (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => setShowIdImageFull(true)}
-                        className="w-full rounded-lg overflow-hidden border border-white/10 hover:opacity-90 transition-opacity"
-                      >
-                        <img
-                          src={idImageUrl}
-                          alt="ID Document"
-                          className="w-full h-32 object-cover"
-                        />
-                      </button>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Tap to view full size
-                        </span>
-                        <button
-                          onClick={handleDeleteIdImage}
-                          disabled={isDeletingIdImage}
-                          className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className={`text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      <span className="material-symbols-outlined text-3xl mb-1">badge</span>
-                      <p className="text-xs">No ID on file</p>
-                      <button
-                        onClick={() => setShowIdScanner(true)}
-                        className={`mt-2 text-xs px-3 py-1.5 rounded-lg border border-dashed transition-colors ${
-                          isDark
-                            ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
-                            : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
-                        }`}
-                      >
-                        Scan or Upload ID
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {(member?.dateOfBirth || member?.companyName || hasAddress || member?.emailOptIn !== null || member?.smsOptIn !== null) && (
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 3 } as React.CSSProperties}
-              >
-                <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                  <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <span className="material-symbols-outlined text-[18px]">info</span>
-                    Personal Information
-                  </h4>
-                <div className="space-y-2">
-                  {member?.dateOfBirth && (
-                    <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>cake</span>
-                      <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {formatDatePacific(member.dateOfBirth)}
-                      </span>
-                    </div>
-                  )}
-                  {member?.companyName && (
-                    <div className="flex items-center gap-2">
-                      <span className={`material-symbols-outlined text-[16px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>business</span>
-                      <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {member.companyName}
-                      </span>
-                    </div>
-                  )}
-                  {formattedAddress && (
-                    <div className="flex items-start gap-2">
-                      <span className={`material-symbols-outlined text-[16px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>location_on</span>
-                      <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {formattedAddress}
-                      </span>
-                    </div>
-                  )}
-                  {(member?.emailOptIn !== null || member?.smsOptIn !== null) && (
-                    <div className="flex items-center gap-4 pt-1">
-                      {member?.emailOptIn !== null && (
-                        <div className="flex items-center gap-1.5">
-                          <span className={`material-symbols-outlined text-[14px] ${member.emailOptIn ? 'text-green-500' : 'text-gray-400'}`}>
-                            {member.emailOptIn ? 'check_circle' : 'cancel'}
-                          </span>
-                          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Email</span>
-                        </div>
-                      )}
-                      {member?.smsOptIn !== null && (
-                        <div className="flex items-center gap-1.5">
-                          <span className={`material-symbols-outlined text-[14px] ${member.smsOptIn ? 'text-green-500' : 'text-gray-400'}`}>
-                            {member.smsOptIn ? 'check_circle' : 'cancel'}
-                          </span>
-                          <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>SMS</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              </div>
-            )}
-            
-            {isAdmin && linkedEmails.length > 0 && (
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 4 } as React.CSSProperties}
-              >
-                <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                  <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <span className="material-symbols-outlined text-[18px]">link</span>
-                    Trackman Linked Emails
-                  </h4>
-                <div className="space-y-2">
-                  {linkedEmails.map(email => (
-                    <div key={email} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
-                      <span className={`text-sm font-mono truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{email}</span>
-                      <button
-                        onClick={() => handleRemoveLinkedEmail(email)}
-                        disabled={removingEmail === email}
-                        className="text-red-500 hover:text-red-600 p-1 disabled:opacity-50"
-                        aria-label="Remove linked email"
-                      >
-                        {removingEmail === email ? (
-                          <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-                        ) : (
-                          <span className="material-symbols-outlined text-[18px]">close</span>
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              </div>
-            )}
-          </div>
+          <OverviewTab
+            member={member}
+            isDark={isDark}
+            isAdmin={isAdmin}
+            visitorMode={visitorMode}
+            bookingsCount={bookingsCount}
+            eventsCount={eventsCount}
+            wellnessCount={wellnessCount}
+            visitsCount={visitsCount}
+            accountBalance={accountBalance}
+            showApplyCreditModal={showApplyCreditModal}
+            setShowApplyCreditModal={setShowApplyCreditModal}
+            creditAmount={creditAmount}
+            setCreditAmount={setCreditAmount}
+            creditDescription={creditDescription}
+            setCreditDescription={setCreditDescription}
+            isApplyingCredit={isApplyingCredit}
+            handleApplyCredit={handleApplyCredit}
+            idImageUrl={idImageUrl}
+            isLoadingIdImage={isLoadingIdImage}
+            isSavingIdImage={isSavingIdImage}
+            isDeletingIdImage={isDeletingIdImage}
+            setShowIdScanner={setShowIdScanner}
+            showIdImageFull={showIdImageFull}
+            setShowIdImageFull={setShowIdImageFull}
+            handleDeleteIdImage={handleDeleteIdImage}
+            linkedEmails={linkedEmails}
+            removingEmail={removingEmail}
+            handleRemoveLinkedEmail={handleRemoveLinkedEmail}
+          />
         );
 
       case 'communications':
         return (
-          <div className="space-y-4">
-            <div 
-              className="animate-slide-up-stagger"
-              style={{ '--stagger-index': 0 } as React.CSSProperties}
-            >
-              <button
-                onClick={() => setShowAddComm(!showAddComm)}
-                className="w-full py-2 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              >
-                <span className="material-symbols-outlined text-lg">add</span>
-                Log Communication
-              </button>
-            </div>
-
-            {showAddComm && (
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 1 } as React.CSSProperties}
-              >
-                <div className={`p-4 rounded-xl ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <select
-                        value={newCommType}
-                        onChange={(e) => setNewCommType(e.target.value)}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 text-white border-white/20' : 'bg-white text-gray-900 border-gray-200'} border`}
-                      >
-                        <option value="email">Email</option>
-                        <option value="call">Call</option>
-                        <option value="meeting">Meeting</option>
-                        <option value="note">Note</option>
-                        <option value="sms">SMS</option>
-                      </select>
-                      <select
-                        value={newCommDirection}
-                        onChange={(e) => setNewCommDirection(e.target.value)}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 text-white border-white/20' : 'bg-white text-gray-900 border-gray-200'} border`}
-                      >
-                        <option value="outbound">Outbound</option>
-                        <option value="inbound">Inbound</option>
-                      </select>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Subject"
-                      value={newCommSubject}
-                      onChange={(e) => setNewCommSubject(e.target.value)}
-                      className={`w-full px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 text-white border-white/20 placeholder-gray-500' : 'bg-white text-gray-900 border-gray-200'} border`}
-                    />
-                    <textarea
-                      placeholder="Details (optional)"
-                      value={newCommBody}
-                      onChange={(e) => setNewCommBody(e.target.value)}
-                      rows={3}
-                      className={`w-full px-3 py-2 rounded-lg text-sm resize-none ${isDark ? 'bg-white/10 text-white border-white/20 placeholder-gray-500' : 'bg-white text-gray-900 border-gray-200'} border`}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowAddComm(false)}
-                        className={`flex-1 py-2 px-4 rounded-lg font-medium ${isDark ? 'bg-white/10 text-white' : 'bg-gray-200 text-gray-700'}`}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleAddCommunication}
-                        disabled={isAddingComm || !newCommSubject.trim()}
-                        className="flex-1 py-2 px-4 rounded-lg bg-brand-green text-white font-medium disabled:opacity-50"
-                      >
-                        {isAddingComm ? 'Saving...' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {communications.length === 0 ? (
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 2 } as React.CSSProperties}
-              >
-                <EmptyState icon="chat" message="No communications logged yet" />
-              </div>
-            ) : (
-              <div 
-                className="animate-slide-up-stagger space-y-3"
-                style={{ '--stagger-index': 2 } as React.CSSProperties}
-              >
-                {communications.map((comm) => (
-                  <div key={comm.id} className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`material-symbols-outlined text-lg ${
-                            comm.type === 'email' ? 'text-blue-500' :
-                            comm.type === 'call' ? 'text-green-500' :
-                            comm.type === 'meeting' ? 'text-purple-500' :
-                            comm.type === 'sms' ? 'text-orange-500' : 'text-gray-500'
-                          }`}>
-                            {comm.type === 'email' ? 'mail' :
-                             comm.type === 'call' ? 'call' :
-                             comm.type === 'meeting' ? 'groups' :
-                             comm.type === 'sms' ? 'sms' : 'note'}
-                          </span>
-                          <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{comm.subject}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
-                            {comm.direction}
-                          </span>
-                        </div>
-                        {comm.body && <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stripHtml(comm.body)}</p>}
-                        <p className={`text-[10px] mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                          {formatDateTimePacific(comm.occurredAt)} · {comm.loggedByName}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteCommunication(comm.id)}
-                        className="text-red-500 hover:text-red-600 p-1"
-                        aria-label="Delete communication"
-                      >
-                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <CommunicationsTab
+            isDark={isDark}
+            communications={communications}
+            showAddComm={showAddComm}
+            setShowAddComm={setShowAddComm}
+            newCommType={newCommType}
+            setNewCommType={setNewCommType}
+            newCommDirection={newCommDirection}
+            setNewCommDirection={setNewCommDirection}
+            newCommSubject={newCommSubject}
+            setNewCommSubject={setNewCommSubject}
+            newCommBody={newCommBody}
+            setNewCommBody={setNewCommBody}
+            isAddingComm={isAddingComm}
+            handleAddCommunication={handleAddCommunication}
+            handleDeleteCommunication={handleDeleteCommunication}
+          />
         );
 
       case 'notes':
         return (
-          <div className="space-y-4">
-            <div 
-              className="animate-slide-up-stagger"
-              style={{ '--stagger-index': 0 } as React.CSSProperties}
-            >
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
-                <textarea
-                  placeholder="Add a note about this member..."
-                  value={newNoteContent}
-                  onChange={(e) => setNewNoteContent(e.target.value)}
-                  rows={3}
-                  className={`w-full px-3 py-2 rounded-lg text-sm resize-none ${isDark ? 'bg-white/10 text-white border-white/20 placeholder-gray-500' : 'bg-white text-gray-900 border-gray-200'} border`}
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <label className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    <input
-                      type="checkbox"
-                      checked={newNotePinned}
-                      onChange={(e) => setNewNotePinned(e.target.checked)}
-                      className="rounded"
-                    />
-                    Pin this note
-                  </label>
-                  <button
-                    onClick={handleAddNote}
-                    disabled={isAddingNote || !newNoteContent.trim()}
-                    className="py-2 px-4 rounded-lg bg-brand-green text-white font-medium text-sm disabled:opacity-50"
-                  >
-                    {isAddingNote ? 'Adding...' : 'Add Note'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {notes.length === 0 ? (
-              <div 
-                className="animate-slide-up-stagger"
-                style={{ '--stagger-index': 1 } as React.CSSProperties}
-              >
-                <EmptyState icon="sticky_note_2" message="No notes yet" />
-              </div>
-            ) : (
-              <div 
-                className="animate-slide-up-stagger space-y-3"
-                style={{ '--stagger-index': 1 } as React.CSSProperties}
-              >
-                {notes.map((note) => (
-                  <div key={note.id} className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} ${note.isPinned ? 'ring-2 ring-yellow-500/50' : ''}`}>
-                    {editingNoteId === note.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={editingNoteContent}
-                          onChange={(e) => setEditingNoteContent(e.target.value)}
-                          rows={3}
-                          className={`w-full px-3 py-2 rounded-lg text-sm resize-none ${isDark ? 'bg-white/10 text-white border-white/20' : 'bg-white text-gray-900 border-gray-200'} border`}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setEditingNoteId(null); setEditingNoteContent(''); }}
-                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium ${isDark ? 'bg-white/10 text-white' : 'bg-gray-200 text-gray-700'}`}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleUpdateNote(note.id, editingNoteContent, note.isPinned)}
-                            className="flex-1 py-2 px-3 rounded-lg bg-brand-green text-white text-sm font-medium"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            {note.isPinned && (
-                              <span className="material-symbols-outlined text-yellow-500 text-sm mb-1">push_pin</span>
-                            )}
-                            <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.content}</p>
-                            <p className={`text-[10px] mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                              {formatDateTimePacific(note.createdAt)} · {note.createdByName}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleUpdateNote(note.id, note.content, !note.isPinned)}
-                              className={`p-1 ${note.isPinned ? 'text-yellow-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`}
-                              aria-label={note.isPinned ? 'Unpin note' : 'Pin note'}
-                            >
-                              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">push_pin</span>
-                            </button>
-                            <button
-                              onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content); }}
-                              className={`p-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
-                              aria-label="Edit note"
-                            >
-                              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteNote(note.id)}
-                              className="text-red-500 hover:text-red-600 p-1"
-                              aria-label="Delete note"
-                            >
-                              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <NotesTab
+            isDark={isDark}
+            notes={notes}
+            newNoteContent={newNoteContent}
+            setNewNoteContent={setNewNoteContent}
+            newNotePinned={newNotePinned}
+            setNewNotePinned={setNewNotePinned}
+            isAddingNote={isAddingNote}
+            handleAddNote={handleAddNote}
+            editingNoteId={editingNoteId}
+            setEditingNoteId={setEditingNoteId}
+            editingNoteContent={editingNoteContent}
+            setEditingNoteContent={setEditingNoteContent}
+            handleUpdateNote={handleUpdateNote}
+            handleDeleteNote={handleDeleteNote}
+          />
         );
 
       case 'billing':
         return (
-          <div className="space-y-4">
-            <div 
-              className="animate-slide-up-stagger"
-              style={{ '--stagger-index': 0 } as React.CSSProperties}
-            >
-              <MemberBillingTab 
-                memberEmail={member.email} 
-                memberId={member.id} 
-                currentTier={displayedTier}
-                onTierUpdate={(newTier) => setDisplayedTier(newTier)}
-                guestPassInfo={history?.guestPassInfo}
-                guestHistory={guestHistory}
-                guestCheckInsHistory={history?.guestCheckInsHistory}
-                purchases={purchases}
-              />
-            </div>
-          </div>
+          <BillingTab
+            memberEmail={member.email}
+            memberId={member.id}
+            displayedTier={displayedTier}
+            onTierUpdate={(newTier) => setDisplayedTier(newTier)}
+            guestPassInfo={history?.guestPassInfo}
+            guestHistory={guestHistory}
+            guestCheckInsHistory={history?.guestCheckInsHistory || []}
+            purchases={purchases}
+          />
         );
 
       case 'activity':
         return (
-          <div 
-            className="animate-slide-up-stagger"
-            style={{ '--stagger-index': 0 } as React.CSSProperties}
-          >
-            <MemberActivityTab
-              memberEmail={member.email}
-              bookingHistory={filteredBookingHistory}
-              bookingRequestsHistory={filteredBookingRequestsHistory}
-              eventRsvpHistory={history?.eventRsvpHistory || []}
-              wellnessHistory={history?.wellnessHistory || []}
-              visitHistory={history?.visitHistory || []}
-            />
-          </div>
+          <ActivityTab
+            memberEmail={member.email}
+            filteredBookingHistory={filteredBookingHistory}
+            filteredBookingRequestsHistory={filteredBookingRequestsHistory}
+            eventRsvpHistory={history?.eventRsvpHistory || []}
+            wellnessHistory={history?.wellnessHistory || []}
+            visitHistory={history?.visitHistory || []}
+          />
         );
 
       default:
@@ -1926,18 +1367,6 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   );
 
   return createPortal(drawerContent, document.body);
-};
-
-const EmptyState: React.FC<{ icon: string; message: string }> = ({ icon, message }) => {
-  const { effectiveTheme } = useTheme();
-  const isDark = effectiveTheme === 'dark';
-  
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <span className={`material-symbols-outlined text-4xl mb-3 ${isDark ? 'text-white/20' : 'text-gray-300'}`}>{icon}</span>
-      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{message}</p>
-    </div>
-  );
 };
 
 export default MemberProfileDrawer;

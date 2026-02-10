@@ -7,7 +7,6 @@ import { usePageReady } from '../../contexts/PageReadyContext';
 import { useToast } from '../../components/Toast';
 import { bookingEvents } from '../../lib/bookingEvents';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
-import DateButton from '../../components/DateButton';
 import { usePricing } from '../../hooks/usePricing';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
@@ -16,177 +15,31 @@ import { haptic } from '../../utils/haptics';
 import { playSound } from '../../utils/sounds';
 import { useTierPermissions } from '../../hooks/useTierPermissions';
 import { canAccessResource } from '../../services/tierService';
-import { getDateString, formatDateShort, getPacificDateParts, formatTime12Hour } from '../../utils/dateUtils';
-import { getStatusColor } from '../../utils/statusColors';
+import { formatDateShort, formatTime12Hour } from '../../utils/dateUtils';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import ModalShell from '../../components/ModalShell';
-import { BookGolfSkeleton } from '../../components/skeletons';
 import { GuardianConsentForm, type GuardianConsentData } from '../../components/booking';
 import { AnimatedPage } from '../../components/motion';
 import { StripePaymentWithSecret } from '../../components/stripe/StripePaymentForm';
-
-
-interface APIResource {
-  id: number;
-  name: string;
-  type: string;
-  description: string;
-  capacity: number;
-}
-
-interface APISlot {
-  start_time: string;
-  end_time: string;
-  available: boolean;
-}
-
-interface TimeSlot {
-  id: string;
-  start: string;
-  end: string;
-  startTime24: string;
-  endTime24: string;
-  label: string;
-  available: boolean;
-  availableResourceDbIds: number[];
-}
-
-interface Resource {
-  id: string;
-  dbId: number;
-  name: string;
-  meta: string;
-  badge?: string;
-  icon?: string;
-  image?: string;
-}
-
-interface BookingRequest {
-  id: number;
-  user_email: string;
-  user_name: string;
-  resource_id: number | null;
-  bay_name: string | null;
-  resource_preference: string | null;
-  request_date: string;
-  start_time: string;
-  end_time: string;
-  duration_minutes: number;
-  notes: string | null;
-  status: 'pending' | 'approved' | 'confirmed' | 'attended' | 'no_show' | 'declined' | 'cancelled';
-  staff_notes: string | null;
-  suggested_time: string | null;
-  created_at: string;
-  reschedule_booking_id?: number | null;
-}
-
-interface Closure {
-  id: number;
-  title: string | null;
-  reason: string | null;
-  noticeType: string | null;
-  startDate: string;
-  startTime: string | null;
-  endDate: string;
-  endTime: string | null;
-  affectedAreas: string;
-  isActive: boolean;
-}
-
-interface GuestPassInfo {
-  passes_used: number;
-  passes_total: number;
-  passes_remaining: number;
-  passes_pending?: number;
-  passes_remaining_conservative?: number;
-}
-
-interface ExistingBookingCheck {
-  hasExisting: boolean;
-  bookings: Array<{ id: number; resourceName: string; startTime: string; endTime: string; status: string; isStaffCreated: boolean }>;
-  staffCreated: boolean;
-}
-
-interface FeeEstimateResponse {
-  totalFee: number;
-  feeBreakdown: {
-    overageFee: number;
-    guestFees: number;
-    guestCount: number;
-    overageMinutes: number;
-    guestsUsingPasses: number;
-    guestsCharged: number;
-    guestPassesRemaining: number;
-    guestFeePerUnit?: number;
-    overageRatePerBlock?: number;
-  };
-}
-
-const bookGolfKeys = {
-  all: ['bookGolf'] as const,
-  resources: (type: string) => [...bookGolfKeys.all, 'resources', type] as const,
-  availability: (resourceIds: number[], date: string, duration: number, ignoreId?: number) => 
-    [...bookGolfKeys.all, 'availability', resourceIds, date, duration, ignoreId] as const,
-  guestPasses: (email: string, tier: string) => [...bookGolfKeys.all, 'guestPasses', email, tier] as const,
-  myRequests: (email: string) => [...bookGolfKeys.all, 'myRequests', email] as const,
-  closures: () => [...bookGolfKeys.all, 'closures'] as const,
-  existingBookings: (date: string, resourceType: string) => [...bookGolfKeys.all, 'existingBookings', date, resourceType] as const,
-  feeEstimate: (params: string) => [...bookGolfKeys.all, 'feeEstimate', params] as const,
-};
-
-const generateDates = (advanceDays: number = 7): { label: string; date: string; day: string; dateNum: string }[] => {
-  const dates = [];
-  const { year, month, day } = getPacificDateParts();
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  
-  // Show today + advanceDays (today doesn't count toward the advance booking window)
-  for (let i = 0; i <= advanceDays; i++) {
-    const d = new Date(year, month - 1, day + i);
-    const dayName = days[d.getDay()];
-    const dateNum = d.getDate().toString();
-    dates.push({
-      label: `${dayName} ${dateNum}`,
-      date: getDateString(d),
-      day: dayName,
-      dateNum: dateNum
-    });
-  }
-  return dates;
-};
-
-const doesClosureAffectResource = (affectedAreas: string, resourceType: 'simulator' | 'conference'): boolean => {
-  if (!affectedAreas) return false;
-  
-  const normalized = affectedAreas.toLowerCase().trim();
-  if (normalized === 'entire_facility') return true;
-  
-  let parts: string[];
-  if (normalized.startsWith('[')) {
-    try {
-      parts = JSON.parse(affectedAreas).map((p: string) => p.toLowerCase().trim());
-    } catch {
-      parts = [normalized];
-    }
-  } else {
-    parts = normalized.split(',').map(p => p.trim());
-  }
-  
-  if (resourceType === 'simulator') {
-    return parts.some(part => 
-      part === 'all_bays' || 
-      part.startsWith('bay_') || 
-      part.startsWith('bay ') ||
-      /^bay\s*\d+$/.test(part)
-    );
-  } else if (resourceType === 'conference') {
-    return parts.some(part => 
-      part === 'conference_room' || 
-      part === 'conference room'
-    );
-  }
-  
-  return false;
-};
+import {
+  type APIResource,
+  type APISlot,
+  type TimeSlot,
+  type Resource,
+  type BookingRequest,
+  type Closure,
+  type GuestPassInfo,
+  type ExistingBookingCheck,
+  type FeeEstimateResponse,
+  type PlayerSlot,
+  bookGolfKeys,
+  generateDates,
+  doesClosureAffectResource,
+} from './bookGolf/bookGolfTypes';
+import ResourceCard from './bookGolf/ResourceCard';
+import DatePickerStrip from './bookGolf/DatePickerStrip';
+import FeeBreakdownCard from '../../components/shared/FeeBreakdownCard';
+import PlayerSlotEditor from '../../components/shared/PlayerSlotEditor';
 
 const BookGolf: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -221,22 +74,7 @@ const BookGolf: React.FC = () => {
   const [showViewAsConfirm, setShowViewAsConfirm] = useState(false);
   const [expandedHour, setExpandedHour] = useState<string | null>(null);
   const [hasUserSelectedDuration, setHasUserSelectedDuration] = useState(false);
-  const [showPlayerTooltip, setShowPlayerTooltip] = useState(false);
-  const [playerSlots, setPlayerSlots] = useState<Array<{
-    email: string;
-    type: 'member' | 'guest';
-    searchQuery: string;
-    selectedId?: string;
-    selectedName?: string;
-  }>>([]);
-  const [playerSearchResults, setPlayerSearchResults] = useState<Record<number, Array<{
-    id: string;
-    name: string;
-    emailRedacted: string;
-    visitorType?: string;
-  }>>>({});
-  const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
-  const searchTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
+  const [playerSlots, setPlayerSlots] = useState<PlayerSlot[]>([]);
   
   const [existingDayBooking, setExistingDayBooking] = useState<BookingRequest | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -587,14 +425,12 @@ const BookGolf: React.FC = () => {
     const slotsNeeded = Math.max(0, playerCount - 1);
     setPlayerSlots(prev => {
       if (prev.length === slotsNeeded) return prev;
-      const newSlots: Array<{email: string, type: 'member' | 'guest', searchQuery: string, selectedId?: string, selectedName?: string}> = [];
+      const newSlots: PlayerSlot[] = [];
       for (let i = 0; i < slotsNeeded; i++) {
-        newSlots.push(prev[i] || { email: '', type: 'guest', searchQuery: '' });
+        newSlots.push(prev[i] || { email: '', name: '', type: 'guest', searchQuery: '' });
       }
       return newSlots;
     });
-    setPlayerSearchResults({});
-    setActiveSearchIndex(null);
   }, [playerCount]);
 
   // Reset conference prepayment state when slot, resource, date, or duration changes
@@ -704,68 +540,6 @@ const BookGolf: React.FC = () => {
     }
   };
 
-  // Search for members or guests based on player slot type
-  const handlePlayerSearch = useCallback(async (index: number, query: string, type: 'member' | 'guest') => {
-    if (searchTimeoutRef.current[index]) {
-      clearTimeout(searchTimeoutRef.current[index]);
-    }
-    
-    if (query.length < 2) {
-      setPlayerSearchResults(prev => ({ ...prev, [index]: [] }));
-      return;
-    }
-    
-    searchTimeoutRef.current[index] = setTimeout(async () => {
-      try {
-        const endpoint = type === 'member' 
-          ? `/api/members/search?query=${encodeURIComponent(query)}&limit=8`
-          : `/api/guests/search?query=${encodeURIComponent(query)}&limit=8`;
-        
-        const data = await fetchWithCredentials<Array<{
-          id: string;
-          name: string;
-          emailRedacted: string;
-          visitorType?: string;
-        }>>(endpoint);
-        
-        setPlayerSearchResults(prev => ({ ...prev, [index]: data }));
-      } catch (err) {
-        console.error('Player search error:', err);
-      }
-    }, 300);
-  }, []);
-  
-  // Select a player from search results
-  const handleSelectPlayer = useCallback((index: number, result: { id: string; name: string; emailRedacted: string }) => {
-    setPlayerSlots(prev => {
-      const newSlots = [...prev];
-      newSlots[index] = {
-        ...newSlots[index],
-        selectedId: result.id,
-        selectedName: result.name,
-        searchQuery: result.name,
-        email: result.emailRedacted, // Store redacted email for display
-      };
-      return newSlots;
-    });
-    setPlayerSearchResults(prev => ({ ...prev, [index]: [] }));
-    setActiveSearchIndex(null);
-  }, []);
-  
-  // Clear selection and allow manual entry (for new guests)
-  const handleClearSelection = useCallback((index: number) => {
-    setPlayerSlots(prev => {
-      const newSlots = [...prev];
-      newSlots[index] = {
-        ...newSlots[index],
-        selectedId: undefined,
-        selectedName: undefined,
-        searchQuery: '',
-        email: '',
-      };
-      return newSlots;
-    });
-  }, []);
 
 
   // Auto-scroll to time slots when duration is selected by user (not on initial load)
@@ -967,11 +741,10 @@ const BookGolf: React.FC = () => {
         ? playerSlots
             .filter(slot => slot.selectedId || (slot.email && slot.email.includes('@')))
             .map(slot => ({ 
-              // Only include email for new guests (not selected from directory)
               email: slot.selectedId ? undefined : slot.email, 
               type: slot.type,
               userId: slot.selectedId,
-              name: slot.selectedName,
+              name: slot.selectedId ? slot.selectedName : (slot.name || slot.selectedName),
             }))
         : undefined;
 
@@ -1241,193 +1014,17 @@ const BookGolf: React.FC = () => {
 ) : (
         <div key={activeTab} className="relative z-10 animate-content-enter space-y-6">
           {activeTab === 'simulator' && (
-          <section className={`rounded-2xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>How many players?</span>
-                <button
-                  onClick={() => setShowPlayerTooltip(!showPlayerTooltip)}
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${isDark ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-black/5 text-primary/60 hover:bg-black/10'}`}
-                >
-                  ?
-                </button>
-              </div>
-            </div>
-            {showPlayerTooltip && (
-              <div className={`mb-3 p-3 rounded-lg text-sm ${isDark ? 'bg-blue-500/10 border border-blue-500/30 text-blue-300' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
-                <span className="material-symbols-outlined text-sm mr-1 align-middle">info</span>
-                Guest time counts toward your daily usage. Time is split equally among all players.
-              </div>
-            )}
-            <div className={`flex gap-2 p-1 rounded-xl border ${isDark ? 'bg-black/20 border-white/20' : 'bg-black/5 border-black/5'}`}>
-              {[1, 2, 3, 4].map(count => (
-                <button
-                  key={count}
-                  onClick={() => { haptic.selection(); setPlayerCount(count); }}
-                  aria-pressed={playerCount === count}
-                  className={`flex-1 py-3 rounded-lg transition-all active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
-                    playerCount === count
-                      ? 'bg-accent text-[#293515] shadow-glow'
-                      : (isDark ? 'text-white/80 hover:bg-white/5 hover:text-white' : 'text-primary/80 hover:bg-black/5 hover:text-primary')
-                  }`}
-                >
-                  <div className="text-lg font-bold">{count}</div>
-                  <div className="text-[10px] opacity-70">{count === 1 ? 'Solo' : count === 2 ? 'Duo' : count === 3 ? 'Trio' : 'Four'}</div>
-                </button>
-              ))}
-            </div>
-          </section>
-          )}
-
-          {activeTab === 'simulator' && playerCount > 1 && (
-          <section className={`rounded-2xl p-4 border glass-card relative ${activeSearchIndex !== null ? 'z-20' : 'z-10'} ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Additional Players</span>
-              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>(Optional)</span>
-            </div>
-            <div className="space-y-4">
-              {playerSlots.map((slot, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className={`text-sm font-medium ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      Player {index + 2}
-                    </label>
-                    <div className={`flex rounded-lg border overflow-hidden ${isDark ? 'border-white/20' : 'border-black/10'}`}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          haptic.selection();
-                          const newSlots = [...playerSlots];
-                          newSlots[index] = { ...newSlots[index], type: 'member', searchQuery: '', selectedId: undefined, selectedName: undefined, email: '' };
-                          setPlayerSlots(newSlots);
-                          setPlayerSearchResults(prev => ({ ...prev, [index]: [] }));
-                        }}
-                        className={`px-3 py-1.5 text-xs font-medium transition-all ${
-                          slot.type === 'member'
-                            ? 'bg-accent text-[#293515]'
-                            : (isDark ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-black/5 text-primary/60 hover:bg-black/10')
-                        }`}
-                      >
-                        Member
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          haptic.selection();
-                          const newSlots = [...playerSlots];
-                          newSlots[index] = { ...newSlots[index], type: 'guest', searchQuery: '', selectedId: undefined, selectedName: undefined, email: '' };
-                          setPlayerSlots(newSlots);
-                          setPlayerSearchResults(prev => ({ ...prev, [index]: [] }));
-                        }}
-                        className={`px-3 py-1.5 text-xs font-medium transition-all ${
-                          slot.type === 'guest'
-                            ? 'bg-accent text-[#293515]'
-                            : (isDark ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-black/5 text-primary/60 hover:bg-black/10')
-                        }`}
-                      >
-                        Guest
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="relative">
-                    {slot.selectedId ? (
-                      <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border ${
-                        isDark 
-                          ? 'bg-accent/10 border-accent/30' 
-                          : 'bg-accent/10 border-accent/30'
-                      }`}>
-                        <span className="material-symbols-outlined text-accent text-lg">
-                          {slot.type === 'member' ? 'person' : 'person_add'}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-primary'}`}>
-                            {slot.selectedName}
-                          </div>
-                          <div className={`text-xs truncate ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                            {slot.email}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleClearSelection(index)}
-                          className={`p-1 rounded-full transition-colors ${
-                            isDark ? 'hover:bg-white/10' : 'hover:bg-black/10'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-lg opacity-60">close</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          type={slot.type === 'guest' ? 'email' : 'text'}
-                          placeholder={slot.type === 'member' ? 'Search members by name...' : 'Search guests or enter their email...'}
-                          value={slot.searchQuery}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            const newSlots = [...playerSlots];
-                            newSlots[index] = { ...newSlots[index], searchQuery: value, email: value };
-                            setPlayerSlots(newSlots);
-                            handlePlayerSearch(index, value, slot.type);
-                          }}
-                          onFocus={() => setActiveSearchIndex(index)}
-                          onBlur={() => setTimeout(() => setActiveSearchIndex(null), 200)}
-                          className={`w-full px-3 py-2.5 rounded-lg border text-sm transition-all focus:ring-2 focus:ring-accent focus:outline-none ${
-                            isDark 
-                              ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
-                              : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
-                          }`}
-                        />
-                        {activeSearchIndex === index && playerSearchResults[index]?.length > 0 && (
-                          <div className={`absolute z-50 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden max-h-48 overflow-y-auto ${
-                            isDark ? 'bg-[#1a1f0e] border-white/20' : 'bg-white border-black/10'
-                          }`}>
-                            {playerSearchResults[index].map((result) => (
-                              <button
-                                key={result.id}
-                                type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => handleSelectPlayer(index, result)}
-                                className={`w-full px-3 py-2.5 flex items-center gap-2 text-left transition-colors ${
-                                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                                }`}
-                              >
-                                <span className={`material-symbols-outlined text-lg ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                                  {slot.type === 'member' ? 'person' : 'person_add'}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <div className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-primary'}`}>
-                                    {result.name}
-                                  </div>
-                                  <div className={`text-xs truncate ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                                    {result.emailRedacted}
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {slot.searchQuery.length >= 2 && (playerSearchResults[index]?.length ?? 0) === 0 && activeSearchIndex === index && (
-                          <div className={`absolute z-50 left-0 right-0 mt-1 rounded-lg border shadow-lg overflow-hidden ${
-                            isDark ? 'bg-[#1a1f0e] border-white/20' : 'bg-white border-black/10'
-                          }`}>
-                            <div className={`px-3 py-2.5 text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                              {slot.type === 'member' 
-                                ? "No member found with that name."
-                                : slot.searchQuery.includes('@') 
-                                  ? "No guest found. They'll be added as a new guest."
-                                  : "Enter their email address to add as a new guest."}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+            <PlayerSlotEditor
+              playerCount={playerCount}
+              onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}
+              slots={playerSlots}
+              onSlotsChange={setPlayerSlots}
+              guestPassesRemaining={guestPassInfo?.passes_remaining}
+              isDark={isDark}
+              privacyMode={true}
+              maxPlayers={4}
+              showPlayerCountSelector={true}
+            />
           )}
 
           <section className={`rounded-2xl p-4 border glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
@@ -1435,18 +1032,12 @@ const BookGolf: React.FC = () => {
               <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Date & Duration</span>
             </div>
             <div className="space-y-4">
-              <div className="flex gap-3 overflow-x-auto py-8 px-3 -mx-3 scrollbar-hide scroll-fade-right">
-                {dates.map((d) => (
-                  <DateButton 
-                    key={d.date}
-                    day={d.day} 
-                    date={d.dateNum} 
-                    active={selectedDateObj?.date === d.date} 
-                    onClick={() => { setSelectedDateObj(d); setExpandedHour(null); }} 
-                    isDark={isDark}
-                  />
-                ))}
-              </div>
+              <DatePickerStrip
+                dates={dates}
+                selectedDate={selectedDateObj?.date}
+                onSelectDate={(d) => { setSelectedDateObj(d); setExpandedHour(null); }}
+                isDark={isDark}
+              />
               <div className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
                 {(() => {
                   // Filter durations based on player count
@@ -1945,68 +1536,20 @@ const BookGolf: React.FC = () => {
               </span>
             </div>
           )}
-          {/* Fee Breakdown - show for both simulator and conference room bookings */}
-          <div className={`w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border ${isDark ? 'bg-black/70 border-white/20' : 'bg-white/90 border-black/10 shadow-lg'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`material-symbols-outlined text-lg ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>receipt_long</span>
-              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Estimated Fees</span>
-            </div>
-            <div className="space-y-1">
-              {estimatedFees.overageFee > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                    {effectiveUser?.tier?.toLowerCase() === 'social' 
-                      ? `${activeTab === 'conference' ? 'Conference room' : 'Simulator'} time (${estimatedFees.overageMinutes} min)`
-                      : `Your time (${estimatedFees.overageMinutes} min overage)`}
-                  </span>
-                  <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.overageFee}</span>
-                </div>
-              )}
-              {activeTab === 'simulator' && estimatedFees.guestsUsingPasses > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                    {estimatedFees.guestsUsingPasses} guest{estimatedFees.guestsUsingPasses > 1 ? 's' : ''} (using pass{estimatedFees.guestsUsingPasses > 1 ? 'es' : ''})
-                  </span>
-                  <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>$0</span>
-                </div>
-              )}
-              {activeTab === 'simulator' && estimatedFees.guestsCharged > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                    {estimatedFees.guestsCharged} guest{estimatedFees.guestsCharged > 1 ? 's' : ''} @ ${estimatedFees.guestFeePerUnit || guestFeeDollars}
-                  </span>
-                  <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>${estimatedFees.guestFees}</span>
-                </div>
-              )}
-              {activeTab === 'simulator' && estimatedFees.guestCount > 0 && guestPassInfo && (
-                <div className="flex justify-between items-center">
-                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                    Passes remaining after booking
-                  </span>
-                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                    {estimatedFees.passesRemainingAfter} of {guestPassInfo.passes_total}
-                  </span>
-                </div>
-              )}
-              {estimatedFees.totalFee === 0 && (activeTab === 'conference' || estimatedFees.guestCount === 0) && (
-                <div className="flex justify-between items-center">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                    Included in your membership
-                  </span>
-                  <span className={`text-sm font-semibold ${isDark ? 'text-green-400' : 'text-green-600'}`}>No charge</span>
-                </div>
-              )}
-              <div className={`flex justify-between items-center pt-1 border-t ${isDark ? 'border-white/20' : 'border-black/10'}`}>
-                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Total due at check-in</span>
-                <span className={`text-base font-bold ${estimatedFees.totalFee > 0 ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-green-400' : 'text-green-600')}`}>${estimatedFees.totalFee}</span>
-              </div>
-              {estimatedFees.totalFee > 0 && (
-                <p className={`text-xs text-center mt-2 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
-                  Pay online once booking is confirmed, or at check-in
-                </p>
-              )}
-            </div>
-          </div>
+          <FeeBreakdownCard
+            overageFee={estimatedFees.overageFee}
+            overageMinutes={estimatedFees.overageMinutes}
+            guestFees={estimatedFees.guestFees}
+            guestsCharged={estimatedFees.guestsCharged}
+            guestsUsingPasses={estimatedFees.guestsUsingPasses}
+            guestFeePerUnit={estimatedFees.guestFeePerUnit || guestFeeDollars}
+            totalFee={estimatedFees.totalFee}
+            passesRemainingAfter={guestPassInfo ? estimatedFees.passesRemainingAfter : undefined}
+            passesTotal={guestPassInfo?.passes_total}
+            tierLabel={effectiveUser?.tier}
+            resourceType={activeTab === 'conference' ? 'conference' : 'simulator'}
+            isDark={isDark}
+          />
           <button 
             onClick={() => { haptic.heavy(); handleConfirm(); }}
             disabled={isBooking}
@@ -2124,33 +1667,5 @@ const BookGolf: React.FC = () => {
     </AnimatedPage>
   );
 };
-
-const ResourceCard: React.FC<{resource: Resource; selected: boolean; onClick: () => void; isDark?: boolean}> = ({ resource, selected, onClick, isDark = true }) => (
-  <button 
-    onClick={onClick}
-    aria-pressed={selected}
-    className={`w-full flex items-center p-4 rounded-xl cursor-pointer transition-all active:scale-[0.98] border text-left focus:ring-2 focus:ring-accent focus:outline-none ${
-      selected 
-      ? 'bg-accent/10 border-accent ring-1 ring-accent' 
-      : (isDark ? 'glass-card hover:bg-white/5 border-white/25' : 'bg-white hover:bg-black/5 border-black/10 shadow-sm')
-    }`}
-  >
-    <div className={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center mr-4 overflow-hidden ${selected ? 'bg-accent text-[#293515]' : (isDark ? 'bg-white/5 text-white/70' : 'bg-black/5 text-primary/70')}`}>
-      <span className="material-symbols-outlined text-2xl">{resource.icon || 'meeting_room'}</span>
-    </div>
-    
-    <div className="flex-1">
-      <div className="flex justify-between items-center mb-0.5">
-        <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-primary'}`}>{resource.name}</span>
-        {resource.badge && (
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${selected ? 'bg-accent text-[#293515]' : (isDark ? 'bg-white/10 text-white/70' : 'bg-black/10 text-primary/70')}`}>
-            {resource.badge}
-          </span>
-        )}
-      </div>
-      <p className={`text-xs ${isDark ? 'text-white/80' : 'text-primary/80'}`}>{resource.meta}</p>
-    </div>
-  </button>
-);
 
 export default BookGolf;

@@ -8,6 +8,7 @@ import {
   useInvoices,
   useOverduePayments,
 } from '../../../hooks/queries/useFinancialsQueries';
+import { getSubscriptionStatusBadge, getInvoiceStatusBadge } from '../../../utils/statusColors';
 
 interface SubscriptionListItem {
   id: string;
@@ -212,23 +213,6 @@ const SubscriptionsSubTab: React.FC = () => {
     });
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'past_due':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'canceled':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700/30 dark:text-gray-400';
-      case 'trialing':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'unpaid':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
-      default:
-        return 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400';
-    }
-  };
-
   const getStripeSubscriptionUrl = (subscriptionId: string) => {
     return `https://dashboard.stripe.com/subscriptions/${subscriptionId}`;
   };
@@ -354,7 +338,7 @@ const SubscriptionsSubTab: React.FC = () => {
                     <p className="text-xs text-primary/60 dark:text-white/60 truncate">{sub.memberEmail}</p>
                   </div>
                   <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(sub.status)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSubscriptionStatusBadge(sub.status)}`}>
                       {sub.status === 'past_due' ? 'Past Due' : sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
                     </span>
                     {sub.cancelAtPeriodEnd && (
@@ -440,7 +424,7 @@ const SubscriptionsSubTab: React.FC = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(sub.status)}`}>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getSubscriptionStatusBadge(sub.status)}`}>
                             {sub.status === 'past_due' ? 'Past Due' : sub.status.charAt(0).toUpperCase() + sub.status.slice(1)}
                           </span>
                           {sub.cancelAtPeriodEnd && (
@@ -578,23 +562,6 @@ const InvoicesSubTab: React.FC = () => {
     });
   };
 
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'open':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'uncollectible':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'void':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700/30 dark:text-gray-400';
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      default:
-        return 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400';
-    }
-  };
-
   const getStripeInvoiceUrl = (invoiceId: string) => {
     return `https://dashboard.stripe.com/invoices/${invoiceId}`;
   };
@@ -720,7 +687,7 @@ const InvoicesSubTab: React.FC = () => {
                     <p className="font-medium text-primary dark:text-white truncate">{invoice.memberName}</p>
                     <p className="text-xs text-primary/60 dark:text-white/60 truncate">{invoice.memberEmail}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${getStatusBadgeClass(invoice.status)}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${getInvoiceStatusBadge(invoice.status)}`}>
                     {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                   </span>
                 </div>
@@ -815,7 +782,7 @@ const InvoicesSubTab: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(invoice.status)}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getInvoiceStatusBadge(invoice.status)}`}>
                           {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                         </span>
                       </td>

@@ -7,6 +7,7 @@ import SwipeablePage from '../../components/SwipeablePage';
 import PullToRefresh from '../../components/PullToRefresh';
 import { MotionList, MotionListItem } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
+import { formatTitleForDisplay, getMemberNoticeTitle, getNoticeDisplayTextFormatted as getNoticeDisplayText, formatAffectedAreas, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 
 const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 
@@ -24,123 +25,6 @@ interface Closure {
   needsReview?: boolean;
 }
 
-const formatSingleArea = (area: string): string => {
-  const trimmed = area.trim();
-  if (trimmed === 'entire_facility') return 'Entire Facility';
-  if (trimmed === 'all_bays') return 'All Simulator Bays';
-  if (trimmed === 'conference_room' || trimmed === 'Conference Room') return 'Conference Room';
-  if (trimmed === 'none') return '';
-  if (trimmed.startsWith('bay_')) {
-    const bayNum = trimmed.replace('bay_', '');
-    return `Bay ${bayNum}`;
-  }
-  return trimmed;
-};
-
-const parseAreasAsArray = (areas: string): string[] | null => {
-  const trimmed = areas.trim();
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch {
-      return null;
-    }
-  }
-  return null;
-};
-
-const formatAffectedAreas = (areas: string): string => {
-  if (!areas) return 'No booking restrictions';
-  const trimmed = areas.trim();
-  if (trimmed === 'entire_facility') return 'Entire Facility';
-  if (trimmed === 'all_bays') return 'All Simulator Bays';
-  if (trimmed === 'none') return 'No booking restrictions';
-  
-  // Try JSON array format first
-  const jsonArray = parseAreasAsArray(trimmed);
-  if (jsonArray) {
-    return jsonArray.map(formatSingleArea).filter(a => a).join(', ');
-  }
-  
-  // Fall back to comma-separated format
-  return trimmed.split(',').map(a => formatSingleArea(a)).filter(a => a).join(', ');
-};
-
-const getAffectedAreasList = (areas: string): string[] => {
-  if (!areas) return [];
-  const trimmed = areas.trim();
-  if (trimmed === 'none') return [];
-  if (trimmed === 'entire_facility') return ['Entire Facility'];
-  if (trimmed === 'all_bays') return ['All Simulator Bays'];
-  
-  // Try JSON array format first
-  const jsonArray = parseAreasAsArray(trimmed);
-  if (jsonArray) {
-    return jsonArray.map(formatSingleArea).filter(a => a);
-  }
-  
-  // Fall back to comma-separated format
-  return trimmed.split(',').map(a => formatSingleArea(a)).filter(a => a);
-};
-
-const formatTitleForDisplay = (title: string): string => {
-  if (!title) return 'Notice';
-  const trimmed = title.trim();
-  
-  // Convert snake_case to Title Case (e.g., "private_event" → "Private Event")
-  if (trimmed.includes('_')) {
-    return trimmed
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
-  
-  // Convert kebab-case to Title Case (e.g., "private-event" → "Private Event")
-  if (trimmed.includes('-')) {
-    return trimmed
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
-  
-  // Capitalize first letter if all lowercase
-  if (trimmed === trimmed.toLowerCase() && trimmed.length > 0) {
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  }
-  
-  return trimmed;
-};
-
-const getMemberNoticeTitle = (closure: Closure): string => {
-  if (closure.noticeType && closure.noticeType.trim() && closure.noticeType.toLowerCase() !== 'closure') {
-    return formatTitleForDisplay(closure.noticeType);
-  }
-  if (closure.reason && closure.reason.trim()) {
-    return formatTitleForDisplay(closure.reason);
-  }
-  if (closure.title && closure.title.trim()) {
-    return formatTitleForDisplay(closure.title);
-  }
-  return closure.affectedAreas && closure.affectedAreas !== 'none' 
-    ? formatAffectedAreas(closure.affectedAreas) 
-    : 'Notice';
-};
-
-const getNoticeDisplayText = (closure: Closure): string => {
-  if (closure.noticeType && closure.noticeType.trim()) {
-    return formatTitleForDisplay(closure.noticeType);
-  }
-  if (closure.reason && closure.reason.trim()) {
-    return formatTitleForDisplay(closure.reason);
-  }
-  if (closure.affectedAreas) {
-    return formatAffectedAreas(closure.affectedAreas);
-  }
-  return closure.title ? formatTitleForDisplay(closure.title) : 'Notice';
-};
 
 const formatTime12HourShort = (timeStr: string): string => {
   if (!timeStr) return '';
@@ -169,13 +53,8 @@ const formatClosureDateRange = (startDate: string, endDate: string, startTime: s
   return `${startFormatted} - ${endFormatted}${timeRange}`;
 };
 
-const isActualClosure = (affectedAreas: string): boolean => {
-  if (!affectedAreas || affectedAreas === 'none') return false;
-  return true;
-};
-
 const getNoticeDisplayType = (closure: Closure): 'closure' | 'notice' => {
-  if (isActualClosure(closure.affectedAreas)) {
+  if (isBlockingClosure(closure.affectedAreas)) {
     return 'closure';
   }
   return 'notice';

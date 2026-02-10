@@ -2,179 +2,30 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../../components/Toast';
 import EmptyState from '../../../components/EmptyState';
-import { getCheckMetadata, sortBySeverity, CheckSeverity } from '../../../data/integrityCheckMetadata';
+import { sortBySeverity } from '../../../data/integrityCheckMetadata';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
 import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import type { MemberProfile } from '../../../types/data';
-
-interface SyncComparisonData {
-  field: string;
-  appValue: string | number | null;
-  externalValue: string | number | null;
-}
-
-interface ServiceHealth {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  latencyMs?: number;
-  message?: string;
-  lastChecked: string;
-}
-
-interface SystemHealth {
-  overall: 'healthy' | 'degraded' | 'unhealthy';
-  services: {
-    database: ServiceHealth;
-    stripe: ServiceHealth;
-    hubspot: ServiceHealth;
-    resend: ServiceHealth;
-    googleCalendar: ServiceHealth;
-  };
-  timestamp: string;
-}
-
-interface IssueContext {
-  memberName?: string;
-  memberEmail?: string;
-  memberTier?: string;
-  bookingDate?: string;
-  resourceName?: string;
-  startTime?: string;
-  endTime?: string;
-  className?: string;
-  classDate?: string;
-  instructor?: string;
-  eventTitle?: string;
-  eventDate?: string;
-  tourDate?: string;
-  guestName?: string;
-  trackmanBookingId?: string;
-  importedName?: string;
-  notes?: string;
-  originalEmail?: string;
-  syncType?: 'hubspot' | 'calendar';
-  syncComparison?: SyncComparisonData[];
-  hubspotContactId?: string;
-  userId?: number;
-  duplicateUsers?: Array<{ userId: number; email: string; status: string; tier: string }>;
-}
-
-interface IgnoreInfo {
-  ignoredBy: string;
-  ignoredAt: string;
-  expiresAt: string;
-  reason: string;
-}
-
-interface IntegrityIssue {
-  category: 'orphan_record' | 'missing_relationship' | 'sync_mismatch' | 'data_quality';
-  severity: 'error' | 'warning' | 'info';
-  table: string;
-  recordId: number | string;
-  description: string;
-  suggestion?: string;
-  context?: IssueContext;
-  ignored?: boolean;
-  ignoreInfo?: IgnoreInfo;
-}
-
-interface IgnoredIssueEntry {
-  id: number;
-  issueKey: string;
-  ignoredBy: string;
-  ignoredAt: string;
-  expiresAt: string;
-  reason: string;
-  isActive: boolean;
-  isExpired: boolean;
-}
-
-interface IntegrityCheckResult {
-  checkName: string;
-  status: 'pass' | 'warning' | 'fail';
-  issueCount: number;
-  issues: IntegrityIssue[];
-  lastRun: Date;
-}
-
-interface IntegrityMeta {
-  totalChecks: number;
-  passed: number;
-  warnings: number;
-  failed: number;
-  totalIssues: number;
-  lastRun: Date;
-}
-
-interface CalendarStatus {
-  name: string;
-  status: 'connected' | 'not_found';
-}
-
-interface CalendarStatusResponse {
-  timestamp: string;
-  configured_calendars: CalendarStatus[];
-}
-
-interface HistoryEntry {
-  id: number;
-  runAt: string;
-  totalIssues: number;
-  criticalCount: number;
-  highCount: number;
-  mediumCount: number;
-  lowCount: number;
-  triggeredBy: string;
-}
-
-interface ActiveIssue {
-  issueKey: string;
-  checkName: string;
-  severity: string;
-  description: string;
-  firstDetectedAt: string;
-  lastSeenAt: string;
-  daysUnresolved: number;
-}
-
-interface HistoryData {
-  history: HistoryEntry[];
-  trend: 'increasing' | 'decreasing' | 'stable';
-  activeIssues: ActiveIssue[];
-}
-
-interface AuditLogEntry {
-  id: number;
-  issueKey: string;
-  action: string;
-  actionBy: string;
-  actionAt: string;
-  resolutionMethod: string | null;
-  notes: string | null;
-}
-
-interface IgnoreModalState {
-  isOpen: boolean;
-  issue: IntegrityIssue | null;
-  checkName: string;
-}
-
-interface BulkIgnoreModalState {
-  isOpen: boolean;
-  checkName: string;
-  issues: IntegrityIssue[];
-}
-
-interface CachedResultsResponse {
-  hasCached: boolean;
-  results: IntegrityCheckResult[];
-  meta: IntegrityMeta;
-}
-
-interface IntegrityRunResponse {
-  results: IntegrityCheckResult[];
-  meta: IntegrityMeta;
-}
+import type {
+  SystemHealth,
+  IntegrityIssue,
+  IntegrityCheckResult,
+  IntegrityMeta,
+  CalendarStatusResponse,
+  HistoryData,
+  AuditLogEntry,
+  IgnoredIssueEntry,
+  IgnoreModalState,
+  BulkIgnoreModalState,
+  CachedResultsResponse,
+  IntegrityRunResponse,
+} from './dataIntegrity/dataIntegrityTypes';
+import { formatTimeAgo, getTrendIcon, getTrendColor, downloadCSV } from './dataIntegrity/dataIntegrityUtils';
+import IntegrityResultsPanel from './dataIntegrity/IntegrityResultsPanel';
+import SyncToolsPanel from './dataIntegrity/SyncToolsPanel';
+import CleanupToolsPanel from './dataIntegrity/CleanupToolsPanel';
+import IgnoreModals from './dataIntegrity/IgnoreModals';
 
 const DataIntegrityTab: React.FC = () => {
   const { showToast } = useToast();
@@ -266,7 +117,6 @@ const DataIntegrityTab: React.FC = () => {
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
   const [loadingMemberEmail, setLoadingMemberEmail] = useState<string | null>(null);
   
-  // Booking sheet state for viewing unmatched bookings
   const [bookingSheet, setBookingSheet] = useState<{
     isOpen: boolean;
     bookingId: number | null;
@@ -301,9 +151,6 @@ const DataIntegrityTab: React.FC = () => {
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
-  // ==================== REACT QUERY HOOKS ====================
-
-  // Cached Results Query
   const { 
     data: cachedData, 
     isLoading: isLoadingCached,
@@ -313,7 +160,6 @@ const DataIntegrityTab: React.FC = () => {
     queryFn: () => fetchWithCredentials<CachedResultsResponse>('/api/data-integrity/cached'),
   });
 
-  // Calendar Status Query
   const { 
     data: calendarStatus, 
     isLoading: isLoadingCalendars 
@@ -322,7 +168,6 @@ const DataIntegrityTab: React.FC = () => {
     queryFn: () => fetchWithCredentials<CalendarStatusResponse>('/api/admin/calendars'),
   });
 
-  // History Query
   const { 
     data: historyData, 
     isLoading: isLoadingHistory 
@@ -331,7 +176,6 @@ const DataIntegrityTab: React.FC = () => {
     queryFn: () => fetchWithCredentials<HistoryData>('/api/data-integrity/history'),
   });
 
-  // Audit Log Query
   const { 
     data: auditLog = [], 
     isLoading: isLoadingAuditLog 
@@ -340,7 +184,6 @@ const DataIntegrityTab: React.FC = () => {
     queryFn: () => fetchWithCredentials<AuditLogEntry[]>('/api/data-integrity/audit-log?limit=10'),
   });
 
-  // Ignored Issues Query
   const { 
     data: ignoredIssues = [], 
     isLoading: isLoadingIgnored 
@@ -349,12 +192,10 @@ const DataIntegrityTab: React.FC = () => {
     queryFn: () => fetchWithCredentials<IgnoredIssueEntry[]>('/api/data-integrity/ignores'),
   });
 
-  // Derive results and meta from cached data or run results
   const results = cachedData?.hasCached ? sortBySeverity(cachedData.results) : [];
   const meta = cachedData?.meta || null;
   const isCached = cachedData?.hasCached || false;
 
-  // Run Integrity Checks Mutation
   const runIntegrityMutation = useMutation({
     mutationFn: () => fetchWithCredentials<IntegrityRunResponse>('/api/data-integrity/run'),
     onSuccess: (data) => {
@@ -371,14 +212,12 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Trigger run if no cached data
   useEffect(() => {
     if (cachedData && !cachedData.hasCached && !runIntegrityMutation.isPending) {
       runIntegrityMutation.mutate();
     }
   }, [cachedData]);
 
-  // Real-time updates via WebSocket
   useEffect(() => {
     const handleDataIntegrityUpdate = (event: CustomEvent) => {
       const { action } = event.detail || {};
@@ -397,7 +236,6 @@ const DataIntegrityTab: React.FC = () => {
     };
   }, [queryClient]);
 
-  // Ignore Issue Mutation
   const ignoreIssueMutation = useMutation({
     mutationFn: (params: { issueKey: string; duration: string; reason: string }) => 
       postWithCredentials<{ success: boolean }>('/api/data-integrity/ignore', {
@@ -416,7 +254,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Unignore Issue Mutation
   const unignoreIssueMutation = useMutation({
     mutationFn: (issueKey: string) => 
       deleteWithCredentials<{ success: boolean }>(`/api/data-integrity/ignore/${encodeURIComponent(issueKey)}`),
@@ -430,7 +267,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Bulk Ignore Mutation
   const bulkIgnoreMutation = useMutation({
     mutationFn: (params: { issueKeys: string[]; duration: string; reason: string }) => 
       postWithCredentials<{ total: number }>('/api/data-integrity/ignore-bulk', {
@@ -449,7 +285,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Sync Push Mutation
   const syncPushMutation = useMutation({
     mutationFn: (params: { issueKey: string; target: string; userId?: number; hubspotContactId?: string }) => 
       postWithCredentials<{ message: string }>('/api/data-integrity/sync-push', params),
@@ -472,7 +307,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Sync Pull Mutation
   const syncPullMutation = useMutation({
     mutationFn: (params: { issueKey: string; target: string; userId?: number; hubspotContactId?: string }) => 
       postWithCredentials<{ message: string }>('/api/data-integrity/sync-pull', params),
@@ -495,7 +329,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Resync Member Mutation
   const resyncMemberMutation = useMutation({
     mutationFn: (email: string) => 
       postWithCredentials<{ message: string }>('/api/data-tools/resync-member', { email }),
@@ -510,7 +343,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Cancel Booking Mutation (for ghost bookings without sessions)
   const cancelBookingMutation = useMutation({
     mutationFn: (bookingId: number) => 
       fetch(`/api/booking-requests/${bookingId}`, {
@@ -541,7 +373,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Reconcile Group Billing Mutation
   const reconcileGroupBillingMutation = useMutation({
     mutationFn: () => 
       postWithCredentials<{
@@ -563,7 +394,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Search Unlinked Guest Fees Mutation
   const searchGuestFeesMutation = useMutation({
     mutationFn: (params: { startDate: string; endDate: string }) => 
       fetchWithCredentials<any[]>(`/api/data-tools/unlinked-guest-fees?startDate=${params.startDate}&endDate=${params.endDate}`),
@@ -575,7 +405,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Load Sessions For Fee Mutation
   const loadSessionsMutation = useMutation({
     mutationFn: (params: { date: string; memberEmail: string }) => 
       fetchWithCredentials<any[]>(`/api/data-tools/available-sessions?date=${params.date}&memberEmail=${params.memberEmail || ''}`),
@@ -587,7 +416,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Link Guest Fee Mutation
   const linkGuestFeeMutation = useMutation({
     mutationFn: (params: { guestFeeId: number; bookingId: number }) => 
       postWithCredentials<{ success: boolean }>('/api/data-tools/link-guest-fee', params),
@@ -603,7 +431,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Search Attendance Mutation
   const searchAttendanceMutation = useMutation({
     mutationFn: (params: { date?: string; memberEmail?: string }) => {
       const searchParams = new URLSearchParams();
@@ -619,7 +446,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Update Attendance Mutation
   const updateAttendanceMutation = useMutation({
     mutationFn: (params: { bookingId: number; attendanceStatus: string; notes: string }) => 
       postWithCredentials<{ success: boolean }>('/api/data-tools/update-attendance', params),
@@ -639,7 +465,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Mindbody Reimport Mutation
   const mindbodyReimportMutation = useMutation({
     mutationFn: (params: { startDate: string; endDate: string }) => 
       postWithCredentials<{ message: string }>('/api/data-tools/mindbody-reimport', params),
@@ -653,7 +478,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // CSV Upload Mutation
   const csvUploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const response = await fetch('/api/legacy-purchases/admin/upload-csv', {
@@ -686,7 +510,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Backfill Stripe Cache Mutation
   const backfillStripeCacheMutation = useMutation({
     mutationFn: () => 
       postWithCredentials<{ stats?: any }>('/api/financials/backfill-stripe-cache', {}),
@@ -701,7 +524,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Sync Members to HubSpot Mutation
   const syncMembersToHubspotMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message: string; members?: any[]; syncedCount?: number }>('/api/data-tools/sync-members-to-hubspot', { dryRun }),
@@ -723,7 +545,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Cleanup Mindbody IDs Mutation
   const cleanupMindbodyIdsMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message: string; toClean?: number }>('/api/data-tools/cleanup-mindbody-ids', { dryRun }),
@@ -776,7 +597,6 @@ const DataIntegrityTab: React.FC = () => {
     }
   });
 
-  // Sync Subscription Status Mutation
   const syncSubscriptionStatusMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message?: string; totalChecked?: number; mismatchCount?: number; updated?: any[]; updatedCount?: number }>('/api/data-tools/sync-subscription-status', { dryRun }),
@@ -800,7 +620,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Clear Orphaned Stripe IDs Mutation
   const clearOrphanedStripeIdsMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message?: string; totalChecked?: number; orphanedCount?: number; cleared?: any[]; clearedCount?: number }>('/api/data-tools/clear-orphaned-stripe-ids', { dryRun }),
@@ -824,7 +643,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Link Stripe HubSpot Mutation
   const linkStripeHubspotMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message?: string; stripeOnlyMembers?: any[]; hubspotOnlyMembers?: any[]; linkedCount?: number }>('/api/data-tools/link-stripe-hubspot', { dryRun }),
@@ -845,7 +663,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Sync Payment Status Mutation
   const syncPaymentStatusMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message?: string; totalChecked?: number; updatedCount?: number; updates?: any[] }>('/api/data-tools/sync-payment-status', { dryRun }),
@@ -866,7 +683,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Sync Visit Counts Mutation
   const syncVisitCountsMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message?: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: any[] }>('/api/data-tools/sync-visit-counts', { dryRun }),
@@ -887,7 +703,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Fix Ghost Bookings Mutation (preview)
   const previewGhostBookingsMutation = useMutation({
     mutationFn: () => fetchWithCredentials<{ message?: string; totalCount?: number }>('/api/admin/backfill-sessions/preview'),
     onSuccess: (data) => {
@@ -906,7 +721,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Fix Ghost Bookings Mutation (execute)
   const fixGhostBookingsMutation = useMutation({
     mutationFn: () => postWithCredentials<{ message?: string; sessionsCreated?: number }>('/api/admin/backfill-sessions', {}),
     onSuccess: (data) => {
@@ -928,7 +742,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Remediate Deal Stages Mutation
   const remediateDealStagesMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
       postWithCredentials<{ message?: string; total?: number; fixed?: number }>('/api/hubspot/remediate-deal-stages', { dryRun }),
@@ -948,7 +761,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Detect Duplicates Mutation
   const detectDuplicatesMutation = useMutation({
     mutationFn: () => 
       postWithCredentials<{ message?: string; appDuplicates?: any[]; hubspotDuplicates?: any[] }>('/api/data-tools/detect-duplicates', {}),
@@ -970,7 +782,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Scan Placeholders Mutation
   const scanPlaceholdersMutation = useMutation({
     mutationFn: () => 
       fetchWithCredentials<{ success: boolean; stripeCustomers?: any[]; hubspotContacts?: any[]; localDatabaseUsers?: any[]; totals?: { stripe: number; hubspot: number; localDatabase: number; total: number } }>('/api/data-integrity/placeholder-accounts'),
@@ -998,7 +809,6 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
-  // Delete Placeholders Mutation
   const deletePlaceholdersMutation = useMutation({
     mutationFn: (params: { stripeCustomerIds: string[]; hubspotContactIds: string[]; localDatabaseUserIds: string[] }) => 
       postWithCredentials<{ success: boolean; stripeDeleted?: number; stripeFailed?: number; hubspotDeleted?: number; hubspotFailed?: number; localDatabaseDeleted?: number; localDatabaseFailed?: number }>('/api/data-integrity/placeholder-accounts/delete', params),
@@ -1026,8 +836,6 @@ const DataIntegrityTab: React.FC = () => {
       setShowDeleteConfirm(false);
     },
   });
-
-  // ==================== HELPER FUNCTIONS ====================
 
   const openIgnoreModal = (issue: IntegrityIssue, checkName: string) => {
     setIgnoreModal({ isOpen: true, issue, checkName });
@@ -1304,7 +1112,6 @@ const DataIntegrityTab: React.FC = () => {
     });
   };
 
-  // Derived loading states
   const isRunning = runIntegrityMutation.isPending;
   const isIgnoring = ignoreIssueMutation.isPending;
   const isBulkIgnoring = bulkIgnoreMutation.isPending;
@@ -1330,42 +1137,6 @@ const DataIntegrityTab: React.FC = () => {
   const isDeletingPlaceholders = deletePlaceholdersMutation.isPending;
   const isRunningStripeCustomerCleanup = cleanupStripeCustomersMutation.isPending;
 
-  const formatTimeAgo = (date: Date | string) => {
-    const now = new Date();
-    const then = new Date(date);
-    const diffMs = now.getTime() - then.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-  };
-
-  const getIssueTracking = (issue: IntegrityIssue): ActiveIssue | undefined => {
-    if (!historyData) return undefined;
-    const issueKey = `${issue.table}_${issue.recordId}`;
-    return historyData.activeIssues.find(ai => ai.issueKey === issueKey);
-  };
-
-  const getTrendIcon = (trend: 'increasing' | 'decreasing' | 'stable') => {
-    switch (trend) {
-      case 'increasing': return 'trending_up';
-      case 'decreasing': return 'trending_down';
-      case 'stable': return 'trending_flat';
-    }
-  };
-
-  const getTrendColor = (trend: 'increasing' | 'decreasing' | 'stable') => {
-    switch (trend) {
-      case 'increasing': return 'text-red-500 dark:text-red-400';
-      case 'decreasing': return 'text-green-500 dark:text-green-400';
-      case 'stable': return 'text-gray-500 dark:text-gray-400';
-    }
-  };
-
   const toggleCheck = (checkName: string) => {
     setExpandedChecks(prev => {
       const next = new Set(prev);
@@ -1378,450 +1149,15 @@ const DataIntegrityTab: React.FC = () => {
     });
   };
 
-  const getStatusColor = (status: 'pass' | 'warning' | 'fail') => {
-    switch (status) {
-      case 'pass': return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
-      case 'warning': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
-      case 'fail': return 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400';
-    }
-  };
-
-  const getCheckSeverityColor = (severity: CheckSeverity) => {
-    switch (severity) {
-      case 'critical': return 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400';
-      case 'high': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400';
-      case 'medium': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400';
-      case 'low': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
-    }
-  };
-
-  const getSeverityColor = (severity: 'error' | 'warning' | 'info') => {
-    switch (severity) {
-      case 'error': return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300';
-      case 'warning': return 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300';
-      case 'info': return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300';
-    }
-  };
-
-  const getSeverityIcon = (severity: 'error' | 'warning' | 'info') => {
-    switch (severity) {
-      case 'error': return 'error';
-      case 'warning': return 'warning';
-      case 'info': return 'info';
-    }
-  };
-
-  const renderCheckFixTools = (checkName: string) => {
-    const getResultStyle = (result: { success: boolean; dryRun?: boolean } | null) => {
-      if (!result) return '';
-      if (!result.success) return 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700';
-      if (result.dryRun) return 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700';
-      return 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700';
-    };
-    
-    const getTextStyle = (result: { success: boolean; dryRun?: boolean } | null) => {
-      if (!result) return '';
-      if (!result.success) return 'text-red-700 dark:text-red-400';
-      if (result.dryRun) return 'text-blue-700 dark:text-blue-400';
-      return 'text-green-700 dark:text-green-400';
-    };
-
-    switch (checkName) {
-      case 'HubSpot Sync Mismatch':
-        return (
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-              <strong>Quick Fix:</strong> Sync member data to HubSpot to resolve mismatches
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleSyncMembersToHubspot(true)}
-                disabled={isSyncingToHubspot}
-                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
-                Preview
-              </button>
-              <button
-                onClick={() => handleSyncMembersToHubspot(false)}
-                disabled={isSyncingToHubspot}
-                className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">sync</span>
-                Sync to HubSpot
-              </button>
-            </div>
-            {hubspotSyncResult && (
-              <div className={`mt-2 p-2 rounded ${getResultStyle(hubspotSyncResult)}`}>
-                {hubspotSyncResult.dryRun && (
-                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                )}
-                <p className={`text-xs ${getTextStyle(hubspotSyncResult)}`}>{hubspotSyncResult.message}</p>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'Subscription Status Drift':
-      case 'Stripe Subscription Sync':
-        return (
-          <div className="space-y-3">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-              <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-                <strong>Sync Status:</strong> Sync membership status from Stripe to correct mismatches
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleSyncSubscriptionStatus(true)}
-                  disabled={isRunningSubscriptionSync}
-                  className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isRunningSubscriptionSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
-                  Preview
-                </button>
-                <button
-                  onClick={() => handleSyncSubscriptionStatus(false)}
-                  disabled={isRunningSubscriptionSync}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isRunningSubscriptionSync && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">sync</span>
-                  Sync from Stripe
-                </button>
-              </div>
-              {subscriptionStatusResult && (
-                <div className={`mt-2 p-2 rounded ${getResultStyle(subscriptionStatusResult)}`}>
-                  {subscriptionStatusResult.dryRun && (
-                    <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                  )}
-                  <p className={`text-xs ${getTextStyle(subscriptionStatusResult)}`}>{subscriptionStatusResult.message}</p>
-                </div>
-              )}
-            </div>
-            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-              <p className="text-xs text-red-700 dark:text-red-300 mb-2">
-                <strong>Clear Orphaned IDs:</strong> Remove Stripe customer IDs that no longer exist in Stripe
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleClearOrphanedStripeIds(true)}
-                  disabled={isRunningOrphanedStripeCleanup}
-                  className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isRunningOrphanedStripeCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
-                  Preview
-                </button>
-                <button
-                  onClick={() => handleClearOrphanedStripeIds(false)}
-                  disabled={isRunningOrphanedStripeCleanup}
-                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isRunningOrphanedStripeCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
-                  Clear Orphaned IDs
-                </button>
-              </div>
-              {orphanedStripeResult && (
-                <div className={`mt-2 p-2 rounded ${getResultStyle(orphanedStripeResult)}`}>
-                  {orphanedStripeResult.dryRun && (
-                    <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                  )}
-                  <p className={`text-xs ${getTextStyle(orphanedStripeResult)}`}>{orphanedStripeResult.message}</p>
-                  {orphanedStripeResult.cleared && orphanedStripeResult.cleared.length > 0 && (
-                    <div className="mt-2 max-h-24 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
-                      {orphanedStripeResult.cleared.map((c: any, i: number) => (
-                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                          {c.email}: {c.stripeCustomerId}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
-              <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
-                <strong>Cleanup Empty Customers:</strong> Delete Stripe customers that have zero charges, subscriptions, invoices, or payment intents
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleCleanupStripeCustomers(true)}
-                  disabled={isRunningStripeCustomerCleanup}
-                  className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">visibility</span>
-                  Scan & Preview
-                </button>
-                <button
-                  onClick={() => handleCleanupStripeCustomers(false)}
-                  disabled={isRunningStripeCustomerCleanup || !stripeCleanupResult?.dryRun}
-                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                  <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
-                  Delete Empty Customers
-                </button>
-              </div>
-              {stripeCleanupResult && (
-                <div className={`mt-2 p-2 rounded ${getResultStyle(stripeCleanupResult)}`}>
-                  {stripeCleanupResult.dryRun && (
-                    <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                  )}
-                  <p className={`text-xs ${getTextStyle(stripeCleanupResult)}`}>{stripeCleanupResult.message}</p>
-                  {stripeCleanupResult.dryRun && stripeCleanupResult.customers && stripeCleanupResult.customers.length > 0 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
-                      <p className="font-medium mb-1">{stripeCleanupResult.emptyCount} empty customers found:</p>
-                      {stripeCleanupResult.customers.map((c, i) => (
-                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                          {c.email || 'No email'} — {c.name || 'No name'} ({c.id})
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {!stripeCleanupResult.dryRun && stripeCleanupResult.deleted && stripeCleanupResult.deleted.length > 0 && (
-                    <div className="mt-2 max-h-24 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
-                      <p className="font-medium mb-1">{stripeCleanupResult.deletedCount} customers deleted:</p>
-                      {stripeCleanupResult.deleted.map((c, i) => (
-                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                          {c.email || 'No email'} ({c.id})
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'Bookings Without Sessions':
-      case 'Active Bookings Without Sessions':
-        return (
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
-              <strong>Quick Fix:</strong> Create missing billing sessions for Trackman bookings
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleFixGhostBookings(true)}
-                disabled={isRunningGhostBookingFix}
-                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isRunningGhostBookingFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
-                Preview
-              </button>
-              <button
-                onClick={() => handleFixGhostBookings(false)}
-                disabled={isRunningGhostBookingFix}
-                className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isRunningGhostBookingFix && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">build</span>
-                Create Sessions
-              </button>
-            </div>
-            {ghostBookingResult && (
-              <div className={`mt-2 p-2 rounded ${getResultStyle(ghostBookingResult)}`}>
-                {ghostBookingResult.dryRun && (
-                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                )}
-                <p className={`text-xs ${getTextStyle(ghostBookingResult)}`}>{ghostBookingResult.message}</p>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'Stale Mindbody IDs':
-        return (
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">
-              <strong>Quick Fix:</strong> Remove old Mindbody IDs from members no longer in Mindbody
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleCleanupMindbodyIds(true)}
-                disabled={isCleaningMindbodyIds}
-                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isCleaningMindbodyIds && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
-                Preview
-              </button>
-              <button
-                onClick={() => handleCleanupMindbodyIds(false)}
-                disabled={isCleaningMindbodyIds}
-                className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isCleaningMindbodyIds && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">cleaning_services</span>
-                Clean Up
-              </button>
-            </div>
-            {mindbodyCleanupResult && (
-              <div className={`mt-2 p-2 rounded ${getResultStyle(mindbodyCleanupResult)}`}>
-                {mindbodyCleanupResult.dryRun && (
-                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                )}
-                <p className={`text-xs ${getTextStyle(mindbodyCleanupResult)}`}>{mindbodyCleanupResult.message}</p>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'Deal Stage Drift':
-        return (
-          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
-              <strong>Quick Fix:</strong> Update HubSpot deal stages to match current membership status
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleRemediateDealStages(true)}
-                disabled={isRunningDealStageRemediation}
-                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isRunningDealStageRemediation && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">visibility</span>
-                Preview
-              </button>
-              <button
-                onClick={() => handleRemediateDealStages(false)}
-                disabled={isRunningDealStageRemediation}
-                className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-              >
-                {isRunningDealStageRemediation && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
-                <span className="material-symbols-outlined text-[14px]">sync</span>
-                Remediate Deal Stages
-              </button>
-            </div>
-            {dealStageRemediationResult && (
-              <div className={`mt-2 p-2 rounded ${getResultStyle(dealStageRemediationResult)}`}>
-                {dealStageRemediationResult.dryRun && (
-                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
-                )}
-                <p className={`text-xs ${getTextStyle(dealStageRemediationResult)}`}>{dealStageRemediationResult.message}</p>
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const groupByCategory = (issues: IntegrityIssue[]) => {
-    return issues.reduce((acc, issue) => {
-      if (!acc[issue.category]) acc[issue.category] = [];
-      acc[issue.category].push(issue);
-      return acc;
-    }, {} as Record<string, IntegrityIssue[]>);
-  };
-
-  const getCategoryLabel = (category: string) => {
-    switch (category) {
-      case 'orphan_record': return 'Orphan Records';
-      case 'missing_relationship': return 'Missing Relationships';
-      case 'sync_mismatch': return 'Sync Mismatches';
-      case 'data_quality': return 'Data Quality';
-      default: return category;
-    }
-  };
-
-  const formatContextString = (context?: IssueContext): string | null => {
-    if (!context) return null;
-    
-    const parts: string[] = [];
-    
-    if (context.memberName) parts.push(context.memberName);
-    if (context.guestName && !context.memberName) parts.push(context.guestName);
-    if (context.memberEmail && !context.memberName) parts.push(context.memberEmail);
-    if (context.memberTier) parts.push(`Tier: ${context.memberTier}`);
-    
-    if (context.bookingDate || context.tourDate || context.classDate || context.eventDate) {
-      const date = context.bookingDate || context.tourDate || context.classDate || context.eventDate;
-      if (date) {
-        try {
-          const formatted = new Date(date).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-          });
-          parts.push(formatted);
-        } catch {
-          parts.push(date);
-        }
-      }
-    }
-    
-    if (context.startTime) {
-      const timeStr = context.startTime.substring(0, 5);
-      parts.push(timeStr);
-    }
-    
-    if (context.resourceName) parts.push(context.resourceName);
-    if (context.className && !context.eventTitle) parts.push(context.className);
-    if (context.eventTitle) parts.push(context.eventTitle);
-    if (context.instructor) parts.push(`Instructor: ${context.instructor}`);
-    
-    return parts.length > 0 ? parts.join(' • ') : null;
+  const getIssueTrackingForIssue = (issue: IntegrityIssue) => {
+    if (!historyData) return undefined;
+    const issueKey = `${issue.table}_${issue.recordId}`;
+    return historyData.activeIssues.find(ai => ai.issueKey === issueKey);
   };
 
   const errorCount = results.reduce((sum, r) => sum + r.issues.filter(i => i.severity === 'error').length, 0);
   const warningCount = results.reduce((sum, r) => sum + r.issues.filter(i => i.severity === 'warning').length, 0);
   const infoCount = results.reduce((sum, r) => sum + r.issues.filter(i => i.severity === 'info').length, 0);
-
-  const escapeCSVField = (field: string | number): string => {
-    const str = String(field);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const downloadCSV = () => {
-    const headers = ['Check Name', 'Severity', 'Category', 'Table', 'Record ID', 'Description', 'Suggestion'];
-    const rows: string[][] = [];
-
-    results.forEach(result => {
-      const metadata = getCheckMetadata(result.checkName);
-      const displayTitle = metadata?.title || result.checkName;
-      
-      result.issues.forEach(issue => {
-        rows.push([
-          displayTitle,
-          issue.severity,
-          issue.category,
-          issue.table,
-          String(issue.recordId),
-          issue.description,
-          issue.suggestion || ''
-        ]);
-      });
-    });
-
-    const csvContent = [
-      headers.map(escapeCSVField).join(','),
-      ...rows.map(row => row.map(escapeCSVField).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const date = new Date().toISOString().split('T')[0];
-    link.href = url;
-    link.download = `data-integrity-export-${date}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   const hasIssues = results.some(r => r.issues.length > 0);
 
@@ -1935,7 +1271,7 @@ const DataIntegrityTab: React.FC = () => {
           </button>
           {results.length > 0 && (
             <button
-              onClick={downloadCSV}
+              onClick={() => downloadCSV(results)}
               disabled={!hasIssues}
               className="py-3 px-4 border-2 border-primary dark:border-white/40 text-primary dark:text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -2166,765 +1502,105 @@ const DataIntegrityTab: React.FC = () => {
         )}
       </div>
 
-      {results.length > 0 && (
-        <div className="space-y-3">
-          {results.map((result) => {
-            const metadata = getCheckMetadata(result.checkName);
-            const displayTitle = metadata?.title || result.checkName;
-            const description = metadata?.description;
-            const checkSeverity = metadata?.severity || 'medium';
-            const isExpanded = expandedChecks.has(result.checkName);
-            
-            return (
-              <div
-                key={result.checkName}
-                className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl overflow-hidden"
-              >
-                <button
-                  onClick={() => toggleCheck(result.checkName)}
-                  className="w-full p-4 flex items-center justify-between text-left"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded ${getStatusColor(result.status)}`}>
-                      {result.status}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-primary dark:text-white truncate">{displayTitle}</span>
-                        <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded ${getCheckSeverityColor(checkSeverity)}`}>
-                          {checkSeverity}
-                        </span>
-                      </div>
-                      {description && (
-                        <p className="text-xs text-primary/60 dark:text-white/60 truncate">{description}</p>
-                      )}
-                    </div>
-                    {result.issueCount > 0 && (
-                      <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 text-xs font-bold rounded-full shrink-0">
-                        {result.issueCount}
-                      </span>
-                    )}
-                  </div>
-                  <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ml-2 ${isExpanded ? 'rotate-180' : ''}`}>
-                    expand_more
-                  </span>
-                </button>
-                
-                {isExpanded && result.issues.length > 0 && (
-                  <div className="px-4 pb-4 space-y-3">
-                    {renderCheckFixTools(result.checkName)}
-                    
-                    {result.issues.filter(i => !i.ignored).length > 3 && (
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => openBulkIgnoreModal(result.checkName, result.issues)}
-                          className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">visibility_off</span>
-                          Exclude All ({result.issues.filter(i => !i.ignored).length})
-                        </button>
-                      </div>
-                    )}
-                    
-                    {Object.entries(groupByCategory(result.issues)).map(([category, categoryIssues]) => (
-                      <div key={category} className="space-y-2">
-                        <p className="text-xs font-medium text-primary/60 dark:text-white/60 uppercase tracking-wide">
-                          {getCategoryLabel(category)} ({categoryIssues.length})
-                        </p>
-                        {categoryIssues.map((issue, idx) => {
-                          const issueKey = `${issue.table}_${issue.recordId}`;
-                          const isSyncing = syncingIssues.has(issueKey);
-                          const tracking = getIssueTracking(issue);
-                          const contextStr = formatContextString(issue.context);
-                          
-                          return (
-                            <div
-                              key={idx}
-                              className={`p-3 rounded-lg border ${getSeverityColor(issue.severity)} ${issue.ignored ? 'opacity-50' : ''}`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                                      {getSeverityIcon(issue.severity)}
-                                    </span>
-                                    <span className="font-medium text-sm">{issue.description}</span>
-                                    {issue.ignored && issue.ignoreInfo && (
-                                      <span className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                                        Ignored until {new Date(issue.ignoreInfo.expiresAt).toLocaleDateString()}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {contextStr && (
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{contextStr}</p>
-                                  )}
-                                  {issue.suggestion && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 italic">{issue.suggestion}</p>
-                                  )}
-                                  {tracking && tracking.daysUnresolved > 0 && (
-                                    <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-1">
-                                      Unresolved for {tracking.daysUnresolved} day{tracking.daysUnresolved === 1 ? '' : 's'}
-                                    </p>
-                                  )}
-                                  
-                                  {issue.context?.syncComparison && issue.context.syncComparison.length > 0 && (
-                                    <div className="mt-2 bg-white/50 dark:bg-white/5 rounded p-2">
-                                      <p className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1">Field Differences</p>
-                                      <div className="space-y-1">
-                                        {issue.context.syncComparison.map((comp, compIdx) => (
-                                          <div key={compIdx} className="grid grid-cols-3 gap-2 text-[11px]">
-                                            <span className="font-medium text-gray-700 dark:text-gray-300">{comp.field}</span>
-                                            <span className="text-blue-600 dark:text-blue-400 truncate" title={String(comp.appValue)}>App: {String(comp.appValue)}</span>
-                                            <span className="text-orange-600 dark:text-orange-400 truncate" title={String(comp.externalValue)}>External: {String(comp.externalValue)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center gap-1 shrink-0">
-                                  {issue.context?.syncType && !issue.ignored && (
-                                    <>
-                                      <button
-                                        onClick={() => handleSyncPush(issue)}
-                                        disabled={isSyncing}
-                                        className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
-                                        title="Push app data to external system"
-                                      >
-                                        {isSyncing ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                        ) : (
-                                          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                                        )}
-                                      </button>
-                                      <button
-                                        onClick={() => handleSyncPull(issue)}
-                                        disabled={isSyncing}
-                                        className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
-                                        title="Pull external data to app"
-                                      >
-                                        {isSyncing ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                        ) : (
-                                          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-                                        )}
-                                      </button>
-                                    </>
-                                  )}
-                                  {issue.context?.memberEmail && (
-                                    <button
-                                      onClick={() => handleViewProfile(issue.context!.memberEmail!)}
-                                      disabled={loadingMemberEmail === issue.context.memberEmail}
-                                      className="p-1.5 text-primary hover:bg-primary/10 dark:text-white dark:hover:bg-white/10 rounded transition-colors disabled:opacity-50"
-                                      title="View member profile"
-                                    >
-                                      {loadingMemberEmail === issue.context.memberEmail ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                      ) : (
-                                        <span className="material-symbols-outlined text-[16px]">person</span>
-                                      )}
-                                    </button>
-                                  )}
-                                  {issue.table === 'booking_requests' && !issue.ignored && (
-                                    <>
-                                      {issue.context?.trackmanBookingId && (
-                                        <button
-                                          onClick={() => setBookingSheet({
-                                            isOpen: true,
-                                            bookingId: issue.recordId as number,
-                                            bayName: issue.context?.resourceName,
-                                            bookingDate: issue.context?.bookingDate,
-                                            timeSlot: issue.context?.startTime,
-                                            memberName: issue.context?.memberName,
-                                            memberEmail: issue.context?.memberEmail,
-                                            trackmanBookingId: issue.context?.trackmanBookingId,
-                                            importedName: issue.context?.importedName,
-                                            notes: issue.context?.notes,
-                                            originalEmail: issue.context?.originalEmail
-                                          })}
-                                          className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
-                                          title="Review Unmatched Booking"
-                                        >
-                                          <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={() => handleCancelBooking(issue.recordId as number)}
-                                        disabled={cancellingBookings.has(issue.recordId as number)}
-                                        className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
-                                        title="Cancel this booking"
-                                      >
-                                        {cancellingBookings.has(issue.recordId as number) ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                        ) : (
-                                          <span className="material-symbols-outlined text-[16px]">cancel</span>
-                                        )}
-                                      </button>
-                                    </>
-                                  )}
-                                  {!issue.ignored && (issue.table === 'guest_passes' || issue.table === 'booking_fee_snapshots' || issue.table === 'booking_participants') && (
-                                    <button
-                                      onClick={() => {
-                                        if (confirm(`Delete this ${issue.table === 'guest_passes' ? 'guest pass' : issue.table === 'booking_fee_snapshots' ? 'fee snapshot' : 'participant'} record?`)) {
-                                          const endpoint = issue.table === 'guest_passes'
-                                            ? '/api/data-integrity/fix/delete-guest-pass'
-                                            : issue.table === 'booking_fee_snapshots'
-                                            ? '/api/data-integrity/fix/delete-fee-snapshot'
-                                            : '/api/data-integrity/fix/delete-booking-participant';
-                                          fixIssueMutation.mutate({ endpoint, body: { recordId: issue.recordId } });
-                                        }
-                                      }}
-                                      disabled={fixIssueMutation.isPending}
-                                      className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
-                                      title="Delete this orphaned record"
-                                    >
-                                      {fixIssueMutation.isPending ? (
-                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                      ) : (
-                                        <span className="material-symbols-outlined text-[16px]">delete</span>
-                                      )}
-                                    </button>
-                                  )}
-                                  {!issue.ignored && issue.context?.duplicateUsers && issue.context.duplicateUsers.length > 0 && (
-                                    issue.context.duplicateUsers.map((user) => (
-                                      <button
-                                        key={user.userId}
-                                        onClick={() => {
-                                          if (confirm(`Unlink HubSpot contact from ${user.email}? This will make them a separate contact.`)) {
-                                            fixIssueMutation.mutate({
-                                              endpoint: '/api/data-integrity/fix/unlink-hubspot',
-                                              body: { userId: user.userId, hubspotContactId: issue.context?.hubspotContactId }
-                                            });
-                                          }
-                                        }}
-                                        disabled={fixIssueMutation.isPending}
-                                        className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
-                                        title={`Unlink HubSpot from ${user.email}`}
-                                      >
-                                        {fixIssueMutation.isPending ? (
-                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                                        ) : (
-                                          <span className="material-symbols-outlined text-[16px]">link_off</span>
-                                        )}
-                                      </button>
-                                    ))
-                                  )}
-                                  {!issue.ignored && (
-                                    <button
-                                      onClick={() => openIgnoreModal(issue, result.checkName)}
-                                      className="p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded transition-colors"
-                                      title="Ignore this issue"
-                                    >
-                                      <span className="material-symbols-outlined text-[16px]">visibility_off</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <IntegrityResultsPanel
+        results={results}
+        expandedChecks={expandedChecks}
+        toggleCheck={toggleCheck}
+        syncingIssues={syncingIssues}
+        handleSyncPush={handleSyncPush}
+        handleSyncPull={handleSyncPull}
+        cancellingBookings={cancellingBookings}
+        handleCancelBooking={handleCancelBooking}
+        loadingMemberEmail={loadingMemberEmail}
+        handleViewProfile={handleViewProfile}
+        setBookingSheet={setBookingSheet}
+        fixIssueMutation={fixIssueMutation}
+        openIgnoreModal={openIgnoreModal}
+        openBulkIgnoreModal={openBulkIgnoreModal}
+        getIssueTracking={getIssueTrackingForIssue}
+        isSyncingToHubspot={isSyncingToHubspot}
+        hubspotSyncResult={hubspotSyncResult}
+        handleSyncMembersToHubspot={handleSyncMembersToHubspot}
+        isRunningSubscriptionSync={isRunningSubscriptionSync}
+        subscriptionStatusResult={subscriptionStatusResult}
+        handleSyncSubscriptionStatus={handleSyncSubscriptionStatus}
+        isRunningOrphanedStripeCleanup={isRunningOrphanedStripeCleanup}
+        orphanedStripeResult={orphanedStripeResult}
+        handleClearOrphanedStripeIds={handleClearOrphanedStripeIds}
+        isRunningStripeCustomerCleanup={isRunningStripeCustomerCleanup}
+        stripeCleanupResult={stripeCleanupResult}
+        handleCleanupStripeCustomers={handleCleanupStripeCustomers}
+        isRunningGhostBookingFix={isRunningGhostBookingFix}
+        ghostBookingResult={ghostBookingResult}
+        handleFixGhostBookings={handleFixGhostBookings}
+        isCleaningMindbodyIds={isCleaningMindbodyIds}
+        mindbodyCleanupResult={mindbodyCleanupResult}
+        handleCleanupMindbodyIds={handleCleanupMindbodyIds}
+        isRunningDealStageRemediation={isRunningDealStageRemediation}
+        dealStageRemediationResult={dealStageRemediationResult}
+        handleRemediateDealStages={handleRemediateDealStages}
+        isRunningStripeHubspotLink={isRunningStripeHubspotLink}
+        stripeHubspotLinkResult={stripeHubspotLinkResult}
+        handleLinkStripeHubspot={handleLinkStripeHubspot}
+        isRunningPaymentStatusSync={isRunningPaymentStatusSync}
+        paymentStatusResult={paymentStatusResult}
+        handleSyncPaymentStatus={handleSyncPaymentStatus}
+        isRunningVisitCountSync={isRunningVisitCountSync}
+        visitCountResult={visitCountResult}
+        handleSyncVisitCounts={handleSyncVisitCounts}
+      />
 
-      {results.length > 0 && results.every(r => r.status === 'pass') && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl">
-          <EmptyState
-            icon="verified"
-            title="All Checks Passed!"
-            description="No data integrity issues found."
-            variant="compact"
-          />
-        </div>
-      )}
+      <SyncToolsPanel
+        showDataTools={showDataTools}
+        setShowDataTools={setShowDataTools}
+        resyncEmail={resyncEmail}
+        setResyncEmail={setResyncEmail}
+        handleResyncMember={handleResyncMember}
+        isResyncing={isResyncing}
+        resyncResult={resyncResult}
+        handleReconcileGroupBilling={handleReconcileGroupBilling}
+        isReconciling={isReconciling}
+        reconcileResult={reconcileResult}
+        handleBackfillStripeCache={handleBackfillStripeCache}
+        isBackfillingStripeCache={isBackfillingStripeCache}
+        stripeCacheResult={stripeCacheResult}
+        handleDetectDuplicates={handleDetectDuplicates}
+        isRunningDuplicateDetection={isRunningDuplicateDetection}
+        duplicateDetectionResult={duplicateDetectionResult}
+        expandedDuplicates={expandedDuplicates}
+        setExpandedDuplicates={setExpandedDuplicates}
+        handleCleanupStripeCustomers={handleCleanupStripeCustomers}
+        isRunningStripeCustomerCleanup={isRunningStripeCustomerCleanup}
+        stripeCleanupResult={stripeCleanupResult}
+      />
 
-      <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
-        <button
-          onClick={() => setShowIgnoredIssues(!showIgnoredIssues)}
-          className="flex items-center justify-between w-full text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">visibility_off</span>
-            <span className="font-bold text-primary dark:text-white">Ignored Issues</span>
-            {ignoredIssues.length > 0 && (
-              <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 text-xs font-bold rounded-full">
-                {ignoredIssues.filter(i => i.isActive).length}
-              </span>
-            )}
-          </div>
-          <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showIgnoredIssues ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
-        </button>
-        
-        {showIgnoredIssues && (
-          <div className="mt-4">
-            {isLoadingIgnored ? (
-              <div className="flex items-center justify-center py-4">
-                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-gray-500">progress_activity</span>
-              </div>
-            ) : ignoredIssues.filter(i => i.isActive).length > 0 ? (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {ignoredIssues.filter(i => i.isActive).map((entry) => (
-                  <div key={entry.id} className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-mono text-gray-700 dark:text-gray-300 truncate">{entry.issueKey}</p>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-500">
-                        {entry.reason} • Expires {new Date(entry.expiresAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleUnignoreIssue(entry.issueKey)}
-                      className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors shrink-0"
-                      title="Un-ignore this issue"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">visibility</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No ignored issues</p>
-            )}
-          </div>
-        )}
-      </div>
+      <CleanupToolsPanel
+        showPlaceholderCleanup={showPlaceholderCleanup}
+        setShowPlaceholderCleanup={setShowPlaceholderCleanup}
+        handleScanPlaceholders={handleScanPlaceholders}
+        isLoadingPlaceholders={isLoadingPlaceholders}
+        placeholderAccounts={placeholderAccounts}
+        showDeleteConfirm={showDeleteConfirm}
+        setShowDeleteConfirm={setShowDeleteConfirm}
+        handleDeletePlaceholders={handleDeletePlaceholders}
+        isDeletingPlaceholders={isDeletingPlaceholders}
+        placeholderDeleteResult={placeholderDeleteResult}
+      />
 
-      <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
-        <button
-          onClick={() => setShowDataTools(!showDataTools)}
-          className="flex items-center justify-between w-full text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">build</span>
-            <span className="font-bold text-primary dark:text-white">Data Tools</span>
-          </div>
-          <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showDataTools ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
-        </button>
-        
-        {showDataTools && (
-          <div className="mt-4 space-y-6">
-            <div className="space-y-3">
-              <h4 className="text-sm font-medium text-primary dark:text-white">Resync Member</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Force a full resync of a member's data from HubSpot and Stripe</p>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={resyncEmail}
-                  onChange={(e) => setResyncEmail(e.target.value)}
-                  placeholder="Enter member email"
-                  className="flex-1 px-3 py-2 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm"
-                />
-                <button
-                  onClick={handleResyncMember}
-                  disabled={isResyncing || !resyncEmail.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isResyncing && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                  Resync
-                </button>
-              </div>
-              {resyncResult && (
-                <p className={`text-xs ${resyncResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {resyncResult.message}
-                </p>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
-              <h4 className="text-sm font-medium text-primary dark:text-white">Reconcile Group Billing</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Sync group billing members with Stripe subscription line items</p>
-              <button
-                onClick={handleReconcileGroupBilling}
-                disabled={isReconciling}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isReconciling && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                Run Reconciliation
-              </button>
-              {reconcileResult && (
-                <div className={`p-3 rounded-lg ${reconcileResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'}`}>
-                  <p className="text-xs text-gray-700 dark:text-gray-300">
-                    Checked {reconcileResult.groupsChecked} groups • 
-                    Deactivated: {reconcileResult.membersDeactivated} • 
-                    Reactivated: {reconcileResult.membersReactivated} • 
-                    Created: {reconcileResult.membersCreated} • 
-                    Relinked: {reconcileResult.itemsRelinked}
-                  </p>
-                  {reconcileResult.errors.length > 0 && (
-                    <div className="mt-2 text-xs text-red-600 dark:text-red-400">
-                      {reconcileResult.errors.map((err, i) => <p key={i}>{err}</p>)}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
-              <h4 className="text-sm font-medium text-primary dark:text-white">Backfill Stripe Cache</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Fetch and cache recent Stripe payments, charges, and invoices</p>
-              <button
-                onClick={handleBackfillStripeCache}
-                disabled={isBackfillingStripeCache}
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isBackfillingStripeCache && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                Backfill Cache
-              </button>
-              {stripeCacheResult && (
-                <p className={`text-xs ${stripeCacheResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {stripeCacheResult.message}
-                </p>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
-              <h4 className="text-sm font-medium text-primary dark:text-white">Detect Duplicates</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Scan for duplicate members in the app and HubSpot</p>
-              <button
-                onClick={handleDetectDuplicates}
-                disabled={isRunningDuplicateDetection}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isRunningDuplicateDetection && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                Detect Duplicates
-              </button>
-              {duplicateDetectionResult && (
-                <div className={`p-3 rounded-lg ${duplicateDetectionResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                  <p className={`text-xs ${duplicateDetectionResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
-                    {duplicateDetectionResult.message}
-                  </p>
-                  {duplicateDetectionResult.appDuplicates && duplicateDetectionResult.appDuplicates.length > 0 && (
-                    <div className="mt-2">
-                      <button
-                        onClick={() => setExpandedDuplicates(prev => ({ ...prev, app: !prev.app }))}
-                        className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">{expandedDuplicates.app ? 'expand_less' : 'expand_more'}</span>
-                        App Duplicates ({duplicateDetectionResult.appDuplicates.length})
-                      </button>
-                      {expandedDuplicates.app && (
-                        <div className="mt-1 max-h-32 overflow-y-auto text-[11px] bg-white dark:bg-white/5 rounded p-2">
-                          {duplicateDetectionResult.appDuplicates.map((dup: any, i: number) => (
-                            <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                              {dup.email}: {dup.count} records
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {duplicateDetectionResult.hubspotDuplicates && duplicateDetectionResult.hubspotDuplicates.length > 0 && (
-                    <div className="mt-2">
-                      <button
-                        onClick={() => setExpandedDuplicates(prev => ({ ...prev, hubspot: !prev.hubspot }))}
-                        className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">{expandedDuplicates.hubspot ? 'expand_less' : 'expand_more'}</span>
-                        HubSpot Duplicates ({duplicateDetectionResult.hubspotDuplicates.length})
-                      </button>
-                      {expandedDuplicates.hubspot && (
-                        <div className="mt-1 max-h-32 overflow-y-auto text-[11px] bg-white dark:bg-white/5 rounded p-2">
-                          {duplicateDetectionResult.hubspotDuplicates.map((dup: any, i: number) => (
-                            <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                              {dup.email}: {dup.count} contacts
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-white/10 pt-4 space-y-3">
-              <h4 className="text-sm font-medium text-primary dark:text-white flex items-center gap-2">
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_remove</span>
-                Stripe Customer Cleanup
-              </h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Scan your Stripe account for customers with zero transactions (no charges, subscriptions, invoices, or payment intents) and delete them to keep your account clean.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleCleanupStripeCustomers(true)}
-                  disabled={isRunningStripeCustomerCleanup}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                  Scan & Preview
-                </button>
-                <button
-                  onClick={() => handleCleanupStripeCustomers(false)}
-                  disabled={isRunningStripeCustomerCleanup || !stripeCleanupResult?.dryRun}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                  Delete Empty Customers
-                </button>
-              </div>
-              {stripeCleanupResult && (
-                <div className={`p-3 rounded-lg ${stripeCleanupResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                  {stripeCleanupResult.dryRun && (
-                    <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only — No Changes Made</p>
-                  )}
-                  <p className={`text-xs ${stripeCleanupResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
-                    {stripeCleanupResult.message}
-                  </p>
-                  {stripeCleanupResult.dryRun && stripeCleanupResult.customers && stripeCleanupResult.customers.length > 0 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
-                      <p className="font-medium mb-1">{stripeCleanupResult.emptyCount} empty customers found:</p>
-                      {stripeCleanupResult.customers.map((c: any, i: number) => (
-                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                          {c.email || 'No email'} — {c.name || 'No name'} ({c.id})
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {!stripeCleanupResult.dryRun && stripeCleanupResult.deleted && stripeCleanupResult.deleted.length > 0 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
-                      <p className="font-medium mb-1">{stripeCleanupResult.deletedCount} customers deleted:</p>
-                      {stripeCleanupResult.deleted.map((c: any, i: number) => (
-                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
-                          {c.email || 'No email'} ({c.id})
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
-        <button
-          onClick={() => setShowPlaceholderCleanup(!showPlaceholderCleanup)}
-          className="flex items-center justify-between w-full text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">cleaning_services</span>
-            <span className="font-bold text-primary dark:text-white">Placeholder Cleanup</span>
-          </div>
-          <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform ${showPlaceholderCleanup ? 'rotate-180' : ''}`}>
-            expand_more
-          </span>
-        </button>
-        
-        {showPlaceholderCleanup && (
-          <div className="mt-4 space-y-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Scan for and remove placeholder accounts in Stripe and HubSpot (e.g., test@placeholder.com)
-            </p>
-            
-            <button
-              onClick={handleScanPlaceholders}
-              disabled={isLoadingPlaceholders}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-            >
-              {isLoadingPlaceholders && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-              Scan for Placeholders
-            </button>
-            
-            {placeholderAccounts && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2">
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{placeholderAccounts.totals.stripe}</p>
-                    <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 uppercase">Stripe</p>
-                  </div>
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2">
-                    <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{placeholderAccounts.totals.hubspot}</p>
-                    <p className="text-[10px] text-orange-600/70 dark:text-orange-400/70 uppercase">HubSpot</p>
-                  </div>
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2">
-                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{placeholderAccounts.totals.localDatabase}</p>
-                    <p className="text-[10px] text-green-600/70 dark:text-green-400/70 uppercase">Database</p>
-                  </div>
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2">
-                    <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{placeholderAccounts.totals.total}</p>
-                    <p className="text-[10px] text-purple-600/70 dark:text-purple-400/70 uppercase">Total</p>
-                  </div>
-                </div>
-                
-                {placeholderAccounts.totals.total > 0 && (
-                  <>
-                    {!showDeleteConfirm ? (
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">delete_forever</span>
-                        Delete All Placeholders
-                      </button>
-                    ) : (
-                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3">
-                        <p className="text-sm text-red-700 dark:text-red-400 mb-3">
-                          Are you sure you want to delete {placeholderAccounts.totals.total} placeholder accounts?
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setShowDeleteConfirm(false)}
-                            className="flex-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleDeletePlaceholders}
-                            disabled={isDeletingPlaceholders}
-                            className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-                          >
-                            {isDeletingPlaceholders && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                            Confirm Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            
-            {placeholderDeleteResult && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
-                <p className="text-sm text-green-700 dark:text-green-400">
-                  Deleted: Stripe {placeholderDeleteResult.stripeDeleted}, HubSpot {placeholderDeleteResult.hubspotDeleted}, Database {placeholderDeleteResult.localDatabaseDeleted}
-                  {(placeholderDeleteResult.stripeFailed > 0 || placeholderDeleteResult.hubspotFailed > 0 || placeholderDeleteResult.localDatabaseFailed > 0) && (
-                    <span className="text-red-600 dark:text-red-400">
-                      {' '}• Failed: Stripe {placeholderDeleteResult.stripeFailed}, HubSpot {placeholderDeleteResult.hubspotFailed}, Database {placeholderDeleteResult.localDatabaseFailed}
-                    </span>
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {ignoreModal.isOpen && ignoreModal.issue && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-bold text-primary dark:text-white">Ignore Issue</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{ignoreModal.issue.description}</p>
-            
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-primary dark:text-white">Duration</label>
-              <div className="flex gap-2">
-                {(['24h', '1w', '30d'] as const).map((dur) => (
-                  <button
-                    key={dur}
-                    onClick={() => setIgnoreDuration(dur)}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      ignoreDuration === dur
-                        ? 'bg-primary dark:bg-white text-white dark:text-primary'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {dur === '24h' ? '24 Hours' : dur === '1w' ? '1 Week' : '30 Days'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary dark:text-white">Reason</label>
-              <textarea
-                value={ignoreReason}
-                onChange={(e) => setIgnoreReason(e.target.value)}
-                placeholder="Why are you ignoring this issue?"
-                className="w-full px-3 py-2 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm resize-none"
-                rows={3}
-              />
-            </div>
-            
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={closeIgnoreModal}
-                className="flex-1 py-2 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleIgnoreIssue}
-                disabled={isIgnoring || !ignoreReason.trim()}
-                className="flex-1 py-2 px-4 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isIgnoring && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                Ignore Issue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {bulkIgnoreModal.isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-bold text-primary dark:text-white">Exclude All Issues</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Exclude {bulkIgnoreModal.issues.length} issues from "{bulkIgnoreModal.checkName}"
-            </p>
-            
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-primary dark:text-white">Duration</label>
-              <div className="flex gap-2">
-                {(['24h', '1w', '30d'] as const).map((dur) => (
-                  <button
-                    key={dur}
-                    onClick={() => setIgnoreDuration(dur)}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      ignoreDuration === dur
-                        ? 'bg-primary dark:bg-white text-white dark:text-primary'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {dur === '24h' ? '24 Hours' : dur === '1w' ? '1 Week' : '30 Days'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary dark:text-white">Reason</label>
-              <textarea
-                value={ignoreReason}
-                onChange={(e) => setIgnoreReason(e.target.value)}
-                placeholder="Why are you excluding these issues?"
-                className="w-full px-3 py-2 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-sm resize-none"
-                rows={3}
-              />
-            </div>
-            
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={closeBulkIgnoreModal}
-                className="flex-1 py-2 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBulkIgnore}
-                disabled={isBulkIgnoring || !ignoreReason.trim()}
-                className="flex-1 py-2 px-4 bg-primary dark:bg-white text-white dark:text-primary rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isBulkIgnoring && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-                Exclude All
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <IgnoreModals
+        ignoreModal={ignoreModal}
+        bulkIgnoreModal={bulkIgnoreModal}
+        ignoreDuration={ignoreDuration}
+        setIgnoreDuration={setIgnoreDuration}
+        ignoreReason={ignoreReason}
+        setIgnoreReason={setIgnoreReason}
+        handleIgnoreIssue={handleIgnoreIssue}
+        closeIgnoreModal={closeIgnoreModal}
+        handleBulkIgnore={handleBulkIgnore}
+        closeBulkIgnoreModal={closeBulkIgnoreModal}
+        isIgnoring={isIgnoring}
+        isBulkIgnoring={isBulkIgnoring}
+      />
 
       <MemberProfileDrawer
         isOpen={isProfileDrawerOpen}

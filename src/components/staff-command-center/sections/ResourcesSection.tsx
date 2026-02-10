@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour, isFacilityOpen, formatDateDisplayWithDay } from '../../../utils/dateUtils';
+import { isBlockingClosure, getNoticeTypeLabel, getNoticeSecondaryTag } from '../../../utils/closureUtils';
 import type { BayStatus, Closure, Announcement, TabType, RecentActivity, StaffNotification } from '../types';
 import { AlertsCard } from './AlertsCard';
 import { tabToPath } from '../../../pages/Admin/layout/types';
@@ -31,28 +32,10 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
   }, [navigate]);
 
   const isBlocking = (areas: string | null | undefined): boolean => {
-    return areas !== 'none' && areas !== '' && areas !== null && areas !== undefined;
+    return isBlockingClosure(areas);
   };
 
-  const getNoticeTypeLabel = (closure: Closure) => {
-    const blocking = isBlocking(closure.affectedAreas);
-    if (blocking) {
-      return 'Closure';
-    }
-    return closure.noticeType && closure.noticeType.toLowerCase() !== 'closure' ? closure.noticeType : 'Notice';
-  };
-
-  const getSecondaryTag = (closure: Closure) => {
-    const blocking = isBlocking(closure.affectedAreas);
-    if (blocking && closure.noticeType && closure.noticeType.trim() && closure.noticeType.toLowerCase() !== 'closure') {
-      return closure.noticeType;
-    }
-    const reason = closure.reason && closure.reason.trim() ? closure.reason : null;
-    if (reason && reason.toLowerCase() === 'internal calendar event') {
-      return null;
-    }
-    return reason;
-  };
+  const getSecondaryTag = (closure: Closure) => getNoticeSecondaryTag(closure);
 
   const NoticeBoardCard = () => (
     <div className={`${variant === 'desktop' ? 'h-full' : ''} bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${variant === 'desktop' ? 'flex flex-col' : ''}`}>
@@ -263,28 +246,10 @@ export const NoticeBoardWidget: React.FC<{
     if (tabToPath[tab]) navigate(tabToPath[tab]);
   }, [navigate]);
   const isBlocking = (areas: string | null | undefined): boolean => {
-    return areas !== 'none' && areas !== '' && areas !== null && areas !== undefined;
+    return isBlockingClosure(areas);
   };
 
-  const getNoticeTypeLabel = (closure: Closure) => {
-    const blocking = isBlocking(closure.affectedAreas);
-    if (blocking) {
-      return 'Closure';
-    }
-    return closure.noticeType && closure.noticeType.toLowerCase() !== 'closure' ? closure.noticeType : 'Notice';
-  };
-
-  const getSecondaryTag = (closure: Closure) => {
-    const blocking = isBlocking(closure.affectedAreas);
-    if (blocking && closure.noticeType && closure.noticeType.trim() && closure.noticeType.toLowerCase() !== 'closure') {
-      return closure.noticeType;
-    }
-    const reason = closure.reason && closure.reason.trim() ? closure.reason : null;
-    if (reason && reason.toLowerCase() === 'internal calendar event') {
-      return null;
-    }
-    return reason;
-  };
+  const getSecondaryTag = (closure: Closure) => getNoticeSecondaryTag(closure);
 
   return (
     <div className="h-full min-h-[140px] bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 flex flex-col">
