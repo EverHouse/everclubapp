@@ -290,7 +290,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       [emailList.map(e => e.toLowerCase())]
     );
     tiersResult.rows.forEach(r => {
-      if (r.tier && ['active', 'trial', 'past_due'].includes(r.membership_status)) {
+      if (r.tier && ['active', 'trialing', 'past_due'].includes(r.membership_status)) {
         tierMap.set(r.email, r.tier);
       }
       if (r.role) roleMap.set(r.email, r.role);

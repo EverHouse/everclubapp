@@ -1465,7 +1465,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       } | null = null;
       
       const membershipStatus = row.membership_status || null;
-      const hasActiveMembership = membershipStatus && ['active', 'trial', 'past_due'].includes(membershipStatus);
+      const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
       
       if (row.user_email) {
         const isStaffMember = staffEmailSet.has(row.user_email.toLowerCase());
@@ -1687,7 +1687,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           
           if (p.participant_type === 'owner') {
             const ownerStatus = p.membership_status || null;
-            const ownerIsInactive = ownerStatus && !['active', 'trial', 'past_due'].includes(ownerStatus);
+            const ownerIsInactive = ownerStatus && !['active', 'trialing', 'past_due'].includes(ownerStatus);
             ownerOverageFee = (isPaid || participantIsStaff) ? 0 : participantFee;
             if (email) {
               const ownerNote = participantIsStaff ? 'Staff — included'
@@ -1702,7 +1702,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             }
           } else if (p.participant_type === 'member') {
             const memberStatus = p.membership_status || null;
-            const isInactive = !memberStatus || !['active', 'trial', 'past_due'].includes(memberStatus);
+            const isInactive = !memberStatus || !['active', 'trialing', 'past_due'].includes(memberStatus);
             
             if (isInactive && !isPaid && !participantIsStaff && participantFee > 0) {
               ownerOverageFee += participantFee;

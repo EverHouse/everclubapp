@@ -20,6 +20,8 @@ export const changelog: ChangelogEntry[] = [
       "Feature: First-visit confirmation email sent automatically when a trial member checks in via QR code for the first time",
       "Feature: Email includes step-by-step guide on how to use the app — booking golf simulators, browsing events, and exploring wellness services",
       "Fix: Paused members are now correctly blocked from logging in (account preserved for future renewal)",
+      "Fix: Trialing members now correctly recognized in fee calculations and tier lookups — previously a typo ('trial' vs 'trialing') caused their membership tier to be ignored",
+      "Fix: Trackman billing reconciliation now correctly identifies trialing members as active",
     ],
   },
   {

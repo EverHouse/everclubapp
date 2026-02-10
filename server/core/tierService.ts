@@ -107,7 +107,7 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
     const user = result.rows[0];
     
     if (!options?.allowInactive) {
-      const validStatuses = ['active', 'trial', 'past_due'];
+      const validStatuses = ['active', 'trialing', 'past_due'];
       if (!user.membership_status || !validStatuses.includes(user.membership_status)) {
         console.warn(`[TierService] Denying tier access for ${email} (Status: ${user.membership_status || 'none'})`);
         return null;
