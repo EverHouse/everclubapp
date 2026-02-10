@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface PinnedNote {
   content: string;
@@ -46,11 +47,38 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   const isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid', 'terminated', 'past_due', 'paused'].includes(statusLower);
   const showWarning = !isActive && statusLower !== '';
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+  const modal = (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(4px)',
+        }}
+      />
       <div
         className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300"
+        style={{ position: 'relative', zIndex: 1 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`p-6 text-center ${showWarning ? 'bg-gradient-to-br from-red-700 via-red-600 to-red-800' : 'bg-gradient-to-br from-primary via-primary/95 to-primary/85'}`}>
@@ -110,6 +138,8 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 };
 
 export default CheckInConfirmationModal;
