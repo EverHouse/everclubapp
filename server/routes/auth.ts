@@ -680,7 +680,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
       const { client: resendClient, fromEmail } = await getResendClient();
       console.log(`[OTP Email] Resend client ready in ${Date.now() - startTime}ms`);
       const emailResult = await withResendRetry(() => resendClient.emails.send({
-          from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+          from: fromEmail || 'Ever Club <noreply@everclub.app>',
           to: normalizedEmail,
           subject: 'Your Ever Club Login Code',
           html: `
@@ -731,7 +731,7 @@ router.post('/api/auth/request-otp', async (req, res) => {
                       <tr>
                         <td style="padding: 24px 40px; background-color: #f8f8f6; border-radius: 0 0 16px 16px; text-align: center;">
                           <p style="margin: 0; font-size: 12px; color: #999999;">
-                            Ever Members Club<br>
+                            Ever Club<br>
                             <span style="color: #293515;">Golf & Wellness</span>
                           </p>
                         </td>

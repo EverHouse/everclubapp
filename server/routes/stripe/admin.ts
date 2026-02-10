@@ -293,7 +293,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       const safeFirstName = escapeHtml(sanitizedFirstName);
 
       await resend.emails.send({
-        from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+        from: fromEmail || 'Ever Club <noreply@everclub.app>',
         to: email,
         subject: `Your Ever Club Membership Invitation - ${tier.name}`,
         html: `

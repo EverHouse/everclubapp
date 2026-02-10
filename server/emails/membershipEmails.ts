@@ -321,7 +321,7 @@ export async function sendMembershipRenewalEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Membership Renewed - Ever Club',
       html: getMembershipRenewalHtml(params)
@@ -347,7 +347,7 @@ export async function sendMembershipFailedEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Membership Payment Failed - Action Required',
       html: getMembershipFailedHtml(params)
@@ -373,7 +373,7 @@ export async function sendCardExpiringEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Update Your Payment Method - Ever Club',
       html: getCardExpiringHtml(params)
@@ -503,7 +503,7 @@ export async function sendGracePeriodReminderEmail(
       : `Day ${params.currentDay} of ${params.totalDays}: Payment Required - Ever Club`;
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject,
       html: getGracePeriodReminderHtml(params)
@@ -593,7 +593,7 @@ export async function sendMembershipActivationEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: `Complete Your ${params.tierName} Membership - Ever Club`,
       html: getMembershipActivationHtml(params)

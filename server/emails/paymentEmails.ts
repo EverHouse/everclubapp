@@ -406,7 +406,7 @@ export async function sendPaymentReceiptEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Payment Receipt - Ever Club',
       html: getPaymentReceiptHtml(params)
@@ -432,7 +432,7 @@ export async function sendPaymentFailedEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Payment Issue - Action Required',
       html: getPaymentFailedHtml(params)
@@ -458,7 +458,7 @@ export async function sendOutstandingBalanceEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Outstanding Balance - Ever Club',
       html: getOutstandingBalanceHtml(params)
@@ -484,7 +484,7 @@ export async function sendFeeWaivedEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Fee Waived - Ever Club',
       html: getFeeWaivedHtml(params)
@@ -617,7 +617,7 @@ export async function sendPurchaseReceipt(
     const { client, fromEmail } = await getResendClient();
 
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Your Purchase Receipt - Ever Club',
       html: getPurchaseReceiptHtml(params)

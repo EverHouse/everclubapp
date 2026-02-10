@@ -238,7 +238,7 @@ export async function sendIntegrityAlertEmail(
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Club System <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: adminEmail,
       subject: `Data Integrity Alert: ${errorCount} critical issue${errorCount !== 1 ? 's' : ''} detected`,
       html: getIntegrityAlertEmailHtml(results, criticalIssues)

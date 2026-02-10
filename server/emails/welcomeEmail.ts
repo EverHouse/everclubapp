@@ -173,7 +173,7 @@ export async function sendWelcomeEmail(email: string, firstName?: string): Promi
     const { client, fromEmail } = await getResendClient();
     
     await client.emails.send({
-      from: fromEmail || 'Ever Members Club <noreply@everclub.app>',
+      from: fromEmail || 'Ever Club <noreply@everclub.app>',
       to: email,
       subject: 'Welcome to Ever Club',
       html: getWelcomeEmailHtml(firstName)
