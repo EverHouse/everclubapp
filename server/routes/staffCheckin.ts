@@ -17,6 +17,7 @@ import { enforceSocialTierRules, type ParticipantForValidation } from '../core/b
 import { broadcastMemberStatsUpdated } from '../core/websocket';
 import { updateHubSpotContactVisitCount } from '../core/memberSync';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
+import { sendFirstVisitConfirmationEmail } from '../emails/firstVisitEmail';
 
 const router = Router();
 
@@ -1521,6 +1522,12 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
        VALUES ($1, $2, $3, NOW())`,
       [member.email, staffEmail, staffName]
     );
+
+    if (newVisitCount === 1 && member.membership_status?.toLowerCase() === 'trialing') {
+      sendFirstVisitConfirmationEmail(member.email, { firstName: member.first_name || undefined })
+        .then(() => console.log('[QR Checkin] Sent first visit confirmation email to trial member:', member.email))
+        .catch(err => console.error('[QR Checkin] Failed to send first visit confirmation email:', err));
+    }
 
     const pinnedNotesResult = await pool.query<{ content: string; created_by_name: string | null }>(
       `SELECT content, created_by_name FROM member_notes WHERE member_email = $1 AND is_pinned = true ORDER BY created_at DESC`,
