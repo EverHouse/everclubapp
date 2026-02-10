@@ -67,7 +67,7 @@ export function ManageModeRoster({
     const isGuestSlot = !!member.guestInfo;
     const isRemoving = isGuestSlot && removingGuestId === member.guestInfo?.guestId;
     const showGuestPassBadge = isGuestSlot && member.guestInfo?.usedGuestPass === true && member.guestInfo?.fee === 0;
-    const isStaff = member.tier === 'Staff';
+    const isStaff = member.isStaff || member.tier === 'Staff';
 
     return (
       <div 

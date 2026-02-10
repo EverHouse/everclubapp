@@ -485,7 +485,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   const [isEditingTier, setIsEditingTier] = useState(false);
   const [manualTier, setManualTier] = useState('');
   const [isSavingTier, setIsSavingTier] = useState(false);
-  const VALID_TIERS = [...TIER_NAMES, 'Founding', 'Unlimited'];
+  const VALID_TIERS = [...TIER_NAMES];
 
   const [isUpdatingSource, setIsUpdatingSource] = useState(false);
   const [isPausing, setIsPausing] = useState(false);

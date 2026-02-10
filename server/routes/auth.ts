@@ -97,11 +97,10 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
     const normalizedEmailValue = normalizeEmail(data.email);
     const isStaffOrAdmin = data.role === 'admin' || data.role === 'staff';
     
-    // Staff/admin users don't have membership tiers
-    const normalizedTier = isStaffOrAdmin ? null : normalizeTierName(data.tierName);
+    const normalizedTier = isStaffOrAdmin ? 'VIP' : normalizeTierName(data.tierName);
     let tierId: number | null = null;
     
-    if (!isStaffOrAdmin && normalizedTier) {
+    if (normalizedTier) {
       const tierResult = await db.select({ id: membershipTiers.id })
         .from(membershipTiers)
         .where(sql`LOWER(${membershipTiers.name}) = LOWER(${normalizedTier})`)
@@ -136,6 +135,10 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
           updatedAt: new Date()
         }
       });
+    
+    if (isStaffOrAdmin) {
+      await db.execute(sql`UPDATE users SET membership_status = 'active', membership_tier = 'VIP Membership' WHERE LOWER(email) = LOWER(${normalizedEmailValue}) AND (membership_status IS NULL OR membership_status != 'active' OR membership_tier IS NULL OR membership_tier != 'VIP Membership')`);
+    }
     
     if (!isProduction) console.log(`[Auth] Updated user ${normalizedEmailValue} with role ${data.role}, tier ${normalizedTier || 'none'}`);
   } catch (error) {
@@ -536,7 +539,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
       email: dbUser[0]?.email || contact?.properties.email || normalizedEmail,
       phone,
       jobTitle,
-      tier: isStaffOrAdmin ? null : normalizeTierName(dbUser[0]?.tier || contact?.properties.membership_tier),
+      tier: isStaffOrAdmin ? 'VIP' : normalizeTierName(dbUser[0]?.tier || contact?.properties.membership_tier),
       tags: isStaffOrAdmin ? [] : (dbUser[0]?.tags || extractTierTags(contact?.properties.membership_tier, contact?.properties.membership_discount_reason)),
       mindbodyClientId: dbUser[0]?.mindbodyClientId || contact?.properties.mindbody_client_id || '',
       status: 'Active',
@@ -848,7 +851,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         email: normalizedEmail,
         phone: staffUserData.phone,
         jobTitle: staffUserData.jobTitle,
-        tier: null,
+        tier: 'VIP',
         tags: [],
         mindbodyClientId: '',
         membershipStartDate: '',

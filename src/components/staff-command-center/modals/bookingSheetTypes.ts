@@ -9,6 +9,7 @@ export interface BookingMember {
   memberName: string;
   tier: string | null;
   membershipStatus?: string | null;
+  isStaff?: boolean;
   fee: number;
   feeNote: string;
   guestInfo?: { guestId: number; guestName: string; guestEmail: string; fee: number; feeNote: string; usedGuestPass: boolean } | null;
@@ -65,6 +66,7 @@ export interface ManageModeRosterData {
   bookingNotes?: { notes: string | null; staffNotes: string | null; trackmanNotes: string | null };
   sessionId?: number;
   ownerId?: string;
+  isOwnerStaff?: boolean;
 }
 
 export interface MemberMatchWarning {

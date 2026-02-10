@@ -13,10 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.25.0",
+    date: "2026-02-10",
+    title: "Staff = VIP Rule — Automatic Tier Enforcement",
+    isMajor: true,
+    changes: [
+      "Feature: All staff, admin, and golf instructor users are now automatically treated as VIP members — no manual tier assignment needed",
+      "Auth Enforcement: Every login path (OTP, Google sign-in, verification) now sets staff tier to VIP and membership status to active automatically",
+      "Database Sync: Staff user records are auto-corrected to VIP tier and active status on every login, ensuring data never drifts",
+      "Booking Safety Net: Fee calculation now checks the staff directory before computing fees — staff always get $0 with 'Staff — included' note",
+      "Inactive Warning: Staff booking owners no longer show the 'Inactive Member' warning banner",
+      "Tier Dropdown Cleanup: Removed 'Founding' and 'Unlimited' from the membership tier dropdown since they're not valid tiers",
+    ],
+  },
+  {
     version: "7.24.2",
     date: "2026-02-10",
     title: "Revenue Protection — Inactive Owner Fee Enforcement",
-    isMajor: true,
     changes: [
       "CRITICAL FIX: Non-member and inactive booking owners were getting free bookings ($0) because the system checked 'is owner' before checking membership status — now status is checked FIRST",
       "Revenue Protection: Inactive/non-member owners are now charged the full session fee with no membership benefits — e.g., $50 for a 60-minute session instead of $0",

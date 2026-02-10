@@ -152,6 +152,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 fetchedContext={logic.fetchedContext}
                 bookingStatus={bookingStatus}
                 ownerMembershipStatus={ownerMembershipStatus}
+                isOwnerStaff={logic.rosterData?.isOwnerStaff}
                 rosterData={logic.rosterData}
               />
 

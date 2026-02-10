@@ -41,6 +41,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Trackman Integration**: 1:1 sync with CSV imports and webhooks for real-time booking and delta billing, including a robust cancellation flow.
 - **Linked Email Addresses**: Supports alternate emails and auto-learns associations from Trackman.
 - **Google Sign-In**: Members can sign in with Google or link their accounts.
+- **Staff = VIP Rule**: All staff/admin/golf_instructor users are automatically treated as VIP members. Auth enforces `tier='VIP'` and `membership_status='active'` on every login. Booking fee service has a safety net that checks `staff_users` table and applies $0 fees. Roster UI shows "Staff" badge (display label) while database stores "VIP" (benefits tier) — intentional dual representation. `BookingMember.isStaff` flag is the explicit source of truth for staff detection.
 - **Security**: Role-based access control (`isAdmin`, `isStaffOrAdmin` middleware).
 - **Notifications**: In-app real-time notifications with 3-channel delivery.
 - **Real-Time Sync**: Instant updates via WebSocket and Supabase Realtime.

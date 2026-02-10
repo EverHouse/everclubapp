@@ -20,6 +20,7 @@ interface SheetHeaderProps {
   isPlaceholderEmail?: (email: string) => boolean;
 
   ownerMembershipStatus?: string | null;
+  isOwnerStaff?: boolean;
   rosterData?: ManageModeRosterData | null;
 }
 
@@ -40,12 +41,13 @@ export function SheetHeader({
   importedName,
   isPlaceholderEmail,
   ownerMembershipStatus,
+  isOwnerStaff,
   rosterData,
 }: SheetHeaderProps) {
   if (isManageMode) {
     return (
       <>
-        {ownerMembershipStatus && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
+        {ownerMembershipStatus && !isOwnerStaff && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'trial' && ownerMembershipStatus.toLowerCase() !== 'past_due' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
           <div className="p-3 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/15 flex items-center gap-2">
             <span className="material-symbols-outlined text-red-500 dark:text-red-400 text-lg">warning</span>
             <div>

@@ -1838,9 +1838,12 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     // All fees are paid if there were original fees and no outstanding balance
     const allPaid = hasOriginalFees && grandTotal === 0 && hasPaidFees;
     
+    const isOwnerStaff = ownerEmail ? staffEmailSet.has(ownerEmail.toLowerCase()) : false;
+    
     res.json({
       sessionId,
       ownerId: resolvedOwnerUserId,
+      isOwnerStaff,
       ownerGuestPassesRemaining,
       bookingNotes: {
         notes: bookingResult.rows[0]?.notes || null,
