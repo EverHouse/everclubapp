@@ -165,6 +165,26 @@ export async function upsertVisitor(data: VisitorData, createStripeCustomer: boo
   // Try to find existing user
   const existingUser = await findMatchingUser(data);
 
+  if (!existingUser && data.email) {
+    const archivedUser = await db.select().from(users)
+      .where(ilike(users.email, data.email.trim().toLowerCase()))
+      .limit(1);
+    if (archivedUser.length > 0 && archivedUser[0].archivedAt) {
+      const updated = await db.update(users).set({
+        firstName: data.firstName ?? archivedUser[0].firstName,
+        lastName: data.lastName ?? archivedUser[0].lastName,
+        phone: data.phone ? normalizePhone(data.phone) : archivedUser[0].phone,
+        mindbodyClientId: data.mindbodyClientId ?? archivedUser[0].mindbodyClientId,
+        hubspotId: data.hubspotId ?? archivedUser[0].hubspotId,
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: new Date(),
+      }).where(eq(users.id, archivedUser[0].id)).returning();
+      console.log(`[Auto-Unarchive] User ${data.email} unarchived via upsertVisitor (day pass purchase or similar)`);
+      return updated[0];
+    }
+  }
+
   if (existingUser) {
     // Update existing user with provided data
     const updated = await db
