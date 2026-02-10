@@ -1405,14 +1405,6 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
       return res.status(400).json({ error: 'Member ID required' });
     }
 
-    const recentCheckin = await pool.query(
-      `SELECT id, created_at FROM walk_in_visits WHERE member_id = $1 AND created_at > NOW() - INTERVAL '2 minutes' LIMIT 1`,
-      [memberId]
-    );
-    if (recentCheckin.rows.length > 0) {
-      return res.status(409).json({ error: 'This member was already checked in less than 2 minutes ago', alreadyCheckedIn: true });
-    }
-
     const sessionUser = getSessionUser(req);
     const staffEmail = sessionUser?.email || 'unknown';
     const staffName = sessionUser?.name || null;
@@ -1441,6 +1433,14 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
     const member = memberResult.rows[0];
     const displayName = member.name || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email.split('@')[0];
 
+    const recentCheckin = await pool.query(
+      `SELECT id, created_at FROM walk_in_visits WHERE member_email = $1 AND created_at > NOW() - INTERVAL '2 minutes' LIMIT 1`,
+      [member.email]
+    );
+    if (recentCheckin.rows.length > 0) {
+      return res.status(409).json({ error: 'This member was already checked in less than 2 minutes ago', alreadyCheckedIn: true });
+    }
+
     const updateResult = await pool.query<{ lifetime_visits: number }>(
       `UPDATE users SET lifetime_visits = COALESCE(lifetime_visits, 0) + 1 WHERE id = $1 RETURNING lifetime_visits`,
       [memberId]
@@ -1463,9 +1463,9 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
     }).catch(err => console.error('[QR Checkin] Failed to send notification:', err));
 
     await pool.query(
-      `INSERT INTO walk_in_visits (member_email, member_id, checked_in_by, checked_in_by_name, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [member.email, memberId, staffEmail, staffName]
+      `INSERT INTO walk_in_visits (member_email, checked_in_by, checked_in_by_name, created_at)
+       VALUES ($1, $2, $3, NOW())`,
+      [member.email, staffEmail, staffName]
     );
 
     const pinnedNotesResult = await pool.query<{ content: string; created_by_name: string | null }>(
