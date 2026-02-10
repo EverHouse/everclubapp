@@ -65,7 +65,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Booking Prepayment**: Creates prepayment intents for expected fees, blocking check-in until paid, with auto-refunds on cancellation.
 - **Stripe Customer Metadata Sync**: User ID and tier synced to Stripe customer metadata.
 - **Scheduled Maintenance**: Daily tasks for session cleanup, webhook log cleanup, Stripe reconciliation, grace period checks, booking expiry, duplicate cleanup, guest pass resets, stuck cancellation checks, member sync, unresolved Trackman checks, communication log sync.
-- **Stripe Terminal Integration**: In-person card reader support for membership signup.
+- **Stripe Terminal Integration**: In-person card reader support for membership signup. Terminal card payments automatically save the card via Stripe's `generated_card` mechanism for future subscription renewals. The `confirm-subscription-payment` endpoint retrieves the reusable card from `latest_charge.payment_method_details.card_present.generated_card`, attaches it to the customer, and sets it as default on both customer and subscription.
 - **Stripe Product Catalog as Source of Truth**: Two-way sync between app and Stripe.
 - **Google Sheets Integration**: Announcement sync.
 - **Staff Training System**: Training sections managed via `server/routes/training.ts` with seed data.

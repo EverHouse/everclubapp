@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.33.0",
+    date: "2026-02-10",
+    title: "Terminal Card Saving & Billing Improvements",
+    isMajor: true,
+    changes: [
+      "Feature: Terminal card payments now automatically save the card for future subscription renewals — no extra steps needed from the member",
+      "Feature: 'Collect Payment' button in member billing tab for pending members with incomplete subscriptions — staff can complete activation via card reader",
+      "Feature: Billing tab now shows 'Subscription payment pending' with amount due instead of misleading 'No outstanding fees' for incomplete subscriptions",
+      "Feature: 'No card on file for renewals' warning in billing tab when active subscription has no saved payment method",
+      "Fix: ID scan images now save correctly after terminal and inline card payments during signup",
+      "Fix: Removed duplicate ID image save that fired twice during signup flows",
+    ],
+  },
+  {
     version: "7.32.2",
     date: "2026-02-10",
     title: "HubSpot Form Submissions Sync",
