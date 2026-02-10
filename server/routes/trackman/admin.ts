@@ -1457,49 +1457,75 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         isSocialTier: boolean;
       } | null = null;
       
+      const membershipStatus = row.membership_status || null;
+      const hasActiveMembership = membershipStatus && ['active', 'trial', 'past_due'].includes(membershipStatus);
+      
       if (row.user_email) {
-        tier = row.user_tier || await getMemberTierByEmail(row.user_email);
-        
-        if (tier) {
-          const tierLimits = await getTierLimits(tier);
-          const isSocialTier = tier.toLowerCase() === 'social';
-          const dailyAllowance = tierLimits.daily_sim_minutes || 0;
-          const isUnlimited = dailyAllowance >= 999 || tierLimits.unlimited_access;
+        if (hasActiveMembership) {
+          tier = row.user_tier || await getMemberTierByEmail(row.user_email);
           
-          const usageData = await getTotalDailyUsageMinutes(row.user_email, requestDate, bookingId);
-          const usedToday = usageData.totalMinutes;
-          
-          let overageMinutes = 0;
-          
-          if (isUnlimited) {
-            fee = 0;
-            feeNote = 'Included in membership';
-            overageMinutes = 0;
-          } else if (isSocialTier) {
-            overageMinutes = perPersonMins;
-            const overageBlocks = Math.ceil(perPersonMins / 30);
-            fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
-            feeNote = fee > 0 ? `Social tier - $${fee} (${perPersonMins} min)` : 'Included';
-          } else if (dailyAllowance > 0) {
-            overageMinutes = Math.max(0, (usedToday + perPersonMins) - dailyAllowance);
+          if (tier) {
+            const tierLimits = await getTierLimits(tier);
+            const isSocialTier = tier.toLowerCase() === 'social';
+            const dailyAllowance = tierLimits.daily_sim_minutes || 0;
+            const isUnlimited = dailyAllowance >= 999 || tierLimits.unlimited_access;
+            
+            const usageData = await getTotalDailyUsageMinutes(row.user_email, requestDate, bookingId);
+            const usedToday = usageData.totalMinutes;
+            
+            let overageMinutes = 0;
+            
+            if (isUnlimited) {
+              fee = 0;
+              feeNote = 'Included in membership';
+              overageMinutes = 0;
+            } else if (isSocialTier) {
+              overageMinutes = perPersonMins;
+              const overageBlocks = Math.ceil(perPersonMins / 30);
+              fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
+              feeNote = fee > 0 ? `Social tier - $${fee} (${perPersonMins} min)` : 'Included';
+            } else if (dailyAllowance > 0) {
+              overageMinutes = Math.max(0, (usedToday + perPersonMins) - dailyAllowance);
+              const overageBlocks = Math.ceil(overageMinutes / 30);
+              fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
+              feeNote = fee > 0 ? `${tier} - $${fee} (overage)` : 'Included in membership';
+            } else {
+              overageMinutes = perPersonMins;
+              const overageBlocks = Math.ceil(perPersonMins / 30);
+              fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
+              feeNote = `Pay-as-you-go - $${fee}`;
+            }
+            
+            feeBreakdown = {
+              perPersonMins,
+              dailyAllowance,
+              usedToday,
+              overageMinutes,
+              fee,
+              isUnlimited,
+              isSocialTier
+            };
+          } else {
+            const overageMinutes = perPersonMins;
             const overageBlocks = Math.ceil(overageMinutes / 30);
             fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
-            feeNote = fee > 0 ? `${tier} - $${fee} (overage)` : 'Included in membership';
-          } else {
-            overageMinutes = perPersonMins;
-            const overageBlocks = Math.ceil(perPersonMins / 30);
-            fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
-            feeNote = `Pay-as-you-go - $${fee}`;
+            feeNote = `No tier assigned — $${fee}`;
+            feeBreakdown = {
+              perPersonMins, dailyAllowance: 0, usedToday: 0,
+              overageMinutes, fee, isUnlimited: false, isSocialTier: false
+            };
           }
-          
+        } else {
+          const statusLabel = membershipStatus || 'non-member';
+          const overageMinutes = perPersonMins;
+          const overageBlocks = Math.ceil(overageMinutes / 30);
+          fee = overageBlocks * PRICING.OVERAGE_RATE_DOLLARS;
+          feeNote = row.is_primary
+            ? `${statusLabel} — $${fee} (no membership benefits)`
+            : `${statusLabel} — $${fee} charged to host`;
           feeBreakdown = {
-            perPersonMins,
-            dailyAllowance,
-            usedToday,
-            overageMinutes,
-            fee,
-            isUnlimited,
-            isSocialTier
+            perPersonMins, dailyAllowance: 0, usedToday: 0,
+            overageMinutes, fee, isUnlimited: false, isSocialTier: false
           };
         }
       } else {
@@ -1507,12 +1533,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
       }
       
-      const membershipStatus = row.membership_status || null;
-      const isInactiveMember = membershipStatus && membershipStatus !== 'active' && !row.is_primary;
-      
-      if (isInactiveMember && fee > 0) {
-        feeNote = `${membershipStatus} — $${fee} charged to host`;
-      }
+      const isInactiveMember = !hasActiveMembership && !!row.user_email && !row.is_primary;
       
       return {
         id: row.id,
@@ -1647,18 +1668,23 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           const participantIsStaff = staffFlagMap.get(p.participant_id) || false;
           
           if (p.participant_type === 'owner') {
+            const ownerStatus = p.membership_status || null;
+            const ownerIsInactive = ownerStatus && !['active', 'trial', 'past_due'].includes(ownerStatus);
             ownerOverageFee = (isPaid || participantIsStaff) ? 0 : participantFee;
             if (email) {
+              const ownerNote = participantIsStaff ? 'Staff — included'
+                : ownerIsInactive ? `${ownerStatus} — $${participantFee} (no membership benefits)`
+                : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance'));
               emailToFeeMap.set(email, {
                 fee: participantIsStaff ? 0 : participantFee,
-                feeNote: participantIsStaff ? 'Staff — included' : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within daily allowance')),
+                feeNote: ownerNote,
                 isPaid,
                 isStaff: participantIsStaff
               });
             }
           } else if (p.participant_type === 'member') {
             const memberStatus = p.membership_status || null;
-            const isInactive = memberStatus && memberStatus !== 'active';
+            const isInactive = !memberStatus || !['active', 'trial', 'past_due'].includes(memberStatus);
             
             if (isInactive && !isPaid && !participantIsStaff && participantFee > 0) {
               ownerOverageFee += participantFee;

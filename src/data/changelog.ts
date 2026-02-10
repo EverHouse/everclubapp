@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.24.2",
+    date: "2026-02-10",
+    title: "Revenue Protection — Inactive Owner Fee Enforcement",
+    isMajor: true,
+    changes: [
+      "CRITICAL FIX: Non-member and inactive booking owners were getting free bookings ($0) because the system checked 'is owner' before checking membership status — now status is checked FIRST",
+      "Revenue Protection: Inactive/non-member owners are now charged the full session fee with no membership benefits — e.g., $50 for a 60-minute session instead of $0",
+      "Logic Reorder: New order of operations — (1) check membership status, (2) if active apply tier benefits, (3) if inactive charge full overage rate regardless of role",
+      "Coverage: Fix applies to all 3 fee paths — session-based, non-session with guest passes, and non-session without guest passes",
+      "Active members with no tier assigned now also get charged (previously $0 due to missing else clause)",
+    ],
+  },
+  {
     version: "7.24.1",
     date: "2026-02-10",
     title: "Inactive Member Handling & Dead Code Cleanup",
