@@ -17,7 +17,7 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-02-10",
     title: "Post-Refactor Code Cleanup",
     changes: [
-      "Cleanup: Removed 7 orphaned component files no longer used anywhere (~1,744 lines of dead code)",
+      "Cleanup: Removed 6 orphaned component files no longer used anywhere (~1,526 lines of dead code)",
       "Cleanup: Consolidated duplicate PlayerSlot type — single source of truth in shared PlayerSlotEditor, re-exported by bookGolfTypes",
       "Cleanup: Removed 9 unused imports across 5 files (unused React hooks, utility functions, type imports, components)",
       "Cleanup: Removed unused exported functions from shared utilities (closureUtils, statusColors) — kept only actively used exports",
