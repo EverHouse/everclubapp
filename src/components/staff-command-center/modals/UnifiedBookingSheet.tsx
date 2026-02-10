@@ -206,6 +206,13 @@ export function UnifiedBookingSheet({
   const [feeEstimate, setFeeEstimate] = useState<{ totalCents: number; overageCents: number; guestCents: number } | null>(null);
   const [isCalculatingFees, setIsCalculatingFees] = useState(false);
 
+  const [fetchedContext, setFetchedContext] = useState<{
+    bayName?: string; bookingDate?: string; timeSlot?: string;
+    trackmanBookingId?: string; bookingStatus?: string;
+    ownerName?: string; ownerEmail?: string; durationMinutes?: number;
+    resourceId?: number; notes?: string;
+  } | null>(null);
+
   const [rosterData, setRosterData] = useState<ManageModeRosterData | null>(null);
   const [isLoadingRoster, setIsLoadingRoster] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
@@ -388,6 +395,7 @@ export function UnifiedBookingSheet({
       setSavedCardInfo(null);
       setShowWaiverInput(false);
       setWaiverReason('');
+      setFetchedContext(null);
     }
   }, [isOpen]);
 
@@ -396,6 +404,46 @@ export function UnifiedBookingSheet({
       fetchRosterData();
     }
   }, [isOpen, isManageMode, fetchRosterData]);
+
+  useEffect(() => {
+    if (!isOpen || !bookingId) return;
+    const hasPropContext = bayName || bookingDate || timeSlot || bookingContext;
+    if (hasPropContext) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/booking-requests/${bookingId}`, { credentials: 'include' });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const formatTime = (t: string | null) => {
+          if (!t) return '';
+          const [h, m] = t.split(':').map(Number);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+          return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+        };
+        const start = formatTime(data.start_time);
+        const end = formatTime(data.end_time);
+        setFetchedContext({
+          bayName: data.resource_name || data.bay_name || (data.resource_id ? `Bay ${data.resource_id}` : undefined),
+          bookingDate: data.request_date || undefined,
+          timeSlot: start && end ? `${start} - ${end}` : undefined,
+          trackmanBookingId: data.trackman_booking_id || undefined,
+          bookingStatus: data.status || undefined,
+          ownerName: data.user_name || undefined,
+          ownerEmail: data.user_email || undefined,
+          durationMinutes: data.duration_minutes || undefined,
+          resourceId: data.resource_id || undefined,
+          notes: data.notes || undefined,
+        });
+        if (!ownerEmail && data.user_email) {
+          checkSavedCard(data.user_email);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [isOpen, bookingId, bayName, bookingDate, timeSlot, bookingContext]);
 
   const checkSavedCard = useCallback(async (email: string) => {
     try {
@@ -1906,10 +1954,10 @@ export function UnifiedBookingSheet({
             {inlinePaymentAction === 'stripe' ? (
               <StripePaymentForm
                 amount={fs.grandTotal}
-                description={`${bayName || 'Booking'} • ${bookingDate || ''}`}
+                description={`${bayName || fetchedContext?.bayName || 'Booking'} • ${bookingDate || fetchedContext?.bookingDate || ''}`}
                 userId={rosterData?.ownerId || ''}
-                userEmail={ownerEmail || ''}
-                memberName={ownerName || ''}
+                userEmail={ownerEmail || fetchedContext?.ownerEmail || ''}
+                memberName={ownerName || fetchedContext?.ownerName || ''}
                 purpose="overage_fee"
                 bookingId={bookingId}
                 sessionId={rosterData?.sessionId}
@@ -2027,7 +2075,7 @@ export function UnifiedBookingSheet({
       }
     }
 
-    const manageModeTitle = ownerName || 'Booking Details';
+    const manageModeTitle = ownerName || fetchedContext?.ownerName || 'Booking Details';
 
     const manageModeFooter = (
       <div className="p-4 space-y-2">
@@ -2093,16 +2141,16 @@ export function UnifiedBookingSheet({
               )}
               <div className="p-3 bg-gradient-to-r from-primary/5 to-primary/10 dark:from-white/5 dark:to-white/10 rounded-xl border border-primary/10 dark:border-white/10">
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  {(bookingContext?.resourceName || bayName) && (
+                  {(bookingContext?.resourceName || bayName || fetchedContext?.bayName) && (
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">sports_golf</span>
-                      <span className="font-medium text-primary dark:text-white">{bookingContext?.resourceName || bayName}</span>
+                      <span className="font-medium text-primary dark:text-white">{bookingContext?.resourceName || bayName || fetchedContext?.bayName}</span>
                     </div>
                   )}
-                  {(bookingContext?.requestDate || bookingDate) && (
+                  {(bookingContext?.requestDate || bookingDate || fetchedContext?.bookingDate) && (
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">calendar_today</span>
-                      <span className="text-primary/80 dark:text-white/80">{bookingContext?.requestDate || bookingDate}</span>
+                      <span className="text-primary/80 dark:text-white/80">{bookingContext?.requestDate || bookingDate || fetchedContext?.bookingDate}</span>
                     </div>
                   )}
                   {(bookingContext?.startTime && bookingContext?.endTime) ? (
@@ -2110,34 +2158,34 @@ export function UnifiedBookingSheet({
                       <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
                       <span className="text-primary/80 dark:text-white/80">{bookingContext.startTime} - {bookingContext.endTime}</span>
                     </div>
-                  ) : timeSlot ? (
+                  ) : (timeSlot || fetchedContext?.timeSlot) ? (
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
-                      <span className="text-primary/80 dark:text-white/80">{timeSlot}</span>
+                      <span className="text-primary/80 dark:text-white/80">{timeSlot || fetchedContext?.timeSlot}</span>
                     </div>
                   ) : null}
-                  {bookingContext?.durationMinutes && (
+                  {(bookingContext?.durationMinutes || fetchedContext?.durationMinutes) && (
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">timer</span>
-                      <span className="text-primary/80 dark:text-white/80">{bookingContext.durationMinutes} min</span>
+                      <span className="text-primary/80 dark:text-white/80">{bookingContext?.durationMinutes || fetchedContext?.durationMinutes} min</span>
                     </div>
                   )}
-                  {trackmanBookingId && (
+                  {(trackmanBookingId || fetchedContext?.trackmanBookingId) && (
                     <div className="flex items-center gap-2">
                       <TrackmanIcon className="w-4 h-4 text-primary/60 dark:text-white/60" />
-                      <span className="text-primary/80 dark:text-white/80 text-xs">{trackmanBookingId}</span>
+                      <span className="text-primary/80 dark:text-white/80 text-xs">{trackmanBookingId || fetchedContext?.trackmanBookingId}</span>
                     </div>
                   )}
-                  {bookingStatus && (
+                  {(bookingStatus || fetchedContext?.bookingStatus) && (
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">info</span>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                        bookingStatus === 'attended' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                        bookingStatus === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                        bookingStatus === 'confirmed' || bookingStatus === 'approved' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                        (bookingStatus || fetchedContext?.bookingStatus) === 'attended' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                        (bookingStatus || fetchedContext?.bookingStatus) === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                        (bookingStatus || fetchedContext?.bookingStatus) === 'confirmed' || (bookingStatus || fetchedContext?.bookingStatus) === 'approved' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
                         'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
                       }`}>
-                        {bookingStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        {(bookingStatus || fetchedContext?.bookingStatus || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
                     </div>
                   )}
@@ -2145,7 +2193,7 @@ export function UnifiedBookingSheet({
               </div>
 
               {(() => {
-                const bookingNotesText = (rosterData?.bookingNotes?.notes || notes || '').trim();
+                const bookingNotesText = (rosterData?.bookingNotes?.notes || notes || fetchedContext?.notes || '').trim();
                 const trackmanNotesText = (rosterData?.bookingNotes?.trackmanNotes || bookingContext?.trackmanCustomerNotes || '').trim();
                 const showTrackman = trackmanNotesText && bookingNotesText !== trackmanNotesText && !bookingNotesText.includes(trackmanNotesText) && !trackmanNotesText.includes(bookingNotesText);
                 return (
@@ -2230,59 +2278,63 @@ export function UnifiedBookingSheet({
 
               {renderManageModeFinancialSummary()}
 
-              {(onCheckIn || onReschedule || onCancelBooking) && bookingId && (
-                <div className="flex gap-2">
-                  {onCheckIn && bookingStatus !== 'attended' && bookingStatus !== 'cancelled' && (
-                    <button
-                      onClick={() => onCheckIn(bookingId)}
-                      disabled={!!(rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid)}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
-                        rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid
-                          ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-sm">how_to_reg</span>
-                      Check In
-                    </button>
-                  )}
-                  {onReschedule && bookingStatus !== 'cancelled' && (
-                    <button
-                      onClick={() => onReschedule({
-                        id: bookingId,
-                        request_date: bookingContext?.requestDate || '',
-                        start_time: bookingContext?.startTime || '',
-                        end_time: bookingContext?.endTime || '',
-                        resource_id: bookingContext?.resourceId || 0,
-                        resource_name: bookingContext?.resourceName || bayName,
-                        user_name: ownerName,
-                        user_email: ownerEmail,
-                      })}
-                      className="flex-1 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-sm">event_repeat</span>
-                      Reschedule
-                    </button>
-                  )}
-                  {onCancelBooking && bookingStatus !== 'cancelled' && bookingStatus !== 'cancellation_pending' && (
-                    <button
-                      onClick={() => onCancelBooking(bookingId)}
-                      className="flex-1 py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-sm">cancel</span>
-                      Cancel Booking
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {onCheckIn && bookingStatus !== 'attended' && bookingStatus !== 'cancelled' && 
-                rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs">info</span>
-                  Payment must be collected before check-in
-                </p>
-              )}
+              {(() => {
+                const effectiveStatus = bookingStatus || fetchedContext?.bookingStatus;
+                return (onCheckIn || onReschedule || onCancelBooking) && bookingId ? (
+                  <>
+                    <div className="flex gap-2">
+                      {onCheckIn && effectiveStatus !== 'attended' && effectiveStatus !== 'cancelled' && (
+                        <button
+                          onClick={() => onCheckIn(bookingId)}
+                          disabled={!!(rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid)}
+                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                            rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid
+                              ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                              : 'bg-green-600 hover:bg-green-700 text-white'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-sm">how_to_reg</span>
+                          Check In
+                        </button>
+                      )}
+                      {onReschedule && effectiveStatus !== 'cancelled' && (
+                        <button
+                          onClick={() => onReschedule({
+                            id: bookingId,
+                            request_date: bookingContext?.requestDate || fetchedContext?.bookingDate || '',
+                            start_time: bookingContext?.startTime || '',
+                            end_time: bookingContext?.endTime || '',
+                            resource_id: bookingContext?.resourceId || fetchedContext?.resourceId || 0,
+                            resource_name: bookingContext?.resourceName || bayName || fetchedContext?.bayName,
+                            user_name: ownerName || fetchedContext?.ownerName,
+                            user_email: ownerEmail || fetchedContext?.ownerEmail,
+                          })}
+                          className="flex-1 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm">event_repeat</span>
+                          Reschedule
+                        </button>
+                      )}
+                      {onCancelBooking && effectiveStatus !== 'cancelled' && effectiveStatus !== 'cancellation_pending' && (
+                        <button
+                          onClick={() => onCancelBooking(bookingId)}
+                          className="flex-1 py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm">cancel</span>
+                          Cancel Booking
+                        </button>
+                      )}
+                    </div>
+                    {onCheckIn && effectiveStatus !== 'attended' && effectiveStatus !== 'cancelled' && 
+                      rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">info</span>
+                        Payment must be collected before check-in
+                      </p>
+                    )}
+                  </>
+                ) : null;
+              })()}
             </>
           )}
         </div>
