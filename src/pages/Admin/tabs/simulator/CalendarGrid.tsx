@@ -31,7 +31,6 @@ export interface CalendarGridProps {
     activeView: 'requests' | 'calendar';
     guestFeeDollars: number;
     overageRatePerBlockDollars: number;
-    onOpenTrackmanNotes?: () => void;
 }
 
 const CalendarGrid: React.FC<CalendarGridProps> = ({
@@ -61,7 +60,6 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
     activeView,
     guestFeeDollars,
     overageRatePerBlockDollars,
-    onOpenTrackmanNotes,
 }) => {
     const timeSlots = useMemo(() => {
         const slots: string[] = [];
@@ -175,16 +173,6 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap hidden sm:inline">
                                 Updated {lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                             </span>
-                        )}
-                        {onOpenTrackmanNotes && (
-                            <button
-                                onClick={onOpenTrackmanNotes}
-                                className="hidden lg:flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 rounded-lg transition-colors shadow-sm"
-                                title="Generate Trackman customer notes for auto-matching"
-                            >
-                                <span className="material-symbols-outlined text-sm">note_add</span>
-                                <span>Notes</span>
-                            </button>
                         )}
                         <button
                             onClick={async () => {

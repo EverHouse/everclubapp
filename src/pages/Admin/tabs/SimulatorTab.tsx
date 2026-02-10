@@ -10,7 +10,6 @@ import { useToast } from '../../../components/Toast';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { TabType, tabToPath } from '../layout/types';
 import { TrackmanBookingModal } from '../../../components/staff-command-center/modals/TrackmanBookingModal';
-import { TrackmanNotesModal } from '../../../components/staff-command-center/modals/TrackmanNotesModal';
 import { UnifiedBookingSheet } from '../../../components/staff-command-center/modals/UnifiedBookingSheet';
 import { StaffManualBookingModal, type StaffManualBookingData } from '../../../components/staff-command-center/modals/StaffManualBookingModal';
 import { RescheduleBookingModal } from '../../../components/booking/RescheduleBookingModal';
@@ -227,7 +226,6 @@ const SimulatorTab: React.FC = () => {
         showSuccess: boolean;
     }>({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
     const [staffManualBookingModalOpen, setStaffManualBookingModalOpen] = useState(false);
-    const [trackmanNotesModalOpen, setTrackmanNotesModalOpen] = useState(false);
     const checkinInProgressRef = useRef<Set<number>>(new Set());
     const [staffManualBookingDefaults, setStaffManualBookingDefaults] = useState<{
         resourceId?: number;
@@ -1142,7 +1140,6 @@ const SimulatorTab: React.FC = () => {
                         activeView={activeView}
                         guestFeeDollars={guestFeeDollars}
                         overageRatePerBlockDollars={overageRatePerBlockDollars}
-                        onOpenTrackmanNotes={() => setTrackmanNotesModalOpen(true)}
                     />
                 </div>
             )}
@@ -1518,11 +1515,6 @@ const SimulatorTab: React.FC = () => {
               onClose={() => setTrackmanModal({ isOpen: false, booking: null })}
               booking={trackmanModal.booking}
               onConfirm={handleTrackmanConfirm}
-            />
-
-            <TrackmanNotesModal
-              isOpen={trackmanNotesModalOpen}
-              onClose={() => setTrackmanNotesModalOpen(false)}
             />
 
             <StaffManualBookingModal
