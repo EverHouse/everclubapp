@@ -1992,4 +1992,140 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
   }
 });
 
+router.post('/api/data-tools/cleanup-stripe-customers', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const dryRun = req.body.dryRun !== false;
+    const staffEmail = getSessionUser(req)?.email || 'admin';
+    
+    console.log(`[DataTools] Stripe customer cleanup initiated by ${staffEmail} (dryRun: ${dryRun})`);
+    
+    const { getStripeClient } = await import('../core/stripe/client');
+    const stripe = await getStripeClient();
+    
+    const allCustomers: Array<{ id: string; email: string | null; name: string | null; created: number }> = [];
+    let hasMore = true;
+    let startingAfter: string | undefined;
+    
+    while (hasMore) {
+      const params: any = { limit: 100 };
+      if (startingAfter) params.starting_after = startingAfter;
+      const batch = await stripe.customers.list(params);
+      
+      for (const cust of batch.data) {
+        if (!cust.deleted) {
+          allCustomers.push({
+            id: cust.id,
+            email: cust.email,
+            name: cust.name,
+            created: cust.created
+          });
+        }
+      }
+      
+      hasMore = batch.has_more;
+      if (batch.data.length > 0) {
+        startingAfter = batch.data[batch.data.length - 1].id;
+      }
+    }
+    
+    console.log(`[DataTools] Found ${allCustomers.length} total Stripe customers`);
+    
+    const emptyCustomers: typeof allCustomers = [];
+    let checked = 0;
+    
+    for (const customer of allCustomers) {
+      try {
+        const charges = await stripe.charges.list({ customer: customer.id, limit: 1 });
+        if (charges.data.length > 0) { checked++; continue; }
+        
+        const subscriptions = await stripe.subscriptions.list({ customer: customer.id, limit: 1, status: 'all' });
+        if (subscriptions.data.length > 0) { checked++; continue; }
+        
+        const invoices = await stripe.invoices.list({ customer: customer.id, limit: 1 });
+        if (invoices.data.length > 0) { checked++; continue; }
+        
+        const paymentIntents = await stripe.paymentIntents.list({ customer: customer.id, limit: 1 });
+        if (paymentIntents.data.length > 0) { checked++; continue; }
+        
+        emptyCustomers.push(customer);
+        checked++;
+      } catch (err: any) {
+        console.error(`[DataTools] Error checking customer ${customer.id}:`, err.message);
+        checked++;
+      }
+    }
+    
+    console.log(`[DataTools] Found ${emptyCustomers.length} customers with zero transactions out of ${allCustomers.length} total`);
+    
+    if (dryRun) {
+      logFromRequest(req, 'cleanup_stripe_customers', 'stripe', null, undefined, {
+        action: 'preview',
+        totalCustomers: allCustomers.length,
+        emptyFound: emptyCustomers.length,
+        staffEmail
+      });
+      
+      return res.json({
+        success: true,
+        dryRun: true,
+        message: `Found ${emptyCustomers.length} Stripe customers with zero transactions (out of ${allCustomers.length} total)`,
+        totalCustomers: allCustomers.length,
+        emptyCount: emptyCustomers.length,
+        customers: emptyCustomers.map(c => ({
+          id: c.id,
+          email: c.email,
+          name: c.name,
+          created: new Date(c.created * 1000).toISOString()
+        }))
+      });
+    }
+    
+    let deleted = 0;
+    let errors: string[] = [];
+    const deletedList: Array<{ id: string; email: string | null }> = [];
+    
+    for (const customer of emptyCustomers) {
+      try {
+        await stripe.customers.del(customer.id);
+        
+        await db.execute(sql`
+          UPDATE users SET stripe_customer_id = NULL, updated_at = NOW()
+          WHERE stripe_customer_id = ${customer.id}
+        `);
+        
+        deletedList.push({ id: customer.id, email: customer.email });
+        deleted++;
+      } catch (err: any) {
+        errors.push(`${customer.id} (${customer.email}): ${err.message}`);
+        console.error(`[DataTools] Failed to delete customer ${customer.id}:`, err.message);
+      }
+    }
+    
+    logFromRequest(req, 'cleanup_stripe_customers', 'stripe', null, undefined, {
+      action: 'execute',
+      totalCustomers: allCustomers.length,
+      emptyFound: emptyCustomers.length,
+      deleted,
+      errorCount: errors.length,
+      staffEmail
+    });
+    
+    console.log(`[DataTools] Stripe customer cleanup complete: ${deleted} deleted, ${errors.length} errors`);
+    
+    res.json({
+      success: true,
+      dryRun: false,
+      message: `Deleted ${deleted} of ${emptyCustomers.length} empty Stripe customers`,
+      totalCustomers: allCustomers.length,
+      emptyCount: emptyCustomers.length,
+      deleted: deletedList,
+      deletedCount: deleted,
+      errors: errors.slice(0, 20)
+    });
+  } catch (error: any) {
+    console.error('[DataTools] Stripe customer cleanup error:', error);
+    res.status(500).json({ error: 'Failed to cleanup Stripe customers', details: error.message });
+  }
+});
+
 export default router;

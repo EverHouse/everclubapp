@@ -9,7 +9,7 @@ import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes, getTotalDai
 import { computeFeeBreakdown, applyFeeBreakdownToParticipants, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
 import { getStripeClient } from '../../core/stripe/client';
-import { getOrCreateStripeCustomer } from '../../core/stripe/customers';
+
 import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { updateVisitorTypeByUserId } from '../../core/visitors';
 import { PRICING } from '../../core/billing/pricingConfig';
@@ -577,11 +577,14 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             const dayPass = dayPassResult.rows[0];
             const amountCents = dayPass.price_cents || 5000;
             
-            const { customerId } = await getOrCreateStripeCustomer(
-              member.id,
-              member.email,
-              `${member.first_name} ${member.last_name}`.trim()
-            );
+            const customerId = member.stripe_customer_id;
+            if (!customerId) {
+              console.log(`[Trackman Resolve] Skipping day pass billing for visitor ${member.email} - no Stripe customer`);
+              billingMessage = ' Day pass record created (no Stripe customer for billing).';
+              await db.execute(sql`INSERT INTO day_pass_purchases 
+                 (user_id, product_type, quantity, amount_cents, booking_date, status, trackman_booking_id, created_at)
+                 VALUES (${member.id}, ${'day-pass-golf-sim'}, 1, ${amountCents}, ${bookingDateStr}, ${'pending'}, ${booking.trackman_booking_id}, NOW())`);
+            } else {
             
             const stripe = await getStripeClient();
             
@@ -660,6 +663,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             
             updateVisitorTypeByUserId(member.id, 'day_pass', 'day_pass_purchase', new Date(bookingDateStr))
               .catch(err => console.error('[VisitorType] Failed to update day_pass type:', err));
+            }
           }
         } else {
           billingMessage = ' (Day pass already purchased for this date)';

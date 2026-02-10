@@ -81,12 +81,6 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
       console.log(`[DayPasses] Warning: active member ${resolved.primaryEmail} purchasing day pass with email ${email}`);
     }
 
-    const { customerId } = await getOrCreateStripeCustomer(
-      resolvedUserId,
-      email,
-      resolvedName
-    );
-
     const stripe = await getStripeClient();
 
     const replitDomains = process.env.REPLIT_DOMAINS?.split(',')[0];
@@ -94,7 +88,7 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      customer: customerId,
+      customer_email: email.toLowerCase(),
       line_items: [
         {
           price: product.stripePriceId,
@@ -125,7 +119,6 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
     res.json({
       sessionId: session.id,
       sessionUrl: session.url,
-      customerId,
     });
   } catch (error: any) {
     console.error('[DayPasses] Error creating checkout session:', error);

@@ -3,7 +3,6 @@ import { users, dayPassPurchases } from "../../../shared/schema";
 import { userLinkedEmails } from "../../../shared/models/membership";
 import { User } from "../../../shared/schema";
 import { eq, ilike, and, sql } from "drizzle-orm";
-import { getOrCreateStripeCustomer } from "../stripe/customers";
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
@@ -182,18 +181,6 @@ export async function upsertVisitor(data: VisitorData, createStripeCustomer: boo
       .where(eq(users.id, existingUser.id))
       .returning();
 
-    // Ensure Stripe customer exists for existing visitor (skip placeholder emails)
-    // getOrCreateStripeCustomer handles both lookup and DB update internally
-    if (createStripeCustomer && data.email && !existingUser.stripeCustomerId && !isPlaceholderEmail(data.email)) {
-      try {
-        const fullName = [data.firstName ?? existingUser.firstName, data.lastName ?? existingUser.lastName]
-          .filter(Boolean).join(' ') || undefined;
-        await getOrCreateStripeCustomer(existingUser.id, data.email, fullName, 'visitor');
-      } catch (stripeError) {
-        console.error('[upsertVisitor] Failed to create Stripe customer for existing visitor:', stripeError);
-      }
-    }
-
     return updated[0];
   }
 
@@ -213,17 +200,6 @@ export async function upsertVisitor(data: VisitorData, createStripeCustomer: boo
     .returning();
 
   const createdUser = newUser[0];
-
-  // Create Stripe customer for new visitor (skip placeholder emails)
-  // getOrCreateStripeCustomer handles both creation and DB update internally
-  if (createStripeCustomer && data.email && !isPlaceholderEmail(data.email)) {
-    try {
-      const fullName = [data.firstName, data.lastName].filter(Boolean).join(' ') || undefined;
-      await getOrCreateStripeCustomer(createdUser.id, data.email, fullName, 'visitor');
-    } catch (stripeError) {
-      console.error('[upsertVisitor] Failed to create Stripe customer for new visitor:', stripeError);
-    }
-  }
 
   return createdUser;
 }

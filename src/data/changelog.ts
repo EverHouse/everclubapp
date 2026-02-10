@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.27.0",
+    date: "2026-02-10",
+    title: "Stripe Customer Cleanup & Prevention",
+    isMajor: true,
+    changes: [
+      "Feature: New admin tool to scan and delete Stripe customers with zero transactions — preview before deleting to review the full list",
+      "Prevention: Day pass checkout no longer creates a Stripe customer before payment — customers are only created when payment actually completes",
+      "Prevention: Visitor creation no longer auto-creates Stripe customers — only happens when a visitor makes a real purchase",
+      "Prevention: Bulk sync, CSV import, and visitor matching no longer create premature Stripe customers",
+      "Improvement: Existing Stripe customers now get their metadata updated (name, tier, firstName, lastName) when accessed",
+      "Improvement: All metadata sync functions now include firstName and lastName fields",
+    ],
+  },
+  {
     version: "7.26.1",
     date: "2026-02-10",
     title: "Session Backfill & Roster Reliability",

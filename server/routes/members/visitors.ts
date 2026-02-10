@@ -6,7 +6,6 @@ import { users, dayPassPurchases } from '../../../shared/schema';
 import { isProduction } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
-import { getOrCreateStripeCustomer } from '../../core/stripe';
 import { logFromRequest } from '../../core/auditLog';
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
@@ -480,39 +479,28 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
       const isNonMemberOrLead = ['non-member', 'visitor', 'lead'].includes(user.membership_status) || 
                                 ['visitor', 'lead'].includes(user.role);
       
-      if (isNonMemberOrLead && createStripeCustomer && !isPlaceholderEmail(normalizedEmail)) {
-        let stripeCustomerId: string | null = null;
-        try {
-          const fullName = [firstName || user.first_name, lastName || user.last_name].filter(Boolean).join(' ') || undefined;
-          const result = await getOrCreateStripeCustomer(user.id, normalizedEmail, fullName, 'visitor');
-          stripeCustomerId = result.customerId;
-          console.log(`[Visitors] Linked Stripe customer ${stripeCustomerId} to existing non-member ${normalizedEmail}`);
-          
-          if (user.membership_status === 'non-member') {
-            await db.execute(sql`UPDATE users SET role = ${'visitor'}, updated_at = NOW() WHERE id = ${user.id}`);
-          }
-        } catch (stripeError: any) {
-          console.error('[Visitors] Failed to link Stripe customer:', stripeError);
+      if (isNonMemberOrLead) {
+        if (user.membership_status === 'non-member') {
+          await db.execute(sql`UPDATE users SET role = ${'visitor'}, updated_at = NOW() WHERE id = ${user.id}`);
         }
         
         const staffEmail = (req as any).session?.user?.email || 'admin';
         await logFromRequest(req, {
-          action: 'visitor_stripe_linked',
+          action: 'visitor_linked',
           resourceType: 'user',
           resourceId: user.id,
           resourceName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || normalizedEmail,
           details: { 
-            email: normalizedEmail, 
-            stripeCustomerId,
+            email: normalizedEmail,
             linkedBy: staffEmail,
-            wasNonMember: true
+            wasNonMember: user.membership_status === 'non-member'
           }
         });
         
         return res.status(200).json({
           success: true,
           linked: true,
-          stripeCreated: !!stripeCustomerId,
+          stripeCreated: false,
           visitor: {
             id: user.id,
             email: user.email,
@@ -521,7 +509,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
             phone: user.phone,
             role: 'visitor',
             membershipStatus: user.membership_status,
-            stripeCustomerId
+            stripeCustomerId: null
           }
         });
       }
@@ -547,18 +535,6 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     `);
     
     const newUser = insertResult.rows[0] as any;
-    let stripeCustomerId: string | null = null;
-    
-    if (createStripeCustomer && !isPlaceholderEmail(normalizedEmail)) {
-      try {
-        const fullName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
-        const result = await getOrCreateStripeCustomer(userId, normalizedEmail, fullName, 'visitor');
-        stripeCustomerId = result.customerId;
-        console.log(`[Visitors] Created Stripe customer ${stripeCustomerId} for new visitor ${normalizedEmail}`);
-      } catch (stripeError: any) {
-        console.error('[Visitors] Failed to create Stripe customer:', stripeError);
-      }
-    }
     
     const staffEmail = (req as any).session?.user?.email || 'admin';
     await logFromRequest(req, {
@@ -567,8 +543,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
       resourceId: userId,
       resourceName: `${firstName || ''} ${lastName || ''}`.trim() || normalizedEmail,
       details: { 
-        email: normalizedEmail, 
-        stripeCustomerId,
+        email: normalizedEmail,
         createdBy: staffEmail
       }
     });
@@ -576,7 +551,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     res.status(201).json({
       success: true,
       linked: false,
-      stripeCreated: !!stripeCustomerId,
+      stripeCreated: false,
       visitor: {
         id: newUser.id,
         email: newUser.email,
@@ -587,7 +562,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         membershipStatus: newUser.membership_status,
         visitorType: newUser.visitor_type,
         dataSource: newUser.data_source,
-        stripeCustomerId
+        stripeCustomerId: null
       }
     });
   } catch (error: any) {

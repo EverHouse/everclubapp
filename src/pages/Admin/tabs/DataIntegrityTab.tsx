@@ -218,6 +218,16 @@ const DataIntegrityTab: React.FC = () => {
 
   const [hubspotSyncResult, setHubspotSyncResult] = useState<{ success: boolean; message: string; members?: any[]; dryRun?: boolean } | null>(null);
   const [mindbodyCleanupResult, setMindbodyCleanupResult] = useState<{ success: boolean; message: string; toClean?: number; dryRun?: boolean } | null>(null);
+  const [stripeCleanupResult, setStripeCleanupResult] = useState<{ 
+    success: boolean; 
+    message: string; 
+    dryRun?: boolean;
+    totalCustomers?: number;
+    emptyCount?: number;
+    customers?: Array<{ id: string; email: string | null; name: string | null; created: string }>;
+    deleted?: Array<{ id: string; email: string | null }>;
+    deletedCount?: number;
+  } | null>(null);
 
   const [firstVisitFile, setFirstVisitFile] = useState<File | null>(null);
   const [salesFile, setSalesFile] = useState<File | null>(null);
@@ -731,6 +741,28 @@ const DataIntegrityTab: React.FC = () => {
     },
   });
 
+  const cleanupStripeCustomersMutation = useMutation({
+    mutationFn: (dryRun: boolean) =>
+      postWithCredentials<any>('/api/data-tools/cleanup-stripe-customers', { dryRun }),
+    onSuccess: (data, dryRun) => {
+      setStripeCleanupResult({ 
+        success: data.success, 
+        message: data.message,
+        dryRun,
+        totalCustomers: data.totalCustomers,
+        emptyCount: data.emptyCount,
+        customers: data.customers,
+        deleted: data.deleted,
+        deletedCount: data.deletedCount,
+      });
+      if (!dryRun) showToast(data.message, 'success');
+    },
+    onError: (err: any) => {
+      setStripeCleanupResult({ success: false, message: err.message || 'Failed to cleanup Stripe customers' });
+      showToast(err.message || 'Failed to cleanup Stripe customers', 'error');
+    }
+  });
+
   // Sync Subscription Status Mutation
   const syncSubscriptionStatusMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
@@ -1198,6 +1230,11 @@ const DataIntegrityTab: React.FC = () => {
     syncSubscriptionStatusMutation.mutate(dryRun);
   };
 
+  const handleCleanupStripeCustomers = (dryRun: boolean = true) => {
+    setStripeCleanupResult(null);
+    cleanupStripeCustomersMutation.mutate(dryRun);
+  };
+
   const handleClearOrphanedStripeIds = (dryRun: boolean = true) => {
     setOrphanedStripeResult(null);
     clearOrphanedStripeIdsMutation.mutate(dryRun);
@@ -1278,6 +1315,7 @@ const DataIntegrityTab: React.FC = () => {
   const isRunningDuplicateDetection = detectDuplicatesMutation.isPending;
   const isLoadingPlaceholders = scanPlaceholdersMutation.isPending;
   const isDeletingPlaceholders = deletePlaceholdersMutation.isPending;
+  const isRunningStripeCustomerCleanup = cleanupStripeCustomersMutation.isPending;
 
   const formatTimeAgo = (date: Date | string) => {
     const now = new Date();
@@ -1485,6 +1523,59 @@ const DataIntegrityTab: React.FC = () => {
                       {orphanedStripeResult.cleared.map((c: any, i: number) => (
                         <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
                           {c.email}: {c.stripeCustomerId}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+              <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
+                <strong>Cleanup Empty Customers:</strong> Delete Stripe customers that have zero charges, subscriptions, invoices, or payment intents
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleCleanupStripeCustomers(true)}
+                  disabled={isRunningStripeCustomerCleanup}
+                  className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                  <span className="material-symbols-outlined text-[14px]">visibility</span>
+                  Scan & Preview
+                </button>
+                <button
+                  onClick={() => handleCleanupStripeCustomers(false)}
+                  disabled={isRunningStripeCustomerCleanup || !stripeCleanupResult?.dryRun}
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {isRunningStripeCustomerCleanup && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                  <span className="material-symbols-outlined text-[14px]">delete_sweep</span>
+                  Delete Empty Customers
+                </button>
+              </div>
+              {stripeCleanupResult && (
+                <div className={`mt-2 p-2 rounded ${getResultStyle(stripeCleanupResult)}`}>
+                  {stripeCleanupResult.dryRun && (
+                    <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                  )}
+                  <p className={`text-xs ${getTextStyle(stripeCleanupResult)}`}>{stripeCleanupResult.message}</p>
+                  {stripeCleanupResult.dryRun && stripeCleanupResult.customers && stripeCleanupResult.customers.length > 0 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                      <p className="font-medium mb-1">{stripeCleanupResult.emptyCount} empty customers found:</p>
+                      {stripeCleanupResult.customers.map((c, i) => (
+                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                          {c.email || 'No email'} — {c.name || 'No name'} ({c.id})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!stripeCleanupResult.dryRun && stripeCleanupResult.deleted && stripeCleanupResult.deleted.length > 0 && (
+                    <div className="mt-2 max-h-24 overflow-y-auto text-xs bg-white dark:bg-white/10 rounded p-2">
+                      <p className="font-medium mb-1">{stripeCleanupResult.deletedCount} customers deleted:</p>
+                      {stripeCleanupResult.deleted.map((c, i) => (
+                        <div key={i} className="py-1 border-b border-gray-100 dark:border-white/10 last:border-0">
+                          {c.email || 'No email'} ({c.id})
                         </div>
                       ))}
                     </div>

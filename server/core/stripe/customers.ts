@@ -141,7 +141,37 @@ export async function getOrCreateStripeCustomer(
     const existingCustomerId = userResult.rows[0].stripe_customer_id;
     try {
       const stripeForValidation = await getStripeClient();
-      await stripeForValidation.customers.retrieve(existingCustomerId);
+      const existingCustomer = await stripeForValidation.customers.retrieve(existingCustomerId);
+      
+      const firstName = userResult.rows[0]?.first_name;
+      const lastName = userResult.rows[0]?.last_name;
+      
+      // Update metadata and name if missing
+      const needsUpdate = !existingCustomer.deleted && (
+        !existingCustomer.metadata?.userId ||
+        !existingCustomer.name ||
+        (userTier && existingCustomer.metadata?.tier !== userTier) ||
+        (firstName && !existingCustomer.metadata?.firstName) ||
+        (lastName && !existingCustomer.metadata?.lastName)
+      );
+      
+      if (needsUpdate) {
+        const updateMetadata: Record<string, string> = {
+          userId: userId,
+          source: 'even_house_app',
+          primaryEmail: email.toLowerCase(),
+        };
+        if (userTier) updateMetadata.tier = userTier;
+        if (firstName) updateMetadata.firstName = firstName;
+        if (lastName) updateMetadata.lastName = lastName;
+        
+        await stripeForValidation.customers.update(existingCustomerId, {
+          metadata: updateMetadata,
+          ...(resolvedName && !existingCustomer.name ? { name: resolvedName } : {}),
+        });
+        console.log(`[Stripe] Updated metadata for existing customer ${existingCustomerId}`);
+      }
+      
       return { customerId: existingCustomerId, isNew: false };
     } catch (validationError: any) {
       if (validationError.code === 'resource_missing') {
@@ -320,6 +350,10 @@ export async function getOrCreateStripeCustomer(
   if (userTier) {
     metadata.tier = userTier;
   }
+  const firstName = userResult.rows[0]?.first_name;
+  const lastName = userResult.rows[0]?.last_name;
+  if (firstName) metadata.firstName = firstName;
+  if (lastName) metadata.lastName = lastName;
   if (linkedEmails.length > 0) {
     metadata.linkedEmails = linkedEmails.slice(0, 5).join(',');
   }
@@ -413,6 +447,8 @@ export async function syncCustomerMetadataToStripe(
     if (user.tier) {
       metadata.tier = user.tier;
     }
+    if (user.first_name) metadata.firstName = user.first_name;
+    if (user.last_name) metadata.lastName = user.last_name;
     
     const updateParams: any = { metadata };
     if (user.first_name || user.last_name) {
@@ -449,6 +485,8 @@ export async function syncAllCustomerMetadata(): Promise<{ synced: number; faile
       if (user.tier) {
         metadata.tier = user.tier;
       }
+      if (user.first_name) metadata.firstName = user.first_name;
+      if (user.last_name) metadata.lastName = user.last_name;
       
       const updateParams: any = { metadata };
       if (user.first_name || user.last_name) {
