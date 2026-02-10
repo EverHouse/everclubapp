@@ -9,6 +9,7 @@ import { TierChangeWizard } from './billing/TierChangeWizard';
 import { TIER_NAMES } from '../../../shared/constants/tiers';
 import GroupBillingManager from './GroupBillingManager';
 import { getApiErrorMessage, getNetworkErrorMessage, extractApiError } from '../../utils/errorHandling';
+import { TerminalPayment } from '../staff-command-center/TerminalPayment';
 
 interface GuestHistoryItem {
   id: number;
@@ -515,6 +516,10 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     duration: string;
   }>>([]);
   const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
+
+  const [showCollectPayment, setShowCollectPayment] = useState(false);
+  const [collectPaymentAmount, setCollectPaymentAmount] = useState(0);
+  const [collectPaymentError, setCollectPaymentError] = useState<string | null>(null);
 
   const [outstandingData, setOutstandingData] = useState<{
     totalOutstandingCents: number;
@@ -1047,13 +1052,53 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Outstanding Booking Fees</h3>
         </div>
         
-        {!outstandingData || outstandingData.totalOutstandingCents === 0 ? (
-          <div className={`flex items-center gap-2 py-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-            <span className="material-symbols-outlined text-base">check_circle</span>
-            <span className="text-sm">No outstanding fees</span>
-          </div>
-        ) : (
+        {(() => {
+          const hasIncompleteSubscription = billingInfo?.activeSubscription?.status === 'incomplete';
+          const subscriptionAmountCents = billingInfo?.activeSubscription?.planAmount || 0;
+          const hasBookingFees = outstandingData && outstandingData.totalOutstandingCents > 0;
+
+          if (!hasBookingFees && hasIncompleteSubscription && subscriptionAmountCents > 0) {
+            return (
+              <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>pending</span>
+                  <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                    Subscription payment pending
+                  </span>
+                </div>
+                <span className={`text-lg font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                  ${(subscriptionAmountCents / 100).toFixed(2)}
+                </span>
+              </div>
+            );
+          }
+
+          if (!hasBookingFees && !hasIncompleteSubscription) {
+            return (
+              <div className={`flex items-center gap-2 py-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                <span className="material-symbols-outlined text-base">check_circle</span>
+                <span className="text-sm">No outstanding fees</span>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
+        {outstandingData && outstandingData.totalOutstandingCents > 0 && (
           <div className="space-y-3">
+            {billingInfo?.activeSubscription?.status === 'incomplete' && (billingInfo?.activeSubscription?.planAmount || 0) > 0 && (
+              <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>pending</span>
+                  <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                    Subscription payment pending
+                  </span>
+                </div>
+                <span className={`text-lg font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                  ${((billingInfo.activeSubscription.planAmount || 0) / 100).toFixed(2)}
+                </span>
+              </div>
+            )}
             <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
               <span className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-700'}`}>Total Outstanding</span>
               <span className={`text-lg font-bold ${isDark ? 'text-red-400' : 'text-red-700'}`}>
@@ -1158,6 +1203,12 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
               setIsLoadingCoupons(false);
             }
           }}
+          onCollectPayment={billingInfo.activeSubscription?.status === 'incomplete' ? () => {
+            const amount = billingInfo.activeSubscription?.planAmount || 0;
+            setCollectPaymentAmount(amount);
+            setCollectPaymentError(null);
+            setShowCollectPayment(true);
+          } : undefined}
         />
       )}
 
@@ -1607,6 +1658,64 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           </div>
         </div>
       </ModalShell>
+
+      {showCollectPayment && billingInfo?.activeSubscription && (
+        <ModalShell
+          isOpen={showCollectPayment}
+          onClose={() => setShowCollectPayment(false)}
+          title="Collect Subscription Payment"
+          size="md"
+        >
+          <div className="p-4 space-y-4">
+            <div className={`p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+              <div className="flex items-center gap-2">
+                <span className={`material-symbols-outlined ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>info</span>
+                <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                  Collecting payment of ${(collectPaymentAmount / 100).toFixed(2)} for {billingInfo.activeSubscription.planName || 'membership subscription'}
+                </span>
+              </div>
+            </div>
+            {collectPaymentError && (
+              <div className={`p-3 rounded-lg ${isDark ? 'bg-red-900/20 border border-red-700 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+                <p className="text-sm">{collectPaymentError}</p>
+              </div>
+            )}
+            <TerminalPayment
+              amount={collectPaymentAmount}
+              subscriptionId={billingInfo.activeSubscription.id}
+              userId={memberId ? String(memberId) : null}
+              description={`${billingInfo.activeSubscription.planName || 'Membership'} subscription payment`}
+              onSuccess={async (piId) => {
+                try {
+                  const confirmRes = await fetch('/api/stripe/terminal/confirm-subscription-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      paymentIntentId: piId,
+                      subscriptionId: billingInfo.activeSubscription!.id,
+                      userId: memberId ? String(memberId) : null,
+                      invoiceId: null
+                    })
+                  });
+                  if (!confirmRes.ok) {
+                    const data = await confirmRes.json();
+                    setCollectPaymentError(data.error || 'Failed to confirm payment');
+                    return;
+                  }
+                  showSuccess('Payment received! Membership activated.');
+                  setShowCollectPayment(false);
+                  fetchBillingInfo();
+                } catch (err: any) {
+                  setCollectPaymentError(err.message || 'Failed to confirm payment');
+                }
+              }}
+              onError={(msg) => setCollectPaymentError(msg)}
+              onCancel={() => setShowCollectPayment(false)}
+            />
+          </div>
+        </ModalShell>
+      )}
     </div>
   );
 };

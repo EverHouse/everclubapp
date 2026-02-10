@@ -75,6 +75,7 @@ interface StripeBillingSectionProps {
   isUpdatingSource?: boolean;
   onCreateSubscription?: () => void;
   hasStripeCustomer?: boolean;
+  onCollectPayment?: () => void;
 }
 
 function formatCurrency(cents: number): string {
@@ -132,6 +133,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
   isUpdatingSource = false,
   onCreateSubscription,
   hasStripeCustomer = false,
+  onCollectPayment,
 }) => {
   const getStatusBadge = (status: string) => getBillingStatusBadge(status, isDark);
 
@@ -273,6 +275,28 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   {isUpdatingSource && (
                     <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeSubscription.status === 'incomplete' && onCollectPayment && (
+              <div className={`p-3 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`material-symbols-outlined ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>warning</span>
+                    <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                      Payment required to activate membership
+                    </span>
+                  </div>
+                  <button
+                    onClick={onCollectPayment}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDark ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">point_of_sale</span>
+                    Collect Payment
+                  </button>
                 </div>
               </div>
             )}

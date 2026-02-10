@@ -242,6 +242,19 @@ export function MemberFlow({
           showToast('Payment received but activation failed. Contact support.', 'error');
         } else {
           showToast('Payment received! Membership activated.', 'success');
+
+          if (scannedIdImage && createdUserId) {
+            fetch('/api/admin/save-id-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                userId: createdUserId,
+                image: scannedIdImage.base64,
+                mimeType: scannedIdImage.mimeType,
+              }),
+            }).catch(err => console.error('Failed to save ID image:', err));
+          }
           
           if (form.addGroupMembers && form.groupMembers.length > 0) {
             try {
@@ -960,6 +973,19 @@ export function MemberFlow({
                           console.error('Error creating family group:', groupErr);
                           showToast('Membership activated but failed to create family group. You can set this up manually.', 'warning');
                         }
+                      }
+
+                      if (scannedIdImage && createdUserId) {
+                        fetch('/api/admin/save-id-image', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({
+                            userId: createdUserId,
+                            image: scannedIdImage.base64,
+                            mimeType: scannedIdImage.mimeType,
+                          }),
+                        }).catch(err => console.error('Failed to save ID image:', err));
                       }
 
                       onSuccess({
