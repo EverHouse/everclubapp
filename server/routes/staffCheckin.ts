@@ -787,7 +787,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
       const declaredPlayers = parseInt(row.declared_player_count) || 1;
       const filledPlayers = parseInt(row.filled_participant_count) || 0;
       const unfilledGuests = Math.max(0, declaredPlayers - filledPlayers);
-      const guestFeePerSlot = 25;
+      const guestFeePerSlot = PRICING.GUEST_FEE_DOLLARS;
       const unfilledGuestFees = unfilledGuests * guestFeePerSlot;
       const dbOutstanding = parseFloat(row.total_outstanding) || 0;
       return {

@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.31.7",
+    date: "2026-02-10",
+    title: "Outstanding Balance & Payment Receipt Details",
+    changes: [
+      "Feature: Staff can now see a member's outstanding balance in the Billing tab of the member profile drawer — shows total owed and itemized unpaid fees (date, time, bay, fee type, amount) without needing 'View As'",
+      "Improvement: Stripe payment receipts now show per-participant fee breakdown — e.g. 'Guest: John Doe — $25.00, Overage — $25.00' instead of generic 'Booking Fees'",
+      "Improvement: Staff-initiated saved-card charges also include per-participant breakdown in Stripe description and metadata",
+      "Fix: Three remaining hardcoded $25 guest fee values now use dynamic pricing from Stripe (Trackman admin pending slots, overdue-payments endpoint)",
+    ],
+  },
+  {
     version: "7.31.6",
     date: "2026-02-10",
     title: "Billing Audit — Dynamic Pricing & Hardcoded Fee Fixes",

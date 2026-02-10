@@ -199,9 +199,93 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       }
     }
 
+    try {
+      const outstandingResult = await pool.query(`
+        SELECT 
+          COALESCE(SUM(bp.cached_fee_cents), 0) as total_cents
+        FROM booking_participants bp
+        JOIN booking_sessions bs ON bs.id = bp.session_id
+        JOIN booking_requests br ON br.session_id = bs.id
+        WHERE (LOWER(bp.user_email) = LOWER($1) 
+               OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = LOWER($1)))
+          AND bp.payment_status = 'pending'
+          AND COALESCE(bp.cached_fee_cents, 0) > 0
+      `, [email]);
+      const totalCents = parseInt(outstandingResult.rows[0]?.total_cents || '0');
+      billingInfo.outstandingBalanceCents = totalCents;
+      billingInfo.outstandingBalanceDollars = totalCents / 100;
+    } catch (outstandingErr) {
+      console.error('[MemberBilling] Error fetching outstanding balance:', outstandingErr);
+      billingInfo.outstandingBalanceCents = 0;
+      billingInfo.outstandingBalanceDollars = 0;
+    }
+
     res.json(billingInfo);
   } catch (error: any) {
     console.error('[MemberBilling] Error getting billing info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { email } = req.params;
+
+    const result = await pool.query(`
+      SELECT 
+        br.id as booking_id,
+        br.trackman_booking_id,
+        br.request_date as booking_date,
+        br.start_time,
+        br.end_time,
+        r.name as resource_name,
+        bp.id as participant_id,
+        bp.participant_type,
+        bp.display_name,
+        bp.cached_fee_cents,
+        bp.payment_status
+      FROM booking_participants bp
+      JOIN booking_sessions bs ON bs.id = bp.session_id
+      JOIN booking_requests br ON br.session_id = bs.id
+      LEFT JOIN resources r ON br.resource_id = r.id
+      WHERE (bp.user_email = $1 OR LOWER(bp.user_email) = LOWER($1) 
+             OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = LOWER($1)))
+        AND bp.payment_status IN ('pending')
+        AND COALESCE(bp.cached_fee_cents, 0) > 0
+      ORDER BY br.request_date DESC, br.start_time ASC
+    `, [email]);
+
+    const items = result.rows.map(row => {
+      const feeCents = row.cached_fee_cents || 0;
+      const feeLabel = row.participant_type === 'guest' ? 'Guest Fee' : 'Overage Fee';
+      const bookingDate = row.booking_date instanceof Date
+        ? row.booking_date.toISOString().split('T')[0]
+        : String(row.booking_date || '').split('T')[0];
+      return {
+        bookingId: row.booking_id,
+        trackmanBookingId: row.trackman_booking_id || null,
+        bookingDate,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        resourceName: row.resource_name || null,
+        participantId: row.participant_id,
+        participantType: row.participant_type,
+        displayName: row.display_name,
+        feeCents,
+        feeDollars: feeCents / 100,
+        feeLabel,
+      };
+    });
+
+    const totalOutstandingCents = items.reduce((sum, item) => sum + item.feeCents, 0);
+
+    res.json({
+      totalOutstandingCents,
+      totalOutstandingDollars: totalOutstandingCents / 100,
+      items,
+    });
+  } catch (error: any) {
+    console.error('[MemberBilling] Error fetching outstanding balance:', error);
     res.status(500).json({ error: error.message });
   }
 });

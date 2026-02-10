@@ -516,6 +516,25 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   }>>([]);
   const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
 
+  const [outstandingData, setOutstandingData] = useState<{
+    totalOutstandingCents: number;
+    totalOutstandingDollars: number;
+    items: Array<{
+      bookingId: number;
+      trackmanBookingId: string | null;
+      bookingDate: string;
+      startTime: string;
+      endTime: string;
+      resourceName: string;
+      participantId: number;
+      participantType: string;
+      displayName: string;
+      feeCents: number;
+      feeDollars: number;
+      feeLabel: string;
+    }>;
+  } | null>(null);
+
   const showSuccess = (message: string) => {
     setSuccessMessage(message);
     console.log('[MemberBilling] Success:', message);
@@ -542,9 +561,23 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
     }
   }, [memberEmail]);
 
+  const fetchOutstandingBalance = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/member-billing/${encodeURIComponent(memberEmail)}/outstanding`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setOutstandingData(await res.json());
+      }
+    } catch (err) {
+      console.error('[MemberBilling] Error fetching outstanding:', err);
+    }
+  }, [memberEmail]);
+
   useEffect(() => {
     fetchBillingInfo();
-  }, [fetchBillingInfo]);
+    fetchOutstandingBalance();
+  }, [fetchBillingInfo, fetchOutstandingBalance]);
 
   // Listen for WebSocket billing updates and auto-refresh when this member's billing changes
   useEffect(() => {
@@ -1005,6 +1038,52 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
         <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
           Manually updating this will give the member app permissions immediately. It does not automatically update billing in Mindbody.
         </p>
+      </div>
+
+      {/* Outstanding Balance Section */}
+      <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+        <div className="flex items-center gap-2 mb-3">
+          <span className={`material-symbols-outlined ${isDark ? 'text-accent' : 'text-primary'}`}>receipt_long</span>
+          <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-primary'}`}>Outstanding Booking Fees</h3>
+        </div>
+        
+        {!outstandingData || outstandingData.totalOutstandingCents === 0 ? (
+          <div className={`flex items-center gap-2 py-2 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+            <span className="material-symbols-outlined text-base">check_circle</span>
+            <span className="text-sm">No outstanding fees</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
+              <span className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-700'}`}>Total Outstanding</span>
+              <span className={`text-lg font-bold ${isDark ? 'text-red-400' : 'text-red-700'}`}>
+                ${outstandingData.totalOutstandingDollars.toFixed(2)}
+              </span>
+            </div>
+            
+            <div className="space-y-2">
+              {outstandingData.items.map((item) => (
+                <div 
+                  key={item.participantId} 
+                  className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${isDark ? 'bg-white/5' : 'bg-white'}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      #{item.trackmanBookingId || item.bookingId} · {item.resourceName}
+                    </div>
+                    <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {new Date(item.bookingDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })} · {formatTime12Hour(item.startTime)} — {item.feeLabel}
+                      {item.participantType === 'guest' && item.displayName && ` (${item.displayName})`}
+                    </div>
+                  </div>
+                  <span className={`font-medium ml-2 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                    ${item.feeDollars.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stripe Sync Actions - Only show separate section when no Stripe customer yet */}

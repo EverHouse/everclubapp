@@ -188,18 +188,35 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     const hasOverageFees = pendingParticipants.rows.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
     const trackmanId = booking.trackman_booking_id;
     const displayId = trackmanId || bookingId;
-    let description = `#${displayId} - Booking Fees`;
     let purpose: 'guest_fee' | 'overage_fee' = 'guest_fee';
+
+    const feeLines: string[] = [];
+    for (const p of pendingParticipants.rows) {
+      const fee = pendingFees.find(f => f.participantId === p.id);
+      if (!fee || fee.totalCents <= 0) continue;
+      const dollars = (fee.totalCents / 100).toFixed(2);
+      if (p.participant_type === 'guest') {
+        feeLines.push(`Guest: ${p.display_name || 'Guest'} — $${dollars}`);
+      } else {
+        feeLines.push(`Overage — $${dollars}`);
+      }
+    }
+
+    let description = `#${displayId} - Booking Fees`;
     if (hasGuestFees && hasOverageFees) {
       description = `#${displayId} - Overage & Guest Fees`;
       purpose = 'overage_fee';
     } else if (hasGuestFees) {
-      const guestNames = pendingParticipants.rows.filter(r => r.participant_type === 'guest').map(r => r.display_name).join(', ');
-      description = `#${displayId} - Guest Fees: ${guestNames}`;
+      description = `#${displayId} - Guest Fees`;
       purpose = 'guest_fee';
     } else if (hasOverageFees) {
       description = `#${displayId} - Additional Fees / Overage`;
       purpose = 'overage_fee';
+    }
+    if (feeLines.length > 0) {
+      const lineItemText = feeLines.join(', ');
+      const maxLen = 990 - description.length;
+      description += ` | ${lineItemText.length > maxLen ? lineItemText.substring(0, maxLen - 3) + '...' : lineItemText}`;
     }
 
     const metadata: Record<string, string> = {
@@ -208,6 +225,12 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
       participantIds: serverFees.map(f => f.id).join(',').substring(0, 490),
       memberPayment: 'true'
     };
+    const feeBreakdownMeta = feeLines.join('; ');
+    if (feeBreakdownMeta.length <= 500) {
+      metadata.feeBreakdown = feeBreakdownMeta;
+    } else {
+      metadata.feeBreakdown = feeBreakdownMeta.substring(0, 497) + '...';
+    }
 
     // Get or create Stripe customer for balance-aware payment
     const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || booking.user_name || booking.user_email.split('@')[0];

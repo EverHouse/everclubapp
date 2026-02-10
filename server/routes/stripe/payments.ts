@@ -848,7 +848,8 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
     const memberName = member.name || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
     // CRITICAL: Validate participantIds and compute amount from authoritative cached fees
-    const participantResult = await db.execute(sql`SELECT bp.id, bp.session_id, bp.cached_fee_cents, bp.payment_status, bs.booking_id
+    const participantResult = await db.execute(sql`SELECT bp.id, bp.session_id, bp.cached_fee_cents, bp.payment_status, bp.participant_type, bp.display_name, bs.booking_id,
+       (SELECT br.trackman_booking_id FROM booking_requests br WHERE br.session_id = bs.id LIMIT 1) as trackman_booking_id
        FROM booking_participants bp
        JOIN booking_sessions bs ON bp.session_id = bs.id
        WHERE bp.id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)}) AND bp.payment_status = 'pending'`);
@@ -945,6 +946,25 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
     const cardLast4 = paymentMethod.card?.last4 || '****';
     const cardBrand = paymentMethod.card?.brand || 'card';
 
+    // Build detailed description with fee breakdown
+    const displayBookingId = participantResult.rows[0]?.trackman_booking_id || resolvedBookingId;
+    const staffFeeLines: string[] = [];
+    for (const r of participantResult.rows) {
+      if ((r.cached_fee_cents || 0) <= 0) continue;
+      const dollars = ((r.cached_fee_cents || 0) / 100).toFixed(2);
+      if (r.participant_type === 'guest') {
+        staffFeeLines.push(`Guest: ${r.display_name || 'Guest'} — $${dollars}`);
+      } else {
+        staffFeeLines.push(`Overage — $${dollars}`);
+      }
+    }
+    let staffChargeDescription = `#${displayBookingId} - Booking fees charged by staff`;
+    if (staffFeeLines.length > 0) {
+      const lineText = staffFeeLines.join(', ');
+      const maxLen = 990 - staffChargeDescription.length;
+      staffChargeDescription += ` | ${lineText.length > maxLen ? lineText.substring(0, maxLen - 3) + '...' : lineText}`;
+    }
+
     // Create and confirm payment intent off-session using AUTHORITATIVE amount
     const paymentIntent = await stripe.paymentIntents.create({
       amount: authoritativeAmountCents,
@@ -953,7 +973,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       payment_method: paymentMethod.id,
       confirm: true,
       off_session: true,
-      description: `Booking fees charged by staff`,
+      description: staffChargeDescription,
       metadata: {
         type: 'staff_saved_card_charge',
         staffEmail: staffEmail,
@@ -963,7 +983,8 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
         bookingId: resolvedBookingId?.toString() || '',
         sessionId: resolvedSessionId?.toString() || '',
         participantIds: JSON.stringify(participantIds),
-        authoritativeAmountCents: authoritativeAmountCents.toString()
+        authoritativeAmountCents: authoritativeAmountCents.toString(),
+        feeBreakdown: staffFeeLines.join('; ').substring(0, 500)
       }
     });
 
