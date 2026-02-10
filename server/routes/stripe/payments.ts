@@ -1152,7 +1152,11 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
       cardExpYear: card?.exp_year
     });
   } catch (error: any) {
-    console.error('[Stripe] Error checking saved card:', error);
+    if (error?.code === 'resource_missing') {
+      console.warn(`[Stripe] Stale customer ID for ${req.params.email} — returning hasSavedCard: false`);
+    } else {
+      console.error('[Stripe] Error checking saved card:', error);
+    }
     res.json({ hasSavedCard: false, error: 'Could not check saved card' });
   }
 });

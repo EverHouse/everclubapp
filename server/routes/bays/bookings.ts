@@ -1531,7 +1531,7 @@ router.get('/api/fee-estimate', async (req, res) => {
         ownerEmail: request.userEmail?.toLowerCase() || '',
         durationMinutes: request.durationMinutes || 60,
         guestCount,
-        requestDate: request.requestDate || '',
+        requestDate: request.requestDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }),
         playerCount: effectivePlayerCount,
         sessionId: (request as any).sessionId ? parseInt((request as any).sessionId) : undefined,
         bookingId,
@@ -1545,7 +1545,7 @@ router.get('/api/fee-estimate', async (req, res) => {
     const durationMinutes = parseInt(req.query.durationMinutes as string) || 60;
     const guestCount = parseInt(req.query.guestCount as string) || 0;
     const playerCount = parseInt(req.query.playerCount as string) || 1;
-    const requestDate = (req.query.date as string) || '';
+    const requestDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
     const resourceType = (req.query.resourceType as string) || 'simulator';
     const guestsWithInfo = parseInt(req.query.guestsWithInfo as string) || 0;
     
@@ -1635,7 +1635,7 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
       ownerEmail: request.userEmail?.toLowerCase() || '',
       durationMinutes: request.durationMinutes || 60,
       guestCount,
-      requestDate: request.requestDate || '',
+      requestDate: request.requestDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }),
       playerCount: effectivePlayerCount,
       sessionId: (request as any).sessionId ? parseInt((request as any).sessionId) : undefined,
       bookingId,

@@ -15,9 +15,12 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "7.20.1",
     date: "2026-02-10",
-    title: "Critical Page Crash Fix",
+    title: "Critical Bug Fixes & Stability Improvements",
     changes: [
       "Fix: Resolved crash on Bookings, Data Integrity, and Dashboard pages caused by a function ordering error in the booking sheet component",
+      "Fix: Fee estimate calculations no longer fail when opening a booking — now defaults to today's date (Pacific) when a date isn't provided",
+      "Fix: Stripe 'customer not found' errors for stale test accounts are now handled gracefully instead of filling server logs with noisy stack traces",
+      "Fix: Added missing 'Needs Players' API endpoint for the Trackman tab — shows bookings that still need player assignments",
       "Improvement: Added automatic error reporting — page crashes now send details to the server for faster diagnosis",
     ],
   },

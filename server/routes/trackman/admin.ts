@@ -17,6 +17,96 @@ import { refundGuestPassForParticipant } from '../../core/billing/guestPassConsu
 
 const router = Router();
 
+router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { limit = '20', offset = '0', search = '' } = req.query;
+    const limitNum = Math.min(parseInt(limit as string) || 20, 100);
+    const offsetNum = parseInt(offset as string) || 0;
+
+    const sqlConditions: ReturnType<typeof sql>[] = [
+      sql`br.status = 'approved'`,
+      sql`bs.id IS NOT NULL`,
+    ];
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      sqlConditions.push(sql`(
+        br.user_name ILIKE ${searchPattern} OR
+        br.user_email ILIKE ${searchPattern}
+      )`);
+    }
+
+    const whereFragment = sql.join(sqlConditions, sql` AND `);
+
+    const countResult = await db.execute(sql`
+      SELECT COUNT(*) FROM (
+        SELECT br.id
+        FROM booking_requests br
+        INNER JOIN booking_sessions bs ON bs.booking_id = br.id
+        LEFT JOIN booking_participants bp ON bp.session_id = bs.id
+        WHERE ${whereFragment}
+        GROUP BY br.id, bs.id, bs.declared_player_count, br.trackman_player_count
+        HAVING COUNT(bp.id) < COALESCE(bs.declared_player_count, br.trackman_player_count, 1)
+      ) sub
+    `);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    const result = await db.execute(sql`
+      SELECT
+        br.id,
+        br.user_name,
+        br.user_email,
+        br.request_date,
+        br.resource_id,
+        br.start_time,
+        br.end_time,
+        br.duration_minutes,
+        br.notes,
+        br.trackman_player_count,
+        bs.declared_player_count,
+        COALESCE(bs.declared_player_count, br.trackman_player_count, 1) as expected_player_count,
+        COUNT(bp.id)::int as assigned_count
+      FROM booking_requests br
+      INNER JOIN booking_sessions bs ON bs.booking_id = br.id
+      LEFT JOIN booking_participants bp ON bp.session_id = bs.id
+      WHERE ${whereFragment}
+      GROUP BY br.id, bs.id, bs.declared_player_count, br.trackman_player_count
+      HAVING COUNT(bp.id) < COALESCE(bs.declared_player_count, br.trackman_player_count, 1)
+      ORDER BY br.request_date DESC
+      LIMIT ${limitNum} OFFSET ${offsetNum}
+    `);
+
+    const data = result.rows.map(row => {
+      const expectedPlayerCount = parseInt(row.expected_player_count) || 1;
+      const assignedCount = parseInt(row.assigned_count) || 0;
+      return {
+        id: row.id,
+        userName: row.user_name,
+        userEmail: row.user_email,
+        requestDate: row.request_date,
+        resourceId: row.resource_id,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        durationMinutes: row.duration_minutes,
+        notes: row.notes,
+        trackmanPlayerCount: row.trackman_player_count,
+        playerCount: row.trackman_player_count,
+        assignedCount,
+        slotInfo: {
+          totalSlots: expectedPlayerCount,
+          filledSlots: assignedCount,
+          expectedPlayerCount,
+        },
+      };
+    });
+
+    res.json({ data, totalCount });
+  } catch (error: any) {
+    console.error('Error fetching needs-players bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch needs-players bookings' });
+  }
+});
+
 router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => {
   try {
     const { limit = '50', offset = '0', search = '', resolved = 'false', category = '' } = req.query;
