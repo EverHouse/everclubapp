@@ -77,12 +77,8 @@ export function TerminalPayment({
 
   useEffect(() => {
     if (status === 'success') {
-      const timer = setTimeout(() => {
-        onCancel();
-      }, 3000);
-      return () => clearTimeout(timer);
     }
-  }, [status, onCancel]);
+  }, [status]);
 
   const createSimulatedReader = async () => {
     try {
