@@ -1,30 +1,3 @@
-export type BookingStatus = 
-  | 'pending' 
-  | 'pending_approval' 
-  | 'approved' 
-  | 'confirmed' 
-  | 'attended' 
-  | 'declined' 
-  | 'cancelled' 
-  | 'cancellation_pending'
-  | 'expired'
-  | 'no_show';
-
-export type InquiryStatus = 
-  | 'new' 
-  | 'in_progress' 
-  | 'resolved' 
-  | 'closed'
-  | 'read'
-  | 'replied'
-  | 'archived';
-
-export type BugReportStatus = 
-  | 'open' 
-  | 'in_progress' 
-  | 'resolved' 
-  | 'wont_fix';
-
 export function getStatusColor(status: string, isDark: boolean): string {
   switch (status?.toLowerCase()) {
     case 'pending':
@@ -125,8 +98,6 @@ export function formatStatusLabel(status: string): string {
   }
 }
 
-export type MemberStatus = 'Active' | 'Pending' | 'Expired' | 'Inactive' | 'Terminated' | 'Paused' | 'Suspended' | 'former_member';
-
 type MemberStatusSeverity = 'error' | 'warning' | 'info' | 'success' | 'neutral';
 
 interface MemberStatusInfo {
@@ -192,7 +163,7 @@ const DEFAULT_STATUS_INFO: MemberStatusInfo = {
   colorClass: { dark: 'bg-gray-500/20 text-gray-400', light: 'bg-gray-500/20 text-gray-500' }
 };
 
-export function getMemberStatusInfo(status: string | undefined | null): MemberStatusInfo {
+function getMemberStatusInfo(status: string | undefined | null): MemberStatusInfo {
   if (!status || typeof status !== 'string') return DEFAULT_STATUS_INFO;
   const s = status.toLowerCase();
   return STATUS_MAP[s] || { ...DEFAULT_STATUS_INFO, label: status.replace(/_/g, ' ') };
@@ -257,8 +228,6 @@ export function getBillingStatusBadge(status: string, isDark: boolean): string {
   if (style) return isDark ? style.dark : style.light;
   return isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600';
 }
-
-export type UserRole = 'admin' | 'staff' | 'member';
 
 export function getRoleColor(role: string | null): string {
   switch (role?.toLowerCase()) {

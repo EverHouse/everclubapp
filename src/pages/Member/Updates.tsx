@@ -7,7 +7,7 @@ import SwipeablePage from '../../components/SwipeablePage';
 import PullToRefresh from '../../components/PullToRefresh';
 import { MotionList, MotionListItem } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
-import { formatTitleForDisplay, getMemberNoticeTitle, getNoticeDisplayTextFormatted as getNoticeDisplayText, formatAffectedAreas, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
+import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 
 const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 

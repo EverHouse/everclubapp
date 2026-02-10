@@ -4,7 +4,6 @@ import EmptyState from '../../EmptyState';
 import { formatTime12Hour, isFacilityOpen, formatDateDisplayWithDay } from '../../../utils/dateUtils';
 import { isBlockingClosure, getNoticeTypeLabel, getNoticeSecondaryTag } from '../../../utils/closureUtils';
 import type { BayStatus, Closure, Announcement, TabType, RecentActivity, StaffNotification } from '../types';
-import { AlertsCard } from './AlertsCard';
 import { tabToPath } from '../../../pages/Admin/layout/types';
 
 interface ResourcesSectionProps {

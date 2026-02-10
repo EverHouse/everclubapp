@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useBottomNav } from '../../../contexts/BottomNavContext';
 import { useToast } from '../../Toast';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
-import { formatPhoneInput } from '../../../utils/formatting';
 import IdScannerModal from '../modals/IdScannerModal';
 import { MemberFlow } from './newUser/MemberFlow';
 import { VisitorFlow } from './newUser/VisitorFlow';

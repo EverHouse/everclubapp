@@ -9,7 +9,7 @@ export function isBlockingClosure(affectedAreas: string | null | undefined): boo
   return affectedAreas !== 'none' && affectedAreas !== '' && affectedAreas !== null && affectedAreas !== undefined;
 }
 
-export function formatTitleForDisplay(title: string): string {
+function formatTitleForDisplay(title: string): string {
   if (!title) return 'Notice';
   const trimmed = title.trim();
 
@@ -54,19 +54,6 @@ export function getNoticeSecondaryTag(closure: ClosureLike): string | null {
   return reason;
 }
 
-export function getNoticeDisplayText(closure: ClosureLike): string {
-  if (closure.noticeType && closure.noticeType.trim()) {
-    return closure.noticeType;
-  }
-  if (closure.reason && closure.reason.trim()) {
-    return closure.reason;
-  }
-  if (closure.affectedAreas) {
-    return formatAffectedAreas(closure.affectedAreas);
-  }
-  return closure.title || 'Notice';
-}
-
 export function getMemberNoticeTitle(closure: ClosureLike): string {
   if (closure.noticeType && closure.noticeType.trim() && closure.noticeType.toLowerCase() !== 'closure') {
     return formatTitleForDisplay(closure.noticeType);
@@ -80,19 +67,6 @@ export function getMemberNoticeTitle(closure: ClosureLike): string {
   return closure.affectedAreas && closure.affectedAreas !== 'none'
     ? formatAffectedAreas(closure.affectedAreas)
     : 'Notice';
-}
-
-export function getNoticeDisplayTextFormatted(closure: ClosureLike): string {
-  if (closure.noticeType && closure.noticeType.trim()) {
-    return formatTitleForDisplay(closure.noticeType);
-  }
-  if (closure.reason && closure.reason.trim()) {
-    return formatTitleForDisplay(closure.reason);
-  }
-  if (closure.affectedAreas) {
-    return formatAffectedAreas(closure.affectedAreas);
-  }
-  return closure.title ? formatTitleForDisplay(closure.title) : 'Notice';
 }
 
 export function getNoticeLabel(closure: ClosureLike): string {

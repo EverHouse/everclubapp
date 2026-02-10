@@ -96,16 +96,7 @@ export interface FeeEstimateResponse {
   };
 }
 
-export interface PlayerSlot {
-  email: string;
-  name: string;
-  firstName: string;
-  lastName: string;
-  type: 'member' | 'guest';
-  searchQuery: string;
-  selectedId?: string;
-  selectedName?: string;
-}
+export type { PlayerSlot } from '../../../components/shared/PlayerSlotEditor';
 
 export const bookGolfKeys = {
   all: ['bookGolf'] as const,

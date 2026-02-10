@@ -10,8 +10,6 @@ import type { MemberProfile } from '../../../types/data';
 import type {
   SystemHealth,
   IntegrityIssue,
-  IntegrityCheckResult,
-  IntegrityMeta,
   CalendarStatusResponse,
   HistoryData,
   AuditLogEntry,

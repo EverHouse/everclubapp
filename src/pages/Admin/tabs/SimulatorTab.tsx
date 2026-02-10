@@ -32,7 +32,7 @@ import {
 } from '../../../hooks/queries/useBookingsQueries';
 
 import type { BookingRequest, Bay, Resource, CalendarClosure, AvailabilityBlock } from './simulator/simulatorTypes';
-import { estimateFeeByTier, formatDateShortAdmin } from './simulator/simulatorUtils';
+import { formatDateShortAdmin } from './simulator/simulatorUtils';
 import ManualBookingModal from './simulator/MemberSearchPopover';
 import CalendarGrid from './simulator/CalendarGrid';
 import BookingRequestsPanel from './simulator/BookingRequestsPanel';
