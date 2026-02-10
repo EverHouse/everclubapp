@@ -393,7 +393,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     }
     
     const existingClosures = await pool.query(
-      'SELECT id, internal_calendar_id FROM facility_closures WHERE internal_calendar_id IS NOT NULL'
+      'SELECT id, internal_calendar_id FROM facility_closures WHERE internal_calendar_id IS NOT NULL AND is_active = true'
     );
     
     let deleted = 0;

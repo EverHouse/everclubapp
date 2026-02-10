@@ -1502,6 +1502,11 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
     
     res.json({ products, count: products.length });
   } catch (error: any) {
+    const statusCode = error?.response?.statusCode || error?.status || error?.code;
+    const category = error?.response?.body?.category || error?.body?.category;
+    if (statusCode === 403 || category === 'MISSING_SCOPES') {
+      return res.status(403).json({ error: 'HubSpot API key missing required scopes for products' });
+    }
     console.error('[HubSpot] Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch HubSpot products' });
   }

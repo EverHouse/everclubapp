@@ -94,7 +94,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
     const member = await getMemberByEmail(email);
 
     if (!member) {
-      return res.status(404).json({ error: 'Member not found' });
+      return res.json({ billing: null });
     }
 
     const billingInfo: any = {

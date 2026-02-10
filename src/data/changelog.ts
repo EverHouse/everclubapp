@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.30.1",
+    date: "2026-02-10",
+    title: "Bug Fixes & Performance",
+    changes: [
+      "Fix: Closure sync no longer re-processes ~60 already-deactivated closures every cycle — only checks active ones, reducing unnecessary database work",
+      "Fix: HubSpot products page now shows a clear 'missing permissions' message instead of crashing when the API key doesn't have the right access",
+      "Fix: Viewing a member profile who doesn't have a billing subscription no longer triggers false alarm warnings in the logs",
+    ],
+  },
+  {
     version: "7.30.0",
     date: "2026-02-10",
     title: "Calendar Sync Improvements",
