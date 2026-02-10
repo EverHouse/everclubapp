@@ -9,6 +9,7 @@ import { notifyPaymentSuccess, notifyPaymentFailed, notifyStaffPaymentFailed, no
 import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../../emails/paymentEmails';
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../../emails/membershipEmails';
 import { sendPassWithQrEmail } from '../../emails/passEmails';
+import { sendTrialWelcomeWithQrEmail } from '../../emails/trialWelcomeEmail';
 import { broadcastBillingUpdate, broadcastDayPassUpdate, sendNotificationToUser } from '../websocket';
 import { recordDayPassPurchaseFromWebhook } from '../../routes/dayPasses';
 import { handlePrimarySubscriptionCancelled } from './groupBilling';
@@ -2464,6 +2465,31 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
       console.error('[Stripe Webhook] Error clearing grace period:', gracePeriodError);
     }
 
+    if (subscription.status === 'trialing') {
+      const userIdResult = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      if (userIdResult.rows.length > 0) {
+        const userId = userIdResult.rows[0].id;
+        const trialEndDate = subscription.trial_end 
+          ? new Date(subscription.trial_end * 1000) 
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const couponCode = subscription.discount?.coupon?.id || subscription.metadata?.coupon_code || undefined;
+
+        deferredActions.push(async () => {
+          try {
+            await sendTrialWelcomeWithQrEmail(email, {
+              firstName: first_name || undefined,
+              userId,
+              trialEndDate,
+              couponCode
+            });
+            console.log(`[Stripe Webhook] Trial welcome QR email sent to ${email}`);
+          } catch (emailError) {
+            console.error(`[Stripe Webhook] Failed to send trial welcome email to ${email}:`, emailError);
+          }
+        });
+      }
+    }
+
     console.log(`[Stripe Webhook] New subscription created for ${memberName} (${email}): ${planName}`);
   } catch (error) {
     console.error('[Stripe Webhook] Error handling subscription created:', error);
@@ -2854,7 +2880,7 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
     }
 
     const userResult = await pool.query(
-      'SELECT email, first_name, last_name FROM users WHERE stripe_customer_id = $1',
+      'SELECT email, first_name, last_name, membership_status FROM users WHERE stripe_customer_id = $1',
       [customerId]
     );
 
@@ -2863,8 +2889,57 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       return deferredActions;
     }
 
-    const { email, first_name, last_name } = userResult.rows[0];
+    const { email, first_name, last_name, membership_status: previousStatus } = userResult.rows[0];
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
+    const wasTrialing = previousStatus === 'trialing';
+
+    if (wasTrialing) {
+      const pauseResult = await pool.query(
+        `UPDATE users SET 
+          membership_status = 'paused',
+          stripe_subscription_id = NULL,
+          updated_at = NOW()
+        WHERE LOWER(email) = LOWER($1) AND (stripe_subscription_id = $2 OR stripe_subscription_id IS NULL)`,
+        [email, subscriptionId]
+      );
+
+      if (pauseResult.rowCount === 0) {
+        console.log(`[Stripe Webhook] Skipping pause for ${email} - subscription ${subscriptionId} is not their current subscription`);
+        return deferredActions;
+      }
+
+      console.log(`[Stripe Webhook] Trial ended for ${email} - membership paused (account preserved, booking blocked)`);
+
+      try {
+        const { syncMemberToHubSpot } = await import('../hubspot/stages');
+        await syncMemberToHubSpot({ email, status: 'paused', billingProvider: 'stripe' });
+        console.log(`[Stripe Webhook] Synced ${email} status=paused to HubSpot`);
+      } catch (hubspotError) {
+        console.error('[Stripe Webhook] HubSpot sync failed for status paused:', hubspotError);
+      }
+
+      await notifyMember({
+        userEmail: email,
+        title: 'Trial Ended',
+        message: 'Your free trial has ended. Your account is still here - renew anytime to pick up where you left off!',
+        type: 'membership_paused',
+      });
+
+      await notifyAllStaff(
+        'Trial Expired',
+        `${memberName} (${email}) trial has ended. Membership paused (account preserved).`,
+        'trial_expired',
+        { sendPush: true, sendWebSocket: true }
+      );
+
+      broadcastBillingUpdate({
+        action: 'subscription_paused',
+        memberEmail: email,
+        memberName
+      });
+
+      return deferredActions;
+    }
 
     // Check if there was a billing group and notify staff of orphaned members
     const billingGroupResult = await pool.query(
@@ -2912,8 +2987,6 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       }
     }
 
-    // CRITICAL: Update the user's membership status to cancelled, preserve tier in last_tier
-    // Only cancel if the deleted subscription matches their current one (or they have none)
     const cancelResult = await pool.query(
       `UPDATE users SET 
         last_tier = tier,
@@ -2934,7 +3007,6 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
 
     console.log(`[Stripe Webhook] Updated ${email} membership_status to cancelled, tier cleared`);
 
-    // Sync cancelled status to HubSpot (include billing_provider to ensure it stays as 'stripe')
     try {
       const { syncMemberToHubSpot } = await import('../hubspot/stages');
       await syncMemberToHubSpot({ email, status: 'cancelled', billingProvider: 'stripe' });
@@ -2943,7 +3015,6 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       console.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', hubspotError);
     }
     
-    // Remove deal line items and move deal to Closed Lost - Stripe-billed only
     try {
       const cancellationResult = await handleMembershipCancellation(email, 'stripe-webhook', 'Stripe Subscription');
       if (cancellationResult.success) {
@@ -2962,7 +3033,6 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: any):
       type: 'membership_cancelled',
     });
 
-    // Notify staff about membership cancellation
     await notifyAllStaff(
       'Membership Cancelled',
       `${memberName} (${email}) has cancelled their membership.`,

@@ -947,7 +947,7 @@ const BookGolf: React.FC = () => {
         <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>Reserve simulators or conference room.</p>
       </section>
 
-      {effectiveUser?.status && effectiveUser.status.toLowerCase() !== 'active' ? (
+      {effectiveUser?.status && !['active', 'trialing'].includes(effectiveUser.status.toLowerCase()) ? (
         <section className={`rounded-2xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
           <span className="material-symbols-outlined text-4xl text-accent mb-4">lock</span>
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Membership Not Active</h3>
