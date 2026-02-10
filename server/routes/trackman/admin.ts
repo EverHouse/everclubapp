@@ -45,8 +45,8 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
         INNER JOIN booking_sessions bs ON bs.id = br.session_id
         LEFT JOIN booking_participants bp ON bp.session_id = bs.id
         WHERE ${whereFragment}
-        GROUP BY br.id, bs.id, bs.declared_player_count, br.trackman_player_count
-        HAVING COUNT(bp.id) < COALESCE(bs.declared_player_count, br.trackman_player_count, 1)
+        GROUP BY br.id, bs.id, br.declared_player_count, br.trackman_player_count
+        HAVING COUNT(bp.id) < COALESCE(br.declared_player_count, br.trackman_player_count, 1)
       ) sub
     `);
     const totalCount = parseInt(countResult.rows[0].count);
@@ -63,15 +63,15 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
         br.duration_minutes,
         br.notes,
         br.trackman_player_count,
-        bs.declared_player_count,
-        COALESCE(bs.declared_player_count, br.trackman_player_count, 1) as expected_player_count,
+        br.declared_player_count,
+        COALESCE(br.declared_player_count, br.trackman_player_count, 1) as expected_player_count,
         COUNT(bp.id)::int as assigned_count
       FROM booking_requests br
       INNER JOIN booking_sessions bs ON bs.id = br.session_id
       LEFT JOIN booking_participants bp ON bp.session_id = bs.id
       WHERE ${whereFragment}
-      GROUP BY br.id, bs.id, bs.declared_player_count, br.trackman_player_count
-      HAVING COUNT(bp.id) < COALESCE(bs.declared_player_count, br.trackman_player_count, 1)
+      GROUP BY br.id, bs.id, br.declared_player_count, br.trackman_player_count
+      HAVING COUNT(bp.id) < COALESCE(br.declared_player_count, br.trackman_player_count, 1)
       ORDER BY br.request_date DESC
       LIMIT ${limitNum} OFFSET ${offsetNum}
     `);
