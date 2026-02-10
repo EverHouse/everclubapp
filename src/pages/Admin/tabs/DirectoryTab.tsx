@@ -167,7 +167,7 @@ interface SyncResponse {
 const directoryKeys = {
     all: ['directory'] as const,
     syncStatus: () => [...directoryKeys.all, 'sync-status'] as const,
-    visitors: (params: { type?: VisitorType; source?: VisitorSource; search?: string; page?: number }) => 
+    visitors: (params: { type?: VisitorType; source?: VisitorSource; search?: string; page?: number; archived?: string }) => 
         [...directoryKeys.all, 'visitors', params] as const,
     team: () => [...directoryKeys.all, 'team'] as const,
     visitorPurchases: (visitorId: string) => [...directoryKeys.all, 'visitor-purchases', visitorId] as const,
@@ -236,6 +236,7 @@ const DirectoryTab: React.FC = () => {
     const [visitorSortField, setVisitorSortField] = useState<VisitorSortField>('lastActivity');
     const [visitorSortDirection, setVisitorSortDirection] = useState<SortDirection>('desc');
     const [visitorsPage, setVisitorsPage] = useState(1);
+    const [visitorArchiveView, setVisitorArchiveView] = useState<'active' | 'archived'>('active');
     const [teamSearchQuery, setTeamSearchQuery] = useState('');
     const [optimisticTiers, setOptimisticTiers] = useState<Record<string, string>>({});
     const [pendingTierUpdates, setPendingTierUpdates] = useState<Set<string>>(new Set());
@@ -284,7 +285,8 @@ const DirectoryTab: React.FC = () => {
             type: visitorTypeFilter, 
             source: visitorSourceFilter, 
             search: debouncedVisitorSearch, 
-            page: visitorsPage 
+            page: visitorsPage,
+            archived: visitorArchiveView,
         }),
         queryFn: async () => {
             const params = new URLSearchParams();
@@ -293,6 +295,7 @@ const DirectoryTab: React.FC = () => {
             if (visitorTypeFilter !== 'all') params.set('typeFilter', visitorTypeFilter);
             if (visitorSourceFilter !== 'all') params.set('sourceFilter', visitorSourceFilter);
             if (debouncedVisitorSearch.trim()) params.set('search', debouncedVisitorSearch.trim());
+            if (visitorArchiveView === 'archived') params.set('archived', 'true');
             return fetchWithCredentials<VisitorsResponse>(`/api/visitors?${params.toString()}`);
         },
         enabled: memberTab === 'visitors',
@@ -1153,9 +1156,31 @@ const DirectoryTab: React.FC = () => {
                             )}
                         </div>
                         <div className="flex flex-wrap gap-2">
+                            <div className="flex rounded-lg border border-gray-200 dark:border-white/20 overflow-hidden">
+                                <button
+                                    onClick={() => { setVisitorArchiveView('active'); setVisitorsPage(1); }}
+                                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                        visitorArchiveView === 'active'
+                                            ? 'bg-primary text-white'
+                                            : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
+                                    }`}
+                                >
+                                    Active
+                                </button>
+                                <button
+                                    onClick={() => { setVisitorArchiveView('archived'); setVisitorsPage(1); }}
+                                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                        visitorArchiveView === 'archived'
+                                            ? 'bg-primary text-white'
+                                            : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
+                                    }`}
+                                >
+                                    Archived
+                                </button>
+                            </div>
                             <select
                                 value={visitorTypeFilter}
-                                onChange={(e) => setVisitorTypeFilter(e.target.value as VisitorType)}
+                                onChange={(e) => { setVisitorTypeFilter(e.target.value as VisitorType); setVisitorsPage(1); }}
                                 className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 aria-label="Filter by type"
                             >
@@ -1170,7 +1195,7 @@ const DirectoryTab: React.FC = () => {
                             </select>
                             <select
                                 value={visitorSourceFilter}
-                                onChange={(e) => setVisitorSourceFilter(e.target.value as VisitorSource)}
+                                onChange={(e) => { setVisitorSourceFilter(e.target.value as VisitorSource); setVisitorsPage(1); }}
                                 className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
                                 aria-label="Filter by source"
                             >
@@ -1181,7 +1206,7 @@ const DirectoryTab: React.FC = () => {
                                 <option value="stripe">Stripe</option>
                             </select>
                             <span className="ml-auto text-sm text-gray-500 dark:text-white/60 self-center">
-                                {visitorsTotal.toLocaleString()} contacts
+                                {visitorsTotal.toLocaleString()} {visitorArchiveView === 'archived' ? 'archived' : ''} contacts
                             </span>
                         </div>
                     </div>

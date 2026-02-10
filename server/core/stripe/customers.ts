@@ -128,7 +128,7 @@ export async function getOrCreateStripeCustomer(
   }
   
   const userResult = await pool.query(
-    'SELECT stripe_customer_id, tier, first_name, last_name FROM users WHERE id = $1',
+    'SELECT stripe_customer_id, tier, first_name, last_name, email, archived_at FROM users WHERE id = $1',
     [userId]
   );
   
@@ -213,9 +213,12 @@ export async function getOrCreateStripeCustomer(
       console.log(`[Stripe] Found existing customer ${existingCustomerId} via linked email for user ${userId}`);
       
       await pool.query(
-        'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+        'UPDATE users SET stripe_customer_id = $1, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2',
         [existingCustomerId, userId]
       );
+      if (userResult.rows[0]?.archived_at) {
+        console.log(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
+      }
       
       return { customerId: existingCustomerId, isNew: false };
     } catch (validationError: any) {
@@ -225,9 +228,12 @@ export async function getOrCreateStripeCustomer(
       } else {
         console.log(`[Stripe] Found existing customer ${existingCustomerId} via linked email for user ${userId}`);
         await pool.query(
-          'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+          'UPDATE users SET stripe_customer_id = $1, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2',
           [existingCustomerId, userId]
         );
+        if (userResult.rows[0]?.archived_at) {
+          console.log(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
+        }
         return { customerId: existingCustomerId, isNew: false };
       }
     }
@@ -261,9 +267,12 @@ export async function getOrCreateStripeCustomer(
         console.log(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId} (matched user: ${hubspotMatchResult.rows[0].email})`);
         
         await pool.query(
-          'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+          'UPDATE users SET stripe_customer_id = $1, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2',
           [existingCustomerId, userId]
         );
+        if (userResult.rows[0]?.archived_at) {
+          console.log(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
+        }
         
         return { customerId: existingCustomerId, isNew: false };
       } catch (validationError: any) {
@@ -273,9 +282,12 @@ export async function getOrCreateStripeCustomer(
         } else {
           console.log(`[Stripe] Found existing customer ${existingCustomerId} via HubSpot ID match for user ${userId}`);
           await pool.query(
-            'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+            'UPDATE users SET stripe_customer_id = $1, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2',
             [existingCustomerId, userId]
           );
+          if (userResult.rows[0]?.archived_at) {
+            console.log(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
+          }
           return { customerId: existingCustomerId, isNew: false };
         }
       }
@@ -383,9 +395,12 @@ export async function getOrCreateStripeCustomer(
   }
 
   await pool.query(
-    'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+    'UPDATE users SET stripe_customer_id = $1, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2',
     [customerId, userId]
   );
+  if (userResult.rows[0]?.archived_at) {
+    console.log(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
+  }
 
   console.log(`[Stripe] ${isNew ? 'Created' : 'Linked existing'} customer ${customerId} for user ${userId}`);
   

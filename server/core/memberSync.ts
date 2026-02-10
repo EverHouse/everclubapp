@@ -248,6 +248,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     let errors = 0;
     let statusChanges = 0;
     let hubspotIdCollisions = 0;
+    let skippedNonTransacting = 0;
     
     // Parse opt-in values from HubSpot (they come as strings like "true"/"false" or "Yes"/"No")
     const parseOptIn = (val?: string): boolean | null => {
@@ -353,6 +354,11 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             .limit(1);
           const oldStatus = existingUser[0]?.membershipStatus || null;
           const oldNotesHash = existingUser[0]?.lastHubspotNotesHash || null;
+          
+          if (!existingUser[0] && status === 'non-member' && !contact.properties.mindbody_client_id) {
+            skippedNonTransacting++;
+            return null;
+          }
           
           // Extract address fields from HubSpot (synced from Mindbody)
           const streetAddress = contact.properties.address?.trim() || null;
@@ -531,7 +537,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
       }
     }
     
-    if (!isProduction) console.log(`[MemberSync] Complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}`);
+    if (!isProduction) console.log(`[MemberSync] Complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}, ${skippedNonTransacting} non-transacting skipped`);
     
     // Process merged contact IDs to extract linked emails
     // hs_merged_object_ids contains semicolon-separated HubSpot contact IDs that were merged into this contact
@@ -795,6 +801,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
     let errors = 0;
     let statusChanges = 0;
     let hubspotIdCollisions = 0;
+    let skippedNonTransacting = 0;
     
     const parseOptIn = (val?: string): boolean | null => {
       if (!val) return null;
@@ -888,6 +895,11 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             .limit(1);
           const oldStatus = existingUser[0]?.membershipStatus || null;
           const oldNotesHash = existingUser[0]?.lastHubspotNotesHash || null;
+          
+          if (!existingUser[0] && status === 'non-member' && !contact.properties.mindbody_client_id) {
+            skippedNonTransacting++;
+            return null;
+          }
           
           const streetAddress = contact.properties.address?.trim() || null;
           const city = contact.properties.city?.trim() || null;
@@ -1054,7 +1066,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
       }
     }
     
-    if (!isProduction) console.log(`[MemberSync] Focused sync complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}`);
+    if (!isProduction) console.log(`[MemberSync] Focused sync complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}, ${skippedNonTransacting} non-transacting skipped`);
     
     const contactsWithMergedIds = allContacts.filter(c => c.properties.hs_merged_object_ids);
     if (contactsWithMergedIds.length > 0) {

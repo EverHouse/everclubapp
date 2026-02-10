@@ -139,10 +139,14 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
             const resolvedTerminal = await resolveTerminalUser(metadata.ownerEmail);
             if (resolvedTerminal) {
               if (!resolvedTerminal.stripeCustomerId) {
+                const terminalUserCheck = await pool.query('SELECT archived_at FROM users WHERE id = $1', [resolvedTerminal.userId]);
                 await pool.query(
-                  'UPDATE users SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2',
+                  'UPDATE users SET stripe_customer_id = $1, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2',
                   [customerId, resolvedTerminal.userId]
                 );
+                if (terminalUserCheck.rows[0]?.archived_at) {
+                  console.log(`[Auto-Unarchive] User ${resolvedTerminal.primaryEmail} unarchived after receiving Stripe customer ID`);
+                }
               }
               console.log(`[Terminal] Linked Stripe customer to existing user ${resolvedTerminal.primaryEmail} via ${resolvedTerminal.matchType}`);
             } else {
@@ -155,6 +159,8 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
                    stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
                    first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
                    last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
+                   archived_at = NULL,
+                   archived_by = NULL,
                    updated_at = NOW()`,
                 [visitorId, metadata.ownerEmail, firstName, lastName, customerId]
               );

@@ -582,7 +582,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
         console.log(`[Stripe] ${custResult.isNew ? 'Created' : 'Found existing'} customer ${stripeCustomerId} for quick charge: ${memberEmail}`);
 
         try {
-          const existingUser = await db.execute(sql`SELECT id, stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${memberEmail})`);
+          const existingUser = await db.execute(sql`SELECT id, stripe_customer_id, archived_at FROM users WHERE LOWER(email) = LOWER(${memberEmail})`);
           if (existingUser.rows.length === 0) {
             const crypto = await import('crypto');
             const visitorId = crypto.randomUUID();
@@ -596,10 +596,15 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
                  city = COALESCE(NULLIF(EXCLUDED.city, ''), users.city),
                  state = COALESCE(NULLIF(EXCLUDED.state, ''), users.state),
                  zip_code = COALESCE(NULLIF(EXCLUDED.zip_code, ''), users.zip_code),
+                 archived_at = NULL,
+                 archived_by = NULL,
                  updated_at = NOW()`);
             console.log(`[QuickCharge] Created visitor record for new customer: ${memberEmail}`);
           } else if (!existingUser.rows[0].stripe_customer_id) {
-            await db.execute(sql`UPDATE users SET stripe_customer_id = ${stripeCustomerId}, updated_at = NOW() WHERE id = ${existingUser.rows[0].id}`);
+            await db.execute(sql`UPDATE users SET stripe_customer_id = ${stripeCustomerId}, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${existingUser.rows[0].id}`);
+            if (existingUser.rows[0].archived_at) {
+              console.log(`[Auto-Unarchive] User ${memberEmail} unarchived after receiving Stripe customer ID`);
+            }
             console.log(`[QuickCharge] Linked Stripe customer ${stripeCustomerId} to existing user: ${memberEmail}`);
           }
         } catch (visitorErr: any) {

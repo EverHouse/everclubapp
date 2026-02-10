@@ -29,7 +29,7 @@ const router = Router();
 
 router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
   try {
-    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all', search = '' } = req.query;
+    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all', search = '', archived = 'false' } = req.query;
     const pageLimit = Math.min(parseInt(limit as string) || 100, 500);
     const pageOffset = Math.max(parseInt(offset as string) || 0, 0);
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
@@ -48,6 +48,9 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
     const validColumns = [...Object.values(sortColumnMap), 'last_purchase_date'];
     const safeSortColumn = validColumns.includes(sortColumn) ? sortColumn : 'last_purchase_date';
     const orderByClause = sql.raw(`${safeSortColumn} ${safeSortOrder}${nullsLast}`);
+    
+    const showArchived = (req.query.archived as string) === 'true';
+    const archiveCondition = showArchived ? 'AND u.archived_at IS NOT NULL' : 'AND u.archived_at IS NULL';
     
     let sourceCondition = '';
     if (sourceFilter === 'stripe') {
@@ -144,7 +147,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
-        AND u.archived_at IS NULL
+        ${sql.raw(archiveCondition)}
         ${sql.raw(sourceCondition)}
         ${searchClause}
       )
@@ -202,6 +205,8 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
           u.last_activity_source,
           u.created_at,
           u.data_source,
+          u.archived_at,
+          u.archived_by,
           COALESCE(guest_agg.guest_count, 0)::int as guest_count,
           guest_agg.last_guest_date,
           COALESCE(
@@ -235,7 +240,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         ) guest_agg ON LOWER(u.email) = guest_agg.email
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
-        AND u.archived_at IS NULL
+        ${sql.raw(archiveCondition)}
         ${sql.raw(sourceCondition)}
         ${searchClause}
       )
@@ -311,7 +316,9 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       lastActivitySource: row.last_activity_source,
       createdAt: row.created_at,
       source: getSource(row),
-      type: getType(row)
+      type: getType(row),
+      archivedAt: row.archived_at || null,
+      archivedBy: row.archived_by || null,
     }));
     
     res.json({

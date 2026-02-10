@@ -1792,10 +1792,14 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
       if (resolved) {
         // User exists via linked email (or direct match) - update their Stripe customer ID
         console.log(`[Stripe Webhook] User found via ${resolved.matchType} for ${email} -> ${resolved.primaryEmail}, updating Stripe customer ID`);
+        const preUpdateCheck = await pool.query('SELECT archived_at FROM users WHERE id = $1', [resolved.userId]);
         await pool.query(
-          `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE id = $2`,
+          `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $2`,
           [customerId, resolved.userId]
         );
+        if (preUpdateCheck.rows[0]?.archived_at) {
+          console.log(`[Auto-Unarchive] User ${resolved.primaryEmail} unarchived after receiving Stripe customer ID`);
+        }
         
         // Sync to HubSpot for existing user update
         try {
@@ -1815,10 +1819,14 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
         if (existingUser.rows.length > 0) {
           // User exists - update their Stripe customer ID, status, and billing provider
           console.log(`[Stripe Webhook] User ${email} exists, updating Stripe customer ID and billing provider`);
+          const preUpdateCheckDirect = await pool.query('SELECT archived_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
           await pool.query(
-            `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+            `UPDATE users SET stripe_customer_id = $1, membership_status = 'active', billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
             [customerId, email]
           );
+          if (preUpdateCheckDirect.rows[0]?.archived_at) {
+            console.log(`[Auto-Unarchive] User ${email} unarchived after receiving Stripe customer ID`);
+          }
           
           // Sync to HubSpot for existing user update
           try {
