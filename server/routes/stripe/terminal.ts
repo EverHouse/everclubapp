@@ -552,7 +552,9 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
       });
     }
     
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge']
+    });
     if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({ 
         error: 'Payment not yet completed',
@@ -632,23 +634,52 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
       });
     }
     
+    let cardSaved = false;
     if (paymentIntent.payment_method) {
       try {
         const pm = await stripe.paymentMethods.retrieve(paymentIntent.payment_method as string);
-        if (pm.type !== 'card_present') {
-          await stripe.paymentMethods.attach(paymentIntent.payment_method as string, {
-            customer: customerId
-          });
+        let reusablePaymentMethodId: string | null = null;
+
+        if (pm.type === 'card_present') {
+          const latestCharge = (paymentIntent as any).latest_charge;
+          const generatedCard = latestCharge?.payment_method_details?.card_present?.generated_card;
+
+          if (generatedCard) {
+            reusablePaymentMethodId = generatedCard;
+            console.log(`[Terminal] Found generated_card ${generatedCard} from card_present payment`);
+          } else {
+            console.warn(`[Terminal] No generated_card found for card_present payment ${paymentIntentId}. Member will need to add a card manually for future billing.`);
+          }
+        } else {
+          reusablePaymentMethodId = paymentIntent.payment_method as string;
+        }
+
+        if (reusablePaymentMethodId) {
+          try {
+            await stripe.paymentMethods.attach(reusablePaymentMethodId, {
+              customer: customerId
+            });
+          } catch (attachErr: any) {
+            if (!attachErr.message?.includes('already been attached')) {
+              throw attachErr;
+            }
+          }
+
           await stripe.customers.update(customerId, {
             invoice_settings: {
-              default_payment_method: paymentIntent.payment_method as string
+              default_payment_method: reusablePaymentMethodId
             }
           });
+
+          await stripe.subscriptions.update(subscriptionId, {
+            default_payment_method: reusablePaymentMethodId
+          });
+
+          cardSaved = true;
+          console.log(`[Terminal] Saved payment method ${reusablePaymentMethodId} as default for customer ${customerId} and subscription ${subscriptionId}`);
         }
       } catch (attachError: any) {
-        if (!attachError.message?.includes('already been attached')) {
-          console.error('[Terminal] Error attaching payment method:', attachError);
-        }
+        console.error('[Terminal] Error saving payment method for future billing:', attachError.message);
       }
     }
     
@@ -688,7 +719,8 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
       success: true,
       membershipStatus: 'active',
       subscriptionId,
-      paymentIntentId
+      paymentIntentId,
+      cardSaved
     });
   } catch (error: any) {
     console.error('[Terminal] Error confirming subscription payment:', error);

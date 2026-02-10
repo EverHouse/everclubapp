@@ -239,6 +239,15 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               )}
             </div>
 
+            {activeSubscription.status === 'active' && (!paymentMethods || paymentMethods.length === 0) && (
+              <div className={`p-2 rounded-lg flex items-center gap-2 ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+                <span className={`material-symbols-outlined text-base ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>credit_card_off</span>
+                <span className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                  No card on file for renewals
+                </span>
+              </div>
+            )}
+
             {activeSubscription.discount && (
               <div className={`p-2 rounded-lg ${isDark ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
                 <div className="flex items-center gap-2">
