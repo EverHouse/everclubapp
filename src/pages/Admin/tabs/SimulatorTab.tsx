@@ -931,6 +931,7 @@ const SimulatorTab: React.FC = () => {
         declaredPlayerCount?: number;
         bookingStatus?: string;
         bookingContext?: { requestDate?: string; startTime?: string; endTime?: string; resourceId?: number; resourceName?: string; durationMinutes?: number; notes?: string };
+        ownerMembershipStatus?: string | null;
     }>({ isOpen: false, trackmanBookingId: null });
     const [cancelConfirmModal, setCancelConfirmModal] = useState<{
         isOpen: boolean;
@@ -2764,6 +2765,7 @@ const SimulatorTab: React.FC = () => {
                                                         notes: (booking as any).notes || (booking as any).note,
                                                         bookingStatus: (booking as any).status,
                                                         bookingContext: { requestDate: booking.request_date, startTime: booking.start_time, endTime: booking.end_time, resourceId: booking.resource_id || undefined, resourceName: (resource.type === 'conference_room' ? 'Conference Room' : resource.name) || undefined, durationMinutes: (booking as any).duration_minutes || undefined },
+                                                        ownerMembershipStatus: bookingMemberStatus || null,
                                                     }) : pendingRequest ? () => setTrackmanModal({ isOpen: true, booking: pendingRequest }) : undefined}
                                                     className={`h-7 sm:h-8 rounded ${
                                                         closure
@@ -3305,6 +3307,7 @@ const SimulatorTab: React.FC = () => {
               onCollectPayment={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
               bookingStatus={trackmanLinkModal.bookingStatus}
               bookingContext={trackmanLinkModal.bookingContext}
+              ownerMembershipStatus={trackmanLinkModal.ownerMembershipStatus}
               onReschedule={(booking) => {
                 setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null });
                 setRescheduleModal({ isOpen: true, booking });

@@ -131,6 +131,7 @@ export interface UnifiedBookingSheetProps {
   onCancelBooking?: (bookingId: number) => void;
   onCheckIn?: (bookingId: number) => void;
   bookingStatus?: string;
+  ownerMembershipStatus?: string | null;
 }
 
 export function UnifiedBookingSheet({
@@ -165,6 +166,7 @@ export function UnifiedBookingSheet({
   onCancelBooking,
   onCheckIn,
   bookingStatus,
+  ownerMembershipStatus,
 }: UnifiedBookingSheetProps) {
   const resolvedBookingType: BookingType = bookingType || 'simulator';
   const isConferenceRoom = resolvedBookingType === 'conference_room';
@@ -1837,6 +1839,15 @@ export function UnifiedBookingSheet({
             </div>
           ) : (
             <>
+              {ownerMembershipStatus && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
+                <div className="p-3 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/15 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-red-500 dark:text-red-400 text-lg">warning</span>
+                  <div>
+                    <p className="text-sm font-medium text-red-700 dark:text-red-300">Inactive Member</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">This booking owner's membership status is "{ownerMembershipStatus}" — they may not be eligible to book.</p>
+                  </div>
+                </div>
+              )}
               <div className="p-3 bg-gradient-to-r from-primary/5 to-primary/10 dark:from-white/5 dark:to-white/10 rounded-xl border border-primary/10 dark:border-white/10">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {(bookingContext?.resourceName || bayName) && (
@@ -1890,13 +1901,13 @@ export function UnifiedBookingSheet({
                 </div>
               </div>
 
-              {rosterData?.bookingNotes?.notes && (
+              {(rosterData?.bookingNotes?.notes || notes) && (
                 <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-900/10">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">description</span>
-                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Trackman Notes</span>
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Booking Notes</span>
                   </div>
-                  <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{rosterData.bookingNotes.notes}</p>
+                  <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{rosterData?.bookingNotes?.notes || notes}</p>
                 </div>
               )}
 
