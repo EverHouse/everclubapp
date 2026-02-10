@@ -2,10 +2,13 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 interface State {
   hasError: boolean;
+  error: Error | null;
   reloadAttempts: number;
 }
 
@@ -44,14 +47,15 @@ function clearGlobalReloadCount(): void {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, reloadAttempts: 0 };
+  state: State = { hasError: false, error: null, reloadAttempts: 0 };
 
-  static getDerivedStateFromError(): Partial<State> {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught:', error, errorInfo);
+    console.error('[ErrorBoundary] Caught error:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
   }
 
   componentDidMount() {
@@ -92,6 +96,8 @@ class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
+
       const hitReloadLimit = this.state.reloadAttempts >= MAX_GLOBAL_RELOADS;
 
       return (
@@ -138,3 +144,4 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export default ErrorBoundary;
+export { ErrorBoundary };

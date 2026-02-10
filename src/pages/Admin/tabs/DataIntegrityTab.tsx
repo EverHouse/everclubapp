@@ -255,8 +255,8 @@ const DataIntegrityTab: React.FC = () => {
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
   const [loadingMemberEmail, setLoadingMemberEmail] = useState<string | null>(null);
   
-  // Trackman Link Modal state for viewing unmatched bookings
-  const [trackmanLinkModal, setTrackmanLinkModal] = useState<{
+  // Booking sheet state for viewing unmatched bookings
+  const [bookingSheet, setBookingSheet] = useState<{
     isOpen: boolean;
     bookingId: number | null;
     bayName?: string;
@@ -2226,7 +2226,7 @@ const DataIntegrityTab: React.FC = () => {
                                     <>
                                       {issue.context?.trackmanBookingId && (
                                         <button
-                                          onClick={() => setTrackmanLinkModal({
+                                          onClick={() => setBookingSheet({
                                             isOpen: true,
                                             bookingId: issue.recordId as number,
                                             bayName: issue.context?.resourceName,
@@ -2734,21 +2734,21 @@ const DataIntegrityTab: React.FC = () => {
       />
 
       <UnifiedBookingSheet
-        isOpen={trackmanLinkModal.isOpen}
-        onClose={() => setTrackmanLinkModal({ isOpen: false, bookingId: null })}
+        isOpen={bookingSheet.isOpen}
+        onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
         mode="manage"
-        trackmanBookingId={trackmanLinkModal.trackmanBookingId || null}
-        bayName={trackmanLinkModal.bayName}
-        bookingDate={trackmanLinkModal.bookingDate}
-        timeSlot={trackmanLinkModal.timeSlot}
-        matchedBookingId={trackmanLinkModal.bookingId || undefined}
-        currentMemberName={trackmanLinkModal.memberName}
-        currentMemberEmail={trackmanLinkModal.memberEmail}
-        importedName={trackmanLinkModal.importedName}
-        notes={trackmanLinkModal.notes}
-        originalEmail={trackmanLinkModal.originalEmail}
+        trackmanBookingId={bookingSheet.trackmanBookingId || null}
+        bayName={bookingSheet.bayName}
+        bookingDate={bookingSheet.bookingDate}
+        timeSlot={bookingSheet.timeSlot}
+        matchedBookingId={bookingSheet.bookingId || undefined}
+        currentMemberName={bookingSheet.memberName}
+        currentMemberEmail={bookingSheet.memberEmail}
+        importedName={bookingSheet.importedName}
+        notes={bookingSheet.notes}
+        originalEmail={bookingSheet.originalEmail}
         onSuccess={() => {
-          setTrackmanLinkModal({ isOpen: false, bookingId: null });
+          setBookingSheet({ isOpen: false, bookingId: null });
           runIntegrityMutation.mutate();
         }}
       />

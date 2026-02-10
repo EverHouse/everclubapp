@@ -1,83 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
-import TrackmanIcon from '../../icons/TrackmanIcon';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import { useToast } from '../../Toast';
 import { usePricing } from '../../../hooks/usePricing';
 import TierBadge from '../../TierBadge';
-import { StripePaymentForm } from '../../stripe/StripePaymentForm';
-import { TerminalPayment } from '../TerminalPayment';
+import { SheetHeader } from './SheetHeader';
+import { BookingActions } from './BookingActions';
+import { PaymentSection } from './PaymentSection';
+import type { BookingMember, BookingGuest, ValidationInfo, FinancialSummary, BookingContextType, ManageModeRosterData, MemberMatchWarning, FetchedContext } from './bookingSheetTypes';
+import { isPlaceholderEmail } from './bookingSheetTypes';
+import { ErrorBoundary } from '../../ErrorBoundary';
 
 export type BookingType = 'simulator' | 'conference_room' | 'lesson' | 'staff_block';
 export type SheetMode = 'assign' | 'manage';
-
-interface BookingMember {
-  id: number;
-  bookingId: number;
-  userEmail: string | null;
-  slotNumber: number;
-  isPrimary: boolean;
-  linkedAt: string | null;
-  linkedBy: string | null;
-  memberName: string;
-  tier: string | null;
-  fee: number;
-  feeNote: string;
-  guestInfo?: { guestId: number; guestName: string; guestEmail: string; fee: number; feeNote: string; usedGuestPass: boolean } | null;
-}
-
-interface BookingGuest {
-  id: number;
-  bookingId: number;
-  guestName: string | null;
-  guestEmail: string | null;
-  slotNumber: number;
-  fee: number;
-  feeNote: string;
-}
-
-interface ValidationInfo {
-  expectedPlayerCount: number;
-  actualPlayerCount: number;
-  filledMemberSlots: number;
-  guestCount: number;
-  playerCountMismatch: boolean;
-  emptySlots: number;
-}
-
-interface FinancialSummary {
-  ownerOverageFee: number;
-  guestFeesWithoutPass: number;
-  totalOwnerOwes: number;
-  totalPlayersOwe: number;
-  grandTotal: number;
-  playerBreakdown: Array<{ name: string; tier: string | null; fee: number; feeNote: string }>;
-  allPaid?: boolean;
-}
-
-interface BookingContextType {
-  requestDate?: string;
-  startTime?: string;
-  endTime?: string;
-  resourceId?: number;
-  resourceName?: string;
-  durationMinutes?: number;
-  notes?: string;
-  trackmanCustomerNotes?: string;
-}
-
-interface ManageModeRosterData {
-  members: BookingMember[];
-  guests: BookingGuest[];
-  validation: ValidationInfo;
-  ownerGuestPassesRemaining: number;
-  tierLimits?: { guest_passes_per_month: number };
-  guestPassContext?: { passesBeforeBooking: number; passesUsedThisBooking: number };
-  financialSummary?: FinancialSummary;
-  bookingNotes?: { notes: string | null; staffNotes: string | null; trackmanNotes: string | null };
-  sessionId?: number;
-  ownerId?: string;
-}
 
 interface VisitorSearchResult {
   id: string;
@@ -97,12 +32,6 @@ interface SlotState {
 }
 
 type SlotsArray = [SlotState, SlotState, SlotState, SlotState];
-
-interface MemberMatchWarning {
-  slotNumber: number;
-  guestData: { guestName: string; guestEmail: string; guestPhone?: string };
-  memberMatch: { email: string; name: string; tier: string; status: string; note: string };
-}
 
 export interface UnifiedBookingSheetProps {
   isOpen: boolean;
@@ -247,17 +176,6 @@ export function UnifiedBookingSheet({
       );
     }
     return <TierBadge tier={tier} size="sm" />;
-  };
-
-  const isPlaceholderEmail = (email: string): boolean => {
-    if (!email) return true;
-    const lower = email.toLowerCase();
-    return lower.includes('@visitors.evenhouse.club') || 
-           lower.includes('@trackman.local') || 
-           lower.startsWith('classpass-') ||
-           lower.startsWith('golfnow-') ||
-           lower.startsWith('lesson-') ||
-           lower.startsWith('unmatched-');
   };
 
   const shouldShowRememberEmail = (): boolean => {
@@ -1857,273 +1775,6 @@ export function UnifiedBookingSheet({
     );
   };
 
-  const renderManageModeFinancialSummary = () => {
-    if (isConferenceRoom) return null;
-    const fs = rosterData?.financialSummary;
-    if (!fs) return null;
-
-    const guestPassesUsed = rosterData?.members.filter(
-      m => m.guestInfo && m.guestInfo.usedGuestPass === true && m.guestInfo.fee === 0
-    ).length || 0;
-
-    return (
-      <div className="p-3 rounded-xl border border-primary/10 dark:border-white/10 bg-primary/5 dark:bg-white/5 space-y-2">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg">payments</span>
-          <h4 className="font-medium text-sm text-primary dark:text-white">Financial Summary</h4>
-          {fs.allPaid && (
-            <span className="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium">
-              <span className="material-symbols-outlined text-sm">check_circle</span>
-              Paid
-            </span>
-          )}
-        </div>
-
-        <div className="space-y-1 text-xs">
-          {fs.ownerOverageFee > 0 && (
-            <div className="flex justify-between text-primary/70 dark:text-white/70">
-              <span>Owner overage fee</span>
-              <span>${fs.ownerOverageFee.toFixed(2)}</span>
-            </div>
-          )}
-          {fs.guestFeesWithoutPass > 0 && (
-            <div className="flex justify-between text-primary/70 dark:text-white/70">
-              <span>Guest fees (no pass)</span>
-              <span>${fs.guestFeesWithoutPass.toFixed(2)}</span>
-            </div>
-          )}
-          {guestPassesUsed > 0 && (
-            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-              <span>Guest passes used</span>
-              <span>{guestPassesUsed}</span>
-            </div>
-          )}
-          {fs.playerBreakdown && fs.playerBreakdown.length > 0 && (
-            <div className="pt-1 border-t border-primary/10 dark:border-white/10 space-y-0.5">
-              {fs.playerBreakdown.map((p, idx) => (
-                <div key={idx} className="flex justify-between text-primary/60 dark:text-white/60">
-                  <span className="flex items-center gap-1">
-                    {p.name}
-                    {renderTierBadge(p.tier)}
-                  </span>
-                  <span className={p.tier === 'Staff' ? 'text-blue-600 dark:text-blue-400' : ''}>
-                    {p.tier === 'Staff' ? '$0.00 — Staff — included' : p.fee > 0 ? `$${p.fee.toFixed(2)}` : p.feeNote || 'Included'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="pt-1 border-t border-primary/10 dark:border-white/10 flex justify-between font-semibold text-sm text-primary dark:text-white">
-            <span>Owner Pays</span>
-            <span>${fs.totalOwnerOwes.toFixed(2)}</span>
-          </div>
-          {fs.grandTotal > 0 && fs.grandTotal !== fs.totalOwnerOwes && (
-            <div className="flex justify-between text-primary/70 dark:text-white/70">
-              <span>Grand Total</span>
-              <span>${fs.grandTotal.toFixed(2)}</span>
-            </div>
-          )}
-        </div>
-
-        {paymentSuccess && fs.allPaid && (
-          <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/30 rounded-lg flex items-center gap-2">
-            <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-base">check_circle</span>
-            <span className="text-sm font-medium text-green-700 dark:text-green-300">Payment collected — ready for check-in</span>
-          </div>
-        )}
-
-        {!fs.allPaid && fs.grandTotal > 0 && bookingId && !showInlinePayment && (
-          <button
-            onClick={() => setShowInlinePayment(true)}
-            className="w-full mt-2 py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1"
-          >
-            <span className="material-symbols-outlined text-sm">payments</span>
-            Collect ${fs.grandTotal.toFixed(2)}
-          </button>
-        )}
-
-        {showInlinePayment && !fs.allPaid && fs.grandTotal > 0 && bookingId && (
-          <div className="mt-2 space-y-2 p-3 bg-primary/5 dark:bg-white/5 rounded-lg border border-primary/10 dark:border-white/10">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-primary dark:text-white flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">payments</span>
-                Collect ${fs.grandTotal.toFixed(2)}
-              </span>
-              <button onClick={() => { setShowInlinePayment(false); setInlinePaymentAction(null); setShowWaiverInput(false); setWaiverReason(''); }} className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white">
-                <span className="material-symbols-outlined text-sm">close</span>
-              </button>
-            </div>
-
-            {inlinePaymentAction === 'stripe' ? (
-              (() => {
-                const resolvedUserId = rosterData?.ownerId || fetchedContext?.ownerUserId || '';
-                const resolvedUserEmail = ownerEmail || fetchedContext?.ownerEmail || rosterData?.members?.find(m => m.isPrimary)?.userEmail || '';
-                if (!resolvedUserEmail) {
-                  return (
-                    <div className="text-center py-4 space-y-2">
-                      <span className="material-symbols-outlined text-3xl text-red-500">error</span>
-                      <p className="text-sm text-red-600 dark:text-red-400">Unable to load member payment info. Try closing and reopening this booking.</p>
-                      <button onClick={() => setInlinePaymentAction(null)} className="py-2 px-4 rounded-lg text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                        <span className="material-symbols-outlined text-sm align-middle mr-1">arrow_back</span>Go Back
-                      </button>
-                    </div>
-                  );
-                }
-                return (
-                  <StripePaymentForm
-                    amount={fs.grandTotal}
-                    description={`${bayName || fetchedContext?.bayName || 'Booking'} • ${bookingDate || fetchedContext?.bookingDate || ''}`}
-                    userId={resolvedUserId}
-                    userEmail={resolvedUserEmail}
-                    memberName={ownerName || fetchedContext?.ownerName || rosterData?.members?.find(m => m.isPrimary)?.memberName || ''}
-                    purpose="overage_fee"
-                    bookingId={bookingId}
-                    sessionId={rosterData?.sessionId}
-                    participantFees={rosterData?.financialSummary?.playerBreakdown?.filter((p: any) => p.fee > 0).map((p: any, i: number) => ({ id: i, amount: p.fee })) || []}
-                    onSuccess={handleInlineStripeSuccess}
-                    onCancel={() => setInlinePaymentAction(null)}
-                  />
-                );
-              })()
-            ) : inlinePaymentAction === 'terminal' ? (
-              <TerminalPayment
-                amount={Math.round(fs.grandTotal * 100)}
-                userId={rosterData?.ownerId || fetchedContext?.ownerUserId || null}
-                description={`${bayName || fetchedContext?.bayName || 'Booking'} • ${bookingDate || fetchedContext?.bookingDate || ''}`}
-                paymentMetadata={{
-                  bookingId: String(bookingId),
-                  ...(rosterData?.sessionId ? { sessionId: String(rosterData.sessionId) } : {}),
-                  ownerEmail: ownerEmail || fetchedContext?.ownerEmail || rosterData?.members?.find(m => m.isPrimary)?.userEmail || '',
-                  userId: rosterData?.ownerId || fetchedContext?.ownerUserId || '',
-                  paymentType: 'booking_fee',
-                }}
-                onSuccess={async (paymentIntentId) => {
-                  try {
-                    await fetch(`/api/bookings/${bookingId}/payments`, {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({ action: 'confirm_all' })
-                    });
-                  } catch (err) {
-                    console.error('Failed to mark participants as paid after terminal payment:', err);
-                  }
-                  showToast('Terminal payment successful!', 'success');
-                  setPaymentSuccess(true);
-                  setShowInlinePayment(false);
-                  setInlinePaymentAction(null);
-                  await fetchRosterData();
-                }}
-                onError={(message) => {
-                  showToast(message || 'Terminal payment failed', 'error');
-                }}
-                onCancel={() => setInlinePaymentAction(null)}
-              />
-            ) : (
-              <div className="space-y-2">
-                {savedCardInfo?.hasSavedCard && (
-                  <button
-                    onClick={handleInlineChargeSavedCard}
-                    disabled={!!inlinePaymentAction}
-                    className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    {inlinePaymentAction === 'charge-card' ? (
-                      <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Charging...</>
-                    ) : (
-                      <><span className="material-symbols-outlined text-sm">credit_card</span> Charge Card on File ({savedCardInfo.cardBrand} •••• {savedCardInfo.cardLast4})</>
-                    )}
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setInlinePaymentAction('stripe')}
-                  disabled={!!inlinePaymentAction}
-                  className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-sm">credit_card</span>
-                  Pay with Card (${fs.grandTotal.toFixed(2)})
-                </button>
-
-                <button
-                  onClick={() => setInlinePaymentAction('terminal')}
-                  disabled={!!inlinePaymentAction}
-                  className="w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-sm">contactless</span>
-                  Card Reader (${fs.grandTotal.toFixed(2)})
-                </button>
-
-                <button
-                  onClick={handleInlineMarkPaid}
-                  disabled={!!inlinePaymentAction}
-                  className="w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  {inlinePaymentAction === 'mark-paid' ? (
-                    <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Confirming...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-sm">payments</span> Mark Paid (Cash/External)</>
-                  )}
-                </button>
-
-                {!showWaiverInput ? (
-                  <button
-                    onClick={() => setShowWaiverInput(true)}
-                    disabled={!!inlinePaymentAction}
-                    className="w-full py-2 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    <span className="material-symbols-outlined text-sm">money_off</span>
-                    Waive All Fees
-                  </button>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={waiverReason}
-                      onChange={(e) => setWaiverReason(e.target.value)}
-                      placeholder="Reason for waiving fees..."
-                      className="w-full py-2 px-3 rounded-lg border border-gray-300 dark:border-white/20 bg-white dark:bg-white/5 text-sm text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setShowWaiverInput(false); setWaiverReason(''); }}
-                        className="flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleInlineWaiveAll}
-                        disabled={!waiverReason.trim() || !!inlinePaymentAction}
-                        className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
-                      >
-                        {inlinePaymentAction === 'waive' ? 'Waiving...' : 'Confirm Waive'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderManageModeGuestPassInfo = () => {
-    if (!rosterData) return null;
-    const total = rosterData.tierLimits?.guest_passes_per_month;
-    if (!total) return null;
-    const remaining = rosterData.ownerGuestPassesRemaining;
-
-    return (
-      <div className="flex items-center gap-2 text-xs">
-        <span className="material-symbols-outlined text-emerald-500 text-sm">redeem</span>
-        <span className="text-primary/70 dark:text-white/70">
-          Guest Passes: <span className="font-semibold text-primary dark:text-white">{remaining}/{total}</span> remaining
-        </span>
-      </div>
-    );
-  };
-
   if (isManageMode) {
     const validation = rosterData?.validation;
     const filledCount = validation ? validation.actualPlayerCount : 0;
@@ -2193,105 +1844,20 @@ export function UnifiedBookingSheet({
             </div>
           ) : (
             <>
-              {ownerMembershipStatus && ownerMembershipStatus.toLowerCase() !== 'active' && ownerMembershipStatus.toLowerCase() !== 'unknown' && (
-                <div className="p-3 rounded-xl border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-900/15 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-red-500 dark:text-red-400 text-lg">warning</span>
-                  <div>
-                    <p className="text-sm font-medium text-red-700 dark:text-red-300">Inactive Member</p>
-                    <p className="text-xs text-red-600 dark:text-red-400">This booking owner's membership status is "{ownerMembershipStatus}" — they may not be eligible to book.</p>
-                  </div>
-                </div>
-              )}
-              <div className="p-3 bg-gradient-to-r from-primary/5 to-primary/10 dark:from-white/5 dark:to-white/10 rounded-xl border border-primary/10 dark:border-white/10">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {(bookingContext?.resourceName || bayName || fetchedContext?.bayName) && (
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">sports_golf</span>
-                      <span className="font-medium text-primary dark:text-white">{bookingContext?.resourceName || bayName || fetchedContext?.bayName}</span>
-                    </div>
-                  )}
-                  {(bookingContext?.requestDate || bookingDate || fetchedContext?.bookingDate) && (
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">calendar_today</span>
-                      <span className="text-primary/80 dark:text-white/80">{bookingContext?.requestDate || bookingDate || fetchedContext?.bookingDate}</span>
-                    </div>
-                  )}
-                  {(bookingContext?.startTime && bookingContext?.endTime) ? (
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
-                      <span className="text-primary/80 dark:text-white/80">{bookingContext.startTime} - {bookingContext.endTime}</span>
-                    </div>
-                  ) : (timeSlot || fetchedContext?.timeSlot) ? (
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">schedule</span>
-                      <span className="text-primary/80 dark:text-white/80">{timeSlot || fetchedContext?.timeSlot}</span>
-                    </div>
-                  ) : null}
-                  {(bookingContext?.durationMinutes || fetchedContext?.durationMinutes) && (
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">timer</span>
-                      <span className="text-primary/80 dark:text-white/80">{bookingContext?.durationMinutes || fetchedContext?.durationMinutes} min</span>
-                    </div>
-                  )}
-                  {(trackmanBookingId || fetchedContext?.trackmanBookingId) && (
-                    <div className="flex items-center gap-2">
-                      <TrackmanIcon className="w-4 h-4 text-primary/60 dark:text-white/60" />
-                      <span className="text-primary/80 dark:text-white/80 text-xs">{trackmanBookingId || fetchedContext?.trackmanBookingId}</span>
-                    </div>
-                  )}
-                  {(bookingStatus || fetchedContext?.bookingStatus) && (
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-base">info</span>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                        (bookingStatus || fetchedContext?.bookingStatus) === 'attended' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                        (bookingStatus || fetchedContext?.bookingStatus) === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                        (bookingStatus || fetchedContext?.bookingStatus) === 'confirmed' || (bookingStatus || fetchedContext?.bookingStatus) === 'approved' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                        'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
-                      }`}>
-                        {(bookingStatus || fetchedContext?.bookingStatus || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {(() => {
-                const bookingNotesText = (rosterData?.bookingNotes?.notes || notes || fetchedContext?.notes || '').trim();
-                const trackmanNotesText = (rosterData?.bookingNotes?.trackmanNotes || bookingContext?.trackmanCustomerNotes || '').trim();
-                const showTrackman = trackmanNotesText && bookingNotesText !== trackmanNotesText && !bookingNotesText.includes(trackmanNotesText) && !trackmanNotesText.includes(bookingNotesText);
-                return (
-                  <>
-                    {bookingNotesText && (
-                      <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-900/10">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-base">description</span>
-                          <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Booking Notes</span>
-                        </div>
-                        <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{bookingNotesText}</p>
-                      </div>
-                    )}
-                    {showTrackman && (
-                      <div className="p-3 rounded-xl border border-blue-200 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-900/10">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-base">sell</span>
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Trackman Notes</span>
-                        </div>
-                        <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">{trackmanNotesText}</p>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-
-              {rosterData?.bookingNotes?.staffNotes && (
-                <div className="p-3 rounded-xl border border-purple-200 dark:border-purple-500/20 bg-purple-50 dark:bg-purple-900/10">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="material-symbols-outlined text-purple-600 dark:text-purple-400 text-base">sticky_note_2</span>
-                    <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Staff Notes</span>
-                  </div>
-                  <p className="text-sm text-purple-800 dark:text-purple-200 whitespace-pre-wrap">{rosterData.bookingNotes.staffNotes}</p>
-                </div>
-              )}
+              <SheetHeader
+                isManageMode={true}
+                isConferenceRoom={isConferenceRoom}
+                bayName={bayName}
+                bookingDate={bookingDate}
+                timeSlot={timeSlot}
+                trackmanBookingId={trackmanBookingId}
+                notes={notes}
+                bookingContext={bookingContext}
+                fetchedContext={fetchedContext}
+                bookingStatus={bookingStatus}
+                ownerMembershipStatus={ownerMembershipStatus}
+                rosterData={rosterData}
+              />
 
               {!isConferenceRoom && (
                 <div className="flex items-center justify-between">
@@ -2324,8 +1890,7 @@ export function UnifiedBookingSheet({
                 </div>
               )}
 
-              {!isConferenceRoom && renderManageModeGuestPassInfo()}
-
+              <ErrorBoundary fallback={<div className="p-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-900/10 text-sm text-red-600 dark:text-red-400">Roster section encountered an error. Please close and reopen this booking.</div>}>
               {!isConferenceRoom && (
                 <div className="space-y-2">
                   {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
@@ -2338,66 +1903,50 @@ export function UnifiedBookingSheet({
                   {filledMembers.filter(m => m.isPrimary).map((member, idx) => renderManageModeSlot(member, idx))}
                 </div>
               )}
+              </ErrorBoundary>
 
-              {renderManageModeFinancialSummary()}
+              <ErrorBoundary fallback={<div className="p-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-900/10 text-sm text-red-600 dark:text-red-400">Payment section encountered an error. Please close and reopen this booking.</div>}>
+              <PaymentSection
+                isConferenceRoom={isConferenceRoom}
+                bookingId={bookingId}
+                rosterData={rosterData}
+                fetchedContext={fetchedContext}
+                ownerName={ownerName}
+                ownerEmail={ownerEmail}
+                bayName={bayName}
+                bookingDate={bookingDate}
+                showInlinePayment={showInlinePayment}
+                setShowInlinePayment={setShowInlinePayment}
+                inlinePaymentAction={inlinePaymentAction}
+                setInlinePaymentAction={setInlinePaymentAction}
+                paymentSuccess={paymentSuccess}
+                savedCardInfo={savedCardInfo}
+                checkingCard={checkingCard}
+                showWaiverInput={showWaiverInput}
+                setShowWaiverInput={setShowWaiverInput}
+                waiverReason={waiverReason}
+                setWaiverReason={setWaiverReason}
+                handleInlineStripeSuccess={handleInlineStripeSuccess}
+                handleChargeCardOnFile={handleInlineChargeSavedCard}
+                handleWaiveFees={handleInlineWaiveAll}
+                onCollectPayment={onCollectPayment}
+                renderTierBadge={renderTierBadge}
+              />
+              </ErrorBoundary>
 
-              {(() => {
-                const effectiveStatus = bookingStatus || fetchedContext?.bookingStatus;
-                return (onCheckIn || onReschedule || onCancelBooking) && bookingId ? (
-                  <>
-                    <div className="flex gap-2">
-                      {onCheckIn && effectiveStatus !== 'attended' && effectiveStatus !== 'cancelled' && (
-                        <button
-                          onClick={() => onCheckIn(bookingId)}
-                          disabled={!!(rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid)}
-                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
-                            rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid
-                              ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                              : 'bg-green-600 hover:bg-green-700 text-white'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-sm">how_to_reg</span>
-                          Check In
-                        </button>
-                      )}
-                      {onReschedule && effectiveStatus !== 'cancelled' && (
-                        <button
-                          onClick={() => onReschedule({
-                            id: bookingId,
-                            request_date: bookingContext?.requestDate || fetchedContext?.bookingDate || '',
-                            start_time: bookingContext?.startTime || '',
-                            end_time: bookingContext?.endTime || '',
-                            resource_id: bookingContext?.resourceId || fetchedContext?.resourceId || 0,
-                            resource_name: bookingContext?.resourceName || bayName || fetchedContext?.bayName,
-                            user_name: ownerName || fetchedContext?.ownerName,
-                            user_email: ownerEmail || fetchedContext?.ownerEmail,
-                          })}
-                          className="flex-1 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-sm">event_repeat</span>
-                          Reschedule
-                        </button>
-                      )}
-                      {onCancelBooking && effectiveStatus !== 'cancelled' && effectiveStatus !== 'cancellation_pending' && (
-                        <button
-                          onClick={() => onCancelBooking(bookingId)}
-                          className="flex-1 py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-sm">cancel</span>
-                          Cancel Booking
-                        </button>
-                      )}
-                    </div>
-                    {onCheckIn && effectiveStatus !== 'attended' && effectiveStatus !== 'cancelled' && 
-                      rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">info</span>
-                        Payment must be collected before check-in
-                      </p>
-                    )}
-                  </>
-                ) : null;
-              })()}
+              <BookingActions
+                bookingId={bookingId}
+                bookingStatus={bookingStatus}
+                fetchedContext={fetchedContext}
+                bookingContext={bookingContext}
+                rosterData={rosterData}
+                onCheckIn={onCheckIn}
+                onReschedule={onReschedule}
+                onCancelBooking={onCancelBooking}
+                ownerName={ownerName}
+                ownerEmail={ownerEmail}
+                bayName={bayName}
+              />
             </>
           )}
         </div>
@@ -2591,116 +2140,23 @@ export function UnifiedBookingSheet({
       stickyFooter={stickyFooterContent}
     >
       <div className="p-4 space-y-4">
-        {isRelink && currentMemberName && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
-            <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">
-              Currently Linked To
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">person</span>
-              <div>
-                <p className="font-medium text-blue-800 dark:text-blue-200">{currentMemberName}</p>
-                {currentMemberEmail && !isPlaceholderEmail(currentMemberEmail) && (
-                  <p className="text-sm text-blue-600 dark:text-blue-400">{currentMemberEmail}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {!isConferenceRoom && trackmanBookingId && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
-              Booking Details
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-sm text-amber-700 dark:text-amber-400">
-              {importedName && (
-                <p className="flex items-center gap-1 col-span-2 font-semibold">
-                  <span className="material-symbols-outlined text-sm">person</span>
-                  {importedName}
-                </p>
-              )}
-              {bayName && (
-                <p className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">sports_golf</span>
-                  {bayName}
-                </p>
-              )}
-              {bookingDate && (
-                <p className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">calendar_today</span>
-                  {bookingDate}
-                </p>
-              )}
-              {timeSlot && (
-                <p className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">schedule</span>
-                  {timeSlot}
-                </p>
-              )}
-              <p className="flex items-center gap-1 text-xs opacity-70">
-                <span className="material-symbols-outlined text-xs">tag</span>
-                ID: #{trackmanBookingId}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isConferenceRoom && (
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 rounded-lg">
-            <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300 mb-2">
-              Conference Room Booking
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-sm text-indigo-700 dark:text-indigo-400">
-              {bayName && (
-                <p className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">meeting_room</span>
-                  {bayName}
-                </p>
-              )}
-              {bookingDate && (
-                <p className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">calendar_today</span>
-                  {bookingDate}
-                </p>
-              )}
-              {timeSlot && (
-                <p className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">schedule</span>
-                  {timeSlot}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {(() => {
-          const bNotes = (notes || '').trim();
-          const tNotes = (bookingContext?.trackmanCustomerNotes || '').trim();
-          const showTrackmanAssign = tNotes && bNotes !== tNotes && !bNotes.includes(tNotes) && !tNotes.includes(bNotes);
-          return (
-            <>
-              {bNotes && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-500/20 rounded-lg">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">description</span>
-                    Booking Notes
-                  </p>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{bNotes}</p>
-                </div>
-              )}
-              {showTrackmanAssign && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-500/20 rounded-lg">
-                  <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">sell</span>
-                    Trackman Notes
-                  </p>
-                  <p className="text-sm text-blue-700 dark:text-blue-400 whitespace-pre-wrap">{tNotes}</p>
-                </div>
-              )}
-            </>
-          );
-        })()}
+        <SheetHeader
+          isManageMode={false}
+          isConferenceRoom={isConferenceRoom}
+          bayName={bayName}
+          bookingDate={bookingDate}
+          timeSlot={timeSlot}
+          trackmanBookingId={trackmanBookingId}
+          notes={notes}
+          bookingContext={bookingContext}
+          fetchedContext={fetchedContext}
+          bookingStatus={bookingStatus}
+          isRelink={isRelink}
+          currentMemberName={currentMemberName}
+          currentMemberEmail={currentMemberEmail}
+          importedName={importedName}
+          isPlaceholderEmail={isPlaceholderEmail}
+        />
 
         {!isConferenceRoom && (
           <div className="space-y-3">

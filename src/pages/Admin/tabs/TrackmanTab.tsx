@@ -91,7 +91,7 @@ const TrackmanTab: React.FC = () => {
   const [fuzzyMatchModal, setFuzzyMatchModal] = useState<{ booking: any; matches: any[]; isLoading: boolean; selectedEmail: string; rememberEmail: boolean } | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [assignPlayersModal, setAssignPlayersModal] = useState<{ booking: any; isOpen: boolean } | null>(null);
-  const [managePlayersModal, setManagePlayersModal] = useState<{ 
+  const [bookingSheet, setBookingSheet] = useState<{ 
     bookingId: number;
     bookingContext: {
       requestDate?: string;
@@ -735,7 +735,7 @@ const TrackmanTab: React.FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => setManagePlayersModal({ 
+                    onClick={() => setBookingSheet({ 
                       bookingId: booking.id,
                       bookingContext: {
                         ownerName: booking.userName || booking.user_name || 'Unknown',
@@ -788,17 +788,17 @@ const TrackmanTab: React.FC = () => {
       </div>
 
       <UnifiedBookingSheet
-        isOpen={!!managePlayersModal}
-        onClose={() => setManagePlayersModal(null)}
+        isOpen={!!bookingSheet}
+        onClose={() => setBookingSheet(null)}
         mode="manage"
         trackmanBookingId={null}
-        bookingId={managePlayersModal?.bookingId}
-        ownerName={managePlayersModal?.bookingContext?.ownerName}
-        bookingContext={managePlayersModal?.bookingContext ? {
-          requestDate: managePlayersModal.bookingContext.requestDate,
-          startTime: managePlayersModal.bookingContext.startTime,
-          endTime: managePlayersModal.bookingContext.endTime,
-          resourceName: managePlayersModal.bookingContext.resourceName,
+        bookingId={bookingSheet?.bookingId}
+        ownerName={bookingSheet?.bookingContext?.ownerName}
+        bookingContext={bookingSheet?.bookingContext ? {
+          requestDate: bookingSheet.bookingContext.requestDate,
+          startTime: bookingSheet.bookingContext.startTime,
+          endTime: bookingSheet.bookingContext.endTime,
+          resourceName: bookingSheet.bookingContext.resourceName,
         } : undefined}
         onRosterUpdated={() => invalidateTrackmanQueries()}
         onSuccess={() => invalidateTrackmanQueries()}

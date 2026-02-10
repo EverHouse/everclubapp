@@ -74,7 +74,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     tier?: string | null;
     membershipStatus?: string | null;
   }>({ isOpen: false, memberName: '', pinnedNotes: [] });
-  const [trackmanLinkModal, setTrackmanLinkModal] = useState<{
+  const [bookingSheet, setBookingSheet] = useState<{
     isOpen: boolean;
     trackmanBookingId: string | null;
     bayName?: string;
@@ -254,8 +254,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         credentials: 'include',
         body: JSON.stringify({ 
           status: 'approved',
-          trackman_booking_id: trackmanBookingId,
-          trackman_external_id: trackmanBookingId
+          trackman_booking_id: trackmanBookingId
         })
       });
       if (res.ok) {
@@ -410,7 +409,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         safeRevertOptimisticUpdate(booking.id, optimisticStatus, newActivity.id);
         
         if (errorData.requiresRoster) {
-          setTrackmanLinkModal({
+          setBookingSheet({
             isOpen: true,
             trackmanBookingId: null,
             bookingId: id,
@@ -448,8 +447,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         durationMinutes: bookingData.durationMinutes,
         declaredPlayerCount: bookingData.declaredPlayerCount,
         participants: bookingData.participants,
-        trackman_booking_id: bookingData.trackmanBookingId,
-        trackman_external_id: bookingData.trackmanBookingId
+        trackman_booking_id: bookingData.trackmanBookingId
       })
     });
     
@@ -562,8 +560,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-              onRosterClick={(bookingId) => setTrackmanLinkModal({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
-              onAssignMember={(booking) => setTrackmanLinkModal({
+              onRosterClick={(bookingId) => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
+              onAssignMember={(booking) => setBookingSheet({
                 isOpen: true,
                 trackmanBookingId: booking.trackman_booking_id || null,
                 bayName: booking.bay_name || `Bay ${booking.resource_id}`,
@@ -607,8 +605,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-              onRosterClick={(bookingId) => setTrackmanLinkModal({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
-              onAssignMember={(booking) => setTrackmanLinkModal({
+              onRosterClick={(bookingId) => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
+              onAssignMember={(booking) => setBookingSheet({
                 isOpen: true,
                 trackmanBookingId: booking.trackman_booking_id || null,
                 bayName: booking.bay_name || `Bay ${booking.resource_id}`,
@@ -695,8 +693,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             onDeny={handleDeny}
             onCheckIn={handleCheckIn}
             onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-            onRosterClick={(bookingId) => setTrackmanLinkModal({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
-            onAssignMember={(booking) => setTrackmanLinkModal({
+            onRosterClick={(bookingId) => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
+            onAssignMember={(booking) => setBookingSheet({
                 isOpen: true,
                 trackmanBookingId: booking.trackman_booking_id || null,
                 bayName: booking.bay_name || `Bay ${booking.resource_id}`,
@@ -754,22 +752,22 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       />
 
       <UnifiedBookingSheet
-        isOpen={trackmanLinkModal.isOpen}
-        onClose={() => setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null })}
-        trackmanBookingId={trackmanLinkModal.trackmanBookingId}
-        bayName={trackmanLinkModal.bayName}
-        bookingDate={trackmanLinkModal.bookingDate}
-        timeSlot={trackmanLinkModal.timeSlot}
-        matchedBookingId={trackmanLinkModal.matchedBookingId}
-        isRelink={trackmanLinkModal.isRelink}
-        importedName={trackmanLinkModal.importedName}
-        notes={trackmanLinkModal.notes}
-        originalEmail={trackmanLinkModal.originalEmail}
-        bookingId={trackmanLinkModal.bookingId || undefined}
-        mode={trackmanLinkModal.mode || 'assign'}
-        ownerName={trackmanLinkModal.ownerName}
-        ownerEmail={trackmanLinkModal.ownerEmail}
-        declaredPlayerCount={trackmanLinkModal.declaredPlayerCount}
+        isOpen={bookingSheet.isOpen}
+        onClose={() => setBookingSheet({ isOpen: false, trackmanBookingId: null })}
+        trackmanBookingId={bookingSheet.trackmanBookingId}
+        bayName={bookingSheet.bayName}
+        bookingDate={bookingSheet.bookingDate}
+        timeSlot={bookingSheet.timeSlot}
+        matchedBookingId={bookingSheet.matchedBookingId}
+        isRelink={bookingSheet.isRelink}
+        importedName={bookingSheet.importedName}
+        notes={bookingSheet.notes}
+        originalEmail={bookingSheet.originalEmail}
+        bookingId={bookingSheet.bookingId || undefined}
+        mode={bookingSheet.mode || 'assign'}
+        ownerName={bookingSheet.ownerName}
+        ownerEmail={bookingSheet.ownerEmail}
+        declaredPlayerCount={bookingSheet.declaredPlayerCount}
         onSuccess={(options) => {
           if (!options?.markedAsEvent) {
             showToast('Member assigned to booking', 'success');

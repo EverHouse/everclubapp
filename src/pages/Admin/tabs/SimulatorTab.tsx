@@ -912,7 +912,7 @@ const SimulatorTab: React.FC = () => {
     const [billingModal, setBillingModal] = useState<{isOpen: boolean; bookingId: number | null}>({isOpen: false, bookingId: null});
     const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
-    const [trackmanLinkModal, setTrackmanLinkModal] = useState<{ 
+    const [bookingSheet, setBookingSheet] = useState<{ 
         isOpen: boolean; 
         trackmanBookingId: string | null;
         bayName?: string;
@@ -1014,7 +1014,7 @@ const SimulatorTab: React.FC = () => {
                         const isUnmatched = booking.is_unmatched === true ||
                             isPlaceholderEmail ||
                             booking.user_name === 'Unknown (Trackman)';
-                        setTrackmanLinkModal({
+                        setBookingSheet({
                             isOpen: true,
                             trackmanBookingId: booking.trackman_booking_id || null,
                             bookingId: booking.id,
@@ -1097,8 +1097,7 @@ const SimulatorTab: React.FC = () => {
                 credentials: 'include',
                 body: JSON.stringify({ 
                     status: 'approved',
-                    trackman_booking_id: trackmanBookingId,
-                    trackman_external_id: trackmanBookingId
+                    trackman_booking_id: trackmanBookingId
                 })
             });
             if (res.ok) {
@@ -1124,7 +1123,7 @@ const SimulatorTab: React.FC = () => {
         currentMemberEmail?: string;
         isRelink?: boolean;
     }) => {
-        setTrackmanLinkModal({
+        setBookingSheet({
             isOpen: true,
             trackmanBookingId: event.trackmanBookingId,
             bayName: event.bayName,
@@ -1194,8 +1193,7 @@ const SimulatorTab: React.FC = () => {
                     duration_minutes: data.durationMinutes,
                     declared_player_count: data.declaredPlayerCount,
                     request_participants: requestParticipants,
-                    trackman_booking_id: data.trackmanBookingId,
-                    trackman_external_id: data.trackmanBookingId
+                    trackman_booking_id: data.trackmanBookingId
                 })
             });
 
@@ -1280,7 +1278,7 @@ const SimulatorTab: React.FC = () => {
                 
                 // Open the appropriate modal based on what's needed
                 if (errorData.requiresRoster) {
-                    setTrackmanLinkModal({
+                    setBookingSheet({
                         isOpen: true,
                         trackmanBookingId: null,
                         bookingId,
@@ -2060,7 +2058,7 @@ const SimulatorTab: React.FC = () => {
                                                 key={`unmatched-${item.id}`} 
                                                 className="bg-amber-50/80 dark:bg-amber-500/10 p-4 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-500/30 animate-slide-up-stagger cursor-pointer hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:scale-[1.01] active:scale-[0.98] shadow-sm hover:shadow-md transition-all duration-200" 
                                                 style={{ '--stagger-index': index + 2 } as React.CSSProperties}
-                                                onClick={() => setTrackmanLinkModal({
+                                                onClick={() => setBookingSheet({
                                                     isOpen: true,
                                                     trackmanBookingId: (item as any).trackman_booking_id || null,
                                                     matchedBookingId: item.id,
@@ -2102,7 +2100,7 @@ const SimulatorTab: React.FC = () => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        setTrackmanLinkModal({
+                                                        setBookingSheet({
                                                             isOpen: true,
                                                             trackmanBookingId: (item as any).trackman_booking_id || null,
                                                             matchedBookingId: item.id,
@@ -2299,7 +2297,7 @@ const SimulatorTab: React.FC = () => {
                                                                             : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
                                                             } transition-all duration-200`} 
                                                             style={{ '--stagger-index': index } as React.CSSProperties}
-                                                            onClick={() => !isOptimisticNew && !isActionPending && setTrackmanLinkModal({
+                                                            onClick={() => !isOptimisticNew && !isActionPending && setBookingSheet({
                                                                 isOpen: true,
                                                                 trackmanBookingId: (booking as any).trackman_booking_id || null,
                                                                 bookingId: booking.id,
@@ -2433,7 +2431,7 @@ const SimulatorTab: React.FC = () => {
                                                                     </button>
                                                                 ) : isUnmatched ? (
                                                                     <button
-                                                                        onClick={() => setTrackmanLinkModal({
+                                                                        onClick={() => setBookingSheet({
                                                                             isOpen: true,
                                                                             trackmanBookingId: booking.trackman_booking_id || null,
                                                                             bayName: bookingResource ? (bookingResource.type === 'conference_room' ? 'Conference Room' : bookingResource.name) : (booking.bay_name || `Bay ${booking.resource_id}`),
@@ -2485,7 +2483,7 @@ const SimulatorTab: React.FC = () => {
                                                                     <button
                                                                         onClick={() => {
                                                                             const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                            setTrackmanLinkModal({
+                                                                            setBookingSheet({
                                                                                 isOpen: true,
                                                                                 trackmanBookingId: null,
                                                                                 bookingId,
@@ -2748,7 +2746,7 @@ const SimulatorTab: React.FC = () => {
                                                             initialMode: resource.type === 'conference_room' ? 'conference' : 'member'
                                                         });
                                                         setStaffManualBookingModalOpen(true);
-                                                    } : booking ? () => setTrackmanLinkModal({
+                                                    } : booking ? () => setBookingSheet({
                                                         isOpen: true,
                                                         trackmanBookingId: (booking as any).trackman_booking_id || null,
                                                         bookingId: booking.id,
@@ -3281,37 +3279,37 @@ const SimulatorTab: React.FC = () => {
             />
 
             <UnifiedBookingSheet
-              isOpen={trackmanLinkModal.isOpen}
-              onClose={() => setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null })}
-              mode={trackmanLinkModal.mode || 'assign'}
-              trackmanBookingId={trackmanLinkModal.trackmanBookingId}
-              bayName={trackmanLinkModal.bayName}
-              bookingDate={trackmanLinkModal.bookingDate}
-              timeSlot={trackmanLinkModal.timeSlot}
-              matchedBookingId={trackmanLinkModal.matchedBookingId}
-              currentMemberName={trackmanLinkModal.currentMemberName}
-              currentMemberEmail={trackmanLinkModal.currentMemberEmail}
-              isRelink={trackmanLinkModal.isRelink}
-              importedName={trackmanLinkModal.importedName}
-              notes={trackmanLinkModal.notes}
-              bookingId={trackmanLinkModal.bookingId || undefined}
-              ownerName={trackmanLinkModal.ownerName}
-              ownerEmail={trackmanLinkModal.ownerEmail}
-              declaredPlayerCount={trackmanLinkModal.declaredPlayerCount}
+              isOpen={bookingSheet.isOpen}
+              onClose={() => setBookingSheet({ isOpen: false, trackmanBookingId: null })}
+              mode={bookingSheet.mode || 'assign'}
+              trackmanBookingId={bookingSheet.trackmanBookingId}
+              bayName={bookingSheet.bayName}
+              bookingDate={bookingSheet.bookingDate}
+              timeSlot={bookingSheet.timeSlot}
+              matchedBookingId={bookingSheet.matchedBookingId}
+              currentMemberName={bookingSheet.currentMemberName}
+              currentMemberEmail={bookingSheet.currentMemberEmail}
+              isRelink={bookingSheet.isRelink}
+              importedName={bookingSheet.importedName}
+              notes={bookingSheet.notes}
+              bookingId={bookingSheet.bookingId || undefined}
+              ownerName={bookingSheet.ownerName}
+              ownerEmail={bookingSheet.ownerEmail}
+              declaredPlayerCount={bookingSheet.declaredPlayerCount}
               onSuccess={(options) => {
                 if (!options?.markedAsEvent) {
-                  showToast(trackmanLinkModal.isRelink ? 'Booking owner changed' : 'Trackman booking linked to member', 'success');
+                  showToast(bookingSheet.isRelink ? 'Booking owner changed' : 'Trackman booking linked to member', 'success');
                 }
                 handleRefresh();
               }}
               onRosterUpdated={() => handleRefresh()}
               onOpenBillingModal={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
               onCollectPayment={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
-              bookingStatus={trackmanLinkModal.bookingStatus}
-              bookingContext={trackmanLinkModal.bookingContext}
-              ownerMembershipStatus={trackmanLinkModal.ownerMembershipStatus}
+              bookingStatus={bookingSheet.bookingStatus}
+              bookingContext={bookingSheet.bookingContext}
+              ownerMembershipStatus={bookingSheet.ownerMembershipStatus}
               onReschedule={(booking) => {
-                setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null });
+                setBookingSheet({ isOpen: false, trackmanBookingId: null });
                 setRescheduleModal({ isOpen: true, booking });
               }}
               onCancelBooking={async (bookingId) => {
@@ -3338,7 +3336,7 @@ const SimulatorTab: React.FC = () => {
                     throw new Error(errData.error || 'Failed to cancel booking');
                   }
                   showToast('Booking cancelled successfully', 'success');
-                  setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null });
+                  setBookingSheet({ isOpen: false, trackmanBookingId: null });
                   handleRefresh();
                 } catch (err: any) {
                   showToast(err.message || 'Failed to cancel booking', 'error');
@@ -3356,7 +3354,7 @@ const SimulatorTab: React.FC = () => {
                     throw new Error(errData.error || 'Check-in failed');
                   }
                   showToast('Check-in complete', 'success');
-                  setTrackmanLinkModal({ isOpen: false, trackmanBookingId: null });
+                  setBookingSheet({ isOpen: false, trackmanBookingId: null });
                   handleRefresh();
                 } catch (err: any) {
                   showToast(err.message || 'Check-in failed', 'error');

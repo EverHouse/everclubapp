@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.22.0",
+    date: "2026-02-10",
+    title: "Codebase Cleanup & Booking Sheet Modularization",
+    isMajor: true,
+    changes: [
+      "Cleanup: Removed deprecated ManagePlayersModal, BookingDetailsModal, and TrackmanLinkModal components — all booking interactions now route exclusively through the unified booking sheet",
+      "Cleanup: Removed all references to the old long-form Trackman UUID (trackman_external_id) from the staff interface — staff now only sees the short booking number",
+      "Cleanup: Renamed misleading 'trackmanLinkModal' state variables to 'bookingSheet' across SimulatorTab, DataIntegrityTab, StaffCommandCenter, and TrackmanTab for code clarity",
+      "Refactor: Broke down the 2,790-line booking sheet into focused sub-components — SheetHeader (booking info), PaymentSection (financial summary and payment collection), and BookingActions (check-in, reschedule, cancel)",
+      "Refactor: Shared type definitions moved to a dedicated types module, reducing duplication across components",
+      "Reliability: Payment and roster sections are now wrapped in error boundaries — if a Stripe glitch occurs, it won't crash the entire booking sheet; staff can close and reopen to recover",
+    ],
+  },
+  {
     version: "7.21.0",
     date: "2026-02-10",
     title: "Stripe Clarity & Trackman Import Intelligence",
