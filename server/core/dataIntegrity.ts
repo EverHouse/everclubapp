@@ -86,6 +86,7 @@ export interface IssueContext {
   hubspotContactId?: string;
   stripeCustomerId?: string;
   userId?: number;
+  duplicateUsers?: Array<{ userId: number; email: string; status: string; tier: string }>;
   trackmanBookingId?: string;
   userName?: string;
   userEmail?: string;
@@ -1778,7 +1779,12 @@ async function checkHubSpotIdDuplicates(): Promise<IntegrityCheckResult> {
         context: {
           hubspotContactId: dup.hubspot_id,
           memberEmail: emails[0],
-          status: statuses[0]
+          duplicateUsers: emails.map((email: string, idx: number) => ({
+            userId: (dup.user_ids as number[])[idx],
+            email,
+            status: statuses[idx],
+            tier: tiers[idx]
+          }))
         }
       });
     }

@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.28.0",
+    date: "2026-02-10",
+    title: "Data Integrity Fix Actions",
+    changes: [
+      "Feature: HubSpot duplicate contacts now have 'Unlink' buttons — choose which user to disconnect from a shared HubSpot contact when they're genuinely different people",
+      "Feature: Orphaned guest passes (test/example.com records) can now be deleted directly from the Data Integrity page",
+      "Feature: Orphaned fee snapshots referencing deleted bookings can now be cleaned up with one click",
+      "Feature: Orphaned booking participants with no valid session can now be removed directly",
+      "Fix: Data integrity checks no longer crash — corrected column name in session participant check",
+      "Fix: Stripe Customer Cleanup tool now visible in the Data Tools section instead of buried in a check category",
+    ],
+  },
+  {
     version: "7.27.0",
     date: "2026-02-10",
     title: "Stripe Customer Cleanup & Prevention",

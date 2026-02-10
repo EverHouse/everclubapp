@@ -655,4 +655,71 @@ router.get('/api/data-integrity/health', isAdmin, async (req, res) => {
   }
 });
 
+router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, async (req: Request, res) => {
+  try {
+    const { userId, hubspotContactId } = req.body;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
+    
+    await db.execute(sql`UPDATE users SET hubspot_id = NULL, updated_at = NOW() WHERE id = ${userId}`);
+    
+    logFromRequest(req, 'unlink_hubspot_contact', 'user', userId, undefined, {
+      hubspotContactId,
+      unlinkedUserId: userId
+    });
+    
+    res.json({ success: true, message: `Unlinked HubSpot contact from user ${userId}` });
+  } catch (error: any) {
+    console.error('[DataIntegrity] Unlink HubSpot error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, async (req: Request, res) => {
+  try {
+    const { recordId } = req.body;
+    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
+    
+    await db.execute(sql`DELETE FROM guest_passes WHERE id = ${recordId}`);
+    
+    logFromRequest(req, 'delete_orphan_guest_pass', 'guest_passes', recordId, undefined, { deletedId: recordId });
+    
+    res.json({ success: true, message: `Deleted orphaned guest pass ${recordId}` });
+  } catch (error: any) {
+    console.error('[DataIntegrity] Delete guest pass error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/api/data-integrity/fix/delete-fee-snapshot', isAdmin, async (req: Request, res) => {
+  try {
+    const { recordId } = req.body;
+    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
+    
+    await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${recordId}`);
+    
+    logFromRequest(req, 'delete_orphan_fee_snapshot', 'booking_fee_snapshots', recordId, undefined, { deletedId: recordId });
+    
+    res.json({ success: true, message: `Deleted orphaned fee snapshot ${recordId}` });
+  } catch (error: any) {
+    console.error('[DataIntegrity] Delete fee snapshot error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/api/data-integrity/fix/delete-booking-participant', isAdmin, async (req: Request, res) => {
+  try {
+    const { recordId } = req.body;
+    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
+    
+    await db.execute(sql`DELETE FROM booking_participants WHERE id = ${recordId}`);
+    
+    logFromRequest(req, 'delete_orphan_booking_participant', 'booking_participants', recordId, undefined, { deletedId: recordId });
+    
+    res.json({ success: true, message: `Deleted orphaned booking participant ${recordId}` });
+  } catch (error: any) {
+    console.error('[DataIntegrity] Delete booking participant error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;

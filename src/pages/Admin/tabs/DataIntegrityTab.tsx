@@ -56,6 +56,7 @@ interface IssueContext {
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;
   userId?: number;
+  duplicateUsers?: Array<{ userId: number; email: string; status: string; tier: string }>;
 }
 
 interface IgnoreInfo {
@@ -739,6 +740,18 @@ const DataIntegrityTab: React.FC = () => {
       setMindbodyCleanupResult({ success: false, message: err.message || 'Failed to cleanup Mind Body IDs' });
       showToast(err.message || 'Failed to cleanup Mind Body IDs', 'error');
     },
+  });
+
+  const fixIssueMutation = useMutation({
+    mutationFn: (params: { endpoint: string; body: Record<string, any> }) =>
+      postWithCredentials<{ success: boolean; message: string }>(params.endpoint, params.body),
+    onSuccess: (data) => {
+      showToast(data.message || 'Issue fixed successfully', 'success');
+      queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
+    },
+    onError: (err: any) => {
+      showToast(err.message || 'Failed to fix issue', 'error');
+    }
   });
 
   const cleanupStripeCustomersMutation = useMutation({
@@ -2349,6 +2362,53 @@ const DataIntegrityTab: React.FC = () => {
                                         )}
                                       </button>
                                     </>
+                                  )}
+                                  {!issue.ignored && (issue.table === 'guest_passes' || issue.table === 'booking_fee_snapshots' || issue.table === 'booking_participants') && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Delete this ${issue.table === 'guest_passes' ? 'guest pass' : issue.table === 'booking_fee_snapshots' ? 'fee snapshot' : 'participant'} record?`)) {
+                                          const endpoint = issue.table === 'guest_passes'
+                                            ? '/api/data-integrity/fix/delete-guest-pass'
+                                            : issue.table === 'booking_fee_snapshots'
+                                            ? '/api/data-integrity/fix/delete-fee-snapshot'
+                                            : '/api/data-integrity/fix/delete-booking-participant';
+                                          fixIssueMutation.mutate({ endpoint, body: { recordId: issue.recordId } });
+                                        }
+                                      }}
+                                      disabled={fixIssueMutation.isPending}
+                                      className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                      title="Delete this orphaned record"
+                                    >
+                                      {fixIssueMutation.isPending ? (
+                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                      ) : (
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                      )}
+                                    </button>
+                                  )}
+                                  {!issue.ignored && issue.context?.duplicateUsers && issue.context.duplicateUsers.length > 0 && (
+                                    issue.context.duplicateUsers.map((user) => (
+                                      <button
+                                        key={user.userId}
+                                        onClick={() => {
+                                          if (confirm(`Unlink HubSpot contact from ${user.email}? This will make them a separate contact.`)) {
+                                            fixIssueMutation.mutate({
+                                              endpoint: '/api/data-integrity/fix/unlink-hubspot',
+                                              body: { userId: user.userId, hubspotContactId: issue.context?.hubspotContactId }
+                                            });
+                                          }
+                                        }}
+                                        disabled={fixIssueMutation.isPending}
+                                        className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
+                                        title={`Unlink HubSpot from ${user.email}`}
+                                      >
+                                        {fixIssueMutation.isPending ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">link_off</span>
+                                        )}
+                                      </button>
+                                    ))
                                   )}
                                   {!issue.ignored && (
                                     <button
