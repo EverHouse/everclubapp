@@ -377,9 +377,10 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       return res.status(400).json({ error: 'User not found. Cannot process payment without a linked member account.' });
     }
     const pendingUser = userCheck.rows[0];
-    if (pendingUser.membership_status !== 'pending') {
+    const allowedStatuses = ['pending', 'incomplete'];
+    if (!allowedStatuses.includes(pendingUser.membership_status)) {
       return res.status(400).json({ 
-        error: `Cannot process payment for member with status "${pendingUser.membership_status}". Expected "pending" status.`
+        error: `Cannot process payment for member with status "${pendingUser.membership_status}". Expected "pending" or "incomplete" status.`
       });
     }
     
@@ -406,12 +407,15 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
         limit: 10
       });
       for (const pi of existingPIs.data) {
-        if (pi.metadata?.subscription_id === subscriptionId && 
-            pi.metadata?.source === 'membership_inline_payment' &&
+        const isStaleInline = pi.metadata?.subscription_id === subscriptionId && 
+            pi.metadata?.source === 'membership_inline_payment';
+        const isStaleTerminal = pi.metadata?.subscriptionId === subscriptionId && 
+            pi.metadata?.paymentType === 'subscription_terminal';
+        if ((isStaleInline || isStaleTerminal) &&
             (pi.status === 'requires_payment_method' || pi.status === 'requires_confirmation' || pi.status === 'requires_action')) {
           try {
             await stripe.paymentIntents.cancel(pi.id);
-            console.log(`[Terminal] Cancelled stale inline PI ${pi.id} for subscription ${subscriptionId}`);
+            console.log(`[Terminal] Cancelled stale PI ${pi.id} for subscription ${subscriptionId}`);
           } catch (cancelErr: any) {
             console.error(`[Terminal] Failed to cancel stale PI ${pi.id}:`, cancelErr.message);
           }
@@ -470,7 +474,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
           paymentType: 'subscription_terminal'
         }
       }, {
-        idempotencyKey: `terminal_sub_${subscriptionId}_${invoice.id}`
+        idempotencyKey: `terminal_sub_${subscriptionId}_${invoice.id}_${Date.now()}`
       });
     }
     
