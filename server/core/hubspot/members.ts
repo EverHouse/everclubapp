@@ -131,7 +131,7 @@ export async function findOrCreateHubSpotContact(
       lastname: lastName,
       phone: phone || '',
       membership_status: 'Active',
-      lifecyclestage: 'member'
+      lifecyclestage: 'customer'
     };
     
     if (hubspotTier) {
@@ -998,7 +998,7 @@ export async function syncTierToHubSpot(params: {
   
   // Determine lifecycle stage based on membership status
   const isActive = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus.toLowerCase());
-  const lifecyclestage = isActive ? 'member' : 'other';
+  const lifecyclestage = isActive ? 'customer' : 'other';
   
   try {
     const hubspot = await getHubSpotClient();

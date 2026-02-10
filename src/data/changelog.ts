@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.34.1",
+    date: "2026-02-10",
+    title: "HubSpot Lifecycle Stage Fix",
+    changes: [
+      "Fix: HubSpot sync was failing for some contacts because the system tried to set lifecycle stage to 'member' which is not a valid HubSpot stage — now correctly uses 'customer' for active members and 'other' for inactive members",
+      "Fix: Applied across all HubSpot sync paths (contact creation, member sync, and stage updates) so no contacts are missed",
+    ],
+  },
+  {
     version: "7.34.0",
     date: "2026-02-10",
     title: "Payment Status Enforcement & Pending Badge System",
