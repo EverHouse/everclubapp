@@ -82,7 +82,7 @@ PORT = "5001"
 
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 run = ["npm", "start"]
 build = ["npm", "run", "build"]
 
