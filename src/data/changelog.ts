@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.40.2",
+    date: "2026-02-11",
+    title: "Toast Notification Redesign",
+    changes: [
+      "New: Redesigned toast notifications with Liquid Glass aesthetic — frosted glass strip with colored left border",
+      "New: Spring-physics entrance animation slides toasts in from the top-right with a bouncy overshoot effect",
+      "New: Progress bar countdown — a 1px bar at the bottom visually shrinks to show remaining auto-dismiss time",
+      "New: Toast now displays a bold status title (Success, Error, Warning, Notice) above the message",
+      "Improved: Toast styling adapts to light and dark themes with proper contrast",
+    ],
+  },
+  {
     version: "7.40.1",
     date: "2026-02-11",
     title: "Training Guide Completeness Update",
