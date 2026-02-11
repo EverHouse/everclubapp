@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.36.0",
+    date: "2026-02-11",
+    title: "Trackman Import Fixes, Email Sender Name & Booking Deletion",
+    changes: [
+      "Fix: Trackman CSV imports no longer fail when a booking's updated time overlaps with another booking on the same bay — the system now skips the time change and still applies all other updates (member linking, notes, player count)",
+      "Fix: Trackman imports now support sessions up to 6 hours (360 minutes) — previously only allowed up to 5 hours, causing some longer sessions to fail",
+      "Fix: Trackman import error notifications now show the actual reason for failure instead of raw database query text",
+      "Fix: Emails now display 'Ever Club' as the sender name instead of 'noreply'",
+      "Fix: Resolved deal stage drift data integrity error for members with duplicate HubSpot deals",
+      "Feature: Staff can now fully delete unmatched/unassigned Trackman bookings — the booking is completely removed from all database tables so the time slot opens back up for other members",
+    ],
+  },
+  {
     version: "7.35.0",
     date: "2026-02-11",
     title: "Account Credits + Trackman Session Fix",
