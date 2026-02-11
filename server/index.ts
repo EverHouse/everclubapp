@@ -92,37 +92,28 @@ httpServer = http.createServer((req, res) => {
     return;
   }
 
-  if (req.url === '/' && req.method === 'GET') {
-    if (isProduction && !expressApp) {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end('OK');
-      return;
-    }
-    if (!isProduction && !expressApp) {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end('OK');
-      return;
-    }
-  }
-
   if (expressApp) {
     expressApp(req, res);
     return;
   }
 
-  res.writeHead(503, { 'Content-Type': 'text/plain' });
-  res.end('Server is starting up...');
+  if (req.url === '/' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`[Startup] HTTP server listening on port ${PORT} - health check ready`);
   isReady = true;
 
-  setTimeout(() => {
-    initializeApp().catch((err) => {
-      console.error('[Startup] Express initialization failed:', err);
-    });
-  }, 100);
+  initializeApp().catch((err) => {
+    console.error('[Startup] Express initialization failed:', err);
+  });
 });
 
 httpServer.on('error', (err: any) => {
