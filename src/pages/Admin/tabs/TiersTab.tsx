@@ -728,7 +728,7 @@ const TiersTab: React.FC = () => {
                             <div>
                                 <h5 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">Stripe Pricing</h5>
                                 <div className="space-y-3">
-                                    {selectedTier?.stripe_price_id && (
+                                    {selectedTier?.stripe_price_id ? (
                                         <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-500/30">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span aria-hidden="true" className="material-symbols-outlined text-indigo-600 dark:text-indigo-400">link</span>
@@ -762,47 +762,41 @@ const TiersTab: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
-                                    <div>
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Linked Stripe Price</label>
-                                        <select
-                                            className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                                            value={selectedTier?.stripe_price_id || ''}
-                                            onChange={e => {
-                                                if (!selectedTier) return;
-                                                const priceId = e.target.value;
-                                                if (!priceId) {
-                                                    setSelectedTier({
-                                                        ...selectedTier,
-                                                        stripe_price_id: null,
-                                                        stripe_product_id: null,
-                                                        price_cents: null
-                                                    });
-                                                } else {
-                                                    const selectedPrice = stripePrices.find(p => p.id === priceId);
-                                                    if (selectedPrice) {
-                                                        setSelectedTier({
-                                                            ...selectedTier,
-                                                            stripe_price_id: selectedPrice.id,
-                                                            stripe_product_id: selectedPrice.productId,
-                                                            price_cents: selectedPrice.amountCents
-                                                        });
+                                    ) : (
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Link to Stripe Price</label>
+                                            <select
+                                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                                value=""
+                                                onChange={e => {
+                                                    if (!selectedTier) return;
+                                                    const priceId = e.target.value;
+                                                    if (priceId) {
+                                                        const selectedPrice = stripePrices.find(p => p.id === priceId);
+                                                        if (selectedPrice) {
+                                                            setSelectedTier({
+                                                                ...selectedTier,
+                                                                stripe_price_id: selectedPrice.id,
+                                                                stripe_product_id: selectedPrice.productId,
+                                                                price_cents: selectedPrice.amountCents
+                                                            });
+                                                        }
                                                     }
-                                                }
-                                            }}
-                                        >
-                                            <option value="">Not linked to Stripe</option>
-                                            {loadingPrices ? (
-                                                <option disabled>Loading prices...</option>
-                                            ) : (
-                                                stripePrices.map(price => (
-                                                    <option key={price.id} value={price.id}>
-                                                        {price.displayString}
-                                                    </option>
-                                                ))
-                                            )}
-                                        </select>
-                                    </div>
+                                                }}
+                                            >
+                                                <option value="">Not linked to Stripe</option>
+                                                {loadingPrices ? (
+                                                    <option disabled>Loading prices...</option>
+                                                ) : (
+                                                    stripePrices.map(price => (
+                                                        <option key={price.id} value={price.id}>
+                                                            {price.displayString}
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
                                             Price (Cents)
