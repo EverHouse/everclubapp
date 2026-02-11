@@ -13,8 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.34.3",
+    date: "2026-02-10",
+    title: "Unmatched Trackman Bookings Now Visible on Calendar & Queue",
+    changes: [
+      "Fix: Unmatched Trackman bookings (ones without a matched member) were not appearing on the calendar table or queue list — staff couldn't see them or know which bays were occupied",
+      "Fix: Trackman webhook was incorrectly storing confirmed bookings as 'pending' when session creation failed, even though the booking is real and confirmed on Trackman's side — now keeps them as 'approved' so they block availability on the calendar",
+      "Fix: Updated all existing pending unmatched bookings to 'approved' status so they immediately appear on the calendar and in the queue for staff assignment",
+      "Improvement: Calendar table and queue list now include a safety net to always show unmatched Trackman bookings even if a future edge case sets them to pending",
+    ],
+  },
+  {
     version: "7.34.2",
-    date: "2026-02-11",
+    date: "2026-02-10",
     title: "Account Credit Consumption Fix",
     changes: [
       "CRITICAL FIX: When a member's account credit only partially covered a booking fee, the credit was never actually consumed — it stayed on the account and could be reused infinitely, giving unlimited discounts",

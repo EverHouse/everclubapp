@@ -632,13 +632,9 @@ export async function createUnmatchedBookingRequest(
         });
 
         if (!sessionResult.sessionId) {
-          logger.warn('[Trackman Webhook] Session creation failed for unmatched booking, reverting to pending', {
+          logger.warn('[Trackman Webhook] Session creation failed for unmatched booking (keeping approved to block calendar)', {
             extra: { bookingId, trackmanBookingId, error: sessionResult.error }
           });
-          await pool.query(
-            `UPDATE booking_requests SET status = 'pending', updated_at = NOW() WHERE id = $1`,
-            [bookingId]
-          );
         }
       }
       

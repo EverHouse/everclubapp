@@ -58,7 +58,11 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       or(
         eq(bookingRequests.status, 'approved'),
         eq(bookingRequests.status, 'confirmed'),
-        eq(bookingRequests.status, 'attended')
+        eq(bookingRequests.status, 'attended'),
+        and(
+          eq(bookingRequests.status, 'pending'),
+          eq(bookingRequests.isUnmatched, true)
+        )
       ),
     ];
     
