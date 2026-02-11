@@ -646,7 +646,8 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           right: '-100px',
           paddingRight: '100px',
           bottom: 0,
-          height: '100%'
+          height: '100%',
+          maxHeight: '100dvh'
         }}
       >
         <div 
