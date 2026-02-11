@@ -47,6 +47,16 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
         console.log('[Integrity Check] Starting scheduled integrity check...');
         
         try {
+          const { runDataCleanup } = await import('../core/dataIntegrity');
+          try {
+            const cleanupResult = await runDataCleanup();
+            if (cleanupResult.orphanedNotifications > 0 || cleanupResult.orphanedBookings > 0 || cleanupResult.normalizedEmails > 0) {
+              console.log(`[Integrity Check] Pre-check cleanup: ${cleanupResult.orphanedNotifications} orphaned notifications removed, ${cleanupResult.orphanedBookings} orphaned bookings marked, ${cleanupResult.normalizedEmails} emails normalized`);
+            }
+          } catch (cleanupErr) {
+            console.error('[Integrity Check] Pre-check cleanup failed (continuing with checks):', cleanupErr);
+          }
+
           const results = await runAllIntegrityChecks();
           
           const totalIssues = results.reduce((sum, r) => sum + r.issueCount, 0);
@@ -123,17 +133,53 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
       return;
     }
     
-    const result = await pool.query(`
-      DELETE FROM users 
+    const pendingResult = await pool.query(`
+      SELECT id, email FROM users 
       WHERE membership_status = 'pending' 
         AND created_at < NOW() - INTERVAL '24 hours'
         AND stripe_subscription_id IS NULL
-      RETURNING id, email, first_name, last_name
     `);
     
-    if (result.rowCount && result.rowCount > 0) {
-      const emails = result.rows.map(r => r.email).join(', ');
-      console.log(`[Auto-Cleanup] Deleted ${result.rowCount} abandoned pending users: ${emails}`);
+    if (!pendingResult.rows.length) return;
+    
+    let deletedCount = 0;
+    
+    for (const user of pendingResult.rows) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        await client.query('DELETE FROM notifications WHERE user_id = $1', [user.id]);
+        await client.query('DELETE FROM booking_participants WHERE user_id = $1::text', [user.id]);
+        await client.query('DELETE FROM booking_sessions WHERE user_id = $1', [user.id]);
+        await client.query('DELETE FROM booking_requests WHERE user_id = $1', [user.id]);
+        await client.query('DELETE FROM event_rsvps WHERE LOWER(user_email) = LOWER($1)', [user.email]);
+        await client.query('DELETE FROM wellness_enrollments WHERE LOWER(user_email) = LOWER($1)', [user.email]);
+        await client.query('DELETE FROM pending_fees WHERE user_id = $1', [user.id]);
+        await client.query('DELETE FROM user_notes WHERE user_id = $1', [user.id]);
+        await client.query('DELETE FROM guest_passes WHERE LOWER(member_email) = LOWER($1)', [user.email]);
+        
+        const deleteResult = await client.query(
+          'DELETE FROM users WHERE id = $1 RETURNING email',
+          [user.id]
+        );
+        
+        await client.query('COMMIT');
+        
+        if (deleteResult.rowCount && deleteResult.rowCount > 0) {
+          deletedCount++;
+        }
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(`[Auto-Cleanup] Failed to cleanup user ${user.email}:`, err);
+      } finally {
+        client.release();
+      }
+    }
+    
+    if (deletedCount > 0) {
+      const emails = pendingResult.rows.slice(0, deletedCount).map(r => r.email).join(', ');
+      console.log(`[Auto-Cleanup] Deleted ${deletedCount} abandoned pending users with all related records: ${emails}`);
     }
   } catch (err) {
     console.error('[Auto-Cleanup] Failed to cleanup abandoned pending users:', err);

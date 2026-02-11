@@ -13,6 +13,23 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.42.0",
+    date: "2026-02-11",
+    title: "Data Integrity Audit & Hardening",
+    isMajor: true,
+    changes: [
+      "Fixed: Stripe subscription sync now checks a random sample of members each run instead of always checking the same 100",
+      "Fixed: Removed duplicate 'Empty Booking Sessions' check that overlapped with 'Sessions Without Participants'",
+      "Fixed: Severity map now correctly maps all 24 integrity checks — removed 3 phantom entries and added 4 missing ones",
+      "Fixed: Pending user cleanup now safely removes all related records (bookings, notifications, fees, etc.) in a transaction before deleting the user",
+      "New: Stale tours older than 7 days are automatically marked as 'no-show' during integrity checks",
+      "New: Data cleanup runs automatically before scheduled integrity checks to resolve transient issues first",
+      "New: Email normalization now covers 6 tables (added event RSVPs, wellness enrollments, guest passes)",
+      "New: Orphaned fee snapshots (from deleted bookings) are automatically cleaned up during data maintenance",
+      "Improved: Cleanup route response now reports orphaned fee snapshot removal count",
+    ],
+  },
+  {
     version: "7.41.0",
     date: "2026-02-11",
     title: "Facility Page Redesign — Liquid Glass",

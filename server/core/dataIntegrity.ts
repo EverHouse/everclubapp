@@ -23,23 +23,23 @@ import { getStripeClient } from './stripe/client';
 import { alertOnCriticalIntegrityIssues, alertOnHighIntegrityIssues } from './dataAlerts';
 
 const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
-  'HubSpot Sync Status': 'critical',
   'HubSpot Sync Mismatch': 'critical',
   'Deal Stage Drift': 'critical',
   'Stripe Subscription Sync': 'critical',
   'Stuck Transitional Members': 'critical',
-  'Calendar Sync Mismatches': 'high',
+  'Active Bookings Without Sessions': 'critical',
   'Participant User Relationships': 'high',
-  'Booking Request Integrity': 'high',
   'Booking Resource Relationships': 'high',
   'Booking Time Validity': 'high',
   'Members Without Email': 'high',
   'Deals Without Line Items': 'high',
   'Tier Reconciliation': 'high',
+  'Duplicate Stripe Customers': 'high',
   'Orphan Booking Participants': 'medium',
   'Orphan Wellness Enrollments': 'medium',
   'Orphan Event RSVPs': 'medium',
-  'Empty Booking Sessions': 'low',
+  'MindBody Stale Sync': 'medium',
+  'MindBody Data Quality': 'medium',
   'Duplicate Tour Sources': 'low',
   'Items Needing Review': 'low',
   'Stale Past Tours': 'low',
@@ -163,43 +163,6 @@ async function checkOrphanBookingParticipants(): Promise<IntegrityCheckResult> {
   return {
     checkName: 'Orphan Booking Participants',
     status: issues.length === 0 ? 'pass' : 'fail',
-    issueCount: issues.length,
-    issues,
-    lastRun: new Date()
-  };
-}
-
-async function checkEmptyBookingSessions(): Promise<IntegrityCheckResult> {
-  const issues: IntegrityIssue[] = [];
-  
-  const emptySessions = await db.execute(sql`
-    SELECT bs.id, bs.session_date, bs.start_time, bs.end_time, bs.resource_id, r.name as resource_name
-    FROM booking_sessions bs
-    LEFT JOIN booking_participants bp ON bs.id = bp.session_id
-    LEFT JOIN resources r ON bs.resource_id = r.id
-    WHERE bp.id IS NULL
-  `);
-  
-  for (const row of emptySessions.rows as any[]) {
-    issues.push({
-      category: 'orphan_record',
-      severity: 'warning',
-      table: 'booking_sessions',
-      recordId: row.id,
-      description: `Booking session on ${row.session_date} at ${row.start_time} has no participants`,
-      suggestion: 'Add participants or delete the empty session',
-      context: {
-        bookingDate: row.session_date || undefined,
-        startTime: row.start_time || undefined,
-        endTime: row.end_time || undefined,
-        resourceName: row.resource_name || undefined
-      }
-    });
-  }
-  
-  return {
-    checkName: 'Empty Booking Sessions',
-    status: issues.length === 0 ? 'pass' : issues.length > 5 ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
     lastRun: new Date()
@@ -708,6 +671,18 @@ async function checkStalePastTours(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   const today = getTodayPacific();
   
+  const autoFixResult = await db.execute(sql`
+    UPDATE tours 
+    SET status = 'no_show', updated_at = NOW()
+    WHERE tour_date < ${today}::date - INTERVAL '7 days'
+    AND status IN ('pending', 'scheduled')
+    RETURNING id
+  `);
+  
+  if (autoFixResult.rows.length > 0) {
+    console.log(`[DataIntegrity] Auto-fixed ${autoFixResult.rows.length} stale tours older than 7 days to 'no_show'`);
+  }
+  
   const staleTours = await db.execute(sql`
     SELECT id, title, tour_date, status, guest_name, guest_email, start_time
     FROM tours
@@ -927,6 +902,7 @@ async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
       AND membership_status IS NOT NULL
       AND role = 'member'
       AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
+    ORDER BY RANDOM()
     LIMIT 100
   `);
   const appMembers = appMembersResult.rows as any[];
@@ -1950,7 +1926,6 @@ async function checkGuestPassesForNonExistentMembers(): Promise<IntegrityCheckRe
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
   const checks = await Promise.all([
     checkOrphanBookingParticipants(),
-    checkEmptyBookingSessions(),
     checkUnmatchedTrackmanBookings(),
     checkOrphanWellnessEnrollments(),
     checkOrphanEventRsvps(),
@@ -2504,10 +2479,12 @@ export async function runDataCleanup(): Promise<{
   orphanedNotifications: number;
   orphanedBookings: number;
   normalizedEmails: number;
+  orphanedFeeSnapshots: number;
 }> {
   let orphanedNotifications = 0;
   let orphanedBookings = 0;
   let normalizedEmails = 0;
+  let orphanedFeeSnapshots = 0;
 
   try {
     const notifResult = await db.execute(sql`
@@ -2547,21 +2524,51 @@ export async function runDataCleanup(): Promise<{
           UPDATE notifications SET user_email = LOWER(TRIM(user_email))
           WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
           RETURNING 1
+        ),
+        event_rsvps_updated AS (
+          UPDATE event_rsvps SET user_email = LOWER(TRIM(user_email))
+          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+          RETURNING 1
+        ),
+        wellness_updated AS (
+          UPDATE wellness_enrollments SET user_email = LOWER(TRIM(user_email))
+          WHERE user_email IS NOT NULL AND user_email != LOWER(TRIM(user_email))
+          RETURNING 1
+        ),
+        guest_passes_updated AS (
+          UPDATE guest_passes SET member_email = LOWER(TRIM(member_email))
+          WHERE member_email IS NOT NULL AND member_email != LOWER(TRIM(member_email))
+          RETURNING 1
         )
       SELECT 
         (SELECT COUNT(*) FROM users_updated) +
         (SELECT COUNT(*) FROM bookings_updated) +
-        (SELECT COUNT(*) FROM notifs_updated) as total
+        (SELECT COUNT(*) FROM notifs_updated) +
+        (SELECT COUNT(*) FROM event_rsvps_updated) +
+        (SELECT COUNT(*) FROM wellness_updated) +
+        (SELECT COUNT(*) FROM guest_passes_updated) as total
     `);
     normalizedEmails = (emailResult.rows[0] as any)?.total || 0;
 
-    console.log(`[DataCleanup] Removed ${orphanedNotifications} orphaned notifications, marked ${orphanedBookings} orphaned bookings, normalized ${normalizedEmails} emails`);
+    const feeSnapshotResult = await db.execute(sql`
+      DELETE FROM booking_fee_snapshots bfs
+      WHERE NOT EXISTS (SELECT 1 FROM booking_requests br WHERE br.id = bfs.booking_id)
+        AND bfs.status NOT IN ('paid', 'captured')
+      RETURNING id
+    `);
+    orphanedFeeSnapshots = feeSnapshotResult.rows.length;
+
+    if (orphanedFeeSnapshots > 0) {
+      console.log(`[DataCleanup] Removed ${orphanedFeeSnapshots} orphaned fee snapshots`);
+    }
+
+    console.log(`[DataCleanup] Removed ${orphanedNotifications} orphaned notifications, marked ${orphanedBookings} orphaned bookings, normalized ${normalizedEmails} emails, removed ${orphanedFeeSnapshots} orphaned fee snapshots`);
   } catch (error: any) {
     console.error('[DataCleanup] Error during cleanup:', error.message);
     throw error;
   }
 
-  return { orphanedNotifications, orphanedBookings, normalizedEmails };
+  return { orphanedNotifications, orphanedBookings, normalizedEmails, orphanedFeeSnapshots };
 }
 
 export async function autoFixMissingTiers(): Promise<{
