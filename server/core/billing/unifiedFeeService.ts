@@ -433,40 +433,79 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     } else {
       // Filter by resource type to separate simulator vs conference room usage
       const resourceTypeFilter = isConferenceRoom ? 'conference_room' : 'simulator';
-      const usageQuery = excludeId 
-        ? `WITH ledger_usage AS (
-             SELECT LOWER(ul.member_id) as identifier, COALESCE(SUM(ul.minutes_charged), 0) as mins
-             FROM usage_ledger ul
-             JOIN booking_sessions bs ON ul.session_id = bs.id
-             JOIN resources r ON bs.resource_id = r.id
-             WHERE LOWER(ul.member_id) = ANY($1::text[])
-               AND bs.session_date = $2
-               AND ul.session_id != $3
-               AND r.type = $4
-             GROUP BY LOWER(ul.member_id)
-           ),
-           ghost_usage AS (
-             SELECT LOWER(br.user_email) as identifier, 
-                    COALESCE(SUM(FLOOR(br.duration_minutes::float / GREATEST(1, COALESCE(br.declared_player_count, 1)))), 0) as mins
-             FROM booking_requests br
-             WHERE LOWER(br.user_email) = ANY($1::text[])
-               AND br.request_date = $2
-               AND br.status IN ('approved', 'confirmed', 'attended')
-               AND (
+      
+      // IMPORTANT: Apply chronological ordering so the earliest booking of the day
+      // uses the daily allowance first. Only count usage from bookings that start
+      // EARLIER than the current booking. Without this, a later booking's usage_ledger
+      // entry can make an earlier booking appear to have overage.
+      const hasTimeFilter = startTime !== undefined;
+      
+      // Build query with consistent parameter positions:
+      // $1=identifiers, $2=date, $3=resourceType
+      // When excludeId: +$4=excludeId
+      // When hasTimeFilter: +startTime param, +bookingId param
+      let usageParams: any[];
+      let pStartTime: string;
+      let pBookingId: string;
+      let pExcludeId: string;
+      
+      if (excludeId && hasTimeFilter) {
+        // $1=identifiers, $2=date, $3=resourceType, $4=excludeId, $5=startTime, $6=bookingId
+        usageParams = [allIdentifiers, sessionDate, resourceTypeFilter, excludeId, startTime, currentBookingId || 0];
+        pExcludeId = '$4';
+        pStartTime = '$5';
+        pBookingId = '$6';
+      } else if (excludeId) {
+        // $1=identifiers, $2=date, $3=resourceType, $4=excludeId
+        usageParams = [allIdentifiers, sessionDate, resourceTypeFilter, excludeId];
+        pExcludeId = '$4';
+        pStartTime = '';
+        pBookingId = '';
+      } else if (hasTimeFilter) {
+        // $1=identifiers, $2=date, $3=resourceType, $4=startTime, $5=bookingId
+        usageParams = [allIdentifiers, sessionDate, resourceTypeFilter, startTime, currentBookingId || 0];
+        pExcludeId = '';
+        pStartTime = '$4';
+        pBookingId = '$5';
+      } else {
+        // $1=identifiers, $2=date, $3=resourceType
+        usageParams = [allIdentifiers, sessionDate, resourceTypeFilter];
+        pExcludeId = '';
+        pStartTime = '';
+        pBookingId = '';
+      }
+      
+      const excludeClauseLedger = pExcludeId ? `AND ul.session_id != ${pExcludeId}` : '';
+      const excludeClauseGhost = pExcludeId 
+        ? `AND (
                  br.session_id IS NULL
-                 OR (br.session_id != $3 AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = br.session_id))
-               )
-               AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $4)
-             GROUP BY LOWER(br.user_email)
-           )
-           SELECT identifier, COALESCE(SUM(mins), 0) as used
-           FROM (
-             SELECT * FROM ledger_usage
-             UNION ALL
-             SELECT * FROM ghost_usage
-           ) combined
-           GROUP BY identifier`
-        : `WITH ledger_usage AS (
+                 OR (br.session_id != ${pExcludeId} AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = br.session_id))
+               )`
+        : `AND (
+                 br.session_id IS NULL
+                 OR NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = br.session_id)
+               )`;
+      
+      // For ledger_usage: use a correlated subquery to get the booking's start_time
+      // without JOINing booking_requests (which could multiply rows if multiple BRs per session)
+      const timeFilterLedger = hasTimeFilter 
+        ? `AND (
+                 COALESCE((SELECT MIN(br2.start_time) FROM booking_requests br2 WHERE br2.session_id = bs.id), '00:00:00') < ${pStartTime}
+                 OR (
+                   COALESCE((SELECT MIN(br2.start_time) FROM booking_requests br2 WHERE br2.session_id = bs.id), '00:00:00') = ${pStartTime}
+                   AND COALESCE((SELECT MIN(br2.id) FROM booking_requests br2 WHERE br2.session_id = bs.id), 0) < ${pBookingId}
+                 )
+               )`
+        : '';
+      
+      const timeFilterGhost = hasTimeFilter
+        ? `AND (
+                 COALESCE(br.start_time, '00:00:00') < ${pStartTime}
+                 OR (COALESCE(br.start_time, '00:00:00') = ${pStartTime} AND br.id < ${pBookingId})
+               )`
+        : '';
+      
+      const usageQuery = `WITH ledger_usage AS (
              SELECT LOWER(ul.member_id) as identifier, COALESCE(SUM(ul.minutes_charged), 0) as mins
              FROM usage_ledger ul
              JOIN booking_sessions bs ON ul.session_id = bs.id
@@ -474,6 +513,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
              WHERE LOWER(ul.member_id) = ANY($1::text[])
                AND bs.session_date = $2
                AND r.type = $3
+               ${excludeClauseLedger}
+               ${timeFilterLedger}
              GROUP BY LOWER(ul.member_id)
            ),
            ghost_usage AS (
@@ -483,11 +524,9 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
              WHERE LOWER(br.user_email) = ANY($1::text[])
                AND br.request_date = $2
                AND br.status IN ('approved', 'confirmed', 'attended')
-               AND (
-                 br.session_id IS NULL
-                 OR NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = br.session_id)
-               )
+               ${excludeClauseGhost}
                AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = $3)
+               ${timeFilterGhost}
              GROUP BY LOWER(br.user_email)
            )
            SELECT identifier, COALESCE(SUM(mins), 0) as used
@@ -497,9 +536,6 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
              SELECT * FROM ghost_usage
            ) combined
            GROUP BY identifier`;
-      const usageParams = excludeId 
-        ? [allIdentifiers, sessionDate, excludeId, resourceTypeFilter]
-        : [allIdentifiers, sessionDate, resourceTypeFilter];
       const usageResult = await pool.query(usageQuery, usageParams);
       usageResult.rows.forEach(r => usageMap.set(r.identifier, parseInt(r.used) || 0));
     }

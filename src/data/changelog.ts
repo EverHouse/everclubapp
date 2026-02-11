@@ -13,6 +13,14 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.39.6",
+    date: "2026-02-11",
+    title: "Chronological Fee Ordering Fix",
+    changes: [
+      "Fix: When a member has multiple bookings on the same day, overage fees are now correctly assigned to the later booking — previously the earlier booking could be charged overage because the system counted the later booking's usage first, making it look like the daily allowance was already used up",
+    ],
+  },
+  {
     version: "7.39.5",
     date: "2026-02-11",
     title: "Fee Display Accuracy Improvements",
