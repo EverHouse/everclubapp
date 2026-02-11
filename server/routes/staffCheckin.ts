@@ -871,13 +871,11 @@ router.post('/api/booking-participants/:id/mark-waiver-reviewed', isStaffOrAdmin
   try {
     const participantId = parseInt(req.params.id);
     if (isNaN(participantId)) {
-      client.release();
       return res.status(400).json({ error: 'Invalid participant ID' });
     }
 
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
-      client.release();
       return res.status(401).json({ error: 'Authentication required' });
     }
 
@@ -892,7 +890,6 @@ router.post('/api/booking-participants/:id/mark-waiver-reviewed', isStaffOrAdmin
 
     if (participantCheck.rows.length === 0) {
       await client.query('ROLLBACK');
-      client.release();
       return res.status(404).json({ error: 'Waived participant not found or no associated booking' });
     }
 
@@ -917,13 +914,13 @@ router.post('/api/booking-participants/:id/mark-waiver-reviewed', isStaffOrAdmin
     });
 
     await client.query('COMMIT');
-    client.release();
 
     res.json({ success: true, participant: { id: participantId, display_name, waiver_reviewed_at: new Date() } });
   } catch (error: any) {
-    await client.query('ROLLBACK');
-    client.release();
+    try { await client.query('ROLLBACK'); } catch {}
     logAndRespond(req, res, 500, 'Failed to mark waiver as reviewed', error);
+  } finally {
+    client.release();
   }
 });
 
@@ -932,13 +929,11 @@ router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin
   try {
     const bookingId = parseInt(req.params.bookingId);
     if (isNaN(bookingId)) {
-      client.release();
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
 
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
-      client.release();
       return res.status(401).json({ error: 'Authentication required' });
     }
 
@@ -952,7 +947,6 @@ router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin
 
     if (bookingResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      client.release();
       return res.status(404).json({ error: 'Booking not found' });
     }
 
@@ -983,13 +977,13 @@ router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin
     });
 
     await client.query('COMMIT');
-    client.release();
 
     res.json({ success: true, updatedCount: result.rows.length });
   } catch (error: any) {
-    await client.query('ROLLBACK');
-    client.release();
+    try { await client.query('ROLLBACK'); } catch {}
     logAndRespond(req, res, 500, 'Failed to mark waivers as reviewed', error);
+  } finally {
+    client.release();
   }
 });
 
@@ -998,7 +992,6 @@ router.post('/api/bookings/bulk-review-all-waivers', isStaffOrAdmin, async (req:
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
-      client.release();
       return res.status(401).json({ error: 'Authentication required' });
     }
 
@@ -1035,13 +1028,13 @@ router.post('/api/bookings/bulk-review-all-waivers', isStaffOrAdmin, async (req:
     });
 
     await client.query('COMMIT');
-    client.release();
 
     res.json({ success: true, updatedCount });
   } catch (error: any) {
-    await client.query('ROLLBACK');
-    client.release();
+    try { await client.query('ROLLBACK'); } catch {}
     logAndRespond(req, res, 500, 'Failed to bulk review waivers', error);
+  } finally {
+    client.release();
   }
 });
 

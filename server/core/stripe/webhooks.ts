@@ -932,7 +932,21 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
     participantFees = [];
   } else if (metadata?.participantFees) {
     console.warn(`[Stripe Webhook] No snapshot ID - falling back to DB cached fee validation`);
-    const clientFees: ParticipantFee[] = JSON.parse(metadata.participantFees);
+    let clientFees: ParticipantFee[];
+    try {
+      clientFees = JSON.parse(metadata.participantFees);
+    } catch (parseErr) {
+      console.error(`[Stripe Webhook] Failed to parse participantFees metadata for PI ${id} - marking for review`, parseErr);
+      await client.query(
+        `INSERT INTO audit_log (action, resource_type, resource_id, details, created_at)
+         VALUES ('parse_error', 'payment', $1, $2, NOW())`,
+        [id, JSON.stringify({ error: 'Failed to parse participantFees metadata', raw: metadata.participantFees?.substring(0, 200) })]
+      );
+      clientFees = [];
+    }
+    if (clientFees.length === 0 && metadata?.participantFees) {
+      console.warn(`[Stripe Webhook] Empty or unparseable participantFees for PI ${id} - skipping participant updates`);
+    }
     const participantIds = clientFees.map(pf => pf.id);
     
     // Query participants directly by ID - simpler and more reliable

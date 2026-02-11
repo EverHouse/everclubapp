@@ -717,13 +717,13 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
 
     if (result.paidInFull) {
       const existingPass = await pool.query(
-        'SELECT id, passes_total FROM guest_passes WHERE member_email = $1',
+        'SELECT id, passes_total FROM guest_passes WHERE LOWER(member_email) = LOWER($1)',
         [sessionEmail]
       );
 
       if (existingPass.rows.length > 0) {
         await pool.query(
-          'UPDATE guest_passes SET passes_total = passes_total + $1 WHERE member_email = $2',
+          'UPDATE guest_passes SET passes_total = passes_total + $1 WHERE LOWER(member_email) = LOWER($2)',
           [quantity, sessionEmail]
         );
         console.log(`[Stripe] Added ${quantity} guest passes to existing record for ${sessionEmail} (paid by credit)`);
@@ -817,13 +817,13 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
     }
 
     const existingPass = await pool.query(
-      'SELECT id, passes_total FROM guest_passes WHERE member_email = $1',
+      'SELECT id, passes_total FROM guest_passes WHERE LOWER(member_email) = LOWER($1)',
       [sessionEmail]
     );
 
     if (existingPass.rows.length > 0) {
       await pool.query(
-        'UPDATE guest_passes SET passes_total = passes_total + $1 WHERE member_email = $2',
+        'UPDATE guest_passes SET passes_total = passes_total + $1 WHERE LOWER(member_email) = LOWER($2)',
         [quantity, sessionEmail]
       );
       console.log(`[Stripe] Added ${quantity} guest passes to existing record for ${sessionEmail}`);
