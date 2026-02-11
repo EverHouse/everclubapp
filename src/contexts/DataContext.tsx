@@ -921,7 +921,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const formatEventData = (data: any[]) => data.map((event: any) => ({
       id: event.id.toString(),
       source: event.source === 'eventbrite' ? 'eventbrite' : 'internal',
-      externalLink: event.eventbrite_url || undefined,
+      externalLink: event.eventbrite_url || event.external_url || undefined,
       title: event.title,
       category: normalizeCategory(event.category),
       date: formatDateShort(event.event_date),
@@ -1262,7 +1262,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const formatEventData = (events: any[]) => events.map((event: any) => ({
               id: event.id.toString(),
               source: event.source === 'eventbrite' ? 'eventbrite' : 'internal',
-              externalLink: event.eventbrite_url || undefined,
+              externalLink: event.eventbrite_url || event.external_url || undefined,
               title: event.title,
               category: event.category || 'Social',
               date: formatDateShort(event.event_date),

@@ -164,7 +164,7 @@ const MemberEvents: React.FC = () => {
   };
 
   const submitRSVP = async (event: EventData) => {
-    if (event.source === 'eventbrite' && event.externalLink) {
+    if (event.externalLink) {
       window.open(event.externalLink, '_blank');
       return;
     }
@@ -379,7 +379,18 @@ const MemberEvents: React.FC = () => {
                             Add to Cal
                           </button>
                           
-                          {user?.status && user.status.toLowerCase() !== 'active' ? (
+                          {event.externalLink && event.source !== 'eventbrite' ? (
+                            <a 
+                              href={event.externalLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:opacity-90'}`}
+                            >
+                              <span>Learn More</span>
+                              <span className="material-symbols-outlined text-sm">open_in_new</span>
+                            </a>
+                          ) : user?.status && user.status.toLowerCase() !== 'active' ? (
                             <div className={`flex-1 py-3 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
                               <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Event</span>
                             </div>

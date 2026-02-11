@@ -38,6 +38,7 @@ interface WellnessClass {
     capacity?: number | null;
     waitlistEnabled?: boolean;
     waitlistCount?: number;
+    external_url?: string;
 }
 
 const formatDateForDisplay = (dateStr: string): string => {
@@ -441,6 +442,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
                             isDark={isDark}
                             isMembershipInactive={!!(userStatus && userStatus.toLowerCase() !== 'active')}
                             isFull={isFull}
+                            externalUrl={cls.external_url}
                         />
                     </MotionListItem>
                     );
@@ -575,7 +577,7 @@ const LoadingSpinner: React.FC<{ className?: string }> = ({ className = '' }) =>
   </svg>
 );
 
-const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0 }) => {
+const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl }) => {
   const formattedTime = formatTimeTo12Hour(time);
   const showJoinWaitlist = isFull && waitlistEnabled && !isEnrolled;
   const showFullNoWaitlist = isFull && !waitlistEnabled && !isEnrolled;
@@ -664,7 +666,18 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
           <span className={`w-2 h-2 rounded-full ${isFull && !isEnrolled ? 'bg-orange-500' : isOnWaitlist ? 'bg-amber-500' : isEnrolled ? 'bg-green-500' : 'bg-green-500'}`}></span>
           {getSpotDisplay()}
         </div>
-        {isMembershipInactive ? (
+        {externalUrl ? (
+          <a 
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:opacity-90'}`}
+          >
+            <span>Learn More</span>
+            <span className="material-symbols-outlined text-sm">open_in_new</span>
+          </a>
+        ) : isMembershipInactive ? (
           <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
             <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Wellness</span>
           </div>

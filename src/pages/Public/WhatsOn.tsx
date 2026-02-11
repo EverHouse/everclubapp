@@ -20,6 +20,7 @@ interface Event {
   category: string;
   image_url?: string;
   eventbrite_url?: string;
+  external_url?: string;
   type: 'event';
 }
 
@@ -34,6 +35,7 @@ interface WellnessClass {
   category: string;
   spots: number;
   status: string;
+  external_url?: string;
   type: 'wellness';
 }
 
@@ -270,15 +272,39 @@ const WhatsOn: React.FC = () => {
                           <span>Get Tickets</span>
                           <span className="material-symbols-outlined text-sm">open_in_new</span>
                         </a>
+                      ) : item.external_url ? (
+                        <a 
+                          href={item.external_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full bg-[#293515] hover:bg-[#1e2810] text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-colors"
+                        >
+                          <span>Learn More</span>
+                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        </a>
                       ) : (
                         <div className="w-full bg-[#F2F2EC] py-3 rounded-xl flex items-center justify-center px-4">
                           <span className="text-xs font-medium text-primary/60">Members Only Event</span>
                         </div>
                       )
                     ) : (
-                      <div className="w-full bg-[#F2F2EC] py-3 rounded-xl flex items-center justify-center px-4">
-                        <span className="text-xs font-medium text-primary/60">Members Only Wellness</span>
-                      </div>
+                      (item as WellnessClass).external_url ? (
+                        <a 
+                          href={(item as WellnessClass).external_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full bg-[#293515] hover:bg-[#1e2810] text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-colors"
+                        >
+                          <span>Learn More</span>
+                          <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        </a>
+                      ) : (
+                        <div className="w-full bg-[#F2F2EC] py-3 rounded-xl flex items-center justify-center px-4">
+                          <span className="text-xs font-medium text-primary/60">Members Only Wellness</span>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>

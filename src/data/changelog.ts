@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.43.0",
+    date: "2026-02-11",
+    title: "External Link Buttons for Events & Wellness",
+    changes: [
+      "New: Events and wellness classes with an external URL now show a 'Learn More' button that opens the link directly",
+      "New: External link buttons work on the public What's On page too — replacing the greyed-out 'Members Only' placeholder",
+      "New: Eventbrite events keep their existing 'Get Tickets' style; admin-set external links get the green 'Learn More' style",
+      "Improved: Member events page now opens external links for all events with a URL, not just Eventbrite ones",
+    ],
+  },
+  {
     version: "7.42.2",
     date: "2026-02-11",
     title: "Trackman Link & SQL Safety Fixes",
