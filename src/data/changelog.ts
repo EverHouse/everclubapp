@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.45.0",
+    date: "2026-02-11",
+    title: "HubSpot Deal Creation Disabled & Cleanup",
+    changes: [
+      "Changed: HubSpot deal creation is now disabled — no new deals will be created until further notice",
+      "Changed: All 2,703 existing HubSpot deals created by the app have been removed from HubSpot",
+      "Changed: Local deal tracking tables cleared — HubSpot contacts and other syncing still work normally",
+    ],
+  },
+  {
     version: "7.44.2",
     date: "2026-02-11",
     title: "New Member Signup & Reschedule Fixes",

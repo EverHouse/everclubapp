@@ -228,17 +228,11 @@ async function executeHubSpotOperation(operation: string, payload: any): Promise
       break;
       
     case 'create_deal':
-      await members.createMembershipDeal(
-        payload.contactId,
-        payload.email,
-        payload.tier,
-        payload.pricePerMonth
-      );
+      console.log(`[HubSpot Queue] Deal creation disabled — skipping create_deal for ${payload.email}`);
       break;
       
     case 'sync_member':
-      // Sync a newly created member to HubSpot (contact + deal)
-      await members.syncNewMemberToHubSpot(payload);
+      console.log(`[HubSpot Queue] Deal creation disabled — skipping sync_member for ${payload.email}`);
       break;
       
     case 'sync_tier':

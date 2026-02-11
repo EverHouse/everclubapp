@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../core/middleware';
-import { isProduction } from '../core/db';
+import { pool, isProduction } from '../core/db';
 import {
   getMemberDealWithLineItems,
   getAllProductMappings,
@@ -458,6 +458,53 @@ router.get('/api/hubspot/deal-stage-summary', isStaffOrAdmin, async (req, res) =
   } catch (error: any) {
     console.error('[HubSpotDeals] Error fetching stage summary:', error);
     res.status(500).json({ error: 'Failed to fetch stage summary' });
+  }
+});
+
+router.post('/api/admin/hubspot/deals/batch-delete', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    const { getHubSpotClient } = await import('../core/integrations');
+    const hubspot = await getHubSpotClient();
+    
+    const allDeals = await pool.query('SELECT id, hubspot_deal_id, member_email, deal_name FROM hubspot_deals ORDER BY id');
+    const deals = allDeals.rows;
+    
+    let deleted = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    
+    for (const deal of deals) {
+      try {
+        await hubspot.crm.deals.basicApi.archive(deal.hubspot_deal_id);
+        deleted++;
+      } catch (err: any) {
+        if (err?.code === 404 || err?.statusCode === 404 || err?.message?.includes('NOT_FOUND')) {
+          deleted++;
+        } else {
+          failed++;
+          if (errors.length < 10) errors.push(`${deal.hubspot_deal_id}: ${err.message}`);
+        }
+      }
+      
+      if (deleted % 50 === 0) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    
+    await pool.query('DELETE FROM hubspot_line_items');
+    await pool.query('DELETE FROM hubspot_deals');
+    
+    const { logFromRequest } = await import('../core/auditLog');
+    logFromRequest(req, 'hubspot_deals_batch_delete', 'hubspot', 'all',
+      `Batch deleted ${deleted} deals`, { deleted, failed, total: deals.length });
+    
+    console.log(`[HubSpot] Batch deleted ${deleted} deals from HubSpot, ${failed} failures, cleared local tables`);
+    
+    res.json({ success: true, deleted, failed, total: deals.length, errors: errors.length > 0 ? errors : undefined });
+  } catch (error: any) {
+    console.error('[HubSpot] Batch delete failed:', error);
+    res.status(500).json({ error: error.message || 'Batch delete failed' });
   }
 });
 

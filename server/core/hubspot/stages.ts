@@ -262,6 +262,8 @@ export async function syncDealStageFromMindbodyStatus(
   performedBy: string = 'system',
   performedByName?: string
 ): Promise<{ success: boolean; dealId?: string; newStage?: string; contactUpdated?: boolean; error?: string }> {
+  console.log(`[HubSpot] Deal sync disabled — skipping stage sync for ${memberEmail}`);
+  return { success: true, error: 'Deal sync disabled' };
   const { createDealForLegacyMember } = await import('./members');
   
   try {

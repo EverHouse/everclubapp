@@ -167,6 +167,8 @@ export async function createMembershipDeal(
   startDate?: string,
   stage?: string
 ): Promise<string> {
+  console.log(`[HubSpot] Deal creation disabled — skipping deal for ${memberEmail}`);
+  return 'DEALS_DISABLED';
   const hubspot = await getHubSpotClient();
   const { denormalizeTierForHubSpot } = await import('../../utils/tierUtils');
   const hubspotTier = tier ? denormalizeTierForHubSpot(tier) : null;
@@ -207,6 +209,8 @@ export async function createDealForLegacyMember(
   performedBy: string,
   performedByName?: string
 ): Promise<{ success: boolean; dealId?: string; contactId?: string; lineItemId?: string; error?: string }> {
+  console.log(`[HubSpot] Deal creation disabled — skipping legacy deal for ${memberEmail}`);
+  return { success: true, dealId: undefined, error: 'Deal creation disabled' };
   const normalizedEmail = memberEmail.toLowerCase().trim();
   
   try {
@@ -442,6 +446,8 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
 }
 
 export async function syncNewMemberToHubSpot(input: AddMemberInput): Promise<void> {
+  console.log(`[HubSpot] Deal creation disabled — skipping syncNewMemberToHubSpot`);
+  return;
   const { firstName, lastName, email, phone, tier, startDate, discountReason, createdBy, createdByName } = input;
   const normalizedEmail = email.toLowerCase().trim();
   
@@ -565,6 +571,8 @@ export async function createMemberWithDeal(input: AddMemberInput): Promise<AddMe
     createdByName
   } = input;
   
+  console.log(`[HubSpot] Deal creation disabled — skipping createMemberWithDeal for ${email}`);
+  return { success: false, error: 'Deal creation is currently disabled' };
   const normalizedEmail = email.toLowerCase().trim();
   
   try {
