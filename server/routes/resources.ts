@@ -2349,7 +2349,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
         );
         
         await client.query(
-          `DELETE FROM fee_snapshots WHERE booking_id = $1`,
+          `DELETE FROM booking_fee_snapshots WHERE booking_id = $1`,
           [bookingId]
         );
         
