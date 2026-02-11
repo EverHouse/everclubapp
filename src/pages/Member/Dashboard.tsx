@@ -910,11 +910,16 @@ const Dashboard: React.FC = () => {
               return (
                 <div 
                   onClick={() => setIsCardOpen(true)} 
-                  className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-[1.5rem] overflow-hidden cursor-pointer transform transition-transform active:scale-95 shadow-layered group animate-slide-up-stagger ${isExpired ? 'grayscale-[30%]' : ''}`}
+                  className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-[1.5rem] overflow-hidden cursor-pointer transition-all duration-500 ease-out group animate-slide-up-stagger active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
                   style={{ '--stagger-index': 2 } as React.CSSProperties}
                 >
                   <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
-                  <div className="absolute inset-0 bg-glossy opacity-50"></div>
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
+                  <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")` }}></div>
+                  <div className="absolute inset-0 border border-white/30 rounded-[1.5rem] backdrop-blur-xl" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.2)' }}></div>
+                  <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <div className="holographic-shimmer absolute -inset-full"></div>
+                  </div>
                   <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
                     <div className="flex justify-between items-start">
                       <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" />
@@ -937,7 +942,7 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <TierBadge tier={user?.tier || 'Social'} size="sm" />
                       </div>
-                      <h3 className="text-xl font-bold tracking-wide" style={{ color: cardTextColor }}>{user?.name}</h3>
+                      <h3 className="text-xl font-display font-bold tracking-wide" style={{ color: cardTextColor, textShadow: '0 1px 3px rgba(0,0,0,0.15)' }}>{user?.name}</h3>
                       {isExpired ? (
                         <p className="text-xs mt-2 text-red-200">Membership expired - Contact us to renew</p>
                       ) : (
@@ -952,7 +957,7 @@ const Dashboard: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm z-20">
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300 backdrop-blur-sm z-20 rounded-[1.5rem]">
                     <span className="font-bold text-sm text-white">{isExpired ? 'Renew Membership' : 'View Membership Details'}</span>
                   </div>
                 </div>

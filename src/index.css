@@ -1406,6 +1406,31 @@ html.dark .border-accessible {
     0 32px 64px rgba(0, 0, 0, 0.24);
 }
 
+.holographic-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+  transform: translateX(-100%) rotate(25deg);
+}
+
+.group:hover .holographic-shimmer {
+  animation: holographic-shimmer 1.2s ease-in-out;
+}
+
+@keyframes holographic-shimmer {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+  }
+}
+
 /* Accordion expand animation */
 @keyframes accordionExpand {
   0% {
