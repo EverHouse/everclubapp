@@ -1841,7 +1841,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           ownerEmail: booking.userEmail || '',
           ownerName: booking.userName || booking.userEmail,
           trackmanBookingId: booking.trackmanBookingId,
-          source: 'trackman',
+          source: 'trackman_import',
           createdBy: 'ghost_booking_fix'
         });
 

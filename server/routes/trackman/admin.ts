@@ -681,7 +681,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             ownerName: `${member.first_name} ${member.last_name}`,
             ownerUserId: member.id?.toString(),
             trackmanBookingId: booking.trackman_booking_id,
-            source: 'trackman',
+            source: 'trackman_import',
             createdBy: 'staff_resolve'
           });
           sessionId = sessionResult.sessionId || null;
@@ -718,7 +718,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             ownerName: `${member.first_name} ${member.last_name}`,
             ownerUserId: member.id?.toString(),
             trackmanBookingId: booking.trackman_booking_id,
-            source: 'trackman',
+            source: 'trackman_import',
             createdBy: 'staff_resolve'
           });
           sessionId = sessionResult.sessionId || null;

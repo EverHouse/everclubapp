@@ -15,8 +15,9 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "7.35.0",
     date: "2026-02-11",
-    title: "Account Credits Now Apply to All Payment Paths",
+    title: "Account Credits + Trackman Session Fix",
     changes: [
+      "Fix: Trackman webhook bookings now correctly create sessions — previously, unmatched bookings from Trackman failed to create sessions due to an invalid source value, causing errors on every incoming webhook",
       "Improvement: Account credits now automatically apply to overage fee payments during check-in — if a member has enough credit, the overage is covered instantly without needing to enter a card",
       "Improvement: Account credits now apply to staff-initiated booking fee payments (guest fees, overage charges from the check-in flow)",
       "Improvement: Account credits now apply to booking prepayments created when a booking is approved",

@@ -222,7 +222,7 @@ export async function createBookingForMember(
             ownerEmail: member.email,
             ownerName: customerName || [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email,
             trackmanBookingId,
-            source: 'trackman',
+            source: 'trackman_webhook',
             createdBy: 'trackman_webhook'
           });
           
@@ -421,7 +421,7 @@ export async function createBookingForMember(
           ownerEmail: member.email,
           ownerName: memberName,
           trackmanBookingId,
-          source: 'trackman',
+          source: 'trackman_webhook',
           createdBy: 'trackman_webhook'
         });
         
@@ -851,7 +851,7 @@ export async function tryMatchByBayDateTime(
         ownerEmail: memberEmail,
         ownerName: memberName || undefined,
         trackmanBookingId,
-        source: 'trackman',
+        source: 'trackman_webhook',
         createdBy: 'trackman_auto_match'
       });
     } catch (sessionErr) {

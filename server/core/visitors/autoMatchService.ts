@@ -375,7 +375,7 @@ async function createBookingSessionForAutoMatch(
       ownerName: displayName,
       ownerUserId: userId?.toString(),
       trackmanBookingId: booking.trackmanBookingId || undefined,
-      source: 'trackman',
+      source: 'trackman_webhook',
       createdBy: 'auto_match'
     }, client);
     
@@ -936,7 +936,7 @@ async function autoMatchBookingRequests(
             ownerName: userName || visitor.email,
             ownerUserId: visitor.id?.toString(),
             trackmanBookingId: row.trackman_booking_id,
-            source: 'trackman',
+            source: 'trackman_webhook',
             createdBy: 'auto_match'
           });
           sessionId = sessionResult.sessionId || null;

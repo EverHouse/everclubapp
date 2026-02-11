@@ -105,7 +105,7 @@ export async function tryAutoApproveBooking(
         ownerName: pendingBooking.user_name || undefined,
         ownerUserId: pendingBooking.user_id || undefined,
         trackmanBookingId,
-        source: 'trackman',
+        source: 'trackman_webhook',
         createdBy: 'trackman_webhook'
       });
 
@@ -627,7 +627,7 @@ export async function createUnmatchedBookingRequest(
           ownerEmail: customerEmail || '',
           ownerName: customerName || 'Unknown (Trackman)',
           trackmanBookingId,
-          source: 'trackman',
+          source: 'trackman_webhook',
           createdBy: 'trackman_webhook'
         });
 

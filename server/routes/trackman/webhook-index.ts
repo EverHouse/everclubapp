@@ -906,7 +906,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         ownerEmail: match.user_email,
         ownerName: match.member_name || undefined,
         trackmanBookingId,
-        source: 'trackman',
+        source: 'trackman_webhook',
         createdBy: 'staff_auto_match'
       });
     } catch (sessionErr) {
@@ -1381,7 +1381,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
               ownerEmail: customerEmail || '',
               ownerName: customerName,
               trackmanBookingId: event.trackman_booking_id,
-              source: 'trackman',
+              source: 'trackman_webhook',
               createdBy: 'trackman_reprocess'
             });
             
