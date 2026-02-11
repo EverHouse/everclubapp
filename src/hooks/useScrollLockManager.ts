@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 let lockCount = 0;
 let savedScrollY = 0;
+let savedHtmlBg = '';
 const lockOwners = new Set<string>();
 
 function generateLockId(): string {
@@ -16,6 +17,8 @@ function applyScrollLock() {
     }
     document.documentElement.classList.add('overflow-hidden');
     document.body.classList.add('overflow-hidden');
+    savedHtmlBg = document.documentElement.style.backgroundColor;
+    document.documentElement.style.backgroundColor = '#000';
     document.body.style.position = 'fixed';
     document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
@@ -29,6 +32,7 @@ function removeScrollLock() {
   if (lockCount === 0 && lockOwners.size === 0) {
     const scrollY = savedScrollY;
     document.documentElement.classList.remove('overflow-hidden');
+    document.documentElement.style.backgroundColor = savedHtmlBg;
     document.body.classList.remove('overflow-hidden');
     document.body.style.position = '';
     document.body.style.top = '';
@@ -70,6 +74,7 @@ export function forceReleaseAllLocks(): void {
   lockCount = 0;
   const scrollY = savedScrollY;
   document.documentElement.classList.remove('overflow-hidden');
+  document.documentElement.style.backgroundColor = savedHtmlBg;
   document.body.classList.remove('overflow-hidden');
   document.body.style.position = '';
   document.body.style.top = '';
