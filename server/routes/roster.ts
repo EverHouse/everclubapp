@@ -45,6 +45,7 @@ import {
 import { notifyMember } from '../core/notificationService';
 import { getStripeClient } from '../core/stripe/client';
 import { getOrCreateStripeCustomer } from '../core/stripe/customers';
+import { createBalanceAwarePayment } from '../core/stripe/payments';
 import { computeFeeBreakdown, getEffectivePlayerCount, invalidateCachedFees, recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { PRICING } from '../core/billing/pricingConfig';
 import { createPrepaymentIntent } from '../core/billing/prepaymentService';
@@ -1721,28 +1722,65 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
       })
       .where(eq(bookingParticipants.id, newParticipant.id));
 
-    const stripe = getStripeClient();
+    const ownerUserResult = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [booking.owner_email]
+    );
+    const ownerUserId = ownerUserResult.rows[0]?.id?.toString() || booking.owner_email;
+
     const customer = await getOrCreateStripeCustomer(
+      ownerUserId,
       booking.owner_email,
       booking.owner_name || undefined
     );
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: guestFeeCents,
-      currency: 'usd',
-      customer: customer.id,
+    const paymentResult = await createBalanceAwarePayment({
+      stripeCustomerId: customer.customerId,
+      userId: ownerUserId,
+      email: booking.owner_email,
+      memberName: booking.owner_name || booking.owner_email.split('@')[0],
+      amountCents: guestFeeCents,
+      purpose: 'guest_fee',
+      description: `Guest fee for ${guestName.trim()} - Booking #${bookingId}`,
+      bookingId,
+      sessionId,
       metadata: {
-        purpose: 'guest_fee',
-        bookingId: bookingId.toString(),
-        sessionId: sessionId.toString(),
         participantId: newParticipant.id.toString(),
         guestName: guestName.trim(),
         guestEmail: guestEmail.trim(),
         ownerEmail: booking.owner_email
-      },
-      description: `Guest fee for ${guestName.trim()} - Booking #${bookingId}`,
-      automatic_payment_methods: { enabled: true }
+      }
     });
+
+    if (paymentResult.error) {
+      throw new Error(paymentResult.error);
+    }
+
+    if (paymentResult.paidInFull) {
+      await db.update(bookingParticipants)
+        .set({ paymentStatus: 'paid' })
+        .where(eq(bookingParticipants.id, newParticipant.id));
+
+      logger.info('[roster] Guest fee fully covered by account credit', {
+        extra: {
+          bookingId,
+          sessionId,
+          participantId: newParticipant.id,
+          guestName: guestName.trim(),
+          amount: guestFeeCents,
+          balanceApplied: paymentResult.balanceApplied
+        }
+      });
+
+      return res.json({
+        success: true,
+        paidInFull: true,
+        paymentRequired: false,
+        amount: guestFeeCents,
+        balanceApplied: paymentResult.balanceApplied,
+        participantId: newParticipant.id
+      });
+    }
 
     logger.info('[roster] Guest fee checkout initiated', {
       extra: {
@@ -1751,15 +1789,19 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
         participantId: newParticipant.id,
         guestName: guestName.trim(),
         amount: guestFeeCents,
-        paymentIntentId: paymentIntent.id
+        paymentIntentId: paymentResult.paymentIntentId,
+        balanceApplied: paymentResult.balanceApplied
       }
     });
 
     res.json({
       success: true,
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      paidInFull: false,
+      clientSecret: paymentResult.clientSecret,
+      paymentIntentId: paymentResult.paymentIntentId,
       amount: guestFeeCents,
+      balanceApplied: paymentResult.balanceApplied,
+      remainingCents: paymentResult.remainingCents,
       participantId: newParticipant.id
     });
   } catch (error: any) {

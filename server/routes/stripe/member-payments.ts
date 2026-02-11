@@ -690,35 +690,67 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
       stripeCustomerId = customerResult.customerId;
     }
 
-    const { getStripeClient } = await import('../../core/stripe/client');
-    const stripe = await getStripeClient();
-
     const description = `${quantity} Guest Pass${quantity > 1 ? 'es' : ''} - Ever Club`;
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'usd',
-      customer: stripeCustomerId,
+    const result = await createBalanceAwarePayment({
+      stripeCustomerId,
+      userId: user.id?.toString() || sessionEmail,
+      email: sessionEmail,
+      memberName,
+      amountCents,
+      purpose: 'one_time_purchase',
+      description,
       metadata: {
-        purpose: 'guest_pass_purchase',
+        guestPassPurchase: 'true',
         quantity: quantity.toString(),
         priceId: passProduct.stripePriceId,
         member_email: sessionEmail,
         source: 'ever_house_member_portal'
-      },
-      description,
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      }
     });
 
-    console.log(`[Stripe] Guest pass purchase intent created for ${sessionEmail}: ${quantity} passes, $${(amountCents / 100).toFixed(2)}`);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    console.log(`[Stripe] Guest pass purchase for ${sessionEmail}: ${quantity} passes, $${(amountCents / 100).toFixed(2)} (balance: $${(result.balanceApplied / 100).toFixed(2)})`);
+
+    if (result.paidInFull) {
+      const existingPass = await pool.query(
+        'SELECT id, passes_total FROM guest_passes WHERE member_email = $1',
+        [sessionEmail]
+      );
+
+      if (existingPass.rows.length > 0) {
+        await pool.query(
+          'UPDATE guest_passes SET passes_total = passes_total + $1 WHERE member_email = $2',
+          [quantity, sessionEmail]
+        );
+        console.log(`[Stripe] Added ${quantity} guest passes to existing record for ${sessionEmail} (paid by credit)`);
+      } else {
+        await pool.query(
+          'INSERT INTO guest_passes (member_email, passes_used, passes_total) VALUES ($1, 0, $2)',
+          [sessionEmail, quantity]
+        );
+        console.log(`[Stripe] Created new guest pass record with ${quantity} passes for ${sessionEmail} (paid by credit)`);
+      }
+
+      return res.json({
+        paidInFull: true,
+        quantity,
+        amountCents,
+        balanceApplied: result.balanceApplied
+      });
+    }
 
     res.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      clientSecret: result.clientSecret,
+      paymentIntentId: result.paymentIntentId,
       quantity,
-      amountCents
+      amountCents,
+      paidInFull: false,
+      balanceApplied: result.balanceApplied,
+      remainingCents: result.remainingCents
     });
   } catch (error: any) {
     console.error('[Stripe] Error creating guest pass payment intent:', error);
@@ -757,7 +789,7 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
       return res.status(400).json({ error: 'Payment has not succeeded' });
     }
 
-    if (paymentIntent.metadata?.purpose !== 'guest_pass_purchase') {
+    if (paymentIntent.metadata?.purpose !== 'one_time_purchase' || paymentIntent.metadata?.guestPassPurchase !== 'true') {
       return res.status(400).json({ error: 'Invalid payment type' });
     }
 
@@ -777,8 +809,10 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
     }
 
     const expectedAmount = passProduct.priceCents * quantity;
-    if (paymentIntent.amount !== expectedAmount) {
-      console.error(`[Stripe] Amount mismatch for guest pass purchase: expected ${expectedAmount}, got ${paymentIntent.amount}`);
+    const creditApplied = parseInt(paymentIntent.metadata?.creditToConsume || '0');
+    const expectedChargeAmount = expectedAmount - creditApplied;
+    if (paymentIntent.amount !== expectedChargeAmount && paymentIntent.amount !== expectedAmount) {
+      console.error(`[Stripe] Amount mismatch for guest pass purchase: expected ${expectedAmount} (or ${expectedChargeAmount} after credit), got ${paymentIntent.amount}`);
       return res.status(400).json({ error: 'Payment amount mismatch' });
     }
 

@@ -25,10 +25,13 @@ interface GuestAddResponse {
 }
 
 interface PaymentInitResponse {
-  clientSecret: string;
-  paymentIntentId: string;
+  clientSecret?: string;
+  paymentIntentId?: string;
   amount: number;
   participantId: number;
+  paidInFull?: boolean;
+  balanceApplied?: number;
+  remainingCents?: number;
 }
 
 export function GuestPaymentChoiceModal({
@@ -124,8 +127,12 @@ export function GuestPaymentChoiceModal({
       );
 
       if (ok && data) {
+        if (data.paidInFull) {
+          onSuccess();
+          return;
+        }
         setPaymentData(data);
-        setPaymentIntentId(data.paymentIntentId);
+        setPaymentIntentId(data.paymentIntentId || null);
         setStep('payment');
       } else {
         setError(apiError || 'Failed to initialize payment');

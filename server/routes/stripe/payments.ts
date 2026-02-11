@@ -1042,49 +1042,120 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       staffChargeDescription += ` | ${lineText.length > maxLen ? lineText.substring(0, maxLen - 3) + '...' : lineText}`;
     }
 
-    // Create and confirm payment intent off-session using AUTHORITATIVE amount
+    // Check customer balance for available credit
+    const customerObj = await stripe.customers.retrieve(member.stripe_customer_id);
+    const customerBalance = (customerObj as any).balance || 0;
+    const availableCredit = customerBalance < 0 ? Math.abs(customerBalance) : 0;
+    const balanceToApply = Math.min(availableCredit, authoritativeAmountCents);
+    const chargeAmount = authoritativeAmountCents - balanceToApply;
+
+    let paymentRecordId: string;
+    let successMessage: string;
+
+    if (chargeAmount === 0) {
+      const balanceTxn = await stripe.customers.createBalanceTransaction(member.stripe_customer_id, {
+        amount: balanceToApply,
+        currency: 'usd',
+        description: staffChargeDescription
+      });
+
+      paymentRecordId = `balance-${balanceTxn.id}`;
+      successMessage = `Paid with account credit: $${(authoritativeAmountCents / 100).toFixed(2)}`;
+      console.log(`[Stripe] Staff charge fully covered by credit: $${(authoritativeAmountCents / 100).toFixed(2)} for ${member.email}`);
+
+      if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
+        await db.execute(sql`UPDATE booking_participants 
+           SET payment_status = 'paid', 
+               stripe_payment_intent_id = ${paymentRecordId},
+               paid_at = NOW()
+           WHERE id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)})`);
+        console.log(`[Stripe] Marked ${participantIds.length} participants as paid (credit-only)`);
+      }
+
+      await db.execute(sql`INSERT INTO stripe_payment_intents 
+          (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
+         VALUES (${paymentRecordId}, ${member.email}, ${member.id}, ${authoritativeAmountCents}, 'succeeded', 'booking_fee', ${'Staff charge - paid by account credit'}, ${staffEmail})
+         ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`);
+
+      const staffActionDetails = JSON.stringify({
+        amountCents: authoritativeAmountCents,
+        balanceApplied: balanceToApply,
+        paidByCredit: true,
+        balanceTransactionId: balanceTxn.id,
+        bookingId: resolvedBookingId,
+        sessionId: resolvedSessionId
+      });
+      await db.execute(sql`INSERT INTO staff_actions (action_type, staff_email, staff_name, target_email, details, created_at)
+         VALUES ('charge_saved_card', ${staffEmail}, ${staffName || ''}, ${member.email}, ${staffActionDetails}, NOW())`);
+
+      broadcastBillingUpdate({
+        action: 'payment_succeeded',
+        memberEmail: member.email,
+        amount: authoritativeAmountCents
+      });
+
+      return res.json({
+        success: true,
+        message: successMessage,
+        paymentIntentId: paymentRecordId,
+        paidByCredit: true,
+        balanceApplied: balanceToApply,
+        amountCharged: 0,
+        totalAmount: authoritativeAmountCents
+      });
+    }
+
+    // Partial or no credit: charge the card for remaining amount
+    let adjustedDescription = staffChargeDescription;
+    const chargeMetadata: Record<string, string> = {
+      type: 'staff_saved_card_charge',
+      staffEmail: staffEmail,
+      staffName: staffName || '',
+      memberEmail: member.email,
+      memberId: member.id,
+      bookingId: resolvedBookingId?.toString() || '',
+      sessionId: resolvedSessionId?.toString() || '',
+      participantIds: JSON.stringify(participantIds),
+      authoritativeAmountCents: authoritativeAmountCents.toString(),
+      feeBreakdown: staffFeeLines.join('; ').substring(0, 500)
+    };
+
+    if (balanceToApply > 0) {
+      chargeMetadata.creditToConsume = balanceToApply.toString();
+      chargeMetadata.originalAmount = authoritativeAmountCents.toString();
+      adjustedDescription += ` | Credit applied: $${(balanceToApply / 100).toFixed(2)}`;
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: authoritativeAmountCents,
+      amount: chargeAmount,
       currency: 'usd',
       customer: member.stripe_customer_id,
       payment_method: paymentMethod.id,
       confirm: true,
       off_session: true,
-      description: staffChargeDescription,
-      metadata: {
-        type: 'staff_saved_card_charge',
-        staffEmail: staffEmail,
-        staffName: staffName || '',
-        memberEmail: member.email,
-        memberId: member.id,
-        bookingId: resolvedBookingId?.toString() || '',
-        sessionId: resolvedSessionId?.toString() || '',
-        participantIds: JSON.stringify(participantIds),
-        authoritativeAmountCents: authoritativeAmountCents.toString(),
-        feeBreakdown: staffFeeLines.join('; ').substring(0, 500)
-      }
+      description: adjustedDescription,
+      metadata: chargeMetadata
     });
 
     if (paymentIntent.status === 'succeeded') {
-      // If participantIds provided, mark them as paid
       if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
         await db.execute(sql`UPDATE booking_participants 
            SET payment_status = 'paid', 
                stripe_payment_intent_id = ${paymentIntent.id},
                paid_at = NOW()
            WHERE id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)})`);
-        console.log(`[Stripe] Staff charged saved card: $${(authoritativeAmountCents / 100).toFixed(2)} for ${member.email}, marked ${participantIds.length} participants as paid`);
+        console.log(`[Stripe] Staff charged saved card: $${(chargeAmount / 100).toFixed(2)} (credit: $${(balanceToApply / 100).toFixed(2)}) for ${member.email}, marked ${participantIds.length} participants as paid`);
       }
 
-      // Record the payment
       await db.execute(sql`INSERT INTO stripe_payment_intents 
           (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
          VALUES (${paymentIntent.id}, ${member.email}, ${member.id}, ${authoritativeAmountCents}, 'succeeded', 'booking_fee', ${'Staff charged saved card'}, ${staffEmail})
          ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`);
 
-      // Log the action
       const staffActionDetails = JSON.stringify({
           amountCents: authoritativeAmountCents,
+          cardCharged: chargeAmount,
+          balanceApplied: balanceToApply,
           cardLast4,
           cardBrand,
           paymentIntentId: paymentIntent.id,
@@ -1100,14 +1171,19 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
         amount: authoritativeAmountCents
       });
 
+      successMessage = balanceToApply > 0
+        ? `Charged ${cardBrand} ending in ${cardLast4}: $${(chargeAmount / 100).toFixed(2)} (credit applied: $${(balanceToApply / 100).toFixed(2)})`
+        : `Charged ${cardBrand} ending in ${cardLast4}: $${(authoritativeAmountCents / 100).toFixed(2)}`;
 
       res.json({ 
         success: true, 
-        message: `Charged ${cardBrand} ending in ${cardLast4}: $${(authoritativeAmountCents / 100).toFixed(2)}`,
+        message: successMessage,
         paymentIntentId: paymentIntent.id,
         cardLast4,
         cardBrand,
-        amountCharged: authoritativeAmountCents
+        amountCharged: chargeAmount,
+        balanceApplied: balanceToApply,
+        totalAmount: authoritativeAmountCents
       });
     } else {
       // Payment requires additional action (3D Secure, etc.)
