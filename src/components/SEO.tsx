@@ -20,7 +20,7 @@ export const SEO: React.FC<SEOProps> = ({
 }) => {
   const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`;
   const fullImage = image.startsWith('http') ? image : `${BASE_URL}${image}`;
-  const fullTitle = title.includes('Ever Club') ? title : `${title} | Ever Club`;
+  const fullTitle = title.includes('Ever') ? title : `${title} | Ever Members Club`;
 
   return (
     <>
@@ -31,7 +31,7 @@ export const SEO: React.FC<SEOProps> = ({
       <meta property="og:url" content={fullUrl} />
       <meta property="og:image" content={fullImage} />
       <meta property="og:type" content={type} />
-      <meta property="og:site_name" content="Ever Club" />
+      <meta property="og:site_name" content="Ever Members Club" />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
