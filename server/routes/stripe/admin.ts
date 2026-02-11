@@ -562,4 +562,228 @@ router.post('/api/admin/stripe/replay-webhook', isAdmin, async (req: Request, re
   }
 });
 
+router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const cooldown = checkSyncCooldown('sync_member_subscriptions');
+    if (!cooldown.allowed) {
+      return res.status(429).json({
+        error: `This sync operation was run recently. Please wait ${cooldown.remainingSeconds} seconds before running again.`,
+        cooldownRemaining: cooldown.remainingSeconds,
+        lastRunAt: cooldown.lastRunAt
+      });
+    }
+
+    const stripe = await getStripeClient();
+    const { pool } = await import('../../core/db');
+
+    const statusMap: Record<string, string> = {
+      'active': 'active',
+      'trialing': 'trialing',
+      'past_due': 'past_due',
+      'incomplete': 'pending',
+      'incomplete_expired': 'pending',
+      'canceled': 'cancelled',
+      'unpaid': 'past_due',
+      'paused': 'frozen'
+    };
+
+    const membersResult = await pool.query(
+      `SELECT id, email, first_name, last_name, stripe_subscription_id, stripe_customer_id,
+              membership_status, billing_provider, stripe_current_period_end, join_date, tier
+       FROM users
+       WHERE stripe_subscription_id IS NOT NULL OR stripe_customer_id IS NOT NULL`
+    );
+
+    const members = membersResult.rows;
+    let synced = 0;
+    let updated = 0;
+    let errorCount = 0;
+    const details: any[] = [];
+
+    async function resolveTierFromSubscription(subscription: any): Promise<string | null> {
+      const metadataTierSlug = subscription.metadata?.tier_slug || subscription.metadata?.tierSlug;
+      const metadataTierName = subscription.metadata?.tier_name || subscription.metadata?.tier;
+
+      if (metadataTierSlug) {
+        const tierResult = await pool.query(
+          'SELECT name FROM membership_tiers WHERE slug = $1',
+          [metadataTierSlug]
+        );
+        if (tierResult.rows.length > 0) return tierResult.rows[0].name;
+        if (metadataTierName) return metadataTierName;
+      }
+
+      const priceId = subscription.items?.data?.[0]?.price?.id;
+      if (priceId) {
+        const tierResult = await pool.query(
+          'SELECT name FROM membership_tiers WHERE stripe_price_id = $1 OR founding_price_id = $1',
+          [priceId]
+        );
+        if (tierResult.rows.length > 0) return tierResult.rows[0].name;
+      }
+
+      return null;
+    }
+
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < members.length; i += BATCH_SIZE) {
+      const batch = members.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(batch.map(async (member) => {
+        const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
+
+        if (member.stripe_subscription_id) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
+            const mappedStatus = statusMap[subscription.status] || subscription.status;
+            const periodEnd = subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000)
+              : null;
+            const resolvedTier = await resolveTierFromSubscription(subscription);
+            const changes: string[] = [];
+
+            if (member.membership_status !== mappedStatus) {
+              changes.push(`status: ${member.membership_status} → ${mappedStatus}`);
+            }
+
+            if (resolvedTier && member.tier !== resolvedTier) {
+              changes.push(`tier: ${member.tier || 'none'} → ${resolvedTier}`);
+            }
+
+            const existingEnd = member.stripe_current_period_end
+              ? new Date(member.stripe_current_period_end).toISOString()
+              : null;
+            const newEnd = periodEnd ? periodEnd.toISOString() : null;
+            if (existingEnd !== newEnd) {
+              changes.push(`period_end updated`);
+            }
+
+            if (member.billing_provider !== 'stripe') {
+              changes.push(`billing_provider: ${member.billing_provider} → stripe`);
+            }
+
+            let setJoinDate = false;
+            if ((mappedStatus === 'active' || mappedStatus === 'trialing') &&
+                (!member.membership_status || member.membership_status === 'pending' || member.membership_status === 'inactive')) {
+              if (!member.join_date) {
+                setJoinDate = true;
+                changes.push(`activated (join_date set)`);
+              }
+            }
+
+            if (changes.length > 0) {
+              const updateFields: string[] = [
+                `membership_status = $1`,
+                `billing_provider = 'stripe'`,
+                `stripe_current_period_end = $2`,
+                `updated_at = NOW()`
+              ];
+              const updateParams: any[] = [mappedStatus, periodEnd];
+              let paramIndex = 3;
+
+              if (resolvedTier && member.tier !== resolvedTier) {
+                updateFields.push(`tier = $${paramIndex}`);
+                updateParams.push(resolvedTier);
+                paramIndex++;
+              }
+
+              if (setJoinDate) {
+                updateFields.push(`join_date = $${paramIndex}`);
+                updateParams.push(new Date());
+                paramIndex++;
+              }
+
+              updateParams.push(member.id);
+              await pool.query(
+                `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
+                updateParams
+              );
+              updated++;
+              details.push({ email: member.email, name: memberName, changes });
+            }
+            synced++;
+          } catch (err: any) {
+            if (err.code === 'resource_missing') {
+              await pool.query(
+                `UPDATE users SET stripe_subscription_id = NULL, updated_at = NOW() WHERE id = $1`,
+                [member.id]
+              );
+              updated++;
+              details.push({ email: member.email, name: memberName, changes: ['subscription not found in Stripe — cleared'] });
+              synced++;
+            } else {
+              errorCount++;
+              details.push({ email: member.email, name: memberName, error: err.message });
+            }
+          }
+        } else if (member.stripe_customer_id) {
+          try {
+            const subscriptions = await stripe.subscriptions.list({
+              customer: member.stripe_customer_id,
+              status: 'active',
+              limit: 1,
+            });
+
+            if (subscriptions.data.length > 0) {
+              const sub = subscriptions.data[0];
+              const mappedStatus = statusMap[sub.status] || sub.status;
+              const periodEnd = sub.current_period_end
+                ? new Date(sub.current_period_end * 1000)
+                : null;
+              const resolvedTier = await resolveTierFromSubscription(sub);
+
+              const updateFields: string[] = [
+                `stripe_subscription_id = $1`,
+                `membership_status = $2`,
+                `billing_provider = 'stripe'`,
+                `stripe_current_period_end = $3`,
+                `updated_at = NOW()`
+              ];
+              const updateParams: any[] = [sub.id, mappedStatus, periodEnd];
+              let paramIndex = 4;
+
+              if (resolvedTier) {
+                updateFields.push(`tier = COALESCE($${paramIndex}, tier)`);
+                updateParams.push(resolvedTier);
+                paramIndex++;
+              }
+
+              if (!member.join_date && (mappedStatus === 'active' || mappedStatus === 'trialing')) {
+                updateFields.push(`join_date = $${paramIndex}`);
+                updateParams.push(new Date());
+                paramIndex++;
+              }
+
+              updateParams.push(member.id);
+              await pool.query(
+                `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
+                updateParams
+              );
+              updated++;
+              const changeDetails = [`linked subscription ${sub.id}`, `status: ${mappedStatus}`];
+              if (resolvedTier) changeDetails.push(`tier: ${resolvedTier}`);
+              details.push({ email: member.email, name: memberName, changes: changeDetails });
+            }
+            synced++;
+          } catch (err: any) {
+            errorCount++;
+            details.push({ email: member.email, name: memberName, error: err.message });
+          }
+        }
+      }));
+    }
+
+    logFromRequest(req, {
+      action: 'stripe_member_sync',
+      resourceType: 'system',
+      resourceName: 'Stripe Member Subscription Sync',
+      details: { synced, updated, errors: errorCount, totalMembers: members.length }
+    });
+
+    res.json({ success: true, synced, updated, errors: errorCount, details });
+  } catch (error: any) {
+    console.error('[Stripe] Error syncing member subscriptions:', error);
+    res.status(500).json({ error: 'Failed to sync member subscriptions', details: error.message });
+  }
+});
+
 export default router;

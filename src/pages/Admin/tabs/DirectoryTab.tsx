@@ -332,6 +332,7 @@ const DirectoryTab: React.FC = () => {
         mutationFn: async () => {
             let pullCount = 0;
             let pushCount = 0;
+            let stripeUpdated = 0;
             let errors: string[] = [];
 
             try {
@@ -348,24 +349,49 @@ const DirectoryTab: React.FC = () => {
                 errors.push('push');
             }
 
-            return { pullCount, pushCount, errors };
+            try {
+                const stripeRes = await postWithCredentials<{ updated?: number }>('/api/stripe/sync-member-subscriptions', {});
+                stripeUpdated = stripeRes.updated || 0;
+            } catch {
+                errors.push('stripe');
+            }
+
+            return { pullCount, pushCount, stripeUpdated, errors };
         },
-        onSuccess: async ({ pullCount, pushCount, errors }) => {
+        onSuccess: async ({ pullCount, pushCount, stripeUpdated, errors }) => {
             await refreshMembers();
 
-            if (errors.length === 0) {
-                const parts: string[] = [];
-                if (pullCount > 0) parts.push(`${pullCount} pulled from HubSpot`);
-                if (pushCount > 0) parts.push(`${pushCount} pushed to HubSpot`);
-                setSyncMessage({
-                    type: 'success',
-                    text: parts.length > 0 ? parts.join(', ') : 'HubSpot up to date'
-                });
-            } else if (errors.length === 2) {
-                setSyncMessage({ type: 'error', text: 'Failed to sync with HubSpot' });
+            const hubspotErrors = errors.filter(e => e === 'pull' || e === 'push');
+            const stripeError = errors.includes('stripe');
+
+            const parts: string[] = [];
+
+            if (hubspotErrors.length === 0) {
+                const hsTotal = pullCount + pushCount;
+                if (hsTotal > 0) parts.push(`HubSpot: ${hsTotal} synced`);
+            } else if (hubspotErrors.length === 2) {
+                parts.push('HubSpot: failed');
             } else {
-                const failedPart = errors[0] === 'pull' ? 'pull from' : 'push to';
-                setSyncMessage({ type: 'success', text: `Partial sync — failed to ${failedPart} HubSpot` });
+                const failedPart = hubspotErrors[0] === 'pull' ? 'pull' : 'push';
+                parts.push(`HubSpot: partial (${failedPart} failed)`);
+            }
+
+            if (!stripeError) {
+                if (stripeUpdated > 0) parts.push(`Stripe: ${stripeUpdated} updated`);
+            } else {
+                parts.push('Stripe: failed');
+            }
+
+            const allFailed = hubspotErrors.length === 2 && stripeError;
+            const hasAnyError = errors.length > 0;
+
+            if (allFailed) {
+                setSyncMessage({ type: 'error', text: 'Failed to sync' });
+            } else {
+                setSyncMessage({
+                    type: hasAnyError ? 'success' : 'success',
+                    text: parts.length > 0 ? parts.join('. ') : 'All up to date'
+                });
             }
 
             if (memberTab === 'former') {
@@ -378,7 +404,7 @@ const DirectoryTab: React.FC = () => {
             setTimeout(() => setSyncMessage(null), 5000);
         },
         onError: () => {
-            setSyncMessage({ type: 'error', text: 'Failed to sync with HubSpot' });
+            setSyncMessage({ type: 'error', text: 'Failed to sync' });
             setTimeout(() => setSyncMessage(null), 5000);
         },
     });
@@ -863,7 +889,7 @@ const DirectoryTab: React.FC = () => {
                         <span className={`material-symbols-outlined text-[14px] ${syncMutation.isPending ? 'animate-spin' : ''}`}>
                             sync
                         </span>
-                        {syncMutation.isPending ? 'Syncing HubSpot...' : 'Sync'}
+                        {syncMutation.isPending ? 'Syncing...' : 'Sync All'}
                     </button>
                     {lastSyncTime && (
                         <span className="text-[9px] text-gray-500 dark:text-gray-400">

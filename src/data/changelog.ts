@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.39.0",
+    date: "2026-02-11",
+    title: "Stripe Sync + Billing Safety",
+    changes: [
+      "Feature: The Sync button on the Members page now syncs both HubSpot AND Stripe — if any webhooks were missed, one tap catches up all member statuses, subscriptions, and tiers",
+      "Feature: Stripe sync checks each member's subscription against Stripe and fixes mismatches (status, tier, subscription link) — also finds and links subscriptions for members who have a Stripe customer but no subscription on file",
+      "Fix: Billing recalculation now uses a database transaction — if something goes wrong mid-recalculation, the original billing records are preserved instead of being lost",
+    ],
+  },
+  {
     version: "7.38.2",
     date: "2026-02-11",
     title: "Activation Link Fix + Charge Saved Card",

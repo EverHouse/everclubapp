@@ -662,46 +662,58 @@ export async function recalculateSessionFees(
       { excludeSessionId: sessionId }
     );
     
-    await pool.query(`DELETE FROM usage_ledger WHERE session_id = $1`, [sessionId]);
-    
+    const client = await pool.connect();
     let participantsUpdated = 0;
     
-    for (const billing of billingResult.billingBreakdown) {
-      if (billing.participantType === 'guest') {
-        if (billing.guestFee > 0) {
-          await pool.query(
+    try {
+      await client.query('BEGIN');
+      
+      await client.query(`DELETE FROM usage_ledger WHERE session_id = $1`, [sessionId]);
+      
+      for (const billing of billingResult.billingBreakdown) {
+        if (billing.participantType === 'guest') {
+          if (billing.guestFee > 0) {
+            await client.query(
+              `INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                sessionId,
+                hostEmail || 'guest',
+                billing.minutesAllocated,
+                0,
+                billing.guestFee,
+                null,
+                'unpaid',
+                'recalculation'
+              ]
+            );
+          }
+        } else {
+          const resolvedEmail = await resolveToEmail(billing.email || billing.userId);
+          await client.query(
             `INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
               sessionId,
-              hostEmail || 'guest',
+              resolvedEmail,
               billing.minutesAllocated,
+              billing.overageFee,
               0,
-              billing.guestFee,
-              null,
+              billing.tierName,
               'unpaid',
               'recalculation'
             ]
           );
         }
-      } else {
-        const resolvedEmail = await resolveToEmail(billing.email || billing.userId);
-        await pool.query(
-          `INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [
-            sessionId,
-            resolvedEmail,
-            billing.minutesAllocated,
-            billing.overageFee,
-            0,
-            billing.tierName,
-            'unpaid',
-            'recalculation'
-          ]
-        );
+        participantsUpdated++;
       }
-      participantsUpdated++;
+      
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
     
     logger.info('[recalculateSessionFees] Session fees recalculated', {
