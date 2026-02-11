@@ -175,6 +175,7 @@ export interface CreatePOSInvoiceParams {
   cartItems: CartLineItem[];
   metadata?: Record<string, string>;
   receiptEmail?: string;
+  forTerminal?: boolean;
 }
 
 export interface InvoicePaymentResult {
@@ -186,7 +187,7 @@ export interface InvoicePaymentResult {
 
 export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams): Promise<InvoicePaymentResult> {
   const stripe = await getStripeClient();
-  const { customerId, description, cartItems, metadata = {}, receiptEmail } = params;
+  const { customerId, description, cartItems, metadata = {}, receiptEmail, forTerminal = false } = params;
 
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.priceCents * item.quantity), 0);
 
@@ -217,6 +218,44 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
     }
 
     const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+
+    if (forTerminal) {
+      const invoicePiId = typeof finalizedInvoice.payment_intent === 'string'
+        ? finalizedInvoice.payment_intent
+        : finalizedInvoice.payment_intent?.id;
+      if (invoicePiId) {
+        try {
+          await stripe.paymentIntents.cancel(invoicePiId);
+          console.log(`[Stripe] Cancelled invoice-generated PI ${invoicePiId} — will use standalone card_present PI instead`);
+        } catch (cancelErr: any) {
+          console.warn(`[Stripe] Could not cancel invoice PI ${invoicePiId}: ${cancelErr.message}`);
+        }
+      }
+
+      const standalonePi = await stripe.paymentIntents.create({
+        amount: finalizedInvoice.amount_due,
+        currency: finalizedInvoice.currency || 'usd',
+        customer: customerId,
+        payment_method_types: ['card_present'],
+        capture_method: 'automatic',
+        description,
+        metadata: {
+          ...metadata,
+          source: 'pos',
+          invoice_id: finalizedInvoice.id,
+        },
+        ...(receiptEmail ? { receipt_email: receiptEmail } : {}),
+      });
+
+      console.log(`[Stripe] Created invoice ${invoice.id} with standalone terminal PI: ${standalonePi.id}, total: ${cartTotal}`);
+
+      return {
+        invoiceId: finalizedInvoice.id,
+        paymentIntentId: standalonePi.id,
+        clientSecret: standalonePi.client_secret!,
+        status: standalonePi.status,
+      };
+    }
 
     const paymentIntentId = typeof finalizedInvoice.payment_intent === 'string'
       ? finalizedInvoice.payment_intent

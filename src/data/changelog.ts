@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.47.1",
+    date: "2026-02-11",
+    title: "POS Terminal Invoice Payment Fix",
+    changes: [
+      "Fixed: POS terminal payments with cart items now work reliably — the system creates a dedicated card-reader payment instead of relying on invoice auto-payment, which failed when customers had no card on file",
+      "Fixed: Invoice is now automatically marked as paid once the card reader successfully processes the payment",
+      "Improved: Terminal invoice flow properly handles the case where a new customer has never saved a card before",
+    ],
+  },
+  {
     version: "7.47.0",
     date: "2026-02-11",
     title: "Staff Terminal UI & Card Management",

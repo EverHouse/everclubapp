@@ -210,16 +210,12 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
           description: finalDescription,
           cartItems: cartItems as CartLineItem[],
           metadata: finalMetadata,
-          receiptEmail: metadata?.ownerEmail
+          receiptEmail: metadata?.ownerEmail,
+          forTerminal: true
         });
 
         invoiceId = invoiceResult.invoiceId;
-
-        paymentIntent = await stripe.paymentIntents.update(invoiceResult.paymentIntentId, {
-          payment_method_types: ['card_present'],
-          capture_method: 'automatic',
-          metadata: finalMetadata,
-        });
+        paymentIntent = await stripe.paymentIntents.retrieve(invoiceResult.paymentIntentId);
       } catch (invoiceErr: any) {
         console.error('[Terminal] Invoice creation failed, falling back to bare PI:', invoiceErr.message);
         paymentIntent = await stripe.paymentIntents.create({
@@ -319,6 +315,18 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
     const stripe = await getStripeClient();
     
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status === 'succeeded' && paymentIntent.metadata?.invoice_id) {
+      try {
+        const inv = await stripe.invoices.retrieve(paymentIntent.metadata.invoice_id);
+        if (inv.status === 'open') {
+          await stripe.invoices.pay(paymentIntent.metadata.invoice_id, { paid_out_of_band: true });
+          console.log(`[Terminal] Marked invoice ${paymentIntent.metadata.invoice_id} as paid after terminal PI ${paymentIntentId} succeeded`);
+        }
+      } catch (invErr: any) {
+        console.warn(`[Terminal] Could not reconcile invoice ${paymentIntent.metadata.invoice_id}:`, invErr.message);
+      }
+    }
     
     res.json({
       id: paymentIntent.id,
