@@ -47,6 +47,9 @@ function CalendarFeeIndicator({
     dbOwed,
     hasUnpaidFeesFlag,
     bookingStatus,
+    startTime,
+    endTime,
+    showHoverTooltip,
 }: {
     bookingId: number;
     bookingDisplayName: string;
@@ -59,6 +62,9 @@ function CalendarFeeIndicator({
     dbOwed: number;
     hasUnpaidFeesFlag: boolean;
     bookingStatus: string;
+    startTime?: string;
+    endTime?: string;
+    showHoverTooltip?: boolean;
 }) {
     const isCheckedIn = bookingStatus === 'attended';
     const skipFeeEstimate = snapshotPaid || isConference || isCheckedIn;
@@ -126,6 +132,25 @@ function CalendarFeeIndicator({
                         ${totalOwed.toFixed(2)} owed
                     </span>
                 </span>
+            )}
+
+            {showHoverTooltip && startTime && endTime && (
+                <div className="hidden sm:block opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50">
+                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg shadow-xl border border-gray-200/50 dark:border-white/10 px-3 py-2 text-left min-w-[180px]">
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{bookingDisplayName}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}</p>
+                        {declaredPlayerCount > 1 && (
+                            <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">{filledPlayerCount}/{declaredPlayerCount} players</p>
+                        )}
+                        {totalOwed > 0 && (
+                            <p className="text-[10px] text-red-600 dark:text-red-400 font-medium mt-0.5">${totalOwed.toFixed(2)} owed</p>
+                        )}
+                        {isUnmatched && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">Unmatched</p>}
+                        {isInactiveMember && <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-0.5 font-medium">Inactive Member</p>}
+                        {isCheckedIn && <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5 font-medium">Checked In</p>}
+                        {isConference && <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-0.5 font-medium">Conference Room</p>}
+                    </div>
+                </div>
             )}
         </>
     );
@@ -460,7 +485,6 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                     <span className="sm:hidden text-[8px] font-bold text-orange-600 dark:text-orange-400">E</span>
                                                 </div>
                                             ) : booking ? (
-                                                <>
                                                 <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start relative">
                                                     <CalendarFeeIndicator
                                                         bookingId={booking.id}
@@ -474,25 +498,11 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                         dbOwed={(booking as any)?.total_owed ?? 0}
                                                         hasUnpaidFeesFlag={(booking as any)?.has_unpaid_fees === true}
                                                         bookingStatus={(booking as any)?.status || 'approved'}
+                                                        startTime={booking.start_time}
+                                                        endTime={booking.end_time}
+                                                        showHoverTooltip
                                                     />
                                                 </div>
-                                                <div className="hidden sm:block opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50">
-                                                    <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg shadow-xl border border-gray-200/50 dark:border-white/10 px-3 py-2 text-left min-w-[180px]">
-                                                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{bookingDisplayName}</p>
-                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{formatTime12Hour(booking.start_time)} – {formatTime12Hour(booking.end_time)}</p>
-                                                        {declaredPlayers > 1 && (
-                                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">{filledSlots}/{declaredPlayers} players</p>
-                                                        )}
-                                                        {((booking as any)?.total_owed ?? 0) > 0 && (
-                                                            <p className="text-[10px] text-red-600 dark:text-red-400 font-medium mt-0.5">${((booking as any)?.total_owed ?? 0).toFixed(2)} owed</p>
-                                                        )}
-                                                        {isUnmatched && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">Unmatched</p>}
-                                                        {isInactiveMember && <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-0.5 font-medium">Inactive Member</p>}
-                                                        {(booking as any)?.status === 'attended' && <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5 font-medium">Checked In</p>}
-                                                        {isConference && <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-0.5 font-medium">Conference Room</p>}
-                                                    </div>
-                                                </div>
-                                                </>
                                             ) : pendingRequest && (
                                                 <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start">
                                                     <span className="hidden sm:block text-[9px] sm:text-[10px] font-medium truncate text-blue-600 dark:text-blue-400">
