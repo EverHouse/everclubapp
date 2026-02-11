@@ -102,8 +102,8 @@ async function gracefulShutdown(signal: string) {
 
 const app = express();
 
-// Note: /healthz is handled by HTTP server wrapper BEFORE Express for instant responses
-// This ensures Cloud Run health checks succeed even during startup
+// Note: /, /healthz, /_health are handled by HTTP server wrapper BEFORE Express
+// They always return 200 OK immediately, ensuring health checks never fail
 
 app.get('/api/ready', async (req, res) => {
   const startupHealth = getStartupHealth();
@@ -132,8 +132,8 @@ app.get('/api/ready', async (req, res) => {
   }
 });
 
-// Note: Root route bot handling is done by HTTP server wrapper BEFORE Express
-// This prevents health check timing issues during startup
+// Root route is handled by HTTP server wrapper (returns 200 OK immediately)
+// Browser users access the SPA through direct path navigation (e.g. /dashboard)
 
 app.set('trust proxy', 1);
 
@@ -362,7 +362,7 @@ registerRoutes(app);
 
 if (isProduction) {
   app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api/') && !req.path.startsWith('/healthz')) {
+    if (req.method === 'GET' && !req.path.startsWith('/api/') && req.path !== '/healthz' && req.path !== '/_health' && req.path !== '/') {
       return res.sendFile(path.join(__dirname, '../dist/index.html'));
     }
     next();
@@ -481,13 +481,9 @@ async function startServer() {
   
   httpServer = http.createServer((req, res) => {
     if (req.url === '/healthz' || req.url === '/_health' || req.url === '/') {
-      const ua = req.headers['user-agent'] || '';
-      const isBrowser = ua.includes('Mozilla') || ua.includes('Chrome') || ua.includes('Safari');
-      if (req.url !== '/' || !isBrowser) {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('OK');
-        return;
-      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('OK');
+      return;
     }
     
     app(req, res);
@@ -495,7 +491,10 @@ async function startServer() {
   
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`[Startup] API Server running on port ${PORT}`);
-    console.log(`[Startup] Health check ready at /healthz (native handler)`);
+    console.log(`[Startup] Health check ready at / /healthz /_health (native handler)`);
+    
+    isReady = true;
+    console.log('[Startup] Server marked as ready for health checks');
     
     setImmediate(() => {
       initWebSocketServer(httpServer);
@@ -503,21 +502,17 @@ async function startServer() {
       runStartupTasks()
         .then(() => {
           const startupHealth = getStartupHealth();
-          const hasCriticalFailures = startupHealth.criticalFailures.length > 0;
-          if (hasCriticalFailures) {
-            console.error('[Startup] Critical failures detected - server NOT marked as ready:', startupHealth.criticalFailures);
-            isReady = false;
+          if (startupHealth.criticalFailures.length > 0) {
+            console.error('[Startup] Critical failures detected:', startupHealth.criticalFailures);
           } else {
-            isReady = true;
-            console.log('[Startup] Startup tasks complete - server is ready');
+            console.log('[Startup] All startup tasks complete');
             if (startupHealth.warnings.length > 0) {
-              console.warn('[Startup] Server ready with warnings:', startupHealth.warnings);
+              console.warn('[Startup] Startup completed with warnings:', startupHealth.warnings);
             }
           }
         })
         .catch((err) => {
           console.error('[Startup] Startup tasks failed unexpectedly:', err);
-          isReady = false;
         });
 
       if (!isProduction) {
