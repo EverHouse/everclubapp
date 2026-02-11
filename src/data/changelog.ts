@@ -18,9 +18,8 @@ export const changelog: ChangelogEntry[] = [
     title: "PWA Safari Polish",
     changes: [
       "Fix: Safari PWA status bar now matches the green header instead of showing a light-colored bar",
-      "Fix: White gap under the footer on public pages is eliminated — the green footer now extends fully to the bottom of the screen on all devices",
-      "Fix: Member profile drawer now sizes correctly on PWA screens using dynamic viewport height",
-      "Fix: Restored safe-area padding on drawer sticky footers so buttons aren't hidden behind the home indicator",
+      "Fix: Eliminated white gaps at the bottom of modals and drawers on iOS PWA by replacing the scroll lock strategy — no longer forces the page position, which was conflicting with Safari's dynamic viewport",
+      "Fix: All modal overlays (profile drawer, booking details, confirmations, welcome banner) now use dynamic viewport height so they correctly fill the screen on iOS devices",
     ],
   },
   {

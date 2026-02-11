@@ -88,17 +88,17 @@ export function ModalShell({
   const modalContent = (
     <div 
       className={`fixed inset-0 ${isDark ? 'dark' : ''}`}
-      style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: modalZIndex }}
+      style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: modalZIndex, height: '100dvh' }}
     >
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-backdrop-fade-in"
         aria-hidden="true"
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'none', height: '100dvh' }}
       />
       
       <div 
         className="fixed inset-0 overflow-y-auto"
-        style={{ overscrollBehavior: 'contain' }}
+        style={{ overscrollBehavior: 'contain', height: '100dvh' }}
         onClick={(e) => {
           if (dismissible && e.target === e.currentTarget) {
             onClose();
