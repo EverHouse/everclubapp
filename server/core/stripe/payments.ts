@@ -208,8 +208,7 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
         customer: customerId,
         invoice: invoice.id,
         description: item.name,
-        unit_amount: item.priceCents,
-        quantity: item.quantity,
+        amount: item.priceCents * item.quantity,
         currency: 'usd',
         metadata: {
           productId: item.productId,
