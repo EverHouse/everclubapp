@@ -123,9 +123,11 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`[Startup] HTTP server listening on port ${PORT} - health check ready`);
   isReady = true;
 
-  initializeApp().catch((err) => {
-    console.error('[Startup] Express initialization failed:', err);
-  });
+  setTimeout(() => {
+    initializeApp().catch((err) => {
+      console.error('[Startup] Express initialization failed:', err);
+    });
+  }, 100);
 });
 
 httpServer.on('error', (err: any) => {
@@ -432,49 +434,50 @@ async function initializeApp() {
     }
   }
 
-  try {
-    initWebSocketServer(httpServer);
-  } catch (err) {
-    console.error('[Startup] WebSocket initialization failed:', err);
-  }
+  setTimeout(() => {
+    try {
+      initWebSocketServer(httpServer!);
+    } catch (err) {
+      console.error('[Startup] WebSocket initialization failed:', err);
+    }
 
-  runStartupTasks()
-    .then(() => {
-      const startupHealth = getStartupHealth();
-      if (startupHealth.criticalFailures.length > 0) {
-        console.error('[Startup] Critical failures detected:', startupHealth.criticalFailures);
-      } else {
-        console.log('[Startup] All startup tasks complete');
-        if (startupHealth.warnings.length > 0) {
-          console.warn('[Startup] Startup completed with warnings:', startupHealth.warnings);
+    runStartupTasks()
+      .then(() => {
+        const startupHealth = getStartupHealth();
+        if (startupHealth.criticalFailures.length > 0) {
+          console.error('[Startup] Critical failures detected:', startupHealth.criticalFailures);
+        } else {
+          console.log('[Startup] All startup tasks complete');
+          if (startupHealth.warnings.length > 0) {
+            console.warn('[Startup] Startup completed with warnings:', startupHealth.warnings);
+          }
         }
-      }
-    })
-    .catch((err) => {
-      console.error('[Startup] Startup tasks failed unexpectedly:', err);
-    });
+      })
+      .catch((err) => {
+        console.error('[Startup] Startup tasks failed unexpectedly:', err);
+      });
 
-  if (!isProduction) {
-    setTimeout(async () => {
-      try {
-        await autoSeedResources(pool, isProduction);
-      } catch (err) {
-        console.error('[Startup] Auto-seed resources failed:', err);
-      }
+    if (!isProduction) {
+      setTimeout(async () => {
+        try {
+          await autoSeedResources(pool, isProduction);
+        } catch (err) {
+          console.error('[Startup] Auto-seed resources failed:', err);
+        }
+        try {
+          await autoSeedCafeMenu(pool, isProduction);
+        } catch (err) {
+          console.error('[Startup] Auto-seed cafe menu failed:', err);
+        }
+      }, 30000);
+    }
 
-      try {
-        await autoSeedCafeMenu(pool, isProduction);
-      } catch (err) {
-        console.error('[Startup] Auto-seed cafe menu failed:', err);
-      }
-    }, 30000);
-  }
-
-  try {
-    initSchedulers();
-  } catch (err) {
-    console.error('[Startup] Scheduler initialization failed:', err);
-  }
+    try {
+      initSchedulers();
+    } catch (err) {
+      console.error('[Startup] Scheduler initialization failed:', err);
+    }
+  }, 500);
 }
 
 async function autoSeedResources(pool: any, isProduction: boolean) {
