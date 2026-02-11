@@ -414,6 +414,7 @@ router.post('/api/booking-requests', async (req, res) => {
     }
     
     const isStaffRequest = await isStaffOrAdminCheck(sessionEmail);
+    const isViewAsMode = isStaffRequest && sessionEmail !== requestEmail;
     
     if (typeof duration_minutes !== 'number' || !Number.isInteger(duration_minutes) || duration_minutes <= 0 || duration_minutes > 480) {
       return res.status(400).json({ error: 'Invalid duration. Must be a whole number between 1 and 480 minutes.' });
@@ -438,7 +439,7 @@ router.post('/api/booking-requests', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-      if (!isStaffRequest) {
+      if (!isStaffRequest || isViewAsMode) {
         await client.query(
           `SELECT pg_advisory_xact_lock(hashtext($1))`,
           [requestEmail]
