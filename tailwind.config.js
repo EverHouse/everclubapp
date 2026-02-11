@@ -36,6 +36,12 @@ export default {
           bone: "#F2F2EC",
           lavender: "#CCB8E4"
         },
+        "glass-surface-primary": {
+          DEFAULT: "rgba(204, 184, 228, 0.15)",
+          border: "rgba(204, 184, 228, 0.25)",
+          text: "#8B6FA8",
+          dark: "rgba(204, 184, 228, 0.20)"
+        },
       },
       backgroundImage: {
         'liquid-gradient': 'linear-gradient(135deg, #293515 0%, #1a210d 100%)',

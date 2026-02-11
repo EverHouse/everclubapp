@@ -29,10 +29,12 @@ export const GlassListRow: React.FC<{
   children: React.ReactNode; 
   onClick?: () => void;
   className?: string;
-}> = ({ children, onClick, className = '' }) => (
+  style?: React.CSSProperties;
+}> = ({ children, onClick, className = '', style }) => (
   <div 
     onClick={onClick}
-    className={`flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 backdrop-blur-md border border-primary/5 dark:border-white/10 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors cursor-pointer ${className}`}
+    style={style}
+    className={`flex items-center gap-3 p-3 rounded-xl bg-white/30 dark:bg-white/[0.04] backdrop-blur-lg border border-white/50 dark:border-white/[0.06] hover:bg-white/50 dark:hover:bg-white/[0.08] hover:shadow-liquid dark:hover:shadow-liquid-dark transition-colors cursor-pointer ${className}`}
   >
     {children}
   </div>

@@ -260,7 +260,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
         }}
         onTouchEnd={(e) => e.stopPropagation()}
         disabled={isCheckingIn}
-        className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors disabled:opacity-50 flex items-center gap-1"
+        className="text-xs px-2 py-1 bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-accent rounded-lg hover:bg-glass-surface-primary/80 dark:hover:bg-glass-surface-primary-dark/80 transition-colors disabled:opacity-50 flex items-center gap-1"
       >
         {isCheckingIn ? (
           <>
@@ -279,7 +279,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
 
   const PendingRequestsCard = () => (
     <div 
-      className={`flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${pendingRequests.length > 0 ? 'border-l-4 border-l-amber-500' : ''}`}
+      className={`flex flex-col bg-white/40 dark:bg-white/[0.03] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark ${pendingRequests.length > 0 ? 'border-l-4 border-l-amber-500' : ''}`}
       role="region"
       aria-label={pendingRequests.length > 0 ? `Booking Requests - ${pendingRequests.length} pending, action required` : 'Booking Requests'}
     >
@@ -373,7 +373,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
     
     return (
       <div 
-        className="flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4"
+        className="flex flex-col bg-white/40 dark:bg-white/[0.03] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] rounded-2xl p-4 shadow-liquid dark:shadow-liquid-dark"
         role="region"
         aria-label={hasUnmatchedBookings ? "Today's Bookings - some need member assignment" : "Today's Bookings"}
       >
@@ -410,7 +410,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                               Needs Assignment
                             </span>
                             {booking.resource_type === 'conference_room' ? (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
                                 Conf
                               </span>
                             ) : (
@@ -425,7 +425,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                               {booking.user_name || 'Unknown Customer'}
                             </p>
                             {booking.resource_type === 'conference_room' ? (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-purple-400">
                                 Conf
                               </span>
                             ) : (
