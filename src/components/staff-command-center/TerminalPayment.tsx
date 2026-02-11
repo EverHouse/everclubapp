@@ -466,35 +466,54 @@ export function TerminalPayment({
       )}
 
       {status === 'waiting' && (
-        <div className={`p-6 rounded-lg text-center ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+        <div className={`p-6 rounded-xl text-center border-2 border-dashed ${isDark ? 'bg-emerald-900/10 border-emerald-500/30' : 'bg-emerald-50/50 border-emerald-300'}`}>
           <div className="flex justify-center mb-4">
             <div className="relative">
+              <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${isDark ? 'bg-emerald-400' : 'bg-emerald-500'}`} style={{ width: 72, height: 72, top: -6, left: -6 }} />
               <span className="material-symbols-outlined text-5xl text-emerald-500 animate-pulse">
                 contactless
               </span>
             </div>
           </div>
-          <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {isSaveCard ? 'Waiting for Card' : 'Waiting for Card'}
+          <h3 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Waiting for Reader...
           </h3>
-          <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          <p className={`text-sm mb-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            {isSaveCard ? 'Ask the member to tap or insert their card' : 'Ask the member to tap, insert, or swipe their card'}
+          </p>
+          <p className={`text-xs mb-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             {statusMessage}
           </p>
           {!isSaveCard && (
-            <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Amount: <span className="font-semibold">${(amount / 100).toFixed(2)}</span>
-            </p>
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg mb-5 ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Amount:</span>
+              <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${(amount / 100).toFixed(2)}</span>
+            </div>
           )}
-          <button
-            onClick={handleCancelPayment}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              isDark 
-                ? 'bg-white/10 text-white hover:bg-white/20' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Cancel
-          </button>
+          {isSaveCard && (
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg mb-5 ${isDark ? 'bg-white/5' : 'bg-white'}`}>
+              <span className="material-symbols-outlined text-sm text-emerald-500">lock</span>
+              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>No charge — saving card only</span>
+            </div>
+          )}
+          <div>
+            <button
+              onClick={handleCancelPayment}
+              className={`px-6 py-2.5 rounded-lg font-medium transition-colors text-sm ${
+                isDark 
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30' 
+                  : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">close</span>
+                Cancel
+              </span>
+            </button>
+          </div>
+          <p className={`text-xs mt-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+            Will auto-cancel after 2 minutes if no card is detected
+          </p>
         </div>
       )}
 

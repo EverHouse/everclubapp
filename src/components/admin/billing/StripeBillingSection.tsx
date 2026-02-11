@@ -79,6 +79,7 @@ interface StripeBillingSectionProps {
   onSendActivationEmail?: () => void;
   isSendingActivation?: boolean;
   onCopyActivationLink?: () => void;
+  onUpdateCardViaReader?: () => void;
 }
 
 function formatCurrency(cents: number): string {
@@ -140,6 +141,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
   onSendActivationEmail,
   isSendingActivation = false,
   onCopyActivationLink,
+  onUpdateCardViaReader,
 }) => {
   const getStatusBadge = (status: string) => getBillingStatusBadge(status, isDark);
 
@@ -524,9 +526,33 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               )}
               Update Payment Method
             </button>
+            {onUpdateCardViaReader && (
+              <button
+                onClick={onUpdateCardViaReader}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDark ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">contactless</span>
+                Update Card via Reader
+              </button>
+            )}
           </div>
         ) : (
-          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No payment methods on file</p>
+          <div>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No payment methods on file</p>
+            {onUpdateCardViaReader && (
+              <button
+                onClick={onUpdateCardViaReader}
+                className={`w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDark ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">contactless</span>
+                Add Card via Reader
+              </button>
+            )}
+          </div>
         )}
         
         {onOpenBillingPortal && (
