@@ -20,6 +20,7 @@ function applyScrollLock() {
     document.body.style.top = `-${savedScrollY}px`;
     document.body.style.left = '0';
     document.body.style.right = '0';
+    document.body.style.bottom = '0';
     document.body.style.overscrollBehavior = 'none';
   }
 }
@@ -33,6 +34,7 @@ function removeScrollLock() {
     document.body.style.top = '';
     document.body.style.left = '';
     document.body.style.right = '';
+    document.body.style.bottom = '';
     document.body.style.overscrollBehavior = '';
     window.scrollTo(0, scrollY);
   }
@@ -73,6 +75,7 @@ export function forceReleaseAllLocks(): void {
   document.body.style.top = '';
   document.body.style.left = '';
   document.body.style.right = '';
+  document.body.style.bottom = '';
   document.body.style.overscrollBehavior = '';
   window.scrollTo(0, scrollY);
 }
@@ -159,6 +162,7 @@ if (typeof window !== 'undefined') {
       document.body.style.top = '';
       document.body.style.left = '';
       document.body.style.right = '';
+      document.body.style.bottom = '';
     }
   });
   
