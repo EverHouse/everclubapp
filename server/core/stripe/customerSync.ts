@@ -6,10 +6,11 @@ export interface CustomerSyncResult {
   success: boolean;
   updated: number;
   skipped: number;
+  cleared: number;
   errors: string[];
   details: Array<{
     email: string;
-    action: 'updated' | 'skipped' | 'error';
+    action: 'updated' | 'skipped' | 'error' | 'cleared';
     customerId?: string;
     reason?: string;
   }>;
@@ -20,6 +21,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     success: true,
     updated: 0,
     skipped: 0,
+    cleared: 0,
     errors: [],
     details: [],
   };
@@ -67,17 +69,32 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
         });
         
       } catch (error: any) {
-        console.error(`[Stripe Customer Sync] Error updating ${member.email}:`, error.message);
-        result.errors.push(`${member.email}: ${error.message}`);
-        result.details.push({
-          email: member.email,
-          action: 'error',
-          reason: error.message,
-        });
+        if (error.code === 'resource_missing' || error.message?.includes('No such customer')) {
+          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${member.id}`);
+          result.cleared++;
+          result.details.push({
+            email: member.email,
+            action: 'cleared',
+            customerId: member.stripe_customer_id,
+            reason: 'Customer no longer exists in Stripe',
+          });
+        } else {
+          console.error(`[Stripe Customer Sync] Error updating ${member.email}:`, error.message);
+          result.errors.push(`${member.email}: ${error.message}`);
+          result.details.push({
+            email: member.email,
+            action: 'error',
+            reason: error.message,
+          });
+        }
       }
     }
     
-    console.log(`[Stripe Customer Sync] Completed: updated=${result.updated}, skipped=${result.skipped}, errors=${result.errors.length}`);
+    const parts = [`updated=${result.updated}`];
+    if (result.cleared > 0) parts.push(`cleared_stale=${result.cleared}`);
+    if (result.skipped > 0) parts.push(`skipped=${result.skipped}`);
+    if (result.errors.length > 0) parts.push(`errors=${result.errors.length}`);
+    console.log(`[Stripe Customer Sync] Completed: ${parts.join(', ')}`);
     
   } catch (error: any) {
     console.error('[Stripe Customer Sync] Fatal error:', error);
