@@ -86,6 +86,12 @@ const isProduction = process.env.NODE_ENV === 'production';
 const PORT = Number(process.env.PORT) || (isProduction ? 5001 : 3001);
 
 httpServer = http.createServer((req, res) => {
+  if (req.url === '/' && req.method === 'GET' && !expressApp) {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
   if (req.url === '/healthz' || req.url === '/_health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('OK');
@@ -94,12 +100,6 @@ httpServer = http.createServer((req, res) => {
 
   if (expressApp) {
     expressApp(req, res);
-    return;
-  }
-
-  if (req.url === '/' && req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('OK');
     return;
   }
 
@@ -147,6 +147,13 @@ async function initializeApp() {
   console.log(`[Startup] DATABASE_URL: ${process.env.DATABASE_URL ? 'configured' : 'MISSING'}`);
 
   const app = express();
+
+  app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+  });
+  app.get('/_health', (req, res) => {
+    res.status(200).send('OK');
+  });
 
   app.get('/api/ready', async (req, res) => {
     const startupHealth = getStartupHealth();
