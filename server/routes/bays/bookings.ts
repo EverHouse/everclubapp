@@ -14,6 +14,7 @@ import { getSessionUser } from '../../types/session';
 import { cancelPaymentIntent, getStripeClient } from '../../core/stripe';
 import { logFromRequest, logMemberAction } from '../../core/auditLog';
 import { getCalendarNameForBayAsync, isStaffOrAdminCheck } from './helpers';
+import { isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, deleteCalendarEvent } from '../../core/calendar/index';
 import { getGuestPassesRemaining } from '../guestPasses';
 import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
@@ -466,6 +467,31 @@ router.post('/api/booking-requests', async (req, res) => {
         [user_email, request_date]
       );
       
+      const linkedEmailCheck = await client.query(
+        `SELECT br.id, br.user_email FROM booking_requests br
+         WHERE br.request_date = $1
+         AND br.status IN ('pending', 'approved', 'confirmed')
+         AND LOWER(br.user_email) != LOWER($2)
+         AND EXISTS (
+           SELECT 1 FROM users u 
+           WHERE LOWER(u.email) = LOWER($2)
+           AND (
+             LOWER(u.trackman_email) = LOWER(br.user_email)
+             OR COALESCE(u.linked_emails, '[]'::jsonb) @> to_jsonb(LOWER(br.user_email)::text)
+             OR COALESCE(u.manually_linked_emails, '[]'::jsonb) @> to_jsonb(LOWER(br.user_email)::text)
+           )
+         )
+         LIMIT 1`,
+        [request_date, user_email]
+      );
+
+      if (linkedEmailCheck.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'You already have a booking on this date under a linked account. Please cancel it first or choose a different date.'
+        });
+      }
+      
       // Get resource type to pass to limit checking
       if (resource_id) {
         const resourceResult = await client.query(
@@ -562,6 +588,35 @@ router.post('/api/booking-requests', async (req, res) => {
           }
         }
       }
+      
+      for (const participant of sanitizedParticipants) {
+        if (participant.userId) {
+          const statusCheck = await db.select({ 
+            membershipStatus: users.membershipStatus,
+            email: users.email,
+            name: users.name
+          }).from(users)
+            .where(eq(users.id, participant.userId))
+            .limit(1);
+          if (statusCheck.length > 0 && (statusCheck[0].membershipStatus === 'inactive' || statusCheck[0].membershipStatus === 'cancelled')) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ 
+              error: `${statusCheck[0].name || statusCheck[0].email || 'A participant'} has an inactive membership and cannot be added to bookings.`
+            });
+          }
+        }
+      }
+      
+      const seenEmails = new Set<string>();
+      const seenUserIds = new Set<string>();
+      seenEmails.add(user_email.toLowerCase());
+      sanitizedParticipants = sanitizedParticipants.filter((p: any) => {
+        if (p.userId && seenUserIds.has(p.userId)) return false;
+        if (p.email && seenEmails.has(p.email.toLowerCase())) return false;
+        if (p.userId) seenUserIds.add(p.userId);
+        if (p.email) seenEmails.add(p.email.toLowerCase());
+        return true;
+      });
       
       // Conference rooms auto-confirm (no staff approval needed), simulators stay pending
       const isConferenceRoom = resourceType === 'conference_room';
@@ -1098,6 +1153,18 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     let refundType: 'none' | 'overage' | 'guest_fees' | 'both' = 'none';
     let refundSkippedDueToLateCancel = false;
     
+    let sessionResult: any = null;
+    try {
+      sessionResult = await pool.query(
+        `SELECT bs.id as session_id FROM booking_sessions bs 
+         JOIN booking_requests br ON bs.booking_id = br.id
+         WHERE br.id = $1`,
+        [bookingId]
+      );
+    } catch (sessionErr) {
+      console.error('[Member Cancel] Failed to fetch session (non-blocking):', sessionErr);
+    }
+    
     if (!shouldSkipRefund && existing.overagePaymentIntentId) {
       try {
         if (existing.overagePaid) {
@@ -1150,14 +1217,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
     // Skip refunds if within 1 hour of booking start time (late cancellation policy)
     if (!shouldSkipRefund) {
       try {
-        const sessionResult = await pool.query(
-          `SELECT bs.id as session_id FROM booking_sessions bs 
-           JOIN booking_requests br ON bs.booking_id = br.id
-           WHERE br.id = $1`,
-          [bookingId]
-        );
-        
-        if (sessionResult.rows[0]?.session_id) {
+        if (sessionResult?.rows[0]?.session_id) {
           const paidParticipants = await pool.query(
             `SELECT id, stripe_payment_intent_id, cached_fee_cents, display_name
              FROM booking_participants 
@@ -1680,6 +1740,72 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
     res.json(estimate);
   } catch (error: any) {
     logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
+  }
+});
+
+router.patch('/api/booking-requests/:id/player-count', isStaffOrAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id, 10);
+    if (isNaN(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID' });
+    }
+    
+    const { player_count } = req.body;
+    if (!player_count || typeof player_count !== 'number' || player_count < 1 || player_count > 4) {
+      return res.status(400).json({ error: 'Player count must be between 1 and 4' });
+    }
+    
+    const [existing] = await db.select({
+      id: bookingRequests.id,
+      status: bookingRequests.status,
+      sessionId: bookingRequests.sessionId,
+      declaredPlayerCount: bookingRequests.declaredPlayerCount
+    }).from(bookingRequests).where(eq(bookingRequests.id, bookingId));
+    
+    if (!existing) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    if (existing.status === 'cancelled' || existing.status === 'declined') {
+      return res.status(400).json({ error: 'Cannot update player count on a cancelled or declined booking' });
+    }
+    
+    await db.update(bookingRequests)
+      .set({ 
+        declaredPlayerCount: player_count,
+        updatedAt: new Date()
+      })
+      .where(eq(bookingRequests.id, bookingId));
+    
+    let feeBreakdown = null;
+    if (existing.sessionId) {
+      try {
+        const { recalculateSessionFees } = await import('../../core/billing/unifiedFeeService');
+        feeBreakdown = await recalculateSessionFees(existing.sessionId, 'admin');
+      } catch (feeErr) {
+        console.error('[PlayerCount] Fee recalculation failed (non-blocking):', feeErr);
+      }
+    }
+    
+    logFromRequest(req, 'player_count_updated', 'booking', String(bookingId), undefined, {
+      previous_count: existing.declaredPlayerCount,
+      new_count: player_count
+    });
+    
+    return res.json({ 
+      success: true, 
+      player_count,
+      previous_count: existing.declaredPlayerCount,
+      fees_recalculated: !!feeBreakdown,
+      fee_breakdown: feeBreakdown ? {
+        totalCents: feeBreakdown.totals.totalCents,
+        overageCents: feeBreakdown.totals.overageCents,
+        guestCents: feeBreakdown.totals.guestCents
+      } : null
+    });
+  } catch (err) {
+    console.error('[PlayerCount] Failed to update player count:', err);
+    return res.status(500).json({ error: 'Failed to update player count' });
   }
 });
 
