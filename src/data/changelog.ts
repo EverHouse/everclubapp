@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.40.1",
+    date: "2026-02-11",
+    title: "Training Guide Completeness Update",
+    changes: [
+      "New: Added POS Register training guide covering cart management, customer selection, and three payment methods",
+      "New: Added Settings training guide covering club config, timezone, payment category labels, and alert toggles",
+      "New: Added Discounts & Coupons training guide covering Stripe coupon creation, editing, and redemption tracking",
+      "New: Added View As Member training guide explaining how staff can see the app from a member's perspective",
+      "Fix: Corrected navigation icons for Facility, Directory, and Financials to match the actual sidebar",
+    ],
+  },
+  {
     version: "7.40.0",
     date: "2026-02-11",
     title: "Training Guide Audit & Update",

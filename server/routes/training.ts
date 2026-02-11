@@ -214,7 +214,7 @@ export const TRAINING_SEED_DATA = [
   },
   {
     guideId: 'financials-page',
-    icon: 'payments',
+    icon: 'point_of_sale',
     title: 'Financials Page',
     description: 'Process payments, view subscriptions, and manage invoices',
     sortOrder: 12,
@@ -304,7 +304,7 @@ export const TRAINING_SEED_DATA = [
   },
   {
     guideId: 'facility-closures',
-    icon: 'notifications',
+    icon: 'domain',
     title: 'Notices (Facility)',
     description: 'Schedule notices and facility closures',
     sortOrder: 17,
@@ -370,7 +370,7 @@ export const TRAINING_SEED_DATA = [
   },
   {
     guideId: 'member-directory',
-    icon: 'groups',
+    icon: 'group',
     title: 'Member Directory',
     description: 'Search and view member and visitor profiles',
     sortOrder: 20,
@@ -562,6 +562,67 @@ export const TRAINING_SEED_DATA = [
       { title: 'Issue Categories', content: 'Common issues include: members with no Stripe customer, Stripe subscription status mismatches, tier mismatches between app and Stripe, missing HubSpot contacts, and duplicate accounts.', pageIcon: 'category' },
       { title: 'Resolving Issues', content: 'Each issue includes a description and suggested action. Some can be auto-fixed (like syncing a tier to Stripe), while others may require manual review.', pageIcon: 'build' },
       { title: 'Check History', content: 'The dashboard shows a history of past integrity checks with issue counts over time, so you can track whether data quality is improving.', pageIcon: 'history' },
+    ]
+  },
+  {
+    guideId: 'pos-register',
+    icon: 'point_of_sale',
+    title: 'POS Register',
+    description: 'Ring up in-person sales for members and walk-ins',
+    sortOrder: 32,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Access the POS', content: 'The POS Register is the first tab on the Financials page. It opens by default when you navigate to Financials.', pageIcon: 'point_of_sale' },
+      { title: 'Category Tabs', content: 'Browse products by category: All, Passes (day passes), Cafe (food and drinks synced from Stripe), or Merch. Tap an item to add it to the cart.', pageIcon: 'grid_view' },
+      { title: 'Cart & Quantities', content: 'The cart shows all added items with quantities. Tap + or - to adjust, or remove items. The total updates automatically.', pageIcon: 'shopping_cart' },
+      { title: 'Select a Customer', content: 'Search for an existing member by name or email. For walk-ins, switch to "New Customer" and fill in their details — or use the ID scanner to auto-fill from a driver\'s license.', pageIcon: 'person_search' },
+      { title: 'Payment Methods', content: 'Three payment options: Online Card (customer enters card details), Card Reader (tap or insert on the Stripe Terminal), or Card on File (charge the member\'s saved card).', pageIcon: 'credit_card' },
+      { title: 'After Payment', content: 'Once payment is confirmed, you can send a receipt to the customer\'s email. Tap "New Sale" to clear the cart and start a fresh transaction.', pageIcon: 'receipt' },
+    ]
+  },
+  {
+    guideId: 'settings',
+    icon: 'settings',
+    title: 'Settings',
+    description: 'Configure club name, timezone, alerts, and payment labels (Admin only)',
+    sortOrder: 33,
+    isAdminOnly: true,
+    steps: [
+      { title: 'Access Settings', content: 'Settings is available from the Admin section. Only admins (not regular staff) can view and change settings.', pageIcon: 'settings' },
+      { title: 'Club Name & Email', content: 'Set the club name and support email address. The support email is used in automated messages sent to members.', pageIcon: 'business' },
+      { title: 'Timezone', content: 'Choose the timezone used for displaying dates and times throughout the app. Options include Pacific, Mountain, Central, Eastern, and UTC.', pageIcon: 'schedule' },
+      { title: 'Category Labels', content: 'Customize the display names for payment categories like Guest Pass, Guest Sim Fee, Sim Walk-In, Membership, Cafe, Retail, and Other. These labels appear in financial reports and transaction history.', pageIcon: 'label' },
+      { title: 'Alert Toggles', content: 'Enable or disable automatic alerts for data integrity issues and sync failures. When enabled, admins receive notifications when something needs attention.', pageIcon: 'notifications_active' },
+    ]
+  },
+  {
+    guideId: 'discounts',
+    icon: 'sell',
+    title: 'Discounts & Coupons',
+    description: 'Create and manage Stripe discount coupons',
+    sortOrder: 34,
+    isAdminOnly: true,
+    steps: [
+      { title: 'Access Discounts', content: 'Discounts are managed under Products & Pricing. Look for the Discounts sub-tab next to the Tiers list.', pageIcon: 'sell' },
+      { title: 'How Coupons Work', content: 'Coupons are synced with Stripe. When you create a coupon here, it is created in Stripe and can be applied to subscriptions and invoices.', pageIcon: 'sync' },
+      { title: 'Create a Coupon', content: 'Choose between a percentage discount or a fixed dollar amount. Set the duration (one-time, repeating for X months, or forever) and optionally limit the number of redemptions.', pageIcon: 'add_circle' },
+      { title: 'Edit or Delete', content: 'You can rename existing coupons or delete ones that are no longer needed. Deleting a coupon removes it from Stripe so it can no longer be applied.', pageIcon: 'edit' },
+      { title: 'Redemption Tracking', content: 'Each coupon shows how many times it has been redeemed. Use this to monitor usage and decide when to retire a coupon.', pageIcon: 'bar_chart' },
+    ]
+  },
+  {
+    guideId: 'view-as-member',
+    icon: 'visibility',
+    title: 'View As Member',
+    description: 'See the app from a member\'s perspective',
+    sortOrder: 35,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What Is View As?', content: 'View As lets staff see exactly what a specific member sees when they log in. It is useful for troubleshooting issues or understanding a member\'s experience.', pageIcon: 'visibility' },
+      { title: 'How to Activate', content: 'Open a member\'s profile in the Directory, then tap "View As" in the profile drawer. The app switches to show that member\'s dashboard, bookings, and account.', pageIcon: 'person' },
+      { title: 'Banner Indicator', content: 'While viewing as a member, a banner appears at the top of the screen showing whose account you are viewing and their membership tier. Tap "Exit" to return to your staff view.', pageIcon: 'info' },
+      { title: 'Member Restrictions Apply', content: 'View As enforces the same restrictions the member would see. For example, the one-pending-booking limit applies — if the member already has a pending request, you won\'t be able to submit another while in View As mode.', pageIcon: 'block' },
+      { title: 'Admin Only', content: 'Only admins can use View As. Regular staff members do not have access to this feature.', pageIcon: 'admin_panel_settings' },
     ]
   },
 ];
