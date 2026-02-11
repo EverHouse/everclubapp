@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.43.1",
+    date: "2026-02-11",
+    title: "Wellness External URL Data Fix",
+    changes: [
+      "Fixed: External URL for wellness classes was being dropped during data loading on the member page — 'Learn More' buttons now appear correctly",
+      "Fixed: Data mapping now properly passes external_url from the API through to the wellness class cards",
+    ],
+  },
+  {
     version: "7.43.0",
     date: "2026-02-11",
     title: "External Link Buttons for Events & Wellness",

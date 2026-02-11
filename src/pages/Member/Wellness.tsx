@@ -236,7 +236,8 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
             description: c.description,
             capacity,
             waitlistEnabled: c.waitlist_enabled || false,
-            waitlistCount
+            waitlistCount,
+            external_url: c.external_url || undefined
           };
         });
       }
