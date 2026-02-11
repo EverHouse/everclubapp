@@ -427,7 +427,12 @@ async function initializeApp() {
     }
   }
 
+  const heavyTaskDelay = isProduction ? 10000 : 500;
+  console.log(`[Startup] Scheduling heavy background tasks in ${heavyTaskDelay / 1000}s...`);
+
   setTimeout(() => {
+    console.log('[Startup] Starting heavy background tasks...');
+
     try {
       initWebSocketServer(httpServer!);
     } catch (err) {
@@ -470,7 +475,7 @@ async function initializeApp() {
     } catch (err) {
       console.error('[Startup] Scheduler initialization failed:', err);
     }
-  }, 500);
+  }, heavyTaskDelay);
 }
 
 async function autoSeedResources(pool: any, isProduction: boolean) {
