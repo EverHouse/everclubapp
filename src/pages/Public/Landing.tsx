@@ -287,7 +287,7 @@ const Landing: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="Ever Club | Orange County's Premier Indoor Golf & Social Club"
+        title="Ever Members Club | Orange County's Premier Indoor Golf & Social Club"
         description="A new kind of members club rooted in golf, built for community. Experience indoor golf simulators, coworking spaces, wellness programs, and curated events in Tustin, Orange County."
         url="/"
         image="/images/hero-lounge-optimized.webp"
@@ -346,7 +346,7 @@ const Landing: React.FC = () => {
           </p>
           <div className="flex flex-col gap-3 w-full max-w-xs animate-hero-cta">
              <Link to="/membership" className="w-full py-4 rounded-2xl bg-white/30 backdrop-blur-xl text-white font-bold text-xs uppercase tracking-[0.15em] shadow-lg hover:scale-[1.02] hover:bg-white/40 transition-all text-center border border-white/40">
-                Apply for Membership
+                Explore Membership Plans
              </Link>
              <button onClick={() => setShowTourModal(true)} className="w-full py-3 text-white font-medium text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-2 group">
                 Book a Tour
@@ -359,8 +359,8 @@ const Landing: React.FC = () => {
       {/* Content wrapper with cream background */}
       <div className="bg-[#F2F2EC]">
       {/* Features Section - "Why Ever Club" (Moved to First Position) */}
-      <div className="px-6 py-12 animate-content-enter-delay-1">
-        <h2 className="text-3xl font-bold text-[#293515] mb-8 font-sans">Why Ever Club</h2>
+      <section className="px-6 py-12 animate-content-enter-delay-1">
+        <h2 className="text-3xl font-bold text-[#293515] mb-8 font-sans">Why Ever Members Club</h2>
         <div className="grid grid-cols-2 gap-4">
           <FeatureCard 
             image="/images/golf-sims-optimized.webp"
@@ -387,7 +387,7 @@ const Landing: React.FC = () => {
             staggerIndex={3}
           />
         </div>
-      </div>
+      </section>
 
       {/* Editorial Sections */}
       <div>
@@ -470,7 +470,7 @@ const Landing: React.FC = () => {
       </div>
 
       {/* Membership Preview Section */}
-      <div className="px-6 pb-12 bg-[#F2F2EC] animate-content-enter-delay-3">
+      <section className="px-6 pb-12 bg-[#F2F2EC] animate-content-enter-delay-3">
          <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-[#293515] mb-2">Membership Tiers</h2>
             <p className="text-[#293515]/70 text-sm">Select the plan that fits your lifestyle.</p>
@@ -536,10 +536,10 @@ const Landing: React.FC = () => {
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </Link>
          </div>
-      </div>
+      </section>
 
       {/* Social Proof Stats Section */}
-      <div className="px-6 py-10 bg-[#F2F2EC] animate-content-enter-delay-4">
+      <section className="px-6 py-10 bg-[#F2F2EC] animate-content-enter-delay-4">
         <h3 className="text-center text-2xl font-bold text-[#293515] mb-6">Join 200+ Members</h3>
         <div className="flex justify-center items-center gap-0 overflow-x-auto">
           <div className="flex-1 min-w-0 text-center px-3">
@@ -562,10 +562,10 @@ const Landing: React.FC = () => {
             <p className="text-[10px] sm:text-xs text-[#293515]/70 uppercase tracking-wider font-medium">Founded</p>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Testimonial Section */}
-      <div className="px-6 py-12 bg-[#F2F2EC] animate-content-enter-delay-5">
+      <section className="px-6 py-12 bg-[#F2F2EC] animate-content-enter-delay-5">
         <div className="max-w-2xl mx-auto text-center">
           <span className="text-6xl text-[#293515]/20 font-serif leading-none block mb-2">"</span>
           <blockquote className="text-lg sm:text-xl italic text-[#293515]/90 mb-4 leading-relaxed -mt-8">
@@ -573,7 +573,7 @@ const Landing: React.FC = () => {
           </blockquote>
           <p className="text-sm text-[#293515]/60 font-medium">— Michael R., Core Member</p>
         </div>
-      </div>
+      </section>
 
       {/* Private Events Inquiry Section */}
       <div className="px-4 pb-12 animate-content-enter-delay-6">
@@ -614,7 +614,7 @@ const Landing: React.FC = () => {
             to="/membership" 
             className="w-full py-3 rounded-xl bg-[#293515] text-white font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
           >
-            Apply for Membership
+            Start Your Membership
             <span className="material-symbols-outlined text-lg">arrow_forward</span>
           </Link>
         </div>

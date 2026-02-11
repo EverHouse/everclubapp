@@ -118,15 +118,15 @@ const MembershipOverview: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="Membership | Ever Club"
-        description="Join Ever Club - Orange County's premier indoor golf and social club. Choose from Social, Core, Premium, or Corporate membership tiers with exclusive benefits including golf simulators, coworking, wellness, and events."
+        title="Membership | Ever Members Club"
+        description="Join Ever Members Club - Orange County's premier indoor golf and social club. Choose from Social, Core, Premium, or Corporate membership tiers with exclusive benefits including golf simulators, coworking, wellness, and events."
         url="/membership"
         image="/images/hero-lounge-optimized.webp"
       />
     <div className="px-4 pt-4 pb-0 flex flex-col gap-8 bg-[#F2F2EC] min-h-screen overflow-x-hidden">
       <div className="text-center px-2 animate-content-enter">
         <p className="text-primary/40 text-[10px] font-bold uppercase tracking-[0.3em] mb-2">Est. 2025</p>
-        <h2 className="text-3xl font-medium tracking-tight text-primary mb-3">Membership Overview</h2>
+        <h1 className="text-3xl font-medium tracking-tight text-primary mb-3">Membership Overview</h1>
         <p className="text-primary/70 text-base font-light leading-relaxed max-w-[320px] mx-auto">
           A space for connection and growth. Select the membership that fits your lifestyle.
         </p>
@@ -253,7 +253,7 @@ const MembershipOverview: React.FC = () => {
             onClick={() => navigate('/membership/apply')}
             className="px-8 py-4 rounded-2xl bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]"
           >
-            Start Your Application
+            Start Your Membership
           </button>
         </div>
       </div>
@@ -317,7 +317,7 @@ const MembershipOverview: React.FC = () => {
           onClick={() => navigate('/membership/apply')}
           className="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
         >
-          Apply for Membership
+          Start Your Membership
           <span className="material-symbols-outlined text-lg">arrow_forward</span>
         </button>
       </div>

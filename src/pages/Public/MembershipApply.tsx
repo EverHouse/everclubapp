@@ -55,8 +55,6 @@ const MembershipApply: React.FC = () => {
     if (!formData.firstname.trim()) errors.firstname = 'First name is required';
     if (!formData.lastname.trim()) errors.lastname = 'Last name is required';
     if (!formData.email.trim()) errors.email = 'Email is required';
-    if (!formData.phone.trim()) errors.phone = 'Phone number is required';
-    if (!formData.consent) errors.consent = 'You must agree to receive communications';
     return errors;
   };
 
@@ -84,6 +82,14 @@ const MembershipApply: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!formData.consent) {
+      setFieldErrors({ consent: 'You must agree to receive communications' });
+      setError('Please agree to receive communications');
+      setLoading(false);
+      return;
+    }
+
     triggerHaptic('medium');
 
     try {
@@ -158,7 +164,7 @@ const MembershipApply: React.FC = () => {
               Apply for Membership
             </h1>
             <p className="text-primary/60 text-sm md:text-base">
-              Join the Ever Club community and discover a new way to connect, play, and unwind.
+              Join the Ever Members Club community and discover a new way to connect, play, and unwind.
             </p>
           </div>
 
@@ -181,9 +187,15 @@ const MembershipApply: React.FC = () => {
           ) : (
             <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden">
               <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>1</div>
-                <div className="w-16 h-0.5 bg-primary/20" />
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>2</div>
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>1</div>
+                  <span className={`text-[10px] font-medium ${step === 1 ? 'text-primary' : 'text-primary/40'}`}>Your Info</span>
+                </div>
+                <div className="w-16 h-0.5 bg-primary/20 mb-5" />
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>2</div>
+                  <span className={`text-[10px] font-medium ${step === 2 ? 'text-primary' : 'text-primary/40'}`}>Preferences</span>
+                </div>
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 md:p-8">
@@ -258,7 +270,7 @@ const MembershipApply: React.FC = () => {
 
                     <div>
                       <label className="block text-sm font-semibold text-primary mb-2">
-                        Phone Number <span className="text-red-500">*</span>
+                        Phone Number <span className="text-primary/40 text-xs font-normal">(optional)</span>
                       </label>
                       <input
                         type="tel"
@@ -278,38 +290,6 @@ const MembershipApply: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-primary/10">
-                      <p className="text-xs text-primary/60 mb-4 leading-relaxed">
-                        Ever Club is committed to protecting and respecting your privacy. We use your information to administer your account and to provide the products, services, and updates you request from us. We also contact you with information about membership, events, promotions, operational updates, and other content that may be relevant to you. If you consent to receiving communications from us, please indicate your preferences below.
-                      </p>
-                      <label className={`flex items-start gap-3 cursor-pointer group p-3 rounded-xl transition-colors ${fieldErrors.consent ? 'bg-red-50 border border-red-200' : 'hover:bg-primary/5'}`}>
-                        <input
-                          type="checkbox"
-                          checked={formData.consent}
-                          onChange={(e) => {
-                            handleChange('consent', e.target.checked);
-                            if (fieldErrors.consent) setFieldErrors(prev => ({ ...prev, consent: '' }));
-                          }}
-                          className="mt-0.5 w-5 h-5 rounded border-primary/30 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm text-primary leading-relaxed">
-                          I agree to receive communications from Ever Club regarding membership, account updates, events, and promotions. <span className="text-red-500">*</span>
-                        </span>
-                      </label>
-                      {fieldErrors.consent && (
-                        <p className="text-sm text-red-500 mt-2 flex items-center gap-1 pl-1">
-                          <span className="material-symbols-outlined text-sm">error</span>
-                          {fieldErrors.consent}
-                        </p>
-                      )}
-                      <p className="text-xs text-primary/60 mt-4 leading-relaxed">
-                        You can unsubscribe from Ever Club communications at any time. For more information about how to unsubscribe, our privacy practices, and how we protect and respect your personal information, please review our Privacy Policy.
-                      </p>
-                      <p className="text-xs text-primary/60 mt-3 leading-relaxed">
-                        By submitting this form, you authorize Ever Club to store and process your personal information to provide the content, services, and membership evaluation you have requested.
-                      </p>
-                    </div>
-
                     {error && (
                       <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
                         <span className="material-symbols-outlined text-red-600 text-lg mt-0.5">error</span>
@@ -322,12 +302,12 @@ const MembershipApply: React.FC = () => {
                       onClick={handleNext}
                       className="w-full py-4 bg-primary text-white rounded-[2rem] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
-                      Next
+                      Continue to Preferences
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    <h3 className="text-xl font-bold text-primary font-serif">Tell Us More</h3>
+                    <h3 className="text-xl font-bold text-primary font-serif">Almost There</h3>
 
                     <div>
                       <label className="block text-sm font-semibold text-primary mb-2">
@@ -347,15 +327,39 @@ const MembershipApply: React.FC = () => {
 
                     <div>
                       <label className="block text-sm font-semibold text-primary mb-2">
-                        Tell us about yourself
+                        What brings you to Ever Members Club?
                       </label>
                       <textarea
                         value={formData.message}
                         onChange={(e) => handleChange('message', e.target.value)}
-                        placeholder="Tell us about yourself and your interests..."
+                        placeholder="Golf, coworking, wellness, events — we'd love to know what interests you most."
                         rows={5}
                         className={`${getInputClass('message')} resize-none`}
                       />
+                    </div>
+
+                    <div className="pt-4 border-t border-primary/10">
+                      <label className={`flex items-start gap-3 cursor-pointer group p-3 rounded-xl transition-colors ${fieldErrors.consent ? 'bg-red-50 border border-red-200' : 'hover:bg-primary/5'}`}>
+                        <input
+                          type="checkbox"
+                          checked={formData.consent}
+                          onChange={(e) => {
+                            handleChange('consent', e.target.checked);
+                            if (fieldErrors.consent) setFieldErrors(prev => ({ ...prev, consent: '' }));
+                          }}
+                          className="mt-0.5 w-5 h-5 rounded border-primary/30 text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-primary leading-relaxed">
+                          I agree to receive communications from Ever Members Club. <span className="text-red-500">*</span>
+                          <Link to="/privacy" className="underline text-primary/60 hover:text-primary ml-1">Privacy Policy</Link>
+                        </span>
+                      </label>
+                      {fieldErrors.consent && (
+                        <p className="text-sm text-red-500 mt-2 flex items-center gap-1 pl-1">
+                          <span className="material-symbols-outlined text-sm">error</span>
+                          {fieldErrors.consent}
+                        </p>
+                      )}
                     </div>
 
                     {error && (
