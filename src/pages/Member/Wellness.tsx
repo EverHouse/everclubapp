@@ -205,6 +205,8 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loadingCancel, setLoadingCancel] = useState<number | null>(null);
   const [loadingRsvp, setLoadingRsvp] = useState<number | null>(null);
+  const [recentlyEnrolled, setRecentlyEnrolled] = useState<Set<number>>(new Set());
+  const recentlyEnrolledTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const categories = ['All', 'Classes', 'MedSpa', 'Recovery', 'Therapy', 'Nutrition', 'Personal Training', 'Mindfulness', 'Outdoors', 'General'];
   
   const onRefreshCompleteRef = useRef(onRefreshComplete);
@@ -293,8 +295,17 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     }
   }, [isLoading, setPageReady]);
 
+  useEffect(() => {
+    const timers = recentlyEnrolledTimers.current;
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
+
   const handleCancel = async (classData: WellnessClass) => {
     if (!userEmail) return;
+    if (recentlyEnrolled.has(classData.id)) return;
     
     setLoadingCancel(classData.id);
     
@@ -340,12 +351,10 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     if (!userEmail) return;
     
     setLoadingRsvp(classData.id);
+    setRecentlyEnrolled(prev => new Set(prev).add(classData.id));
     
     const isWaitlistJoin = classData.spotsRemaining !== null && classData.spotsRemaining <= 0 && classData.waitlistEnabled;
     
-    queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
-      [...old, { class_id: classData.id, user_email: userEmail, is_waitlisted: isWaitlistJoin }]
-    );
     queryClient.setQueryData<WellnessClass[]>(['wellness-classes'], (old = []) => 
       old.map(c => {
         if (c.id === classData.id) {
@@ -376,9 +385,28 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
       playSound('bookingConfirmed');
       const isWaitlisted = data?.isWaitlisted;
       showToast(isWaitlisted ? `Added to waitlist for ${classData.title}` : `RSVP confirmed for ${classData.title}!`, 'success');
+      queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
+        [...old, { class_id: classData.id, user_email: userEmail, is_waitlisted: isWaitlistJoin }]
+      );
+      const existingTimer = recentlyEnrolledTimers.current.get(classData.id);
+      if (existingTimer) clearTimeout(existingTimer);
+      const timer = setTimeout(() => {
+        setRecentlyEnrolled(prev => {
+          const next = new Set(prev);
+          next.delete(classData.id);
+          return next;
+        });
+        recentlyEnrolledTimers.current.delete(classData.id);
+      }, 3000);
+      recentlyEnrolledTimers.current.set(classData.id, timer);
       queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
       queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
     } else {
+      setRecentlyEnrolled(prev => {
+        const next = new Set(prev);
+        next.delete(classData.id);
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
       queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
       showToast(error || 'Unable to RSVP. Please try again.', 'error');
@@ -440,6 +468,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
                             isOnWaitlist={waitlisted}
                             isCancelling={isCancelling}
                             isRsvping={isRsvping}
+                            isCancelDisabled={recentlyEnrolled.has(cls.id)}
                             isDark={isDark}
                             isMembershipInactive={!!(userStatus && userStatus.toLowerCase() !== 'active')}
                             isFull={isFull}
@@ -578,7 +607,7 @@ const LoadingSpinner: React.FC<{ className?: string }> = ({ className = '' }) =>
   </svg>
 );
 
-const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl }) => {
+const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isCancelDisabled = false, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl }) => {
   const formattedTime = formatTimeTo12Hour(time);
   const showJoinWaitlist = isFull && waitlistEnabled && !isEnrolled;
   const showFullNoWaitlist = isFull && !waitlistEnabled && !isEnrolled;
@@ -684,12 +713,12 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
           </div>
         ) : isEnrolled ? (
           <button 
-            onClick={(e) => { e.stopPropagation(); onCancel(); }}
-            disabled={isCancelling}
-            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all border flex items-center justify-center gap-2 ${isDark ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-500/50 text-red-500 hover:bg-red-500/10'} ${isCancelling ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+            onClick={(e) => { e.stopPropagation(); if (!isCancelDisabled) onCancel(); }}
+            disabled={isCancelling || isCancelDisabled}
+            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all border flex items-center justify-center gap-2 ${isDark ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-500/50 text-red-500 hover:bg-red-500/10'} ${isCancelling || isCancelDisabled ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
           >
             {isCancelling && <LoadingSpinner />}
-            {isCancelling ? (isOnWaitlist ? 'Leaving Waitlist...' : 'Cancelling...') : isOnWaitlist ? 'Leave Waitlist' : 'Cancel'}
+            {isCancelDisabled ? (isOnWaitlist ? 'On Waitlist' : 'Confirmed') : isCancelling ? (isOnWaitlist ? 'Leaving Waitlist...' : 'Cancelling...') : isOnWaitlist ? 'Leave Waitlist' : 'Cancel'}
           </button>
         ) : showFullNoWaitlist ? (
           <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
