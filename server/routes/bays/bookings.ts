@@ -1344,6 +1344,7 @@ async function calculateFeeEstimate(params: {
   bookingId?: number;
   resourceType?: string;
   guestsWithInfo?: number;
+  memberEmails?: string[];
 }) {
   const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount, sessionId, bookingId, resourceType } = params;
   
@@ -1370,6 +1371,20 @@ async function calculateFeeEstimate(params: {
   }> = [
     { email: ownerEmail, displayName: 'Owner', participantType: 'owner' }
   ];
+  
+  // Add additional members (other club members in the booking)
+  // This prevents them from being counted as empty slots (which would charge extra guest fees)
+  const memberEmails = params.memberEmails || [];
+  const inferredMemberCount = Math.max(0, playerCount - guestCount - 1);
+  const memberCount = memberEmails.length > 0 ? memberEmails.length : inferredMemberCount;
+  for (let i = 0; i < memberCount; i++) {
+    const memberEmail = memberEmails[i] || undefined;
+    participants.push({ 
+      email: memberEmail, 
+      displayName: memberEmail ? `Member ${i + 1}` : `Estimated Member ${i + 1}`, 
+      participantType: 'member' 
+    });
+  }
   
   // Add guests based on count. Guests with actual info entered (name/email) use
   // "Estimated Guest N" naming so passes CAN apply. Empty guest slots (no info)
@@ -1569,6 +1584,8 @@ router.get('/api/fee-estimate', async (req, res) => {
     const requestDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
     const resourceType = (req.query.resourceType as string) || 'simulator';
     const guestsWithInfo = parseInt(req.query.guestsWithInfo as string) || 0;
+    const memberEmailsParam = req.query.memberEmails as string | undefined;
+    const memberEmails = memberEmailsParam ? memberEmailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean) : [];
     
     // Members can only check their own fees
     const ownerEmail = isStaff && req.query.email 
@@ -1582,6 +1599,7 @@ router.get('/api/fee-estimate', async (req, res) => {
       requestDate,
       playerCount,
       resourceType,
+      memberEmails,
       guestsWithInfo
     });
     

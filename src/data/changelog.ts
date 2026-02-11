@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.39.1",
+    date: "2026-02-11",
+    title: "Guest Pass & Fee Estimate Fixes",
+    changes: [
+      "Fix: Guest passes now apply correctly for Corporate tier members — previously passes weren't being used during booking even when the guest had full name and email entered",
+      "Fix: Fee estimate no longer double-charges when booking with other club members — additional members were incorrectly counted as empty guest slots, adding an extra $25 per member",
+      "Fix: 'Passes remaining after booking' now shows the correct count (e.g. 14 of 15) instead of always showing 0",
+      "Fix: Member emails are now passed to the fee estimate so the system knows about all players in the booking, preventing phantom empty slot charges",
+      "Improvement: Guest pass eligibility check is now more resilient — if a tier has monthly guest passes allocated, they'll work even if the feature flag wasn't explicitly set",
+    ],
+  },
+  {
     version: "7.39.0",
     date: "2026-02-11",
     title: "Stripe Sync + Billing Safety",

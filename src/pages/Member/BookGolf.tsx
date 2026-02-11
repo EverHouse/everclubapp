@@ -268,6 +268,11 @@ const BookGolf: React.FC = () => {
   const guestsWithInfo = activeTab === 'simulator'
     ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || (slot.firstName?.trim() && slot.lastName?.trim() && slot.email && slot.email.includes('@')))).length
     : 0;
+  const memberEmails = activeTab === 'simulator'
+    ? playerSlots
+        .filter(slot => slot.type === 'member' && slot.email)
+        .map(slot => slot.email!)
+    : [];
   const feeEstimateParams = useMemo(() => {
     if (!duration || !selectedDateObj?.date) return '';
     const params = new URLSearchParams({
@@ -278,11 +283,14 @@ const BookGolf: React.FC = () => {
       resourceType: activeTab === 'conference' ? 'conference_room' : 'simulator',
       guestsWithInfo: guestsWithInfo.toString()
     });
+    if (memberEmails.length > 0) {
+      params.set('memberEmails', memberEmails.join(','));
+    }
     if (effectiveUser?.email && isAdminViewingAs) {
       params.set('email', effectiveUser.email);
     }
     return params.toString();
-  }, [duration, guestCount, guestsWithInfo, effectivePlayerCount, selectedDateObj?.date, activeTab, effectiveUser?.email, isAdminViewingAs, playerSlots]);
+  }, [duration, guestCount, guestsWithInfo, effectivePlayerCount, selectedDateObj?.date, activeTab, effectiveUser?.email, isAdminViewingAs, playerSlots, memberEmails]);
 
   const { data: feeEstimateData, isLoading: feeEstimateLoading } = useQuery({
     queryKey: bookGolfKeys.feeEstimate(feeEstimateParams),
@@ -307,7 +315,7 @@ const BookGolf: React.FC = () => {
       overageMinutes: feeEstimateData.feeBreakdown.overageMinutes,
       guestsUsingPasses: feeEstimateData.feeBreakdown.guestsUsingPasses,
       guestsCharged: feeEstimateData.feeBreakdown.guestsCharged,
-      passesRemainingAfter: Math.max(0, feeEstimateData.feeBreakdown.guestPassesRemaining - feeEstimateData.feeBreakdown.guestCount),
+      passesRemainingAfter: Math.max(0, feeEstimateData.feeBreakdown.guestPassesRemaining - feeEstimateData.feeBreakdown.guestsUsingPasses),
       isLoading: feeEstimateLoading,
       guestFeePerUnit: feeEstimateData.feeBreakdown.guestFeePerUnit || guestFeeDollars,
       overageRatePerBlock: feeEstimateData.feeBreakdown.overageRatePerBlock || overageRatePerBlockDollars

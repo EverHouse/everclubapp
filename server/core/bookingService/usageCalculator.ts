@@ -169,7 +169,8 @@ export async function getGuestPassInfo(
 ): Promise<{ remaining: number; hasGuestPassBenefit: boolean }> {
   try {
     const tierLimits = tierName ? await getTierLimits(tierName) : null;
-    const hasGuestPassBenefit = tierLimits?.has_simulator_guest_passes ?? false;
+    const hasGuestPassBenefit = (tierLimits?.has_simulator_guest_passes ?? false) || 
+      (tierLimits?.guest_passes_per_month ?? 0) > 0;
     
     if (!hasGuestPassBenefit) {
       return { remaining: 0, hasGuestPassBenefit: false };
