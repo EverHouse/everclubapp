@@ -16,10 +16,75 @@ declare global {
   }
 }
 
+process.on('uncaughtException', (error) => {
+  console.error('[Process] Uncaught Exception:', error);
+  if (error.message?.includes('EADDRINUSE')) {
+    process.exit(1);
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  const errorMessage = reason instanceof Error ? reason.message : String(reason);
+  console.error('[Process] Unhandled Rejection:', errorMessage);
+});
+
+process.on('SIGTERM', () => {
+  console.log('[Process] Received SIGTERM signal');
+  gracefulShutdown('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  console.log('[Process] Received SIGINT signal');
+  gracefulShutdown('SIGINT');
+});
+
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  isReady = false;
+  console.log(`[Shutdown] Starting graceful shutdown (${signal})...`);
+
+  const shutdownTimeout = setTimeout(() => {
+    console.error('[Shutdown] Timeout exceeded, forcing exit');
+    process.exit(1);
+  }, 30000);
+
+  try {
+    try {
+      const { stopSchedulers } = await import('./schedulers');
+      stopSchedulers();
+    } catch {}
+    try {
+      const { closeWebSocketServer } = await import('./core/websocket');
+      closeWebSocketServer();
+    } catch {}
+
+    if (httpServer) {
+      await new Promise<void>((resolve) => {
+        httpServer!.close(() => resolve());
+        setTimeout(resolve, 5000);
+      });
+    }
+
+    try {
+      const { pool } = await import('./core/db');
+      await pool.end();
+    } catch {}
+
+    clearTimeout(shutdownTimeout);
+    console.log('[Shutdown] Complete');
+    process.exit(0);
+  } catch (error) {
+    console.error('[Shutdown] Error:', error);
+    clearTimeout(shutdownTimeout);
+    process.exit(1);
+  }
+}
+
 const PORT = Number(process.env.PORT) || 3001;
 
 httpServer = http.createServer((req, res) => {
-  if (req.url === '/healthz' || req.url === '/_health' || req.url === '/') {
+  if (req.url === '/healthz' || req.url === '/_health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('OK');
     return;
@@ -27,20 +92,25 @@ httpServer = http.createServer((req, res) => {
 
   if (expressApp) {
     expressApp(req, res);
-  } else {
-    res.writeHead(503, { 'Content-Type': 'text/plain' });
-    res.end('Server is starting up...');
+    return;
   }
+
+  if (req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
+  res.writeHead(503, { 'Content-Type': 'text/plain' });
+  res.end('Server is starting up...');
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Startup] HTTP server listening on port ${PORT}`);
-  console.log(`[Startup] Health check ready at / /healthz /_health (native handler)`);
+  console.log(`[Startup] HTTP server listening on port ${PORT} - health check ready`);
   isReady = true;
 
   initializeApp().catch((err) => {
-    console.error('[Startup] Fatal error during app initialization:', err);
-    process.exit(1);
+    console.error('[Startup] Express initialization failed:', err);
   });
 });
 
@@ -73,78 +143,6 @@ async function initializeApp() {
 
   console.log(`[Startup] Environment: ${isProduction ? 'production' : 'development'}`);
   console.log(`[Startup] DATABASE_URL: ${process.env.DATABASE_URL ? 'configured' : 'MISSING'}`);
-
-  process.on('uncaughtException', (error) => {
-    logger.error('[Process] Uncaught Exception:', { error: error.message, stack: error.stack });
-    console.error('[Process] Uncaught Exception:', error);
-    if (!isShuttingDown) {
-      gracefulShutdown('uncaughtException');
-    }
-  });
-
-  process.on('unhandledRejection', (reason, promise) => {
-    const errorMessage = reason instanceof Error ? reason.message : String(reason);
-    const errorStack = reason instanceof Error ? reason.stack : undefined;
-    logger.error('[Process] Unhandled Rejection:', { error: errorMessage, stack: errorStack });
-    console.error('[Process] Unhandled Rejection at:', promise, 'reason:', reason);
-  });
-
-  process.on('SIGTERM', () => {
-    console.log('[Process] Received SIGTERM signal');
-    gracefulShutdown('SIGTERM');
-  });
-
-  process.on('SIGINT', () => {
-    console.log('[Process] Received SIGINT signal');
-    gracefulShutdown('SIGINT');
-  });
-
-  async function gracefulShutdown(signal: string) {
-    if (isShuttingDown) {
-      console.log('[Shutdown] Already shutting down...');
-      return;
-    }
-    isShuttingDown = true;
-    isReady = false;
-
-    console.log(`[Shutdown] Starting graceful shutdown (${signal})...`);
-
-    const shutdownTimeout = setTimeout(() => {
-      console.error('[Shutdown] Timeout exceeded, forcing exit');
-      process.exit(1);
-    }, 30000);
-
-    try {
-      stopSchedulers();
-      closeWebSocketServer();
-      console.log('[Shutdown] WebSocket server closed');
-
-      if (httpServer) {
-        await new Promise<void>((resolve, reject) => {
-          httpServer!.close((err) => {
-            if (err) {
-              console.error('[Shutdown] HTTP server close error:', err);
-              reject(err);
-            } else {
-              console.log('[Shutdown] HTTP server closed');
-              resolve();
-            }
-          });
-        });
-      }
-
-      await pool.end();
-      console.log('[Shutdown] Database pool closed');
-
-      clearTimeout(shutdownTimeout);
-      console.log('[Shutdown] Graceful shutdown complete');
-      process.exit(0);
-    } catch (error) {
-      console.error('[Shutdown] Error during shutdown:', error);
-      clearTimeout(shutdownTimeout);
-      process.exit(1);
-    }
-  }
 
   const app = express();
 
@@ -392,15 +390,14 @@ async function initializeApp() {
     setupSupabaseAuthRoutes(app);
     registerAuthRoutes(app);
   } catch (err) {
-    console.error('[Startup] FATAL: Auth routes setup failed:', err);
-    process.exit(1);
+    console.error('[Startup] Auth routes setup failed:', err);
   }
 
   registerRoutes(app);
 
   if (isProduction) {
     app.use((req, res, next) => {
-      if (req.method === 'GET' && !req.path.startsWith('/api/') && req.path !== '/healthz' && req.path !== '/_health' && req.path !== '/') {
+      if (req.method === 'GET' && !req.path.startsWith('/api/') && req.path !== '/healthz' && req.path !== '/_health') {
         return res.sendFile(path.join(__dirname, '../dist/index.html'));
       }
       next();
@@ -410,7 +407,11 @@ async function initializeApp() {
   expressApp = app;
   console.log('[Startup] Express app fully initialized and accepting requests');
 
-  initWebSocketServer(httpServer);
+  try {
+    initWebSocketServer(httpServer);
+  } catch (err) {
+    console.error('[Startup] WebSocket initialization failed:', err);
+  }
 
   runStartupTasks()
     .then(() => {
@@ -444,7 +445,11 @@ async function initializeApp() {
     }, 30000);
   }
 
-  initSchedulers();
+  try {
+    initSchedulers();
+  } catch (err) {
+    console.error('[Startup] Scheduler initialization failed:', err);
+  }
 }
 
 async function autoSeedResources(pool: any, isProduction: boolean) {
