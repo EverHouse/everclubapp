@@ -2283,6 +2283,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
     const bookingId = parseInt(id);
     const sessionUser = getSessionUser(req);
     const archivedBy = sessionUser?.email || 'unknown';
+    const hardDelete = req.query.hard_delete === 'true';
     
     const [booking] = await db.select({
       calendarEventId: bookingRequests.calendarEventId,
@@ -2292,7 +2293,8 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
       requestDate: bookingRequests.requestDate,
       startTime: bookingRequests.startTime,
       sessionId: bookingRequests.sessionId,
-      archivedAt: bookingRequests.archivedAt
+      archivedAt: bookingRequests.archivedAt,
+      trackmanBookingId: bookingRequests.trackmanBookingId
     })
     .from(bookingRequests)
     .where(eq(bookingRequests.id, bookingId));
@@ -2301,7 +2303,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    if (booking.archivedAt) {
+    if (!hardDelete && booking.archivedAt) {
       return res.status(400).json({ error: 'Booking is already archived' });
     }
     
@@ -2313,35 +2315,93 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
       resourceName = resource?.name;
     }
     
-    await db.update(bookingRequests)
-      .set({ 
-        status: 'cancelled',
-        archivedAt: new Date(),
-        archivedBy: archivedBy
-      })
-      .where(eq(bookingRequests.id, bookingId));
-    
-    const cascadeResult = await handleCancellationCascade(
-      bookingId,
-      booking.sessionId,
-      booking.userEmail || '',
-      booking.userName || null,
-      booking.requestDate,
-      booking.startTime || '',
-      resourceName
-    );
-    
-    logger.info('[DELETE /api/bookings] Soft delete complete', {
-      extra: {
-        bookingId,
-        archivedBy,
-        participantsNotified: cascadeResult.participantsNotified,
-        guestPassesRefunded: cascadeResult.guestPassesRefunded,
-        bookingMembersRemoved: cascadeResult.bookingMembersRemoved,
-        prepaymentRefunds: cascadeResult.prepaymentRefunds,
-        cascadeErrors: cascadeResult.errors.length
+    if (hardDelete) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        if (booking.sessionId) {
+          await client.query(`DELETE FROM booking_participants WHERE session_id = $1`, [booking.sessionId]);
+          await client.query(`DELETE FROM booking_sessions WHERE id = $1`, [booking.sessionId]);
+        }
+        
+        await client.query(`DELETE FROM booking_members WHERE booking_id = $1`, [bookingId]);
+        await client.query(`DELETE FROM booking_guests WHERE booking_id = $1`, [bookingId]);
+        
+        if (booking.trackmanBookingId) {
+          await client.query(
+            `DELETE FROM trackman_bay_slots WHERE trackman_booking_id = $1`,
+            [booking.trackmanBookingId]
+          );
+          await client.query(
+            `UPDATE trackman_webhook_events SET matched_booking_id = NULL WHERE trackman_booking_id = $1`,
+            [booking.trackmanBookingId]
+          );
+          await client.query(
+            `DELETE FROM trackman_unmatched_bookings WHERE trackman_booking_id = $1`,
+            [booking.trackmanBookingId]
+          );
+        }
+        
+        await client.query(
+          `DELETE FROM stripe_payment_intents WHERE booking_id = $1`,
+          [bookingId]
+        );
+        
+        await client.query(
+          `DELETE FROM fee_snapshots WHERE booking_id = $1`,
+          [bookingId]
+        );
+        
+        await client.query(`DELETE FROM booking_requests WHERE id = $1`, [bookingId]);
+        
+        await client.query('COMMIT');
+        
+        logger.info('[DELETE /api/bookings] Hard delete complete', {
+          extra: {
+            bookingId,
+            deletedBy: archivedBy,
+            trackmanBookingId: booking.trackmanBookingId,
+            sessionId: booking.sessionId
+          }
+        });
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
       }
-    });
+    } else {
+      await db.update(bookingRequests)
+        .set({ 
+          status: 'cancelled',
+          archivedAt: new Date(),
+          archivedBy: archivedBy
+        })
+        .where(eq(bookingRequests.id, bookingId));
+      
+      const cascadeResult = await handleCancellationCascade(
+        bookingId,
+        booking.sessionId,
+        booking.userEmail || '',
+        booking.userName || null,
+        booking.requestDate,
+        booking.startTime || '',
+        resourceName
+      );
+      
+      logger.info('[DELETE /api/bookings] Soft delete complete', {
+        extra: {
+          bookingId,
+          archivedBy,
+          participantsNotified: cascadeResult.participantsNotified,
+          guestPassesRefunded: cascadeResult.guestPassesRefunded,
+          bookingMembersRemoved: cascadeResult.bookingMembersRemoved,
+          prepaymentRefunds: cascadeResult.prepaymentRefunds,
+          cascadeErrors: cascadeResult.errors.length
+        }
+      });
+    }
     
     broadcastAvailabilityUpdate({
       resourceId: booking?.resourceId || undefined,
@@ -2368,15 +2428,12 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ 
       success: true,
-      archived: true,
-      archivedBy,
-      cascade: {
-        participantsNotified: cascadeResult.participantsNotified,
-        guestPassesRefunded: cascadeResult.guestPassesRefunded
-      }
+      hardDeleted: hardDelete,
+      archived: !hardDelete,
+      archivedBy
     });
   } catch (error: any) {
-    logAndRespond(req, res, 500, 'Failed to archive booking', error, 'BOOKING_ARCHIVE_ERROR');
+    logAndRespond(req, res, 500, 'Failed to delete booking', error, 'BOOKING_DELETE_ERROR');
   }
 });
 

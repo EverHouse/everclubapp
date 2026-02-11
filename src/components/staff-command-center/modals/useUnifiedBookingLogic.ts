@@ -1196,7 +1196,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     if (!window.confirm('Are you sure you want to delete this booking? This cannot be undone.')) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/bookings/${deleteId}`, {
+      const res = await fetch(`/api/bookings/${deleteId}?hard_delete=true`, {
         method: 'DELETE',
         credentials: 'include',
       });
