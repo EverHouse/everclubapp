@@ -1034,21 +1034,20 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         startDate: bookingDate,
         endDate: bookingDate,
         startTime,
-        endTime
+        endTime,
+        sameDayOnly: 'true'
       });
       
       const res = await fetch(`/api/resources/overlapping-notices?${params}`, { credentials: 'include' });
       if (res.ok) {
         const notices = await res.json();
-        if (notices.length > 0) {
-          setOverlappingNotices(notices);
-          setShowNoticeSelection(true);
-          return true;
-        }
+        setOverlappingNotices(notices);
       }
-      return false;
+      setShowNoticeSelection(true);
+      return true;
     } catch (err) {
       console.error('Failed to fetch overlapping notices:', err);
+      setShowNoticeSelection(true);
       return false;
     } finally {
       setIsLoadingNotices(false);
@@ -1058,12 +1057,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const handleMarkAsEvent = async () => {
     if (markingAsEvent || isLoadingNotices) return;
     
-    const hasOverlapping = await fetchOverlappingNotices();
-    if (hasOverlapping) {
-      return;
-    }
-    
-    await executeMarkAsEvent();
+    await fetchOverlappingNotices();
   };
 
   const executeMarkAsEvent = async (existingClosureId?: number) => {

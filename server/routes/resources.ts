@@ -1359,7 +1359,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
 // Used to allow linking to existing notices instead of creating duplicates
 router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res) => {
   try {
-    const { startDate, endDate, startTime, endTime, resourceId } = req.query;
+    const { startDate, endDate, startTime, endTime, resourceId, sameDayOnly } = req.query;
     
     if (!startDate || !startTime || !endTime) {
       return res.status(400).json({ error: 'Missing required parameters: startDate, startTime, endTime' });
@@ -1369,9 +1369,15 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
     const queryEndDate = (endDate as string) || queryDate;
     const queryStartTime = startTime as string;
     const queryEndTime = endTime as string;
+    const isSameDayOnly = sameDayOnly === 'true';
     
-    // Find closures that overlap with the given time range
-    // Overlap condition: closure start < query end AND closure end > query start
+    const timeOverlapCondition = isSameDayOnly
+      ? ''
+      : `AND (
+          (fc.start_time IS NULL AND fc.end_time IS NULL)
+          OR (fc.start_time < $4 AND fc.end_time > $3)
+        )`;
+    
     const result = await pool.query(`
       SELECT 
         fc.id,
@@ -1395,11 +1401,7 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
       WHERE fc.is_active = true
         AND fc.start_date <= $2
         AND fc.end_date >= $1
-        AND (
-          -- Time overlap check for same-day closures
-          (fc.start_time IS NULL AND fc.end_time IS NULL)
-          OR (fc.start_time < $4 AND fc.end_time > $3)
-        )
+        ${timeOverlapCondition}
       ORDER BY fc.start_date, fc.start_time
       LIMIT 20
     `, [queryDate, queryEndDate, queryStartTime, queryEndTime]);

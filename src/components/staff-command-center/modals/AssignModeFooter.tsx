@@ -126,15 +126,19 @@ export function AssignModeFooter({
         )}
       </button>
 
-      {showNoticeSelection && overlappingNotices.length > 0 && (
+      {showNoticeSelection && (
         <div className="p-3 rounded-lg border border-purple-200 dark:border-purple-500/30 bg-purple-50/50 dark:bg-purple-900/10 space-y-2">
           <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
             <span className="material-symbols-outlined text-sm">info</span>
-            <span className="text-sm font-medium">Existing notices found for this time</span>
+            <span className="text-sm font-medium">
+              {overlappingNotices.length > 0 ? 'Existing notices found for this day' : 'No existing notices for this day'}
+            </span>
           </div>
-          <p className="text-xs text-primary/60 dark:text-white/60">
-            Link to an existing notice to avoid duplicates, or create a new one.
-          </p>
+          {overlappingNotices.length > 0 && (
+            <p className="text-xs text-primary/60 dark:text-white/60">
+              Link to an existing notice to avoid duplicates, or create a new one.
+            </p>
+          )}
           <div className="space-y-1.5">
             {overlappingNotices.map((notice) => (
               <button

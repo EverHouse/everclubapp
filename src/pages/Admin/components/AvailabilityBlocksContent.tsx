@@ -71,6 +71,7 @@ const AvailabilityBlocksContent: React.FC = () => {
     
     const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
     const [showPastAccordion, setShowPastAccordion] = useState(false);
+    const [visibleDayCount, setVisibleDayCount] = useState(10);
 
     useEffect(() => {
         fetchResources();
@@ -129,6 +130,7 @@ const AvailabilityBlocksContent: React.FC = () => {
     };
 
     const handleFilter = () => {
+        setVisibleDayCount(10);
         fetchBlocks();
     };
 
@@ -136,6 +138,7 @@ const AvailabilityBlocksContent: React.FC = () => {
         setFilterResource('');
         setFilterStartDate('');
         setFilterEndDate('');
+        setVisibleDayCount(10);
         setTimeout(() => fetchBlocks(), 0);
     };
 
@@ -416,7 +419,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                 />
             ) : (
                 <div className="space-y-3">
-                    {groupedUpcoming.map(({ date, blocks: dayBlocks }, groupIndex) => {
+                    {groupedUpcoming.slice(0, visibleDayCount).map(({ date, blocks: dayBlocks }, groupIndex) => {
                         const isExpanded = expandedDays.has(date);
                         return (
                             <div 
@@ -493,6 +496,15 @@ const AvailabilityBlocksContent: React.FC = () => {
                             </div>
                         );
                     })}
+                    {visibleDayCount < groupedUpcoming.length && (
+                        <button
+                            onClick={() => setVisibleDayCount(prev => prev + 10)}
+                            className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm">expand_more</span>
+                            Load {Math.min(10, groupedUpcoming.length - visibleDayCount)} more ({groupedUpcoming.length - visibleDayCount} remaining)
+                        </button>
+                    )}
                 </div>
             )}
 

@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.42.1",
+    date: "2026-02-11",
+    title: "Private Event Linking & Blocks Pagination",
+    changes: [
+      "Improved: 'Mark as Private Event' now always shows all same-day notices so staff can choose which one to link to, preventing duplicate blocks",
+      "Improved: When no notices exist for the day, staff still sees the option to create a new one",
+      "New: Blocks tab now shows 10 days at a time with a 'Load More' button at the bottom instead of the full list",
+    ],
+  },
+  {
     version: "7.42.0",
     date: "2026-02-11",
     title: "Data Integrity Audit & Hardening",
