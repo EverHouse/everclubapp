@@ -22,6 +22,7 @@ export const changelog: ChangelogEntry[] = [
       "Fix: 'Passes remaining after booking' now shows the correct count (e.g. 14 of 15) instead of always showing 0",
       "Fix: Member emails are now passed to the fee estimate so the system knows about all players in the booking, preventing phantom empty slot charges",
       "Improvement: Guest pass eligibility check is now more resilient — if a tier has monthly guest passes allocated, they'll work even if the feature flag wasn't explicitly set",
+      "Improvement: Staff queue list now shows accurate fee amounts using the same calculation members see — previously it used a simplified estimate that didn't account for guest passes or member participants",
     ],
   },
   {

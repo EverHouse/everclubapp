@@ -1,10 +1,47 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime, getTodayPacific } from '../../../../utils/dateUtils';
 import { getStatusBadge, formatStatusLabel } from '../../../../utils/statusColors';
 import TierBadge from '../../../../components/TierBadge';
 import { SwipeableListItem } from '../../../../components/SwipeableListItem';
 import type { BookingRequest, Resource } from './simulatorTypes';
-import { estimateFeeByTier, formatDateShortAdmin, groupBookingsByDate } from './simulatorUtils';
+import { formatDateShortAdmin, groupBookingsByDate } from './simulatorUtils';
+
+function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, fallback }: {
+    bookingId: number;
+    dbOwed: number;
+    hasUnpaidFees: boolean;
+    setBookingSheet: (sheet: any) => void;
+    fallback?: React.ReactNode;
+}) {
+    const { data, isLoading, isError } = useQuery({
+        queryKey: ['booking-fee-estimate', bookingId],
+        queryFn: async () => {
+            const res = await fetch(`/api/fee-estimate?bookingId=${bookingId}`, { credentials: 'include' });
+            if (!res.ok) throw new Error('Failed to fetch fee estimate');
+            return res.json() as Promise<{ totalFee: number; note: string; feeBreakdown: any; ownerTier: string }>;
+        },
+        staleTime: 30_000,
+        retry: 1,
+    });
+
+    if (isLoading || isError) return <>{fallback ?? null}</>;
+
+    const serverFee = data?.totalFee ?? 0;
+    const displayAmount = dbOwed > 0 ? dbOwed : serverFee;
+
+    if (displayAmount <= 0 && !hasUnpaidFees) return <>{fallback ?? null}</>;
+
+    return (
+        <button
+            onClick={() => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
+            className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
+        >
+            <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
+            ${Math.round(displayAmount)} Due
+        </button>
+    );
+}
 
 export interface BookingRequestsPanelProps {
     queueItems: (BookingRequest & { queueType: 'pending' | 'unmatched' })[];
@@ -27,9 +64,9 @@ export interface BookingRequestsPanelProps {
     handleRefresh: () => void;
     showToast: (msg: string, type: 'success' | 'error') => void;
     confirm: (opts: { title: string; message: string; confirmText: string; variant: string }) => Promise<boolean>;
-    guestFeeDollars: number;
-    overageRatePerBlockDollars: number;
-    tierMinutes: Record<string, number>;
+    guestFeeDollars?: number;
+    overageRatePerBlockDollars?: number;
+    tierMinutes?: Record<string, number>;
     optimisticNewBooking: BookingRequest | null;
     startDate: string;
     endDate: string;
@@ -61,9 +98,6 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
     handleRefresh,
     showToast,
     confirm,
-    guestFeeDollars,
-    overageRatePerBlockDollars,
-    tierMinutes,
     optimisticNewBooking,
     startDate,
     endDate,
@@ -517,41 +551,30 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     <span aria-hidden="true" className="material-symbols-outlined text-lg">check_circle</span>
                                                                     Paid
                                                                 </span>
-                                                            ) : !isConferenceRoom && isToday && (() => {
-                                                                const declPlayers = (booking as any).declared_player_count || 1;
-                                                                const filledPlayers = (booking as any).filled_player_count || 0;
-                                                                const dbOwed = booking.total_owed || 0;
-                                                                const estimatedFee = estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers, guestFeeDollars, overageRatePerBlockDollars, tierMinutes);
-                                                                return booking.has_unpaid_fees === true || dbOwed > 0 || (filledPlayers < declPlayers && estimatedFee > 0);
-                                                            })() ? (
-                                                                (() => {
-                                                                    const declPlayers = (booking as any).declared_player_count || 1;
-                                                                    const filledPlayers = (booking as any).filled_player_count || 0;
-                                                                    const dbOwed = booking.total_owed || 0;
-                                                                    const unfilledSlots = Math.max(0, declPlayers - filledPlayers);
-                                                                    const unfilledGuestFees = unfilledSlots * guestFeeDollars;
-                                                                    const estimatedFee = dbOwed > 0 
-                                                                      ? dbOwed + unfilledGuestFees
-                                                                      : estimateFeeByTier((booking as any).tier, booking.duration_minutes || 0, declPlayers, guestFeeDollars, overageRatePerBlockDollars, tierMinutes);
-                                                                    const isEstimate = !booking.has_unpaid_fees && dbOwed === 0;
-                                                                    return (
+                                                            ) : !isConferenceRoom && isToday ? (
+                                                                <BookingFeeButton
+                                                                    bookingId={typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id as number}
+                                                                    dbOwed={booking.total_owed || 0}
+                                                                    hasUnpaidFees={booking.has_unpaid_fees === true}
+                                                                    setBookingSheet={setBookingSheet}
+                                                                    fallback={
                                                                         <button
-                                                                            onClick={() => {
-                                                                                const bookingId = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
-                                                                                setBookingSheet({
-                                                                                    isOpen: true,
-                                                                                    trackmanBookingId: null,
-                                                                                    bookingId,
-                                                                                    mode: 'manage' as const,
-                                                                                });
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                e.preventDefault();
+                                                                                const btn = e.currentTarget;
+                                                                                if (btn.disabled) return;
+                                                                                btn.disabled = true;
+                                                                                await updateBookingStatusOptimistic(booking, 'attended');
+                                                                                btn.disabled = false;
                                                                             }}
-                                                                            className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-200"
+                                                                            className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50"
                                                                         >
-                                                                            <span aria-hidden="true" className="material-symbols-outlined text-lg">payments</span>
-                                                                            {isEstimate ? `~$${estimatedFee} Est` : `$${estimatedFee.toFixed(0)} Due`}
+                                                                            <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
+                                                                            Check In
                                                                         </button>
-                                                                    );
-                                                                })()
+                                                                    }
+                                                                />
                                                             ) : !isConferenceRoom && (booking as any).declared_player_count > 0 && (booking as any).declared_player_count > ((booking as any).filled_player_count || 0) ? (
                                                                 <button
                                                                     onClick={() => {
@@ -567,22 +590,6 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                 >
                                                                     <span aria-hidden="true" className="material-symbols-outlined text-lg">group_add</span>
                                                                     Roster {(booking as any).filled_player_count || 0}/{(booking as any).declared_player_count}
-                                                                </button>
-                                                            ) : !isConferenceRoom && isToday ? (
-                                                                <button
-                                                                    onClick={async (e) => {
-                                                                        e.stopPropagation();
-                                                                        e.preventDefault();
-                                                                        const btn = e.currentTarget;
-                                                                        if (btn.disabled) return;
-                                                                        btn.disabled = true;
-                                                                        await updateBookingStatusOptimistic(booking, 'attended');
-                                                                        btn.disabled = false;
-                                                                    }}
-                                                                    className="flex-1 py-2.5 bg-accent text-primary rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-md active:scale-95 transition-all duration-200 disabled:opacity-50"
-                                                                >
-                                                                    <span aria-hidden="true" className="material-symbols-outlined text-lg">how_to_reg</span>
-                                                                    Check In
                                                                 </button>
                                                             ) : null}
                                                         </div>
