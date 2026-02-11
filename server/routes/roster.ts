@@ -764,7 +764,7 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
           const guestCents = parseInt(feeResult.rows[0]?.guest_cents || '0');
           
           if (totalCents > 0) {
-            await createPrepaymentIntent({
+            const prepayResult = await createPrepaymentIntent({
               sessionId,
               bookingId,
               userId: ownerUserId,
@@ -774,9 +774,19 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
               feeBreakdown: { overageCents, guestCents }
             });
             
-            logger.info('[roster] Created prepayment intent after adding participant', {
-              extra: { sessionId, bookingId, totalCents }
-            });
+            if (prepayResult?.paidInFull) {
+              await pool.query(
+                `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+                [sessionId]
+              );
+              logger.info('[roster] Prepayment fully covered by credit', {
+                extra: { sessionId, bookingId, totalCents }
+              });
+            } else {
+              logger.info('[roster] Created prepayment intent after adding participant', {
+                extra: { sessionId, bookingId, totalCents }
+              });
+            }
           }
         } catch (prepayError) {
           logger.warn('[roster] Failed to create prepayment intent (non-blocking)', {

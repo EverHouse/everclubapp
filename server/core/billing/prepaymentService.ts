@@ -1,4 +1,5 @@
-import { createPaymentIntent } from '../stripe/payments';
+import { createPaymentIntent, createBalanceAwarePayment } from '../stripe/payments';
+import { getOrCreateStripeCustomer } from '../stripe/customers';
 import { pool } from '../db';
 import { logger } from '../logger';
 
@@ -15,6 +16,8 @@ export interface CreatePrepaymentIntentParams {
 export interface PrepaymentIntentResult {
   paymentIntentId: string;
   clientSecret: string;
+  paidInFull?: boolean;
+  balanceTransactionId?: string;
 }
 
 export async function createPrepaymentIntent(
@@ -67,15 +70,18 @@ export async function createPrepaymentIntent(
 
     const description = `Prepayment for booking #${bookingId} - Overage: $${(feeBreakdown.overageCents / 100).toFixed(2)}, Guest fees: $${(feeBreakdown.guestCents / 100).toFixed(2)}`;
 
-    const result = await createPaymentIntent({
+    const { customerId } = await getOrCreateStripeCustomer(userId || userEmail, userEmail, userName);
+
+    const result = await createBalanceAwarePayment({
+      stripeCustomerId: customerId,
       userId: userId || `email-${userEmail}`,
       email: userEmail,
       memberName: userName || userEmail,
       amountCents: totalFeeCents,
       purpose: 'prepayment',
+      description,
       bookingId,
       sessionId,
-      description,
       metadata: {
         bookingId: bookingId.toString(),
         sessionId: sessionId.toString(),
@@ -85,13 +91,31 @@ export async function createPrepaymentIntent(
       }
     });
 
+    if (result.error) {
+      logger.error('[Prepayment] Balance-aware payment error', { extra: { error: result.error, sessionId, bookingId } });
+      return null;
+    }
+
+    if (result.paidInFull) {
+      logger.info('[Prepayment] Fully covered by account credit', { 
+        extra: { balanceTransactionId: result.balanceTransactionId, sessionId, amountDollars: (totalFeeCents / 100).toFixed(2) } 
+      });
+      return {
+        paymentIntentId: 'balance-' + result.balanceTransactionId,
+        clientSecret: '',
+        paidInFull: true,
+        balanceTransactionId: result.balanceTransactionId
+      };
+    }
+
     logger.info('[Prepayment] Created payment intent', { 
-      extra: { paymentIntentId: result.paymentIntentId, sessionId, amountDollars: (totalFeeCents / 100).toFixed(2) } 
+      extra: { paymentIntentId: result.paymentIntentId, sessionId, amountDollars: (totalFeeCents / 100).toFixed(2), balanceApplied: result.balanceApplied } 
     });
 
     return {
-      paymentIntentId: result.paymentIntentId,
-      clientSecret: result.clientSecret
+      paymentIntentId: result.paymentIntentId!,
+      clientSecret: result.clientSecret!,
+      paidInFull: false
     };
   } catch (error) {
     logger.error('[Prepayment] Failed to create prepayment intent', {

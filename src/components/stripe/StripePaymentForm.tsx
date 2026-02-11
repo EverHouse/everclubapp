@@ -295,6 +295,12 @@ export function StripePaymentForm({
         }
 
         const data = await res.json();
+        if (data.paidInFull) {
+          paymentSucceededRef.current = true;
+          setLoading(false);
+          onSuccess();
+          return;
+        }
         setClientSecret(data.clientSecret);
         if (data.paymentIntentId) {
           paymentIntentIdRef.current = data.paymentIntentId;

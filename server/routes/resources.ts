@@ -1850,7 +1850,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
         const guestCents = parseInt(feeResult.rows[0]?.guest_cents || '0');
         
         if (totalCents > 0) {
-          await createPrepaymentIntent({
+          const prepayResult = await createPrepaymentIntent({
             sessionId: result.sessionId,
             bookingId: bookingId,
             userId: owner.member_id || null,
@@ -1860,9 +1860,19 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
             feeBreakdown: { overageCents, guestCents }
           });
           
-          logger.info('[assign-with-players] Created prepayment intent', {
-            extra: { bookingId, sessionId: result.sessionId, totalCents }
-          });
+          if (prepayResult?.paidInFull) {
+            await pool.query(
+              `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+              [result.sessionId]
+            );
+            logger.info('[assign-with-players] Prepayment fully covered by credit', {
+              extra: { bookingId, sessionId: result.sessionId, totalCents }
+            });
+          } else {
+            logger.info('[assign-with-players] Created prepayment intent', {
+              extra: { bookingId, sessionId: result.sessionId, totalCents }
+            });
+          }
         }
       } catch (prepayErr) {
         logger.warn('[assign-with-players] Failed to create prepayment intent', {

@@ -5,6 +5,7 @@ import { getSessionUser } from '../../types/session';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 import { isPlaceholderEmail } from '../../core/stripe/customers';
+import { createBalanceAwarePayment } from '../../core/stripe/payments';
 
 const router = Router();
 
@@ -92,7 +93,7 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       customerId = custResult.customerId;
     }
     
-    if (booking.overage_payment_intent_id) {
+    if (booking.overage_payment_intent_id && !String(booking.overage_payment_intent_id).startsWith('balance-')) {
       try {
         const existingPI = await stripe.paymentIntents.retrieve(booking.overage_payment_intent_id as string);
         if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(existingPI.status) 
@@ -104,7 +105,9 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
             amount: verifiedOverageCents,
             overageMinutes: booking.overage_minutes,
             overageBlocks: Math.ceil(booking.overage_minutes / 30),
-            reused: true
+            reused: true,
+            paidInFull: false,
+            balanceApplied: 0
           });
         }
         if (existingPI.status === 'succeeded' && !booking.overage_paid) {
@@ -114,6 +117,11 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       } catch (piErr) {
         console.warn('[Overage Payment] Could not retrieve existing intent, creating new one:', (piErr as Error).message);
       }
+    } else if (booking.overage_payment_intent_id && String(booking.overage_payment_intent_id).startsWith('balance-')) {
+      if (!booking.overage_paid) {
+        await db.execute(sql`UPDATE booking_requests SET overage_paid = true, updated_at = NOW() WHERE id = ${bookingId}`);
+      }
+      return res.status(200).json({ alreadyPaid: true, message: 'Overage already paid via account credit' });
     }
     
     const productResult = await db.execute(sql`
@@ -127,13 +135,18 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
     }
     
     const overageBlocks = Math.ceil(booking.overage_minutes / 30);
+    const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || undefined;
     const description = `#${bookingId} - Additional Fees / Overage: ${booking.overage_minutes} min`;
     
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: booking.overage_fee_cents,
-      currency: 'usd',
-      customer: customerId,
+    const result = await createBalanceAwarePayment({
+      stripeCustomerId: customerId,
+      userId: booking.user_id || booking.user_email,
+      email: booking.user_email,
+      memberName: memberName || booking.user_email,
+      amountCents: booking.overage_fee_cents,
+      purpose: 'overage_fee',
       description,
+      bookingId,
       metadata: {
         booking_id: bookingId.toString(),
         overage_minutes: booking.overage_minutes.toString(),
@@ -143,23 +156,59 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
         fee_type: 'simulator_overage',
         product_id: productResult.rows[0].stripe_product_id,
       },
-      automatic_payment_methods: { enabled: true },
     });
+
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    const trackingId = result.paymentIntentId || ('balance-' + result.balanceTransactionId);
     
     await db.execute(sql`
       UPDATE booking_requests 
-      SET overage_payment_intent_id = ${paymentIntent.id}, updated_at = NOW() 
+      SET overage_payment_intent_id = ${trackingId}, updated_at = NOW() 
       WHERE id = ${bookingId}
     `);
+
+    if (result.paidInFull) {
+      await db.execute(sql`UPDATE booking_requests SET overage_paid = true, updated_at = NOW() WHERE id = ${bookingId}`);
+      console.log(`[Overage Payment] Fully covered by account credit for booking ${bookingId}: $${(booking.overage_fee_cents / 100).toFixed(2)}`);
+
+      try {
+        if (booking.user_email) {
+          sendNotificationToUser(booking.user_email, {
+            type: 'billing_update',
+            title: 'Overage Payment Confirmed',
+            message: `Your overage payment of $${(booking.overage_fee_cents / 100).toFixed(2)} has been covered by account credit.`,
+            data: { bookingId, amount: booking.overage_fee_cents }
+          });
+          broadcastBillingUpdate(booking.user_email, 'overage_paid');
+        }
+      } catch (notifyError) {
+        console.error('[Overage Payment] Failed to send notification for balance payment:', notifyError);
+      }
+
+      return res.json({
+        paidInFull: true,
+        amount: booking.overage_fee_cents,
+        overageMinutes: booking.overage_minutes,
+        overageBlocks,
+        balanceApplied: result.balanceApplied,
+        paymentIntentId: trackingId,
+      });
+    }
     
-    console.log(`[Overage Payment] Created payment intent ${paymentIntent.id} for booking ${bookingId}: $${(booking.overage_fee_cents / 100).toFixed(2)}`);
+    console.log(`[Overage Payment] Created payment intent ${result.paymentIntentId} for booking ${bookingId}: $${(booking.overage_fee_cents / 100).toFixed(2)} (credit: $${(result.balanceApplied / 100).toFixed(2)})`);
     
     res.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
+      clientSecret: result.clientSecret,
+      paymentIntentId: result.paymentIntentId,
       amount: booking.overage_fee_cents,
       overageMinutes: booking.overage_minutes,
       overageBlocks,
+      paidInFull: false,
+      balanceApplied: result.balanceApplied,
+      remainingCents: result.remainingCents,
     });
   } catch (error: any) {
     console.error('[Overage Payment] Error creating payment intent:', error);

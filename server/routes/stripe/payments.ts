@@ -12,6 +12,7 @@ import { getStripeClient } from '../../core/stripe/client';
 import { isPlaceholderEmail } from '../../core/stripe/customers';
 import {
   createPaymentIntent,
+  createBalanceAwarePayment,
   confirmPaymentSuccess,
   getPaymentIntentStatus,
   cancelPaymentIntent,
@@ -265,6 +266,77 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       metadata.participantIds = participantIds.length > 490 ? participantIds.substring(0, 490) + '...' : participantIds;
     }
     
+    if (isBookingPayment) {
+      const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(resolvedUserId, email, memberName || email.split('@')[0]);
+      
+      let balanceResult;
+      try {
+        balanceResult = await createBalanceAwarePayment({
+          stripeCustomerId,
+          userId: resolvedUserId,
+          email,
+          memberName: memberName || email.split('@')[0],
+          amountCents: serverTotal,
+          purpose,
+          description: finalDescription,
+          bookingId,
+          sessionId,
+          metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+        });
+      } catch (stripeErr) {
+        if (snapshotId) {
+          await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${snapshotId}`);
+          console.log(`[Stripe] Deleted orphaned snapshot ${snapshotId} after PaymentIntent creation failed`);
+        }
+        throw stripeErr;
+      }
+
+      if (balanceResult.error) {
+        if (snapshotId) {
+          await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${snapshotId}`);
+        }
+        return res.status(500).json({ error: balanceResult.error });
+      }
+
+      if (balanceResult.paidInFull) {
+        if (snapshotId) {
+          const balanceTrackingId = 'balance-' + balanceResult.balanceTransactionId;
+          await db.execute(sql`UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${balanceTrackingId}, status = 'paid' WHERE id = ${snapshotId}`);
+        }
+
+        logFromRequest(req, 'record_charge', 'payment', 'balance-' + balanceResult.balanceTransactionId, email, {
+          amount: serverTotal,
+          description: description,
+          paidByCredit: true
+        });
+
+        return res.json({
+          paidInFull: true,
+          balanceApplied: balanceResult.balanceApplied,
+          paymentIntentId: 'balance-' + balanceResult.balanceTransactionId
+        });
+      }
+
+      if (snapshotId) {
+        await db.execute(sql`UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${balanceResult.paymentIntentId} WHERE id = ${snapshotId}`);
+      }
+
+      logFromRequest(req, 'record_charge', 'payment', balanceResult.paymentIntentId!, email, {
+        amount: serverTotal,
+        description: description,
+        balanceApplied: balanceResult.balanceApplied
+      });
+      
+      return res.json({
+        paymentIntentId: balanceResult.paymentIntentId,
+        clientSecret: balanceResult.clientSecret,
+        customerId: stripeCustomerId,
+        paidInFull: false,
+        balanceApplied: balanceResult.balanceApplied,
+        remainingCents: balanceResult.remainingCents
+      });
+    }
+
     let result;
     try {
       result = await createPaymentIntent({

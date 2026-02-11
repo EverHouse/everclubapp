@@ -364,7 +364,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                   }
                 }
                 
-                await createPrepaymentIntent({
+                const prepayResult = await createPrepaymentIntent({
                   sessionId: createdSessionId,
                   bookingId: bookingId,
                   userId: ownerUserId || null,
@@ -373,6 +373,13 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                   totalFeeCents: breakdown.totals.totalCents,
                   feeBreakdown: { overageCents: breakdown.totals.overageCents, guestCents: breakdown.totals.guestCents }
                 });
+                if (prepayResult?.paidInFull) {
+                  await pool.query(
+                    `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+                    [createdSessionId]
+                  );
+                  console.log(`[Booking Approval] Prepayment fully covered by credit for session ${createdSessionId}`);
+                }
               } catch (prepayError) {
                 console.error('[Booking Approval] Failed to create prepayment intent:', prepayError);
               }

@@ -424,6 +424,16 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
+        if (data.paidInFull) {
+          showToast('Overage fee covered by account credit', 'success');
+          await handleOveragePaymentSuccess(data.paymentIntentId || 'balance');
+          return;
+        }
+        if (data.alreadyPaid) {
+          showToast('Overage already paid', 'success');
+          await handleOveragePaymentSuccess('balance');
+          return;
+        }
         setOverageClientSecret(data.clientSecret);
         setOveragePaymentIntentId(data.paymentIntentId);
         setShowOveragePayment(true);

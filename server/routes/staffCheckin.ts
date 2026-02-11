@@ -1223,7 +1223,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
               );
               const owner = ownerResult.rows[0];
               
-              await createPrepaymentIntent({
+              const prepayResult = await createPrepaymentIntent({
                 sessionId,
                 bookingId,
                 userId: owner?.id || null,
@@ -1232,7 +1232,15 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
                 totalFeeCents: totalCents,
                 feeBreakdown: { overageCents, guestCents }
               });
-              logger.info('[Staff Add Member] Created prepayment intent', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
+              if (prepayResult?.paidInFull) {
+                await pool.query(
+                  `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+                  [sessionId]
+                );
+                logger.info('[Staff Add Member] Prepayment fully covered by credit', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
+              } else {
+                logger.info('[Staff Add Member] Created prepayment intent', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
+              }
             }
           } catch (prepayErr) {
             logger.warn('[Staff Add Member] Failed to create prepayment intent', { extra: { sessionId, error: String(prepayErr) } });
@@ -1305,7 +1313,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
             );
             const owner = ownerResult.rows[0];
             
-            await createPrepaymentIntent({
+            const prepayResult = await createPrepaymentIntent({
               sessionId,
               bookingId,
               userId: owner?.id || null,
@@ -1314,7 +1322,15 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
               totalFeeCents: totalCents,
               feeBreakdown: { overageCents, guestCents }
             });
-            logger.info('[Staff Add Guest] Created prepayment intent', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
+            if (prepayResult?.paidInFull) {
+              await pool.query(
+                `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+                [sessionId]
+              );
+              logger.info('[Staff Add Guest] Prepayment fully covered by credit', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
+            } else {
+              logger.info('[Staff Add Guest] Created prepayment intent', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
+            }
           }
         } catch (prepayErr) {
           logger.warn('[Staff Add Guest] Failed to create prepayment intent', { extra: { sessionId, error: String(prepayErr) } });

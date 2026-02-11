@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.35.0",
+    date: "2026-02-11",
+    title: "Account Credits Now Apply to All Payment Paths",
+    changes: [
+      "Improvement: Account credits now automatically apply to overage fee payments during check-in — if a member has enough credit, the overage is covered instantly without needing to enter a card",
+      "Improvement: Account credits now apply to staff-initiated booking fee payments (guest fees, overage charges from the check-in flow)",
+      "Improvement: Account credits now apply to booking prepayments created when a booking is approved",
+      "Improvement: When credit fully covers a charge, the system skips the payment form entirely and shows a confirmation that credit was used",
+      "Improvement: When credit partially covers a charge, only the remaining amount is charged to the member's card",
+    ],
+  },
+  {
     version: "7.34.3",
     date: "2026-02-10",
     title: "Unmatched Trackman Bookings Now Visible on Calendar & Queue",

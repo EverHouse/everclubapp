@@ -255,7 +255,7 @@ export async function createBookingForMember(
                 const userId = userResult.rows[0]?.id || null;
                 const memberName = customerName || [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email;
                 
-                await createPrepaymentIntent({
+                const prepayResult = await createPrepaymentIntent({
                   sessionId: newSessionId,
                   bookingId: pendingBookingId,
                   userId: userId || null,
@@ -264,6 +264,13 @@ export async function createBookingForMember(
                   totalFeeCents: feeBreakdown.totals.totalCents,
                   feeBreakdown: { overageCents: feeBreakdown.totals.overageCents, guestCents: feeBreakdown.totals.guestCents }
                 });
+                if (prepayResult?.paidInFull) {
+                  await pool.query(
+                    `UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = $1 AND payment_status = 'pending'`,
+                    [newSessionId]
+                  );
+                  logger.info('[Trackman Webhook] Prepayment fully covered by credit', { extra: { sessionId: newSessionId, bookingId: pendingBookingId } });
+                }
               } catch (prepayError) {
                 logger.warn('[Trackman Webhook] Failed to create prepayment intent', { extra: { sessionId: newSessionId, error: prepayError } });
               }
