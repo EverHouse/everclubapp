@@ -637,36 +637,71 @@ const BlocksTab: React.FC = () => {
     return (
         <PullToRefresh onRefresh={handlePullRefresh}>
         <AnimatedPage className="space-y-6">
-            <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative animate-content-enter-delay-1">
-                <div
-                    className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-all duration-300"
-                    style={{
-                        width: 'calc(50% - 4px)',
-                        left: activeSubTab === 'notices' ? '4px' : 'calc(50% + 0px)',
-                    }}
-                />
-                <button
-                    onClick={() => setActiveSubTab('notices')}
-                    className={`relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-200 rounded-full flex items-center gap-1.5 ${
-                        activeSubTab === 'notices'
-                            ? 'text-primary dark:text-white'
-                            : 'text-gray-500 dark:text-white/60'
-                    }`}
-                >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">notifications</span>
-                    Notices
-                </button>
-                <button
-                    onClick={() => setActiveSubTab('blocks')}
-                    className={`relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-200 rounded-full flex items-center gap-1.5 ${
-                        activeSubTab === 'blocks'
-                            ? 'text-primary dark:text-white'
-                            : 'text-gray-500 dark:text-white/60'
-                    }`}
-                >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_busy</span>
-                    Blocks
-                </button>
+            <div className="flex items-center justify-between gap-3 flex-wrap animate-content-enter-delay-1">
+                <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative">
+                    <div
+                        className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-all duration-300"
+                        style={{
+                            width: 'calc(50% - 4px)',
+                            left: activeSubTab === 'notices' ? '4px' : 'calc(50% + 0px)',
+                        }}
+                    />
+                    <button
+                        onClick={() => setActiveSubTab('notices')}
+                        className={`relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-200 rounded-full flex items-center gap-1.5 ${
+                            activeSubTab === 'notices'
+                                ? 'text-primary dark:text-white'
+                                : 'text-gray-500 dark:text-white/60'
+                        }`}
+                    >
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">notifications</span>
+                        Notices
+                    </button>
+                    <button
+                        onClick={() => setActiveSubTab('blocks')}
+                        className={`relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-200 rounded-full flex items-center gap-1.5 ${
+                            activeSubTab === 'blocks'
+                                ? 'text-primary dark:text-white'
+                                : 'text-gray-500 dark:text-white/60'
+                        }`}
+                    >
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event_busy</span>
+                        Blocks
+                    </button>
+                </div>
+
+                {activeSubTab === 'notices' && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowClosureReasonsSection(!showClosureReasonsSection)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border transition-all ${
+                                showClosureReasonsSection
+                                    ? 'bg-primary/10 dark:bg-white/15 border-primary/30 dark:border-white/20 text-primary dark:text-white'
+                                    : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
+                            }`}
+                        >
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm">settings</span>
+                            Closure Reasons
+                            <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-full text-[10px]">
+                                {closureReasons.filter(r => r.isActive).length}
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setShowNoticeTypesSection(!showNoticeTypesSection)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border transition-all ${
+                                showNoticeTypesSection
+                                    ? 'bg-primary/10 dark:bg-white/15 border-primary/30 dark:border-white/20 text-primary dark:text-white'
+                                    : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
+                            }`}
+                        >
+                            <span aria-hidden="true" className="material-symbols-outlined text-sm">category</span>
+                            Notice Types
+                            <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-full text-[10px]">
+                                {noticeTypes.length}
+                            </span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div key={activeSubTab} className="animate-content-enter">
@@ -674,81 +709,24 @@ const BlocksTab: React.FC = () => {
 
             {activeSubTab === 'notices' && (
             <>
-            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10 -mx-4 px-4 py-2.5 flex items-center gap-3 flex-wrap animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-                <select
-                    value={closuresFilterResource}
-                    onChange={(e) => setClosuresFilterResource(e.target.value)}
-                    className="px-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 text-primary dark:text-white text-xs flex-shrink-0"
-                >
-                    <option value="all">All</option>
-                    <option value="entire_facility">Entire Facility</option>
-                    <option value="none">Informational Only</option>
-                    {bays.map(bay => (
-                        <option key={bay.id} value={`bay_${bay.id}`}>{bay.name}</option>
-                    ))}
-                    {conferenceRoom && (
-                        <option value="conference_room">{conferenceRoom.name}</option>
-                    )}
-                </select>
-                
-                <input
-                    type="date"
-                    value={closuresFilterDate}
-                    onChange={(e) => setClosuresFilterDate(e.target.value)}
-                    placeholder="Filter date"
-                    className="px-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 text-primary dark:text-white text-xs flex-shrink-0 w-[120px] [&::-webkit-datetime-edit-text]:text-gray-400 [&::-webkit-datetime-edit-month-field]:text-gray-400 [&::-webkit-datetime-edit-day-field]:text-gray-400 [&::-webkit-datetime-edit-year-field]:text-gray-400 [&:not(:valid)]:text-gray-400"
-                />
-                {closuresFilterDate && (
-                    <button
-                        onClick={() => setClosuresFilterDate('')}
-                        className="px-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 text-xs hover:bg-gray-200 dark:hover:bg-white/20 flex-shrink-0"
-                    >
-                        Clear
-                    </button>
-                )}
-
-                <div className="flex items-center gap-2 text-[10px] ml-auto flex-shrink-0">
-                    <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
-                        <span className="text-gray-500 dark:text-white/60">Blocks</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
-                        <span className="text-gray-500 dark:text-white/60">Info</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-cyan-500 inline-block"></span>
-                        <span className="text-gray-500 dark:text-white/60">Draft</span>
-                    </div>
-                    <span className="text-gray-300 dark:text-white/20">|</span>
-                    <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-                        <span className="text-gray-500 dark:text-white/60">Synced · Internal Calendar</span>
-                    </div>
+            <div className="flex items-center gap-3 py-2 text-[10px] flex-wrap animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                    <span className="text-gray-500 dark:text-white/60">Blocks</span>
                 </div>
-            </div>
-
-            <div className="flex items-center gap-2 mb-4">
-                <button
-                    onClick={() => setShowClosureReasonsSection(!showClosureReasonsSection)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 transition-all"
-                >
-                    <span aria-hidden="true" className="material-symbols-outlined text-sm">settings</span>
-                    Closure Reasons
-                    <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-full text-[10px]">
-                        {closureReasons.filter(r => r.isActive).length}
-                    </span>
-                </button>
-                <button
-                    onClick={() => setShowNoticeTypesSection(!showNoticeTypesSection)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 transition-all"
-                >
-                    <span aria-hidden="true" className="material-symbols-outlined text-sm">category</span>
-                    Notice Types
-                    <span className="bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 px-1.5 py-0.5 rounded-full text-[10px]">
-                        {noticeTypes.length}
-                    </span>
-                </button>
+                <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                    <span className="text-gray-500 dark:text-white/60">Info</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-cyan-500 inline-block"></span>
+                    <span className="text-gray-500 dark:text-white/60">Draft</span>
+                </div>
+                <span className="text-gray-300 dark:text-white/20">|</span>
+                <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                    <span className="text-gray-500 dark:text-white/60">Synced · Internal Calendar</span>
+                </div>
             </div>
 
             {showClosureReasonsSection && (
