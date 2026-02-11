@@ -93,17 +93,12 @@ httpServer = http.createServer((req, res) => {
   }
 
   if (req.url === '/' && req.method === 'GET') {
-    if (isProduction) {
-      if (cachedIndexHtml) {
-        res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache' });
-        res.end(cachedIndexHtml);
-        return;
-      }
+    if (isProduction && !expressApp) {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('OK');
       return;
     }
-    if (!expressApp) {
+    if (!isProduction && !expressApp) {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('OK');
       return;
