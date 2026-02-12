@@ -108,11 +108,77 @@ export function useWebSocketQuerySync() {
       queryClient.invalidateQueries({ queryKey: directoryKeys.team() });
     };
 
+    const handleBillingUpdate = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating billing/financials queries');
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['member'] });
+    };
+
+    const handleTierUpdate = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating member/profile queries for tier update');
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['member'] });
+      queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
+    };
+
+    const handleMemberStatsUpdated = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating member/profile queries for stats update');
+      queryClient.invalidateQueries({ queryKey: ['member'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['book-golf'] });
+    };
+
+    const handleMemberDataUpdated = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating member/profile queries for data update');
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['member'] });
+      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
+    };
+
+    const handleDataIntegrityUpdate = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating data-integrity queries');
+      queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
+    };
+
+    const handleDayPassUpdate = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating day-pass/visitor queries');
+      queryClient.invalidateQueries({ queryKey: ['book-golf'] });
+      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
+    };
+
+    const handleClosureUpdate = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating closure/availability queries');
+      queryClient.invalidateQueries({ queryKey: ['closures'] });
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['book-golf'] });
+    };
+
+    const handleBookingAutoConfirmed = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating queries for booking-auto-confirmed');
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+    };
+
+    const handleBookingConfirmed = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating queries for booking-confirmed');
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+    };
+
     // Register event listeners
     window.addEventListener('booking-update', handleBookingUpdate as EventListener);
     window.addEventListener('cafe-menu-update', handleCafeMenuUpdate as EventListener);
     window.addEventListener('tour-update', handleTourUpdate as EventListener);
     window.addEventListener('directory-update', handleDirectoryUpdate as EventListener);
+    window.addEventListener('billing-update', handleBillingUpdate as EventListener);
+    window.addEventListener('tier-update', handleTierUpdate as EventListener);
+    window.addEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
+    window.addEventListener('member-data-updated', handleMemberDataUpdated as EventListener);
+    window.addEventListener('data-integrity-update', handleDataIntegrityUpdate as EventListener);
+    window.addEventListener('day-pass-update', handleDayPassUpdate as EventListener);
+    window.addEventListener('closure-update', handleClosureUpdate as EventListener);
+    window.addEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
+    window.addEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
 
     // Cleanup function
     return () => {
@@ -120,6 +186,15 @@ export function useWebSocketQuerySync() {
       window.removeEventListener('cafe-menu-update', handleCafeMenuUpdate as EventListener);
       window.removeEventListener('tour-update', handleTourUpdate as EventListener);
       window.removeEventListener('directory-update', handleDirectoryUpdate as EventListener);
+      window.removeEventListener('billing-update', handleBillingUpdate as EventListener);
+      window.removeEventListener('tier-update', handleTierUpdate as EventListener);
+      window.removeEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
+      window.removeEventListener('member-data-updated', handleMemberDataUpdated as EventListener);
+      window.removeEventListener('data-integrity-update', handleDataIntegrityUpdate as EventListener);
+      window.removeEventListener('day-pass-update', handleDayPassUpdate as EventListener);
+      window.removeEventListener('closure-update', handleClosureUpdate as EventListener);
+      window.removeEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
+      window.removeEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
     };
   }, [queryClient]);
 }

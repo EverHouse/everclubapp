@@ -442,18 +442,21 @@ export function initWebSocketServer(server: Server) {
 
   const heartbeatInterval = setInterval(() => {
     clients.forEach((connections, email) => {
-      connections.forEach((conn, index) => {
+      const alive: ClientConnection[] = [];
+      connections.forEach((conn) => {
         if (!conn.isAlive) {
           conn.ws.terminate();
-          connections.splice(index, 1);
           return;
         }
         conn.isAlive = false;
         conn.ws.ping();
+        alive.push(conn);
       });
-      if (connections.length === 0) {
+      if (alive.length === 0) {
         clients.delete(email);
         staffEmails.delete(email);
+      } else {
+        clients.set(email, alive);
       }
     });
   }, 30000);
@@ -572,8 +575,12 @@ export function broadcastToAllMembers(notification: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastToAllMembers send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -602,8 +609,12 @@ export function broadcastToStaff(notification: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastToStaff send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -630,8 +641,12 @@ export function broadcastBookingEvent(event: BookingEvent) {
       if (conn.isStaff) {
         staffConnections++;
         if (conn.ws.readyState === WebSocket.OPEN) {
-          conn.ws.send(payload);
-          sent++;
+          try {
+            conn.ws.send(payload);
+            sent++;
+          } catch (err) {
+            logger.warn(`[WebSocket] Error in broadcastBookingEvent send`, { error: getErrorMessage(err) });
+          }
         }
       }
     });
@@ -656,8 +671,12 @@ export function broadcastAnnouncementUpdate(action: 'created' | 'updated' | 'del
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastAnnouncementUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -681,8 +700,12 @@ export function broadcastAvailabilityUpdate(data: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastAvailabilityUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -708,8 +731,12 @@ export function broadcastWaitlistUpdate(data: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastWaitlistUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -730,8 +757,12 @@ export function broadcastDirectoryUpdate(action: 'synced' | 'updated' | 'created
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastDirectoryUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -752,8 +783,12 @@ export function broadcastCafeMenuUpdate(action: 'created' | 'updated' | 'deleted
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastCafeMenuUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -775,8 +810,12 @@ export function broadcastClosureUpdate(action: 'created' | 'updated' | 'deleted'
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastClosureUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -797,8 +836,12 @@ export function broadcastMemberDataUpdated(changedEmails: string[] = []) {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastMemberDataUpdated send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -821,8 +864,12 @@ export function broadcastMemberStatsUpdated(memberEmail: string, data: { guestPa
   let sent = 0;
   memberConnections.forEach(conn => {
     if (conn.ws.readyState === WebSocket.OPEN) {
-      conn.ws.send(payload);
-      sent++;
+      try {
+        conn.ws.send(payload);
+        sent++;
+      } catch (err) {
+        logger.warn(`[WebSocket] Error in broadcastMemberStatsUpdated send`, { error: getErrorMessage(err) });
+      }
     }
   });
 
@@ -830,8 +877,12 @@ export function broadcastMemberStatsUpdated(memberEmail: string, data: { guestPa
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastMemberStatsUpdated send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -861,8 +912,12 @@ export function broadcastTierUpdate(data: {
   const memberConnections = clients.get(memberEmail) || [];
   memberConnections.forEach(conn => {
     if (conn.ws.readyState === WebSocket.OPEN) {
-      conn.ws.send(payload);
-      sent++;
+      try {
+        conn.ws.send(payload);
+        sent++;
+      } catch (err) {
+        logger.warn(`[WebSocket] Error in broadcastTierUpdate send`, { error: getErrorMessage(err) });
+      }
     }
   });
 
@@ -870,8 +925,12 @@ export function broadcastTierUpdate(data: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastTierUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -893,8 +952,12 @@ export function broadcastDataIntegrityUpdate(action: 'check_complete' | 'issue_r
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastDataIntegrityUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -932,8 +995,12 @@ export function broadcastBillingUpdate(data: {
     const memberConnections = clients.get(data.memberEmail.toLowerCase()) || [];
     memberConnections.forEach(conn => {
       if (conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastBillingUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   }
@@ -942,8 +1009,12 @@ export function broadcastBillingUpdate(data: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastBillingUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });
@@ -973,8 +1044,12 @@ export function broadcastDayPassUpdate(data: {
   clients.forEach((connections) => {
     connections.forEach(conn => {
       if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        conn.ws.send(payload);
-        sent++;
+        try {
+          conn.ws.send(payload);
+          sent++;
+        } catch (err) {
+          logger.warn(`[WebSocket] Error in broadcastDayPassUpdate send`, { error: getErrorMessage(err) });
+        }
       }
     });
   });

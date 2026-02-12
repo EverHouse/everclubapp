@@ -174,6 +174,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       ws.onerror = () => {
         isConnectingRef.current = false;
+        window.__wsConnected = false;
       };
     } catch (e) {
       isConnectingRef.current = false;
