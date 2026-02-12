@@ -68,6 +68,7 @@ async function isStaffOrAdminCheck(email: string): Promise<boolean> {
     );
     return result.rows.length > 0;
   } catch (error) {
+    console.error('[isStaffOrAdminCheck] DB error, defaulting to false:', (error as Error).message);
     return false;
   }
 }
@@ -2058,14 +2059,12 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
       const slotsToCreate = playerCount - currentMemberCount;
       
       if (slotsToCreate > 0) {
-        for (let i = 0; i < slotsToCreate; i++) {
-          const nextSlot = maxSlot + i + 1;
-          await pool.query(`
-            INSERT INTO booking_members (booking_id, slot_number, user_email, is_primary, created_at)
-            VALUES ($1, $2, NULL, false, NOW())
-            ON CONFLICT (booking_id, slot_number) DO NOTHING
-          `, [bookingId, nextSlot]);
-        }
+        await pool.query(`
+          INSERT INTO booking_members (booking_id, slot_number, user_email, is_primary, created_at)
+          SELECT $1, slot_num, NULL, false, NOW()
+          FROM generate_series($2, $3) AS slot_num
+          ON CONFLICT (booking_id, slot_number) DO NOTHING
+        `, [bookingId, maxSlot + 1, maxSlot + slotsToCreate]);
         logger.info('[roster] Created empty booking member slots', {
           extra: { bookingId, slotsCreated: slotsToCreate, previousCount, newCount: playerCount }
         });

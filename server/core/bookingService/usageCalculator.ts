@@ -143,17 +143,38 @@ export interface SessionBillingResult {
 export async function getDailyUsageFromLedger(
   memberEmail: string,
   date: string,
-  excludeSessionId?: number
+  excludeSessionId?: number,
+  resourceType?: string
 ): Promise<number> {
   try {
+    const params: any[] = [memberEmail, date];
+    let paramIdx = 3;
+
+    let excludeClause = '';
+    if (excludeSessionId) {
+      excludeClause = `AND ul.session_id != $${paramIdx}`;
+      params.push(excludeSessionId);
+      paramIdx++;
+    }
+
+    let resourceTypeClause = '';
+    if (resourceType) {
+      resourceTypeClause = `AND EXISTS (
+        SELECT 1 FROM resources r 
+        WHERE r.id = bs.resource_id AND r.type = $${paramIdx}
+      )`;
+      params.push(resourceType);
+    }
+
     const result = await pool.query(
       `SELECT COALESCE(SUM(minutes_charged), 0) as total_minutes
        FROM usage_ledger ul
        JOIN booking_sessions bs ON ul.session_id = bs.id
        WHERE LOWER(ul.member_id) = LOWER($1)
          AND bs.session_date = $2
-         ${excludeSessionId ? 'AND ul.session_id != $3' : ''}`,
-      excludeSessionId ? [memberEmail, date, excludeSessionId] : [memberEmail, date]
+         ${excludeClause}
+         ${resourceTypeClause}`,
+      params
     );
     
     return parseInt(result.rows[0].total_minutes) || 0;
@@ -202,6 +223,7 @@ export async function calculateSessionBilling(
   options?: {
     excludeSessionId?: number;
     consumeGuestPasses?: boolean;
+    resourceType?: string;
   }
 ): Promise<SessionBillingResult> {
   const billingBreakdown: ParticipantBilling[] = [];
@@ -257,13 +279,16 @@ export async function calculateSessionBilling(
       const memberEmail = await resolveToEmail(participant.email || participant.userId);
       const tierName = await getMemberTierByEmail(memberEmail);
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
-      const dailyAllowance = tierLimits?.daily_sim_minutes ?? 0;
+      const dailyAllowance = options?.resourceType === 'conference_room'
+        ? (tierLimits?.daily_conf_room_minutes ?? 0)
+        : (tierLimits?.daily_sim_minutes ?? 0);
       const unlimitedAccess = tierLimits?.unlimited_access ?? false;
       
       const usedMinutesToday = await getDailyUsageFromLedger(
         memberEmail,
         sessionDate,
-        options?.excludeSessionId
+        options?.excludeSessionId,
+        options?.resourceType
       );
       
       const remainingMinutesBefore = unlimitedAccess || dailyAllowance >= 999
@@ -331,6 +356,7 @@ export async function calculateFullSessionBilling(
   declaredPlayerCount: number = 1,
   options?: {
     excludeSessionId?: number;
+    resourceType?: string;
   }
 ): Promise<SessionBillingResult> {
   const billingBreakdown: ParticipantBilling[] = [];
@@ -350,13 +376,16 @@ export async function calculateFullSessionBilling(
   let guestPassesRemaining = guestPassInfo.remaining;
   
   const hostTierLimits = hostTier ? await getTierLimits(hostTier) : null;
-  const hostDailyAllowance = hostTierLimits?.daily_sim_minutes ?? 0;
+  const hostDailyAllowance = options?.resourceType === 'conference_room'
+    ? (hostTierLimits?.daily_conf_room_minutes ?? 0)
+    : (hostTierLimits?.daily_sim_minutes ?? 0);
   const hostUnlimitedAccess = hostTierLimits?.unlimited_access ?? false;
   
   const hostUsedMinutesToday = await getDailyUsageFromLedger(
     hostEmail,
     sessionDate,
-    options?.excludeSessionId
+    options?.excludeSessionId,
+    options?.resourceType
   );
   
   let hostOverageFee = 0;
@@ -440,13 +469,16 @@ export async function calculateFullSessionBilling(
       const memberEmail = await resolveToEmail(participant.email || participant.userId);
       const tierName = await getMemberTierByEmail(memberEmail);
       const tierLimits = tierName ? await getTierLimits(tierName) : null;
-      const dailyAllowance = tierLimits?.daily_sim_minutes ?? 0;
+      const dailyAllowance = options?.resourceType === 'conference_room'
+        ? (tierLimits?.daily_conf_room_minutes ?? 0)
+        : (tierLimits?.daily_sim_minutes ?? 0);
       const unlimitedAccess = tierLimits?.unlimited_access ?? false;
       
       const usedMinutesToday = await getDailyUsageFromLedger(
         memberEmail,
         sessionDate,
-        options?.excludeSessionId
+        options?.excludeSessionId,
+        options?.resourceType
       );
       
       const remainingMinutesBefore = unlimitedAccess || dailyAllowance >= 999
@@ -606,9 +638,11 @@ export async function recalculateSessionFees(
     // Query raw start_time and end_time as TIME strings to handle cross-midnight sessions properly
     const sessionResult = await pool.query(
       `SELECT bs.id, bs.session_date, bs.start_time::text, bs.end_time::text,
-              br.user_email as host_email
+              br.user_email as host_email, br.declared_player_count,
+              r.type as resource_type
        FROM booking_sessions bs
        LEFT JOIN booking_requests br ON br.session_id = bs.id
+       LEFT JOIN resources r ON bs.resource_id = r.id
        WHERE bs.id = $1`,
       [sessionId]
     );
@@ -658,12 +692,15 @@ export async function recalculateSessionFees(
       displayName: p.display_name
     }));
     
+    const declaredPlayerCount = session.declared_player_count || participants.length || 1;
+    const resourceType = session.resource_type;
     const billingResult = await calculateFullSessionBilling(
       sessionDate,
       sessionDuration,
       participants,
       hostEmail || participants.find(p => p.participantType === 'owner')?.email || '',
-      { excludeSessionId: sessionId }
+      declaredPlayerCount,
+      { excludeSessionId: sessionId, resourceType }
     );
     
     const client = await pool.connect();
@@ -674,43 +711,45 @@ export async function recalculateSessionFees(
       
       await client.query(`DELETE FROM usage_ledger WHERE session_id = $1`, [sessionId]);
       
-      for (const billing of billingResult.billingBreakdown) {
-        if (billing.participantType === 'guest') {
-          if (billing.guestFee > 0) {
-            await client.query(
-              `INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-              [
-                sessionId,
-                hostEmail || 'guest',
-                billing.minutesAllocated,
-                0,
-                billing.guestFee,
-                null,
-                'unpaid',
-                'recalculation'
-              ]
-            );
+      const resolvedBillings = await Promise.all(
+        billingResult.billingBreakdown.map(async (billing) => {
+          if (billing.participantType === 'guest') {
+            return billing.guestFee > 0 ? {
+              memberId: hostEmail || 'guest',
+              minutesCharged: billing.minutesAllocated,
+              overageFee: 0,
+              guestFee: billing.guestFee,
+              tierAtBooking: null as string | null,
+            } : null;
+          } else {
+            const resolvedEmail = await resolveToEmail(billing.email || billing.userId);
+            return {
+              memberId: resolvedEmail,
+              minutesCharged: billing.minutesAllocated,
+              overageFee: billing.overageFee,
+              guestFee: 0,
+              tierAtBooking: billing.tierName,
+            };
           }
-        } else {
-          const resolvedEmail = await resolveToEmail(billing.email || billing.userId);
-          await client.query(
-            `INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              sessionId,
-              resolvedEmail,
-              billing.minutesAllocated,
-              billing.overageFee,
-              0,
-              billing.tierName,
-              'unpaid',
-              'recalculation'
-            ]
-          );
-        }
-        participantsUpdated++;
+        })
+      );
+
+      const validBillings = resolvedBillings.filter(b => b !== null);
+      if (validBillings.length > 0) {
+        const memberIds = validBillings.map(b => b.memberId);
+        const minutesCharged = validBillings.map(b => b.minutesCharged);
+        const overageFees = validBillings.map(b => b.overageFee);
+        const guestFees = validBillings.map(b => b.guestFee);
+        const tiersAtBooking = validBillings.map(b => b.tierAtBooking);
+
+        await client.query(`
+          INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
+          SELECT $1, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, 'unpaid', 'recalculation'
+          FROM unnest($2::text[], $3::int[], $4::numeric[], $5::numeric[], $6::text[])
+          AS t(member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking)
+        `, [sessionId, memberIds, minutesCharged, overageFees, guestFees, tiersAtBooking]);
       }
+      participantsUpdated = validBillings.length;
       
       await client.query('COMMIT');
     } catch (error) {
