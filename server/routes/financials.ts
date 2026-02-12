@@ -8,6 +8,7 @@ import { getPacificMidnightUTC } from '../utils/dateUtils';
 import { upsertTransactionCache } from '../core/stripe/webhooks';
 import Stripe from 'stripe';
 import { getErrorMessage } from '../utils/errorUtils';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -335,6 +336,15 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
     }
     
     console.log(`[Financials Backfill] Complete: ${paymentIntentsProcessed} payment intents, ${chargesProcessed} charges, ${invoicesProcessed} invoices`);
+    
+    logFromRequest(req, 'backfill_stripe_cache' as any, 'stripe', null, undefined, {
+      action: 'backfill',
+      daysBack,
+      paymentIntentsProcessed,
+      chargesProcessed,
+      invoicesProcessed,
+      errorCount: errors.length,
+    });
     
     res.json({
       success: true,

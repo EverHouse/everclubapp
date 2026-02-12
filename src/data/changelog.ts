@@ -13,6 +13,24 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.52.0",
+    date: "2026-02-12",
+    title: "Data Tools: Full Audit & Optimization",
+    isMajor: true,
+    changes: [
+      "Improved: Reconcile Group Billing now logs all activity to the staff activity feed",
+      "Improved: Backfill Stripe Cache now logs activity to the staff activity feed",
+      "Fixed: Detect Duplicates now checks ALL members instead of only the first 100/500 — no more hidden duplicates",
+      "Improved: Detect Duplicates HubSpot checks run faster with larger batches and shorter delays",
+      "Improved: Stripe Customer Cleanup pre-loads all active members in one query instead of checking the database for each customer individually — dramatically faster",
+      "Improved: Stripe Customer Cleanup skips all Stripe API calls for known active members and adds rate limiting to prevent Stripe throttling",
+      "Improved: Archive Stale Visitors now uses indexed email lookups (7 new database indexes) for faster scanning",
+      "Improved: Archive Stale Visitors adds rate limiting between Stripe check batches",
+      "Improved: Placeholder Cleanup scan now logs activity to staff activity feed",
+      "Improved: Placeholder Cleanup uses HubSpot batch delete (100 at a time) instead of deleting contacts one-by-one",
+    ],
+  },
+  {
     version: "7.51.0",
     date: "2026-02-12",
     title: "Data Integrity: Accuracy, Resilience & Performance",

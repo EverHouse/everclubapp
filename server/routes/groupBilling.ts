@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
+import { getSessionUser } from '../types/session';
 import {
   syncGroupAddOnProductsToStripe,
   getGroupAddOnProducts,
@@ -564,9 +565,19 @@ router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAd
 
 router.post('/api/group-billing/reconcile', isStaffOrAdmin, async (req, res) => {
   try {
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     console.log('[GroupBilling] Starting reconciliation with Stripe...');
     const result = await reconcileGroupBillingWithStripe();
     console.log(`[GroupBilling] Reconciliation complete: ${result.groupsChecked} groups checked, ${result.membersDeactivated} deactivated, ${result.membersReactivated} reactivated, ${result.membersCreated} created, ${result.itemsRelinked} relinked`);
+    logFromRequest(req, 'reconcile_group_billing' as any, 'billing_groups', null, undefined, {
+      action: 'reconcile',
+      groupsChecked: result.groupsChecked,
+      membersDeactivated: result.membersDeactivated,
+      membersReactivated: result.membersReactivated,
+      membersCreated: result.membersCreated,
+      itemsRelinked: result.itemsRelinked,
+      errorCount: result.errors.length,
+    });
     res.json(result);
   } catch (error: unknown) {
     console.error('[GroupBilling] Error during reconciliation:', error);
@@ -576,9 +587,19 @@ router.post('/api/group-billing/reconcile', isStaffOrAdmin, async (req, res) => 
 
 router.post('/api/family-billing/reconcile', isStaffOrAdmin, async (req, res) => {
   try {
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
     console.log('[GroupBilling] Starting reconciliation with Stripe...');
     const result = await reconcileGroupBillingWithStripe();
     console.log(`[GroupBilling] Reconciliation complete: ${result.groupsChecked} groups checked, ${result.membersDeactivated} deactivated, ${result.membersReactivated} reactivated, ${result.membersCreated} created, ${result.itemsRelinked} relinked`);
+    logFromRequest(req, 'reconcile_group_billing' as any, 'billing_groups', null, undefined, {
+      action: 'reconcile',
+      groupsChecked: result.groupsChecked,
+      membersDeactivated: result.membersDeactivated,
+      membersReactivated: result.membersReactivated,
+      membersCreated: result.membersCreated,
+      itemsRelinked: result.itemsRelinked,
+      errorCount: result.errors.length,
+    });
     res.json(result);
   } catch (error: unknown) {
     console.error('[GroupBilling] Error during reconciliation:', error);

@@ -429,6 +429,13 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
       console.warn('[DataIntegrity] HubSpot scan failed:', getErrorMessage(hubspotError));
     }
     
+    logFromRequest(req, 'placeholder_scan' as any, 'system', null, undefined, {
+      action: 'scan',
+      stripeCount: stripeCustomers.length,
+      hubspotCount: hubspotContacts.length,
+      localDbCount: localDatabaseUsers.length,
+    });
+
     res.json({
       success: true,
       stripeCustomers,
@@ -487,15 +494,26 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
       try {
         const { client: hubspot } = await getHubSpotClientWithFallback();
         
-        for (const contactId of hubspotContactIds) {
+        const HUBSPOT_BATCH_SIZE = 100;
+        for (let i = 0; i < hubspotContactIds.length; i += HUBSPOT_BATCH_SIZE) {
+          const batch = hubspotContactIds.slice(i, i + HUBSPOT_BATCH_SIZE);
           try {
             await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.archive(contactId)
+              hubspot.crm.contacts.batchApi.archive({ inputs: batch.map((id: string) => ({ id })) })
             );
-            results.hubspotDeleted++;
-          } catch (error: unknown) {
-            results.hubspotFailed++;
-            results.hubspotErrors.push(`${contactId}: ${getErrorMessage(error)}`);
+            results.hubspotDeleted += batch.length;
+          } catch (batchErr: unknown) {
+            for (const contactId of batch) {
+              try {
+                await retryableHubSpotRequest(() =>
+                  hubspot.crm.contacts.basicApi.archive(contactId)
+                );
+                results.hubspotDeleted++;
+              } catch (error: unknown) {
+                results.hubspotFailed++;
+                results.hubspotErrors.push(`${contactId}: ${getErrorMessage(error)}`);
+              }
+            }
           }
         }
       } catch (hubspotError: unknown) {

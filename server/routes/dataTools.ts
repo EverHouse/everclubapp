@@ -1492,6 +1492,11 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
   try {
     const staffEmail = getSessionUser(req)?.email || 'unknown';
     
+    logFromRequest(req, 'detect_duplicates' as any, 'users', null, undefined, {
+      action: 'started',
+      staffEmail
+    });
+    
     console.log(`[DataTools] Starting duplicate detection by ${staffEmail}`);
     
     const appDuplicatesResult = await db.execute(sql`
@@ -1508,7 +1513,6 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
       GROUP BY LOWER(email)
       HAVING COUNT(*) > 1
       ORDER BY COUNT(*) DESC
-      LIMIT 100
     `);
     
     const appDuplicates = appDuplicatesResult.rows.map(row => ({
@@ -1534,11 +1538,10 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
        WHERE hubspot_id IS NOT NULL
          AND hubspot_id != ''
          AND email IS NOT NULL
-         AND archived_at IS NULL
-       LIMIT 500`);
+         AND archived_at IS NULL`);
     
-    const BATCH_SIZE = 10;
-    const BATCH_DELAY_MS = 150;
+    const BATCH_SIZE = 25;
+    const BATCH_DELAY_MS = 50;
     
     for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
       const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE);
@@ -2133,11 +2136,26 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
     activeCleanupJob!.progress.phase = 'checking';
     broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
     
+    const activeUsersResult = await db.execute(sql`
+      SELECT stripe_customer_id FROM users 
+      WHERE stripe_customer_id IS NOT NULL 
+        AND membership_status = 'active'
+    `);
+    const activeStripeIds = new Set(activeUsersResult.rows.map((r: any) => r.stripe_customer_id));
+    
     const emptyCustomers: typeof allCustomers = [];
     let skippedActiveCount = 0;
     
     for (const customer of allCustomers) {
       try {
+        if (activeStripeIds.has(customer.id)) {
+          skippedActiveCount++;
+          activeCleanupJob!.progress.skippedActiveCount = skippedActiveCount;
+          activeCleanupJob!.progress.checked++;
+          if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+          continue;
+        }
+        
         const charges = await stripe.charges.list({ customer: customer.id, limit: 1 });
         if (charges.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
         
@@ -2150,15 +2168,6 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         const paymentIntents = await stripe.paymentIntents.list({ customer: customer.id, limit: 1 });
         if (paymentIntents.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
         
-        const dbUser = await db.execute(sql`SELECT id, membership_status FROM users WHERE stripe_customer_id = ${customer.id} LIMIT 1`);
-        if (dbUser.rows.length > 0 && dbUser.rows[0].membership_status === 'active') {
-          skippedActiveCount++;
-          activeCleanupJob!.progress.skippedActiveCount = skippedActiveCount;
-          activeCleanupJob!.progress.checked++;
-          if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
-          continue;
-        }
-        
         emptyCustomers.push(customer);
         activeCleanupJob!.progress.emptyFound = emptyCustomers.length;
         activeCleanupJob!.progress.checked++;
@@ -2168,6 +2177,10 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         activeCleanupJob!.progress.errors++;
         activeCleanupJob!.progress.checked++;
         if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
+      }
+      
+      if (activeCleanupJob!.progress.checked % 25 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
     
@@ -2428,6 +2441,10 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
         activeVisitorArchiveJob!.progress.keptCount = keptCount;
         activeVisitorArchiveJob!.progress.eligibleCount = eligible.length;
         broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress });
+
+        if (i + BATCH_SIZE < visitorsWithStripe.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
     }
 
