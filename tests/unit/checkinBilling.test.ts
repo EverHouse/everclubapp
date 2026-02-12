@@ -149,7 +149,7 @@ function calculateGuestPassUsage(
 ): GuestPassUsage {
   const tier = getTierConfig(tierName);
   
-  if (!tier || !tier.hasSimulatorGuestPasses || tier.guestPassesPerMonth === 0) {
+  if (!tier || (!tier.hasSimulatorGuestPasses && tier.guestPassesPerMonth === 0)) {
     return {
       guestPassesAvailable: 0,
       guestsToAdd,
@@ -374,10 +374,16 @@ describe('Check-in Billing - Guest Pass Usage Tests', () => {
     });
   });
   
-  describe('Core Tier Guest Passes (no guest passes benefit)', () => {
-    it('should charge all guests when tier has no guest pass benefit', () => {
+  describe('Core Tier Guest Passes', () => {
+    it('should use guest passes for Core tier (4 passes/month)', () => {
       const usage = calculateGuestPassUsage('Core', 4, 2);
-      expect(usage.guestPassesUsed).toBe(0);
+      expect(usage.guestPassesUsed).toBe(2);
+      expect(usage.additionalGuestsCharged).toBe(0);
+    });
+
+    it('should charge remaining guests when Core passes exhausted', () => {
+      const usage = calculateGuestPassUsage('Core', 1, 3);
+      expect(usage.guestPassesUsed).toBe(1);
       expect(usage.additionalGuestsCharged).toBe(2);
     });
   });
@@ -450,15 +456,15 @@ describe('Check-in Billing - Complete Booking Scenarios', () => {
       expectedGuestsCharged: 0
     },
     {
-      description: 'Core member + 1 guest 60min - guest charged (no guest passes benefit)',
+      description: 'Core member + 1 guest 60min - guest pass used',
       hostTier: 'Core',
       durationMinutes: 60,
       playerCount: 2,
       guestCount: 1,
       guestPassesRemaining: 4,
       expectedHostCharge: 0,
-      expectedGuestPassesUsed: 0,
-      expectedGuestsCharged: 1
+      expectedGuestPassesUsed: 1,
+      expectedGuestsCharged: 0
     },
     {
       description: 'Premium member + 2 guests 90min - guest passes used',
@@ -731,7 +737,8 @@ describe('Check-in Billing - Guest Pass Only Waives $25 Fee', () => {
     (getMemberTierByEmail as ReturnType<typeof vi.fn>).mockResolvedValue('Core');
     (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue({
       ...getTierLimitsFromConfig('Core'),
-      has_simulator_guest_passes: false
+      has_simulator_guest_passes: false,
+      guest_passes_per_month: 0
     });
     (pool.query as ReturnType<typeof vi.fn>).mockImplementation((query: string) => {
       if (query.includes('usage_ledger')) {
@@ -764,7 +771,11 @@ describe('Check-in Billing - Flat $25 Guest Fee', () => {
   
   it('should charge exactly $25 per guest when no guest pass is used', async () => {
     (getMemberTierByEmail as ReturnType<typeof vi.fn>).mockResolvedValue('Core');
-    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue(getTierLimitsFromConfig('Core'));
+    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...getTierLimitsFromConfig('Core'),
+      guest_passes_per_month: 0,
+      has_simulator_guest_passes: false
+    });
     (pool.query as ReturnType<typeof vi.fn>).mockImplementation((query: string) => {
       if (query.includes('usage_ledger')) {
         return Promise.resolve({ rows: [{ total_minutes: 0 }] });
@@ -794,7 +805,11 @@ describe('Check-in Billing - Flat $25 Guest Fee', () => {
   
   it('should charge $25 flat fee regardless of session duration', async () => {
     (getMemberTierByEmail as ReturnType<typeof vi.fn>).mockResolvedValue('Core');
-    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue(getTierLimitsFromConfig('Core'));
+    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...getTierLimitsFromConfig('Core'),
+      guest_passes_per_month: 0,
+      has_simulator_guest_passes: false
+    });
     (pool.query as ReturnType<typeof vi.fn>).mockImplementation((query: string) => {
       if (query.includes('usage_ledger')) {
         return Promise.resolve({ rows: [{ total_minutes: 0 }] });
@@ -994,7 +1009,11 @@ describe('Check-in Billing - Dynamic Recalculation', () => {
   
   it('should recalculate fees when a participant is removed', async () => {
     (getMemberTierByEmail as ReturnType<typeof vi.fn>).mockResolvedValue('Core');
-    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue(getTierLimitsFromConfig('Core'));
+    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...getTierLimitsFromConfig('Core'),
+      guest_passes_per_month: 0,
+      has_simulator_guest_passes: false
+    });
     (pool.query as ReturnType<typeof vi.fn>).mockImplementation((query: string) => {
       if (query.includes('usage_ledger')) {
         return Promise.resolve({ rows: [{ total_minutes: 0 }] });
@@ -1336,10 +1355,19 @@ describe('Check-in Billing - getGuestPassInfo', () => {
     vi.clearAllMocks();
   });
   
-  it('should return no guest pass benefit for tiers without it', async () => {
+  it('should return guest pass benefit for Core tier (4 passes/month)', async () => {
     (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue(getTierLimitsFromConfig('Core'));
-    
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [{ passes_used: 0, passes_total: 4 }] });
+
     const result = await getGuestPassInfo('core@test.com', 'Core');
+    expect(result.hasGuestPassBenefit).toBe(true);
+    expect(result.remaining).toBe(4);
+  });
+
+  it('should return no guest pass benefit for Social tier', async () => {
+    (getTierLimits as ReturnType<typeof vi.fn>).mockResolvedValue(getTierLimitsFromConfig('Social'));
+    
+    const result = await getGuestPassInfo('social@test.com', 'Social');
     expect(result.hasGuestPassBenefit).toBe(false);
     expect(result.remaining).toBe(0);
   });
