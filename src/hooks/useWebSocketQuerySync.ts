@@ -165,6 +165,13 @@ export function useWebSocketQuerySync() {
       queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
     };
 
+    const handleAvailabilityUpdate = (event: CustomEvent) => {
+      console.log('[WebSocketQuerySync] Invalidating queries for availability-update');
+      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
+      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['book-golf'] });
+    };
+
     // Register event listeners
     window.addEventListener('booking-update', handleBookingUpdate as EventListener);
     window.addEventListener('cafe-menu-update', handleCafeMenuUpdate as EventListener);
@@ -179,6 +186,7 @@ export function useWebSocketQuerySync() {
     window.addEventListener('closure-update', handleClosureUpdate as EventListener);
     window.addEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
     window.addEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
+    window.addEventListener('availability-update', handleAvailabilityUpdate as EventListener);
 
     // Cleanup function
     return () => {
@@ -195,6 +203,7 @@ export function useWebSocketQuerySync() {
       window.removeEventListener('closure-update', handleClosureUpdate as EventListener);
       window.removeEventListener('booking-auto-confirmed', handleBookingAutoConfirmed as EventListener);
       window.removeEventListener('booking-confirmed', handleBookingConfirmed as EventListener);
+      window.removeEventListener('availability-update', handleAvailabilityUpdate as EventListener);
     };
   }, [queryClient]);
 }
