@@ -1089,7 +1089,6 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
 
     // Create usage_ledger entries for members with calculated fees
     for (const md of memberData) {
-      // Find the billing breakdown for this member
       const memberBilling = billingResult.billingBreakdown.find(
         b => b.userId === md.userId || b.email?.toLowerCase() === md.email.toLowerCase()
       );
@@ -1098,8 +1097,8 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
         session.id,
         {
           memberId: md.userId,
-          minutesCharged: memberBilling?.minutesAllocated || perParticipantMinutes,
-          overageFee: memberBilling?.overageFee || 0,
+          minutesCharged: memberBilling?.minutesAllocated ?? perParticipantMinutes,
+          overageFee: memberBilling?.overageFee ?? 0,
           guestFee: 0,
           tierAtBooking: md.tier,
           paymentMethod: input.isPast ? 'credit_card' : 'unpaid'
@@ -1115,14 +1114,32 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
         session.id,
         {
           memberId: ownerUserId,
-          minutesCharged: ownerBilling?.minutesAllocated || input.durationMinutes,
-          overageFee: ownerBilling?.overageFee || 0,
+          minutesCharged: ownerBilling?.minutesAllocated ?? perParticipantMinutes,
+          overageFee: ownerBilling?.overageFee ?? 0,
           guestFee: billingResult.totalGuestFees,
           tierAtBooking: ownerTier,
           paymentMethod: input.isPast ? 'credit_card' : 'unpaid'
         },
         'trackman_import'
       );
+    }
+
+    // Set cached_fee_cents on booking_participants from billing breakdown
+    for (const billing of billingResult.billingBreakdown) {
+      const matchingParticipant = participants.find(p => {
+        if (billing.userId && p.userId === billing.userId) return true;
+        if (billing.guestId && p.guestId === billing.guestId) return true;
+        if (billing.participantType === 'owner' && p.participantType === 'owner') return true;
+        return false;
+      });
+      if (matchingParticipant) {
+        const feeCents = Math.round(billing.totalFee * 100);
+        await db.execute(sql`
+          UPDATE booking_participants 
+          SET cached_fee_cents = ${feeCents}
+          WHERE id = ${matchingParticipant.id}
+        `);
+      }
     }
     
     if (billingResult.totalFees > 0) {

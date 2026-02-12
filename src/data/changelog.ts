@@ -13,6 +13,17 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.48.4",
+    date: "2026-02-12",
+    title: "Trackman Import Billing Accuracy Fix",
+    changes: [
+      "Fixed: Sessions imported from Trackman now correctly store billing amounts on each participant, so the Overdue Payments list shows accurate totals instead of incorrect charges",
+      "Fixed: In multi-player sessions, each player is now correctly charged for their share of the time (e.g., 2 players in a 2-hour session each get 1 hour) instead of the booking owner being charged for the full session duration",
+      "Fixed: $0 fees are no longer confused with 'not yet calculated' — members within their daily allowance correctly show $0 owed",
+      "Fixed: Corrected billing data for 2 affected sessions that had incorrect charges from the previous import logic",
+    ],
+  },
+  {
     version: "7.48.3",
     date: "2026-02-12",
     title: "Payment Failure Webhook Hardening",

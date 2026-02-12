@@ -793,10 +793,8 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
           COUNT(DISTINCT bp.id) FILTER (WHERE bp.id IS NOT NULL) as filled_participant_count,
           COALESCE(SUM(
             CASE 
-              WHEN bp.payment_status = 'pending' AND COALESCE(bp.cached_fee_cents, 0) > 0
+              WHEN bp.payment_status = 'pending'
               THEN COALESCE(bp.cached_fee_cents, 0) / 100.0
-              WHEN bp.payment_status = 'pending' 
-              THEN COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0)
               ELSE 0 
             END
           ), 0)::numeric as total_outstanding,
@@ -810,9 +808,6 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
         LEFT JOIN booking_participants bp ON bp.session_id = br.session_id
-        LEFT JOIN users pu ON pu.id = bp.user_id
-        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
-          AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email) OR LOWER(ul.member_id) = LOWER(br.user_email))
         WHERE br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
           AND br.session_id IS NOT NULL
@@ -820,8 +815,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
                  br.request_date, br.start_time, br.end_time, r.name, br.declared_player_count
         HAVING SUM(
           CASE WHEN bp.payment_status = 'pending' 
-               AND (COALESCE(bp.cached_fee_cents, 0) > 0 
-                    OR COALESCE(ul.overage_fee, 0) + COALESCE(ul.guest_fee, 0) > 0)
+               AND COALESCE(bp.cached_fee_cents, 0) > 0
           THEN 1 ELSE 0 END
         ) > 0
         OR SUM(CASE 
