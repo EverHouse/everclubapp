@@ -225,25 +225,36 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
             }
           );
 
-          // Use consistent format with 'balance-' prefix for refund tracking
           const balanceRef = `balance-${balanceTransaction.id}`;
 
-          const prepaymentResult = await pool.query(
-            `INSERT INTO conference_prepayments 
-             (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
-             VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
-             RETURNING id`,
-            [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceRef, expiresAt]
-          );
+          const creditClient = await pool.connect();
+          let prepaymentResult;
+          try {
+            await creditClient.query('BEGIN');
 
-          // Insert into stripe_payment_intents for cancellation refund tracking
-          await pool.query(
-            `INSERT INTO stripe_payment_intents 
-             (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, 'prepayment', $5, 'succeeded', NOW(), NOW())
-             ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
-            [normalizedEmail, balanceRef, stripeCustomerId, totalCents, description]
-          );
+            prepaymentResult = await creditClient.query(
+              `INSERT INTO conference_prepayments 
+               (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
+               VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
+               RETURNING id`,
+              [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceRef, expiresAt]
+            );
+
+            await creditClient.query(
+              `INSERT INTO stripe_payment_intents 
+               (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, 'prepayment', $5, 'succeeded', NOW(), NOW())
+               ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
+              [normalizedEmail, balanceRef, stripeCustomerId, totalCents, description]
+            );
+
+            await creditClient.query('COMMIT');
+          } catch (txError) {
+            await creditClient.query('ROLLBACK');
+            throw txError;
+          } finally {
+            creditClient.release();
+          }
 
           logger.info('[ConferencePrepay] Credit applied successfully', {
             extra: { 
@@ -279,7 +290,8 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
         bookingDate: date,
         startTime,
         durationMinutes: durationMinutes.toString(),
-        overageMinutes: overageMinutes.toString()
+        overageMinutes: overageMinutes.toString(),
+        memberEmail: normalizedEmail
       }
     });
 
@@ -291,16 +303,28 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
     }
 
     if (result.paidInFull) {
-      // Store with 'balance-' prefix to match stripe_payment_intents format
       const balanceRef = `balance-${result.balanceTransactionId}`;
-      
-      const prepaymentResult = await pool.query(
-        `INSERT INTO conference_prepayments 
-         (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
-         VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
-         RETURNING id`,
-        [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceRef, expiresAt]
-      );
+
+      const balanceClient = await pool.connect();
+      let prepaymentResult;
+      try {
+        await balanceClient.query('BEGIN');
+
+        prepaymentResult = await balanceClient.query(
+          `INSERT INTO conference_prepayments 
+           (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, credit_reference_id, status, expires_at, completed_at)
+           VALUES ($1, $2, $3, $4, $5, 'credit', $6, 'succeeded', $7, NOW())
+           RETURNING id`,
+          [normalizedEmail, date, startTime, durationMinutes, totalCents, balanceRef, expiresAt]
+        );
+
+        await balanceClient.query('COMMIT');
+      } catch (txError) {
+        await balanceClient.query('ROLLBACK');
+        throw txError;
+      } finally {
+        balanceClient.release();
+      }
 
       logger.info('[ConferencePrepay] Paid in full via balance', {
         extra: { 
@@ -320,13 +344,33 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
       });
     }
 
-    const prepaymentResult = await pool.query(
-      `INSERT INTO conference_prepayments 
-       (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, payment_intent_id, status, expires_at)
-       VALUES ($1, $2, $3, $4, $5, 'stripe', $6, 'pending', $7)
-       RETURNING id`,
-      [normalizedEmail, date, startTime, durationMinutes, totalCents, result.paymentIntentId, expiresAt]
-    );
+    const stripeClient = await pool.connect();
+    let prepaymentResult;
+    try {
+      await stripeClient.query('BEGIN');
+
+      prepaymentResult = await stripeClient.query(
+        `INSERT INTO conference_prepayments 
+         (member_email, booking_date, start_time, duration_minutes, amount_cents, payment_type, payment_intent_id, status, expires_at)
+         VALUES ($1, $2, $3, $4, $5, 'stripe', $6, 'pending', $7)
+         RETURNING id`,
+        [normalizedEmail, date, startTime, durationMinutes, totalCents, result.paymentIntentId, expiresAt]
+      );
+
+      await stripeClient.query('COMMIT');
+    } catch (txError) {
+      await stripeClient.query('ROLLBACK');
+      throw txError;
+    } finally {
+      stripeClient.release();
+    }
+
+    const stripe = await getStripeClient();
+    await stripe.paymentIntents.update(result.paymentIntentId!, {
+      metadata: {
+        conferenceBookingId: prepaymentResult.rows[0].id.toString()
+      }
+    });
 
     logger.info('[ConferencePrepay] Payment intent created', {
       extra: { 
@@ -400,20 +444,31 @@ router.post('/api/member/conference/prepay/:id/confirm', async (req: Request, re
       return res.status(400).json({ error: `Payment status is ${paymentIntent.status}, not succeeded` });
     }
 
-    await pool.query(
-      `UPDATE conference_prepayments SET status = 'completed', completed_at = NOW() WHERE id = $1`,
-      [prepaymentId]
-    );
+    const confirmClient = await pool.connect();
+    try {
+      await confirmClient.query('BEGIN');
 
-    // Insert into stripe_payment_intents for refund tracking (or update if exists)
-    await pool.query(
-      `INSERT INTO stripe_payment_intents 
-       (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'prepayment', 'Conference room prepayment', 'succeeded', NOW(), NOW())
-       ON CONFLICT (stripe_payment_intent_id) 
-       DO UPDATE SET status = 'succeeded', updated_at = NOW()`,
-      [prepayment.member_email, paymentIntentId, paymentIntent.customer, prepayment.amount_cents]
-    );
+      await confirmClient.query(
+        `UPDATE conference_prepayments SET status = 'completed', completed_at = NOW() WHERE id = $1`,
+        [prepaymentId]
+      );
+
+      await confirmClient.query(
+        `INSERT INTO stripe_payment_intents 
+         (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'prepayment', 'Conference room prepayment', 'succeeded', NOW(), NOW())
+         ON CONFLICT (stripe_payment_intent_id) 
+         DO UPDATE SET status = 'succeeded', updated_at = NOW()`,
+        [prepayment.member_email, paymentIntentId, paymentIntent.customer, prepayment.amount_cents]
+      );
+
+      await confirmClient.query('COMMIT');
+    } catch (txError) {
+      await confirmClient.query('ROLLBACK');
+      throw txError;
+    } finally {
+      confirmClient.release();
+    }
 
     logger.info('[ConferencePrepay] Payment confirmed', {
       extra: { prepaymentId, paymentIntentId }

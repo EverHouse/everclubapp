@@ -217,6 +217,30 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     if (!sessionData) {
       throw new Error(`Session or booking not found: sessionId=${params.sessionId}, bookingId=${params.bookingId}`);
     }
+    // Rule 15a Step 1: Cancelled/declined bookings always have $0 fees
+    const statusCheck = await pool.query(
+      `SELECT status FROM booking_requests WHERE id = $1`,
+      [sessionData.bookingId]
+    );
+    const bookingStatus = statusCheck.rows[0]?.status;
+    if (['cancelled', 'declined', 'cancellation_pending'].includes(bookingStatus)) {
+      logger.info('[FeeBreakdown] Booking is cancelled/declined — returning $0', {
+        extra: { bookingId: sessionData.bookingId, status: bookingStatus }
+      });
+      return {
+        totals: { totalCents: 0, overageCents: 0, guestCents: 0, guestPassesUsed: 0, guestPassesAvailable: 0 },
+        participants: [],
+        metadata: {
+          effectivePlayerCount: 0,
+          declaredPlayerCount: 0,
+          actualPlayerCount: 0,
+          sessionDuration: 0,
+          sessionDate: sessionData.sessionDate,
+          source: params.source
+        }
+      };
+    }
+
     sessionDate = sessionData.sessionDate;
     startTime = sessionData.startTime;
     sessionDuration = sessionData.sessionDuration;

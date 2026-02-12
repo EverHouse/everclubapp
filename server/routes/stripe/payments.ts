@@ -1126,6 +1126,22 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       adjustedDescription += ` | Credit applied: $${(balanceToApply / 100).toFixed(2)}`;
     }
 
+    if (resolvedBookingId) {
+      const existingIntent = await pool.query(
+        `SELECT stripe_payment_intent_id, status FROM stripe_payment_intents 
+         WHERE booking_id = $1 AND status NOT IN ('succeeded', 'canceled', 'refunded')
+         LIMIT 1`,
+        [resolvedBookingId]
+      );
+
+      if (existingIntent.rows.length > 0) {
+        return res.status(409).json({ 
+          error: 'An active payment intent already exists for this booking',
+          existingIntentId: existingIntent.rows[0].stripe_payment_intent_id 
+        });
+      }
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: chargeAmount,
       currency: 'usd',

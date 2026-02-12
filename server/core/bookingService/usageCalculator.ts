@@ -179,6 +179,13 @@ export async function getDailyUsageFromLedger(
     
     // Safety check: warn if there are sessions with participants but no ledger entries
     try {
+      const warningParams: any[] = [memberEmail, date];
+      let warningExclude = '';
+      if (excludeSessionId) {
+        warningExclude = `AND bs.id != $3`;
+        warningParams.push(excludeSessionId);
+      }
+      
       const missingCheck = await pool.query(
         `SELECT COUNT(DISTINCT bs.id) as missing_count
          FROM booking_sessions bs
@@ -191,8 +198,8 @@ export async function getDailyUsageFromLedger(
              WHERE ul.session_id = bs.id 
              AND LOWER(ul.member_id) = LOWER($1)
            )
-           ${excludeClause}`,
-        params.slice(0, excludeSessionId ? 3 : 2)
+           ${warningExclude}`,
+        warningParams
       );
       
       const missingCount = parseInt(missingCheck.rows[0]?.missing_count) || 0;
