@@ -100,17 +100,51 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       hubspotContactId = searchResponse.results[0].id;
     }
     
-    const contactResponse = await retryableHubSpotRequest(() =>
-      hubspot.crm.contacts.basicApi.getById(hubspotContactId, [
-        'email',
-        'firstname',
-        'lastname',
-        'phone',
-        'membership_tier',
-        'membership_status',
-        'lifecyclestage'
-      ])
-    );
+    let contactResponse;
+    try {
+      contactResponse = await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.getById(hubspotContactId, [
+          'email',
+          'firstname',
+          'lastname',
+          'phone',
+          'membership_tier',
+          'membership_status',
+          'lifecyclestage'
+        ])
+      );
+    } catch (getByIdError: unknown) {
+      const statusCode = getErrorStatusCode(getByIdError);
+      if (statusCode === 404) {
+        const searchResponse = await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.searchApi.doSearch({
+            filterGroups: [{
+              filters: [{
+                propertyName: 'email',
+                operator: 'EQ',
+                value: normalizedEmail
+              }]
+            }],
+            properties: ['email', 'firstname', 'lastname', 'phone', 'membership_tier', 'membership_status', 'lifecyclestage'],
+            limit: 1
+          })
+        );
+
+        if (!searchResponse.results || searchResponse.results.length === 0) {
+          return res.status(404).json({
+            error: 'Contact not found in HubSpot. The stored HubSpot ID may be stale (contact was deleted or merged in HubSpot).',
+            staleHubspotId: hubspotContactId
+          });
+        }
+
+        hubspotContactId = searchResponse.results[0].id;
+        contactResponse = searchResponse.results[0];
+
+        await db.execute(sql`UPDATE users SET hubspot_id = ${hubspotContactId}, updated_at = NOW() WHERE id = ${user.id}`);
+      } else {
+        throw getByIdError;
+      }
+    }
     
     const props = contactResponse.properties;
     

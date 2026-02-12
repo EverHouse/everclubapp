@@ -207,7 +207,8 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
         FROM booking_participants bp
         JOIN booking_sessions bs ON bs.id = bp.session_id
         JOIN booking_requests br ON br.session_id = bs.id
-        WHERE (LOWER(bp.user_email) = LOWER($1) 
+        LEFT JOIN users u ON bp.user_id = u.id
+        WHERE (LOWER(u.email) = LOWER($1) 
                OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = LOWER($1)))
           AND bp.payment_status = 'pending'
           AND COALESCE(bp.cached_fee_cents, 0) > 0
@@ -249,7 +250,8 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
       JOIN booking_sessions bs ON bs.id = bp.session_id
       JOIN booking_requests br ON br.session_id = bs.id
       LEFT JOIN resources r ON br.resource_id = r.id
-      WHERE (bp.user_email = $1 OR LOWER(bp.user_email) = LOWER($1) 
+      LEFT JOIN users u ON bp.user_id = u.id
+      WHERE (LOWER(u.email) = LOWER($1) 
              OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = LOWER($1)))
         AND bp.payment_status IN ('pending')
         AND COALESCE(bp.cached_fee_cents, 0) > 0
