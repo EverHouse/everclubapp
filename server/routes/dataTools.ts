@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { isProduction } from '../core/db';
+import { pool } from '../core/db';
 import { users, bookingRequests, legacyPurchases, billingAuditLog, adminAuditLog } from '@shared/schema';
 import { eq, sql, and, gte, lte, desc, isNull, inArray } from 'drizzle-orm';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
@@ -1897,6 +1898,9 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         
         const ownerTier = booking.tier || await getMemberTierByEmail(booking.userEmail, { allowInactive: true });
         
+        const resourceResult = await pool.query(`SELECT type FROM resources WHERE id = $1`, [booking.resourceId]);
+        const resourceType = resourceResult.rows[0]?.type || 'simulator';
+        
         const participants = [
           { email: booking.userEmail, participantType: 'owner' as const, displayName: booking.userName || booking.userEmail }
         ];
@@ -1914,7 +1918,9 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             booking.requestDate,
             booking.durationMinutes,
             participants,
-            booking.userEmail
+            booking.userEmail,
+            booking.playerCount || 1,
+            { resourceType }
           );
           
           for (const billing of billingResult.billingBreakdown) {

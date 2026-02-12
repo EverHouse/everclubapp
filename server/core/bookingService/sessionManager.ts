@@ -806,13 +806,17 @@ export async function createSessionWithUsageTracking(
       displayName: p.displayName
     }));
     
+    const resourceResult = await pool.query(`SELECT type FROM resources WHERE id = $1`, [request.resourceId]);
+    const resourceType = resourceResult.rows[0]?.type || 'simulator';
+
     // Step 4: Calculate billing using the centralized billing calculator (pre-transaction)
     const billingResult = await calculateFullSessionBilling(
       request.sessionDate,
       request.durationMinutes,
       billingParticipants,
       request.ownerEmail,
-      request.declaredPlayerCount || request.participants.length
+      request.declaredPlayerCount || request.participants.length,
+      { resourceType }
     );
     
     // Step 5: Execute database writes - either within external transaction or our own
