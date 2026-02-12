@@ -12,8 +12,9 @@ export interface RetryOptions {
   onRetry?: (error: FailedAttemptError, attempt: number) => void;
 }
 
-function isRetryableError(error: any): boolean {
-  const statusCode = error?.response?.status || error?.response?.statusCode || error?.status || error?.code;
+function isRetryableError(error: unknown): boolean {
+  const errObj = error as Record<string, any>;
+  const statusCode = errObj?.response?.status || errObj?.response?.statusCode || errObj?.status || errObj?.code;
   const errorMsg = error instanceof Error ? error.message : String(error);
   
   if (statusCode === 429) return true;
@@ -41,8 +42,9 @@ function isRetryableError(error: any): boolean {
   return networkPatterns.some(pattern => lowerMsg.includes(pattern.toLowerCase()));
 }
 
-function isNonRetryableClientError(error: any): boolean {
-  const statusCode = error?.response?.status || error?.response?.statusCode || error?.status || error?.code;
+function isNonRetryableClientError(error: unknown): boolean {
+  const errObj = error as Record<string, any>;
+  const statusCode = errObj?.response?.status || errObj?.response?.statusCode || errObj?.status || errObj?.code;
   
   if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
     return true;

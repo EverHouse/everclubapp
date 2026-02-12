@@ -199,10 +199,10 @@ let backgroundRefreshInProgress = false;
 /**
  * Check if an error is a HubSpot rate limit error (429)
  */
-function isRateLimitError(error: any): boolean {
+function isRateLimitError(error: unknown): boolean {
   const errorMsg = error instanceof Error ? getErrorMessage(error) : String(error);
-  // HubSpot SDK might wrap errors, so check status code if available
-  const statusCode = error?.response?.statusCode || error?.status || error?.code;
+  const errObj = error as Record<string, any>;
+  const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
   
   return (
     statusCode === 429 ||

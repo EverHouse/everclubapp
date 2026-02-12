@@ -261,7 +261,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
               AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           ) all_bookings
           GROUP BY email
-        `).catch((error: any) => {
+        `).catch((error: unknown) => {
           console.error('[Members Directory] Bookings query error:', error);
           return { rows: [] };
         }),
@@ -273,7 +273,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
             AND er.status != 'cancelled'
             AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(user_email)
-        `).catch((error: any) => {
+        `).catch((error: unknown) => {
           console.error('[Members Directory] Events query error:', error);
           return { rows: [] };
         }),
@@ -285,7 +285,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
             AND we.status != 'cancelled'
             AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(we.user_email)
-        `).catch((error: any) => {
+        `).catch((error: unknown) => {
           console.error('[Members Directory] Wellness query error:', error);
           return { rows: [] };
         }),
@@ -332,7 +332,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
             GROUP BY LOWER(we.user_email)
           ) combined
           GROUP BY email
-        `).catch((error: any) => {
+        `).catch((error: unknown) => {
           console.error('[Members Directory] Last activity query error:', error);
           return { rows: [] };
         }),
@@ -341,7 +341,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
           FROM walk_in_visits
           WHERE LOWER(member_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
           GROUP BY LOWER(member_email)
-        `).catch((error: any) => {
+        `).catch((error: unknown) => {
           console.error('[Members Directory] Walk-in count query error:', error);
           return { rows: [] };
         }),

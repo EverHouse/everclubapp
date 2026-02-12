@@ -10,7 +10,7 @@ import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { logFromRequest } from '../core/auditLog';
 import { getSessionUser } from '../types/session';
 import { broadcastToStaff } from '../core/websocket';
-import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 
 interface StripeCleanupJob {
   id: string;
@@ -1023,7 +1023,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
             await stripe.customers.retrieve(customerId);
           } catch (err: unknown) {
             const isNotFound = getErrorCode(err) === 'resource_missing' || 
-              err.statusCode === 404 || 
+              getErrorStatusCode(err) === 404 || 
               getErrorMessage(err)?.includes('No such customer');
             
             if (isNotFound) {

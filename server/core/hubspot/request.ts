@@ -1,9 +1,10 @@
 import pRetry, { AbortError } from 'p-retry';
 import { isProduction } from '../db';
 
-export function isRateLimitError(error: any): boolean {
+export function isRateLimitError(error: unknown): boolean {
   const errorMsg = error instanceof Error ? error.message : String(error);
-  const statusCode = error?.response?.statusCode || error?.status || error?.code;
+  const errObj = error as Record<string, any>;
+  const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
   return (
     statusCode === 429 ||
     errorMsg.includes("429") ||

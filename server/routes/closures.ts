@@ -11,7 +11,7 @@ import { createPacificDate, parseLocalDate, addDaysToPacificDate, getPacificISOS
 import { clearClosureCache } from '../core/bookingValidation';
 import { broadcastClosureUpdate } from '../core/websocket';
 import { logFromRequest } from '../core/auditLog';
-import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -39,7 +39,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
       } catch (err: unknown) {
-        if (err.statusCode === 410) {
+        if (getErrorStatusCode(err) === 410) {
           await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
         }
       }
@@ -662,7 +662,7 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
         console.error(`[Closures] Internal Calendar not found - cannot create event for closure #${closureId}`);
       }
     } catch (calError: unknown) {
-      console.error('[Closures] Failed to create Internal Calendar event:', calError?.message || calError);
+      console.error('[Closures] Failed to create Internal Calendar event:', getErrorMessage(calError));
     }
     
     if (notify_members) {

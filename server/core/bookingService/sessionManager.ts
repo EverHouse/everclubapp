@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { getErrorCode } from '../../utils/errorUtils';
+import { getErrorCode, getErrorMessage } from '../../utils/errorUtils';
 import { pool } from '../db';
 import { 
   bookingSessions, 
@@ -214,7 +214,7 @@ export async function ensureSessionForBooking(params: {
     try {
       return await attemptSessionCreation();
     } catch (retryError: unknown) {
-      const errorMsg = retryError.message || String(retryError);
+      const errorMsg = getErrorMessage(retryError);
       console.error('[ensureSessionForBooking] Retry also failed, flagging booking for staff review', retryError);
 
       try {

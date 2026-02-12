@@ -7,7 +7,7 @@ import { eq, inArray, and, sql, or, isNull } from 'drizzle-orm';
 import { formatTime12Hour, getTodayPacific, getTomorrowPacific } from '../utils/dateUtils';
 import { sendNotificationToUser } from '../core/websocket';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
-import { getErrorMessage } from '../utils/errorUtils';
+import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -56,7 +56,7 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
       } catch (err: unknown) {
-        if (err.statusCode === 410) {
+        if (getErrorStatusCode(err) === 410) {
           await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
         }
       }
@@ -104,7 +104,7 @@ export async function sendPushNotificationToStaff(payload: { title: string; body
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
       } catch (err: unknown) {
-        if (err.statusCode === 410) {
+        if (getErrorStatusCode(err) === 410) {
           await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [sub.endpoint]);
         }
       }
@@ -172,7 +172,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
       } catch (err: unknown) {
-        if (err.statusCode === 410) {
+        if (getErrorStatusCode(err) === 410) {
           await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
         }
         results.pushFailed++;
@@ -537,7 +537,7 @@ export async function sendMorningClosureNotifications() {
             url: '/updates?tab=notices'
           }));
         } catch (err: unknown) {
-          if (err.statusCode === 410) {
+          if (getErrorStatusCode(err) === 410) {
             await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
           }
           results.pushFailed++;
