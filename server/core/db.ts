@@ -1,5 +1,5 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
-import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+import { getErrorMessage, getErrorCode, getErrorDetail } from '../utils/errorUtils';
 
 export const isProduction = process.env.NODE_ENV === 'production';
 
@@ -44,7 +44,7 @@ function isRetryableError(error: unknown): boolean {
 
 export function isConstraintError(error: unknown): { type: 'unique' | 'foreign_key' | null, detail?: string } {
   const code = getErrorCode(error);
-  const detail = error instanceof Error ? (error as any).detail : undefined;
+  const detail = getErrorDetail(error);
   if (code === '23505') return { type: 'unique', detail };
   if (code === '23503') return { type: 'foreign_key', detail };
   return { type: null };

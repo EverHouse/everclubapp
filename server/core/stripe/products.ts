@@ -132,7 +132,8 @@ export async function fetchHubSpotProducts(): Promise<HubSpotProduct[]> {
       recurringPeriod: product.properties.hs_recurring_billing_period || null,
     }));
   } catch (error: unknown) {
-    if (getErrorCode(error) === '403' && (error as any)?.body?.category === 'MISSING_SCOPES') {
+    const errorBody = error && typeof error === 'object' && 'body' in error ? (error as { body: Record<string, unknown> }).body : undefined;
+    if (getErrorCode(error) === '403' && errorBody?.category === 'MISSING_SCOPES') {
       console.error('[Stripe Products] Missing HubSpot scopes. Add HUBSPOT_PRIVATE_APP_TOKEN secret with a Private App that has crm.objects.products.read scope.');
       throw new Error('HubSpot products access denied. Please add HUBSPOT_PRIVATE_APP_TOKEN secret with your Private App token that has products read permission.');
     }

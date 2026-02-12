@@ -1225,7 +1225,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     const statusCode = getErrorStatusCode(error);
     if (statusCode) {
       return res.status(statusCode).json({ 
-        error: error && typeof error === 'object' && 'error' in error ? (error as any).error : undefined, 
+        error: error && typeof error === 'object' && 'error' in error ? (error as { error: unknown }).error : undefined, 
         message: getErrorMessage(error) 
       });
     }

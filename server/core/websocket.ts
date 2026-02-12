@@ -233,7 +233,7 @@ export function initWebSocketServer(server: Server) {
   wss = new WebSocketServer({ server, path: '/ws' });
   
   wss.on('error', (error) => {
-    logger.error('[WebSocket] Server error:', { error: error.message, stack: (error as any).stack });
+    logger.error('[WebSocket] Server error:', { error: error.message, stack: error.stack });
     console.error('[WebSocket] Server error:', error);
   });
 
