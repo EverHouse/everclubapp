@@ -1,4 +1,5 @@
 import { getHubSpotAccessToken } from '../integrations';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { db } from '../../db';
 import { formSubmissions } from '../../../shared/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
@@ -117,8 +118,8 @@ export async function syncHubSpotFormSubmissions(): Promise<{
     let accessToken: string;
     try {
       accessToken = await getHubSpotAccessToken();
-    } catch (err: any) {
-      const msg = `Failed to get HubSpot access token: ${err.message}`;
+    } catch (err: unknown) {
+      const msg = `Failed to get HubSpot access token: ${getErrorMessage(err)}`;
       console.error(`[HubSpot FormSync] ${msg}`);
       result.errors.push(msg);
       return result;
@@ -141,8 +142,8 @@ export async function syncHubSpotFormSubmissions(): Promise<{
       let submissions: HubSpotSubmission[];
       try {
         submissions = await fetchFormSubmissions(formId, accessToken, sinceTimestamp);
-      } catch (err: any) {
-        const msg = `Failed to fetch form ${formId}: ${err.message}`;
+      } catch (err: unknown) {
+        const msg = `Failed to fetch form ${formId}: ${getErrorMessage(err)}`;
         console.error(`[HubSpot FormSync] ${msg}`);
         result.errors.push(msg);
         continue;
@@ -225,8 +226,8 @@ export async function syncHubSpotFormSubmissions(): Promise<{
           });
 
           result.newInserted++;
-        } catch (err: any) {
-          const msg = `Failed to insert submission ${submission.conversionId}: ${err.message}`;
+        } catch (err: unknown) {
+          const msg = `Failed to insert submission ${submission.conversionId}: ${getErrorMessage(err)}`;
           console.error(`[HubSpot FormSync] ${msg}`);
           result.errors.push(msg);
         }
@@ -234,9 +235,9 @@ export async function syncHubSpotFormSubmissions(): Promise<{
     }
 
     console.log(`[HubSpot FormSync] Sync complete: ${result.totalFetched} fetched, ${result.newInserted} inserted, ${result.skippedDuplicate} duplicates skipped, ${result.errors.length} errors`);
-  } catch (err: any) {
-    console.error(`[HubSpot FormSync] Unexpected error during sync: ${err.message}`);
-    result.errors.push(`Unexpected sync error: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`[HubSpot FormSync] Unexpected error during sync: ${getErrorMessage(err)}`);
+    result.errors.push(`Unexpected sync error: ${getErrorMessage(err)}`);
   }
 
   return result;

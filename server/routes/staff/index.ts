@@ -148,7 +148,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
       date: today,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching command center data:', error);
     res.status(500).json({ error: 'Failed to fetch command center data' });
   }
@@ -199,7 +199,7 @@ router.get('/api/admin/dashboard-summary', isStaffOrAdmin, async (req, res) => {
       pendingToursCount: pendingTours[0]?.count || 0,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching dashboard summary:', error);
     res.status(500).json({ error: 'Failed to fetch dashboard summary' });
   }
@@ -274,7 +274,7 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
       ...results,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching financials summary:', error);
     res.status(500).json({ error: 'Failed to fetch financials summary' });
   }
@@ -318,7 +318,7 @@ router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
       date: today,
       timestamp: new Date().toISOString()
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching todays bookings:', error);
     res.status(500).json({ error: 'Failed to fetch todays bookings' });
   }
@@ -342,7 +342,7 @@ router.get('/api/staff/list', isStaffOrAdmin, async (req, res) => {
         su.first_name
     `);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching staff list:', error);
     res.status(500).json({ error: 'Failed to fetch staff list' });
   }
@@ -379,7 +379,7 @@ router.get('/api/directory/team', isStaffOrAdmin, async (req, res) => {
         su.last_name
     `);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching directory team:', error);
     res.status(500).json({ error: 'Failed to fetch team directory' });
   }

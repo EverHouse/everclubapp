@@ -24,7 +24,7 @@ router.get('/api/notices/dismissed', isAuthenticated, async (req, res) => {
       .where(eq(userDismissedNotices.userEmail, userEmail));
 
     res.json(dismissed);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch dismissed notices', error, 'NOTICES_FETCH_ERROR');
   }
 });
@@ -61,7 +61,7 @@ router.post('/api/notices/dismiss', isAuthenticated, async (req, res) => {
       .onConflictDoNothing();
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to dismiss notice', error, 'NOTICE_DISMISS_ERROR');
   }
 });
@@ -96,7 +96,7 @@ router.post('/api/notices/dismiss-all', isAuthenticated, async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to dismiss all notices', error, 'NOTICES_DISMISS_ALL_ERROR');
   }
 });

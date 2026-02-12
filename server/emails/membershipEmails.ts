@@ -1,5 +1,6 @@
 import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const BILLING_EMAILS_DISABLED = true;
 
@@ -329,9 +330,9 @@ export async function sendMembershipRenewalEmail(
     
     console.log(`[Membership Renewal Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Membership Renewal Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Membership Renewal Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -355,9 +356,9 @@ export async function sendMembershipFailedEmail(
     
     console.log(`[Membership Failed Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Membership Failed Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Membership Failed Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -381,9 +382,9 @@ export async function sendCardExpiringEmail(
     
     console.log(`[Card Expiring Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Card Expiring Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Card Expiring Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -511,9 +512,9 @@ export async function sendGracePeriodReminderEmail(
     
     console.log(`[Grace Period Email] Day ${params.currentDay}/${params.totalDays} sent to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Grace Period Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Grace Period Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -601,8 +602,8 @@ export async function sendMembershipActivationEmail(
     
     console.log(`[Activation Email] Sent to ${email} for ${params.tierName} membership`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Activation Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Activation Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }

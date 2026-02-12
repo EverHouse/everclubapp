@@ -19,7 +19,7 @@ import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
 import { randomUUID } from 'crypto';
 import { checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter } from '../../middleware/rateLimiting';
-import { getErrorMessage } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -396,8 +396,8 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
             }
             await stripeClient.customers.del(existing.stripe_customer_id);
             console.log(`[Stripe] Deleted stale Stripe customer ${existing.stripe_customer_id} during pending user reuse`);
-          } catch (cleanupErr: any) {
-            console.error(`[Stripe] Failed to cleanup stale Stripe data for pending user:`, cleanupErr.message);
+          } catch (cleanupErr: unknown) {
+            console.error(`[Stripe] Failed to cleanup stale Stripe data for pending user:`, getErrorMessage(cleanupErr));
           }
           await pool.query('UPDATE users SET stripe_customer_id = NULL, stripe_subscription_id = NULL WHERE id = $1', [existing.id]);
         }
@@ -487,8 +487,8 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
         'UPDATE users SET stripe_subscription_id = $1 WHERE id = $2',
         [subscriptionResult.subscription?.subscriptionId, userId]
       );
-    } catch (dbError: any) {
-      console.error('[Stripe] DB update failed after subscription creation. Rolling back...', dbError.message);
+    } catch (dbError: unknown) {
+      console.error('[Stripe] DB update failed after subscription creation. Rolling back...', getErrorMessage(dbError));
       if (subscriptionResult.subscription?.subscriptionId) {
         try {
           await cancelSubscription(subscriptionResult.subscription.subscriptionId);
@@ -504,8 +504,8 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
           return res.status(500).json({ 
             error: 'System error during activation. Payment has been voided. Please try again.' 
           });
-        } catch (cancelError: any) {
-          console.error(`[Stripe] CRITICAL: Failed to cancel subscription ${subscriptionResult.subscription.subscriptionId} during rollback. User preserved for manual cleanup.`, cancelError.message);
+        } catch (cancelError: unknown) {
+          console.error(`[Stripe] CRITICAL: Failed to cancel subscription ${subscriptionResult.subscription.subscriptionId} during rollback. User preserved for manual cleanup.`, getErrorMessage(cancelError));
           return res.status(500).json({ 
             error: 'CRITICAL: Account setup failed but the payment could not be automatically reversed. Please contact support immediately so we can issue a refund.' 
           });
@@ -597,8 +597,8 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
           });
           console.log(`[Stripe Subscriptions] Marked invoice ${invoiceId} as paid out of band`);
         }
-      } catch (invoiceError: any) {
-        console.error('[Stripe Subscriptions] Error paying invoice:', invoiceError.message);
+      } catch (invoiceError: unknown) {
+        console.error('[Stripe Subscriptions] Error paying invoice:', getErrorMessage(invoiceError));
       }
     }
     
@@ -928,24 +928,24 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
             try {
               await stripe.subscriptions.cancel(sub.id);
               console.log(`[Stripe] Cancelled active subscription ${sub.id} (status: ${sub.status}) during pending user cleanup`);
-            } catch (cancelErr: any) {
-              console.error(`[Stripe] Failed to cancel subscription ${sub.id} during cleanup:`, cancelErr.message);
+            } catch (cancelErr: unknown) {
+              console.error(`[Stripe] Failed to cancel subscription ${sub.id} during cleanup:`, getErrorMessage(cancelErr));
             }
           }
         }
         
         await stripe.customers.del(user.stripe_customer_id);
         console.log(`[Stripe] Deleted Stripe customer ${user.stripe_customer_id} for pending user cleanup`);
-      } catch (stripeErr: any) {
-        console.error(`[Stripe] Failed to delete Stripe customer during cleanup:`, stripeErr.message);
+      } catch (stripeErr: unknown) {
+        console.error(`[Stripe] Failed to delete Stripe customer during cleanup:`, getErrorMessage(stripeErr));
       }
     }
     
     if (user.id_image_url) {
       try {
         await pool.query('UPDATE users SET id_image_url = NULL WHERE id = $1', [userId]);
-      } catch (idErr: any) {
-        console.error(`[Stripe] Failed to clear ID image during cleanup:`, idErr.message);
+      } catch (idErr: unknown) {
+        console.error(`[Stripe] Failed to clear ID image during cleanup:`, getErrorMessage(idErr));
       }
     }
     

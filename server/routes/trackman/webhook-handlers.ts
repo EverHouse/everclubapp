@@ -28,6 +28,7 @@ import {
   refundGuestPassesForCancelledBooking
 } from './webhook-billing';
 import { refundGuestPass } from '../guestPasses';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { sendPushNotificationToStaff } from '../push';
 import { createSessionWithUsageTracking, ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
@@ -221,9 +222,9 @@ export async function cancelBookingByTrackmanId(
           logger.info('[Trackman Webhook] Cancelled payment intent', {
             extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
           });
-        } catch (cancelErr: any) {
+        } catch (cancelErr: unknown) {
           logger.warn('[Trackman Webhook] Failed to cancel payment intent', {
-            extra: { paymentIntentId: row.stripe_payment_intent_id, error: cancelErr.message }
+            extra: { paymentIntentId: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) }
           });
         }
       }
@@ -331,7 +332,7 @@ export async function cancelBookingByTrackmanId(
                   }
                 });
               }
-            } catch (refundErr: any) {
+            } catch (refundErr: unknown) {
               logger.error('[Trackman Webhook] Failed to refund participant', {
                 error: refundErr as Error,
                 extra: { participantId: participant.id, paymentIntentId: participant.stripe_payment_intent_id }

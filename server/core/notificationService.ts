@@ -1,4 +1,5 @@
 import { eq, inArray } from 'drizzle-orm';
+import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 import webpush from 'web-push';
 import { db } from '../db';
 import { notifications, staffUsers, pushSubscriptions, users } from '../../shared/schema';
@@ -137,7 +138,7 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
   } catch (error) {
     logger.error(`[Notification] Database insert failed for ${payload.userEmail}`, {
       userEmail: payload.userEmail,
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       extra: { event: 'notification.database_insert_failed', type: payload.type }
     });
     return null;
@@ -178,14 +179,14 @@ async function deliverViaWebSocket(payload: NotificationPayload): Promise<Delive
   } catch (error) {
     logger.error(`[Notification] WebSocket delivery failed for ${payload.userEmail}`, {
       userEmail: payload.userEmail,
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       extra: { event: 'notification.websocket_failed', type: payload.type }
     });
     
     return {
       channel: 'websocket',
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
@@ -235,17 +236,17 @@ async function deliverViaPush(userEmail: string, payload: { title: string; body:
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
         successCount++;
-      } catch (err: any) {
+      } catch (err: unknown) {
         failCount++;
-        if (err.statusCode === 410) {
+        if (getErrorStatusCode(err) === 410) {
           staleEndpoints.push(sub.endpoint);
         } else {
           logger.warn(`[Notification] Push subscription delivery failed`, {
             userEmail,
-            error: err.message || String(err),
+            error: getErrorMessage(err) || String(err),
             extra: { 
               event: 'notification.push_subscription_failed', 
-              statusCode: err.statusCode,
+              statusCode: getErrorStatusCode(err),
               endpointPrefix: sub.endpoint.substring(0, 60)
             }
           });
@@ -284,14 +285,14 @@ async function deliverViaPush(userEmail: string, payload: { title: string; body:
   } catch (error) {
     logger.error(`[Notification] Push delivery failed for ${userEmail}`, {
       userEmail,
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       extra: { event: 'notification.push_failed' }
     });
     
     return {
       channel: 'push',
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
@@ -323,14 +324,14 @@ async function deliverViaEmail(to: string, subject: string, html: string): Promi
   } catch (error) {
     logger.error(`[Notification] Email delivery failed for ${to}`, {
       userEmail: to,
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       extra: { event: 'notification.email_failed', subject }
     });
     
     return {
       channel: 'email',
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
@@ -489,7 +490,7 @@ export async function notifyAllStaff(
         deliveryResults.push({
           channel: 'websocket',
           success: false,
-          error: error instanceof Error ? error.message : String(error)
+          error: getErrorMessage(error)
         });
       }
     }
@@ -516,7 +517,7 @@ export async function notifyAllStaff(
     return { staffCount: staffEmails.length, deliveryResults };
   } catch (error) {
     logger.error(`[Notification] Staff notification failed`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
       extra: { event: 'notification.staff_failed', type }
     });
@@ -524,7 +525,7 @@ export async function notifyAllStaff(
     deliveryResults.push({
       channel: 'database',
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     });
     
     return { staffCount: 0, deliveryResults };
@@ -573,17 +574,17 @@ async function deliverPushToStaff(payload: { title: string; body: string; url?: 
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
         successCount++;
-      } catch (err: any) {
+      } catch (err: unknown) {
         failCount++;
-        if (err.statusCode === 410) {
+        if (getErrorStatusCode(err) === 410) {
           staleEndpoints.push(sub.endpoint);
         } else {
           logger.warn(`[Notification] Staff push subscription failed`, {
             userEmail: sub.userEmail,
-            error: err.message || String(err),
+            error: getErrorMessage(err) || String(err),
             extra: { 
               event: 'notification.staff_push_subscription_failed', 
-              statusCode: err.statusCode,
+              statusCode: getErrorStatusCode(err),
               endpointPrefix: sub.endpoint.substring(0, 60)
             }
           });
@@ -617,14 +618,14 @@ async function deliverPushToStaff(payload: { title: string; body: string; url?: 
     };
   } catch (error) {
     logger.error(`[Notification] Staff push delivery failed`, {
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       extra: { event: 'notification.staff_push_failed' }
     });
     
     return {
       channel: 'push',
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }

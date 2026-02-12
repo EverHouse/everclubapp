@@ -1,4 +1,5 @@
 import { syncHubSpotFormSubmissions } from '../core/hubspot/formSync';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const SYNC_INTERVAL_MS = 30 * 60 * 1000;
 let isSyncing = false;
@@ -13,8 +14,8 @@ async function runSync(): Promise<void> {
 
   try {
     await syncHubSpotFormSubmissions();
-  } catch (error: any) {
-    console.error('[HubSpot FormSync] Scheduler error:', error.message || error);
+  } catch (error: unknown) {
+    console.error('[HubSpot FormSync] Scheduler error:', getErrorMessage(error));
   } finally {
     isSyncing = false;
   }

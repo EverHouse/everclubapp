@@ -1,3 +1,5 @@
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
+
 const RETRYABLE_ERRORS = [
   'ECONNRESET',
   'ECONNREFUSED',
@@ -11,10 +13,10 @@ const RETRYABLE_ERRORS = [
   'socket hang up',
 ];
 
-export function isRetryableError(error: any): boolean {
+export function isRetryableError(error: unknown): boolean {
   if (!error) return false;
-  const message = error.message || String(error);
-  const code = error.code || '';
+  const message = getErrorMessage(error);
+  const code = getErrorCode(error);
   return RETRYABLE_ERRORS.some(e => message.includes(e) || code === e);
 }
 
@@ -41,7 +43,7 @@ export async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
 
       if (!isRetryableError(error) || attempt === maxRetries) {

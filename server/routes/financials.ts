@@ -7,6 +7,7 @@ import { sendOutstandingBalanceEmail } from '../emails/paymentEmails';
 import { getPacificMidnightUTC } from '../utils/dateUtils';
 import { upsertTransactionCache } from '../core/stripe/webhooks';
 import Stripe from 'stripe';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -142,7 +143,7 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
       hasMore,
       nextCursor
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials] Error fetching recent transactions:', error);
     res.status(500).json({
       success: false,
@@ -217,9 +218,9 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
         if (piHasMore) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-      } catch (err: any) {
-        errors.push(`PaymentIntents batch error: ${err.message}`);
-        console.error('[Financials Backfill] PaymentIntents error:', err.message);
+      } catch (err: unknown) {
+        errors.push(`PaymentIntents batch error: ${getErrorMessage(err)}`);
+        console.error('[Financials Backfill] PaymentIntents error:', getErrorMessage(err));
         break;
       }
     }
@@ -272,9 +273,9 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
         if (chHasMore) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-      } catch (err: any) {
-        errors.push(`Charges batch error: ${err.message}`);
-        console.error('[Financials Backfill] Charges error:', err.message);
+      } catch (err: unknown) {
+        errors.push(`Charges batch error: ${getErrorMessage(err)}`);
+        console.error('[Financials Backfill] Charges error:', getErrorMessage(err));
         break;
       }
     }
@@ -326,9 +327,9 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
         if (invHasMore) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-      } catch (err: any) {
-        errors.push(`Invoices batch error: ${err.message}`);
-        console.error('[Financials Backfill] Invoices error:', err.message);
+      } catch (err: unknown) {
+        errors.push(`Invoices batch error: ${getErrorMessage(err)}`);
+        console.error('[Financials Backfill] Invoices error:', getErrorMessage(err));
         break;
       }
     }
@@ -345,7 +346,7 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
       },
       errors: errors.length > 0 ? errors : undefined
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials Backfill] Error:', error);
     res.status(500).json({
       success: false,
@@ -432,8 +433,8 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
           startingAfter = page.data[page.data.length - 1].id;
         }
       }
-    } catch (err: any) {
-      errors.push(`PaymentIntents error: ${err.message}`);
+    } catch (err: unknown) {
+      errors.push(`PaymentIntents error: ${getErrorMessage(err)}`);
     }
     
     // Fetch all invoices for this customer (with pagination)
@@ -479,8 +480,8 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
           startingAfter = page.data[page.data.length - 1].id;
         }
       }
-    } catch (err: any) {
-      errors.push(`Invoices error: ${err.message}`);
+    } catch (err: unknown) {
+      errors.push(`Invoices error: ${getErrorMessage(err)}`);
     }
     
     console.log(`[Financials Sync] Complete for ${email}: ${paymentsProcessed} payments, ${invoicesProcessed} invoices`);
@@ -499,7 +500,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
       },
       errors: errors.length > 0 ? errors : undefined
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials Sync] Error:', error);
     res.status(500).json({
       success: false,
@@ -543,7 +544,7 @@ router.get('/api/financials/cache-stats', isStaffOrAdmin, async (req: Request, r
       overall: totalResult.rows[0],
       byTypeAndSource: statsResult.rows
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials] Error fetching cache stats:', error);
     res.status(500).json({
       success: false,
@@ -579,8 +580,8 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
     try {
       const account = await stripe.accounts.retrieve();
       console.log(`[Financials] Stripe account: ${account.id}`);
-    } catch (e: any) {
-      console.log('[Financials] Could not get account info:', e.message);
+    } catch (e: unknown) {
+      console.log('[Financials] Could not get account info:', getErrorMessage(e));
     }
     
     const statusFilter = status && typeof status === 'string' && status !== 'all' 
@@ -664,7 +665,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
             }
           } else {
             const error = result.reason as Error;
-            console.log(`[Financials] Error fetching subs: ${error.message}`);
+            console.log(`[Financials] Error fetching subs: ${getErrorMessage(error)}`);
           }
         }
         
@@ -707,7 +708,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       hasMore: subscriptions.has_more,
       nextCursor: subscriptions.has_more && lastItem ? lastItem.id : null,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials] Error fetching subscriptions:', error);
     res.status(500).json({
       success: false,
@@ -762,7 +763,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
     } else {
       res.status(500).json({ success: false, error: result.error || 'Failed to send reminder' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials] Error sending subscription reminder:', error);
     res.status(500).json({
       success: false,
@@ -850,7 +851,7 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
       hasMore: invoices.has_more,
       nextCursor: invoices.has_more && lastItem ? lastItem.id : null,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Financials] Error fetching invoices:', error);
     res.status(500).json({
       success: false,

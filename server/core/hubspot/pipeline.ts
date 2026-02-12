@@ -1,4 +1,5 @@
 import { getHubSpotClient } from '../integrations';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { HUBSPOT_STAGE_IDS, MEMBERSHIP_PIPELINE_ID } from './constants';
 import { retryableHubSpotRequest } from './request';
 
@@ -75,13 +76,13 @@ export async function validateMembershipPipeline(): Promise<{
       pipelineExists: true,
       missingStages
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpotDeals] Error validating membership pipeline:', error);
     return {
       valid: false,
       pipelineExists: false,
       missingStages: [],
-      error: error.message || 'Failed to validate pipeline'
+      error: getErrorMessage(error) || 'Failed to validate pipeline'
     };
   }
 }

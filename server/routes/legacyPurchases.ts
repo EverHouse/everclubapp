@@ -15,6 +15,7 @@ import path from "path";
 import { normalizeTierName as normalizeTierNameUtil, normalizeTierSlug } from '../utils/tierUtils';
 import multer from 'multer';
 import { logFromRequest } from '../core/auditLog';
+import { getErrorMessage } from '../utils/errorUtils';
 
 // Configure multer for memory storage (CSV files are small)
 const upload = multer({ 
@@ -475,7 +476,7 @@ router.post("/api/legacy-purchases/admin/import", isAdmin, async (req: Request, 
     console.error("[LegacyPurchases] Import error:", error);
     res.status(500).json({ 
       error: "Import failed",
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: getErrorMessage(error)
     });
   }
 });
@@ -594,7 +595,7 @@ router.post("/api/legacy-purchases/admin/upload-csv",
       console.error("[CSVUpload] Import error:", error);
       res.status(500).json({ 
         error: "CSV import failed",
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: getErrorMessage(error)
       });
     }
   }
@@ -801,9 +802,9 @@ async function createLegacyLineItem(
     });
     
     return { success: true, lineItemId };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[LegacyPurchases] Error creating line item:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -927,18 +928,18 @@ router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Req
                   results.errorDetails.push(`Purchase ${purchase.id}: ${lineItemResult.error}`);
                 }
               }
-            } catch (purchaseErr: any) {
+            } catch (purchaseErr: unknown) {
               results.errors++;
               if (results.errorDetails.length < 10) {
-                results.errorDetails.push(`Purchase ${purchase.id}: ${purchaseErr.message}`);
+                results.errorDetails.push(`Purchase ${purchase.id}: ${getErrorMessage(purchaseErr)}`);
               }
             }
           }
           
-        } catch (memberErr: any) {
+        } catch (memberErr: unknown) {
           results.errors++;
           if (results.errorDetails.length < 10) {
-            results.errorDetails.push(`${memberEmail}: ${memberErr.message}`);
+            results.errorDetails.push(`${memberEmail}: ${getErrorMessage(memberErr)}`);
           }
         }
       }
@@ -979,12 +980,12 @@ router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Req
           
           await hubspot.crm.contacts.basicApi.update(member.hubspotId, { properties });
           results.contactsUpdated++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Silently skip contact update errors, deals are the main goal
         }
       }
-    } catch (contactErr: any) {
-      console.warn('[LegacyPurchases] Contact property sync failed:', contactErr.message);
+    } catch (contactErr: unknown) {
+      console.warn('[LegacyPurchases] Contact property sync failed:', getErrorMessage(contactErr));
     }
     
     console.log(`[LegacyPurchases] Sync complete:`, results);
@@ -998,7 +999,7 @@ router.post("/api/legacy-purchases/admin/sync-hubspot", isAdmin, async (req: Req
     console.error("[LegacyPurchases] HubSpot sync error:", error);
     res.status(500).json({ 
       error: "HubSpot sync failed",
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: getErrorMessage(error)
     });
   }
 });
@@ -1051,7 +1052,7 @@ router.post("/api/legacy-purchases/admin/sync-hubspot/:email", isAdmin, async (r
     console.error("[LegacyPurchases] HubSpot sync error:", error);
     res.status(500).json({ 
       error: "HubSpot sync failed",
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: getErrorMessage(error)
     });
   }
 });

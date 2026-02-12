@@ -5,6 +5,7 @@ import { getStripeEnvironmentInfo, getStripeClient } from '../core/stripe/client
 import { runMigrations } from 'stripe-replit-sync';
 import { enableRealtimeForTable } from '../core/supabase/client';
 import { initMemberSyncSettings } from '../core/memberSync';
+import { getErrorMessage } from '../utils/errorUtils';
 
 interface StartupHealth {
   database: 'ok' | 'failed' | 'pending';
@@ -36,10 +37,10 @@ export async function runStartupTasks(): Promise<void> {
     await ensureDatabaseConstraints();
     console.log('[Startup] Database constraints initialized successfully');
     startupHealth.database = 'ok';
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Database constraints failed:', err);
     startupHealth.database = 'failed';
-    startupHealth.criticalFailures.push(`Database constraints: ${err.message}`);
+    startupHealth.criticalFailures.push(`Database constraints: ${getErrorMessage(err)}`);
   }
 
   try {
@@ -48,45 +49,45 @@ export async function runStartupTasks(): Promise<void> {
     if (updated > 0) {
       console.log(`[Startup] Normalized ${updated} existing email records`);
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Email normalization failed:', err);
-    startupHealth.warnings.push(`Email normalization: ${err.message}`);
+    startupHealth.warnings.push(`Email normalization: ${getErrorMessage(err)}`);
   }
   
   try {
     await seedDefaultNoticeTypes();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Seeding notice types failed:', err);
-    startupHealth.warnings.push(`Notice types: ${err.message}`);
+    startupHealth.warnings.push(`Notice types: ${getErrorMessage(err)}`);
   }
 
   try {
     await seedTierFeatures();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Seeding tier features failed:', err);
-    startupHealth.warnings.push(`Tier features: ${err.message}`);
+    startupHealth.warnings.push(`Tier features: ${getErrorMessage(err)}`);
   }
 
   try {
     await initMemberSyncSettings();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Member sync settings init failed:', err);
-    startupHealth.warnings.push(`Member sync settings: ${err.message}`);
+    startupHealth.warnings.push(`Member sync settings: ${getErrorMessage(err)}`);
   }
 
   try {
     await seedTrainingSections();
     console.log('[Startup] Training sections synced');
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Seeding training sections failed:', err);
-    startupHealth.warnings.push(`Training sections: ${err.message}`);
+    startupHealth.warnings.push(`Training sections: ${getErrorMessage(err)}`);
   }
 
   try {
     await createStripeTransactionCache();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Startup] Creating stripe transaction cache failed:', err);
-    startupHealth.warnings.push(`Stripe transaction cache: ${err.message}`);
+    startupHealth.warnings.push(`Stripe transaction cache: ${getErrorMessage(err)}`);
   }
 
   try {
@@ -111,51 +112,51 @@ export async function runStartupTasks(): Promise<void> {
       try {
         const { validateStripeEnvironmentIds } = await import('../core/stripe/environmentValidation');
         await validateStripeEnvironmentIds();
-      } catch (err: any) {
-        console.error('[Stripe Env] Validation failed:', err.message);
+      } catch (err: unknown) {
+        console.error('[Stripe Env] Validation failed:', getErrorMessage(err));
       }
 
       stripeSync.syncBackfill()
         .then(() => console.log('[Stripe] Data sync complete'))
-        .catch((err: any) => {
-          console.error('[Stripe] Data sync error:', err.message);
-          startupHealth.warnings.push(`Stripe backfill: ${err.message}`);
+        .catch((err: unknown) => {
+          console.error('[Stripe] Data sync error:', getErrorMessage(err));
+          startupHealth.warnings.push(`Stripe backfill: ${getErrorMessage(err)}`);
         });
       
       import('../core/stripe/groupBilling.js')
         .then(({ getOrCreateFamilyCoupon }) => getOrCreateFamilyCoupon())
         .then(() => console.log('[Stripe] FAMILY20 coupon ready'))
-        .catch((err: any) => console.error('[Stripe] FAMILY20 coupon setup failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] FAMILY20 coupon setup failed:', getErrorMessage(err)));
       
       import('../core/stripe/products.js')
         .then(({ ensureSimulatorOverageProduct }) => ensureSimulatorOverageProduct())
         .then((result) => console.log(`[Stripe] Simulator Overage product ${result.action}`))
-        .catch((err: any) => console.error('[Stripe] Simulator Overage setup failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Simulator Overage setup failed:', getErrorMessage(err)));
       
       import('../core/stripe/products.js')
         .then(({ ensureGuestPassProduct }) => ensureGuestPassProduct())
         .then((result) => console.log(`[Stripe] Guest Pass product ${result.action}`))
-        .catch((err: any) => console.error('[Stripe] Guest Pass setup failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Guest Pass setup failed:', getErrorMessage(err)));
       
       import('../core/stripe/products.js')
         .then(({ ensureDayPassCoworkingProduct }) => ensureDayPassCoworkingProduct())
         .then((result) => console.log(`[Stripe] Day Pass Coworking product ${result.action}`))
-        .catch((err: any) => console.error('[Stripe] Day Pass Coworking setup failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Day Pass Coworking setup failed:', getErrorMessage(err)));
       
       import('../core/stripe/products.js')
         .then(({ ensureDayPassGolfSimProduct }) => ensureDayPassGolfSimProduct())
         .then((result) => console.log(`[Stripe] Day Pass Golf Sim product ${result.action}`))
-        .catch((err: any) => console.error('[Stripe] Day Pass Golf Sim setup failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Day Pass Golf Sim setup failed:', getErrorMessage(err)));
       
       import('../core/stripe/products.js')
         .then(({ ensureCorporateVolumePricingProduct }) => ensureCorporateVolumePricingProduct())
         .then((result) => console.log(`[Stripe] Corporate Volume Pricing product ${result.action}`))
-        .catch((err: any) => console.error('[Stripe] Corporate Volume Pricing setup failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Corporate Volume Pricing setup failed:', getErrorMessage(err)));
       
       import('../core/stripe/products.js')
         .then(({ pullCorporateVolumePricingFromStripe }) => pullCorporateVolumePricingFromStripe())
         .then((pulled) => console.log(`[Stripe] Corporate pricing ${pulled ? 'pulled from Stripe' : 'using defaults'}`))
-        .catch((err: any) => console.error('[Stripe] Corporate pricing pull failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Corporate pricing pull failed:', getErrorMessage(err)));
       
       import('../core/stripe/customerSync.js')
         .then(({ syncStripeCustomersForMindBodyMembers }) => syncStripeCustomersForMindBodyMembers())
@@ -164,12 +165,12 @@ export async function runStartupTasks(): Promise<void> {
             console.log(`[Stripe] Customer sync: created=${result.created}, linked=${result.linked}`);
           }
         })
-        .catch((err: any) => console.error('[Stripe] Customer sync failed:', err.message));
+        .catch((err: unknown) => console.error('[Stripe] Customer sync failed:', getErrorMessage(err)));
     }
-  } catch (err: any) {
-    console.error('[Stripe] Initialization failed:', err.message);
+  } catch (err: unknown) {
+    console.error('[Stripe] Initialization failed:', getErrorMessage(err));
     startupHealth.stripe = 'failed';
-    startupHealth.criticalFailures.push(`Stripe initialization: ${err.message}`);
+    startupHealth.criticalFailures.push(`Stripe initialization: ${getErrorMessage(err)}`);
   }
 
   try {
@@ -192,10 +193,10 @@ export async function runStartupTasks(): Promise<void> {
       startupHealth.realtime = 'failed';
       startupHealth.warnings.push('Supabase realtime: no tables enabled - check configuration');
     }
-  } catch (err: any) {
-    console.error('[Supabase] Realtime setup failed:', err.message);
+  } catch (err: unknown) {
+    console.error('[Supabase] Realtime setup failed:', getErrorMessage(err));
     startupHealth.realtime = 'failed';
-    startupHealth.warnings.push(`Supabase realtime: ${err.message}`);
+    startupHealth.warnings.push(`Supabase realtime: ${getErrorMessage(err)}`);
   }
   
   try {
@@ -214,11 +215,11 @@ export async function runStartupTasks(): Promise<void> {
       if (products.data.length === 0 && isProduction) {
         console.warn('[STARTUP WARNING] ⚠️ Stripe live account has ZERO products. Run "Sync to Stripe" from the admin panel to push your tier and product data.');
       }
-    } catch (productErr: any) {
-      console.warn('[Startup] Could not check Stripe products:', productErr.message);
+    } catch (productErr: unknown) {
+      console.warn('[Startup] Could not check Stripe products:', getErrorMessage(productErr));
     }
-  } catch (err: any) {
-    console.warn('[Startup] Could not check Stripe environment:', err.message);
+  } catch (err: unknown) {
+    console.warn('[Startup] Could not check Stripe environment:', getErrorMessage(err));
   }
 
   startupHealth.completedAt = new Date().toISOString();

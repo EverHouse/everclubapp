@@ -17,7 +17,7 @@ export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<
     async () => {
       try {
         return await fn();
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (isRateLimitError(error)) {
           if (!isProduction) console.warn('HubSpot Rate Limit hit, retrying...');
           throw error;

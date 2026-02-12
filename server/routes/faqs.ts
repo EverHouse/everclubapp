@@ -24,7 +24,7 @@ router.get('/api/faqs', async (req, res) => {
       .orderBy(asc(faqs.sortOrder), asc(faqs.id));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('FAQs fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch FAQs' });
   }
@@ -36,7 +36,7 @@ router.get('/api/admin/faqs', isStaffOrAdmin, async (req, res) => {
       .orderBy(asc(faqs.sortOrder), asc(faqs.id));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admin FAQs fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch FAQs' });
   }
@@ -59,7 +59,7 @@ router.post('/api/admin/faqs', isStaffOrAdmin, async (req, res) => {
     }).returning();
     
     res.status(201).json(newFaq);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('FAQ creation error:', error);
     res.status(500).json({ error: 'Failed to create FAQ' });
   }
@@ -87,7 +87,7 @@ router.put('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('FAQ update error:', error);
     res.status(500).json({ error: 'Failed to update FAQ' });
   }
@@ -106,7 +106,7 @@ router.delete('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ success: true, deleted });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('FAQ deletion error:', error);
     res.status(500).json({ error: 'Failed to delete FAQ' });
   }
@@ -135,7 +135,7 @@ router.post('/api/admin/faqs/reorder', isStaffOrAdmin, async (req, res) => {
     );
     
     res.json({ success: true, updated: order.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('FAQ reorder error:', error);
     res.status(500).json({ error: 'Failed to reorder FAQs' });
   }
@@ -157,7 +157,7 @@ router.post('/api/admin/faqs/seed', isStaffOrAdmin, async (req, res) => {
     ).returning();
     
     res.json({ success: true, count: inserted.length, faqs: inserted });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('FAQ seeding error:', error);
     res.status(500).json({ error: 'Failed to seed FAQs' });
   }

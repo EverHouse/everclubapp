@@ -101,7 +101,7 @@ export async function withRetry<T>(
   return pRetry(async () => {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (isNonRetryableClientError(error)) {
         throw new AbortError(error);
       }

@@ -6,6 +6,7 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { sendRedemptionConfirmationEmail } from '../emails/passEmails';
 import { broadcastDayPassUpdate } from '../core/websocket';
 import { getStripeClient } from '../core/stripe/client';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/api/staff/passes/unredeemed', isStaffOrAdmin, async (req: Request, 
       .limit(50);
 
     res.json({ passes });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Passes] Error fetching unredeemed passes:', error);
     res.status(500).json({ error: 'Failed to fetch unredeemed passes' });
   }
@@ -69,7 +70,7 @@ router.get('/api/staff/passes/search', isStaffOrAdmin, async (req: Request, res:
       .orderBy(dayPassPurchases.purchasedAt);
 
     res.json({ passes });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Passes] Error searching passes:', error);
     res.status(500).json({ error: 'Failed to search passes' });
   }
@@ -252,7 +253,7 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
       },
       redeemedAt: new Date().toISOString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Passes] Error redeeming pass:', error);
     res.status(500).json({ error: 'Failed to redeem pass' });
   }
@@ -274,7 +275,7 @@ router.get('/api/staff/passes/:passId/history', isStaffOrAdmin, async (req: Requ
       .limit(5);
 
     res.json({ logs });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Passes] Error fetching pass history:', error);
     res.status(500).json({ error: 'Failed to fetch pass history' });
   }
@@ -325,12 +326,12 @@ router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Requ
         reason: 'requested_by_customer'
       });
       console.log(`[Passes] Stripe refund created for pass ${passId}: ${refund.id}`);
-    } catch (stripeError: any) {
-      console.error(`[Passes] Stripe refund failed for pass ${passId}:`, stripeError.message);
+    } catch (stripeError: unknown) {
+      console.error(`[Passes] Stripe refund failed for pass ${passId}:`, getErrorMessage(stripeError));
       return res.status(400).json({ 
         error: 'Failed to process refund with payment processor',
         errorCode: 'STRIPE_REFUND_FAILED',
-        details: stripeError.message
+        details: getErrorMessage(stripeError)
       });
     }
 
@@ -364,7 +365,7 @@ router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Requ
       passId: passId,
       refundedBy: staffEmail,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Passes] Error refunding pass:', error);
     res.status(500).json({ error: 'Failed to refund pass' });
   }

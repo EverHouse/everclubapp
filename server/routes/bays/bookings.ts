@@ -21,6 +21,7 @@ import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing
 import { PRICING } from '../../core/billing/pricingConfig';
 import { createGuestPassHold, releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -1213,8 +1214,8 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
           try {
             await cancelPaymentIntent(row.stripe_payment_intent_id);
             console.log(`[Member Cancel] Cancelled payment intent ${row.stripe_payment_intent_id} for booking ${bookingId}`);
-          } catch (cancelErr: any) {
-            console.error(`[Member Cancel] Failed to cancel payment intent ${row.stripe_payment_intent_id}:`, cancelErr.message);
+          } catch (cancelErr: unknown) {
+            console.error(`[Member Cancel] Failed to cancel payment intent ${row.stripe_payment_intent_id}:`, getErrorMessage(cancelErr));
           }
         }
       }
@@ -1257,8 +1258,8 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
                   refundType = refundType === 'overage' ? 'both' : 'guest_fees';
                   console.log(`[Member Cancel] Refunded guest fee for ${participant.display_name}: $${(participant.cached_fee_cents / 100).toFixed(2)}, refund: ${refund.id}`);
                 }
-              } catch (refundErr: any) {
-                console.error(`[Member Cancel] Failed to refund participant ${participant.id}:`, refundErr.message);
+              } catch (refundErr: unknown) {
+                console.error(`[Member Cancel] Failed to refund participant ${participant.id}:`, getErrorMessage(refundErr));
               }
             }
           }

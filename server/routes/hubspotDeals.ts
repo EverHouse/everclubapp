@@ -20,6 +20,7 @@ import { eq, and, ne, sql } from 'drizzle-orm';
 import { MINDBODY_TO_STAGE_MAP, HUBSPOT_STAGE_IDS } from '../core/hubspot/constants';
 import { getSessionUser } from '../types/session';
 import pLimit from 'p-limit';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/api/hubspot/deals/member/:email', isStaffOrAdmin, async (req, res) 
     }
     
     res.json({ deal });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error fetching member deal:', error);
     res.status(500).json({ error: 'Failed to fetch member deal' });
   }
@@ -43,7 +44,7 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
   try {
     const products = await getAllProductMappings();
     res.json({ products });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
@@ -64,7 +65,7 @@ router.put('/api/hubspot/products/:id', isStaffOrAdmin, async (req, res) => {
       .where(eq(hubspotProductMappings.id, parseInt(id)));
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
@@ -74,7 +75,7 @@ router.get('/api/hubspot/discount-rules', isStaffOrAdmin, async (req, res) => {
   try {
     const rules = await getAllDiscountRules();
     res.json({ rules });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error fetching discount rules:', error);
     res.status(500).json({ error: 'Failed to fetch discount rules' });
   }
@@ -95,7 +96,7 @@ router.put('/api/hubspot/discount-rules/:tag', isStaffOrAdmin, async (req, res) 
       .where(eq(discountRules.discountTag, decodeURIComponent(tag)));
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error updating discount rule:', error);
     res.status(500).json({ error: 'Failed to update discount rule' });
   }
@@ -128,7 +129,7 @@ router.post('/api/hubspot/deals/:dealId/line-items', isStaffOrAdmin, async (req,
     }
     
     res.json({ success: true, lineItemId: result.lineItemId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error adding line item:', error);
     res.status(500).json({ error: 'Failed to add line item' });
   }
@@ -148,7 +149,7 @@ router.delete('/api/hubspot/line-items/:lineItemId', isStaffOrAdmin, async (req,
     }
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error removing line item:', error);
     res.status(500).json({ error: 'Failed to remove line item' });
   }
@@ -161,7 +162,7 @@ router.get('/api/hubspot/billing-audit/:email', isStaffOrAdmin, async (req, res)
     
     const auditLog = await getBillingAuditLog(email, limit);
     res.json({ auditLog });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error fetching billing audit log:', error);
     res.status(500).json({ error: 'Failed to fetch billing audit log' });
   }
@@ -180,7 +181,7 @@ router.get('/api/hubspot/member-discount/:email', isStaffOrAdmin, async (req, re
     const discount = await calculateTotalDiscount(tags);
     
     res.json(discount);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error calculating discount:', error);
     res.status(500).json({ error: 'Failed to calculate discount' });
   }
@@ -205,7 +206,7 @@ router.post('/api/hubspot/sync-deal-stage', isStaffOrAdmin, async (req, res) => 
     );
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error syncing deal stage:', error);
     res.status(500).json({ error: 'Failed to sync deal stage' });
   }
@@ -228,7 +229,7 @@ router.post('/api/hubspot/sync-all-members', isStaffOrAdmin, async (req, res) =>
     await setLastMemberSyncTime(Date.now());
     console.log(`[HubSpotDeals] Manual focused sync complete - Synced: ${result.synced}, Errors: ${result.errors}`);
     res.json({ success: true, ...result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error during manual member sync:', error);
     res.status(500).json({ error: 'Failed to sync members' });
   }
@@ -241,7 +242,7 @@ router.post('/api/hubspot/sync-communication-logs', isStaffOrAdmin, async (req, 
     const result = await syncCommunicationLogsFromHubSpot();
     console.log(`[HubSpotDeals] Comm logs sync complete - Synced: ${result.synced}, Errors: ${result.errors}`);
     res.json({ success: true, ...result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error during communication logs sync:', error);
     res.status(500).json({ error: 'Failed to sync communication logs' });
   }
@@ -289,10 +290,10 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, 
                 hubspotIdsBackfilled++;
               } catch {}
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             errors++;
-            errorDetails.push(`${member.email}: ${error.message}`);
-            console.error(`[HubSpotDeals] Error syncing ${member.email}:`, error.message);
+            errorDetails.push(`${member.email}: ${getErrorMessage(error)}`);
+            console.error(`[HubSpotDeals] Error syncing ${member.email}:`, getErrorMessage(error));
           }
         })
       );
@@ -304,7 +305,7 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, 
     
     console.log(`[HubSpotDeals] Push complete - Synced: ${synced}, Errors: ${errors}, HubSpot IDs backfilled: ${hubspotIdsBackfilled}`);
     res.json({ success: true, total: members.length, synced, errors, hubspotIdsBackfilled, errorDetails: errorDetails.slice(0, 10) });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error pushing members to HubSpot:', error);
     res.status(500).json({ error: 'Failed to push members to HubSpot' });
   }
@@ -421,7 +422,7 @@ router.post('/api/hubspot/remediate-deal-stages', isStaffOrAdmin, async (req, re
       errors,
       summary
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpotDeals] Remediation error:', error);
     res.status(500).json({ error: 'Failed to remediate deal stages' });
   }
@@ -455,7 +456,7 @@ router.get('/api/hubspot/deal-stage-summary', isStaffOrAdmin, async (req, res) =
       activeStageDealsCount: parseInt(activeDeals.rows[0].count),
       discrepancy: parseInt(activeDeals.rows[0].count) - parseInt(activeMembers.rows[0].count)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpotDeals] Error fetching stage summary:', error);
     res.status(500).json({ error: 'Failed to fetch stage summary' });
   }
@@ -478,12 +479,12 @@ router.post('/api/admin/hubspot/deals/batch-delete', isStaffOrAdmin, async (req:
       try {
         await hubspot.crm.deals.basicApi.archive(deal.hubspot_deal_id);
         deleted++;
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err?.code === 404 || err?.statusCode === 404 || err?.message?.includes('NOT_FOUND')) {
           deleted++;
         } else {
           failed++;
-          if (errors.length < 10) errors.push(`${deal.hubspot_deal_id}: ${err.message}`);
+          if (errors.length < 10) errors.push(`${deal.hubspot_deal_id}: ${getErrorMessage(err)}`);
         }
       }
       
@@ -502,9 +503,9 @@ router.post('/api/admin/hubspot/deals/batch-delete', isStaffOrAdmin, async (req:
     console.log(`[HubSpot] Batch deleted ${deleted} deals from HubSpot, ${failed} failures, cleared local tables`);
     
     res.json({ success: true, deleted, failed, total: deals.length, errors: errors.length > 0 ? errors : undefined });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpot] Batch delete failed:', error);
-    res.status(500).json({ error: error.message || 'Batch delete failed' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Batch delete failed' });
   }
 });
 

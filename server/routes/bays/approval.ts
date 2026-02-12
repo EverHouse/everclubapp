@@ -22,7 +22,7 @@ import { getCalendarNameForBayAsync } from './helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent, CALENDAR_CONFIG } from '../../core/calendar/index';
 import { releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
-import { getErrorMessage } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorStatusCode } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -340,9 +340,9 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
               console.error(`[Booking Approval] Session creation failed: ${sessionResult.error}`);
               throw { statusCode: 500, error: 'Failed to create booking session. Please try again.', details: sessionResult.error };
             }
-          } catch (sessionError: any) {
+          } catch (sessionError: unknown) {
             console.error('[Booking Approval] Failed to create session:', sessionError);
-            throw { statusCode: 500, error: 'Failed to create booking session. Please try again.', details: sessionError.message || sessionError };
+            throw { statusCode: 500, error: 'Failed to create booking session. Please try again.', details: getErrorMessage(sessionError) || sessionError };
           }
         }
         
@@ -808,9 +808,9 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             await tx.update(bookingRequests)
               .set({ overagePaymentIntentId: null, overageFeeCents: 0, overageMinutes: 0 })
               .where(eq(bookingRequests.id, bookingId));
-          } catch (paymentErr: any) {
+          } catch (paymentErr: unknown) {
             console.error('[Staff Cancel] Failed to handle overage payment (non-blocking):', paymentErr);
-            overageRefundResult = { error: paymentErr.message };
+            overageRefundResult = { error: getErrorMessage(paymentErr) };
           }
         }
         
@@ -859,8 +859,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                   paymentIntentId: snapshot.stripe_payment_intent_id
                 });
               }
-            } catch (piErr: any) {
-              console.error(`[Staff Cancel] Failed to handle payment ${snapshot.stripe_payment_intent_id}:`, piErr.message);
+            } catch (piErr: unknown) {
+              console.error(`[Staff Cancel] Failed to handle payment ${snapshot.stripe_payment_intent_id}:`, getErrorMessage(piErr));
             }
           }
           
@@ -880,7 +880,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
             try {
               await cancelPaymentIntent(row.stripe_payment_intent_id);
               console.log(`[Staff Cancel] Cancelled orphan payment intent ${row.stripe_payment_intent_id} for booking ${bookingId}`);
-            } catch (cancelErr: any) {
+            } catch (cancelErr: unknown) {
               // Ignore errors for orphan intents
             }
           }
@@ -972,8 +972,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                   });
                   console.log(`[Staff Cancel] Refunded guest fee for ${participant.display_name}: $${(participant.cached_fee_cents / 100).toFixed(2)}, refund: ${refund.id}`);
                 }
-              } catch (refundErr: any) {
-                console.error(`[Staff Cancel] Failed to refund participant ${participant.id}:`, refundErr.message);
+              } catch (refundErr: unknown) {
+                console.error(`[Staff Cancel] Failed to refund participant ${participant.id}:`, getErrorMessage(refundErr));
               }
             }
           }
@@ -1861,8 +1861,8 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
         } else {
           await cancelPaymentIntent(existing.overagePaymentIntentId);
         }
-      } catch (paymentErr: any) {
-        errors.push(`Overage refund failed: ${paymentErr.message}`);
+      } catch (paymentErr: unknown) {
+        errors.push(`Overage refund failed: ${getErrorMessage(paymentErr)}`);
         console.error('[Complete Cancellation] Failed to handle overage payment:', paymentErr);
       }
       
@@ -1887,9 +1887,9 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
       for (const row of pendingIntents.rows) {
         try {
           await cancelPaymentIntent(row.stripe_payment_intent_id);
-        } catch (cancelErr: any) {
-          errors.push(`Failed to cancel payment intent ${row.stripe_payment_intent_id.substring(0, 8)}: ${cancelErr.message}`);
-          console.error(`[Complete Cancellation] Failed to cancel payment intent:`, cancelErr.message);
+        } catch (cancelErr: unknown) {
+          errors.push(`Failed to cancel payment intent ${row.stripe_payment_intent_id.substring(0, 8)}: ${getErrorMessage(cancelErr)}`);
+          console.error(`[Complete Cancellation] Failed to cancel payment intent:`, getErrorMessage(cancelErr));
         }
       }
     } catch (err: unknown) {
@@ -1945,14 +1945,14 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
                 );
                 console.log(`[Complete Cancellation] Refunded ${participant.display_name}: $${(participant.cached_fee_cents / 100).toFixed(2)}`);
               }
-            } catch (refundErr: any) {
-              errors.push(`Failed to refund ${participant.display_name}: ${refundErr.message}`);
-              console.error(`[Complete Cancellation] Failed to refund participant ${participant.id}:`, refundErr.message);
+            } catch (refundErr: unknown) {
+              errors.push(`Failed to refund ${participant.display_name}: ${getErrorMessage(refundErr)}`);
+              console.error(`[Complete Cancellation] Failed to refund participant ${participant.id}:`, getErrorMessage(refundErr));
             }
           }
         }
-      } catch (feeErr: any) {
-        errors.push(`Failed to handle participant refunds: ${feeErr.message}`);
+      } catch (feeErr: unknown) {
+        errors.push(`Failed to handle participant refunds: ${getErrorMessage(feeErr)}`);
         console.error('[Complete Cancellation] Failed to handle fees:', feeErr);
       }
       
@@ -1966,8 +1966,8 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
         for (const guest of guestParticipants.rows) {
           try {
             await refundGuestPass(existing.userEmail || '', guest.display_name || undefined, false);
-          } catch (guestErr: any) {
-            errors.push(`Failed to refund guest pass for ${guest.display_name}: ${guestErr.message}`);
+          } catch (guestErr: unknown) {
+            errors.push(`Failed to refund guest pass for ${guest.display_name}: ${getErrorMessage(guestErr)}`);
             console.error('[Complete Cancellation] Failed to refund guest pass:', guestErr);
           }
         }

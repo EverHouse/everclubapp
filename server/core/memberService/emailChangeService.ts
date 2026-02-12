@@ -1,4 +1,5 @@
 import { pool } from '../db';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface EmailChangeResult {
   success: boolean;
@@ -133,7 +134,7 @@ export async function cascadeEmailChange(
       newEmail: normalizedNewEmail,
       tablesUpdated,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('[EmailChangeService] Error cascading email change:', error);
     return {
@@ -141,7 +142,7 @@ export async function cascadeEmailChange(
       oldEmail,
       newEmail,
       tablesUpdated: [],
-      error: error.message || 'Failed to cascade email change',
+      error: getErrorMessage(error) || 'Failed to cascade email change',
     };
   } finally {
     client.release();

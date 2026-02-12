@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { getErrorStatusCode } from '../utils/errorUtils';
 import { users, membershipTiers } from '../../shared/schema';
 import { memberNotes, communicationLogs, userLinkedEmails } from '../../shared/models/membership';
 import { getHubSpotClient } from './integrations';
@@ -1305,9 +1306,9 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
         
         // Rate limiting: pause between pages
         await delay(200);
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Handle rate limits gracefully
-        if (err?.response?.status === 429) {
+        if (getErrorStatusCode(err) === 429) {
           if (!isProduction) console.log('[CommLogs] Rate limited, waiting 10 seconds...');
           await delay(10000);
           continue;
@@ -1468,8 +1469,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           commAfter = data.paging?.next?.after;
           
           await delay(200);
-        } catch (err: any) {
-          if (err?.response?.status === 429) {
+        } catch (err: unknown) {
+          if (getErrorStatusCode(err) === 429) {
             await delay(10000);
             continue;
           }

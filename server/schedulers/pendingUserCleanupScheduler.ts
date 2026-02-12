@@ -1,5 +1,6 @@
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
+import { getErrorMessage } from '../utils/errorUtils';
 
 async function cleanupPendingUsers(): Promise<void> {
   try {
@@ -48,9 +49,9 @@ async function cleanupPendingUsers(): Promise<void> {
             await stripe.customers.del(user.stripe_customer_id);
             console.log(`[Pending User Cleanup] Deleted Stripe customer ${user.stripe_customer_id} for ${user.email}`);
             stripeCleanedUp++;
-          } catch (stripeErr: any) {
+          } catch (stripeErr: unknown) {
             stripeCleanupFailed = true;
-            console.error(`[Pending User Cleanup] Stripe cleanup failed for ${user.email} — skipping user deletion to avoid orphaned billing:`, stripeErr.message);
+            console.error(`[Pending User Cleanup] Stripe cleanup failed for ${user.email} — skipping user deletion to avoid orphaned billing:`, getErrorMessage(stripeErr));
           }
         }
 
@@ -62,9 +63,9 @@ async function cleanupPendingUsers(): Promise<void> {
         await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
         deleted++;
         console.log(`[Pending User Cleanup] Deleted pending user ${user.email} (id: ${user.id})`);
-      } catch (err: any) {
+      } catch (err: unknown) {
         errors++;
-        console.error(`[Pending User Cleanup] Error cleaning up user ${user.email}:`, err.message);
+        console.error(`[Pending User Cleanup] Error cleaning up user ${user.email}:`, getErrorMessage(err));
       }
     }
 

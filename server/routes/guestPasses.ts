@@ -134,7 +134,7 @@ router.get('/api/guest-passes/:email', async (req, res) => {
       passes_pending: pendingGuestCount,
       passes_remaining_conservative: conservativeRemaining
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch guest passes', error, 'GUEST_PASSES_FETCH_ERROR');
   }
 });
@@ -205,7 +205,7 @@ router.post('/api/guest-passes/:email/use', async (req, res) => {
       passes_total: data.passesTotal,
       passes_remaining: remaining
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to use guest pass', error, 'GUEST_PASS_USE_ERROR');
   }
 });
@@ -246,7 +246,7 @@ router.put('/api/guest-passes/:email', async (req, res) => {
       passes_total: data.passesTotal,
       passes_remaining: passesRemaining
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update guest passes', error, 'GUEST_PASS_UPDATE_ERROR');
   }
 });

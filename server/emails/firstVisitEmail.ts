@@ -1,4 +1,5 @@
 import { getResendClient } from '../utils/resend';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const CLUB_COLORS = {
   deepGreen: '#293515',
@@ -183,8 +184,8 @@ export async function sendFirstVisitConfirmationEmail(
 
     console.log(`[FirstVisitEmail] Sent first visit confirmation email to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[FirstVisitEmail] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[FirstVisitEmail] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }

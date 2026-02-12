@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { db } from '../../db';
 import { announcements } from '../../../shared/schema';
 import { systemSettings } from '../../../shared/models/system';
@@ -276,8 +277,8 @@ export async function syncFromSheet(sheetId: string): Promise<{ created: number;
         range: `Announcements!J${rowIndex}`,
         values: [['synced']]
       });
-    } catch (err: any) {
-      errors.push(`Row ${rowIndex}: ${err.message}`);
+    } catch (err: unknown) {
+      errors.push(`Row ${rowIndex}: ${getErrorMessage(err)}`);
     }
   }
 

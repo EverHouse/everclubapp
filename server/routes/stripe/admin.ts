@@ -340,7 +340,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
 `,
       });
       console.log(`[Stripe] Membership invite email sent to ${email}`);
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
       console.error('[Stripe] Failed to send membership invite email:', emailError);
     }
 
@@ -392,8 +392,8 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
         });
         reactivationLink = session.url;
         console.log(`[Stripe] Created billing portal session for reactivation: ${member.email}`);
-      } catch (portalError: any) {
-        console.warn(`[Stripe] Could not create billing portal for ${member.email}, using fallback link:`, portalError.message);
+      } catch (portalError: unknown) {
+        console.warn(`[Stripe] Could not create billing portal for ${member.email}, using fallback link:`, getErrorMessage(portalError));
       }
     }
 

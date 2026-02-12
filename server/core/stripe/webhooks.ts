@@ -23,6 +23,7 @@ import { pullTierFeaturesFromStripe, pullCafeItemsFromStripe } from './products'
 import { clearTierCache } from '../tierService';
 import { updateFamilyDiscountPercent, updateOverageRate, updateGuestFee } from '../billing/pricingConfig';
 import type { PoolClient } from 'pg';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const EVENT_DEDUP_WINDOW_DAYS = 7;
 
@@ -1911,13 +1912,13 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
           newBalance: transaction.ending_balance
         });
         
-      } catch (balanceError: any) {
-        console.error(`[Stripe Webhook] Failed to credit balance for ${memberEmail}:`, balanceError.message);
+      } catch (balanceError: unknown) {
+        console.error(`[Stripe Webhook] Failed to credit balance for ${memberEmail}:`, getErrorMessage(balanceError));
         
         // Notify staff of the failure so they can manually resolve
         await notifyAllStaff(
           'Payment Processing Error',
-          `Failed to add $${amountDollars.toFixed(2)} to balance for ${memberEmail}. Error: ${balanceError.message}. Manual intervention required.`,
+          `Failed to add $${amountDollars.toFixed(2)} to balance for ${memberEmail}. Error: ${getErrorMessage(balanceError)}. Manual intervention required.`,
           'payment_error',
           { sendPush: true }
         );
@@ -2011,8 +2012,8 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
           } else {
             console.error(`[Stripe Webhook] Activation link checkout: user not found for userId=${userId} email=${memberEmail}`);
           }
-        } catch (activationError: any) {
-          console.error(`[Stripe Webhook] Error processing activation link checkout:`, activationError.message);
+        } catch (activationError: unknown) {
+          console.error(`[Stripe Webhook] Error processing activation link checkout:`, getErrorMessage(activationError));
         }
       }
     }
@@ -2458,8 +2459,8 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
             }
           }
         }
-      } catch (hubspotError: any) {
-        console.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', hubspotError.message);
+      } catch (hubspotError: unknown) {
+        console.error('[Stripe Webhook] HubSpot sync failed for subscription user creation:', getErrorMessage(hubspotError));
         // Queue tier sync for retry if we have a tier
         if (tierName) {
           await queueTierSync({
@@ -2905,8 +2906,8 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           } else {
             console.log(`[Stripe Webhook] Synced ${email} tier=${newTierName} to HubSpot (deal line items updated)`);
           }
-        } catch (hubspotError: any) {
-          console.error('[Stripe Webhook] HubSpot sync failed for tier change, queuing for retry:', hubspotError.message);
+        } catch (hubspotError: unknown) {
+          console.error('[Stripe Webhook] HubSpot sync failed for tier change, queuing for retry:', getErrorMessage(hubspotError));
           await queueTierSync({
             email,
             newTier: newTierName,

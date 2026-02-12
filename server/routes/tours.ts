@@ -11,6 +11,7 @@ import { getTodayPacific } from '../utils/dateUtils';
 import { getSessionUser } from '../types/session';
 import { logFromRequest, AuditAction } from '../core/auditLog';
 import { broadcastToStaff } from '../core/websocket';
+import { getErrorMessage } from '../utils/errorUtils';
 
 function parseTimeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -54,7 +55,7 @@ router.get('/api/tours', isStaffOrAdmin, async (req, res) => {
     
     const result = await query;
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tours fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch tours' });
   }
@@ -70,7 +71,7 @@ router.get('/api/tours/today', isStaffOrAdmin, async (req, res) => {
       ))
       .orderBy(asc(tours.startTime));
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Today tours fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch today tours' });
   }
@@ -113,7 +114,7 @@ router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
     broadcastToStaff({ type: 'tour_update', action: 'checked_in', tourId: updated.id });
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tour check-in error:', error);
     res.status(500).json({ error: 'Failed to check in tour' });
   }
@@ -197,7 +198,7 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
     broadcastToStaff({ type: 'tour_update', action: actionMap[status] || 'updated', tourId: updated.id });
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tour status update error:', error);
     res.status(500).json({ error: 'Failed to update tour status' });
   }
@@ -215,7 +216,7 @@ router.post('/api/tours/sync', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tours sync error:', error);
     res.status(500).json({ error: 'Failed to sync tours' });
   }
@@ -252,7 +253,7 @@ router.post('/api/tours/book', async (req, res) => {
     broadcastToStaff({ type: 'tour_update', action: 'created', tourId: newTour.id });
     
     res.json({ id: newTour.id, message: 'Tour request created' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tour booking error:', error);
     res.status(500).json({ error: 'Failed to create tour request' });
   }
@@ -284,7 +285,7 @@ router.patch('/api/tours/:id/confirm', async (req, res) => {
     broadcastToStaff({ type: 'tour_update', action: 'updated', tourId: updated.id });
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tour confirm error:', error);
     res.status(500).json({ error: 'Failed to confirm tour' });
   }
@@ -348,7 +349,7 @@ router.get('/api/tours/needs-review', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ unmatchedMeetings });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tours needs-review error:', error);
     res.status(500).json({ error: 'Failed to fetch HubSpot meetings needing review' });
   }
@@ -395,7 +396,7 @@ router.post('/api/tours/link-hubspot', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ success: true, tour: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Link HubSpot error:', error);
     res.status(500).json({ error: 'Failed to link HubSpot meeting to tour' });
   }
@@ -435,7 +436,7 @@ router.post('/api/tours/create-from-hubspot', isStaffOrAdmin, async (req, res) =
     }).returning();
     
     res.json({ success: true, tour: newTour });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Create from HubSpot error:', error);
     res.status(500).json({ error: 'Failed to create tour from HubSpot meeting' });
   }
@@ -463,7 +464,7 @@ router.post('/api/tours/dismiss-hubspot', isStaffOrAdmin, async (req, res) => {
     }).returning();
     
     res.json({ success: true, dismissed });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Dismiss HubSpot error:', error);
     res.status(500).json({ error: 'Failed to dismiss HubSpot meeting' });
   }
@@ -802,7 +803,7 @@ export async function syncToursFromCalendar(): Promise<{ synced: number; created
     }
     
     return { synced: events.length, created, updated, cancelled };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error syncing tours from calendar:', error);
     return { synced: 0, created: 0, updated: 0, cancelled: 0, error: 'Failed to sync tours' };
   }
@@ -1059,9 +1060,9 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
     }
     
     return { synced: allMeetings.length, created, updated, cancelled };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error syncing tours from HubSpot:', error);
-    return { synced: 0, created: 0, updated: 0, cancelled: 0, error: error.message || 'Failed to sync tours from HubSpot' };
+    return { synced: 0, created: 0, updated: 0, cancelled: 0, error: getErrorMessage(error) || 'Failed to sync tours from HubSpot' };
   }
 }
 

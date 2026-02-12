@@ -1,6 +1,7 @@
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe';
 import { PaymentStatusService } from '../core/billing/PaymentStatusService';
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
 const RECONCILIATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const STALE_THRESHOLD_MINUTES = 5;
@@ -61,9 +62,8 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
         }
         // For other statuses (requires_payment_method, etc.), leave as pending
         
-      } catch (err: any) {
-        if (err.code === 'resource_missing') {
-          // Payment intent doesn't exist in Stripe - mark as cancelled
+      } catch (err: unknown) {
+        if (getErrorCode(err) === 'resource_missing') {
           await pool.query(
             `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE id = $1`,
             [snapshot.id]
@@ -71,7 +71,7 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
           console.log(`[Fee Snapshot Reconciliation] Marked orphan snapshot ${snapshot.id} as cancelled (PI not found)`);
           synced++;
         } else {
-          console.error(`[Fee Snapshot Reconciliation] Error checking ${snapshot.stripe_payment_intent_id}:`, err.message);
+          console.error(`[Fee Snapshot Reconciliation] Error checking ${snapshot.stripe_payment_intent_id}:`, getErrorMessage(err));
           errors++;
         }
       }
@@ -162,8 +162,8 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
               console.log(`[Payment Intent Reconciliation] Marked payment intent ${spi.stripe_payment_intent_id} as canceled (confirmed by Stripe)`);
               reconciled++;
             }
-          } catch (stripeErr: any) {
-            if (stripeErr.code === 'resource_missing') {
+          } catch (stripeErr: unknown) {
+            if (getErrorCode(stripeErr) === 'resource_missing') {
               await pool.query(
                 `UPDATE stripe_payment_intents SET status = 'canceled', failure_reason = $1 WHERE id = $2`,
                 ['Auto-reconciled: payment intent not found in Stripe', spi.id]
@@ -171,13 +171,13 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
               console.log(`[Payment Intent Reconciliation] Canceled payment intent ${spi.stripe_payment_intent_id} (not found in Stripe)`);
               reconciled++;
             } else {
-              console.error(`[Payment Intent Reconciliation] Stripe error for ${spi.stripe_payment_intent_id}:`, stripeErr.message);
+              console.error(`[Payment Intent Reconciliation] Stripe error for ${spi.stripe_payment_intent_id}:`, getErrorMessage(stripeErr));
               errors++;
             }
           }
         }
-      } catch (err: any) {
-        console.error(`[Payment Intent Reconciliation] Error processing ${spi.stripe_payment_intent_id}:`, err.message);
+      } catch (err: unknown) {
+        console.error(`[Payment Intent Reconciliation] Error processing ${spi.stripe_payment_intent_id}:`, getErrorMessage(err));
         errors++;
       }
     }

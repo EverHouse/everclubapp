@@ -364,8 +364,8 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
               subscriptionCancelled = true;
               console.log(`[Admin] Cancelled subscription ${stripeSubscriptionId} for archived member ${normalizedEmail}`);
             }
-          } catch (subError: any) {
-            console.error(`[Admin] Failed to cancel subscription ${stripeSubscriptionId}:`, subError.message);
+          } catch (subError: unknown) {
+            console.error(`[Admin] Failed to cancel subscription ${stripeSubscriptionId}:`, getErrorMessage(subError));
           }
         }
         
@@ -389,12 +389,12 @@ router.delete('/api/members/:email', isStaffOrAdmin, async (req, res) => {
                 startingAfter = subscriptions.data[subscriptions.data.length - 1].id;
               }
             }
-          } catch (listError: any) {
-            console.error(`[Admin] Failed to list/cancel subscriptions for customer ${stripeCustomerId}:`, listError.message);
+          } catch (listError: unknown) {
+            console.error(`[Admin] Failed to list/cancel subscriptions for customer ${stripeCustomerId}:`, getErrorMessage(listError));
           }
         }
-      } catch (importError: any) {
-        console.error(`[Admin] Failed to import Stripe client for subscription cancellation:`, importError.message);
+      } catch (importError: unknown) {
+        console.error(`[Admin] Failed to import Stripe client for subscription cancellation:`, getErrorMessage(importError));
       }
     }
 
@@ -445,8 +445,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
       try {
         await db.update(users).set({ idImageUrl: null }).where(eq(users.id, userId));
         deletionLog.push('id_image');
-      } catch (idErr: any) {
-        console.error(`[Admin] Failed to clear ID image for ${normalizedEmail}:`, idErr.message);
+      } catch (idErr: unknown) {
+        console.error(`[Admin] Failed to clear ID image for ${normalizedEmail}:`, getErrorMessage(idErr));
       }
     }
     
@@ -644,8 +644,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
             startingAfter = subscriptions.data[subscriptions.data.length - 1].id;
           }
         }
-      } catch (stripeSubError: any) {
-        console.error(`[Admin] Failed to cancel subscriptions for ${stripeCustomerId}:`, stripeSubError.message);
+      } catch (stripeSubError: unknown) {
+        console.error(`[Admin] Failed to cancel subscriptions for ${stripeCustomerId}:`, getErrorMessage(stripeSubError));
       }
     }
 
@@ -657,8 +657,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
         await stripe.customers.del(stripeCustomerId);
         stripeDeleted = true;
         deletionLog.push('stripe_customer');
-      } catch (stripeError: any) {
-        console.error(`[Admin] Failed to delete Stripe customer ${stripeCustomerId}:`, stripeError.message);
+      } catch (stripeError: unknown) {
+        console.error(`[Admin] Failed to delete Stripe customer ${stripeCustomerId}:`, getErrorMessage(stripeError));
       }
     }
     
@@ -670,8 +670,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
         await hubspot.crm.contacts.basicApi.archive(hubspotId);
         hubspotArchived = true;
         deletionLog.push('hubspot_contact (archived)');
-      } catch (hubspotError: any) {
-        console.error(`[Admin] Failed to archive HubSpot contact ${hubspotId}:`, hubspotError.message);
+      } catch (hubspotError: unknown) {
+        console.error(`[Admin] Failed to archive HubSpot contact ${hubspotId}:`, getErrorMessage(hubspotError));
       }
     }
     

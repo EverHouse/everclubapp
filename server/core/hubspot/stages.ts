@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { isProduction } from '../db';
 import { getHubSpotClient } from '../integrations';
 import { hubspotDeals, billingAuditLog, hubspotLineItems } from '../../../shared/schema';
@@ -66,12 +67,12 @@ export async function updateDealStage(
     
     if (!isProduction) console.log(`[HubSpotDeals] Updated deal ${hubspotDealId} to stage ${newStage}`);
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpotDeals] Error updating deal stage:', error);
     
     await db.update(hubspotDeals)
       .set({
-        lastSyncError: error.message || 'Unknown error',
+        lastSyncError: getErrorMessage(error) || 'Unknown error',
         updatedAt: new Date()
       })
       .where(eq(hubspotDeals.hubspotDealId, hubspotDealId));
@@ -225,12 +226,13 @@ export async function syncMemberToHubSpot(
       );
       console.log(`[HubSpot Sync] Updated ${email}: ${JSON.stringify(properties)}`);
       return { success: true, contactId, updated };
-    } catch (updateError: any) {
+    } catch (updateError: unknown) {
       // If some properties don't exist, retry with only the valid ones
-      if (updateError.body?.errors?.some((e: any) => e.code === 'PROPERTY_DOESNT_EXIST')) {
-        const invalidProps = updateError.body.errors
-          .filter((e: any) => e.code === 'PROPERTY_DOESNT_EXIST')
-          .map((e: any) => e.context?.propertyName?.[0]);
+      const errBody = updateError && typeof updateError === 'object' && 'body' in updateError ? (updateError as { body: { errors?: Array<{ code: string; context?: { propertyName?: string[] } }> } }).body : undefined;
+      if (errBody?.errors?.some((e) => e.code === 'PROPERTY_DOESNT_EXIST')) {
+        const invalidProps = errBody.errors
+          .filter((e) => e.code === 'PROPERTY_DOESNT_EXIST')
+          .map((e) => e.context?.propertyName?.[0]);
         
         const validProperties: Record<string, string> = {};
         for (const [key, value] of Object.entries(properties)) {
@@ -387,7 +389,7 @@ export async function syncDealStageFromMindbodyStatus(
                   .where(eq(hubspotLineItems.hubspotLineItemId, lineItem.hubspotLineItemId));
                 
                 lineItemsRemoved++;
-              } catch (removeError: any) {
+              } catch (removeError: unknown) {
                 console.error(`[HubSpotDeals] Failed to remove line item ${lineItem.hubspotLineItemId}:`, removeError);
               }
             }
@@ -404,7 +406,7 @@ export async function syncDealStageFromMindbodyStatus(
                 })
               );
               if (!isProduction) console.log(`[HubSpotDeals] Cleared membership_tier for churned member ${memberEmail}`);
-            } catch (tierClearError: any) {
+            } catch (tierClearError: unknown) {
               console.warn(`[HubSpotDeals] Failed to clear membership_tier for ${memberEmail}:`, tierClearError);
             }
           }
@@ -412,7 +414,7 @@ export async function syncDealStageFromMindbodyStatus(
           if (lineItemsRemoved > 0) {
             console.log(`[HubSpotDeals] Removed ${lineItemsRemoved} line items for churned MindBody member ${memberEmail}`);
           }
-        } catch (lineItemError: any) {
+        } catch (lineItemError: unknown) {
           console.error(`[HubSpotDeals] Error removing line items for churned member:`, lineItemError);
         }
       }
@@ -466,27 +468,27 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
         );
         existing.push(prop.name);
         console.log(`[HubSpot] Property ${prop.name} already exists`);
-      } catch (getError: any) {
-        if (getError.code === 404 || getError.message?.includes('not exist')) {
+      } catch (getError: unknown) {
+        if (getErrorCode(getError) === '404' || getErrorMessage(getError)?.includes('not exist')) {
           try {
             await retryableHubSpotRequest(() =>
               hubspot.crm.properties.coreApi.create('contacts', prop as any)
             );
             created.push(prop.name);
             console.log(`[HubSpot] Created property ${prop.name}`);
-          } catch (createError: any) {
-            errors.push(`${prop.name}: ${createError.message}`);
-            console.error(`[HubSpot] Failed to create property ${prop.name}:`, createError.message);
+          } catch (createError: unknown) {
+            errors.push(`${prop.name}: ${getErrorMessage(createError)}`);
+            console.error(`[HubSpot] Failed to create property ${prop.name}:`, getErrorMessage(createError));
           }
         } else {
-          errors.push(`${prop.name}: ${getError.message}`);
+          errors.push(`${prop.name}: ${getErrorMessage(getError)}`);
         }
       }
     }
     
     return { success: errors.length === 0, created, existing, errors };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpot] Error ensuring properties exist:', error);
-    return { success: false, created, existing, errors: [error.message] };
+    return { success: false, created, existing, errors: [getErrorMessage(error)] };
   }
 }

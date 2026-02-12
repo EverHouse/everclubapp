@@ -29,7 +29,7 @@ router.get('/api/group-billing/products', isStaffOrAdmin, async (req, res) => {
   try {
     const products = await getGroupAddOnProducts();
     res.json(products);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting products:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -39,7 +39,7 @@ router.get('/api/family-billing/products', isStaffOrAdmin, async (req, res) => {
   try {
     const products = await getGroupAddOnProducts();
     res.json(products);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting products:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -49,7 +49,7 @@ router.post('/api/group-billing/products/sync', isStaffOrAdmin, async (req, res)
   try {
     const result = await syncGroupAddOnProductsToStripe();
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error syncing products:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -59,7 +59,7 @@ router.post('/api/family-billing/products/sync', isStaffOrAdmin, async (req, res
   try {
     const result = await syncGroupAddOnProductsToStripe();
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error syncing products:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -81,7 +81,7 @@ router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, 
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error updating pricing:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -103,7 +103,7 @@ router.put('/api/family-billing/products/:tierName', isStaffOrAdmin, async (req,
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error updating pricing:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -113,7 +113,7 @@ router.get('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
   try {
     const groups = await getAllBillingGroups();
     res.json(groups);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting all groups:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -123,7 +123,7 @@ router.get('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
   try {
     const groups = await getAllBillingGroups();
     res.json(groups);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting all groups:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -139,7 +139,7 @@ router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) =
     }
     
     res.json(group);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting group:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -155,7 +155,7 @@ router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) 
     }
     
     res.json(group);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting group:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -188,7 +188,7 @@ router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req,
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error updating group name:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -205,7 +205,7 @@ router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, r
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error deleting group:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -232,7 +232,7 @@ router.post('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error creating group:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -259,7 +259,7 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error creating group:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -297,7 +297,7 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error adding member:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -363,7 +363,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error adding corporate member:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -401,7 +401,7 @@ router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error adding member:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -419,7 +419,7 @@ router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, async (req, r
       totalCents: pricePerSeat * memberCount,
       totalDollars: (pricePerSeat * memberCount) / 100,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error getting corporate pricing:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -473,7 +473,7 @@ router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error removing member:', error);
     res.status(500).json({ error: 'Failed to remove member. Please try again.' });
   }
@@ -498,7 +498,7 @@ router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (re
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error removing member:', error);
     res.status(500).json({ error: 'Failed to remove family member. Please try again.' });
   }
@@ -527,7 +527,7 @@ router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdm
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error linking subscription:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -556,7 +556,7 @@ router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAd
     } else {
       res.status(400).json({ error: result.error });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error linking subscription:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -568,7 +568,7 @@ router.post('/api/group-billing/reconcile', isStaffOrAdmin, async (req, res) => 
     const result = await reconcileGroupBillingWithStripe();
     console.log(`[GroupBilling] Reconciliation complete: ${result.groupsChecked} groups checked, ${result.membersDeactivated} deactivated, ${result.membersReactivated} reactivated, ${result.membersCreated} created, ${result.itemsRelinked} relinked`);
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error during reconciliation:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
@@ -580,7 +580,7 @@ router.post('/api/family-billing/reconcile', isStaffOrAdmin, async (req, res) =>
     const result = await reconcileGroupBillingWithStripe();
     console.log(`[GroupBilling] Reconciliation complete: ${result.groupsChecked} groups checked, ${result.membersDeactivated} deactivated, ${result.membersReactivated} reactivated, ${result.membersCreated} created, ${result.itemsRelinked} relinked`);
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GroupBilling] Error during reconciliation:', error);
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }

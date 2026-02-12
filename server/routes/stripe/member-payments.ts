@@ -17,6 +17,7 @@ import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core
 import { GUEST_FEE_CENTS } from './helpers';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
+import { getErrorCode } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -626,8 +627,8 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
         invoiceId,
         status: 'paid'
       });
-    } catch (payErr: any) {
-      if (payErr.code === 'invoice_already_paid') {
+    } catch (payErr: unknown) {
+      if (getErrorCode(payErr) === 'invoice_already_paid') {
         console.log(`[Stripe] Invoice ${invoiceId} was already marked as paid`);
       } else {
         console.error('[Stripe] Error marking invoice as paid:', payErr);

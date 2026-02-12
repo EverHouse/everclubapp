@@ -28,7 +28,7 @@ router.get('/api/cafe-menu', async (req, res) => {
     
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Cafe menu error:', error);
     res.status(500).json({ error: 'Failed to fetch cafe menu' });
   }
@@ -50,7 +50,7 @@ router.post('/api/cafe-menu', isStaffOrAdmin, async (req, res) => {
     
     broadcastCafeMenuUpdate('created');
     res.status(201).json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Cafe item creation error:', error);
     res.status(500).json({ error: 'Failed to create cafe item' });
   }
@@ -95,7 +95,7 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     
     broadcastCafeMenuUpdate('updated');
     res.json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Cafe item update error:', error);
     res.status(500).json({ error: 'Failed to update cafe item' });
   }
@@ -113,7 +113,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     await pool.query('DELETE FROM cafe_items WHERE id = $1', [id]);
     broadcastCafeMenuUpdate('deleted');
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Cafe item delete error:', error);
     res.status(500).json({ error: 'Failed to delete cafe item' });
   }
@@ -194,7 +194,7 @@ router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
       existingBefore: existingCount,
       totalAfter: existingCount + inserted
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Cafe seed error:', error);
     res.status(500).json({ error: 'Failed to seed cafe menu' });
   }

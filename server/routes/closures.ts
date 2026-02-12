@@ -11,6 +11,7 @@ import { createPacificDate, parseLocalDate, addDaysToPacificDate, getPacificISOS
 import { clearClosureCache } from '../core/bookingValidation';
 import { broadcastClosureUpdate } from '../core/websocket';
 import { logFromRequest } from '../core/auditLog';
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
       
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (err.statusCode === 410) {
           await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
         }
@@ -308,7 +309,7 @@ router.get('/api/notice-types', async (req, res) => {
       .from(noticeTypes)
       .orderBy(noticeTypes.sortOrder, noticeTypes.name);
     res.json(results);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Notice types fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch notice types' });
   }
@@ -336,7 +337,7 @@ router.post('/api/notice-types', isStaffOrAdmin, async (req, res) => {
     }
     
     res.status(201).json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Notice type creation error:', error);
     res.status(500).json({ error: 'Failed to create notice type' });
   }
@@ -375,8 +376,8 @@ router.put('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
       .returning();
     
     res.json(result);
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '23505') {
       return res.status(400).json({ error: 'A notice type with this name already exists' });
     }
     if (!isProduction) console.error('Notice type update error:', error);
@@ -406,7 +407,7 @@ router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
       .where(eq(noticeTypes.id, parseInt(id)));
     
     res.json({ success: true, message: 'Notice type deleted' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Notice type delete error:', error);
     res.status(500).json({ error: 'Failed to delete notice type' });
   }
@@ -430,7 +431,7 @@ router.get('/api/closure-reasons', async (req, res) => {
           .orderBy(closureReasons.sortOrder, closureReasons.label);
     
     res.json(results);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Closure reasons fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch closure reasons' });
   }
@@ -453,8 +454,8 @@ router.post('/api/closure-reasons', isStaffOrAdmin, async (req, res) => {
       .returning();
     
     res.status(201).json(result);
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '23505') {
       return res.status(400).json({ error: 'A closure reason with this label already exists' });
     }
     if (!isProduction) console.error('Closure reason creation error:', error);
@@ -487,8 +488,8 @@ router.put('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(result);
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '23505') {
       return res.status(400).json({ error: 'A closure reason with this label already exists' });
     }
     if (!isProduction) console.error('Closure reason update error:', error);
@@ -511,7 +512,7 @@ router.delete('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ success: true, message: 'Closure reason deactivated' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Closure reason delete error:', error);
     res.status(500).json({ error: 'Failed to delete closure reason' });
   }
@@ -525,7 +526,7 @@ router.get('/api/closures', async (req, res) => {
       .where(eq(facilityClosures.isActive, true))
       .orderBy(facilityClosures.startDate, facilityClosures.startTime);
     res.json(results);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Closures fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch closures' });
   }
@@ -560,7 +561,7 @@ router.get('/api/closures/needs-review', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json(withMissingFields);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Needs review closures fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch closures needing review' });
   }
@@ -660,7 +661,7 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
       } else {
         console.error(`[Closures] Internal Calendar not found - cannot create event for closure #${closureId}`);
       }
-    } catch (calError: any) {
+    } catch (calError: unknown) {
       console.error('[Closures] Failed to create Internal Calendar event:', calError?.message || calError);
     }
     
@@ -735,7 +736,7 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
       conferenceCalendarId: null,
       internalCalendarId: internalEventIds
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Closure create error:', error);
     res.status(500).json({ error: 'Failed to create closure' });
   }
@@ -805,7 +806,7 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Closure delete error:', error);
     res.status(500).json({ error: 'Failed to delete closure' });
   }
@@ -1087,7 +1088,7 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Closure update error:', error);
     res.status(500).json({ error: 'Failed to update closure' });
   }
@@ -1155,7 +1156,7 @@ router.post('/api/closures/backfill-blocks', isStaffOrAdmin, async (req, res) =>
       totalBlocksCreated,
       details: results 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Backfill error:', error);
     res.status(500).json({ error: 'Failed to backfill availability blocks' });
   }
@@ -1183,7 +1184,7 @@ router.post('/api/closures/sync', isStaffOrAdmin, async (req, res) => {
       message: 'Closures synced successfully',
       stats: result
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Manual closure sync error:', error);
     res.status(500).json({ error: 'Failed to sync closures' });
   }
@@ -1238,9 +1239,9 @@ router.post('/api/closures/fix-orphaned', isAdmin, async (req, res) => {
         } else {
           results.push({ id: closure.id, title: closure.title, status: 'failed' });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`[Fix Orphaned] Error fixing closure #${closure.id}:`, err);
-        results.push({ id: closure.id, title: closure.title, status: 'error', eventId: err.message });
+        results.push({ id: closure.id, title: closure.title, status: 'error', eventId: getErrorMessage(err) });
       }
     }
     
@@ -1254,7 +1255,7 @@ router.post('/api/closures/fix-orphaned', isAdmin, async (req, res) => {
       total: orphanedClosures.length,
       details: results
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Fix Orphaned] Error:', error);
     res.status(500).json({ error: 'Failed to fix orphaned closures' });
   }

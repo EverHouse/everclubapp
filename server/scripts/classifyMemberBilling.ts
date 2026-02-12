@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { users } from '../../shared/schema';
 import { eq, and, isNotNull, isNull, sql } from 'drizzle-orm';
+import { getErrorMessage } from '../utils/errorUtils';
 
 export interface BillingClassification {
   stripe: MemberBillingInfo[];
@@ -122,8 +123,8 @@ export async function updateMemberBillingProvider(
       .where(eq(users.id, memberId));
     
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -144,8 +145,8 @@ export async function bulkClassifyMindbodyMembers(): Promise<{ updated: number; 
     console.log(`[BillingClassify] Updated ${updated} members with Mindbody IDs to mindbody provider`);
     
     return { updated, errors };
-  } catch (error: any) {
-    errors.push(error.message);
+  } catch (error: unknown) {
+    errors.push(getErrorMessage(error));
     return { updated, errors };
   }
 }

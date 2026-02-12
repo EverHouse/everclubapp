@@ -50,7 +50,7 @@ router.post('/api/admin/upload-image', isStaffOrAdmin, upload.single('image'), a
       originalSize: req.file.size,
       optimizedSize: webpBuffer.length
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Image upload error:', error);
     res.status(500).json({ error: 'Failed to upload and convert image' });
   }

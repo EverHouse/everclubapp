@@ -338,7 +338,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
     } catch (postCommitError) {
       console.error('[StaffManualBooking] Post-commit operations failed:', postCommitError);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to create manual booking', error);
   }
 });

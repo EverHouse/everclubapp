@@ -82,8 +82,8 @@ export async function syncDiscountRulesToStripeCoupons(): Promise<{
             });
             skipped++;
           }
-        } catch (retrieveError: any) {
-          if (retrieveError.code === 'resource_missing') {
+        } catch (retrieveError: unknown) {
+          if (getErrorCode(retrieveError) === 'resource_missing') {
             await stripe.coupons.create({
               id: couponId,
               percent_off: rule.discountPercent,

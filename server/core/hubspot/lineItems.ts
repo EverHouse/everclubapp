@@ -101,7 +101,7 @@ export async function addLineItemToDeal(
     
     if (!isProduction) console.log(`[HubSpotDeals] Added line item ${lineItemId} to deal ${hubspotDealId}`);
     return { success: true, lineItemId };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpotDeals] Error adding line item:', error);
     return { success: false };
   }

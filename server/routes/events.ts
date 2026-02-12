@@ -12,6 +12,7 @@ import { getAllActiveBayIds, getConferenceRoomId } from '../core/affectedAreas';
 import { sendNotificationToUser, broadcastToStaff } from '../core/websocket';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
+import { getErrorMessage } from '../utils/errorUtils';
 
 async function getMemberDisplayName(email: string): Promise<string> {
   try {
@@ -137,7 +138,7 @@ router.post('/api/events/sync/google', isStaffOrAdmin, async (req, res) => {
       message: `Synced ${result.synced} events from Google Calendar`,
       ...result
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Google Calendar sync error:', error);
     res.status(500).json({ error: 'Failed to sync Google Calendar events' });
   }
@@ -169,7 +170,7 @@ router.post('/api/events/sync', isStaffOrAdmin, async (req, res) => {
       google: googleResult,
       eventbrite: eventbriteResult.error ? { error: eventbriteResult.error } : eventbriteResult
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Event sync error:', error);
     res.status(500).json({ error: 'Failed to sync events' });
   }
@@ -208,7 +209,7 @@ router.post('/api/calendars/sync-all', isStaffOrAdmin, async (req, res) => {
       },
       message: `Synced ${eventsSynced} events and ${wellnessSynced} wellness classes from Google Calendar. Created ${wellnessBackfilled} calendar events for existing classes.`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Calendar sync error:', error);
     res.status(500).json({ error: 'Failed to sync calendars' });
   }
@@ -236,7 +237,7 @@ router.get('/api/events/needs-review', isStaffOrAdmin, async (req, res) => {
       .orderBy(events.eventDate, events.startTime);
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch events needing review' });
   }
@@ -261,7 +262,7 @@ router.post('/api/events/:id/mark-reviewed', isStaffOrAdmin, async (req, res) =>
     }
     
     res.json({ success: true, event: result[0] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to mark event as reviewed' });
   }
@@ -330,7 +331,7 @@ router.get('/api/events', async (req, res) => {
     }
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Request failed' });
   }
@@ -386,7 +387,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
         trimmedStartTime,
         trimmedEndTime || trimmedStartTime
       );
-    } catch (calError: any) {
+    } catch (calError: unknown) {
       if (!isProduction) console.error('Failed to create Google Calendar event:', calError);
       return res.status(500).json({ error: 'Failed to create calendar event. Please try again.' });
     }
@@ -441,7 +442,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
     });
     
     res.status(201).json(createdEvent);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Event creation error:', error);
     res.status(500).json({ error: 'Failed to create event' });
   }
@@ -598,7 +599,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json(updatedEvent);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Event update error:', error);
     res.status(500).json({ error: 'Failed to update event' });
   }
@@ -626,7 +627,7 @@ router.get('/api/events/:id/cascade-preview', isStaffOrAdmin, async (req, res) =
       },
       hasRelatedData: rsvpsCount > 0
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Event cascade preview error:', error);
     res.status(500).json({ error: 'Failed to fetch cascade preview' });
   }
@@ -660,7 +661,7 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
         } else {
           console.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event deletion`);
         }
-      } catch (calError: any) {
+      } catch (calError: unknown) {
         console.error('Failed to delete Google Calendar event:', calError?.message || calError);
       }
     }
@@ -694,7 +695,7 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json({ success: true, archived: true, archivedBy });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Event archive error:', error?.message || error);
     res.status(500).json({ error: 'Failed to archive event', details: error?.message });
   }
@@ -806,7 +807,7 @@ router.post('/api/eventbrite/sync', isStaffOrAdmin, async (req, res) => {
       synced,
       updated
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Eventbrite sync error:', error);
     res.status(500).json({ error: 'Failed to sync Eventbrite events' });
   }
@@ -900,7 +901,7 @@ router.get('/api/rsvps', async (req, res) => {
     .orderBy(events.eventDate, events.startTime);
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Request failed' });
   }
@@ -1009,8 +1010,8 @@ router.post('/api/rsvps', async (req, res) => {
     });
     
     res.status(201).json(result);
-  } catch (error: any) {
-    if (error.message === 'Event is at capacity') {
+  } catch (error: unknown) {
+    if (getErrorMessage(error) === 'Event is at capacity') {
       return res.status(400).json({ error: 'Event is at capacity' });
     }
     if (!isProduction) console.error('RSVP creation error:', error);
@@ -1088,7 +1089,7 @@ router.delete('/api/rsvps/:event_id/:user_email', async (req, res) => {
     });
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('RSVP cancellation error:', error);
     res.status(500).json({ error: 'Failed to cancel RSVP. Staff notification is required.' });
   }
@@ -1126,7 +1127,7 @@ router.get('/api/events/:id/rsvps', isStaffOrAdmin, async (req, res) => {
     .orderBy(desc(eventRsvps.createdAt));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch RSVPs' });
   }
@@ -1165,7 +1166,7 @@ router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, 
     });
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('RSVP deletion error:', error);
     res.status(500).json({ error: 'Failed to delete RSVP' });
   }
@@ -1212,7 +1213,7 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
     });
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Manual RSVP error:', error);
     res.status(500).json({ error: 'Failed to add RSVP' });
   }
@@ -1442,7 +1443,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
       total: attendees.length,
       message: `Synced ${synced} attendees, ${totalMatched} matched to members`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Eventbrite attendees sync error:', error);
     res.status(500).json({ error: 'Failed to sync Eventbrite attendees' });
   }
@@ -1476,7 +1477,7 @@ router.get('/api/events/:id/eventbrite-attendees', isStaffOrAdmin, async (req, r
     .orderBy(desc(eventRsvps.createdAt));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Eventbrite attendees fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch Eventbrite attendees' });
   }

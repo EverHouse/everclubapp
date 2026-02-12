@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 import { pool } from './db';
 import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, notifications, bookingMembers, bookingGuests, bookingSessions, bookingParticipants, usageLedger, guests as guestsTable, availabilityBlocks, facilityClosures } from '../../shared/schema';
 import { eq, or, ilike, sql, and } from 'drizzle-orm';
@@ -50,8 +51,8 @@ async function cancelPendingPaymentIntentsForBooking(bookingId: number): Promise
       try {
         await cancelPaymentIntent(row.stripe_payment_intent_id);
         process.stderr.write(`[Trackman Import] Cancelled payment intent ${row.stripe_payment_intent_id}\n`);
-      } catch (cancelErr: any) {
-        process.stderr.write(`[Trackman Import] Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${cancelErr.message}\n`);
+      } catch (cancelErr: unknown) {
+        process.stderr.write(`[Trackman Import] Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}\n`);
       }
     }
   } catch (e) {
@@ -249,7 +250,7 @@ async function isConvertedToPrivateEventBlock(
     return matchingBlocks.length > 0;
   } catch (err) {
     // Non-blocking - if check fails, allow booking creation
-    process.stderr.write(`[Trackman Import] Error checking for private event block: ${(err as Error).message}\n`);
+    process.stderr.write(`[Trackman Import] Error checking for private event block: ${getErrorMessage(err)}\n`);
     return false;
   }
 }
@@ -282,8 +283,8 @@ async function loadEmailMapping(): Promise<Map<string, string>> {
       }
       
       process.stderr.write(`[Trackman Import] Loaded ${mapping.size} email mappings from CSV\n`);
-    } catch (err: any) {
-      process.stderr.write('[Trackman Import] Error loading CSV mapping: ' + err.message + '\n');
+    } catch (err: unknown) {
+      process.stderr.write('[Trackman Import] Error loading CSV mapping: ' + getErrorMessage(err) + '\n');
     }
   }
   
@@ -311,8 +312,8 @@ async function loadEmailMapping(): Promise<Map<string, string>> {
     if (dbMappingsCount > 0) {
       process.stderr.write(`[Trackman Import] Loaded ${dbMappingsCount} email mappings from users.manuallyLinkedEmails\n`);
     }
-  } catch (err: any) {
-    process.stderr.write('[Trackman Import] Error loading DB mappings: ' + err.message + '\n');
+  } catch (err: unknown) {
+    process.stderr.write('[Trackman Import] Error loading DB mappings: ' + getErrorMessage(err) + '\n');
   }
   
   // Load from user_linked_emails table (staff resolutions and auto-learning)
@@ -336,8 +337,8 @@ async function loadEmailMapping(): Promise<Map<string, string>> {
     if (linkedCount > 0) {
       process.stderr.write(`[Trackman Import] Loaded ${linkedCount} email mappings from user_linked_emails table\n`);
     }
-  } catch (err: any) {
-    process.stderr.write('[Trackman Import] Error loading user_linked_emails: ' + err.message + '\n');
+  } catch (err: unknown) {
+    process.stderr.write('[Trackman Import] Error loading user_linked_emails: ' + getErrorMessage(err) + '\n');
   }
   
   process.stderr.write(`[Trackman Import] Total email mappings: ${mapping.size}\n`);
@@ -404,8 +405,8 @@ async function getAllHubSpotMembers(): Promise<HubSpotMember[]> {
     const formerCount = validMembers.length - activeCount;
     process.stderr.write(`[Trackman Import] Loaded ${validMembers.length} members from HubSpot (${activeCount} active, ${formerCount} former) from ${totalProcessed} total contacts\n`);
     return validMembers;
-  } catch (err: any) {
-    process.stderr.write(`[Trackman Import] Error fetching HubSpot contacts: ${err.message}\n`);
+  } catch (err: unknown) {
+    process.stderr.write(`[Trackman Import] Error fetching HubSpot contacts: ${getErrorMessage(err)}\n`);
     // Fall back to database users if HubSpot fails
     return [];
   }
@@ -1147,8 +1148,8 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
     }
 
     process.stderr.write(`[Trackman Import] Created session #${session.id} with ${participants.length} participants for Trackman ID ${input.trackmanBookingId}\n`);
-    } catch (innerError: any) {
-      process.stderr.write(`[Trackman Import] Full session creation failed for booking ${input.bookingId}, falling back to owner-only session: ${innerError.message}\n`);
+    } catch (innerError: unknown) {
+      process.stderr.write(`[Trackman Import] Full session creation failed for booking ${input.bookingId}, falling back to owner-only session: ${getErrorMessage(innerError)}\n`);
 
       try {
         const fallbackOwnerUserId = await getUserIdByEmail(input.ownerEmail);
@@ -1192,8 +1193,8 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
           .where(eq(bookingRequests.id, input.bookingId));
 
         process.stderr.write(`[Trackman Import] Fallback owner-only session ${fallbackSession.id} created for booking ${input.bookingId}\n`);
-      } catch (fallbackError: any) {
-        process.stderr.write(`[Trackman Import] CRITICAL: Even fallback session creation failed for booking ${input.bookingId}: ${fallbackError.message}\n`);
+      } catch (fallbackError: unknown) {
+        process.stderr.write(`[Trackman Import] CRITICAL: Even fallback session creation failed for booking ${input.bookingId}: ${getErrorMessage(fallbackError)}\n`);
         try {
           const [bookingForCriticalNote] = await db.select({ staffNotes: bookingRequests.staffNotes })
             .from(bookingRequests)
@@ -1204,11 +1205,11 @@ async function createTrackmanSessionAndParticipants(input: SessionCreationInput)
           await db.update(bookingRequests)
             .set({ staffNotes: updatedCriticalNotes })
             .where(eq(bookingRequests.id, input.bookingId));
-        } catch (noteErr: any) { console.warn('[TrackmanImport] Failed to save session creation failure note:', noteErr?.message || noteErr); }
+        } catch (noteErr: unknown) { console.warn('[TrackmanImport] Failed to save session creation failure note:', getErrorMessage(noteErr) || noteErr); }
       }
     }
-  } catch (outerError: any) {
-    process.stderr.write(`[Trackman Import] Unexpected error in session creation for booking ${input.bookingId}: ${outerError.message}\n`);
+  } catch (outerError: unknown) {
+    process.stderr.write(`[Trackman Import] Unexpected error in session creation for booking ${input.bookingId}: ${getErrorMessage(outerError)}\n`);
   }
 }
 
@@ -1310,8 +1311,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
       }
     }
     process.stderr.write(`[Trackman Import] Added ${addedFromDb} additional users from local database to membersByEmail (total: ${membersByEmail.size})\n`);
-  } catch (err: any) {
-    process.stderr.write(`[Trackman Import] Error loading local users: ${err.message}\n`);
+  } catch (err: unknown) {
+    process.stderr.write(`[Trackman Import] Error loading local users: ${getErrorMessage(err)}\n`);
   }
 
   const emailMapping = await loadEmailMapping();
@@ -1333,8 +1334,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
       }
     }
     process.stderr.write(`[Trackman Import] Loaded ${trackmanEmailMapping.size} trackman_email mappings from users table\n`);
-  } catch (err: any) {
-    process.stderr.write(`[Trackman Import] Error loading trackman_email mappings: ${err.message}\n`);
+  } catch (err: unknown) {
+    process.stderr.write(`[Trackman Import] Error loading trackman_email mappings: ${getErrorMessage(err)}\n`);
   }
 
   // Fetch golf instructor emails once before processing rows
@@ -1484,8 +1485,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               });
               
               process.stderr.write(`[Trackman Import] Converted staff lesson to block: ${row.userEmail} -> "${row.userName}" on ${bookingDate}\n`);
-            } catch (blockErr: any) {
-              process.stderr.write(`[Trackman Import] Error creating lesson block for ${row.bookingId}: ${blockErr.message}\n`);
+            } catch (blockErr: unknown) {
+              process.stderr.write(`[Trackman Import] Error creating lesson block for ${row.bookingId}: ${getErrorMessage(blockErr)}\n`);
             }
           }
           
@@ -1526,8 +1527,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               if (sessionResult.length > 0) {
                 bookingDate = sessionResult[0].sessionDate;
               }
-            } catch (dateErr: any) {
-              process.stderr.write(`[Trackman Import] Warning: Failed to fetch session date for booking #${booking.id}: ${dateErr.message}\n`);
+            } catch (dateErr: unknown) {
+              process.stderr.write(`[Trackman Import] Warning: Failed to fetch session date for booking #${booking.id}: ${getErrorMessage(dateErr)}\n`);
             }
           }
           
@@ -1827,9 +1828,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 );
                 process.stderr.write(`[Email Learning] Auto-linked ${originalEmail} -> ${matchedEmail} from import\n`);
               }
-            } catch (linkErr: any) {
-              if (!linkErr.message?.includes('duplicate key')) {
-                process.stderr.write(`[Email Learning] Error: ${linkErr.message}\n`);
+            } catch (linkErr: unknown) {
+              if (!getErrorMessage(linkErr)?.includes('duplicate key')) {
+                process.stderr.write(`[Email Learning] Error: ${getErrorMessage(linkErr)}\n`);
               }
             }
           }
@@ -1852,8 +1853,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             
             process.stderr.write(`[Trackman Import] Updated booking #${existing.id} (Trackman ID: ${row.bookingId}): ${changes.join(', ')}${isWebhookCreated ? ' [webhook backfill]' : ''}\n`);
             updatedRows++;
-          } catch (updateErr: any) {
-            const errMsg = updateErr.cause?.message || updateErr.message || '';
+          } catch (updateErr: unknown) {
+            const errMsg = (updateErr instanceof Error && updateErr.cause instanceof Error ? updateErr.cause.message : null) || getErrorMessage(updateErr) || '';
             if (errMsg.includes('booking_requests_no_overlap') || errMsg.includes('exclusion constraint')) {
               delete updateFields.startTime;
               delete updateFields.endTime;
@@ -1879,8 +1880,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             await db.update(bookingRequests)
               .set(updateFields)
               .where(eq(bookingRequests.id, existing.id));
-          } catch (updateErr: any) {
-            const errMsg = updateErr.cause?.message || updateErr.message || '';
+          } catch (updateErr: unknown) {
+            const errMsg = (updateErr instanceof Error && updateErr.cause instanceof Error ? updateErr.cause.message : null) || getErrorMessage(updateErr) || '';
             if (errMsg.includes('booking_requests_no_overlap') || errMsg.includes('exclusion constraint')) {
               process.stderr.write(`[Trackman Import] Booking #${existing.id}: sync tracking update skipped due to overlap constraint\n`);
             } else {
@@ -2021,7 +2022,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               })
               .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
             process.stderr.write(`[Trackman Import] Auto-resolved legacy entry for booking ${row.bookingId}\n`);
-          } catch (resolveErr: any) {
+          } catch (resolveErr: unknown) {
             // Non-blocking
           }
         }
@@ -2137,8 +2138,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   process.stderr.write(`[Trackman Import] Created ${row.playerCount} member slots with ${mergeGuestPlayers.length} guest names for merged booking #${placeholder.id}\n`);
                 }
               }
-            } catch (memberErr: any) {
-              process.stderr.write(`[Trackman Import] Failed to create booking_members for merged booking #${placeholder.id}: ${memberErr.message}\n`);
+            } catch (memberErr: unknown) {
+              process.stderr.write(`[Trackman Import] Failed to create booking_members for merged booking #${placeholder.id}: ${getErrorMessage(memberErr)}\n`);
             }
           }
           
@@ -2164,8 +2165,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 trackmanEmailMapping: trackmanEmailMapping,
                 isPast: !isUpcoming
               });
-            } catch (sessionErr: any) {
-              process.stderr.write(`[Trackman Import] Session creation failed for merged booking #${placeholder.id}: ${sessionErr.message}\n`);
+            } catch (sessionErr: unknown) {
+              process.stderr.write(`[Trackman Import] Session creation failed for merged booking #${placeholder.id}: ${getErrorMessage(sessionErr)}\n`);
             }
           }
           
@@ -2639,8 +2640,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     process.stderr.write(`[Trackman Import] Created ${row.playerCount} member slots with ${ghostGuestPlayers.length} guest names for updated ghost booking #${existingGhost.id}\n`);
                   }
                 }
-              } catch (memberErr: any) {
-                process.stderr.write(`[Trackman Import] Failed to create booking_members for ghost booking #${existingGhost.id}: ${memberErr.message}\n`);
+              } catch (memberErr: unknown) {
+                process.stderr.write(`[Trackman Import] Failed to create booking_members for ghost booking #${existingGhost.id}: ${getErrorMessage(memberErr)}\n`);
               }
 
               if (parsedBayId && bookingDate && startTime && !existingGhost.sessionId) {
@@ -2661,8 +2662,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     trackmanEmailMapping: trackmanEmailMapping,
                     isPast: !isUpcoming
                   });
-                } catch (sessionErr: any) {
-                  process.stderr.write(`[Trackman Import] Session creation failed for ghost booking #${existingGhost.id}: ${sessionErr.message}\n`);
+                } catch (sessionErr: unknown) {
+                  process.stderr.write(`[Trackman Import] Session creation failed for ghost booking #${existingGhost.id}: ${getErrorMessage(sessionErr)}\n`);
                 }
               }
             }
@@ -2975,7 +2976,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               body: approvalMessage,
               tag: `booking-${insertResult[0].id}`
             }).catch(err => {
-              process.stderr.write(`[Trackman Import] Push notification failed for ${matchedEmail}: ${err.message}\n`);
+              process.stderr.write(`[Trackman Import] Push notification failed for ${matchedEmail}: ${getErrorMessage(err)}\n`);
             });
           }
 
@@ -2995,15 +2996,15 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           }
 
           matchedRows++;
-        } catch (insertErr: any) {
+        } catch (insertErr: unknown) {
           // Handle duplicate key violations gracefully (race condition with webhook)
-          if (insertErr.message?.includes('duplicate key') || insertErr.code === '23505') {
+          if (getErrorMessage(insertErr)?.includes('duplicate key') || getErrorCode(insertErr) === '23505') {
             process.stderr.write(`[Trackman Import] Booking ${row.bookingId} already exists (race with webhook) - skipping\n`);
             skippedRows++;
             continue;
           }
-          const errDetails = insertErr.cause?.message || insertErr.detail || insertErr.code || 'no details';
-          process.stderr.write(`[Trackman Import] Insert error for ${row.bookingId}: ${insertErr.message} | Details: ${errDetails}\n`);
+          const errDetails = (insertErr instanceof Error && insertErr.cause instanceof Error ? insertErr.cause.message : null) || getErrorCode(insertErr) || 'no details';
+          process.stderr.write(`[Trackman Import] Insert error for ${row.bookingId}: ${getErrorMessage(insertErr)} | Details: ${errDetails}\n`);
           throw insertErr;
         }
       } else {
@@ -3067,10 +3068,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           }).returning({ id: bookingRequests.id });
           
           process.stderr.write(`[Trackman Import] Created unmatched booking #${unmatchedInsertResult[0]?.id} to block slot (Trackman ID: ${row.bookingId})\n`);
-        } catch (unmatchedErr: any) {
+        } catch (unmatchedErr: unknown) {
           // If booking already exists (unique constraint), just continue
-          if (!unmatchedErr.message?.includes('duplicate key')) {
-            process.stderr.write(`[Trackman Import] Error creating unmatched booking for ${row.bookingId}: ${unmatchedErr.message}\n`);
+          if (!getErrorMessage(unmatchedErr)?.includes('duplicate key')) {
+            process.stderr.write(`[Trackman Import] Error creating unmatched booking for ${row.bookingId}: ${getErrorMessage(unmatchedErr)}\n`);
           }
         }
         
@@ -3091,18 +3092,18 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               notes: row.notes,
               matchAttemptReason: matchAttemptReason
             });
-          } catch (legacyErr: any) {
+          } catch (legacyErr: unknown) {
             // Ignore duplicate key errors - entry already exists
-            if (!legacyErr.message?.includes('duplicate key')) {
-              process.stderr.write(`[Trackman Import] Error creating legacy unmatched entry: ${legacyErr.message}\n`);
+            if (!getErrorMessage(legacyErr)?.includes('duplicate key')) {
+              process.stderr.write(`[Trackman Import] Error creating legacy unmatched entry: ${getErrorMessage(legacyErr)}\n`);
             }
           }
         }
 
         unmatchedRows++;
       }
-    } catch (err: any) {
-      const dbError = err.cause?.message || err.message;
+    } catch (err: unknown) {
+      const dbError = (err instanceof Error && err.cause instanceof Error ? err.cause.message : null) || getErrorMessage(err);
       errors.push(`Row ${i}: ${dbError}`);
       skippedRows++;
     }
@@ -3213,7 +3214,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             body: cancelMessage,
             tag: `booking-cancelled-${booking.id}`
           }).catch(err => {
-            process.stderr.write(`[Trackman Import] Push notification failed for cancellation ${booking.userEmail}: ${err.message}\n`);
+            process.stderr.write(`[Trackman Import] Push notification failed for cancellation ${booking.userEmail}: ${getErrorMessage(err)}\n`);
           });
         }
       }
@@ -3244,8 +3245,8 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         process.stderr.write(`[Trackman Import]   Auto-approved booking #${approved.id} for ${approved.user_name || approved.user_email}\n`);
       }
     }
-  } catch (cleanupErr: any) {
-    process.stderr.write(`[Trackman Import] Post-import cleanup error: ${cleanupErr.message}\n`);
+  } catch (cleanupErr: unknown) {
+    process.stderr.write(`[Trackman Import] Post-import cleanup error: ${getErrorMessage(cleanupErr)}\n`);
   }
 
   await db.insert(trackmanImportRuns).values({
@@ -3445,9 +3446,9 @@ async function insertBookingIfNotExists(
       originalBookedDate: booking.createdAt,
       guestCount: actualGuestCount,
     }).returning({ id: bookingRequests.id });
-  } catch (insertErr: any) {
+  } catch (insertErr: unknown) {
     // Handle duplicate key violations gracefully (race condition)
-    if (insertErr.message?.includes('duplicate key') || insertErr.code === '23505') {
+    if (getErrorMessage(insertErr)?.includes('duplicate key') || getErrorCode(insertErr) === '23505') {
       process.stderr.write(`[Trackman Import] Booking ${booking.trackmanBookingId} already exists (race condition) - skipping\n`);
       return { inserted: false, reason: 'Already imported (race condition)' };
     }
@@ -3870,8 +3871,8 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
         trackmanEmailMapping.set(user.trackmanEmail.toLowerCase().trim(), user.email.toLowerCase());
       }
     }
-  } catch (err: any) {
-    process.stderr.write(`[Trackman Rescan] Error loading trackman_email mappings: ${err.message}\n`);
+  } catch (err: unknown) {
+    process.stderr.write(`[Trackman Rescan] Error loading trackman_email mappings: ${getErrorMessage(err)}\n`);
   }
   
   let matchedCount = 0;
@@ -4101,9 +4102,9 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
                   ]
                 );
                 process.stderr.write(`[Trackman Rescan] Created booking for ${matchedEmail} (Trackman ID: ${booking.trackmanBookingId})\n`);
-              } catch (insertErr: any) {
+              } catch (insertErr: unknown) {
                 // Handle any remaining duplicate key errors
-                if (insertErr.message?.includes('duplicate key') || insertErr.code === '23505') {
+                if (getErrorMessage(insertErr)?.includes('duplicate key') || getErrorCode(insertErr) === '23505') {
                   process.stderr.write(`[Trackman Rescan] Booking ${booking.trackmanBookingId} already exists - skipping\n`);
                 } else {
                   throw insertErr;
@@ -4111,12 +4112,12 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
               }
             }
           }
-        } catch (bookingError: any) {
-          process.stderr.write(`[Trackman Rescan] Error creating booking: ${bookingError.message}\n`);
+        } catch (bookingError: unknown) {
+          process.stderr.write(`[Trackman Rescan] Error creating booking: ${getErrorMessage(bookingError)}\n`);
         }
       }
-    } catch (err: any) {
-      errors.push(`Error processing booking ${booking.trackmanBookingId}: ${err.cause?.message || err.message}`);
+    } catch (err: unknown) {
+      errors.push(`Error processing booking ${booking.trackmanBookingId}: ${(err instanceof Error && err.cause instanceof Error ? err.cause.message : null) || getErrorMessage(err)}`);
     }
   }
   
@@ -4286,8 +4287,8 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
           const stripe = await import('./stripe').then(m => m.getStripeClient());
           await stripe.paymentIntents.cancel(intent.stripe_payment_intent_id);
           log(`[Lesson Cleanup] Cancelled payment intent ${intent.stripe_payment_intent_id}`);
-        } catch (err: any) {
-          log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${err.message}`);
+        } catch (err: unknown) {
+          log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${getErrorMessage(err)}`);
         }
       }
 

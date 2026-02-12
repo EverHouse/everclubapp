@@ -932,8 +932,8 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
         await stripe.customers.del(visitor.stripeCustomerId);
         stripeDeleted = true;
         deletionLog.push('stripe_customer');
-      } catch (stripeError: any) {
-        console.error(`[Visitors] Failed to delete Stripe customer ${visitor.stripeCustomerId}:`, stripeError.message);
+      } catch (stripeError: unknown) {
+        console.error(`[Visitors] Failed to delete Stripe customer ${visitor.stripeCustomerId}:`, getErrorMessage(stripeError));
       }
     }
     
@@ -945,8 +945,8 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
         await hubspot.crm.contacts.basicApi.archive(visitor.hubspotId);
         hubspotArchived = true;
         deletionLog.push('hubspot_contact (archived)');
-      } catch (hubspotError: any) {
-        console.error(`[Visitors] Failed to archive HubSpot contact ${visitor.hubspotId}:`, hubspotError.message);
+      } catch (hubspotError: unknown) {
+        console.error(`[Visitors] Failed to archive HubSpot contact ${visitor.hubspotId}:`, getErrorMessage(hubspotError));
       }
     }
     

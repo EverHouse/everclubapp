@@ -221,7 +221,7 @@ router.post('/api/webhooks/resend', async (req: Request, res: Response) => {
     }
 
     res.status(200).json({ received: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Failed to process Resend webhook', {
       error,
       extra: { eventType: event.type }

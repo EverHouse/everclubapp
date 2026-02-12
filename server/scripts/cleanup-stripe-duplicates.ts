@@ -1,5 +1,6 @@
 import { pool } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
@@ -199,8 +200,8 @@ async function executeCleanup(): Promise<void> {
       if (deleted % 50 === 0) {
         console.log(`  Deleted ${deleted}/${result.safeToDelete.length}...`);
       }
-    } catch (err: any) {
-      console.error(`  Failed to delete ${customer.email}: ${err.message}`);
+    } catch (err: unknown) {
+      console.error(`  Failed to delete ${customer.email}: ${getErrorMessage(err)}`);
       failed++;
     }
   }

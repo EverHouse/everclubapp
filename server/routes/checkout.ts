@@ -172,7 +172,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
       sessionId: session.id,
       clientSecret: session.client_secret,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Checkout] Session creation error:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
@@ -197,7 +197,7 @@ router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, 
       status: session.status,
       paymentStatus: session.payment_status,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Checkout] Session retrieval error:', error);
     res.status(500).json({ error: 'Failed to retrieve session' });
   }

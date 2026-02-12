@@ -1,4 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import { getErrorMessage } from '../utils/errorUtils';
 import { Server, IncomingMessage } from 'http';
 import { parse as parseCookie } from 'cookie';
 import { Pool } from 'pg';
@@ -67,8 +68,8 @@ function getSessionPool(): Pool | null {
       max: 5
     });
     return sessionPool;
-  } catch (err: any) {
-    console.warn('[WebSocket] Failed to create session pool:', err.message);
+  } catch (err: unknown) {
+    console.warn('[WebSocket] Failed to create session pool:', getErrorMessage(err));
     return null;
   }
 }

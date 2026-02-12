@@ -1,4 +1,5 @@
 import { pool } from '../db';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface TierSyncResult {
   success: boolean;
@@ -49,9 +50,9 @@ export async function syncMemberTierFromStripe(
     }
     
     return { success: true, newTier: tierSlug, newTierId: tierId };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[TierSync] Error syncing tier:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -107,9 +108,9 @@ export async function syncMemberStatusFromStripe(
     }
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[TierSync] Error syncing status:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -130,7 +131,7 @@ export async function getTierFromPriceId(stripePriceId: string): Promise<{
     }
     
     return tierResult.rows[0];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[TierSync] Error getting tier from price ID:', error);
     return null;
   }
@@ -177,8 +178,8 @@ export async function validateTierConsistency(email: string): Promise<{
         ? 'Run syncMemberTierFromStripe with the subscription price ID to fix consistency'
         : undefined
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[TierSync] Error validating tier consistency:', error);
-    return { isConsistent: false, issues: [error.message] };
+    return { isConsistent: false, issues: [getErrorMessage(error) || 'Unknown error'] };
   }
 }

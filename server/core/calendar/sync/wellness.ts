@@ -1,4 +1,5 @@
 import { pool } from '../../db';
+import { getErrorMessage } from '../../../utils/errorUtils';
 import { getGoogleCalendarClient } from '../../integrations';
 import { db } from '../../../db';
 import { wellnessClasses } from '../../../../shared/models/auth';
@@ -395,14 +396,14 @@ export async function backfillWellnessToCalendar(): Promise<{ created: number; t
           await pool.query('UPDATE wellness_classes SET google_calendar_id = $1 WHERE id = $2', [googleCalendarId, wc.id]);
           created++;
         }
-      } catch (err: any) {
-        errors.push(`Class ${wc.id}: ${err.message}`);
+      } catch (err: unknown) {
+        errors.push(`Class ${wc.id}: ${getErrorMessage(err)}`);
       }
     }
     
     return { created, total: classesWithoutCalendarRows.length, errors };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error backfilling wellness to calendar:', error);
-    return { created: 0, total: 0, errors: [`Backfill failed: ${error.message}`] };
+    return { created: 0, total: 0, errors: [`Backfill failed: ${getErrorMessage(error)}`] };
   }
 }

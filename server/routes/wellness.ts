@@ -12,6 +12,7 @@ import { getAllActiveBayIds, getConferenceRoomId } from '../core/affectedAreas';
 import { sendNotificationToUser, broadcastToStaff, broadcastWaitlistUpdate } from '../core/websocket';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
+import { getErrorMessage } from '../utils/errorUtils';
 
 async function getMemberDisplayName(email: string): Promise<string> {
   try {
@@ -106,7 +107,7 @@ router.post('/api/wellness-classes/sync', isStaffOrAdmin, async (req, res) => {
       updated: result.updated,
       total: result.synced
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Wellness calendar sync error:', error);
     res.status(500).json({ error: 'Failed to sync wellness calendar events' });
   }
@@ -183,8 +184,8 @@ router.post('/api/wellness-classes/backfill-calendar', isStaffOrAdmin, async (re
             .where(eq(wellnessClasses.id, wc.id));
           created++;
         }
-      } catch (err: any) {
-        errors.push(`Class ${wc.id}: ${err.message}`);
+      } catch (err: unknown) {
+        errors.push(`Class ${wc.id}: ${getErrorMessage(err)}`);
       }
     }
     
@@ -194,7 +195,7 @@ router.post('/api/wellness-classes/backfill-calendar', isStaffOrAdmin, async (re
       total: classesWithoutCalendar.length,
       errors: errors.length > 0 ? errors : undefined
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Wellness calendar backfill error:', error);
     res.status(500).json({ error: 'Failed to backfill wellness calendar events' });
   }
@@ -209,7 +210,7 @@ router.get('/api/wellness-classes/needs-review', isStaffOrAdmin, async (req, res
        WHERE needs_review = true AND is_active = true
        ORDER BY date ASC, time ASC`);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Fetch needs review error:', error);
     res.status(500).json({ error: 'Failed to fetch wellness classes needing review' });
   }
@@ -300,7 +301,7 @@ router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (re
         ? `Also updated ${additionalUpdated} other instances of this recurring event` 
         : undefined 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Mark reviewed error:', error);
     res.status(500).json({ error: 'Failed to mark wellness class as reviewed' });
   }
@@ -351,7 +352,7 @@ router.get('/api/wellness-classes', async (req, res) => {
     
     const result = await db.execute(fullQuery);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch wellness classes' });
   }
@@ -422,7 +423,7 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
         startTime24,
         endTime24
       );
-    } catch (calError: any) {
+    } catch (calError: unknown) {
       if (!isProduction) console.error('Failed to create Google Calendar event for wellness class:', calError);
       return res.status(500).json({ error: 'Failed to create calendar event. Please try again.' });
     }
@@ -461,7 +462,7 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
     });
     
     res.status(201).json(createdClass);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to create wellness class' });
   }
@@ -799,7 +800,7 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to update wellness class' });
   }
@@ -879,7 +880,7 @@ router.get('/api/wellness-enrollments', async (req, res) => {
     .orderBy(wellnessClasses.date, wellnessClasses.time);
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Wellness enrollments error:', error);
     res.status(500).json({ error: 'Failed to fetch enrollments' });
   }
@@ -1007,7 +1008,7 @@ router.post('/api/wellness-enrollments', async (req, res) => {
     broadcastWaitlistUpdate({ classId: class_id, action: 'enrolled' });
     
     res.status(201).json({ ...result, isWaitlisted, message: isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Wellness enrollment error:', error);
     res.status(500).json({ error: 'Failed to enroll in class. Staff notification is required.' });
   }
@@ -1192,7 +1193,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
     });
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Wellness enrollment cancellation error:', error);
     res.status(500).json({ error: 'Failed to cancel enrollment. Staff notification is required.' });
   }
@@ -1238,7 +1239,7 @@ router.delete('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json({ message: 'Wellness class deleted', class: deletedClass });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to delete wellness class' });
   }
@@ -1266,7 +1267,7 @@ router.get('/api/wellness-classes/:id/enrollments', isStaffOrAdmin, async (req, 
     .orderBy(desc(wellnessEnrollments.createdAt));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch enrollments' });
   }
@@ -1310,7 +1311,7 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
     });
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Manual enrollment error:', error);
     res.status(500).json({ error: 'Failed to add enrollment' });
   }

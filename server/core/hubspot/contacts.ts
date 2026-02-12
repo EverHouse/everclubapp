@@ -1,4 +1,5 @@
 import { getHubSpotClient } from '../integrations';
+import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../../utils/errorUtils';
 import { isProduction } from '../db';
 import { retryableHubSpotRequest } from './request';
 
@@ -73,8 +74,8 @@ export async function syncSmsPreferencesToHubSpot(
 
     return { success: true };
 
-  } catch (error: any) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const errorMsg = getErrorMessage(error);
     console.error('[HubSpot SMS Sync] Error syncing SMS preferences:', error);
     return {
       success: false,
@@ -137,9 +138,9 @@ export async function syncDayPassPurchaseToHubSpot(
           console.log(`[DayPassHubSpot] Found existing contact ${contactId} for ${normalizedEmail}`);
         }
       }
-    } catch (error: any) {
-      const statusCode = error?.response?.statusCode || error?.status || error?.statusCode;
-      const errorMsg = error instanceof Error ? error.message : String(error);
+    } catch (error: unknown) {
+      const statusCode = getErrorStatusCode(error);
+      const errorMsg = getErrorMessage(error);
 
       // Only treat 404 as "not found", other errors should be thrown
       const isNotFoundError = statusCode === 404 || errorMsg.includes('not found');
@@ -187,8 +188,8 @@ export async function syncDayPassPurchaseToHubSpot(
         if (!isProduction) {
           console.log(`[DayPassHubSpot] Created new contact ${contactId} for ${normalizedEmail}`);
         }
-      } catch (createError: any) {
-        const statusCode = createError?.code || createError?.response?.statusCode || createError?.status;
+      } catch (createError: unknown) {
+        const statusCode = getErrorStatusCode(createError) || (getErrorCode(createError) ? Number(getErrorCode(createError)) : undefined);
 
         // Handle duplicate contact (409 Conflict)
         if (statusCode === 409) {
@@ -238,7 +239,7 @@ export async function syncDayPassPurchaseToHubSpot(
         if (!isProduction) {
           console.log(`[DayPassHubSpot] Added purchase note to contact ${contactId}`);
         }
-      } catch (noteError: any) {
+      } catch (noteError: unknown) {
         // Log error but don't fail the entire operation - contact was created successfully
         console.warn('[DayPassHubSpot] Failed to add purchase note to contact:', noteError);
       }
@@ -249,8 +250,8 @@ export async function syncDayPassPurchaseToHubSpot(
       contactId
     };
 
-  } catch (error: any) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+  } catch (error: unknown) {
+    const errorMsg = getErrorMessage(error);
     console.error('[DayPassHubSpot] Error syncing day pass purchase:', error);
     return {
       success: false,

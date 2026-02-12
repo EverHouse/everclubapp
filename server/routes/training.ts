@@ -731,7 +731,7 @@ router.get('/api/training-sections', isStaffOrAdmin, async (req, res) => {
       .from(trainingSections);
     
     res.json({ sections: result, lastUpdated: lastUpdated?.toISOString() ?? null });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Training sections fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch training sections' });
   }
@@ -755,7 +755,7 @@ router.post('/api/admin/training-sections', isAdmin, async (req, res) => {
     }).returning();
     
     res.status(201).json(newSection);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Training section creation error:', error);
     res.status(500).json({ error: 'Failed to create training section' });
   }
@@ -784,7 +784,7 @@ router.put('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
     }
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Training section update error:', error);
     res.status(500).json({ error: 'Failed to update training section' });
   }
@@ -803,7 +803,7 @@ router.delete('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
     }
     
     res.json({ success: true, deleted });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Training section deletion error:', error);
     res.status(500).json({ error: 'Failed to delete training section' });
   }
@@ -822,7 +822,7 @@ router.post('/api/admin/training-sections/seed', isAdmin, async (req, res) => {
       message: `Seeded ${insertedSections.length} training sections`,
       sections: insertedSections 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Training seed error:', error);
     res.status(500).json({ error: 'Failed to seed training sections' });
   }

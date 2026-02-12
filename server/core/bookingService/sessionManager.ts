@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { getErrorCode } from '../../utils/errorUtils';
 import { pool } from '../db';
 import { 
   bookingSessions, 
@@ -201,7 +202,7 @@ export async function ensureSessionForBooking(params: {
 
   try {
     return await attemptSessionCreation();
-  } catch (firstError: any) {
+  } catch (firstError: unknown) {
     if (client) {
       throw firstError;
     }
@@ -212,7 +213,7 @@ export async function ensureSessionForBooking(params: {
 
     try {
       return await attemptSessionCreation();
-    } catch (retryError: any) {
+    } catch (retryError: unknown) {
       const errorMsg = retryError.message || String(retryError);
       console.error('[ensureSessionForBooking] Retry also failed, flagging booking for staff review', retryError);
 
@@ -232,7 +233,7 @@ export async function ensureSessionForBooking(params: {
           .update(bookingRequests)
           .set({ staffNotes: updatedNotes })
           .where(eq(bookingRequests.id, params.bookingId));
-      } catch (noteError: any) {
+      } catch (noteError: unknown) {
         console.error('[ensureSessionForBooking] Failed to write staff note on booking', noteError);
       }
 
@@ -379,10 +380,10 @@ export async function recordUsage(
     });
     
     return { success: true, alreadyRecorded: false };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle PostgreSQL unique constraint violation (23505) as a fallback
     // This handles race conditions where two concurrent requests pass the existence check
-    if (error.code === '23505') {
+    if (getErrorCode(error) === '23505') {
       logger.info(`[UsageLedger] Duplicate entry prevented for session ${sessionId} (constraint violation)`, {
         extra: { sessionId, memberId: input.memberId, source }
       });

@@ -14,6 +14,7 @@ import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/
 import { updateVisitorTypeByUserId } from '../../core/visitors';
 import { PRICING } from '../../core/billing/pricingConfig';
 import { refundGuestPassForParticipant } from '../../core/billing/guestPassConsumer';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -101,7 +102,7 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
     });
 
     res.json({ data, totalCount });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching needs-players bookings:', error);
     res.status(500).json({ error: 'Failed to fetch needs-players bookings' });
   }
@@ -234,7 +235,7 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
       page: Math.floor(offsetNum / limitNum) + 1,
       totalPages: Math.ceil(totalCount / limitNum)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching unmatched bookings:', error);
     res.status(500).json({ error: 'Failed to fetch unmatched bookings' });
   }
@@ -291,8 +292,8 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
            WHERE id = ${row.booking_id}`);
         
         resolvedCount++;
-      } catch (err: any) {
-        errors.push(`Booking ${row.trackman_booking_id}: ${err.message}`);
+      } catch (err: unknown) {
+        errors.push(`Booking ${row.trackman_booking_id}: ${getErrorMessage(err)}`);
       }
     }
     
@@ -314,7 +315,7 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
       resolved: resolvedCount,
       errors: errors.length > 0 ? errors : undefined
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error auto-resolving matchable bookings:', error);
     res.status(500).json({ error: 'Failed to auto-resolve matchable bookings' });
   }
@@ -364,7 +365,7 @@ router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async 
       message: `Dismissed ${dismissedCount} booking(s) as ${dismissReason}`,
       dismissed: dismissedCount
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error bulk dismissing bookings:', error);
     res.status(500).json({ error: 'Failed to dismiss bookings' });
   }
@@ -534,8 +535,8 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                        updated_at = NOW()
                    WHERE id = ${otherBooking.id}`);
                 autoResolvedCount++;
-              } catch (autoErr: any) {
-                console.error(`[Email Learning] Failed to auto-resolve booking ${otherBooking.id}:`, autoErr.message);
+              } catch (autoErr: unknown) {
+                console.error(`[Email Learning] Failed to auto-resolve booking ${otherBooking.id}:`, getErrorMessage(autoErr));
               }
             }
             
@@ -546,8 +547,8 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
               emailLearningMessage = ` Email ${originalEmailForLearning} learned for future auto-matching.`;
             }
           }
-        } catch (linkError: any) {
-          console.error('[Email Learning] Failed to save email link:', linkError.message);
+        } catch (linkError: unknown) {
+          console.error('[Email Learning] Failed to save email link:', getErrorMessage(linkError));
         }
       }
     }
@@ -695,7 +696,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             overageFeeCents: 0
           });
         }
-      } catch (billingError: any) {
+      } catch (billingError: unknown) {
         console.error('[Trackman Resolve] Billing error for visitor:', billingError);
         billingMessage = ' (Billing setup failed - manual follow-up needed)';
       }
@@ -755,7 +756,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             }
           }
         }
-      } catch (sessionError: any) {
+      } catch (sessionError: unknown) {
         console.error('[Trackman Resolve] Session creation error for member:', sessionError);
         billingMessage += ' (Session setup may need manual review)';
       }
@@ -780,7 +781,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       message: `Booking linked to ${member.first_name} ${member.last_name}${billingMessage}${emailLearningMessage}`,
       emailLearned: emailLearningMessage.length > 0 ? originalEmailForLearning : null
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error resolving unmatched booking:', error);
     const errorMessage = error?.message || 'Unknown error';
     if (errorMessage.includes('Stripe') || errorMessage.includes('stripe')) {
@@ -848,8 +849,8 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
                  WHERE id = ${booking.id}`);
             }
             bookingRequestsResolved++;
-          } catch (err: any) {
-            console.error(`[Auto-resolve] Failed to resolve booking ${booking.id}:`, err.message);
+          } catch (err: unknown) {
+            console.error(`[Auto-resolve] Failed to resolve booking ${booking.id}:`, getErrorMessage(err));
           }
         }
         
@@ -921,8 +922,8 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
         await db.execute(sql`UPDATE trackman_unmatched_bookings SET resolved_at = NOW(), resolved_email = ${member.email}, resolved_by = ${staffEmail} WHERE id = ${booking.id}`);
         
         autoResolved++;
-      } catch (bookingErr: any) {
-        errors.push(`Booking ${booking.id}: ${bookingErr.message}`);
+      } catch (bookingErr: unknown) {
+        errors.push(`Booking ${booking.id}: ${getErrorMessage(bookingErr)}`);
       }
     }
     
@@ -944,9 +945,9 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
         ? `Auto-resolved ${totalResolved} additional booking(s) with same email`
         : 'No additional bookings to auto-resolve'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error auto-resolving bookings:', error);
-    res.status(500).json({ error: error.message || 'Failed to auto-resolve bookings' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to auto-resolve bookings' });
   }
 });
 
@@ -975,7 +976,7 @@ router.delete('/api/admin/trackman/linked-email', isStaffOrAdmin, async (req, re
       success: true, 
       manuallyLinkedEmails: result.rows[0].manually_linked_emails || []
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Remove linked email error:', error);
     res.status(500).json({ error: 'Failed to remove linked email' });
   }
@@ -1090,7 +1091,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json({ data, totalCount });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch matched bookings error:', error);
     res.status(500).json({ error: 'Failed to fetch matched bookings' });
   }
@@ -1238,7 +1239,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       newEmail: newMemberEmail.toLowerCase(),
       placeholderEmail
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('Reassign matched booking error:', error);
     res.status(500).json({ error: 'Failed to reassign booking' });
@@ -1319,7 +1320,7 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
         ? `Unmatched ${affectedCount} booking(s) for ${normalizedEmail}`
         : 'No bookings found to unmatch'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unmatch member error:', error);
     res.status(500).json({ error: 'Failed to unmatch member bookings' });
   }
@@ -1913,7 +1914,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         allPaid
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get booking members error:', error);
     res.status(500).json({ error: 'Failed to get booking members' });
   }
@@ -1976,7 +1977,7 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
       guest: insertResult.rows[0],
       guestPassesRemaining
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Add guest error:', error);
     res.status(500).json({ error: 'Failed to add guest' });
   }
@@ -2072,7 +2073,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
       success: true,
       message: `Guest ${guestDisplayName} removed successfully`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Remove guest error:', error);
     res.status(500).json({ error: 'Failed to remove guest' });
   }
@@ -2187,7 +2188,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       success: true, 
       message: `Member ${memberEmail} linked to slot` 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Link member error:', error);
     res.status(500).json({ error: 'Failed to link member to slot' });
   }
@@ -2246,7 +2247,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
       success: true, 
       message: `Member ${memberEmail} unlinked from slot` 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unlink member error:', error);
     res.status(500).json({ error: 'Failed to unlink member from slot' });
   }
@@ -2339,7 +2340,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, async (req, 
     const totalCount = potentialMatches.length;
     
     res.json({ data: potentialMatches, totalCount });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch potential-matches error:', error);
     res.status(500).json({ error: 'Failed to fetch potential matches' });
   }
@@ -2421,10 +2422,10 @@ router.delete('/api/admin/trackman/reset-data', isStaffOrAdmin, async (req, res)
         unmatched: parseInt(unmatchedCount.rows[0].count)
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('Trackman reset error:', error);
-    res.status(500).json({ error: 'Failed to reset Trackman data: ' + error.message });
+    res.status(500).json({ error: 'Failed to reset Trackman data: ' + getErrorMessage(error) });
   } finally {
     client.release();
   }
@@ -2499,7 +2500,7 @@ router.get('/api/admin/trackman/fuzzy-matches/:id', isStaffOrAdmin, async (req, 
       matches: formattedSuggestions,
       requiresReview: (unmatched.match_attempt_reason || '').includes('REQUIRES_REVIEW')
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fuzzy match error:', error);
     res.status(500).json({ error: 'Failed to find fuzzy matches' });
   }
@@ -2546,7 +2547,7 @@ router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, async (req, re
       data: result.rows,
       totalCount: parseInt(countResult.rows[0].total)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch requires-review error:', error);
     res.status(500).json({ error: 'Failed to fetch bookings requiring review' });
   }
@@ -2610,7 +2611,7 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
       })),
       message: `Found ${totalCount} booking(s) without sessions that can be backfilled`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Backfill Preview] Error:', error);
     res.status(500).json({ error: 'Failed to preview backfill candidates' });
   }
@@ -2708,7 +2709,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         } else {
           sessionsLinked++;
         }
-      } catch (bookingError: any) {
+      } catch (bookingError: unknown) {
         // Rollback to savepoint so we can continue with next booking
         try {
           await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
@@ -2717,10 +2718,10 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
           console.error(`[Backfill] Failed to rollback savepoint for booking ${booking.id}`);
         }
         
-        console.error(`[Backfill] Error processing booking ${booking.id}:`, bookingError.message || bookingError);
+        console.error(`[Backfill] Error processing booking ${booking.id}:`, getErrorMessage(bookingError) || bookingError);
         errors.push({
           bookingId: booking.id,
-          error: bookingError.message || 'Unknown error'
+          error: getErrorMessage(bookingError) || 'Unknown error'
         });
       }
     }
@@ -2756,17 +2757,17 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
       errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
       message
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('[Backfill Sessions] Error:', error);
     
     // Log the failed attempt
     logFromRequest(req, 'bulk_action', 'booking', undefined, 'Session Backfill Failed', {
       action: 'backfill_sessions',
-      error: error.message
+      error: getErrorMessage(error)
     });
     
-    res.status(500).json({ error: 'Failed to backfill sessions: ' + (error.message || 'Unknown error') });
+    res.status(500).json({ error: 'Failed to backfill sessions: ' + (getErrorMessage(error) || 'Unknown error') });
   } finally {
     client.release();
   }
@@ -2800,7 +2801,7 @@ router.get('/api/admin/trackman/duplicate-bookings', isStaffOrAdmin, async (req,
         emails: row.emails
       }))
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Trackman Duplicates] Error:', error);
     res.status(500).json({ error: 'Failed to check for duplicates' });
   }
@@ -2882,10 +2883,10 @@ router.post('/api/admin/trackman/cleanup-duplicates', isStaffOrAdmin, async (req
       bookingIds: idsToDelete,
       message: `Successfully deleted ${idsToDelete.length} duplicate booking(s)`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('[Trackman Cleanup Duplicates] Error:', error);
-    res.status(500).json({ error: 'Failed to cleanup duplicates: ' + (error.message || 'Unknown error') });
+    res.status(500).json({ error: 'Failed to cleanup duplicates: ' + (getErrorMessage(error) || 'Unknown error') });
   } finally {
     client.release();
   }
@@ -2924,10 +2925,10 @@ router.post('/api/admin/trackman/auto-match-visitors', isStaffOrAdmin, async (re
       results: results.results.slice(0, 50), // Limit response size
       message: `Auto-matched ${results.matched} booking(s), ${results.failed} could not be matched`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Trackman Auto-Match] Error:', error);
     res.status(500).json({ 
-      error: 'Failed to auto-match visitors: ' + (error.message || 'Unknown error') 
+      error: 'Failed to auto-match visitors: ' + (getErrorMessage(error) || 'Unknown error') 
     });
   }
 });
@@ -3040,8 +3041,8 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
           try {
             const stripe = getStripeClient();
             await stripe.paymentIntents.cancel(intent.stripe_payment_intent_id);
-          } catch (err: any) {
-            log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${err.message}`);
+          } catch (err: unknown) {
+            log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${getErrorMessage(err)}`);
           }
         }
 
@@ -3130,10 +3131,10 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
       resolvedUnmatched,
       logs
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Lesson Cleanup] Error:', error);
     res.status(500).json({ 
-      error: 'Failed to cleanup lessons: ' + (error.message || 'Unknown error') 
+      error: 'Failed to cleanup lessons: ' + (getErrorMessage(error) || 'Unknown error') 
     });
   }
 });

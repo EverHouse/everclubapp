@@ -6,6 +6,7 @@ import { users } from '../../shared/models/auth-session';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import { normalizeEmail } from '../core/utils/emailNormalization';
 import { logMemberAction } from '../core/auditLog';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -129,9 +130,9 @@ router.post('/api/auth/google/verify', async (req, res) => {
       }
       res.json({ success: true, member });
     });
-  } catch (error: any) {
-    console.error('[Google Auth] Verify error:', error.message);
-    if (error.message?.includes('Token used too late') || error.message?.includes('Invalid token')) {
+  } catch (error: unknown) {
+    console.error('[Google Auth] Verify error:', getErrorMessage(error));
+    if (getErrorMessage(error)?.includes('Token used too late') || getErrorMessage(error)?.includes('Invalid token')) {
       return res.status(401).json({ error: 'Google sign-in expired. Please try again.' });
     }
     res.status(500).json({ error: 'Failed to verify Google sign-in' });
@@ -181,8 +182,8 @@ router.post('/api/auth/google/link', async (req, res) => {
     });
 
     res.json({ success: true, googleEmail: googleUser.email });
-  } catch (error: any) {
-    console.error('[Google Auth] Link error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Google Auth] Link error:', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to link Google account' });
   }
 });
@@ -214,8 +215,8 @@ router.post('/api/auth/google/unlink', async (req, res) => {
     });
 
     res.json({ success: true });
-  } catch (error: any) {
-    console.error('[Google Auth] Unlink error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Google Auth] Unlink error:', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to unlink Google account' });
   }
 });
@@ -246,8 +247,8 @@ router.get('/api/auth/google/status', async (req, res) => {
       googleEmail: googleEmail || null,
       linkedAt: googleLinkedAt ? googleLinkedAt.toISOString() : null,
     });
-  } catch (error: any) {
-    console.error('[Google Auth] Status error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Google Auth] Status error:', getErrorMessage(error));
     res.status(500).json({ error: 'Failed to check Google link status' });
   }
 });

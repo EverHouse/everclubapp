@@ -178,7 +178,7 @@ router.get('/api/recent-activity', isStaffOrAdmin, async (req, res) => {
     activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     res.json(activities.slice(0, 20));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch recent activity', error);
   }
 });

@@ -30,7 +30,7 @@ router.get('/api/admin/trackman/reconciliation', isStaffOrAdmin, async (req, res
       stats: result.stats,
       totalCount: result.totalCount
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch reconciliation discrepancies error:', error);
     res.status(500).json({ error: 'Failed to fetch attendance discrepancies' });
   }
@@ -40,7 +40,7 @@ router.get('/api/admin/trackman/reconciliation/summary', isStaffOrAdmin, async (
   try {
     const summary = await getReconciliationSummary();
     res.json(summary);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fetch reconciliation summary error:', error);
     res.status(500).json({ error: 'Failed to fetch reconciliation summary' });
   }
@@ -96,7 +96,7 @@ router.put('/api/admin/trackman/reconciliation/:id', isStaffOrAdmin, async (req,
     }
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Update reconciliation error:', error);
     res.status(500).json({ error: 'Failed to update reconciliation status' });
   }

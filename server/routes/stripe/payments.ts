@@ -680,8 +680,8 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
             }
             console.log(`[QuickCharge] Linked Stripe customer ${stripeCustomerId} to existing user: ${memberEmail}`);
           }
-        } catch (visitorErr: any) {
-          console.warn('[QuickCharge] Could not create visitor record (non-blocking):', visitorErr.message);
+        } catch (visitorErr: unknown) {
+          console.warn('[QuickCharge] Could not create visitor record (non-blocking):', getErrorMessage(visitorErr));
         }
       }
       
@@ -721,8 +721,8 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
         }
         
         console.log(`[Stripe] Quick charge with product: ${productId} (${product.name})`);
-      } catch (productError: any) {
-        console.error(`[Stripe] Warning: Could not retrieve product ${productId}:`, productError.message);
+      } catch (productError: unknown) {
+        console.error(`[Stripe] Warning: Could not retrieve product ${productId}:`, getErrorMessage(productError));
         return res.status(400).json({ error: `Product ${productId} not found in Stripe` });
       }
     }
@@ -754,8 +754,8 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
              ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
             [dbUserId, invoiceResult.paymentIntentId, stripeCustomerId, Math.round(numericAmount), 'one_time_purchase', finalDescription, 'pending', productId || null, finalProductName || null]
           );
-        } catch (dbErr: any) {
-          console.warn('[QuickCharge] Non-blocking: Could not save local payment record:', dbErr.message);
+        } catch (dbErr: unknown) {
+          console.warn('[QuickCharge] Non-blocking: Could not save local payment record:', getErrorMessage(dbErr));
         }
 
         logFromRequest(req, 'initiate_charge', 'payment', invoiceResult.paymentIntentId, customerEmail, {
@@ -772,8 +772,8 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
           clientSecret: invoiceResult.clientSecret,
           paymentIntentId: invoiceResult.paymentIntentId
         });
-      } catch (invoiceErr: any) {
-        console.error('[QuickCharge] Invoice creation failed, falling back to bare PI:', invoiceErr.message);
+      } catch (invoiceErr: unknown) {
+        console.error('[QuickCharge] Invoice creation failed, falling back to bare PI:', getErrorMessage(invoiceErr));
       }
     }
 
@@ -1358,8 +1358,8 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
             error: `Payment not completed (status: ${paymentIntent.status}). Try Online Card instead.`
           });
         }
-      } catch (invoiceErr: any) {
-        console.error('[Stripe] Invoice creation failed for saved card POS, falling back to bare PI:', invoiceErr.message);
+      } catch (invoiceErr: unknown) {
+        console.error('[Stripe] Invoice creation failed for saved card POS, falling back to bare PI:', getErrorMessage(invoiceErr));
       }
     }
 
@@ -2038,8 +2038,8 @@ router.post('/api/payments/cancel', isStaffOrAdmin, async (req: Request, res: Re
 
     try {
       await stripe.paymentIntents.cancel(paymentIntentId);
-    } catch (stripeError: any) {
-      if (stripeError.code !== 'payment_intent_unexpected_state') {
+    } catch (stripeError: unknown) {
+      if (getErrorCode(stripeError) !== 'payment_intent_unexpected_state') {
         throw stripeError;
       }
     }

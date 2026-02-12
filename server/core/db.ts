@@ -1,4 +1,5 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
 export const isProduction = process.env.NODE_ENV === 'production';
 
@@ -34,16 +35,18 @@ const RETRYABLE_ERRORS = [
   'sorry, too many clients already',
 ];
 
-function isRetryableError(error: any): boolean {
+function isRetryableError(error: unknown): boolean {
   if (!error) return false;
-  const message = error.message || '';
-  const code = error.code || '';
+  const message = getErrorMessage(error);
+  const code = getErrorCode(error);
   return RETRYABLE_ERRORS.some(e => message.includes(e) || code === e);
 }
 
-export function isConstraintError(error: any): { type: 'unique' | 'foreign_key' | null, detail?: string } {
-  if (error?.code === '23505') return { type: 'unique', detail: error.detail };
-  if (error?.code === '23503') return { type: 'foreign_key', detail: error.detail };
+export function isConstraintError(error: unknown): { type: 'unique' | 'foreign_key' | null, detail?: string } {
+  const code = getErrorCode(error);
+  const detail = error instanceof Error ? (error as any).detail : undefined;
+  if (code === '23505') return { type: 'unique', detail };
+  if (code === '23503') return { type: 'foreign_key', detail };
   return { type: null };
 }
 
@@ -57,7 +60,7 @@ export async function queryWithRetry<T = any>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await pool.query(queryText, params);
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
       
       if (!isRetryableError(error) || attempt === maxRetries) {

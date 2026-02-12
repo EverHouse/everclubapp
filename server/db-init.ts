@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
+import { getErrorMessage } from './utils/errorUtils';
 
 export async function setupEmailNormalization(): Promise<void> {
   try {
@@ -42,14 +43,14 @@ export async function setupEmailNormalization(): Promise<void> {
           FOR EACH ROW
           EXECUTE FUNCTION normalize_email();
         `);
-      } catch (err: any) {
-        console.warn(`[DB Init] Skipping email trigger on ${table}: ${err.message}`);
+      } catch (err: unknown) {
+        console.warn(`[DB Init] Skipping email trigger on ${table}: ${getErrorMessage(err)}`);
       }
     }
 
     console.log('[DB Init] Email normalization triggers created');
-  } catch (error: any) {
-    console.error('[DB Init] Failed to create email normalization triggers:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to create email normalization triggers:', getErrorMessage(error));
   }
 }
 
@@ -86,8 +87,8 @@ export async function normalizeExistingEmails(): Promise<{ updated: number }> {
     totalUpdated += pushResult.rowCount || 0;
 
     console.log(`[DB Init] Normalized ${totalUpdated} email records`);
-  } catch (error: any) {
-    console.error('[DB Init] Failed to normalize existing emails:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to normalize existing emails:', getErrorMessage(error));
   }
   
   return { updated: totalUpdated };
@@ -118,8 +119,8 @@ export async function cleanupOrphanedRecords(): Promise<{ notifications: number;
     `);
     oldBookingsArchived = bookingResult.rowCount || 0;
     console.log(`[DB Init] Marked ${oldBookingsArchived} orphaned old booking records`);
-  } catch (error: any) {
-    console.error('[DB Init] Failed to cleanup orphaned records:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to cleanup orphaned records:', getErrorMessage(error));
   }
   
   return { notifications: notificationsDeleted, oldBookings: oldBookingsArchived };
@@ -155,8 +156,8 @@ export async function createStripeTransactionCache(): Promise<void> {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_stripe_cache_object_type ON stripe_transaction_cache(object_type)`);
     
     console.log('[DB Init] stripe_transaction_cache table created/verified');
-  } catch (error: any) {
-    console.error('[DB Init] Failed to create stripe_transaction_cache:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to create stripe_transaction_cache:', getErrorMessage(error));
   }
 }
 
@@ -173,8 +174,8 @@ export async function seedDefaultNoticeTypes() {
       ON CONFLICT (name) DO NOTHING
     `);
     console.log('[DB Init] Default notice types seeded');
-  } catch (error: any) {
-    console.error('[DB Init] Failed to seed notice types:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to seed notice types:', getErrorMessage(error));
   }
 }
 
@@ -266,8 +267,8 @@ export async function ensureDatabaseConstraints() {
         EXECUTE FUNCTION prevent_booking_session_overlap();
       `);
       console.log('[DB Init] Double-booking prevention trigger created/verified');
-    } catch (err: any) {
-      console.warn(`[DB Init] Skipping overlap trigger: ${err.message}`);
+    } catch (err: unknown) {
+      console.warn(`[DB Init] Skipping overlap trigger: ${getErrorMessage(err)}`);
     }
     
     const indexQueries = [
@@ -284,14 +285,14 @@ export async function ensureDatabaseConstraints() {
     for (const { name, query } of indexQueries) {
       try {
         await db.execute(query);
-      } catch (err: any) {
-        console.warn(`[DB Init] Skipping index ${name}: ${err.message}`);
+      } catch (err: unknown) {
+        console.warn(`[DB Init] Skipping index ${name}: ${getErrorMessage(err)}`);
       }
     }
     
     console.log('[DB Init] Performance indexes processed');
-  } catch (error: any) {
-    console.error('[DB Init] Failed to ensure constraints:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to ensure constraints:', getErrorMessage(error));
   }
 }
 
@@ -344,7 +345,7 @@ export async function seedTierFeatures(): Promise<void> {
     }
 
     console.log(`[DB Init] Seeded ${features.length} tier features with values for ${tierIds.length} tiers`);
-  } catch (error: any) {
-    console.error('[DB Init] Failed to seed tier features:', error.message);
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to seed tier features:', getErrorMessage(error));
   }
 }

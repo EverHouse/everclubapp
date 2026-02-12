@@ -1,6 +1,7 @@
 import { processHubSpotQueue, getQueueStats, recoverStuckProcessingJobs } from '../core/hubspot';
 import { logger } from '../core/logger';
 import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const PROCESS_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 let isProcessing = false;
@@ -36,7 +37,7 @@ async function processQueue(): Promise<void> {
       });
     }
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[HubSpot Queue] Scheduler error', { error });
     try {
       await alertOnScheduledTaskFailure('HubSpot Queue Processor', error);

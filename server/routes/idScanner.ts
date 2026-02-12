@@ -105,7 +105,7 @@ Even if quality is poor, still attempt to extract whatever information is visibl
       data,
       quality
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('ID scan error:', error);
     res.status(500).json({ error: 'Failed to scan ID document' });
   }
@@ -148,7 +148,7 @@ router.post('/api/admin/save-id-image', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'save_id_image', 'member', userId, undefined, { imageUrl: publicUrl });
 
     res.json({ success: true, imageUrl: publicUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Save ID image error:', error);
     res.status(500).json({ error: 'Failed to save ID image' });
   }
@@ -165,7 +165,7 @@ router.get('/api/admin/member/:userId/id-image', isStaffOrAdmin, async (req, res
     }
 
     res.json({ idImageUrl: result[0].idImageUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get ID image error:', error);
     res.status(500).json({ error: 'Failed to get ID image' });
   }
@@ -180,7 +180,7 @@ router.delete('/api/admin/member/:userId/id-image', isStaffOrAdmin, async (req, 
     logFromRequest(req, 'delete_id_image', 'member', userId);
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Delete ID image error:', error);
     res.status(500).json({ error: 'Failed to delete ID image' });
   }

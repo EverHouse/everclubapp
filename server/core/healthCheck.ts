@@ -1,4 +1,5 @@
 import { pool } from './db';
+import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from './logger';
 import { getStripeClient } from './stripe/client';
 import { getHubSpotPrivateAppClient, getGoogleCalendarClient } from './integrations';
@@ -35,11 +36,11 @@ async function checkWithTimeout<T>(
       )
     ]);
     return { result, latencyMs: Date.now() - start };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       result: null,
       latencyMs: Date.now() - start,
-      error: error.message || 'Unknown error'
+      error: getErrorMessage(error) || 'Unknown error'
     };
   }
 }
@@ -96,10 +97,10 @@ async function checkStripe(): Promise<ServiceHealth> {
       latencyMs,
       lastChecked: new Date().toISOString()
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       status: 'unhealthy',
-      message: error.message,
+      message: getErrorMessage(error),
       lastChecked: new Date().toISOString()
     };
   }
@@ -135,10 +136,10 @@ async function checkHubSpot(): Promise<ServiceHealth> {
       latencyMs,
       lastChecked: new Date().toISOString()
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       status: 'unhealthy',
-      message: error.message,
+      message: getErrorMessage(error),
       lastChecked: new Date().toISOString()
     };
   }
@@ -183,10 +184,10 @@ async function checkResend(): Promise<ServiceHealth> {
       latencyMs,
       lastChecked: new Date().toISOString()
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       status: 'unhealthy',
-      message: error.message,
+      message: getErrorMessage(error),
       lastChecked: new Date().toISOString()
     };
   }
@@ -223,10 +224,10 @@ async function checkGoogleCalendar(): Promise<ServiceHealth> {
       latencyMs,
       lastChecked: new Date().toISOString()
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       status: 'unhealthy',
-      message: error.message,
+      message: getErrorMessage(error),
       lastChecked: new Date().toISOString()
     };
   }

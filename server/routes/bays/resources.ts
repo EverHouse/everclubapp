@@ -18,7 +18,7 @@ router.get('/api/bays', async (req, res) => {
       createdAt: resources.createdAt
     }).from(resources).where(eq(resources.type, 'simulator')).orderBy(asc(resources.name));
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch bays', error);
   }
 });
@@ -99,7 +99,7 @@ router.get('/api/bays/:bayId/availability', async (req, res) => {
       bookings: bookingsResult,
       blocks: [...blocksResult, ...calendarBlocks]
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch availability', error);
   }
 });

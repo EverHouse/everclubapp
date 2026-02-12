@@ -14,6 +14,7 @@ import * as path from 'path';
 import pRetry, { AbortError } from 'p-retry';
 import { broadcastDirectoryUpdate } from '../core/websocket';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
+import { getErrorMessage } from '../utils/errorUtils';
 
 /**
  * Cutoff date for HubSpot batch import.
@@ -199,7 +200,7 @@ let backgroundRefreshInProgress = false;
  * Check if an error is a HubSpot rate limit error (429)
  */
 function isRateLimitError(error: any): boolean {
-  const errorMsg = error instanceof Error ? error.message : String(error);
+  const errorMsg = error instanceof Error ? getErrorMessage(error) : String(error);
   // HubSpot SDK might wrap errors, so check status code if available
   const statusCode = error?.response?.statusCode || error?.status || error?.code;
   
@@ -219,7 +220,7 @@ async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<T> {
     async () => {
       try {
         return await fn();
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (isRateLimitError(error)) {
           if (!isProduction) console.warn('HubSpot Rate Limit hit, retrying...');
           throw error; // Trigger p-retry
@@ -701,7 +702,7 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
       createdAt: contact.properties.createdate,
       joinDate: normalizeDateToYYYYMMDD(contact.properties.createdate) || null
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Request failed' });
   }
@@ -853,12 +854,12 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
           url: '/admin/inquiries'
         }
       ).catch(err => console.error('Staff inquiry notification failed:', err));
-    } catch (dbError: any) {
+    } catch (dbError: unknown) {
       console.error('Failed to save form submission locally:', dbError);
     }
     
     res.json({ success: true, message: result.inlineMessage || 'Form submitted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('HubSpot form submission error:', error);
     res.status(500).json({ error: 'Form submission failed' });
   }
@@ -1009,8 +1010,8 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
           );
           results.updated += batch.length;
           console.log(`[Tier Sync] Updated batch ${Math.floor(i / batchSize) + 1}: ${batch.length} contacts`);
-        } catch (err: any) {
-          results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${err.message}`);
+        } catch (err: unknown) {
+          results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
           console.error(`[Tier Sync] Batch update error:`, err);
         }
       }
@@ -1038,9 +1039,9 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
       errors: results.errors,
       updates: results.updates.slice(0, 50) // Limit preview to first 50
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Tier Sync] Error:', error);
-    res.status(500).json({ error: 'Tier sync failed: ' + error.message });
+    res.status(500).json({ error: 'Tier sync failed: ' + getErrorMessage(error) });
   }
 });
 
@@ -1140,9 +1141,9 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
       newTier: tier,
       updatedBy: staffUser?.name || 'Unknown'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[Tier Update] Error updating contact ${id}:`, error);
-    res.status(500).json({ error: 'Failed to update tier: ' + error.message });
+    res.status(500).json({ error: 'Failed to update tier: ' + getErrorMessage(error) });
   }
 });
 
@@ -1254,8 +1255,8 @@ router.post('/webhooks', async (req, res) => {
                 }
               }
             }
-          } catch (updateError: any) {
-            console.error(`[HubSpot Webhook] Failed to update DB for contact ${objectId}:`, updateError.message);
+          } catch (updateError: unknown) {
+            console.error(`[HubSpot Webhook] Failed to update DB for contact ${objectId}:`, getErrorMessage(updateError));
           }
         }
       } else if (subscriptionType === 'deal.propertyChange') {
@@ -1342,8 +1343,8 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
           );
           results.updated += batch.length;
           console.log(`[DB Tier Push] Updated batch ${Math.floor(i / batchSize) + 1}: ${batch.length} contacts`);
-        } catch (err: any) {
-          results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${err.message}`);
+        } catch (err: unknown) {
+          results.errors.push(`Batch ${Math.floor(i / batchSize) + 1} failed: ${getErrorMessage(err)}`);
           console.error(`[DB Tier Push] Batch update error:`, err);
         }
         
@@ -1368,9 +1369,9 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
       errors: results.errors,
       sampleUpdates: results.updates.slice(0, 20)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DB Tier Push] Error:', error);
-    res.status(500).json({ error: 'DB tier push failed: ' + error.message });
+    res.status(500).json({ error: 'DB tier push failed: ' + getErrorMessage(error) });
   }
 });
 
@@ -1444,14 +1445,14 @@ router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, r
             result: `skipped: ${syncResult.error}`
           });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         results.errors++;
         results.details.push({
           email,
           status,
           billingProvider,
           tier: tier || 'none',
-          result: `error: ${err.message}`
+          result: `error: ${getErrorMessage(err)}`
         });
       }
       
@@ -1469,9 +1470,9 @@ router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, r
       errors: results.errors,
       sampleDetails: results.details.slice(0, 50)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpot Sync] Error syncing billing providers:', error);
-    res.status(500).json({ error: 'Sync failed: ' + error.message });
+    res.status(500).json({ error: 'Sync failed: ' + getErrorMessage(error) });
   }
 });
 
@@ -1501,7 +1502,7 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
     }));
     
     res.json({ products, count: products.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const statusCode = error?.response?.statusCode || error?.status || error?.code;
     const category = error?.response?.body?.category || error?.body?.category;
     if (statusCode === 403 || category === 'MISSING_SCOPES') {
@@ -1517,7 +1518,7 @@ router.post('/api/admin/hubspot/sync-form-submissions', isStaffOrAdmin, async (r
     const { syncHubSpotFormSubmissions } = await import('../core/hubspot/formSync');
     const result = await syncHubSpotFormSubmissions();
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[HubSpot FormSync] Manual sync error:', error);
     res.status(500).json({ error: 'Failed to sync form submissions' });
   }

@@ -1,5 +1,6 @@
 import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const BILLING_EMAILS_DISABLED = true;
 
@@ -414,9 +415,9 @@ export async function sendPaymentReceiptEmail(
     
     console.log(`[Payment Receipt Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Payment Receipt Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Payment Receipt Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -440,9 +441,9 @@ export async function sendPaymentFailedEmail(
     
     console.log(`[Payment Failed Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Payment Failed Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Payment Failed Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -466,9 +467,9 @@ export async function sendOutstandingBalanceEmail(
     
     console.log(`[Outstanding Balance Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Outstanding Balance Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Outstanding Balance Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -492,9 +493,9 @@ export async function sendFeeWaivedEmail(
     
     console.log(`[Fee Waived Email] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Fee Waived Email] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Fee Waived Email] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -625,8 +626,8 @@ export async function sendPurchaseReceipt(
 
     console.log(`[Purchase Receipt] Sent successfully to ${email}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Purchase Receipt] Failed to send to ${email}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Purchase Receipt] Failed to send to ${email}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }

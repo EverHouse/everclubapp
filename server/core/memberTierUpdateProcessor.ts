@@ -136,7 +136,7 @@ export async function processMemberTierUpdate(payload: MemberTierUpdatePayload):
     console.log(
       `[MemberTierUpdateProcessor] Successfully updated ${normalizedEmail}: ${oldTier || 'None'} → ${newTier}`
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[MemberTierUpdateProcessor] Error updating tier for ${normalizedEmail}:`,
       error

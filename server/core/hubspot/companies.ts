@@ -1,4 +1,5 @@
 import { getHubSpotClient } from '../integrations';
+import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../../utils/errorUtils';
 import { isProduction } from '../db';
 import { retryableHubSpotRequest } from './request';
 
@@ -70,9 +71,9 @@ export async function syncCompanyToHubSpot(
             console.log(`[CompanyHubSpot] Found existing company ${companyId} for "${companyName}" or domain "${domain}"`);
           }
         }
-      } catch (error: any) {
-        const statusCode = error?.response?.statusCode || error?.status || error?.statusCode;
-        const errorMsg = error instanceof Error ? error.message : String(error);
+      } catch (error: unknown) {
+        const statusCode = getErrorStatusCode(error);
+        const errorMsg = getErrorMessage(error);
         const isNotFoundError = statusCode === 404 || errorMsg.includes('not found');
 
         if (!isNotFoundError) {
@@ -113,9 +114,9 @@ export async function syncCompanyToHubSpot(
         if (!isProduction) {
           console.log(`[CompanyHubSpot] Created new company ${companyId} for "${companyName}"`);
         }
-      } catch (createError: any) {
-        const statusCode = createError?.code || createError?.response?.statusCode || createError?.status;
-        const errorBody = createError?.response?.body;
+      } catch (createError: unknown) {
+        const statusCode = getErrorStatusCode(createError) || (getErrorCode(createError) ? Number(getErrorCode(createError)) : undefined);
+        const errorBody = createError && typeof createError === 'object' && 'body' in createError ? (createError as { body?: { message?: string } }).body : (createError && typeof createError === 'object' && 'response' in createError ? (createError as { response?: { body?: { message?: string } } }).response?.body : undefined);
 
         if (statusCode === 409 && errorBody?.message) {
           const match = errorBody.message.match(/Existing ID:\s*(\d+)/);
@@ -156,7 +157,7 @@ export async function syncCompanyToHubSpot(
             console.log(`[CompanyHubSpot] Found contact ${contactId} for ${normalizedEmail}`);
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!isProduction) {
           console.warn('[CompanyHubSpot] Error searching for contact:', error);
         }
@@ -178,7 +179,7 @@ export async function syncCompanyToHubSpot(
         if (!isProduction) {
           console.log(`[CompanyHubSpot] Associated contact ${contactId} with company ${companyId}`);
         }
-      } catch (assocError: any) {
+      } catch (assocError: unknown) {
         console.warn('[CompanyHubSpot] Failed to associate contact with company:', assocError);
       }
     }
@@ -189,7 +190,7 @@ export async function syncCompanyToHubSpot(
       created
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('[CompanyHubSpot] Error syncing company:', error);
     return {

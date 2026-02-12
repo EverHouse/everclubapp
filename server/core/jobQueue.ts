@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { getErrorMessage } from '../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 import type { PoolClient } from 'pg';
 import { broadcastBillingUpdate, broadcastDayPassUpdate, sendNotificationToUser } from './websocket';
@@ -246,9 +247,9 @@ async function executeJob(job: { id: number; jobType: string; payload: any; retr
     }
     
     await markJobCompleted(job.id);
-  } catch (error: any) {
-    console.error(`[JobQueue] Job ${job.id} (${jobType}) failed:`, error?.message || error);
-    await markJobFailed(job.id, error?.message || String(error), job.retryCount, job.maxRetries);
+  } catch (error: unknown) {
+    console.error(`[JobQueue] Job ${job.id} (${jobType}) failed:`, getErrorMessage(error) || error);
+    await markJobFailed(job.id, getErrorMessage(error) || String(error), job.retryCount, job.maxRetries);
   }
 }
 

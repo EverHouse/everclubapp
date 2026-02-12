@@ -3,6 +3,7 @@ import { pool, isProduction } from '../core/db';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { isAdmin } from '../core/middleware';
+import { getErrorCode } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -120,7 +121,7 @@ router.get('/api/tier-features', async (req, res) => {
     });
 
     res.json({ features });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Tier features fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch tier features' });
   }
@@ -181,11 +182,11 @@ router.post('/api/tier-features', isAdmin, async (req, res) => {
       isActive: newFeature.is_active,
       values: {}
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     if (!isProduction) console.error('Create tier feature error:', error);
     
-    if (error.code === '23505') {
+    if (getErrorCode(error) === '23505') {
       return res.status(409).json({ error: 'A feature with this key already exists' });
     }
     res.status(500).json({ error: 'Failed to create tier feature' });
@@ -227,7 +228,7 @@ router.put('/api/tier-features/:id', isAdmin, async (req, res) => {
       sortOrder: row.sort_order,
       isActive: row.is_active
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Update tier feature error:', error);
     res.status(500).json({ error: 'Failed to update tier feature' });
   }
@@ -244,7 +245,7 @@ router.delete('/api/tier-features/:id', isAdmin, async (req, res) => {
     }
 
     res.json({ success: true, deleted: result.rows[0].id });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Delete tier feature error:', error);
     res.status(500).json({ error: 'Failed to delete tier feature' });
   }
@@ -303,7 +304,7 @@ router.put('/api/tier-features/:featureId/values/:tierId', isAdmin, async (req, 
       tierId: row.tier_id,
       value: returnValue
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Update tier feature value error:', error);
     res.status(500).json({ error: 'Failed to update tier feature value' });
   }

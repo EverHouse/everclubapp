@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { getErrorCode } from '../../utils/errorUtils';
 import { pool } from '../db';
 import { PoolClient } from 'pg';
 import { 
@@ -157,8 +158,8 @@ export async function checkSessionConflictWithLock(
     }
     
     return { hasConflict: false };
-  } catch (error: any) {
-    if (error.code === '55P03') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '55P03') {
       logger.warn('[checkSessionConflictWithLock] Row locked by concurrent transaction', {
         extra: { resourceId, date, startTime, endTime }
       });

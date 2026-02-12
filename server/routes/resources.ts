@@ -24,6 +24,7 @@ import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { cancelPaymentIntent, getStripeClient } from '../core/stripe';
 import { createPrepaymentIntent } from '../core/billing/prepaymentService';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
+import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 
 interface CancellationCascadeResult {
   participantsNotified: number;
@@ -146,8 +147,8 @@ async function handleCancellationCascade(
         logger.info('[cancellation-cascade] Cancelled payment intent', {
           extra: { bookingId, paymentIntentId: row.stripe_payment_intent_id }
         });
-      } catch (cancelErr: any) {
-        const errorMsg = `Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${cancelErr.message}`;
+      } catch (cancelErr: unknown) {
+        const errorMsg = `Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}`;
         result.errors.push(errorMsg);
         logger.warn('[cancellation-cascade] ' + errorMsg);
       }
@@ -264,7 +265,7 @@ async function handleCancellationCascade(
             );
           }
         }
-      } catch (refundErr: any) {
+      } catch (refundErr: unknown) {
         // On error, revert status if it was claimed
         await pool.query(
           `UPDATE stripe_payment_intents 
@@ -273,7 +274,7 @@ async function handleCancellationCascade(
           [row.stripe_payment_intent_id]
         ).catch(() => {}); // Ignore revert errors
         
-        const errorMsg = `Failed to refund prepayment ${row.stripe_payment_intent_id}: ${refundErr.message}`;
+        const errorMsg = `Failed to refund prepayment ${row.stripe_payment_intent_id}: ${getErrorMessage(refundErr)}`;
         result.errors.push(errorMsg);
         logger.warn('[cancellation-cascade] ' + errorMsg);
       }
@@ -378,7 +379,7 @@ router.get('/api/resources', async (req, res) => {
         .orderBy(asc(resources.type), asc(resources.name))
     );
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch resources', error, 'RESOURCES_FETCH_ERROR');
   }
 });
@@ -441,7 +442,7 @@ router.get('/api/bookings/check-existing', async (req, res) => {
       })),
       staffCreated
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to check existing bookings', error, 'CHECK_EXISTING_ERROR');
   }
 });
@@ -476,7 +477,7 @@ router.get('/api/bookings/check-existing-staff', isStaffOrAdmin, async (req, res
       hasExisting: existingBookings.length > 0,
       count: existingBookings.length
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to check existing bookings', error, 'CHECK_EXISTING_ERROR');
   }
 });
@@ -577,7 +578,7 @@ router.get('/api/bookings', async (req, res) => {
     );
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch bookings', error, 'BOOKINGS_FETCH_ERROR');
   }
 });
@@ -613,7 +614,7 @@ router.get('/api/pending-bookings', isStaffOrAdmin, async (req, res) => {
         .orderBy(desc(bookingRequests.createdAt))
     );
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch pending bookings', error, 'PENDING_BOOKINGS_ERROR');
   }
 });
@@ -737,11 +738,11 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json(result);
-  } catch (error: any) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ 
+  } catch (error: unknown) {
+    if (getErrorStatusCode(error)) {
+      return res.status(getErrorStatusCode(error)).json({ 
         error: error.error, 
-        message: error.message 
+        message: getErrorMessage(error) 
       });
     }
     logAndRespond(req, res, 500, 'Failed to approve booking', error, 'APPROVE_BOOKING_ERROR');
@@ -801,9 +802,9 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json(result);
-  } catch (error: any) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ error: error.error });
+  } catch (error: unknown) {
+    if (getErrorStatusCode(error)) {
+      return res.status(getErrorStatusCode(error)).json({ error: error.error });
     }
     logAndRespond(req, res, 500, 'Failed to decline booking', error, 'DECLINE_BOOKING_ERROR');
   }
@@ -886,9 +887,9 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
     });
     
     res.json(result);
-  } catch (error: any) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ error: error.error });
+  } catch (error: unknown) {
+    if (getErrorStatusCode(error)) {
+      return res.status(getErrorStatusCode(error)).json({ error: error.error });
     }
     logAndRespond(req, res, 500, 'Failed to assign member to booking', error, 'ASSIGN_MEMBER_ERROR');
   }
@@ -1349,9 +1350,9 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       feesRecalculated: !!result.sessionId,
       emailLinked
     });
-  } catch (error: any) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ error: error.error });
+  } catch (error: unknown) {
+    if (getErrorStatusCode(error)) {
+      return res.status(getErrorStatusCode(error)).json({ error: error.error });
     }
     logAndRespond(req, res, 500, 'Failed to link Trackman booking to member', error, 'LINK_TRACKMAN_ERROR');
   }
@@ -1413,7 +1414,7 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
     `, params);
     
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch overlapping notices', error, 'OVERLAPPING_NOTICES_ERROR');
   }
 });
@@ -1741,7 +1742,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       linkedToExisting: result.linkedToExisting,
       newBlocksCreated: result.newBlocksCreated
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to mark booking as event', error, 'MARK_EVENT_ERROR');
   }
 });
@@ -1987,17 +1988,17 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       feesRecalculated: !!result.sessionId,
       emailLinked
     });
-  } catch (error: any) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ error: error.error });
+  } catch (error: unknown) {
+    if (getErrorStatusCode(error)) {
+      return res.status(getErrorStatusCode(error)).json({ error: error.error });
     }
     // Log additional error details for debugging
     logger.error('[assign-with-players] Database error details', {
       extra: {
         bookingId: req.params.id,
         owner: req.body.owner,
-        errorMessage: error.message,
-        errorCode: error.code,
+        errorMessage: getErrorMessage(error),
+        errorCode: getErrorCode(error),
         errorDetail: error.detail,
         errorConstraint: error.constraint,
         errorStack: error.stack?.split('\n').slice(0, 5).join('\n')
@@ -2063,7 +2064,7 @@ router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, async (req, res) =>
       success: true, 
       booking: updated
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to change booking owner', error, 'CHANGE_OWNER_ERROR');
   }
 });
@@ -2236,7 +2237,7 @@ router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
       ...result[0],
       message: 'Request sent! Concierge will confirm shortly.'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to submit booking request', error, 'BOOKING_REQUEST_ERROR');
   }
 });
@@ -2280,7 +2281,7 @@ router.get('/api/bookings/:id/cascade-preview', isStaffOrAdmin, async (req, res)
       },
       hasRelatedData: participantsCount > 0 || membersCount > 0
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch cascade preview', error, 'CASCADE_PREVIEW_ERROR');
   }
 });
@@ -2440,7 +2441,7 @@ router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
       archived: !hardDelete,
       archivedBy
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to delete booking', error, 'BOOKING_DELETE_ERROR');
   }
 });
@@ -2693,7 +2694,7 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       notifyStaff: true, 
       cleanupNotifications: true 
     }).catch(err => console.error('Booking event publish failed:', err));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to cancel booking', error, 'BOOKING_CANCEL_ERROR');
   }
 });
@@ -2762,7 +2763,7 @@ router.post('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
         type: 'booking_checked_in'
       }
     }).catch(err => console.error('Booking event publish failed:', err));
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to check in', error, 'CHECKIN_ERROR');
   }
 });
@@ -2968,9 +2969,9 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
             logger.info('[Reschedule] Cancelled payment intent for old booking', {
               extra: { oldBookingId: reschedule_from_id, paymentIntentId: row.stripe_payment_intent_id }
             });
-          } catch (cancelErr: any) {
+          } catch (cancelErr: unknown) {
             logger.warn('[Reschedule] Failed to cancel payment intent', { 
-              extra: { paymentIntentId: row.stripe_payment_intent_id, error: cancelErr.message }
+              extra: { paymentIntentId: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) }
             });
           }
         }
@@ -3076,7 +3077,7 @@ router.post('/api/staff/bookings/manual', isStaffOrAdmin, async (req, res) => {
       },
       message: 'Booking created successfully'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to create manual booking', error, 'MANUAL_BOOKING_ERROR');
   }
 });

@@ -13,6 +13,7 @@ import { logFromRequest } from '../core/auditLog';
 import { getSystemHealth } from '../core/healthCheck';
 import { getSessionUser } from '../types/session';
 import type { Request } from 'express';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -32,9 +33,9 @@ router.get('/api/data-integrity/cached', isAdmin, async (req, res) => {
       results: cached.results,
       meta: cached.meta
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Cached results error:', error);
-    res.status(500).json({ error: 'Failed to get cached results', details: error.message });
+    res.status(500).json({ error: 'Failed to get cached results', details: getErrorMessage(error) });
   }
 });
 
@@ -53,9 +54,9 @@ router.get('/api/data-integrity/run', isAdmin, async (req, res) => {
         lastRun: new Date()
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Run error:', error);
-    res.status(500).json({ error: 'Failed to run integrity checks', details: error.message });
+    res.status(500).json({ error: 'Failed to run integrity checks', details: getErrorMessage(error) });
   }
 });
 
@@ -63,9 +64,9 @@ router.get('/api/data-integrity/summary', isAdmin, async (req, res) => {
   try {
     const summary = await getIntegritySummary();
     res.json(summary);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Summary error:', error);
-    res.status(500).json({ error: 'Failed to get integrity summary', details: error.message });
+    res.status(500).json({ error: 'Failed to get integrity summary', details: getErrorMessage(error) });
   }
 });
 
@@ -74,9 +75,9 @@ router.get('/api/data-integrity/history', isAdmin, async (req, res) => {
     const days = parseInt(req.query.days as string) || 30;
     const historyData = await getIntegrityHistory(days);
     res.json(historyData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] History error:', error);
-    res.status(500).json({ error: 'Failed to get integrity history', details: error.message });
+    res.status(500).json({ error: 'Failed to get integrity history', details: getErrorMessage(error) });
   }
 });
 
@@ -108,9 +109,9 @@ router.post('/api/data-integrity/resolve', isAdmin, async (req: Request, res) =>
     });
     
     res.json({ success: true, auditLogId: result.auditLogId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Resolve error:', error);
-    res.status(500).json({ error: 'Failed to resolve issue', details: error.message });
+    res.status(500).json({ error: 'Failed to resolve issue', details: getErrorMessage(error) });
   }
 });
 
@@ -119,9 +120,9 @@ router.get('/api/data-integrity/audit-log', isAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const auditEntries = await getAuditLog(limit);
     res.json(auditEntries);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Audit log error:', error);
-    res.status(500).json({ error: 'Failed to get audit log', details: error.message });
+    res.status(500).json({ error: 'Failed to get audit log', details: getErrorMessage(error) });
   }
 });
 
@@ -152,9 +153,9 @@ router.post('/api/data-integrity/sync-push', isAdmin, async (req: Request, res) 
     broadcastDataIntegrityUpdate('data_changed', { source: `sync_push_${target}` });
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Sync push error:', error);
-    res.status(500).json({ error: 'Failed to push sync', details: error.message });
+    res.status(500).json({ error: 'Failed to push sync', details: getErrorMessage(error) });
   }
 });
 
@@ -185,9 +186,9 @@ router.post('/api/data-integrity/sync-pull', isAdmin, async (req: Request, res) 
     broadcastDataIntegrityUpdate('data_changed', { source: `sync_pull_${target}` });
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Sync pull error:', error);
-    res.status(500).json({ error: 'Failed to pull sync', details: error.message });
+    res.status(500).json({ error: 'Failed to pull sync', details: getErrorMessage(error) });
   }
 });
 
@@ -195,9 +196,9 @@ router.get('/api/data-integrity/ignores', isAdmin, async (req, res) => {
   try {
     const ignores = await getIgnoredIssues();
     res.json(ignores);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Get ignores error:', error);
-    res.status(500).json({ error: 'Failed to get ignored issues', details: error.message });
+    res.status(500).json({ error: 'Failed to get ignored issues', details: getErrorMessage(error) });
   }
 });
 
@@ -227,9 +228,9 @@ router.post('/api/data-integrity/ignore', isAdmin, async (req: Request, res) => 
     });
     
     res.json({ success: true, ignore: result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Create ignore error:', error);
-    res.status(500).json({ error: 'Failed to create ignore rule', details: error.message });
+    res.status(500).json({ error: 'Failed to create ignore rule', details: getErrorMessage(error) });
   }
 });
 
@@ -248,9 +249,9 @@ router.delete('/api/data-integrity/ignore/:issueKey', isAdmin, async (req: Reque
     }
     
     res.json({ success: true, message: 'Ignore rule removed' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Remove ignore error:', error);
-    res.status(500).json({ error: 'Failed to remove ignore rule', details: error.message });
+    res.status(500).json({ error: 'Failed to remove ignore rule', details: getErrorMessage(error) });
   }
 });
 
@@ -289,9 +290,9 @@ router.post('/api/data-integrity/ignore-bulk', isAdmin, async (req: Request, res
       updated: result.updated,
       total: result.created + result.updated
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Bulk ignore error:', error);
-    res.status(500).json({ error: 'Failed to create bulk ignore rules', details: error.message });
+    res.status(500).json({ error: 'Failed to create bulk ignore rules', details: getErrorMessage(error) });
   }
 });
 
@@ -306,9 +307,9 @@ router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res
       synced: result.synced,
       failed: result.failed
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Stripe metadata sync error:', error);
-    res.status(500).json({ error: 'Failed to sync Stripe metadata', details: error.message });
+    res.status(500).json({ error: 'Failed to sync Stripe metadata', details: getErrorMessage(error) });
   }
 });
 
@@ -322,9 +323,9 @@ router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {
       message: `Cleanup complete: Removed ${result.orphanedNotifications} orphaned notifications, ${result.orphanedFeeSnapshots} orphaned fee snapshots, marked ${result.orphanedBookings} orphaned bookings, normalized ${result.normalizedEmails} emails.`,
       ...result
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Data cleanup error:', error);
-    res.status(500).json({ error: 'Failed to run data cleanup', details: error.message });
+    res.status(500).json({ error: 'Failed to run data cleanup', details: getErrorMessage(error) });
   }
 });
 
@@ -367,8 +368,8 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
           createdAt: row.created_at?.toISOString() || '',
         });
       }
-    } catch (dbError: any) {
-      console.warn('[DataIntegrity] Local database scan failed:', dbError.message);
+    } catch (dbError: unknown) {
+      console.warn('[DataIntegrity] Local database scan failed:', getErrorMessage(dbError));
     }
     
     const stripe = await getStripeClient();
@@ -424,8 +425,8 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
         after = contactsResponse.paging?.next?.after;
         hsHasMore = !!after;
       }
-    } catch (hubspotError: any) {
-      console.warn('[DataIntegrity] HubSpot scan failed:', hubspotError.message);
+    } catch (hubspotError: unknown) {
+      console.warn('[DataIntegrity] HubSpot scan failed:', getErrorMessage(hubspotError));
     }
     
     res.json({
@@ -440,9 +441,9 @@ router.get('/api/data-integrity/placeholder-accounts', isAdmin, async (req, res)
         total: stripeCustomers.length + hubspotContacts.length + localDatabaseUsers.length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Placeholder scan error:', error);
-    res.status(500).json({ error: 'Failed to scan for placeholder accounts', details: error.message });
+    res.status(500).json({ error: 'Failed to scan for placeholder accounts', details: getErrorMessage(error) });
   }
 });
 
@@ -475,9 +476,9 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
         try {
           await stripe.customers.del(customerId);
           results.stripeDeleted++;
-        } catch (error: any) {
+        } catch (error: unknown) {
           results.stripeFailed++;
-          results.stripeErrors.push(`${customerId}: ${error.message}`);
+          results.stripeErrors.push(`${customerId}: ${getErrorMessage(error)}`);
         }
       }
     }
@@ -492,14 +493,14 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
               hubspot.crm.contacts.basicApi.archive(contactId)
             );
             results.hubspotDeleted++;
-          } catch (error: any) {
+          } catch (error: unknown) {
             results.hubspotFailed++;
-            results.hubspotErrors.push(`${contactId}: ${error.message}`);
+            results.hubspotErrors.push(`${contactId}: ${getErrorMessage(error)}`);
           }
         }
-      } catch (hubspotError: any) {
-        console.error('[DataIntegrity] HubSpot client failed:', hubspotError.message);
-        results.hubspotErrors.push(`HubSpot connection failed: ${hubspotError.message}`);
+      } catch (hubspotError: unknown) {
+        console.error('[DataIntegrity] HubSpot client failed:', getErrorMessage(hubspotError));
+        results.hubspotErrors.push(`HubSpot connection failed: ${getErrorMessage(hubspotError)}`);
       }
     }
     
@@ -595,10 +596,10 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
             results.localDatabaseFailed++;
             results.localDatabaseErrors.push(`${odUserId}: Failed to delete user`);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           await client.query('ROLLBACK');
           results.localDatabaseFailed++;
-          results.localDatabaseErrors.push(`${odUserId}: ${error.message}`);
+          results.localDatabaseErrors.push(`${odUserId}: ${getErrorMessage(error)}`);
         } finally {
           client.release();
         }
@@ -629,9 +630,9 @@ router.post('/api/data-integrity/placeholder-accounts/delete', isAdmin, async (r
       message: `Deleted ${totalDeleted} placeholder accounts. ${totalFailed > 0 ? `${totalFailed} failed.` : ''}`,
       ...results,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Placeholder delete error:', error);
-    res.status(500).json({ error: 'Failed to delete placeholder accounts', details: error.message });
+    res.status(500).json({ error: 'Failed to delete placeholder accounts', details: getErrorMessage(error) });
   }
 });
 
@@ -649,9 +650,9 @@ router.get('/api/data-integrity/health', isAdmin, async (req, res) => {
     );
     
     res.json({ success: true, health });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('[DataIntegrity] Health check error:', error);
-    res.status(500).json({ error: 'Failed to check system health', details: error.message });
+    res.status(500).json({ error: 'Failed to check system health', details: getErrorMessage(error) });
   }
 });
 
@@ -668,9 +669,9 @@ router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, async (req: Reque
     });
     
     res.json({ success: true, message: `Unlinked HubSpot contact from user ${userId}` });
-  } catch (error: any) {
-    console.error('[DataIntegrity] Unlink HubSpot error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Unlink HubSpot error:', getErrorMessage(error));
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
   }
 });
 
@@ -684,9 +685,9 @@ router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, async (req: Re
     logFromRequest(req, 'delete_orphan_guest_pass', 'guest_passes', recordId, undefined, { deletedId: recordId });
     
     res.json({ success: true, message: `Deleted orphaned guest pass ${recordId}` });
-  } catch (error: any) {
-    console.error('[DataIntegrity] Delete guest pass error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Delete guest pass error:', getErrorMessage(error));
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
   }
 });
 
@@ -700,9 +701,9 @@ router.post('/api/data-integrity/fix/delete-fee-snapshot', isAdmin, async (req: 
     logFromRequest(req, 'delete_orphan_fee_snapshot', 'booking_fee_snapshots', recordId, undefined, { deletedId: recordId });
     
     res.json({ success: true, message: `Deleted orphaned fee snapshot ${recordId}` });
-  } catch (error: any) {
-    console.error('[DataIntegrity] Delete fee snapshot error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Delete fee snapshot error:', getErrorMessage(error));
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
   }
 });
 
@@ -716,9 +717,9 @@ router.post('/api/data-integrity/fix/delete-booking-participant', isAdmin, async
     logFromRequest(req, 'delete_orphan_booking_participant', 'booking_participants', recordId, undefined, { deletedId: recordId });
     
     res.json({ success: true, message: `Deleted orphaned booking participant ${recordId}` });
-  } catch (error: any) {
-    console.error('[DataIntegrity] Delete booking participant error:', error.message);
-    res.status(500).json({ success: false, message: error.message });
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Delete booking participant error:', getErrorMessage(error));
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
   }
 });
 

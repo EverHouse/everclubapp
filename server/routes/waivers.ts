@@ -54,7 +54,7 @@ router.get('/api/waivers/status', isAuthenticated, async (req, res) => {
       userVersion: user.waiverVersion,
       signedAt: user.waiverSignedAt,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error checking waiver status:', error);
     res.status(500).json({ error: 'Failed to check waiver status' });
   }
@@ -87,7 +87,7 @@ router.post('/api/waivers/sign', isAuthenticated, async (req, res) => {
       version: currentVersion,
       signedAt: new Date(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error signing waiver:', error);
     res.status(500).json({ error: 'Failed to sign waiver' });
   }
@@ -104,7 +104,7 @@ router.get('/api/waivers/current-version', isStaffOrAdmin, async (req, res) => {
       version: result[0]?.value || '1.0',
       updatedAt: result[0]?.updatedAt,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error fetching waiver version:', error);
     res.status(500).json({ error: 'Failed to fetch waiver version' });
   }
@@ -154,7 +154,7 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, async (req, res) => {
       affectedMembers: affectedCount,
       message: `Waiver version updated to ${version}. ${affectedCount} members will need to re-sign.`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Error updating waiver version:', error);
     res.status(500).json({ error: 'Failed to update waiver version' });
   }

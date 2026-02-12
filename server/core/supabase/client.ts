@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 let supabaseAdmin: SupabaseClient | null = null;
 let supabaseAvailable: boolean | null = null;
@@ -57,11 +58,12 @@ export async function isSupabaseAvailable(): Promise<boolean> {
     supabaseAvailable = true;
     lastAvailabilityCheck = now;
     return true;
-  } catch (err: any) {
-    if (err.message?.includes('fetch failed') || 
-        err.message?.includes('ENOTFOUND') || 
-        err.message?.includes('ECONNREFUSED') ||
-        err.message?.includes('timeout')) {
+  } catch (err: unknown) {
+    const errMsg = getErrorMessage(err) || '';
+    if (errMsg.includes('fetch failed') || 
+        errMsg.includes('ENOTFOUND') || 
+        errMsg.includes('ECONNREFUSED') ||
+        errMsg.includes('timeout')) {
       // Only log once when status changes
       if (supabaseAvailable !== false) {
         console.warn('[Supabase] Service unreachable - Supabase features disabled');
@@ -125,11 +127,12 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
 
     console.log(`[Supabase] Realtime enabled for table: ${tableName}`);
     return true;
-  } catch (err: any) {
-    if (err.message?.includes('fetch failed') || err.message?.includes('ENOTFOUND') || err.message?.includes('ECONNREFUSED')) {
+  } catch (err: unknown) {
+    const errMsg = getErrorMessage(err);
+    if (errMsg.includes('fetch failed') || errMsg.includes('ENOTFOUND') || errMsg.includes('ECONNREFUSED')) {
       console.warn(`[Supabase] Cannot reach Supabase for ${tableName} - check SUPABASE_URL configuration`);
     } else {
-      console.error(`[Supabase] Error enabling realtime for ${tableName}:`, err.message);
+      console.error(`[Supabase] Error enabling realtime for ${tableName}:`, errMsg);
     }
     return false;
   }

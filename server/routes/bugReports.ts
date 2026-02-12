@@ -43,7 +43,7 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
     );
     
     res.status(201).json(report);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Bug report creation error:', error);
     res.status(500).json({ error: 'Failed to submit bug report' });
   }
@@ -67,7 +67,7 @@ router.get('/api/admin/bug-reports', isStaffOrAdmin, async (req, res) => {
     const result = await query.orderBy(desc(bugReports.createdAt));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Bug reports fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch bug reports' });
   }
@@ -85,7 +85,7 @@ router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(report);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Bug report fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch bug report' });
   }
@@ -140,7 +140,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Bug report update error:', error);
     res.status(500).json({ error: 'Failed to update bug report' });
   }
@@ -159,7 +159,7 @@ router.delete('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => 
     }
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Bug report delete error:', error);
     res.status(500).json({ error: 'Failed to delete bug report' });
   }

@@ -2,6 +2,7 @@ process.env.TZ = 'America/Los_Angeles';
 
 import http from 'http';
 import type { Server } from 'http';
+import { getErrorMessage } from './utils/errorUtils';
 
 let isShuttingDown = false;
 let isReady = false;
@@ -116,7 +117,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   });
 });
 
-httpServer.on('error', (err: any) => {
+httpServer.on('error', (err: unknown) => {
   console.error(`[Startup] Server failed to start:`, err);
   process.exit(1);
 });
@@ -276,10 +277,11 @@ async function initializeApp() {
 
         await processStripeWebhook(req.body as Buffer, sig);
         res.status(200).json({ received: true });
-      } catch (error: any) {
-        console.error('[Stripe Webhook] Error:', error.message);
+      } catch (error: unknown) {
+        const errorMsg = getErrorMessage(error);
+        console.error('[Stripe Webhook] Error:', errorMsg);
 
-        if (error.message?.includes('signature') || error.message?.includes('payload') || error.type === 'StripeSignatureVerificationError') {
+        if (errorMsg.includes('signature') || errorMsg.includes('payload') || (error && typeof error === 'object' && 'type' in error && (error as { type: unknown }).type === 'StripeSignatureVerificationError')) {
           return res.status(400).json({ error: 'Invalid request' });
         }
 
@@ -340,12 +342,12 @@ async function initializeApp() {
       } else {
         res.json(baseResponse);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const isAuthenticated = req.session?.user?.isStaff === true;
       res.status(500).json({
         status: 'error',
         database: 'disconnected',
-        ...(isAuthenticated && { error: error.message })
+        ...(isAuthenticated && { error: getErrorMessage(error) })
       });
     }
   });

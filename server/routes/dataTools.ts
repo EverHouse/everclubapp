@@ -10,6 +10,7 @@ import { retryableHubSpotRequest } from '../core/hubspot/request';
 import { logFromRequest } from '../core/auditLog';
 import { getSessionUser } from '../types/session';
 import { broadcastToStaff } from '../core/websocket';
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
 interface StripeCleanupJob {
   id: string;
@@ -160,9 +161,9 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       syncedFields: Object.keys(updateData).filter(k => k !== 'updatedAt'),
       hubspotContactId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Resync member error:', error);
-    res.status(500).json({ error: 'Failed to resync member', details: error.message });
+    res.status(500).json({ error: 'Failed to resync member', details: getErrorMessage(error) });
   }
 });
 
@@ -201,9 +202,9 @@ router.get('/api/data-tools/unlinked-guest-fees', isAdmin, async (req: Request, 
     }));
     
     res.json(formatted);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Get unlinked guest fees error:', error);
-    res.status(500).json({ error: 'Failed to get unlinked guest fees', details: error.message });
+    res.status(500).json({ error: 'Failed to get unlinked guest fees', details: getErrorMessage(error) });
   }
 });
 
@@ -249,9 +250,9 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
       status: row.status,
       resourceName: row.resource_name
     })));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Get available sessions error:', error);
-    res.status(500).json({ error: 'Failed to get available sessions', details: error.message });
+    res.status(500).json({ error: 'Failed to get available sessions', details: getErrorMessage(error) });
   }
 });
 
@@ -309,9 +310,9 @@ router.post('/api/data-tools/link-guest-fee', isAdmin, async (req: Request, res:
       success: true,
       message: 'Guest fee successfully linked to booking session'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Link guest fee error:', error);
-    res.status(500).json({ error: 'Failed to link guest fee', details: error.message });
+    res.status(500).json({ error: 'Failed to link guest fee', details: getErrorMessage(error) });
   }
 });
 
@@ -368,9 +369,9 @@ router.get('/api/data-tools/bookings-search', isStaffOrAdmin, async (req: Reques
       reconciledAt: row.reconciled_at,
       resourceName: row.resource_name
     })));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Bookings search error:', error);
-    res.status(500).json({ error: 'Failed to search bookings', details: error.message });
+    res.status(500).json({ error: 'Failed to search bookings', details: getErrorMessage(error) });
   }
 });
 
@@ -427,9 +428,9 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
       success: true,
       message: `Attendance status updated to ${attendanceStatus}`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Update attendance error:', error);
-    res.status(500).json({ error: 'Failed to update attendance', details: error.message });
+    res.status(500).json({ error: 'Failed to update attendance', details: getErrorMessage(error) });
   }
 });
 
@@ -476,9 +477,9 @@ router.post('/api/data-tools/mindbody-reimport', isAdmin, async (req: Request, r
       message: `Mindbody re-import has been queued for ${startDate} to ${endDate}. The process will run in the background.`,
       note: 'This feature requires manual file upload. Please use the legacy purchases import with updated CSV files for the date range.'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Mindbody reimport error:', error);
-    res.status(500).json({ error: 'Failed to queue mindbody reimport', details: error.message });
+    res.status(500).json({ error: 'Failed to queue mindbody reimport', details: getErrorMessage(error) });
   }
 });
 
@@ -504,9 +505,9 @@ router.get('/api/data-tools/audit-log', isAdmin, async (req: Request, res: Respo
     res.json(logs.filter(log => 
       ['member_resynced_from_hubspot', 'guest_fee_manually_linked', 'attendance_manually_updated', 'mindbody_reimport_requested'].includes(log.actionType)
     ));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Get audit log error:', error);
-    res.status(500).json({ error: 'Failed to get audit log', details: error.message });
+    res.status(500).json({ error: 'Failed to get audit log', details: getErrorMessage(error) });
   }
 });
 
@@ -551,9 +552,9 @@ router.get('/api/data-tools/staff-activity', isAdmin, async (req: Request, res: 
     }));
     
     res.json({ logs: parsedLogs });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Get staff activity error:', error);
-    res.status(500).json({ error: 'Failed to get staff activity', details: error.message });
+    res.status(500).json({ error: 'Failed to get staff activity', details: getErrorMessage(error) });
   }
 });
 
@@ -638,8 +639,8 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
             // HubSpot has a different value - flag for review but don't auto-clean
             console.log(`[DataTools] Mindbody ID mismatch for ${user.email}: DB=${user.mindbody_client_id}, HubSpot=${hubspotMindbodyId}`);
           }
-        } catch (err: any) {
-          errors.push(`Error checking ${user.email}: ${err.message}`);
+        } catch (err: unknown) {
+          errors.push(`Error checking ${user.email}: ${getErrorMessage(err)}`);
         }
       }
       
@@ -684,9 +685,9 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
       staleRecords: toClean.slice(0, 50), // Return first 50 for review
       errors: errors.slice(0, 10)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Cleanup mindbody IDs error:', error);
-    res.status(500).json({ error: 'Failed to cleanup mindbody IDs', details: error.message });
+    res.status(500).json({ error: 'Failed to cleanup mindbody IDs', details: getErrorMessage(error) });
   }
 });
 
@@ -750,9 +751,9 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
           
           // Small delay between API calls
           await new Promise(resolve => setTimeout(resolve, 200));
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`[DataTools] Error syncing ${member.email} to HubSpot:`, err);
-          errors.push(`${member.email}: ${err.message}`);
+          errors.push(`${member.email}: ${getErrorMessage(err)}`);
         }
       }
       
@@ -783,9 +784,9 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
       existing: existing.length,
       errors: errors.slice(0, 10)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Sync members to HubSpot error:', error);
-    res.status(500).json({ error: 'Failed to sync members to HubSpot', details: error.message });
+    res.status(500).json({ error: 'Failed to sync members to HubSpot', details: getErrorMessage(error) });
   }
 });
 
@@ -902,7 +903,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
               try {
                 const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
                 await syncMemberToHubSpot({ email: member.email, status: expectedAppStatus, billingProvider: 'stripe' });
-              } catch (e: any) {
+              } catch (e: unknown) {
                 console.warn(`[DataTools] Failed to sync status to HubSpot for ${member.email}:`, e?.message || e);
               }
               
@@ -932,10 +933,10 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
               }
             }
           }
-        } catch (err: any) {
-          errors.push(`${member.email}: ${err.message}`);
+        } catch (err: unknown) {
+          errors.push(`${member.email}: ${getErrorMessage(err)}`);
           if (!isProduction) {
-            console.error(`[DataTools] Error checking subscription for ${member.email}:`, err.message);
+            console.error(`[DataTools] Error checking subscription for ${member.email}:`, getErrorMessage(err));
           }
         }
       }));
@@ -965,9 +966,9 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
       errors: errors.slice(0, 10),
       dryRun
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Sync subscription status error:', error);
-    res.status(500).json({ error: 'Failed to sync subscription status', details: error.message });
+    res.status(500).json({ error: 'Failed to sync subscription status', details: getErrorMessage(error) });
   }
 });
 
@@ -1020,10 +1021,10 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
           
           try {
             await stripe.customers.retrieve(customerId);
-          } catch (err: any) {
-            const isNotFound = err.code === 'resource_missing' || 
+          } catch (err: unknown) {
+            const isNotFound = getErrorCode(err) === 'resource_missing' || 
               err.statusCode === 404 || 
-              err.message?.includes('No such customer');
+              getErrorMessage(err)?.includes('No such customer');
             
             if (isNotFound) {
               const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
@@ -1047,8 +1048,8 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
               }
             }
           }
-        } catch (err: any) {
-          errors.push(`${user.email}: ${err.message}`);
+        } catch (err: unknown) {
+          errors.push(`${user.email}: ${getErrorMessage(err)}`);
         }
       }));
       
@@ -1077,9 +1078,9 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
       errors: errors.slice(0, 10),
       dryRun
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Clear orphaned Stripe IDs error:', error);
-    res.status(500).json({ error: 'Failed to clear orphaned Stripe IDs', details: error.message });
+    res.status(500).json({ error: 'Failed to clear orphaned Stripe IDs', details: getErrorMessage(error) });
   }
 });
 
@@ -1167,9 +1168,9 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
           }
           
           await new Promise(resolve => setTimeout(resolve, 200));
-        } catch (err: any) {
-          errors.push(`HubSpot for ${member.email}: ${err.message}`);
-          console.error(`[DataTools] Error creating HubSpot contact for ${member.email}:`, err.message);
+        } catch (err: unknown) {
+          errors.push(`HubSpot for ${member.email}: ${getErrorMessage(err)}`);
+          console.error(`[DataTools] Error creating HubSpot contact for ${member.email}:`, getErrorMessage(err));
         }
       }
       
@@ -1203,9 +1204,9 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
           }
           
           await new Promise(resolve => setTimeout(resolve, 200));
-        } catch (err: any) {
-          errors.push(`Stripe for ${member.email}: ${err.message}`);
-          console.error(`[DataTools] Error creating Stripe customer for ${member.email}:`, err.message);
+        } catch (err: unknown) {
+          errors.push(`Stripe for ${member.email}: ${getErrorMessage(err)}`);
+          console.error(`[DataTools] Error creating Stripe customer for ${member.email}:`, getErrorMessage(err));
         }
       }
       
@@ -1230,9 +1231,9 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
       errors: errors.slice(0, 20),
       dryRun
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Link Stripe-HubSpot error:', error);
-    res.status(500).json({ error: 'Failed to link Stripe-HubSpot', details: error.message });
+    res.status(500).json({ error: 'Failed to link Stripe-HubSpot', details: getErrorMessage(error) });
   }
 });
 
@@ -1334,8 +1335,8 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
             );
             const rawCount = contact.properties?.total_visit_count;
             hubspotVisitCount = rawCount ? parseInt(rawCount) : null;
-          } catch (hubspotErr: any) {
-            if (!hubspotErr.message?.includes('404')) {
+          } catch (hubspotErr: unknown) {
+            if (!getErrorMessage(hubspotErr)?.includes('404')) {
               throw hubspotErr;
             }
           }
@@ -1388,17 +1389,17 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
                 if (!isProduction) {
                   console.log(`[DataTools] Updated HubSpot visit count for ${member.email}: ${hubspotVisitCount} -> ${appVisitCount}`);
                 }
-              } catch (updateErr: any) {
-                errors.push(`Update ${member.email}: ${updateErr.message}`);
+              } catch (updateErr: unknown) {
+                errors.push(`Update ${member.email}: ${getErrorMessage(updateErr)}`);
               }
             }
           } else {
             matched.push(record);
           }
-        } catch (err: any) {
-          errors.push(`${member.email}: ${err.message}`);
+        } catch (err: unknown) {
+          errors.push(`${member.email}: ${getErrorMessage(err)}`);
           if (!isProduction) {
-            console.error(`[DataTools] Error checking visit count for ${member.email}:`, err.message);
+            console.error(`[DataTools] Error checking visit count for ${member.email}:`, getErrorMessage(err));
           }
         }
       }));
@@ -1429,9 +1430,9 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
       errors: errors.slice(0, 20),
       dryRun
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Sync visit counts error:', error);
-    res.status(500).json({ error: 'Failed to sync visit counts', details: error.message });
+    res.status(500).json({ error: 'Failed to sync visit counts', details: getErrorMessage(error) });
   }
 });
 
@@ -1517,8 +1518,8 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
               }))
             });
           }
-        } catch (err: any) {
-          hubspotErrors.push(`${member.email}: ${err.message}`);
+        } catch (err: unknown) {
+          hubspotErrors.push(`${member.email}: ${getErrorMessage(err)}`);
         }
       }));
       
@@ -1556,9 +1557,9 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
       membersCheckedInHubspot: membersWithHubspot.rows.length,
       errors: hubspotErrors.slice(0, 20)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Detect duplicates error:', error);
-    res.status(500).json({ error: 'Failed to detect duplicates', details: error.message });
+    res.status(500).json({ error: 'Failed to detect duplicates', details: getErrorMessage(error) });
   }
 });
 
@@ -1655,8 +1656,8 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
               hubspot.crm.contacts.basicApi.getById(member.hubspot_id, ['last_payment_status'])
             );
             hubspotPaymentStatus = contact.properties?.last_payment_status || null;
-          } catch (hubspotErr: any) {
-            if (!hubspotErr.message?.includes('404')) {
+          } catch (hubspotErr: unknown) {
+            if (!getErrorMessage(hubspotErr)?.includes('404')) {
               throw hubspotErr;
             }
           }
@@ -1714,17 +1715,17 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
                 if (!isProduction) {
                   console.log(`[DataTools] Updated HubSpot payment status for ${member.email}: ${hubspotPaymentStatus} -> ${stripePaymentStatus}`);
                 }
-              } catch (updateErr: any) {
-                errors.push(`Update ${member.email}: ${updateErr.message}`);
+              } catch (updateErr: unknown) {
+                errors.push(`Update ${member.email}: ${getErrorMessage(updateErr)}`);
               }
             }
           } else {
             alreadySynced.push(record);
           }
-        } catch (err: any) {
-          errors.push(`${member.email}: ${err.message}`);
+        } catch (err: unknown) {
+          errors.push(`${member.email}: ${getErrorMessage(err)}`);
           if (!isProduction) {
-            console.error(`[DataTools] Error checking payment status for ${member.email}:`, err.message);
+            console.error(`[DataTools] Error checking payment status for ${member.email}:`, getErrorMessage(err));
           }
         }
       }));
@@ -1755,9 +1756,9 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
       errors: errors.slice(0, 20),
       dryRun
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Sync payment status error:', error);
-    res.status(500).json({ error: 'Failed to sync payment status', details: error.message });
+    res.status(500).json({ error: 'Failed to sync payment status', details: getErrorMessage(error) });
   }
 });
 
@@ -1946,8 +1947,8 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
               }, 'staff_manual');
             }
           }
-        } catch (billingErr: any) {
-          console.error(`[DataTools] Billing calculation error for booking ${booking.bookingId}:`, billingErr.message);
+        } catch (billingErr: unknown) {
+          console.error(`[DataTools] Billing calculation error for booking ${booking.bookingId}:`, getErrorMessage(billingErr));
           await recordUsage(sessionId, {
             memberId: booking.userEmail,
             minutesCharged: booking.durationMinutes,
@@ -1983,8 +1984,8 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           }
           
           await recalculateSessionFees(sessionId);
-        } catch (participantErr: any) {
-          console.warn(`[DataTools] Failed to create participants for session ${sessionId}:`, participantErr.message);
+        } catch (participantErr: unknown) {
+          console.warn(`[DataTools] Failed to create participants for session ${sessionId}:`, getErrorMessage(participantErr));
         }
         
         fixed.push({
@@ -2013,9 +2014,9 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           console.log(`[DataTools] Fixed ghost booking ${booking.bookingId} -> session ${sessionId}`);
         }
         
-      } catch (err: any) {
-        errors.push(`Booking ${booking.bookingId}: ${err.message}`);
-        console.error(`[DataTools] Error fixing ghost booking ${booking.bookingId}:`, err.message);
+      } catch (err: unknown) {
+        errors.push(`Booking ${booking.bookingId}: ${getErrorMessage(err)}`);
+        console.error(`[DataTools] Error fixing ghost booking ${booking.bookingId}:`, getErrorMessage(err));
       }
     }
     
@@ -2035,9 +2036,9 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
       errors: errors.slice(0, 20),
       dryRun: false
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Fix Trackman ghost bookings error:', error);
-    res.status(500).json({ error: 'Failed to fix Trackman ghost bookings', details: error.message });
+    res.status(500).json({ error: 'Failed to fix Trackman ghost bookings', details: getErrorMessage(error) });
   }
 });
 
@@ -2110,8 +2111,8 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         activeCleanupJob!.progress.emptyFound = emptyCustomers.length;
         activeCleanupJob!.progress.checked++;
         if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
-      } catch (err: any) {
-        console.error(`[DataTools] Error checking customer ${customer.id}:`, err.message);
+      } catch (err: unknown) {
+        console.error(`[DataTools] Error checking customer ${customer.id}:`, getErrorMessage(err));
         activeCleanupJob!.progress.errors++;
         activeCleanupJob!.progress.checked++;
         if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
@@ -2175,10 +2176,10 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         deleted++;
         activeCleanupJob!.progress.deleted = deleted;
         if (deleted % 10 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress });
-      } catch (err: any) {
-        errors.push(`${customer.id} (${customer.email}): ${err.message}`);
+      } catch (err: unknown) {
+        errors.push(`${customer.id} (${customer.email}): ${getErrorMessage(err)}`);
         activeCleanupJob!.progress.errors++;
-        console.error(`[DataTools] Failed to delete customer ${customer.id}:`, err.message);
+        console.error(`[DataTools] Failed to delete customer ${customer.id}:`, getErrorMessage(err));
       }
     }
     
@@ -2211,13 +2212,13 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
     activeCleanupJob!.result = result;
     activeCleanupJob!.progress.phase = 'done';
     broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Stripe customer cleanup error:', error);
     activeCleanupJob!.status = 'failed';
     activeCleanupJob!.completedAt = new Date();
-    activeCleanupJob!.error = error.message;
+    activeCleanupJob!.error = getErrorMessage(error);
     activeCleanupJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, error: error.message });
+    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, error: getErrorMessage(error) });
   }
 }
 
@@ -2252,9 +2253,9 @@ router.post('/api/data-tools/cleanup-stripe-customers', isAdmin, async (req: Req
     runCleanupInBackground(dryRun, staffEmail, req);
     
     res.json({ success: true, jobId, message: 'Cleanup job started' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Stripe customer cleanup error:', error);
-    res.status(500).json({ error: 'Failed to start cleanup job', details: error.message });
+    res.status(500).json({ error: 'Failed to start cleanup job', details: getErrorMessage(error) });
   }
 });
 
@@ -2296,9 +2297,9 @@ router.post('/api/data-tools/archive-stale-visitors', isAdmin, async (req: Reque
     runVisitorArchiveInBackground(dryRun, staffEmail, req);
 
     res.json({ success: true, jobId, message: 'Archive job started' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Visitor archive error:', error);
-    res.status(500).json({ error: 'Failed to start archive job', details: error.message });
+    res.status(500).json({ error: 'Failed to start archive job', details: getErrorMessage(error) });
   }
 });
 
@@ -2363,8 +2364,8 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
             if (paymentIntents.data.length > 0) { keptCount++; return; }
 
             eligible.push(visitor);
-          } catch (err: any) {
-            console.error(`[DataTools] Error checking Stripe transactions for ${visitor.email}:`, err.message);
+          } catch (err: unknown) {
+            console.error(`[DataTools] Error checking Stripe transactions for ${visitor.email}:`, getErrorMessage(err));
             keptCount++;
             activeVisitorArchiveJob!.progress.errors++;
           }
@@ -2403,8 +2404,8 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
         try {
           await db.execute(sql`UPDATE users SET archived_at = NOW(), archived_by = 'system-cleanup' WHERE id = ANY(${ids}::text[])`);
           archivedCount += batch.length;
-        } catch (err: any) {
-          console.error(`[DataTools] Error archiving batch:`, err.message);
+        } catch (err: unknown) {
+          console.error(`[DataTools] Error archiving batch:`, getErrorMessage(err));
           activeVisitorArchiveJob!.progress.errors++;
         }
 
@@ -2440,13 +2441,13 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
     activeVisitorArchiveJob!.result = result;
     activeVisitorArchiveJob!.progress.phase = 'done';
     broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DataTools] Visitor archive error:', error);
     activeVisitorArchiveJob!.status = 'failed';
     activeVisitorArchiveJob!.completedAt = new Date();
-    activeVisitorArchiveJob!.error = error.message;
+    activeVisitorArchiveJob!.error = getErrorMessage(error);
     activeVisitorArchiveJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, error: error.message });
+    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, error: getErrorMessage(error) });
   }
 }
 

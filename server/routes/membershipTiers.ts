@@ -4,6 +4,7 @@ import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { invalidateTierCache, clearTierCache } from '../core/tierService';
 import { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts, syncTierFeaturesToStripe, syncCafeItemsToStripe, pullTierFeaturesFromStripe, pullCafeItemsFromStripe } from '../core/stripe/products';
 import { logFromRequest } from '../core/auditLog';
+import { getErrorMessage, getErrorCode } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get('/api/membership-tiers', async (req, res) => {
     
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Membership tiers fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch membership tiers' });
   }
@@ -64,7 +65,7 @@ router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
     }
     
     res.json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Membership tier limits fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch tier limits' });
   }
@@ -83,7 +84,7 @@ router.get('/api/membership-tiers/:id', async (req, res) => {
     }
     
     res.json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Membership tier fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch membership tier' });
   }
@@ -160,7 +161,7 @@ router.put('/api/membership-tiers/:id', isAdmin, async (req, res) => {
     if (updatedTier.slug) invalidateTierCache(updatedTier.slug);
     
     res.json(updatedTier);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Membership tier update error:', error);
     res.status(500).json({ error: 'Failed to update membership tier' });
   }
@@ -211,9 +212,9 @@ router.post('/api/membership-tiers', isAdmin, async (req, res) => {
     if (newTier.slug) invalidateTierCache(newTier.slug);
     
     res.status(201).json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Membership tier create error:', error);
-    if (error.code === '23505') {
+    if (getErrorCode(error) === '23505') {
       res.status(400).json({ error: 'A tier with this name or slug already exists' });
     } else {
       res.status(500).json({ error: 'Failed to create membership tier' });
@@ -255,9 +256,9 @@ router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) 
       featureSync: featureResult,
       cafeSync: cafeResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin] Stripe sync error:', error);
-    res.status(500).json({ error: 'Failed to sync products to Stripe', message: error.message });
+    res.status(500).json({ error: 'Failed to sync products to Stripe', message: getErrorMessage(error) });
   }
 });
 
@@ -266,7 +267,7 @@ router.get('/api/admin/stripe/sync-status', isStaffOrAdmin, async (req, res) => 
   try {
     const status = await getTierSyncStatus();
     res.json({ tiers: status });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin] Error getting sync status:', error);
     res.status(500).json({ error: 'Failed to get sync status' });
   }
@@ -302,9 +303,9 @@ router.post('/api/admin/stripe/pull-from-stripe', isStaffOrAdmin, async (req, re
       tiers: tierResult,
       cafe: cafeResult,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin] Pull from Stripe error:', error);
-    res.status(500).json({ error: 'Failed to pull from Stripe', message: error.message });
+    res.status(500).json({ error: 'Failed to pull from Stripe', message: getErrorMessage(error) });
   }
 });
 

@@ -9,6 +9,7 @@ import { upsertVisitor, linkPurchaseToUser } from '../core/visitors/matchingServ
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.get('/api/day-passes/products', async (req: Request, res: Response) => {
       }));
 
     res.json({ products: formattedProducts });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DayPasses] Error getting products:', error);
     res.status(500).json({ error: 'Failed to get day pass products' });
   }
@@ -120,7 +121,7 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
       sessionId: session.id,
       sessionUrl: session.url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DayPasses] Error creating checkout session:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
@@ -254,7 +255,7 @@ router.post('/api/day-passes/confirm', async (req: Request, res: Response) => {
       purchaseId: purchase.id,
       userId: user.id
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DayPasses] Error confirming payment:', error);
     res.status(500).json({ error: 'Failed to confirm payment' });
   }
@@ -337,7 +338,7 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
       amountCents: product.priceCents,
       productName: product.name
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DayPasses] Error creating staff checkout:', error);
     res.status(500).json({ error: 'Failed to create payment' });
   }
@@ -445,7 +446,7 @@ router.post('/api/day-passes/staff-checkout/confirm', isStaffOrAdmin, async (req
       userName: `${firstName} ${lastName}`,
       userEmail: email
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DayPasses] Error confirming staff checkout:', error);
     res.status(500).json({ error: 'Failed to confirm payment' });
   }
@@ -520,9 +521,9 @@ export async function recordDayPassPurchaseFromWebhook(data: {
       quantity: purchase.quantity ?? 1,
       remainingUses: purchase.remainingUses ?? 1
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DayPasses Webhook] Error recording purchase:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 

@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { getErrorMessage, getErrorCode, getErrorStatusCode, isStripeError } from '../utils/errorUtils';
 import { 
   bookingParticipants, 
   bookingSessions, 
@@ -226,8 +227,8 @@ async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
       issues,
       lastRun: new Date()
     };
-  } catch (error: any) {
-    console.error('[DataIntegrity] Error checking unmatched Trackman bookings:', error.message);
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Error checking unmatched Trackman bookings:', getErrorMessage(error));
     return {
       checkName: 'Unmatched Trackman Bookings',
       status: 'pass',
@@ -481,8 +482,8 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
           }
         });
       }
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
+    } catch (err: unknown) {
+      if (getErrorStatusCode(err) === 404) {
         issues.push({
           category: 'sync_mismatch',
           severity: 'error',
@@ -1065,9 +1066,9 @@ async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
           });
         }
       }
-    } catch (err: any) {
-      const isCustomerNotFound = err?.type === 'StripeInvalidRequestError' && 
-        (err?.code === 'resource_missing' || err?.message?.includes('No such customer'));
+    } catch (err: unknown) {
+      const isCustomerNotFound = isStripeError(err) && 
+        (getErrorCode(err) === 'resource_missing' || getErrorMessage(err)?.includes('No such customer'));
       
       if (isCustomerNotFound) {
         issues.push({
@@ -1086,13 +1087,13 @@ async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
           }
         });
       } else {
-        if (!isProduction) console.warn(`[DataIntegrity] Stripe API error for ${customerId}:`, err.message);
+        if (!isProduction) console.warn(`[DataIntegrity] Stripe API error for ${customerId}:`, getErrorMessage(err));
         issues.push({
           category: 'sync_mismatch',
           severity: 'warning',
           table: 'users',
           recordId: member.id,
-          description: `Error fetching Stripe subscriptions for "${memberName}": ${err.message}`,
+          description: `Error fetching Stripe subscriptions for "${memberName}": ${getErrorMessage(err)}`,
           suggestion: 'Check Stripe customer ID validity'
         });
       }
@@ -1261,9 +1262,9 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
             ['membership_tier']
           );
           hubspotTier = (contact.properties?.membership_tier || '').toLowerCase().trim();
-        } catch (err: any) {
-          if (err?.response?.status !== 404) {
-            if (!isProduction) console.error(`[DataIntegrity] HubSpot tier lookup failed for ${member.email}:`, err.message);
+        } catch (err: unknown) {
+          if (getErrorStatusCode(err) !== 404) {
+            if (!isProduction) console.error(`[DataIntegrity] HubSpot tier lookup failed for ${member.email}:`, getErrorMessage(err));
           }
         }
       }
@@ -1324,8 +1325,8 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
           }
         });
       }
-    } catch (err: any) {
-      if (!isProduction) console.error(`[DataIntegrity] Error checking tier reconciliation for ${member.email}:`, err.message);
+    } catch (err: unknown) {
+      if (!isProduction) console.error(`[DataIntegrity] Error checking tier reconciliation for ${member.email}:`, getErrorMessage(err));
     }
   };
   
@@ -1764,8 +1765,8 @@ async function checkHubSpotIdDuplicates(): Promise<IntegrityCheckResult> {
         }
       });
     }
-  } catch (error: any) {
-    console.error('[DataIntegrity] Error checking HubSpot ID duplicates:', error.message);
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Error checking HubSpot ID duplicates:', getErrorMessage(error));
   }
   
   return {
@@ -2563,8 +2564,8 @@ export async function runDataCleanup(): Promise<{
     }
 
     console.log(`[DataCleanup] Removed ${orphanedNotifications} orphaned notifications, marked ${orphanedBookings} orphaned bookings, normalized ${normalizedEmails} emails, removed ${orphanedFeeSnapshots} orphaned fee snapshots`);
-  } catch (error: any) {
-    console.error('[DataCleanup] Error during cleanup:', error.message);
+  } catch (error: unknown) {
+    console.error('[DataCleanup] Error during cleanup:', getErrorMessage(error));
     throw error;
   }
 
@@ -2646,8 +2647,8 @@ export async function autoFixMissingTiers(): Promise<{
     }
     
     return { fixedFromAlternateEmail, remainingWithoutTier };
-  } catch (error: any) {
-    console.error('[AutoFix] Error fixing missing tiers:', error.message);
+  } catch (error: unknown) {
+    console.error('[AutoFix] Error fixing missing tiers:', getErrorMessage(error));
     return { fixedFromAlternateEmail: 0, remainingWithoutTier: -1 };
   }
 }

@@ -18,6 +18,7 @@ import { broadcastMemberStatsUpdated } from '../core/websocket';
 import { updateHubSpotContactVisitCount } from '../core/memberSync';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
 import { sendFirstVisitConfirmationEmail } from '../emails/firstVisitEmail';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -169,8 +170,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           
           await recalculateSessionFees(sessionId);
         }
-      } catch (sessionError: any) {
-        console.warn(`[Checkin Context] Failed to create session for booking ${bookingId}:`, sessionError.message);
+      } catch (sessionError: unknown) {
+        console.warn(`[Checkin Context] Failed to create session for booking ${bookingId}:`, getErrorMessage(sessionError));
       }
     }
 
@@ -234,8 +235,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           // Recalculate fees after cleanup
           await recalculateSessionFees(sessionId, 'sync_cleanup');
         }
-      } catch (syncError: any) {
-        console.warn(`[Checkin Context Sync] Non-blocking sync cleanup failed for booking ${bookingId}:`, syncError.message);
+      } catch (syncError: unknown) {
+        console.warn(`[Checkin Context Sync] Non-blocking sync cleanup failed for booking ${bookingId}:`, getErrorMessage(syncError));
       }
       
       const participantsResult = await pool.query(`
@@ -383,7 +384,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
     };
 
     res.json(context);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to get check-in context', error);
   }
 });
@@ -743,7 +744,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
     }
 
     res.status(400).json({ error: 'Invalid action' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update payment status', error);
   }
 });
@@ -840,7 +841,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
     });
 
     res.json(overduePayments);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to get overdue payments', error);
   }
 });
@@ -895,7 +896,7 @@ router.post('/api/booking-participants/:id/mark-waiver-reviewed', isStaffOrAdmin
     await client.query('COMMIT');
 
     res.json({ success: true, participant: { id: participantId, display_name, waiver_reviewed_at: new Date() } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     try { await client.query('ROLLBACK'); } catch {}
     logAndRespond(req, res, 500, 'Failed to mark waiver as reviewed', error);
   } finally {
@@ -958,7 +959,7 @@ router.post('/api/bookings/:bookingId/mark-all-waivers-reviewed', isStaffOrAdmin
     await client.query('COMMIT');
 
     res.json({ success: true, updatedCount: result.rows.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     try { await client.query('ROLLBACK'); } catch {}
     logAndRespond(req, res, 500, 'Failed to mark waivers as reviewed', error);
   } finally {
@@ -1018,7 +1019,7 @@ router.post('/api/bookings/bulk-review-all-waivers', isStaffOrAdmin, async (req:
     await client.query('COMMIT');
 
     res.json({ success: true, updatedCount });
-  } catch (error: any) {
+  } catch (error: unknown) {
     try { await client.query('ROLLBACK'); } catch {}
     logAndRespond(req, res, 500, 'Failed to bulk review waivers', error);
   } finally {
@@ -1045,7 +1046,7 @@ router.get('/api/bookings/stale-waivers', isStaffOrAdmin, async (req: Request, r
     `);
 
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to get stale waivers', error);
   }
 });
@@ -1444,7 +1445,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
     }
 
     res.status(400).json({ error: 'Invalid participant type' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to add participant directly', error);
   }
 });
@@ -1551,7 +1552,7 @@ router.post('/api/staff/qr-checkin', isStaffOrAdmin, async (req: Request, res: R
       pinnedNotes,
       membershipStatus: member.membership_status
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to process QR check-in', error);
   }
 });

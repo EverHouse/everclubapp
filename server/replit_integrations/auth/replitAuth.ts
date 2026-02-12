@@ -4,6 +4,7 @@ import connectPg from "connect-pg-simple";
 import type { Pool } from "pg";
 import { pool } from "../../core/db";
 import { getSessionUser } from "../../types/session";
+import { getErrorMessage } from "../../utils/errorUtils";
 
 export function getAuthPool() {
   if (!process.env.DATABASE_URL) {
@@ -70,8 +71,8 @@ export function getSession() {
       saveUninitialized: false,
       cookie: cookieConfig,
     });
-  } catch (err: any) {
-    console.warn('[Session] Postgres store failed, using MemoryStore:', err.message);
+  } catch (err: unknown) {
+    console.warn('[Session] Postgres store failed, using MemoryStore:', getErrorMessage(err));
     console.log('[Session] Using MemoryStore');
     return session({
       secret: sessionSecret,
@@ -85,8 +86,8 @@ export function getSession() {
 export async function queryWithRetry(pool: Pool, query: string, params: any[]): Promise<any> {
   try {
     return await pool.query(query, params);
-  } catch (error: any) {
-    console.warn('[Auth] Query failed, retrying once:', error.message);
+  } catch (error: unknown) {
+    console.warn('[Auth] Query failed, retrying once:', getErrorMessage(error));
     return await pool.query(query, params);
   }
 }
@@ -102,8 +103,8 @@ export async function isAdminEmail(email: string): Promise<boolean> {
       [email, 'admin']
     );
     return result.rows.length > 0;
-  } catch (error: any) {
-    console.error('Error checking admin status:', error.message);
+  } catch (error: unknown) {
+    console.error('Error checking admin status:', getErrorMessage(error));
     return false;
   }
 }
@@ -163,8 +164,8 @@ export const isStaffOrAdmin: RequestHandler = async (req, res, next) => {
     if (result.rows.length > 0) {
       return next();
     }
-  } catch (error: any) {
-    console.error('Error checking staff status:', error.message);
+  } catch (error: unknown) {
+    console.error('Error checking staff status:', getErrorMessage(error));
   }
 
   return res.status(403).json({ message: "Forbidden: Staff access required" });

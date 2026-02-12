@@ -29,7 +29,7 @@ router.get('/api/gallery', async (req, res) => {
     }));
     
     res.json(formatted);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch gallery', error, 'GALLERY_FETCH_ERROR');
   }
 });
@@ -51,7 +51,7 @@ router.post('/api/admin/gallery', isStaffOrAdmin, async (req, res) => {
     }).returning();
     
     res.status(201).json(newImage);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to create gallery image', error, 'GALLERY_CREATE_ERROR');
   }
 });
@@ -77,7 +77,7 @@ router.put('/api/admin/gallery/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update gallery image', error, 'GALLERY_UPDATE_ERROR');
   }
 });
@@ -96,7 +96,7 @@ router.delete('/api/admin/gallery/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ success: true, archived: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to archive gallery image', error, 'GALLERY_DELETE_ERROR');
   }
 });
@@ -124,7 +124,7 @@ router.post('/api/admin/gallery/reorder', isStaffOrAdmin, async (req, res) => {
     );
     
     res.json({ success: true, updated: order.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to reorder gallery images', error, 'GALLERY_REORDER_ERROR');
   }
 });

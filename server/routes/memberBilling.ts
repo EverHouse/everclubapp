@@ -8,6 +8,7 @@ import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/invoices';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { logFromRequest } from '../core/auditLog';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -143,9 +144,9 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
           billingInfo.customerBalance = balanceCents;
           billingInfo.customerBalanceDollars = balanceCents / 100;
         }
-      } catch (stripeError: any) {
-        console.error('[MemberBilling] Stripe API error:', stripeError.message);
-        billingInfo.stripeError = stripeError.message;
+      } catch (stripeError: unknown) {
+        console.error('[MemberBilling] Stripe API error:', getErrorMessage(stripeError));
+        billingInfo.stripeError = getErrorMessage(stripeError);
       }
     } else if (member.billing_provider === 'mindbody') {
       billingInfo.mindbodyClientId = member.mindbody_client_id;
@@ -184,18 +185,18 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
               expYear: pm.card?.exp_year,
             }));
           }
-        } catch (stripeError: any) {
+        } catch (stripeError: unknown) {
           // Don't fail the whole request if Stripe lookup fails
-          console.error('[MemberBilling] Stripe lookup for MindBody member failed:', stripeError.message);
+          console.error('[MemberBilling] Stripe lookup for MindBody member failed:', getErrorMessage(stripeError));
         }
       }
     } else if (member.billing_provider === 'family_addon') {
       try {
         const familyGroup = await getBillingGroupByMemberEmail(email);
         billingInfo.familyGroup = familyGroup;
-      } catch (familyError: any) {
-        console.error('[MemberBilling] Family group error:', familyError.message);
-        billingInfo.familyError = familyError.message;
+      } catch (familyError: unknown) {
+        console.error('[MemberBilling] Family group error:', getErrorMessage(familyError));
+        billingInfo.familyError = getErrorMessage(familyError);
       }
     }
 
@@ -221,9 +222,9 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
     }
 
     res.json(billingInfo);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error getting billing info:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -284,9 +285,9 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
       totalOutstandingDollars: totalOutstandingCents / 100,
       items,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error fetching outstanding balance:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -328,9 +329,9 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
     }
     
     res.json({ success: true, billingProvider });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error updating billing source:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -387,9 +388,9 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
       resumeDate: resumeDate.toISOString(),
       durationDays,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error pausing subscription:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -426,9 +427,9 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
     logFromRequest(req, 'resume_subscription', 'subscription', subscription.id, email, {});
     
     res.json({ success: true, subscriptionId: subscription.id, status: 'active' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error resuming subscription:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -495,7 +496,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
       cancellationEffectiveDate: effectiveDate.toISOString(),
       noticePeriodDays: 30,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error canceling subscription:', error);
     res.status(500).json({ error: 'Failed to process cancellation request' });
   }
@@ -556,7 +557,7 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
       subscriptionId: pendingCancelSub.id,
       message: 'Cancellation has been reversed'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error undoing cancellation:', error);
     res.status(500).json({ error: 'Failed to undo cancellation' });
   }
@@ -628,9 +629,9 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
       amount: transaction.amount,
       endingBalance: transaction.ending_balance,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error applying credit:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -696,9 +697,9 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
       subscriptionId: subscription.id,
       couponId: appliedCouponId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error applying discount:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -722,9 +723,9 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
     }
 
     res.json({ invoices: result.invoices });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error getting invoices:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -752,9 +753,9 @@ router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (
     }
 
     res.json({ transactions: result.transactions });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error getting payment history:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -795,9 +796,9 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
       success: true,
       url: session.url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[MemberBilling] Error creating payment link:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 

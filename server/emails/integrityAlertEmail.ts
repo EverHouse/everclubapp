@@ -1,5 +1,6 @@
 import { getResendClient } from '../utils/resend';
 import { IntegrityCheckResult, IntegrityIssue } from '../core/dataIntegrity';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const CLUB_COLORS = {
   deepGreen: '#293515',
@@ -246,8 +247,8 @@ export async function sendIntegrityAlertEmail(
     
     console.log(`[Integrity Alert] Email sent successfully to ${adminEmail}`);
     return { success: true };
-  } catch (error: any) {
-    console.error(`[Integrity Alert] Failed to send email to ${adminEmail}:`, error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    console.error(`[Integrity Alert] Failed to send email to ${adminEmail}:`, getErrorMessage(error));
+    return { success: false, error: getErrorMessage(error) };
   }
 }

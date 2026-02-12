@@ -28,7 +28,7 @@ router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
     const result = await query.orderBy(desc(formSubmissions.createdAt));
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Inquiries fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch inquiries' });
   }
@@ -46,7 +46,7 @@ router.get('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(inquiry);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Inquiry fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch inquiry' });
   }
@@ -71,7 +71,7 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Inquiry update error:', error);
     res.status(500).json({ error: 'Failed to update inquiry' });
   }
@@ -104,7 +104,7 @@ router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ success: true, deleted });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Inquiry deletion error:', error);
     res.status(500).json({ error: 'Failed to delete inquiry' });
   }

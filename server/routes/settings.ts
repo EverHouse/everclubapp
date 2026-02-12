@@ -47,7 +47,7 @@ router.get('/api/settings', isAuthenticated, async (req, res) => {
     }
     
     res.json(settingsMap);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch settings', error, 'SETTINGS_FETCH_ERROR');
   }
 });
@@ -70,7 +70,7 @@ router.get('/api/settings/:key', isAuthenticated, async (req, res) => {
     } else {
       res.status(404).json({ error: 'Setting not found' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch setting', error, 'SETTING_FETCH_ERROR');
   }
 });
@@ -114,7 +114,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
       
       res.json(created);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update setting', error, 'SETTING_UPDATE_ERROR');
   }
 });
@@ -161,7 +161,7 @@ router.put('/api/admin/settings', isAdmin, async (req, res) => {
     }
     
     res.json({ success: true, updated: results.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update settings', error, 'SETTINGS_BULK_UPDATE_ERROR');
   }
 });

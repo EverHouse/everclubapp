@@ -5,6 +5,7 @@ import fs from 'fs';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { importTrackmanBookings, getImportRuns, rescanUnmatchedBookings } from '../../core/trackmanImport';
 import { logFromRequest } from '../../core/auditLog';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.get('/api/admin/trackman/import-runs', isStaffOrAdmin, async (req, res) =
   try {
     const runs = await getImportRuns();
     res.json(runs);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching import runs:', error);
     res.status(500).json({ error: 'Failed to fetch import runs' });
   }
@@ -70,9 +71,9 @@ router.post('/api/admin/trackman/import', isStaffOrAdmin, async (req, res) => {
       success: true,
       ...result
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Import error:', error);
-    res.status(500).json({ error: error.message || 'Failed to import bookings' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to import bookings' });
   }
 });
 
@@ -93,9 +94,9 @@ router.post('/api/admin/trackman/upload', isStaffOrAdmin, upload.single('file'),
       filename: req.file.filename,
       ...result
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Upload/Import error:', error);
-    res.status(500).json({ error: error.message || 'Failed to upload and import bookings' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to upload and import bookings' });
   } finally {
     if (csvPath && fs.existsSync(csvPath)) {
       try {
@@ -130,9 +131,9 @@ router.post('/api/admin/trackman/rescan', isStaffOrAdmin, async (req, res) => {
       message,
       ...result
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Rescan error:', error);
-    res.status(500).json({ error: error.message || 'Failed to rescan unmatched bookings' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to rescan unmatched bookings' });
   }
 });
 

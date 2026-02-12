@@ -72,7 +72,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         message: 'Check your email for the confirmation link',
         user: data.user 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Supabase signup error:', error);
       res.status(500).json({ error: 'Signup failed' });
     }
@@ -104,7 +104,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         user: data.user,
         session: data.session
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Supabase login error:', error);
       res.status(500).json({ error: 'Login failed' });
     }
@@ -119,7 +119,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
       }
       
       res.json({ message: 'Logged out successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Supabase logout error:', error);
       res.status(500).json({ error: 'Logout failed' });
     }
@@ -138,7 +138,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
       }
       
       res.json({ message: 'Check your email for the password reset link' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Forgot password error:', error);
       res.status(500).json({ error: 'Failed to send reset email' });
     }
@@ -167,7 +167,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         lastName: dbUser?.lastName || user.user_metadata?.last_name || '',
         role: dbUser?.role || 'member',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Get user error:', error);
       res.status(500).json({ error: 'Failed to get user' });
     }
@@ -189,7 +189,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
       }
       
       res.json({ url: data.url });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('OAuth error:', error);
       res.status(500).json({ error: 'OAuth failed' });
     }

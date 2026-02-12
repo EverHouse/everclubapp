@@ -258,7 +258,7 @@ router.post('/api/availability/batch', async (req, res) => {
     }
     
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Batch availability API error:', error);
     res.status(500).json({ error: 'Batch availability request failed' });
   }
@@ -448,7 +448,7 @@ router.get('/api/availability', async (req, res) => {
     }
     
     res.json(slots);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Request failed' });
   }
@@ -469,7 +469,7 @@ router.post('/api/availability-blocks', isStaffOrAdmin, async (req, res) => {
     );
     
     res.status(201).json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Availability block creation error:', error);
     res.status(500).json({ error: 'Failed to create availability block' });
   }
@@ -503,7 +503,7 @@ router.get('/api/availability-blocks', async (req, res) => {
     
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Availability blocks error:', error);
     res.status(500).json({ error: 'Failed to fetch availability blocks' });
   }
@@ -531,7 +531,7 @@ router.put('/api/availability-blocks/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Update block error:', error);
     res.status(500).json({ error: 'Failed to update availability block' });
   }
@@ -542,7 +542,7 @@ router.delete('/api/availability-blocks/:id', isStaffOrAdmin, async (req, res) =
     const { id } = req.params;
     await pool.query('DELETE FROM availability_blocks WHERE id = $1', [id]);
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Delete block error:', error);
     res.status(500).json({ error: 'Failed to delete availability block' });
   }

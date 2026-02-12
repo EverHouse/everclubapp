@@ -5,6 +5,7 @@ import { staffUsers, users } from '../../shared/schema';
 import { isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { normalizeEmail } from '../core/utils/emailNormalization';
+import { getErrorCode } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/api/staff-users/by-email/:email', isStaffOrAdmin, async (req, res) 
     }
     
     res.json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch staff user' });
   }
@@ -64,7 +65,7 @@ router.get('/api/staff-users', isStaffOrAdmin, async (req, res) => {
           .where(sql`${staffUsers.role} = 'staff' OR ${staffUsers.role} IS NULL`)
           .orderBy(desc(staffUsers.createdAt));
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch staff users' });
   }
@@ -105,8 +106,8 @@ router.post('/api/staff-users', isAdmin, async (req, res) => {
       created_at: result[0].createdAt,
       created_by: result[0].createdBy
     });
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '23505') {
       return res.status(400).json({ error: 'This email is already a team member' });
     }
     if (!isProduction) console.error('API error:', error);
@@ -151,7 +152,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
       created_at: result[0].createdAt,
       created_by: result[0].createdBy
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to update staff user' });
   }
@@ -184,7 +185,7 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
         created_by: result[0].createdBy
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to remove staff user' });
   }
@@ -208,7 +209,7 @@ router.get('/api/admin-users', isAdmin, async (req, res) => {
       .where(eq(staffUsers.role, 'admin'))
       .orderBy(desc(staffUsers.createdAt));
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch admin users' });
   }
@@ -244,8 +245,8 @@ router.post('/api/admin-users', isAdmin, async (req, res) => {
       created_at: result[0].createdAt,
       created_by: result[0].createdBy
     });
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '23505') {
       return res.status(400).json({ error: 'This email is already an admin' });
     }
     if (!isProduction) console.error('API error:', error);
@@ -288,7 +289,7 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
       created_at: result[0].createdAt,
       created_by: result[0].createdBy
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to update admin user' });
   }
@@ -329,7 +330,7 @@ router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
         created_by: result[0].createdBy
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to remove admin user' });
   }
@@ -362,7 +363,7 @@ router.post('/api/users/batch-emails', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ emails });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch user emails' });
   }

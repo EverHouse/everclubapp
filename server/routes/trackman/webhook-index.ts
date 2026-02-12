@@ -28,12 +28,13 @@ import {
 } from './webhook-handlers';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
-import { 
+import {
   updateBaySlotCache, 
   linkByExternalBookingId,
   createBookingForMember,
   tryMatchByBayDateTime,
 } from './webhook-billing';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -405,7 +406,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       processingError
     );
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Processing error', { error });
     
     await logWebhookEvent(
@@ -415,7 +416,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
       undefined,
       undefined,
       undefined,
-      error.message
+      getErrorMessage(error)
     );
   }
 });
@@ -460,7 +461,7 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
       limit,
       offset
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to fetch webhook events', { error });
     res.status(500).json({ error: 'Failed to fetch webhook events' });
   }
@@ -491,7 +492,7 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
       webhookStats: stats.rows[0],
       slotStats: slotStats.rows[0],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to fetch stats', { error });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
@@ -522,7 +523,7 @@ router.get('/api/admin/trackman-webhook/stats', isStaffOrAdmin, async (req: Requ
       webhookStats: stats.rows[0],
       slotStats: slotStats.rows[0],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to fetch stats', { error });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
@@ -557,7 +558,7 @@ router.post('/api/admin/linked-emails', isStaffOrAdmin, async (req: Request, res
     });
     
     res.json({ success: true, message: 'Email link created successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Linked Emails] Failed to create link', { error });
     res.status(500).json({ error: 'Failed to create email link' });
   }
@@ -588,7 +589,7 @@ router.get('/api/admin/linked-emails/:email', isStaffOrAdmin, async (req: Reques
         createdAt: r.created_at
       }))
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Linked Emails] Failed to fetch links', { error });
     res.status(500).json({ error: 'Failed to fetch email links' });
   }
@@ -627,7 +628,7 @@ router.get('/api/availability/trackman-cache', async (req: Request, res: Respons
        ORDER BY slot_date, start_time`);
     
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to fetch availability cache', { error });
     res.status(500).json({ error: 'Failed to fetch availability' });
   }
@@ -649,7 +650,7 @@ router.get('/api/admin/trackman-webhook/failed', isStaffOrAdmin, async (req: Req
        LIMIT 50`);
     
     res.json(result.rows);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to fetch failed events', { error });
     res.status(500).json({ error: 'Failed to fetch failed events' });
   }
@@ -699,8 +700,8 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
         logger.info('[Trackman Webhook] Retry processing completed', {
           extra: { eventId, success, matchedBookingId }
         });
-      } catch (processError: any) {
-        message = `Reprocessing failed: ${processError.message}`;
+      } catch (processError: unknown) {
+        message = `Reprocessing failed: ${getErrorMessage(processError)}`;
         logger.error('[Trackman Webhook] Retry processing error', {
           error: processError,
           extra: { eventId }
@@ -722,7 +723,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
     }
     
     res.json({ success, message, matchedBookingId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to retry event', { error });
     res.status(500).json({ error: 'Failed to retry event' });
   }
@@ -946,7 +947,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       wasApproved: true
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Auto-Match] Failed to auto-match event', { error });
     res.status(500).json({ error: 'Failed to auto-match event' });
   }
@@ -976,7 +977,7 @@ router.post('/api/admin/trackman-webhook/cleanup', isStaffOrAdmin, async (req: R
   try {
     const result = await cleanupOldWebhookLogs();
     res.json({ success: true, deleted: result.deleted });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Webhook] Manual cleanup failed', { error });
     res.status(500).json({ error: 'Failed to cleanup logs' });
   }
@@ -1173,7 +1174,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
           amountCharged: paymentResult.amountCharged,
           success: paymentResult.success
         });
-      } catch (paymentError: any) {
+      } catch (paymentError: unknown) {
         logger.error('[Simulate Confirm] Failed to charge overage fee', { error: paymentError });
       }
     }
@@ -1236,7 +1237,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       overageFeeCents: booking.overage_fee_cents,
       totalFeeCents
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Simulate Confirm] Error', { error });
     res.status(500).json({ error: 'Failed to confirm booking' });
   }
@@ -1396,12 +1397,12 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             });
           }
         }
-      } catch (eventError: any) {
+      } catch (eventError: unknown) {
         results.errors++;
         results.details.push({ 
           trackmanId: event.trackman_booking_id, 
           status: 'error', 
-          reason: eventError.message 
+          reason: getErrorMessage(eventError) 
         });
         logger.error('[Trackman Backfill] Error processing event', { 
           error: eventError, 
@@ -1431,9 +1432,9 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
       message: `Processed ${results.total} webhook events`,
       results
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Backfill] Error', { error });
-    res.status(500).json({ error: 'Failed to run backfill', details: error.message });
+    res.status(500).json({ error: 'Failed to run backfill', details: getErrorMessage(error) });
   }
 });
 
@@ -1492,9 +1493,9 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
         }
         
         await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (err: any) {
+      } catch (err: unknown) {
         failed++;
-        errors.push(`Event ${event.id}: ${err.message}`);
+        errors.push(`Event ${event.id}: ${getErrorMessage(err)}`);
       }
     }
     
@@ -1508,9 +1509,9 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
       total: events.rows.length,
       errors: errors.slice(0, 10)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Trackman Replay] Error', { error });
-    res.status(500).json({ error: 'Failed to replay webhooks', details: error.message });
+    res.status(500).json({ error: 'Failed to replay webhooks', details: getErrorMessage(error) });
   }
 });
 

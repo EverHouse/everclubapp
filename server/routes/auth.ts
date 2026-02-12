@@ -14,6 +14,7 @@ import { getSessionUser } from '../types/session';
 import { sendWelcomeEmail } from '../emails/welcomeEmail';
 import { getSupabaseAdmin, isSupabaseAvailable } from '../core/supabase/client';
 import { normalizeEmail } from '../core/utils/emailNormalization';
+import { getErrorMessage } from '../utils/errorUtils';
 
 interface StaffUserData {
   id: number;
@@ -181,7 +182,7 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
 
     if (linkError) {
       // Only log non-network errors
-      if (!linkError.message?.includes('fetch failed') && !linkError.message?.includes('ENOTFOUND')) {
+      if (!getErrorMessage(linkError)?.includes('fetch failed') && !getErrorMessage(linkError)?.includes('ENOTFOUND')) {
         console.error('[Supabase] generateLink error:', linkError);
       }
       return null;
@@ -211,11 +212,11 @@ async function createSupabaseToken(user: { id: string, email: string, role: stri
     }
     
     return null;
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Suppress network-related errors since we already logged the availability status
-    if (!e.message?.includes('fetch failed') && 
-        !e.message?.includes('ENOTFOUND') && 
-        !e.message?.includes('ECONNREFUSED')) {
+    if (!getErrorMessage(e)?.includes('fetch failed') && 
+        !getErrorMessage(e)?.includes('ENOTFOUND') && 
+        !getErrorMessage(e)?.includes('ECONNREFUSED')) {
       console.error('[Supabase] Failed to generate token:', e);
     }
     return null;
@@ -440,8 +441,8 @@ router.post('/api/auth/verify-member', async (req, res) => {
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
-        } catch (stripeError: any) {
-          console.error(`[Auth] Failed to verify Stripe subscription for ${normalizedEmail}:`, stripeError.message);
+        } catch (stripeError: unknown) {
+          console.error(`[Auth] Failed to verify Stripe subscription for ${normalizedEmail}:`, getErrorMessage(stripeError));
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
       } else if (!activeStatuses.includes(dbMemberStatus)) {
@@ -559,7 +560,7 @@ router.post('/api/auth/verify-member', async (req, res) => {
     };
     
     res.json({ success: true, member });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Member verification error:', error);
     res.status(500).json({ error: 'Failed to verify membership' });
   }
@@ -628,8 +629,8 @@ router.post('/api/auth/request-otp', async (req, res) => {
             // Subscription is genuinely not active in Stripe
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
-        } catch (stripeError: any) {
-          console.error(`[Auth] Failed to verify Stripe subscription for ${normalizedEmail}:`, stripeError.message);
+        } catch (stripeError: unknown) {
+          console.error(`[Auth] Failed to verify Stripe subscription for ${normalizedEmail}:`, getErrorMessage(stripeError));
           // If we can't verify with Stripe, fall back to database status
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
@@ -765,11 +766,11 @@ router.post('/api/auth/request-otp', async (req, res) => {
       }
       
       return res.json({ success: true, message: 'Login code sent to your email' });
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
       console.error('[OTP Email] Error sending email:', emailError?.message || emailError);
       return res.status(500).json({ error: 'Failed to send login code. Please try again.' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('OTP request error:', error?.message || error);
     
     if (error?.message?.includes('HubSpot') || error?.message?.includes('hubspot')) {
@@ -1042,7 +1043,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
       }
       res.json({ success: true, member, shouldSetupPassword, supabaseToken });
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('OTP verification error:', error);
     res.status(500).json({ error: 'Failed to verify code' });
   }
@@ -1119,7 +1120,7 @@ router.get('/api/auth/check-staff-admin', async (req, res) => {
     }
     
     res.json({ isStaffOrAdmin: false, role: null, hasPassword: false });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Check staff/admin error:', error);
     res.status(500).json({ error: 'Failed to check user status' });
   }
@@ -1243,7 +1244,7 @@ router.post('/api/auth/password-login', async (req, res) => {
       }
       res.json({ success: true, member, supabaseToken });
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Password login error:', error);
     res.status(500).json({ error: 'Login failed. Please try again.' });
   }
@@ -1296,7 +1297,7 @@ router.post('/api/auth/set-password', async (req, res) => {
     }
     
     res.status(403).json({ error: 'Password can only be set for staff or admin accounts' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Set password error:', error);
     res.status(500).json({ error: 'Failed to set password' });
   }
@@ -1347,7 +1348,7 @@ router.post('/api/auth/dev-login', async (req, res) => {
       }
       res.json({ success: true, member, supabaseToken });
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Dev login error:', error);
     res.status(500).json({ error: 'Dev login failed' });
   }
@@ -1372,9 +1373,9 @@ router.post('/api/auth/test-welcome-email', async (req, res) => {
     } else {
       res.status(500).json({ error: result.error || 'Failed to send welcome email' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Test welcome email error:', error);
-    res.status(500).json({ error: error.message || 'Failed to send test email' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to send test email' });
   }
 });
 

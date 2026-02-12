@@ -3,6 +3,7 @@ import { isProduction } from '../core/db';
 import { getGoogleCalendarClient } from '../core/integrations';
 import { CALENDAR_CONFIG, getCalendarAvailability, discoverCalendarIds, getCalendarStatus, syncConferenceRoomCalendarToBookings } from '../core/calendar/index';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -30,11 +31,11 @@ router.get('/api/admin/calendars', isStaffOrAdmin, async (req, res) => {
         'Internal Calendar': 'Closures (internal tracking)'
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Calendar status check error:', error);
     res.status(500).json({ 
       error: 'Failed to check calendar status',
-      details: error.message 
+      details: getErrorMessage(error) 
     });
   }
 });
@@ -71,7 +72,7 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
       slots: result.slots,
       availableSlots: result.slots.filter(s => s.available)
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Conference calendar availability error:', error);
     res.status(500).json({ error: 'Failed to fetch conference room availability' });
   }
@@ -89,7 +90,7 @@ router.get('/api/calendars', async (req, res) => {
         internal: CALENDAR_CONFIG.internal.name
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Calendar list error:', error);
     res.status(500).json({ error: 'Failed to list calendars' });
   }
@@ -127,9 +128,9 @@ router.get('/api/calendar/availability', async (req, res) => {
         end: slot.end,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Calendar availability error:', error);
-    res.status(500).json({ error: 'Failed to fetch calendar availability', details: error.message });
+    res.status(500).json({ error: 'Failed to fetch calendar availability', details: getErrorMessage(error) });
   }
 });
 
@@ -157,9 +158,9 @@ router.post('/api/admin/conference-room/backfill', isAdmin, async (req, res) => 
         skipped_duplicates: result.skipped
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Conference room backfill error:', error);
-    res.status(500).json({ error: 'Failed to run backfill', details: error.message });
+    res.status(500).json({ error: 'Failed to run backfill', details: getErrorMessage(error) });
   }
 });
 
@@ -200,9 +201,9 @@ router.post('/api/admin/bookings/sync-history', isAdmin, async (req, res) => {
         skipped: conferenceResult.skipped
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Booking sync error:', error);
-    res.status(500).json({ error: 'Failed to run sync', details: error.message });
+    res.status(500).json({ error: 'Failed to run sync', details: getErrorMessage(error) });
   }
 });
 
@@ -225,7 +226,7 @@ router.post('/api/admin/bookings/sync-calendar', isStaffOrAdmin, async (req, res
         error: conferenceResult.error
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Calendar sync error:', error);
     res.status(500).json({ error: 'Failed to sync calendar' });
   }

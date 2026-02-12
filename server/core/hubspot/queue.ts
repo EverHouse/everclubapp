@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 
@@ -47,7 +48,7 @@ export async function enqueueHubSpotSync(
     });
     
     return result.rows[0].id;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[HubSpot Queue] Failed to enqueue job', { 
       error,
       extra: { operation, idempotencyKey }
@@ -111,8 +112,8 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         extra: { jobId: job.id, operation: job.operation }
       });
       
-    } catch (error: any) {
-      const errorMsg = error.message || '';
+    } catch (error: unknown) {
+      const errorMsg = getErrorMessage(error);
       const isUnrecoverable = 
         errorMsg.includes('MISSING_SCOPES') || 
         errorMsg.includes('403') || 
@@ -155,7 +156,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         await db.execute(sql`UPDATE hubspot_sync_queue 
            SET status = 'failed', 
                retry_count = ${newRetryCount}, 
-               last_error = ${error.message}, 
+               last_error = ${getErrorMessage(error)}, 
                next_retry_at = ${nextRetry},
                updated_at = NOW() 
            WHERE id = ${job.id}`);
@@ -172,7 +173,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         // Mark as dead (exceeded retries)
         await db.execute(sql`UPDATE hubspot_sync_queue 
            SET status = 'dead', 
-               last_error = ${error.message},
+               last_error = ${getErrorMessage(error)},
                updated_at = NOW() 
            WHERE id = ${job.id}`);
         
@@ -187,7 +188,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
           await notifyAllStaff(
             'HubSpot Sync Failed Permanently',
             `Job ${job.id} (${job.operation}) failed after ${job.max_retries} retries. ` +
-            `Last error: ${error.message}. Manual intervention may be required.`,
+            `Last error: ${getErrorMessage(error)}. Manual intervention may be required.`,
             'integration_error'
           );
         } catch (notifyErr) {

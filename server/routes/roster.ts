@@ -49,6 +49,7 @@ import { createBalanceAwarePayment } from '../core/stripe/payments';
 import { computeFeeBreakdown, getEffectivePlayerCount, invalidateCachedFees, recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { PRICING } from '../core/billing/pricingConfig';
 import { createPrepaymentIntent } from '../core/billing/prepaymentService';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -122,7 +123,7 @@ router.get('/api/bookings/conflicts', async (req: Request, res: Response) => {
       conflictCount: result.conflicts.length,
       conflicts: result.conflicts
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to check booking conflicts', error);
   }
 });
@@ -268,7 +269,7 @@ router.get('/api/bookings/:bookingId/participants', async (req: Request, res: Re
       remainingMinutes,
       rosterVersion: booking.roster_version ?? 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch participants', error);
   }
 });
@@ -826,7 +827,7 @@ router.post('/api/bookings/:bookingId/participants', async (req: Request, res: R
     } finally {
       client.release();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     const { isConstraintError } = await import('../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique') {
@@ -1045,7 +1046,7 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', async (req
     } finally {
       client.release();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     const { isConstraintError } = await import('../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique') {
@@ -1357,7 +1358,7 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', async (req: Re
       },
       unifiedBreakdown: breakdown,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to preview fees', error);
   }
 });
@@ -1492,7 +1493,7 @@ router.post('/api/bookings/:id/invite/accept', async (req: Request, res: Respons
     });
 
     res.json({ success: true, message: 'Invite accepted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to accept invite', error);
   }
 });
@@ -1592,7 +1593,7 @@ router.post('/api/bookings/:id/invite/decline', async (req: Request, res: Respon
     });
 
     res.json({ success: true, message: 'Invite declined successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to decline invite', error);
   }
 });
@@ -1805,7 +1806,7 @@ router.post('/api/bookings/:bookingId/guest-fee-checkout', async (req: Request, 
       remainingCents: paymentResult.remainingCents,
       participantId: newParticipant.id
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     const { isConstraintError } = await import('../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique') {
@@ -1931,7 +1932,7 @@ router.post('/api/bookings/:bookingId/confirm-guest-payment', async (req: Reques
     });
 
     res.json({ success: true, message: 'Guest fee payment confirmed' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to confirm guest payment', error);
   }
 });
@@ -1994,9 +1995,9 @@ router.post('/api/bookings/:bookingId/cancel-guest-payment', async (req: Request
       try {
         const stripe = getStripeClient();
         await stripe.paymentIntents.cancel(paymentIntentId);
-      } catch (stripeErr: any) {
+      } catch (stripeErr: unknown) {
         logger.warn('[roster] Failed to cancel Stripe payment intent', {
-          extra: { paymentIntentId, error: stripeErr.message }
+          extra: { paymentIntentId, error: getErrorMessage(stripeErr) }
         });
       }
     }
@@ -2010,7 +2011,7 @@ router.post('/api/bookings/:bookingId/cancel-guest-payment', async (req: Request
     });
 
     res.json({ success: true, message: 'Guest payment cancelled' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to cancel guest payment', error);
   }
 });
@@ -2111,7 +2112,7 @@ router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, async
       newCount: playerCount,
       feesRecalculated: !!booking.session_id
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update player count', error);
   }
 });
