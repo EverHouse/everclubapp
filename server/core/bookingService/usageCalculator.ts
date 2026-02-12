@@ -177,6 +177,34 @@ export async function getDailyUsageFromLedger(
       params
     );
     
+    // Safety check: warn if there are sessions with participants but no ledger entries
+    try {
+      const missingCheck = await pool.query(
+        `SELECT COUNT(DISTINCT bs.id) as missing_count
+         FROM booking_sessions bs
+         JOIN booking_participants bp ON bp.session_id = bs.id
+         JOIN users u ON bp.user_id = u.id
+         WHERE LOWER(u.email) = LOWER($1)
+           AND bs.session_date = $2
+           AND NOT EXISTS (
+             SELECT 1 FROM usage_ledger ul 
+             WHERE ul.session_id = bs.id 
+             AND LOWER(ul.member_id) = LOWER($1)
+           )
+           ${excludeClause}`,
+        params.slice(0, excludeSessionId ? 3 : 2)
+      );
+      
+      const missingCount = parseInt(missingCheck.rows[0]?.missing_count) || 0;
+      if (missingCount > 0) {
+        logger.warn('[getDailyUsageFromLedger] Sessions with participants but no ledger entries detected', {
+          extra: { memberEmail, date, missingSessionCount: missingCount }
+        });
+      }
+    } catch (checkError) {
+      // Non-critical check, don't fail the main query
+    }
+
     return parseInt(result.rows[0].total_minutes) || 0;
   } catch (error) {
     logger.error('[getDailyUsageFromLedger] Error:', { error: error as Error });
@@ -370,6 +398,9 @@ export async function calculateFullSessionBilling(
   // Calculate effective player count using Math.max to match unifiedFeeService logic
   // This fixes the "bait-and-switch" fee bug where declared player count differs from actual participants
   const effectivePlayerCount = Math.max(declaredPlayerCount, participants.length);
+  const perPersonMinutes = Math.floor(sessionDuration / effectivePlayerCount);
+  const ownerRemainder = sessionDuration % effectivePlayerCount;
+  const ownerAllocatedMinutes = perPersonMinutes + ownerRemainder;
   
   const hostTier = await getMemberTierByEmail(hostEmail);
   const guestPassInfo = await getGuestPassInfo(hostEmail, hostTier || undefined);
@@ -392,7 +423,7 @@ export async function calculateFullSessionBilling(
   let hostOverageMinutes = 0;
   
   if (!hostUnlimitedAccess && hostDailyAllowance < 999) {
-    const hostTotalMinutesAfterSession = hostUsedMinutesToday + sessionDuration;
+    const hostTotalMinutesAfterSession = hostUsedMinutesToday + ownerAllocatedMinutes;
     const hostOverageResult = calculateOverageFee(hostTotalMinutesAfterSession, hostDailyAllowance);
     const hostPriorOverage = calculateOverageFee(hostUsedMinutesToday, hostDailyAllowance);
     
@@ -453,7 +484,7 @@ export async function calculateFullSessionBilling(
         displayName: participant.displayName,
         participantType: 'owner',
         tierName: hostTier,
-        minutesAllocated: sessionDuration,
+        minutesAllocated: ownerAllocatedMinutes,
         dailyAllowance: hostDailyAllowance,
         usedMinutesToday: hostUsedMinutesToday,
         remainingMinutesBefore: hostRemainingBefore,

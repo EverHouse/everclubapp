@@ -697,7 +697,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
           }
         });
         
-        lineItem.overageCents = overageFee * 100;
+        lineItem.overageCents = Math.round(overageFee * 100);
         totalOverageCents += lineItem.overageCents;
       }
       
@@ -758,7 +758,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         const overageMinutes = Math.max(0, overageResult.overageMinutes - priorOverage.overageMinutes);
         const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
         
-        lineItem.overageCents = overageFee * 100;
+        lineItem.overageCents = Math.round(overageFee * 100);
         totalOverageCents += lineItem.overageCents;
       }
       
@@ -797,7 +797,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         const overageFee = Math.max(0, overageResult.overageFee - priorOverage.overageFee);
 
         totalOverageCents -= ownerLineItem.overageCents;
-        ownerLineItem.overageCents = overageFee * 100;
+        ownerLineItem.overageCents = Math.round(overageFee * 100);
         ownerLineItem.totalCents = ownerLineItem.overageCents;
         totalOverageCents += ownerLineItem.overageCents;
 
