@@ -104,7 +104,7 @@ export interface IssueContext {
 }
 
 export interface IntegrityIssue {
-  category: 'orphan_record' | 'missing_relationship' | 'sync_mismatch' | 'data_quality';
+  category: 'orphan_record' | 'missing_relationship' | 'sync_mismatch' | 'data_quality' | 'system_error';
   severity: 'error' | 'warning' | 'info';
   table: string;
   recordId: number | string;
@@ -126,6 +126,7 @@ export interface IntegrityCheckResult {
   issueCount: number;
   issues: IntegrityIssue[];
   lastRun: Date;
+  durationMs?: number;
 }
 
 export interface IntegritySummary {
@@ -140,6 +141,35 @@ export interface IntegritySummary {
     status: 'pass' | 'warning' | 'fail';
     issueCount: number;
   }>;
+}
+
+async function safeCheck(
+  checkFn: () => Promise<IntegrityCheckResult>,
+  checkName: string
+): Promise<IntegrityCheckResult> {
+  const startTime = Date.now();
+  try {
+    const result = await checkFn();
+    result.durationMs = Date.now() - startTime;
+    return result;
+  } catch (error: unknown) {
+    const durationMs = Date.now() - startTime;
+    return {
+      checkName,
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'system',
+        recordId: 'check_error',
+        description: `Check "${checkName}" failed to complete: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date(),
+      durationMs
+    };
+  }
 }
 
 async function checkOrphanBookingParticipants(): Promise<IntegrityCheckResult> {
@@ -236,9 +266,16 @@ async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
     console.error('[DataIntegrity] Error checking unmatched Trackman bookings:', getErrorMessage(error));
     return {
       checkName: 'Unmatched Trackman Bookings',
-      status: 'pass',
-      issueCount: 0,
-      issues: [],
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'trackman_unmatched_bookings',
+        recordId: 'check_error',
+        description: `Failed to check unmatched Trackman bookings: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
       lastRun: new Date()
     };
   }
@@ -917,8 +954,7 @@ async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
       AND membership_status IS NOT NULL
       AND role = 'member'
       AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
-    ORDER BY RANDOM()
-    LIMIT 100
+    ORDER BY id
   `);
   const appMembers = appMembersResult.rows as any[];
   
@@ -1215,8 +1251,7 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
     WHERE stripe_customer_id IS NOT NULL
       AND role = 'member'
       AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
-    ORDER BY RANDOM()
-    LIMIT 100
+    ORDER BY id
   `);
   const appMembers = appMembersResult.rows as any[];
   
@@ -1231,6 +1266,26 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
   }
   
   const productMap = new Map<string, { name: string; tier: string }>();
+  
+  const hubspotTierMap = new Map<string, string>();
+  if (hubspot) {
+    const membersWithHubspot = appMembers.filter((m: any) => m.hubspot_id);
+    for (let h = 0; h < membersWithHubspot.length; h += 100) {
+      const hsBatch = membersWithHubspot.slice(h, h + 100);
+      try {
+        const readResult = await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.batchApi.read({
+            inputs: hsBatch.map((m: any) => ({ id: m.hubspot_id })),
+            properties: ['membership_tier']
+          })
+        );
+        for (const contact of (readResult.results || [])) {
+          hubspotTierMap.set(contact.id, (contact.properties?.membership_tier || '').toLowerCase().trim());
+        }
+      } catch (batchErr: unknown) {
+      }
+    }
+  }
   
   const BATCH_SIZE = 10;
   const BATCH_DELAY_MS = 100;
@@ -1262,25 +1317,20 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
       
       if (!productId) return;
       
-      const product = await stripe.products.retrieve(productId);
+      let cached = productMap.get(productId);
+      if (!cached) {
+        const product = await stripe.products.retrieve(productId);
+        cached = { name: product.name || '', tier: product.metadata?.tier || '' };
+        productMap.set(productId, cached);
+      }
       
-      const stripeTier = (product.metadata?.tier || '').toLowerCase().trim();
-      const productName = (product.name || '').toLowerCase().trim();
+      const stripeTier = (cached.tier).toLowerCase().trim();
+      const productName = (cached.name).toLowerCase().trim();
       const stripeEffectiveTier = stripeTier || productName;
       
       let hubspotTier: string | null = null;
-      if (hubspot && member.hubspot_id) {
-        try {
-          const contact = await hubspot.crm.contacts.basicApi.getById(
-            member.hubspot_id,
-            ['membership_tier']
-          );
-          hubspotTier = (contact.properties?.membership_tier || '').toLowerCase().trim();
-        } catch (err: unknown) {
-          if (getErrorStatusCode(err) !== 404) {
-            if (!isProduction) console.error(`[DataIntegrity] HubSpot tier lookup failed for ${member.email}:`, getErrorMessage(err));
-          }
-        }
+      if (member.hubspot_id && hubspotTierMap.has(member.hubspot_id)) {
+        hubspotTier = hubspotTierMap.get(member.hubspot_id) || null;
       }
       
       const tierMismatches: SyncComparisonData[] = [];
@@ -1298,7 +1348,7 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
         tierMismatches.push({
           field: 'App Tier vs Stripe Product',
           appValue: member.tier || null,
-          externalValue: product.metadata?.tier || product.name || null
+          externalValue: cached.tier || cached.name || null
         });
       }
       
@@ -1313,7 +1363,7 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
       if (!stripeVsHubspot && hubspotTier) {
         tierMismatches.push({
           field: 'Stripe Product vs HubSpot',
-          appValue: product.metadata?.tier || product.name || null,
+          appValue: cached.tier || cached.name || null,
           externalValue: hubspotTier
         });
       }
@@ -1325,7 +1375,7 @@ async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
           severity: 'warning',
           table: 'users',
           recordId: member.id,
-          description: `Member "${memberName}" has tier mismatch: ${mismatchDesc}. App: "${member.tier || 'none'}", Stripe: "${product.name || 'unknown'}", HubSpot: "${hubspotTier || 'not set'}"`,
+          description: `Member "${memberName}" has tier mismatch: ${mismatchDesc}. App: "${member.tier || 'none'}", Stripe: "${cached.name || 'unknown'}", HubSpot: "${hubspotTier || 'not set'}"`,
           suggestion: 'Align tier across all systems using the Tier Change Wizard or manual sync',
           context: {
             memberName,
@@ -1940,30 +1990,30 @@ async function checkGuestPassesForNonExistentMembers(): Promise<IntegrityCheckRe
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
   const checks = await Promise.all([
-    checkOrphanBookingParticipants(),
-    checkUnmatchedTrackmanBookings(),
-    checkOrphanWellnessEnrollments(),
-    checkOrphanEventRsvps(),
-    checkBookingResourceRelationships(),
-    checkParticipantUserRelationships(),
-    checkHubSpotSyncMismatch(),
-    checkNeedsReviewItems(),
-    checkBookingTimeValidity(),
-    checkMembersWithoutEmail(),
-    checkDealsWithoutLineItems(),
-    checkDealStageDrift(),
-    checkStripeSubscriptionSync(),
-    checkStuckTransitionalMembers(),
-    checkTierReconciliation(),
-    checkBookingsWithoutSessions(),
-    checkDuplicateStripeCustomers(),
-    checkMindBodyStaleSyncMembers(),
-    checkMindBodyStatusMismatch(),
-    checkHubSpotIdDuplicates(),
-    checkOrphanedFeeSnapshots(),
-    checkSessionsWithoutParticipants(),
-    checkOrphanedPaymentIntents(),
-    checkGuestPassesForNonExistentMembers()
+    safeCheck(checkOrphanBookingParticipants, 'Orphan Booking Participants'),
+    safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
+    safeCheck(checkOrphanWellnessEnrollments, 'Orphan Wellness Enrollments'),
+    safeCheck(checkOrphanEventRsvps, 'Orphan Event RSVPs'),
+    safeCheck(checkBookingResourceRelationships, 'Booking Resource Relationships'),
+    safeCheck(checkParticipantUserRelationships, 'Participant User Relationships'),
+    safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),
+    safeCheck(checkNeedsReviewItems, 'Items Needing Review'),
+    safeCheck(checkBookingTimeValidity, 'Booking Time Validity'),
+    safeCheck(checkMembersWithoutEmail, 'Members Without Email'),
+    safeCheck(checkDealsWithoutLineItems, 'Deals Without Line Items'),
+    safeCheck(checkDealStageDrift, 'Deal Stage Drift'),
+    safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
+    safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
+    safeCheck(checkTierReconciliation, 'Tier Reconciliation'),
+    safeCheck(checkBookingsWithoutSessions, 'Active Bookings Without Sessions'),
+    safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
+    safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
+    safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
+    safeCheck(checkHubSpotIdDuplicates, 'HubSpot ID Duplicates'),
+    safeCheck(checkOrphanedFeeSnapshots, 'Orphaned Fee Snapshots'),
+    safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
+    safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
+    safeCheck(checkGuestPassesForNonExistentMembers, 'Guest Passes Without Members'),
   ]);
   
   const now = new Date();

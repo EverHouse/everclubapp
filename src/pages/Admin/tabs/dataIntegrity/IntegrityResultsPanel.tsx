@@ -675,6 +675,11 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                       {description && (
                         <p className="text-xs text-primary/60 dark:text-white/60 truncate">{description}</p>
                       )}
+                      {result.durationMs !== undefined && (
+                        <p className="text-[10px] text-primary/40 dark:text-white/40">
+                          {result.durationMs < 1000 ? `${result.durationMs}ms` : `${(result.durationMs / 1000).toFixed(1)}s`}
+                        </p>
+                      )}
                     </div>
                     {result.issueCount > 0 && (
                       <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 text-xs font-bold rounded-full shrink-0">

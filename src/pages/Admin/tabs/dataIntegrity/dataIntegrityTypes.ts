@@ -85,6 +85,7 @@ export interface IntegrityCheckResult {
   issueCount: number;
   issues: IntegrityIssue[];
   lastRun: Date;
+  durationMs?: number;
 }
 
 export interface IntegrityMeta {

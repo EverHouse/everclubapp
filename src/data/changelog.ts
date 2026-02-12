@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.51.0",
+    date: "2026-02-12",
+    title: "Data Integrity: Accuracy, Resilience & Performance",
+    isMajor: true,
+    changes: [
+      "New: Each integrity check is now isolated — if one check fails (e.g., Stripe API is down), the rest continue running instead of the whole page crashing",
+      "New: Per-check timing is now displayed so staff can see which checks are slow",
+      "Fixed: Checks that failed due to API errors no longer silently report 'pass' — they now show a clear warning with the error details",
+      "Fixed: Stripe Subscription Sync and Tier Reconciliation now check ALL members instead of a random sample of 100",
+      "Improved: Tier Reconciliation now uses HubSpot batch API and caches Stripe products — dramatically fewer API calls",
+      "Improved: Added 10 database indexes to speed up orphan record checks and foreign key lookups",
+    ],
+  },
+  {
     version: "7.50.0",
     date: "2026-02-12",
     title: "Bulk HubSpot Push — End the Mismatch Cycle",
