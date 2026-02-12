@@ -11,7 +11,11 @@ import {
 
 vi.mock('../../server/core/db', () => ({
   pool: {
-    query: vi.fn()
+    query: vi.fn(),
+    connect: vi.fn().mockResolvedValue({
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      release: vi.fn()
+    })
   }
 }));
 
@@ -1280,6 +1284,7 @@ describe('Check-in Billing - Daily Usage Accumulation', () => {
       60, 
       participants, 
       'core@test.com',
+      1,
       { excludeSessionId: 123 }
     );
     

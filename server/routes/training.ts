@@ -296,7 +296,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Access Tours', content: 'Go to the Tours tab from the sidebar or hamburger menu to view all scheduled facility tours.', pageIcon: 'directions_walk' },
       { title: 'Today\'s Tours', content: 'The top section shows tours scheduled for today with the guest name, scheduled time, and current status.' },
       { title: 'Upcoming Tours', content: 'Below today\'s tours, you can see all upcoming scheduled tours organized by date.' },
-      { title: 'Tour Sources', content: 'Tours come from multiple sources: the booking widget on the website, HubSpot meeting scheduler, and Google Calendar sync (Tours Scheduled calendar).' },
+      { title: 'Tour Sources', content: 'Tours come from multiple sources: the booking widget on the website, HubSpot scheduler, and HubSpot meetings links shared with prospects.' },
       { title: 'Past Tours', content: 'Past tours automatically appear in a "Past Tours" section at the bottom of the page for reference and follow-up.' },
       { title: 'Tour Status', content: 'Update the tour status as needed: Scheduled (upcoming), Pending, Checked In, Completed (attended), Cancelled, or No Show.' },
       { title: 'Tour Notifications', content: 'Staff receive notifications when new tours are scheduled. Daily reminder emails are sent at 6pm for the next day\'s tours.' },

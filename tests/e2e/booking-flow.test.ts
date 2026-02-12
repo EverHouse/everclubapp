@@ -78,14 +78,15 @@ describe('Booking Flow E2E Tests', () => {
         }),
       });
 
-      if (response.ok) {
-        const booking = await response.json() as BookingRequest;
-        createdBookingId = booking.id;
-        expect(booking.status).toBe('pending');
-        expect(booking.user_email).toBe(memberEmail);
-      } else {
-        console.log('Booking creation returned:', response.status);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        expect.fail(`Booking creation failed with status ${response.status}: ${errorBody}`);
       }
+
+      const booking = await response.json() as BookingRequest;
+      createdBookingId = booking.id;
+      expect(booking.status).toBe('pending');
+      expect(booking.user_email).toBe(memberEmail);
     });
 
     it('should show pending request in staff command console', async () => {

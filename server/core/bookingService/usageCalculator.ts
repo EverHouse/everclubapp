@@ -169,8 +169,7 @@ export async function getGuestPassInfo(
 ): Promise<{ remaining: number; hasGuestPassBenefit: boolean }> {
   try {
     const tierLimits = tierName ? await getTierLimits(tierName) : null;
-    const hasGuestPassBenefit = (tierLimits?.has_simulator_guest_passes ?? false) || 
-      (tierLimits?.guest_passes_per_month ?? 0) > 0;
+    const hasGuestPassBenefit = tierLimits?.has_simulator_guest_passes ?? false;
     
     if (!hasGuestPassBenefit) {
       return { remaining: 0, hasGuestPassBenefit: false };
@@ -588,6 +587,9 @@ export function formatOverageFee(cents: number): string {
 export function formatOverageFeeFromDollars(dollars: number): string {
   return `$${dollars.toFixed(2)}`;
 }
+
+export const OVERAGE_RATE_PER_30_MIN = PRICING.OVERAGE_RATE_DOLLARS;
+export const FLAT_GUEST_FEE = PRICING.GUEST_FEE_DOLLARS;
 
 export interface RecalculationResult {
   sessionId: number;
