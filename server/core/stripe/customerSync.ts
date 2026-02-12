@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from './client';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 export interface CustomerSyncResult {
   success: boolean;
@@ -68,8 +69,8 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
           customerId: member.stripe_customer_id,
         });
         
-      } catch (error: any) {
-        if (error.code === 'resource_missing' || error.message?.includes('No such customer')) {
+      } catch (error: unknown) {
+        if (getErrorCode(error) === 'resource_missing' || getErrorMessage(error).includes('No such customer')) {
           await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${member.id}`);
           result.cleared++;
           result.details.push({
@@ -79,12 +80,12 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
             reason: 'Customer no longer exists in Stripe',
           });
         } else {
-          console.error(`[Stripe Customer Sync] Error updating ${member.email}:`, error.message);
-          result.errors.push(`${member.email}: ${error.message}`);
+          console.error(`[Stripe Customer Sync] Error updating ${member.email}:`, getErrorMessage(error));
+          result.errors.push(`${member.email}: ${getErrorMessage(error)}`);
           result.details.push({
             email: member.email,
             action: 'error',
-            reason: error.message,
+            reason: getErrorMessage(error),
           });
         }
       }
@@ -96,10 +97,10 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     if (result.errors.length > 0) parts.push(`errors=${result.errors.length}`);
     console.log(`[Stripe Customer Sync] Completed: ${parts.join(', ')}`);
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Customer Sync] Fatal error:', error);
     result.success = false;
-    result.errors.push(`Fatal: ${error.message}`);
+    result.errors.push(`Fatal: ${getErrorMessage(error)}`);
   }
   
   return result;

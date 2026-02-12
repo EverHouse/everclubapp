@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { discountRules } from '../../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from './client';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 export interface DiscountSyncResult {
   discountTag: string;
@@ -106,13 +107,13 @@ export async function syncDiscountRulesToStripeCoupons(): Promise<{
             throw retrieveError;
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[Discount Sync] Error syncing ${rule.discountTag}:`, error);
         results.push({
           discountTag: rule.discountTag,
           discountPercent: rule.discountPercent,
           success: false,
-          error: error.message,
+          error: getErrorMessage(error),
           action: 'skipped',
         });
         failed++;
@@ -121,7 +122,7 @@ export async function syncDiscountRulesToStripeCoupons(): Promise<{
 
     console.log(`[Discount Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
     return { success: true, results, synced, failed, skipped };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Discount Sync] Fatal error:', error);
     return { success: false, results, synced, failed, skipped };
   }
@@ -161,7 +162,7 @@ export async function getDiscountSyncStatus(): Promise<Array<{
     }
     
     return statuses;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Discount Sync] Error getting status:', error);
     return [];
   }
@@ -177,8 +178,8 @@ export async function findOrCreateCoupon(discountTag: string, discountPercent: n
     try {
       await stripe.coupons.retrieve(couponId);
       return couponId;
-    } catch (error: any) {
-      if (error.code === 'resource_missing') {
+    } catch (error: unknown) {
+      if (getErrorCode(error) === 'resource_missing') {
         await stripe.coupons.create({
           id: couponId,
           percent_off: discountPercent,
@@ -193,7 +194,7 @@ export async function findOrCreateCoupon(discountTag: string, discountPercent: n
       }
       throw error;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[Discount] Error finding/creating coupon for ${discountTag}:`, error);
     return null;
   }
