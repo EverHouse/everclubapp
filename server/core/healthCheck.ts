@@ -2,7 +2,7 @@ import { pool } from './db';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from './logger';
 import { getStripeClient } from './stripe/client';
-import { getHubSpotPrivateAppClient, getGoogleCalendarClient } from './integrations';
+import { getHubSpotPrivateAppClient, getHubSpotClient, getGoogleCalendarClient } from './integrations';
 
 export interface ServiceHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -108,13 +108,19 @@ async function checkStripe(): Promise<ServiceHealth> {
 
 async function checkHubSpot(): Promise<ServiceHealth> {
   try {
-    const hubspotClient = getHubSpotPrivateAppClient();
-    if (!hubspotClient) {
-      return {
-        status: 'unhealthy',
-        message: 'HubSpot not configured',
-        lastChecked: new Date().toISOString()
-      };
+    let hubspotClient;
+    try {
+      hubspotClient = await getHubSpotClient();
+    } catch {
+      const privateClient = getHubSpotPrivateAppClient();
+      if (!privateClient) {
+        return {
+          status: 'unhealthy',
+          message: 'HubSpot not configured',
+          lastChecked: new Date().toISOString()
+        };
+      }
+      hubspotClient = privateClient;
     }
 
     const { latencyMs, error } = await checkWithTimeout(
