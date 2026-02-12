@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.50.0",
+    date: "2026-02-12",
+    title: "Bulk HubSpot Push — End the Mismatch Cycle",
+    isMajor: true,
+    changes: [
+      "New: 'Push All to HubSpot' now pushes tier, first name, and last name for ALL members to HubSpot at once — not just the random 100 shown in the integrity check",
+      "Improved: Uses HubSpot batch API to update up to 100 contacts per call, dramatically faster than one-by-one syncing",
+      "Improved: Only updates contacts that actually have mismatches, saving API calls and reducing rate limit risk",
+      "Fixed: Churned and expired members now correctly have their HubSpot tier cleared to empty instead of leaving stale values",
+    ],
+  },
+  {
     version: "7.49.0",
     date: "2026-02-12",
     title: "HubSpot Sync Accuracy & Auto-Merge",

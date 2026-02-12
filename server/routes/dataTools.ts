@@ -11,6 +11,7 @@ import { logFromRequest } from '../core/auditLog';
 import { getSessionUser } from '../types/session';
 import { broadcastToStaff } from '../core/websocket';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
+import { bulkPushToHubSpot } from '../core/dataIntegrity';
 
 interface StripeCleanupJob {
   id: string;
@@ -725,7 +726,24 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
   }
 });
 
-// Create HubSpot contacts for members who don't have one yet
+router.post('/api/data-tools/bulk-push-to-hubspot', isAdmin, async (req: Request, res: Response) => {
+  try {
+    const { dryRun = true } = req.body;
+    const result = await bulkPushToHubSpot(dryRun);
+    if (!dryRun) {
+      logFromRequest(req, 'bulk_action', 'member', null, 'bulk-hubspot-push', {
+        totalChecked: result.totalChecked,
+        totalMismatched: result.totalMismatched,
+        totalSynced: result.totalSynced
+      });
+    }
+    res.json(result);
+  } catch (error: unknown) {
+    console.error('[DataTools] Bulk push to HubSpot error:', error);
+    res.status(500).json({ error: 'Failed to bulk push to HubSpot', details: getErrorMessage(error) });
+  }
+});
+
 router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Request, res: Response) => {
   try {
     const staffEmail = getSessionUser(req)?.email || 'unknown';

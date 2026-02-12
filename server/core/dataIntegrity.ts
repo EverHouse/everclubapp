@@ -23,6 +23,7 @@ import { getTodayPacific } from '../utils/dateUtils';
 import { getStripeClient } from './stripe/client';
 import { alertOnCriticalIntegrityIssues, alertOnHighIntegrityIssues } from './dataAlerts';
 import { denormalizeTierForHubSpot } from '../utils/tierUtils';
+import { retryableHubSpotRequest } from './hubspot/request';
 
 const CHURNED_STATUSES = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member'];
 const NO_TIER_STATUSES = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member', 'expired', 'pending'];
@@ -2269,6 +2270,144 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
   }
   
   throw new Error(`Unsupported sync target: ${target}`);
+}
+
+export async function bulkPushToHubSpot(dryRun: boolean = true): Promise<{
+  success: boolean;
+  message: string;
+  totalChecked: number;
+  totalMismatched: number;
+  totalSynced: number;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let totalChecked = 0;
+  let totalMismatched = 0;
+  let totalSynced = 0;
+
+  const hubspot = await getHubSpotClient();
+
+  const allMembersResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, membership_tier, hubspot_id, tier, membership_status
+    FROM users
+    WHERE hubspot_id IS NOT NULL
+    ORDER BY id
+  `);
+  const allMembers = allMembersResult.rows as any[];
+
+  const batchSize = 100;
+
+  for (let i = 0; i < allMembers.length; i += batchSize) {
+    const batch = allMembers.slice(i, i + batchSize);
+    totalChecked += batch.length;
+
+    let hsContactMap: Record<string, any> = {};
+    try {
+      const readInput = {
+        inputs: batch.map((m: any) => ({ id: m.hubspot_id })),
+        properties: ['firstname', 'lastname', 'email', 'membership_tier']
+      };
+      const readResult = await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.batchApi.read(readInput)
+      );
+      for (const contact of (readResult.results || [])) {
+        hsContactMap[contact.id] = contact.properties || {};
+      }
+    } catch (error: unknown) {
+      const errMsg = getErrorMessage(error);
+      if (errMsg.includes('404') || getErrorStatusCode(error) === 404) {
+        for (const member of batch) {
+          try {
+            const singleRead = await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.getById(member.hubspot_id, ['firstname', 'lastname', 'email', 'membership_tier'])
+            );
+            hsContactMap[member.hubspot_id] = singleRead.properties || {};
+          } catch (singleErr: unknown) {
+            if (getErrorStatusCode(singleErr) === 404) {
+              continue;
+            }
+            errors.push(`Read error for ${member.email}: ${getErrorMessage(singleErr)}`);
+          }
+        }
+      } else {
+        errors.push(`Batch read error: ${errMsg}`);
+        continue;
+      }
+    }
+
+    const updateInputs: Array<{ id: string; properties: Record<string, string> }> = [];
+
+    for (const member of batch) {
+      const hsProps = hsContactMap[member.hubspot_id];
+      if (!hsProps) continue;
+
+      const memberStatus = (member.membership_status || '').toLowerCase();
+      const isChurned = CHURNED_STATUSES.includes(memberStatus);
+      const isNoTierStatus = NO_TIER_STATUSES.includes(memberStatus);
+      const expectedTier = (isChurned || isNoTierStatus || !member.tier)
+        ? ''
+        : (denormalizeTierForHubSpot(member.tier) || '');
+
+      const appFirstName = (member.first_name || '').trim().toLowerCase();
+      const hsFirstName = (hsProps.firstname || '').trim().toLowerCase();
+      const appLastName = (member.last_name || '').trim().toLowerCase();
+      const hsLastName = (hsProps.lastname || '').trim().toLowerCase();
+      const expectedNorm = expectedTier.trim().toLowerCase();
+      const hsNorm = (hsProps.membership_tier || '').trim().toLowerCase();
+
+      let hasMismatch = false;
+      if (appFirstName !== hsFirstName) hasMismatch = true;
+      if (appLastName !== hsLastName) hasMismatch = true;
+      if (expectedNorm !== hsNorm) {
+        if (expectedNorm || hsNorm) {
+          hasMismatch = true;
+        }
+      }
+
+      if (hasMismatch) {
+        totalMismatched++;
+        updateInputs.push({
+          id: member.hubspot_id,
+          properties: {
+            firstname: member.first_name || '',
+            lastname: member.last_name || '',
+            membership_tier: expectedTier
+          }
+        });
+      }
+    }
+
+    if (!dryRun && updateInputs.length > 0) {
+      for (let j = 0; j < updateInputs.length; j += batchSize) {
+        const updateBatch = updateInputs.slice(j, j + batchSize);
+        try {
+          await retryableHubSpotRequest(() =>
+            hubspot.crm.contacts.batchApi.update({ inputs: updateBatch })
+          );
+          totalSynced += updateBatch.length;
+        } catch (error: unknown) {
+          errors.push(`Batch update error: ${getErrorMessage(error)}`);
+        }
+      }
+    }
+
+    if (i + batchSize < allMembers.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  const message = dryRun
+    ? `Dry run complete: checked ${totalChecked} members, found ${totalMismatched} mismatches`
+    : `Pushed ${totalSynced} of ${totalMismatched} mismatched members to HubSpot (${totalChecked} total checked)`;
+
+  return {
+    success: true,
+    message,
+    totalChecked,
+    totalMismatched,
+    totalSynced,
+    errors
+  };
 }
 
 function hubspotTierToAppTier(hsTier: string | null): string | null {

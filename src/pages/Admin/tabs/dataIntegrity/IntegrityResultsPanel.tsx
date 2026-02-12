@@ -275,7 +275,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
               >
                 {isSyncingToHubspot && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
                 <span className="material-symbols-outlined text-[14px]">sync</span>
-                Sync to HubSpot
+                Push All to HubSpot
               </button>
             </div>
             {hubspotSyncResult && (

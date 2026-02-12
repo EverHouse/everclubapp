@@ -525,7 +525,7 @@ const DataIntegrityTab: React.FC = () => {
 
   const syncMembersToHubspotMutation = useMutation({
     mutationFn: (dryRun: boolean) => 
-      postWithCredentials<{ message: string; members?: any[]; syncedCount?: number }>('/api/data-tools/sync-members-to-hubspot', { dryRun }),
+      postWithCredentials<{ message: string; members?: any[]; syncedCount?: number; totalSynced?: number }>('/api/data-tools/bulk-push-to-hubspot', { dryRun }),
     onSuccess: (data, dryRun) => {
       setHubspotSyncResult({ 
         success: true, 
