@@ -105,14 +105,14 @@ export async function withRetry<T>(
       return await fn();
     } catch (error: unknown) {
       if (isNonRetryableClientError(error)) {
-        throw new AbortError(error);
+        throw new AbortError(error instanceof Error ? error : String(error));
       }
       
       if (isRetryableError(error)) {
         throw error;
       }
       
-      throw new AbortError(error);
+      throw new AbortError(error instanceof Error ? error : String(error));
     }
   }, retryOptions);
 }

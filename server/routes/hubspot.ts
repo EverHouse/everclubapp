@@ -226,7 +226,7 @@ async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<T> {
           throw error; // Trigger p-retry
         }
         // Non-rate-limit errors should abort immediately
-        throw new AbortError(error);
+        throw new AbortError(error instanceof Error ? error : String(error));
       }
     },
     {
@@ -1503,8 +1503,9 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
     
     res.json({ products, count: products.length });
   } catch (error: unknown) {
-    const statusCode = error?.response?.statusCode || error?.status || error?.code;
-    const category = error?.response?.body?.category || error?.body?.category;
+    const errObj = error as Record<string, any>;
+    const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
+    const category = errObj?.response?.body?.category || errObj?.body?.category;
     if (statusCode === 403 || category === 'MISSING_SCOPES') {
       return res.status(403).json({ error: 'HubSpot API key missing required scopes for products' });
     }

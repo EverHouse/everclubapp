@@ -23,7 +23,7 @@ export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<
           if (!isProduction) console.warn('HubSpot Rate Limit hit, retrying...');
           throw error;
         }
-        throw new AbortError(error);
+        throw new AbortError(error instanceof Error ? error : String(error));
       }
     },
     {

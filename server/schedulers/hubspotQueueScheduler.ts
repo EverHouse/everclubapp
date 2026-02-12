@@ -38,9 +38,9 @@ async function processQueue(): Promise<void> {
     }
     
   } catch (error: unknown) {
-    logger.error('[HubSpot Queue] Scheduler error', { error });
+    logger.error('[HubSpot Queue] Scheduler error', { error: getErrorMessage(error) });
     try {
-      await alertOnScheduledTaskFailure('HubSpot Queue Processor', error);
+      await alertOnScheduledTaskFailure('HubSpot Queue Processor', error instanceof Error ? error : getErrorMessage(error));
     } catch (alertError) {
       // Ignore alert failures
     }
