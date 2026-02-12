@@ -13,11 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.48.1",
+    version: "7.48.2",
     date: "2026-02-12",
-    title: "Terminal Payment Polling Fix",
+    title: "Terminal Cancel & Payment Polling Improvements",
     changes: [
       "Fixed: Card reader payments no longer show 'Payment Failed' while the terminal is still waiting for the customer to tap — the system now correctly waits for the card instead of treating the waiting state as an error",
+      "Improved: Cancel button now fully cancels both the reader action and the pending payment in Stripe, so no orphan charges are left behind",
+      "Added: Cancel button shows a loading spinner while canceling to prevent double-clicks",
+      "Added: If the card was already tapped right as you hit Cancel, the system detects this and treats it as a successful payment instead of erroring out",
+      "Improved: Card decline messages now show the specific reason from Stripe (e.g., 'Card declined: insufficient funds') instead of a generic error",
     ],
   },
   {

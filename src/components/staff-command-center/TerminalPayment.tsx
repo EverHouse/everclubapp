@@ -48,6 +48,7 @@ export function TerminalPayment({
   const [setupIntentId, setSetupIntentId] = useState<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const paymentIntentIdRef = useRef<string | null>(null);
   const [creatingSimulated, setCreatingSimulated] = useState(false);
 
   const isSaveCard = mode === 'save_card';
@@ -76,7 +77,7 @@ export function TerminalPayment({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ readerId: selectedReader })
+            body: JSON.stringify({ readerId: selectedReader, paymentIntentId: paymentIntentIdRef.current })
           });
         } catch (err) {
           console.error('Error canceling on timeout:', err);
@@ -311,6 +312,7 @@ export function TerminalPayment({
         }, 1500);
       } else {
         setPaymentIntentId(data.paymentIntentId);
+        paymentIntentIdRef.current = data.paymentIntentId;
         pollingRef.current = setInterval(() => {
           pollPaymentStatus(data.paymentIntentId);
         }, 1500);
@@ -324,27 +326,43 @@ export function TerminalPayment({
     }
   };
 
+  const [canceling, setCanceling] = useState(false);
+
   const handleCancelPayment = async () => {
+    setCanceling(true);
     clearPollingRef();
     clearTimeoutRef();
 
     if (selectedReader && processing) {
       try {
-        await fetch('/api/stripe/terminal/cancel-payment', {
+        const res = await fetch('/api/stripe/terminal/cancel-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ readerId: selectedReader })
+          body: JSON.stringify({ readerId: selectedReader, paymentIntentId })
         });
+        const data = await res.json();
+
+        if (data.alreadySucceeded) {
+          setStatus('success');
+          setStatusMessage('Payment already processed successfully!');
+          setCanceling(false);
+          setTimeout(() => {
+            onSuccess(paymentIntentId!);
+          }, 1500);
+          return;
+        }
       } catch (err) {
         console.error('Error canceling payment:', err);
       }
     }
 
+    setCanceling(false);
     setProcessing(false);
     setStatus('idle');
     setStatusMessage('');
     setPaymentIntentId(null);
+    paymentIntentIdRef.current = null;
     setSetupIntentId(null);
     onCancel();
   };
@@ -507,15 +525,25 @@ export function TerminalPayment({
           <div>
             <button
               onClick={handleCancelPayment}
+              disabled={canceling}
               className={`px-6 py-2.5 rounded-lg font-medium transition-colors text-sm ${
                 isDark 
                   ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30' 
                   : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
-              }`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">close</span>
-                Cancel
+                {canceling ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-400 border-t-transparent" />
+                    Canceling...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-base">close</span>
+                    Cancel
+                  </>
+                )}
               </span>
             </button>
           </div>

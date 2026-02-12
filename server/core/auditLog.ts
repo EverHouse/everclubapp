@@ -130,7 +130,9 @@ export type AuditAction =
   | 'complete_cancellation'
   | 'replay_webhook'
   | 'charge_subscription_invoice'
-  | 'stripe_member_sync';
+  | 'stripe_member_sync'
+  | 'terminal_payment_initiated'
+  | 'terminal_payment_canceled';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

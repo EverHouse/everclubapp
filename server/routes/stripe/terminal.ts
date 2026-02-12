@@ -348,19 +348,65 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
 
 router.post('/api/stripe/terminal/cancel-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { readerId } = req.body;
+    const { readerId, paymentIntentId } = req.body;
     
     if (!readerId) {
       return res.status(400).json({ error: 'Reader ID is required' });
     }
     
     const stripe = await getStripeClient();
-    const reader = await stripe.terminal.readers.cancelAction(readerId);
+
+    try {
+      await stripe.terminal.readers.cancelAction(readerId);
+    } catch (readerErr: any) {
+      if (!readerErr.message?.includes('no action')) {
+        console.warn('[Terminal] Could not cancel reader action:', readerErr.message);
+      }
+    }
+
+    let paymentAlreadySucceeded = false;
+
+    if (paymentIntentId) {
+      try {
+        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+        if (pi.status === 'succeeded') {
+          paymentAlreadySucceeded = true;
+        } else if (pi.status !== 'canceled') {
+          await stripe.paymentIntents.cancel(paymentIntentId);
+          console.log(`[Terminal] Canceled PaymentIntent ${paymentIntentId}`);
+        }
+      } catch (piErr: any) {
+        console.warn('[Terminal] Could not cancel PaymentIntent:', piErr.message);
+      }
+    }
+
+    if (paymentAlreadySucceeded) {
+      await logFromRequest(req, {
+        action: 'terminal_payment_canceled',
+        resourceType: 'payment',
+        resourceId: paymentIntentId || readerId,
+        resourceName: 'terminal_payment',
+        details: { readerId, paymentIntentId: paymentIntentId || null, outcome: 'already_succeeded' }
+      });
+      return res.json({
+        success: false,
+        alreadySucceeded: true,
+        message: 'Cannot cancel — payment already processed successfully'
+      });
+    }
+
+    await logFromRequest(req, {
+      action: 'terminal_payment_canceled',
+      resourceType: 'payment',
+      resourceId: paymentIntentId || readerId,
+      resourceName: 'terminal_payment',
+      details: { readerId, paymentIntentId: paymentIntentId || null, outcome: 'canceled' }
+    });
     
     res.json({ 
       success: true,
-      readerId: reader.id,
-      status: reader.status
+      readerId,
+      canceled: true
     });
   } catch (error: any) {
     console.error('[Terminal] Error canceling payment:', error);
