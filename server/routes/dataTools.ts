@@ -2323,6 +2323,7 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
         AND NOT EXISTS (SELECT 1 FROM booking_requests br WHERE LOWER(br.user_email) = LOWER(u.email))
         AND NOT EXISTS (SELECT 1 FROM booking_guests bg WHERE LOWER(bg.guest_email) = LOWER(u.email))
         AND NOT EXISTS (SELECT 1 FROM booking_members bm WHERE LOWER(bm.user_email) = LOWER(u.email))
+        AND NOT EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.user_id = u.id)
         AND NOT EXISTS (SELECT 1 FROM walk_in_visits w WHERE LOWER(w.member_email) = LOWER(u.email))
         AND NOT EXISTS (SELECT 1 FROM event_rsvps er WHERE LOWER(er.user_email) = LOWER(u.email))
         AND NOT EXISTS (SELECT 1 FROM legacy_purchases lp WHERE LOWER(lp.member_email) = LOWER(u.email))
@@ -2402,10 +2403,12 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
         const ids = batch.map(v => v.id);
 
         try {
-          await db.execute(sql`UPDATE users SET archived_at = NOW(), archived_by = 'system-cleanup' WHERE id = ANY(${ids}::text[])`);
+          await db.update(users)
+            .set({ archivedAt: sql`NOW()`, archivedBy: 'system-cleanup' })
+            .where(inArray(users.id, ids as string[]));
           archivedCount += batch.length;
         } catch (err: unknown) {
-          console.error(`[DataTools] Error archiving batch:`, getErrorMessage(err));
+          console.error(`[DataTools] Error archiving batch (${ids.length} ids):`, getErrorMessage(err));
           activeVisitorArchiveJob!.progress.errors++;
         }
 

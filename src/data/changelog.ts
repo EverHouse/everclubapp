@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.48.7",
+    date: "2026-02-12",
+    title: "Archive Stale Visitors Fix",
+    changes: [
+      "Fixed: Archive Stale Visitors tool was finding eligible visitors but failing to actually archive them due to a database query issue",
+      "Improved: Archive scan now also checks the booking participants table, so visitors who have bookings through the current system won't be incorrectly flagged as stale",
+    ],
+  },
+  {
     version: "7.48.6",
     date: "2026-02-12",
     title: "Trackman Import Merged Account Fix",
