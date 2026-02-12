@@ -124,7 +124,7 @@ async function checkHubSpot(): Promise<ServiceHealth> {
     }
 
     const { latencyMs, error } = await checkWithTimeout(
-      () => hubspotClient.crm.owners.ownersApi.getPage(),
+      () => hubspotClient.crm.contacts.basicApi.getPage(1),
       5000
     );
 
