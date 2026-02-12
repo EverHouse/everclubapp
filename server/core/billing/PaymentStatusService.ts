@@ -1,5 +1,6 @@
 import { pool } from '../db';
 import { PoolClient } from 'pg';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface PaymentStatusUpdate {
   paymentIntentId: string;
@@ -113,10 +114,10 @@ export class PaymentStatusService {
       console.log(`[PaymentStatusService] Marked payment ${paymentIntentId} as succeeded, updated ${participantsUpdated} participants`);
       
       return { success: true, participantsUpdated, snapshotsUpdated: 1 };
-    } catch (error: any) {
+    } catch (error: unknown) {
       await client.query('ROLLBACK');
       console.error('[PaymentStatusService] Error marking payment succeeded:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error) };
     } finally {
       client.release();
     }
@@ -191,10 +192,10 @@ export class PaymentStatusService {
       console.log(`[PaymentStatusService] Marked payment ${paymentIntentId} as refunded`);
       
       return { success: true, snapshotsUpdated: snapshotResult.rows.length };
-    } catch (error: any) {
+    } catch (error: unknown) {
       await client.query('ROLLBACK');
       console.error('[PaymentStatusService] Error marking payment refunded:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error) };
     } finally {
       client.release();
     }
@@ -238,10 +239,10 @@ export class PaymentStatusService {
       console.log(`[PaymentStatusService] Marked payment ${paymentIntentId} as cancelled`);
       
       return { success: true, snapshotsUpdated: snapshotResult.rows.length };
-    } catch (error: any) {
+    } catch (error: unknown) {
       await client.query('ROLLBACK');
       console.error('[PaymentStatusService] Error marking payment cancelled:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error) };
     } finally {
       client.release();
     }

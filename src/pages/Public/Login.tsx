@@ -72,8 +72,8 @@ const Login: React.FC = () => {
       const isStaff = data.member.role === 'admin' || data.member.role === 'staff';
       startNavigation();
       navigate(isStaff ? '/admin' : '/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Google sign-in failed');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Google sign-in failed');
     } finally {
       setGoogleLoading(false);
     }
@@ -140,8 +140,8 @@ const Login: React.FC = () => {
       loginWithMember(member);
       startNavigation();
       navigate(member.role === 'admin' || member.role === 'staff' ? '/admin' : '/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Dev login failed');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Dev login failed');
     } finally {
       setDevLoading(false);
       setDevMemberLoading(false);
@@ -170,8 +170,8 @@ const Login: React.FC = () => {
       loginWithMember(data.member);
       startNavigation();
       navigate(data.member.role === 'admin' || data.member.role === 'staff' ? '/admin' : '/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -199,8 +199,8 @@ const Login: React.FC = () => {
       setTimeout(() => {
         otpRefs.current[0]?.focus();
       }, 100);
-    } catch (err: any) {
-      setError(err.message || 'Failed to send login code');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to send login code');
     } finally {
       setLoading(false);
     }
@@ -311,8 +311,8 @@ const Login: React.FC = () => {
       } else {
         navigate(destination);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify code');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to verify code');
       setOtpInputs(['', '', '', '', '', '']);
       otpRefs.current[0]?.focus();
     } finally {

@@ -466,7 +466,7 @@ router.get('/api/member/dashboard-data', async (req, res) => {
       guestPasses: guestPassesResult,
       bannerAnnouncement: bannerAnnouncementResult
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[dashboard-data] Failed to fetch dashboard data', { extra: { error } });
     if (!isProduction) console.error('Dashboard data error:', error);
     res.status(500).json({ error: 'Failed to fetch dashboard data' });

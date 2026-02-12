@@ -164,8 +164,8 @@ export function MemberFlow({
         setSubscriptionId(data.subscriptionId);
         setCreatedUserId(data.userId);
       }
-    } catch (err: any) {
-      setStripeError(err.message || 'Failed to initialize payment');
+    } catch (err: unknown) {
+      setStripeError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize payment');
       paymentInitiatedRef.current = false;
     } finally {
       setStripeLoading(false);
@@ -350,7 +350,7 @@ export function MemberFlow({
         email: form.email, 
         name: `${form.firstName} ${form.lastName}` 
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Payment confirmation failed. Please contact support.');
     } finally {
       setIsLoading(false);
@@ -431,8 +431,8 @@ export function MemberFlow({
         email: form.email, 
         name: `${form.firstName} ${form.lastName}` 
       });
-    } catch (err: any) {
-      setError(err.message || 'Failed to send activation link');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to send activation link');
     } finally {
       linkSubmittingRef.current = false;
       setLinkSending(false);
@@ -501,8 +501,8 @@ export function MemberFlow({
       } else {
         throw new Error('Failed to generate Stripe payment link — no checkout URL was returned');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to copy activation link');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to copy activation link');
     } finally {
       linkSubmittingRef.current = false;
       setLinkSending(false);
@@ -1080,8 +1080,8 @@ export function MemberFlow({
                             email: form.email,
                             name: `${form.firstName} ${form.lastName}`
                           });
-                        } catch (err: any) {
-                          setStripeError(err.message || 'Failed to activate membership');
+                        } catch (err: unknown) {
+                          setStripeError((err instanceof Error ? err.message : String(err)) || 'Failed to activate membership');
                         }
                       }
                     }}

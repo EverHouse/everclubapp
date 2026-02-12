@@ -100,8 +100,8 @@ export function useBookingActions() {
 
       invalidateBookingQueries(queryClient);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Network error during check-in' };
+    } catch (err: unknown) {
+      return { success: false, error: (err instanceof Error ? err.message : String(err)) || 'Network error during check-in' };
     }
   }, [queryClient]);
 
@@ -161,8 +161,8 @@ export function useBookingActions() {
         return { success: false, cardError: true, error: data.error };
       }
       return { success: false, error: data.error || 'Failed to charge card' };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Network error charging card' };
+    } catch (err: unknown) {
+      return { success: false, error: (err instanceof Error ? err.message : String(err)) || 'Network error charging card' };
     }
   }, [queryClient]);
 
@@ -207,8 +207,8 @@ export function useBookingActions() {
 
       invalidateBookingQueries(queryClient);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Network error cancelling booking' };
+    } catch (err: unknown) {
+      return { success: false, error: (err instanceof Error ? err.message : String(err)) || 'Network error cancelling booking' };
     }
   }, [queryClient]);
 

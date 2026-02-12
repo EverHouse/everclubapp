@@ -21,6 +21,7 @@ import { getBillingClassificationSummary, getMembersNeedingStripeMigration } fro
 import { escapeHtml, checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter, checkoutRateLimiter } from '../../middleware/rateLimiting';
 import { logFromRequest } from '../../core/auditLog';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -28,9 +29,9 @@ router.post('/api/admin/check-expiring-cards', isAdmin, async (req: Request, res
   try {
     const result = await checkExpiringCards();
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error checking expiring cards:', error);
-    res.status(500).json({ error: 'Failed to check expiring cards', details: error.message });
+    res.status(500).json({ error: 'Failed to check expiring cards', details: getErrorMessage(error) });
   }
 });
 
@@ -38,9 +39,9 @@ router.post('/api/admin/check-stale-waivers', isAdmin, async (req: Request, res:
   try {
     const result = await checkStaleWaivers();
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin] Error checking stale waivers:', error);
-    res.status(500).json({ error: 'Failed to check stale waivers', details: error.message });
+    res.status(500).json({ error: 'Failed to check stale waivers', details: getErrorMessage(error) });
   }
 });
 
@@ -54,7 +55,7 @@ router.get('/api/stripe/products', isStaffOrAdmin, async (req: Request, res: Res
       syncStatus,
       count: stripeProducts.length
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting products:', error);
     res.status(500).json({ error: 'Failed to get Stripe products' });
   }
@@ -86,7 +87,7 @@ router.post('/api/stripe/products/sync', isStaffOrAdmin, sensitiveActionRateLimi
       stripeProductId: result.stripeProductId,
       stripePriceId: result.stripePriceId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error syncing product:', error);
     res.status(500).json({ error: 'Failed to sync product to Stripe' });
   }
@@ -111,7 +112,7 @@ router.post('/api/stripe/products/sync-all', isStaffOrAdmin, sensitiveActionRate
       failed: result.failed,
       errors: result.errors
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error syncing all products:', error);
     res.status(500).json({ error: 'Failed to sync products to Stripe' });
   }
@@ -121,7 +122,7 @@ router.get('/api/stripe/tiers/status', isStaffOrAdmin, async (req: Request, res:
   try {
     const status = await getTierSyncStatus();
     res.json({ tiers: status });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting tier sync status:', error);
     res.status(500).json({ error: 'Failed to get tier sync status' });
   }
@@ -147,7 +148,7 @@ router.post('/api/stripe/tiers/sync', isAdmin, sensitiveActionRateLimiter, async
       skipped: result.skipped,
       results: result.results
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error syncing tiers:', error);
     res.status(500).json({ error: 'Failed to sync membership tiers to Stripe' });
   }
@@ -157,7 +158,7 @@ router.get('/api/stripe/discounts/status', isStaffOrAdmin, async (req: Request, 
   try {
     const status = await getDiscountSyncStatus();
     res.json({ discounts: status });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting discount sync status:', error);
     res.status(500).json({ error: 'Failed to get discount sync status' });
   }
@@ -183,7 +184,7 @@ router.post('/api/stripe/discounts/sync', isAdmin, sensitiveActionRateLimiter, a
       skipped: result.skipped,
       results: result.results
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error syncing discounts:', error);
     res.status(500).json({ error: 'Failed to sync discount rules to Stripe coupons' });
   }
@@ -193,7 +194,7 @@ router.get('/api/stripe/billing/classification', isAdmin, async (req: Request, r
   try {
     const summary = await getBillingClassificationSummary();
     res.json(summary);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting billing classification:', error);
     res.status(500).json({ error: 'Failed to classify member billing' });
   }
@@ -214,7 +215,7 @@ router.get('/api/stripe/billing/needs-migration', isAdmin, async (req: Request, 
         hasMindbodyId: !!m.mindbodyClientId,
       }))
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting members needing migration:', error);
     res.status(500).json({ error: 'Failed to get members needing migration' });
   }
@@ -344,7 +345,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
     }
 
     res.json({ success: true, checkoutUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error sending membership invite:', error);
     res.status(500).json({ error: 'Failed to create membership invite' });
   }
@@ -408,7 +409,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     console.log(`[Stripe] Reactivation link sent manually to ${member.email} by staff`);
 
     res.json({ success: true, message: `Reactivation link sent to ${member.email}` });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error sending reactivation link:', error);
     res.status(500).json({ error: 'Failed to send reactivation link' });
   }
@@ -480,7 +481,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
     console.log(`[Stripe] Day pass checkout session created for ${email}, pass type: ${tier.name}`);
 
     res.json({ checkoutUrl: session.url });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating day pass checkout:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
@@ -491,9 +492,9 @@ router.get('/api/stripe/customer-sync-status', isStaffOrAdmin, async (req: Reque
     const { getCustomerSyncStatus } = await import('../../core/stripe/customerSync');
     const status = await getCustomerSyncStatus();
     res.json(status);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Customer Sync] Error getting status:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -521,7 +522,7 @@ router.post('/api/stripe/sync-customers', isStaffOrAdmin, sensitiveActionRateLim
       errors: result.errors.slice(0, 10),
       message: `Created ${result.created} new customers, linked ${result.linked} existing customers`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Customer Sync] Error:', error);
     res.status(500).json({ error: 'Failed to sync customers' });
   }
@@ -552,12 +553,12 @@ router.post('/api/admin/stripe/replay-webhook', isAdmin, async (req: Request, re
     });
 
     res.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Admin] Error replaying webhook event:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to replay webhook event',
-      details: error.message
+      details: getErrorMessage(error)
     });
   }
 });
@@ -701,8 +702,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
               details.push({ email: member.email, name: memberName, changes });
             }
             synced++;
-          } catch (err: any) {
-            if (err.code === 'resource_missing') {
+          } catch (err: unknown) {
+            if (getErrorCode(err) === 'resource_missing') {
               await pool.query(
                 `UPDATE users SET stripe_subscription_id = NULL, updated_at = NOW() WHERE id = $1`,
                 [member.id]
@@ -712,7 +713,7 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
               synced++;
             } else {
               errorCount++;
-              details.push({ email: member.email, name: memberName, error: err.message });
+              details.push({ email: member.email, name: memberName, error: getErrorMessage(err) });
             }
           }
         } else if (member.stripe_customer_id) {
@@ -764,9 +765,9 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
               details.push({ email: member.email, name: memberName, changes: changeDetails });
             }
             synced++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             errorCount++;
-            details.push({ email: member.email, name: memberName, error: err.message });
+            details.push({ email: member.email, name: memberName, error: getErrorMessage(err) });
           }
         }
       }));
@@ -780,9 +781,9 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
     });
 
     res.json({ success: true, synced, updated, errors: errorCount, details });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error syncing member subscriptions:', error);
-    res.status(500).json({ error: 'Failed to sync member subscriptions', details: error.message });
+    res.status(500).json({ error: 'Failed to sync member subscriptions', details: getErrorMessage(error) });
   }
 });
 

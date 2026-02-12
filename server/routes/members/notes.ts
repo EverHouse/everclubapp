@@ -19,7 +19,7 @@ router.get('/api/members/:email/notes', isStaffOrAdmin, async (req, res) => {
       .orderBy(desc(memberNotes.isPinned), desc(memberNotes.createdAt));
     
     res.json(notes);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Member notes error:', error);
     res.status(500).json({ error: 'Failed to fetch member notes' });
   }
@@ -50,7 +50,7 @@ router.post('/api/members/:email/notes', isStaffOrAdmin, async (req, res) => {
       .returning();
     
     res.status(201).json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Create note error:', error);
     res.status(500).json({ error: 'Failed to create note' });
   }
@@ -79,7 +79,7 @@ router.put('/api/members/:email/notes/:noteId', isStaffOrAdmin, async (req, res)
     }
     
     res.json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Update note error:', error);
     res.status(500).json({ error: 'Failed to update note' });
   }
@@ -102,7 +102,7 @@ router.delete('/api/members/:email/notes/:noteId', isStaffOrAdmin, async (req, r
     }
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Delete note error:', error);
     res.status(500).json({ error: 'Failed to delete note' });
   }

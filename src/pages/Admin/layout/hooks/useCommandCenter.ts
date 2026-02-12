@@ -109,9 +109,9 @@ export function useCommandCenter(): UseCommandCenterResult {
       const json = await res.json();
       setData(json);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Command center fetch error:', err);
-      setError(err.message);
+      setError((err instanceof Error ? err.message : String(err)));
       setData({
         counts: defaultCounts,
         pendingRequests: [],

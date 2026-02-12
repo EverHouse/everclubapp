@@ -404,8 +404,8 @@ export function StaffManualBookingModal({
 
       showToast(`Conference room booked for ${confHostMember.name}`, 'success');
       handleClose();
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to create conference room booking';
+    } catch (err: unknown) {
+      const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Failed to create conference room booking';
       setError(errorMsg);
       showToast(errorMsg, 'error');
     } finally {
@@ -455,8 +455,8 @@ export function StaffManualBookingModal({
       await onSubmit(data);
       showToast(`Booking created for ${hostMember.name}`, 'success');
       handleClose();
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to create booking';
+    } catch (err: unknown) {
+      const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Failed to create booking';
       setError(errorMsg);
       showToast(errorMsg, 'error');
     } finally {

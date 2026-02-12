@@ -135,8 +135,8 @@ const GalleryAdmin: React.FC = () => {
 
             await fetchImages();
             setIsEditing(false);
-        } catch (err: any) {
-            setError(err.message || 'Failed to save image');
+        } catch (err: unknown) {
+            setError((err instanceof Error ? err.message : String(err)) || 'Failed to save image');
         } finally {
             setIsSaving(false);
         }

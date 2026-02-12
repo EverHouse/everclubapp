@@ -47,8 +47,8 @@ export function BalanceCard({ memberEmail, onPayNow, className = '' }: BalanceCa
       } else {
         setError(apiError || 'Failed to load balance');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load balance');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to load balance');
     } finally {
       setLoading(false);
     }

@@ -267,7 +267,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         updatePendingRequests(() => previousPendingRequests);
         throw new Error(error.error || 'Failed to confirm booking');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       updatePendingRequests(() => previousPendingRequests);
       throw err;
     }

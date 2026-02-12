@@ -6,6 +6,7 @@ import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/webso
 import { computeFeeBreakdown, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
 import { isPlaceholderEmail } from '../../core/stripe/customers';
 import { createBalanceAwarePayment } from '../../core/stripe/payments';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -210,9 +211,9 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
       balanceApplied: result.balanceApplied,
       remainingCents: result.remainingCents,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Overage Payment] Error creating payment intent:', error);
-    res.status(500).json({ error: error.message || 'Failed to create payment intent.' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create payment intent.' });
   }
 });
 
@@ -283,9 +284,9 @@ router.post('/api/stripe/overage/confirm-payment', async (req: Request, res: Res
       amountPaid: booking.overage_fee_cents,
       overageMinutes: booking.overage_minutes,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Overage Payment] Error confirming payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to confirm payment.' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to confirm payment.' });
   }
 });
 
@@ -326,9 +327,9 @@ router.get('/api/stripe/overage/check/:bookingId', async (req: Request, res: Res
       hasUnpaidOverage,
       overageBlocks: Math.ceil(booking.overage_minutes / 30),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Overage Check] Error:', error);
-    res.status(500).json({ error: error.message || 'Failed to check overage status.' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to check overage status.' });
   }
 });
 

@@ -93,13 +93,14 @@ export const fetchAndCache = async <T>(
       await delay(RETRY_DELAY * (retryCount + 1));
       return fetchAndCache(key, url, onUpdate, retryCount + 1);
     }
-  } catch (e: any) {
-    const isAbort = e.name === 'AbortError';
-    const isNetworkError = e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError');
+  } catch (e: unknown) {
+    const isAbort = e instanceof Error && e.name === 'AbortError';
+    const eMsg = e instanceof Error ? e.message : String(e);
+    const isNetworkError = eMsg?.includes('Failed to fetch') || eMsg?.includes('NetworkError');
     
     if (!isAbort) {
       const errorType = isNetworkError ? 'network' : 'unknown';
-      console.warn(`[sync] Failed to fetch ${key} (${errorType}):`, e.message || e);
+      console.warn(`[sync] Failed to fetch ${key} (${errorType}):`, eMsg || e);
     }
     
     failedFetches[key] = (failedFetches[key] || 0) + 1;

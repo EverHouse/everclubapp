@@ -82,9 +82,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       } else if (res.status === 401 || res.status === 403) {
         // Session not ready or user not authenticated - silently ignore
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Only log actual network errors, not session-related failures
-      const message = err?.message?.toLowerCase() || '';
+      const message = ((err instanceof Error ? err.message : String(err)) || '').toLowerCase() || '';
       if (!message.includes('failed to fetch') && !message.includes('network')) {
         console.error('Failed to fetch notifications:', err);
       }
@@ -106,9 +106,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       } else if (res.status === 401 || res.status === 403) {
         // Session not ready or user not authenticated - silently ignore
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Only log actual network errors, not session-related failures
-      const message = err?.message?.toLowerCase() || '';
+      const message = ((err instanceof Error ? err.message : String(err)) || '').toLowerCase() || '';
       if (!message.includes('failed to fetch') && !message.includes('network')) {
         console.error('Failed to fetch unread count:', err);
       }

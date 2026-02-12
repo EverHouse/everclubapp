@@ -1,6 +1,7 @@
 import { getStripeClient } from './client';
 import Stripe from 'stripe';
 import { isExpandedProduct, SubscriptionPendingUpdate } from '../../types/stripe-helpers';
+import { getErrorMessage, isStripeError } from '../../utils/errorUtils';
 
 export interface CreateSubscriptionParams {
   customerId: string;
@@ -69,8 +70,8 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
         
         await stripe.paymentIntents.update(paymentIntent.id, { metadata: piMetadata });
         console.log(`[Stripe Subscriptions] Updated invoice PI ${paymentIntent.id} with membership metadata`);
-      } catch (metaErr: any) {
-        console.error(`[Stripe Subscriptions] Failed to update PI metadata:`, metaErr.message);
+      } catch (metaErr: unknown) {
+        console.error(`[Stripe Subscriptions] Failed to update PI metadata:`, getErrorMessage(metaErr));
       }
     }
     
@@ -96,8 +97,8 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
         
         paymentIntent = newPaymentIntent;
         console.log(`[Stripe Subscriptions] Created PaymentIntent ${newPaymentIntent.id} for invoice ${invoice.id}`);
-      } catch (piError: any) {
-        console.error(`[Stripe Subscriptions] Failed to create PaymentIntent:`, piError.message);
+      } catch (piError: unknown) {
+        console.error(`[Stripe Subscriptions] Failed to create PaymentIntent:`, getErrorMessage(piError));
       }
     }
     
@@ -115,11 +116,11 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
         clientSecret: clientSecret || undefined,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error creating subscription:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -136,11 +137,11 @@ export async function cancelSubscription(subscriptionId: string): Promise<{
     console.log(`[Stripe Subscriptions] Canceled subscription ${subscriptionId}`);
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error canceling subscription:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -257,9 +258,9 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
         };
       }),
     };
-  } catch (error: any) {
-    const isCustomerNotFound = error.type === 'StripeInvalidRequestError' && 
-      error.message?.includes('No such customer');
+  } catch (error: unknown) {
+    const isCustomerNotFound = isStripeError(error) && error.type === 'StripeInvalidRequestError' && 
+      getErrorMessage(error).includes('No such customer');
     
     if (isCustomerNotFound) {
       console.warn(`[Stripe Subscriptions] Customer not found: ${customerId}`);
@@ -273,7 +274,7 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
     console.error('[Stripe Subscriptions] Error listing subscriptions:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -321,11 +322,11 @@ export async function getSubscription(subscriptionId: string): Promise<{
         canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error getting subscription:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -349,9 +350,9 @@ export async function pauseSubscription(
 
     console.log(`[Stripe Subscriptions] Paused subscription ${subscriptionId} until ${resumeDate.toISOString()}`);
     return { success: true, resumeDate };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error pausing subscription:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -365,9 +366,9 @@ export async function resumeSubscription(subscriptionId: string): Promise<{ succ
 
     console.log(`[Stripe Subscriptions] Resumed subscription ${subscriptionId}`);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error resuming subscription:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -441,8 +442,8 @@ export async function changeSubscriptionTier(
     }
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error changing tier:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }

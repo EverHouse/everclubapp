@@ -4,7 +4,7 @@
 
 /**
  * Safely extract error message from unknown error type
- * Use this instead of 'catch (error: any)' pattern
+ * Use this instead of 'catch (error: unknown)' pattern
  */
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;

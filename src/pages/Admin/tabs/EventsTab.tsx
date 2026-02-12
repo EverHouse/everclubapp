@@ -34,8 +34,9 @@ const EventsTab: React.FC = () => {
             const retryFetch = async (url: string, attempt = 1): Promise<Response> => {
                 try {
                     return await fetch(url, { method: 'POST', credentials: 'include' });
-                } catch (err: any) {
-                    if (attempt < maxRetries && (err.message?.includes('fetch') || err.message?.includes('network'))) {
+                } catch (err: unknown) {
+                    const errMsg = err instanceof Error ? err.message : String(err);
+                    if (attempt < maxRetries && (errMsg?.includes('fetch') || errMsg?.includes('network'))) {
                         await new Promise(r => setTimeout(r, 500 * attempt));
                         return retryFetch(url, attempt + 1);
                     }

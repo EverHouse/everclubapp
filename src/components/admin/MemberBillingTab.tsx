@@ -1826,8 +1826,8 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                     setShowCollectPayment(false);
                     setCollectPaymentMode('terminal');
                     fetchBillingInfo();
-                  } catch (err: any) {
-                    setCollectPaymentError(err.message || 'Failed to confirm payment');
+                  } catch (err: unknown) {
+                    setCollectPaymentError((err instanceof Error ? err.message : String(err)) || 'Failed to confirm payment');
                   }
                 }}
                 onError={(msg) => setCollectPaymentError(msg)}
@@ -1903,8 +1903,8 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                         setShowCollectPayment(false);
                         setCollectPaymentMode('terminal');
                         fetchBillingInfo();
-                      } catch (err: any) {
-                        setCollectPaymentError(err.message || 'Failed to charge card');
+                      } catch (err: unknown) {
+                        setCollectPaymentError((err instanceof Error ? err.message : String(err)) || 'Failed to charge card');
                       } finally {
                         setIsChargingCard(false);
                       }

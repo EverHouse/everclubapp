@@ -5,6 +5,7 @@ import { eq, ilike } from 'drizzle-orm';
 import { changeSubscriptionTier } from './subscriptions';
 import { pool } from '../db';
 import { syncCustomerMetadataToStripe } from './customers';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface TierChangePreview {
   currentTier: string;
@@ -92,9 +93,9 @@ export async function previewTierChange(
         }
       };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Tier Change] Preview error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -191,9 +192,9 @@ export async function commitTierChange(
     }
     
     return { success: true, ...(warning && { warning }) };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Tier Change] Commit error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 

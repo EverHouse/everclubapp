@@ -268,8 +268,8 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           },
           () => {}
         );
-      } catch (err: any) {
-        setScannerError(`Error accessing camera: ${err.message}`);
+      } catch (err: unknown) {
+        setScannerError(`Error accessing camera: ${(err instanceof Error ? err.message : String(err))}`);
         setCameraPermission('denied');
       }
     };
@@ -312,9 +312,9 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       const data = await res.json();
       setPasses(data.passes || []);
       setHasSearched(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorState({
-        message: err.message || 'Failed to search passes',
+        message: (err instanceof Error ? err.message : String(err)) || 'Failed to search passes',
         errorCode: 'SEARCH_ERROR'
       });
     } finally {
@@ -389,11 +389,11 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       if (hasSearched && searchEmail) {
         handleSearch();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Rollback optimistic update on network error
       setUnredeemedPasses(previousUnredeemed);
       setErrorState({
-        message: err.message || 'Failed to redeem pass',
+        message: (err instanceof Error ? err.message : String(err)) || 'Failed to redeem pass',
         errorCode: 'NETWORK_ERROR'
       });
     } finally {
@@ -429,10 +429,10 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       
       setSuccessMessage('Pass refunded successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setUnredeemedPasses(previousUnredeemed);
       setErrorState({
-        message: err.message || 'Failed to refund pass',
+        message: (err instanceof Error ? err.message : String(err)) || 'Failed to refund pass',
         errorCode: 'NETWORK_ERROR'
       });
     } finally {
@@ -481,9 +481,9 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
       const data = await res.json();
       setHistoryData(prev => [...prev, { passId, logs: data.logs || [] }]);
       setExpandedPassId(passId);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorState({
-        message: err.message || 'Failed to fetch history',
+        message: (err instanceof Error ? err.message : String(err)) || 'Failed to fetch history',
         errorCode: 'HISTORY_ERROR'
       });
     } finally {

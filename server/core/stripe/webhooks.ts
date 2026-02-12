@@ -1,3 +1,4 @@
+import Stripe from 'stripe';
 import { getStripeSync, getStripeClient } from './client';
 import { syncCompanyToHubSpot, queuePaymentSyncToHubSpot, queueDayPassSyncToHubSpot, handleTierChange, queueTierSync, handleMembershipCancellation } from '../hubspot';
 import { pool } from '../db';
@@ -278,13 +279,13 @@ export async function processStripeWebhook(
     } else if (event.type === 'price.updated' || event.type === 'price.created') {
       deferredActions = await handlePriceChange(client, event.data.object);
     } else if (event.type === 'coupon.updated' || event.type === 'coupon.created') {
-      const coupon = event.data.object as any;
+      const coupon = event.data.object as Stripe.Coupon;
       if (coupon.id === 'FAMILY20' && coupon.percent_off) {
         updateFamilyDiscountPercent(coupon.percent_off);
         console.log(`[Stripe Webhook] FAMILY20 coupon ${event.type}: ${coupon.percent_off}% off`);
       }
     } else if (event.type === 'coupon.deleted') {
-      const coupon = event.data.object as any;
+      const coupon = event.data.object as Stripe.Coupon;
       if (coupon.id === 'FAMILY20') {
         console.log('[Stripe Webhook] FAMILY20 coupon deleted - will be recreated on next use');
       }
@@ -377,13 +378,13 @@ export async function replayStripeEvent(
     } else if (event.type === 'price.updated' || event.type === 'price.created') {
       deferredActions = await handlePriceChange(client, event.data.object);
     } else if (event.type === 'coupon.updated' || event.type === 'coupon.created') {
-      const coupon = event.data.object as any;
+      const coupon = event.data.object as Stripe.Coupon;
       if (coupon.id === 'FAMILY20' && coupon.percent_off) {
         updateFamilyDiscountPercent(coupon.percent_off);
         console.log(`[Stripe Webhook Replay] FAMILY20 coupon ${event.type}: ${coupon.percent_off}% off`);
       }
     } else if (event.type === 'coupon.deleted') {
-      const coupon = event.data.object as any;
+      const coupon = event.data.object as Stripe.Coupon;
       if (coupon.id === 'FAMILY20') {
         console.log('[Stripe Webhook Replay] FAMILY20 coupon deleted - will be recreated on next use');
       }
@@ -404,7 +405,7 @@ export async function replayStripeEvent(
   }
 }
 
-async function handleChargeRefunded(client: PoolClient, charge: any): Promise<DeferredAction[]> {
+async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): Promise<DeferredAction[]> {
   const { id, amount, amount_refunded, currency, customer, payment_intent, created, refunded } = charge;
   const deferredActions: DeferredAction[] = [];
   
@@ -608,7 +609,7 @@ async function handleChargeRefunded(client: PoolClient, charge: any): Promise<De
   return deferredActions;
 }
 
-async function handleChargeDisputeCreated(client: PoolClient, dispute: any): Promise<DeferredAction[]> {
+async function handleChargeDisputeCreated(client: PoolClient, dispute: Stripe.Dispute): Promise<DeferredAction[]> {
   const { id, amount, currency, charge, payment_intent, reason, status } = dispute;
   const deferredActions: DeferredAction[] = [];
   
@@ -683,7 +684,7 @@ async function handleChargeDisputeCreated(client: PoolClient, dispute: any): Pro
   return deferredActions;
 }
 
-async function handleChargeDisputeClosed(client: PoolClient, dispute: any): Promise<DeferredAction[]> {
+async function handleChargeDisputeClosed(client: PoolClient, dispute: Stripe.Dispute): Promise<DeferredAction[]> {
   const { id, amount, payment_intent, reason, status } = dispute;
   const deferredActions: DeferredAction[] = [];
   
@@ -762,7 +763,7 @@ async function handleChargeDisputeClosed(client: PoolClient, dispute: any): Prom
   return deferredActions;
 }
 
-async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: any): Promise<DeferredAction[]> {
+async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: Stripe.PaymentIntent): Promise<DeferredAction[]> {
   const { id, metadata, amount, currency, customer, receipt_email, description, created } = paymentIntent;
   const deferredActions: DeferredAction[] = [];
   
@@ -1158,7 +1159,7 @@ async function handlePaymentIntentSucceeded(client: PoolClient, paymentIntent: a
 
 const MAX_RETRY_ATTEMPTS = 3;
 
-async function handlePaymentIntentFailed(client: PoolClient, paymentIntent: any): Promise<DeferredAction[]> {
+async function handlePaymentIntentFailed(client: PoolClient, paymentIntent: Stripe.PaymentIntent): Promise<DeferredAction[]> {
   const { id, metadata, amount, last_payment_error, customer } = paymentIntent;
   const reason = last_payment_error?.message || 'Payment could not be processed';
   const errorCode = last_payment_error?.code || 'unknown';
@@ -1329,7 +1330,7 @@ async function handlePaymentIntentFailed(client: PoolClient, paymentIntent: any)
   return deferredActions;
 }
 
-async function handlePaymentIntentCanceled(client: PoolClient, paymentIntent: any): Promise<DeferredAction[]> {
+async function handlePaymentIntentCanceled(client: PoolClient, paymentIntent: Stripe.PaymentIntent): Promise<DeferredAction[]> {
   const { id, metadata, amount, cancellation_reason } = paymentIntent;
   const deferredActions: DeferredAction[] = [];
   
@@ -1386,7 +1387,7 @@ async function handlePaymentIntentCanceled(client: PoolClient, paymentIntent: an
   return deferredActions;
 }
 
-async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): Promise<DeferredAction[]> {
+async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: Stripe.Invoice): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceEmail = invoice.customer_email;
   const invoiceAmountPaid = invoice.amount_paid || 0;
@@ -1454,7 +1455,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
 
   const priceId = invoice.lines?.data?.[0]?.price?.id;
   let restoreTierClause = '';
-  let queryParams: any[] = [email];
+  let queryParams: (string | number | null)[] = [email];
   
   if (priceId) {
     const tierResult = await client.query(
@@ -1545,7 +1546,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: any): 
   return deferredActions;
 }
 
-async function handleInvoicePaymentFailed(client: PoolClient, invoice: any): Promise<DeferredAction[]> {
+async function handleInvoicePaymentFailed(client: PoolClient, invoice: Stripe.Invoice): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
   const invoiceCustomerName = typeof invoice.customer === 'object' ? invoice.customer?.name : undefined;
@@ -1730,7 +1731,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: any): Pro
   return deferredActions;
 }
 
-async function handleInvoiceLifecycle(client: PoolClient, invoice: any, eventType: string): Promise<DeferredAction[]> {
+async function handleInvoiceLifecycle(client: PoolClient, invoice: Stripe.Invoice, eventType: string): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceEmail = invoice.customer_email;
   const amountDue = invoice.amount_due || 0;
@@ -1777,7 +1778,7 @@ async function handleInvoiceLifecycle(client: PoolClient, invoice: any, eventTyp
   return deferredActions;
 }
 
-async function handleInvoiceVoided(client: PoolClient, invoice: any, eventType: string): Promise<DeferredAction[]> {
+async function handleInvoiceVoided(client: PoolClient, invoice: Stripe.Invoice, eventType: string): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceEmail = invoice.customer_email;
   const amountDue = invoice.amount_due || 0;
@@ -1819,7 +1820,7 @@ async function handleInvoiceVoided(client: PoolClient, invoice: any, eventType: 
   return deferredActions;
 }
 
-async function handleCheckoutSessionCompleted(client: PoolClient, session: any): Promise<DeferredAction[]> {
+async function handleCheckoutSessionCompleted(client: PoolClient, session: Stripe.Checkout.Session): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
     // Handle add_funds checkout - credit customer balance
@@ -2249,7 +2250,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: any):
   return deferredActions;
 }
 
-async function handleSubscriptionCreated(client: PoolClient, subscription: any): Promise<DeferredAction[]> {
+async function handleSubscriptionCreated(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
     const customerId = subscription.customer;
@@ -2727,7 +2728,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
 
     try {
       let restoreTierClause = '';
-      let queryParams: any[] = [email];
+      let queryParams: (string | number | null)[] = [email];
       
       if (priceId) {
         const tierResult = await client.query(
@@ -2787,7 +2788,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: any):
   return deferredActions;
 }
 
-async function handleSubscriptionUpdated(client: PoolClient, subscription: any, previousAttributes?: any): Promise<DeferredAction[]> {
+async function handleSubscriptionUpdated(client: PoolClient, subscription: Stripe.Subscription, previousAttributes?: any): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
     const customerId = subscription.customer;
@@ -3179,7 +3180,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: any, 
   return deferredActions;
 }
 
-async function handleSubscriptionDeleted(client: PoolClient, subscription: any): Promise<DeferredAction[]> {
+async function handleSubscriptionDeleted(client: PoolClient, subscription: Stripe.Subscription): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   try {
     const customerId = subscription.customer;

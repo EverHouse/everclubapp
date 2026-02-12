@@ -167,9 +167,9 @@ export function useOptimisticEvents(options: UseOptimisticEventsOptions = {}) {
       showToast(editId ? 'Event updated successfully' : 'Event created successfully', 'success');
       options.onEventSaveSuccess?.(savedEvent, !editId);
       return savedEvent;
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save event', 'error');
-      options.onEventSaveError?.(err);
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to save event', 'error');
+      options.onEventSaveError?.(err instanceof Error ? err : new Error(String(err)));
       onRevert?.();
       return null;
     } finally {
@@ -190,9 +190,9 @@ export function useOptimisticEvents(options: UseOptimisticEventsOptions = {}) {
       showToast('Event archived successfully', 'success');
       options.onEventDeleteSuccess?.(eventId);
       return true;
-    } catch (err: any) {
-      showToast(err.message || 'Failed to archive event', 'error');
-      options.onEventDeleteError?.(eventId, err);
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to archive event', 'error');
+      options.onEventDeleteError?.(eventId, err instanceof Error ? err : new Error(String(err)));
       onRevert?.();
       return false;
     } finally {
@@ -233,9 +233,9 @@ export function useOptimisticEvents(options: UseOptimisticEventsOptions = {}) {
       showToast(`${type === 'rsvp' ? 'RSVP' : 'Enrollment'} added successfully`, 'success');
       options.onParticipantAddSuccess?.(savedParticipant);
       return savedParticipant;
-    } catch (err: any) {
-      showToast(err.message || `Failed to add ${type === 'rsvp' ? 'RSVP' : 'enrollment'}`, 'error');
-      options.onParticipantAddError?.(err);
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || `Failed to add ${type === 'rsvp' ? 'RSVP' : 'enrollment'}`, 'error');
+      options.onParticipantAddError?.(err instanceof Error ? err : new Error(String(err)));
       onRevert?.();
       return null;
     } finally {
@@ -257,9 +257,9 @@ export function useOptimisticEvents(options: UseOptimisticEventsOptions = {}) {
       showToast('RSVP removed successfully', 'success');
       options.onParticipantRemoveSuccess?.(rsvpId);
       return true;
-    } catch (err: any) {
-      showToast(err.message || 'Failed to remove RSVP', 'error');
-      options.onParticipantRemoveError?.(rsvpId, err);
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remove RSVP', 'error');
+      options.onParticipantRemoveError?.(rsvpId, err instanceof Error ? err : new Error(String(err)));
       onRevert?.();
       return false;
     } finally {
@@ -282,9 +282,9 @@ export function useOptimisticEvents(options: UseOptimisticEventsOptions = {}) {
       showToast('Enrollment removed successfully', 'success');
       options.onParticipantRemoveSuccess?.(participantId);
       return true;
-    } catch (err: any) {
-      showToast(err.message || 'Failed to remove enrollment', 'error');
-      options.onParticipantRemoveError?.(participantId, err);
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remove enrollment', 'error');
+      options.onParticipantRemoveError?.(participantId, err instanceof Error ? err : new Error(String(err)));
       onRevert?.();
       return false;
     } finally {

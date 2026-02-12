@@ -4,6 +4,7 @@ import { confirmPaymentSuccess } from './payments';
 import { findOrCreateHubSpotContact } from '../hubspot/members';
 import { updateContactMembershipStatus } from '../hubspot/stages';
 import Stripe from 'stripe';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 export async function reconcileDailyPayments() {
   console.log('[Reconcile] Starting daily payment reconciliation...');
@@ -122,9 +123,9 @@ export async function reconcileSubscriptions() {
           console.warn(`[Reconcile] Member ${member.email} (status: ${member.membership_status}) has no active Stripe subscription`);
           mismatches++;
         }
-      } catch (err: any) {
-        if (err.code !== 'resource_missing') {
-          console.error(`[Reconcile] Error checking subscription for ${member.email}:`, err.message);
+      } catch (err: unknown) {
+        if (getErrorCode(err) !== 'resource_missing') {
+          console.error(`[Reconcile] Error checking subscription for ${member.email}:`, getErrorMessage(err));
         }
       }
     }
@@ -171,8 +172,8 @@ export async function reconcileSubscriptions() {
                 continue;
               }
               customer = fetchedCustomer as Stripe.Customer;
-            } catch (fetchErr: any) {
-              console.warn(`[Reconcile] Failed to fetch customer for subscription ${subscription.id}: ${fetchErr.message}`);
+            } catch (fetchErr: unknown) {
+              console.warn(`[Reconcile] Failed to fetch customer for subscription ${subscription.id}: ${getErrorMessage(fetchErr)}`);
               continue;
             }
           } else {
@@ -280,8 +281,8 @@ export async function reconcileSubscriptions() {
             console.error(`[Reconcile] HubSpot sync failed for ${customerEmail}:`, hubspotError);
           }
           
-        } catch (err: any) {
-          console.error(`[Reconcile] Error processing subscription ${subscription.id}:`, err.message);
+        } catch (err: unknown) {
+          console.error(`[Reconcile] Error processing subscription ${subscription.id}:`, getErrorMessage(err));
         }
       }
       

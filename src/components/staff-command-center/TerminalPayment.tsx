@@ -103,7 +103,7 @@ export function TerminalPayment({
       if (onlineReaders.length === 1) {
         setSelectedReader(onlineReaders[0].id);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching readers:', err);
       onError('Failed to load card readers');
     } finally {
@@ -131,9 +131,9 @@ export function TerminalPayment({
         throw new Error(data.error || 'Failed to create simulated reader');
       }
       await fetchReaders();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating simulated reader:', err);
-      onError(err.message);
+      onError((err instanceof Error ? err.message : String(err)));
     } finally {
       setCreatingSimulated(false);
     }
@@ -204,7 +204,7 @@ export function TerminalPayment({
             setProcessing(false);
             return;
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Error confirming save card:', err);
           setStatus('error');
           setStatusMessage('Card was read but could not be saved. Please try again.');
@@ -318,10 +318,10 @@ export function TerminalPayment({
         }, 1500);
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error processing terminal payment:', err);
       setStatus('error');
-      setStatusMessage(err.message);
+      setStatusMessage((err instanceof Error ? err.message : String(err)));
       setProcessing(false);
     }
   };

@@ -81,8 +81,8 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
           },
           () => {}
         );
-      } catch (err: any) {
-        setError(`Error accessing camera: ${err.message}`);
+      } catch (err: unknown) {
+        setError(`Error accessing camera: ${(err instanceof Error ? err.message : String(err))}`);
         setCameraPermission('denied');
       }
     };

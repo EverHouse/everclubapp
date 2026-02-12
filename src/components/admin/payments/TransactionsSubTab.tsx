@@ -256,8 +256,8 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
       setTimeout(() => {
         resetModal();
       }, 1500);
-    } catch (err: any) {
-      setError(err.message || 'Failed to capture payment');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to capture payment');
     }
   };
 
@@ -276,8 +276,8 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
       setTimeout(() => {
         resetModal();
       }, 1500);
-    } catch (err: any) {
-      setError(err.message || 'Failed to void authorization');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to void authorization');
     }
   };
 
@@ -963,8 +963,8 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
         setRefundReason('');
         setSuccess(false);
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to process refund');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to process refund');
     }
   };
 

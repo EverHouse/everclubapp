@@ -22,7 +22,7 @@ router.get('/api/members/:email/communications', isStaffOrAdmin, async (req, res
       .orderBy(desc(communicationLogs.occurredAt));
     
     res.json(logs);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Communication logs error:', error);
     res.status(500).json({ error: 'Failed to fetch communication logs' });
   }
@@ -57,7 +57,7 @@ router.post('/api/members/:email/communications', isStaffOrAdmin, async (req, re
       .returning();
     
     res.status(201).json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Create communication log error:', error);
     res.status(500).json({ error: 'Failed to create communication log' });
   }
@@ -80,7 +80,7 @@ router.delete('/api/members/:email/communications/:logId', isStaffOrAdmin, async
     }
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Delete communication log error:', error);
     res.status(500).json({ error: 'Failed to delete communication log' });
   }
@@ -140,7 +140,7 @@ router.patch('/api/members/me/preferences', isAuthenticated, async (req, res) =>
       smsOptIn: updated.smsOptIn,
       doNotSellMyInfo: updated.doNotSellMyInfo
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to update preferences' });
   }
@@ -179,7 +179,7 @@ router.get('/api/members/me/preferences', isAuthenticated, async (req, res) => {
     }
     
     res.json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch preferences' });
   }
@@ -323,7 +323,7 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
       .sort((a: any, b: any) => b.date.localeCompare(a.date));
     
     res.json(visits);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error fetching my-visits:', error);
     res.status(500).json({ error: 'Failed to fetch visits' });
   }
@@ -392,7 +392,7 @@ router.post('/api/members/me/data-export-request', isAuthenticated, async (req, 
       message: 'Data export request submitted successfully',
       requestedAt: member.dataExportRequestedAt
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Data export request error:', error);
     res.status(500).json({ error: 'Failed to submit data export request' });
   }

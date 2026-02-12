@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
     }));
     
     res.json({ coupons: formattedCoupons, count: formattedCoupons.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error listing coupons:', error);
     res.status(500).json({ error: 'Failed to list coupons' });
   }
@@ -118,12 +119,12 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
         valid: coupon.valid,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating coupon:', error);
-    if (error.code === 'resource_already_exists') {
+    if (getErrorCode(error) === 'resource_already_exists') {
       return res.status(400).json({ error: 'A coupon with this ID already exists.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to create coupon' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create coupon' });
   }
 });
 
@@ -159,12 +160,12 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
         valid: coupon.valid,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error updating coupon:', error);
-    if (error.code === 'resource_missing') {
+    if (getErrorCode(error) === 'resource_missing') {
       return res.status(404).json({ error: 'Coupon not found.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to update coupon' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to update coupon' });
   }
 });
 
@@ -184,12 +185,12 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
     console.log(`[Stripe] Deleted coupon ${id}`);
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error deleting coupon:', error);
-    if (error.code === 'resource_missing') {
+    if (getErrorCode(error) === 'resource_missing') {
       return res.status(404).json({ error: 'Coupon not found.' });
     }
-    res.status(500).json({ error: error.message || 'Failed to delete coupon' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to delete coupon' });
   }
 });
 

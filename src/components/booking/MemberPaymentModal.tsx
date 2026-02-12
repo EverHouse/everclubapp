@@ -73,8 +73,8 @@ export function MemberPaymentModal({
       } else {
         setError(apiError || 'Failed to initialize payment');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to initialize payment');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize payment');
     } finally {
       setLoading(false);
     }

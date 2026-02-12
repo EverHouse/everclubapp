@@ -143,8 +143,8 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
             const data = await res.json();
             setSheetStatus({ connected: true, sheetId: data.sheetId, sheetUrl: data.sheetUrl });
             showToast('Google Sheet created and linked', 'success');
-        } catch (err: any) {
-            showToast(err.message || 'Failed to connect Google Sheet', 'error');
+        } catch (err: unknown) {
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to connect Google Sheet', 'error');
         } finally {
             setSheetLoading(false);
         }

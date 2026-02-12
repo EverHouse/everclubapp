@@ -1,6 +1,7 @@
 import { getStripeClient, getStripeEnvironmentInfo } from './client';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 export async function validateStripeEnvironmentIds(): Promise<void> {
   try {
@@ -31,8 +32,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
         batch.map(async (tier: any) => {
           try {
             await stripe.products.retrieve(tier.stripe_product_id);
-          } catch (error: any) {
-            if (error.code === 'resource_missing') {
+          } catch (error: unknown) {
+            if (getErrorCode(error) === 'resource_missing') {
               const oldId = tier.stripe_product_id;
               await db.execute(
                 sql`UPDATE membership_tiers SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${tier.id}`
@@ -69,8 +70,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
         batch.map(async (item: any) => {
           try {
             await stripe.products.retrieve(item.stripe_product_id);
-          } catch (error: any) {
-            if (error.code === 'resource_missing') {
+          } catch (error: unknown) {
+            if (getErrorCode(error) === 'resource_missing') {
               await db.execute(
                 sql`UPDATE cafe_items SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${item.id}`
               );
@@ -103,8 +104,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
         batch.map(async (user: any) => {
           try {
             await stripe.subscriptions.retrieve(user.stripe_subscription_id);
-          } catch (error: any) {
-            if (error.code === 'resource_missing') {
+          } catch (error: unknown) {
+            if (getErrorCode(error) === 'resource_missing') {
               await db.execute(
                 sql`UPDATE users SET stripe_subscription_id = NULL WHERE id = ${user.id}`
               );
@@ -131,8 +132,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
         await db.execute(sql`TRUNCATE TABLE stripe_transaction_cache`);
         transactionCacheCleared = true;
         console.log(`[Stripe Env] Cleared transaction cache (environment change detected)`);
-      } catch (truncateErr: any) {
-        console.warn(`[Stripe Env] Could not clear transaction cache:`, truncateErr.message);
+      } catch (truncateErr: unknown) {
+        console.warn(`[Stripe Env] Could not clear transaction cache:`, getErrorMessage(truncateErr));
       }
     }
 
@@ -149,7 +150,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     if (cafeCleared > 0) {
       console.warn(`[STARTUP WARNING] ⚠️ ${cafeCleared} cafe items lost their Stripe product links. Run "Sync to Stripe" to restore.`);
     }
-  } catch (error: any) {
-    console.error('[Stripe Env] Environment validation failed (non-blocking):', error.message);
+  } catch (error: unknown) {
+    console.error('[Stripe Env] Environment validation failed (non-blocking):', getErrorMessage(error));
   }
 }

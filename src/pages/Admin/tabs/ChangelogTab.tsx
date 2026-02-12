@@ -238,8 +238,8 @@ const ChangelogTab: React.FC = () => {
             }
             
             setError(null);
-        } catch (err: any) {
-            setError(err.message || 'Failed to load activity log');
+        } catch (err: unknown) {
+            setError((err instanceof Error ? err.message : String(err)) || 'Failed to load activity log');
         } finally {
             setLoading(false);
         }

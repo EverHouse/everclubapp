@@ -19,6 +19,7 @@ import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
 import { randomUUID } from 'crypto';
 import { checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter } from '../../middleware/rateLimiting';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.get('/api/stripe/subscriptions/:customerId', isStaffOrAdmin, async (req: 
       subscriptions: result.subscriptions,
       count: result.subscriptions?.length || 0
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error listing subscriptions:', error);
     res.status(500).json({ error: 'Failed to list subscriptions' });
   }
@@ -97,7 +98,7 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, async (req: Request, re
       success: true,
       subscription: result.subscription
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating subscription:', error);
     res.status(500).json({ error: 'Failed to create subscription' });
   }
@@ -134,7 +135,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
     }
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error canceling subscription:', error);
     res.status(500).json({ error: 'Failed to cancel subscription' });
   }
@@ -159,7 +160,7 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
       updated: result.updated,
       errors: result.errors
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error syncing subscriptions:', error);
     res.status(500).json({ error: 'Failed to sync subscriptions' });
   }
@@ -187,7 +188,7 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
       }));
     
     res.json({ coupons: activeCoupons });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error listing coupons:', error);
     res.status(500).json({ error: 'Failed to load coupons' });
   }
@@ -339,9 +340,9 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
       customerId,
       message: `Successfully created ${tierName} subscription for ${memberName}`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating subscription for member:', error);
-    res.status(500).json({ error: error.message || 'Failed to create subscription' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create subscription' });
   }
 });
 
@@ -550,9 +551,9 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       userId,
       tierName: tier.name
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating new member subscription:', error);
-    res.status(500).json({ error: error.message || 'Failed to create subscription' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create subscription' });
   }
 });
 
@@ -685,9 +686,9 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
       message: 'Payment confirmed and membership activated',
       memberEmail: userEmail
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Subscriptions] Error confirming inline payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to confirm payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to confirm payment' });
   }
 });
 
@@ -882,9 +883,9 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
       tierName: tier.name,
       emailSent: emailResult.success
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error sending activation link:', error);
-    res.status(500).json({ error: error.message || 'Failed to send activation link' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to send activation link' });
   }
 });
 
@@ -961,7 +962,7 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
       message: `Cleaned up pending signup for ${userName}`,
       email: user.email
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error cleaning up pending user:', error);
     res.status(500).json({ error: 'Failed to cleanup pending user' });
   }

@@ -104,9 +104,9 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
       triggerHaptic('success');
       setSuccess(true);
       onSuccess?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       triggerHaptic('error');
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError((err instanceof Error ? err.message : String(err)) || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

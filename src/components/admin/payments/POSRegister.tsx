@@ -273,8 +273,8 @@ const POSRegister: React.FC = () => {
       const data = await res.json();
       setClientSecret(data.clientSecret);
       setPaymentIntentId(data.paymentIntentId);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create payment');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to create payment');
     } finally {
       setIsCreatingIntent(false);
     }
@@ -356,8 +356,8 @@ const POSRegister: React.FC = () => {
 
       setPaymentIntentId(data.paymentIntentId);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to charge card on file');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to charge card on file');
     } finally {
       setIsProcessing(false);
     }

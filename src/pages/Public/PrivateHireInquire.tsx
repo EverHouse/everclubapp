@@ -151,9 +151,9 @@ const PrivateHireInquire: React.FC = () => {
       triggerHaptic('success');
       setSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
+    } catch (err: unknown) {
       triggerHaptic('error');
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError((err instanceof Error ? err.message : String(err)) || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

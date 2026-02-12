@@ -82,8 +82,8 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
 
         const data = await res.json();
         setClientSecret(data.clientSecret);
-      } catch (err: any) {
-        setError(err.message || 'Failed to initialize checkout');
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize checkout');
       } finally {
         setLoading(false);
       }
@@ -424,8 +424,8 @@ function DayPassesSection() {
         if (!res.ok) throw new Error('Failed to fetch products');
         const data = await res.json();
         setProducts(data.products || []);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : String(err)));
       } finally {
         setLoading(false);
       }
@@ -461,8 +461,8 @@ function DayPassesSection() {
       if (sessionUrl) {
         window.location.href = sessionUrl;
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)));
       setSubmitting(false);
     }
   };

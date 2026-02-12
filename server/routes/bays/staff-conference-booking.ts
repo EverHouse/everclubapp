@@ -123,7 +123,7 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
     }
 
     res.json(availableSlots);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch available slots', error);
   }
 });
@@ -173,7 +173,7 @@ router.get('/api/staff/conference-room/fee-estimate', isStaffOrAdmin, async (req
       overageCents,
       tierName
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
   }
 });
@@ -338,7 +338,7 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
     } finally {
       client.release();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to create conference room booking', error);
   }
 });

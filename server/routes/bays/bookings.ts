@@ -367,7 +367,7 @@ router.get('/api/booking-requests', async (req, res) => {
     } else {
       res.json(enrichedResult);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch booking requests', error);
   }
 });
@@ -908,7 +908,7 @@ router.post('/api/booking-requests', async (req, res) => {
     } catch (postCommitError) {
       console.error('[BookingRequest] Post-commit operations failed:', postCommitError);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique') {
@@ -974,7 +974,7 @@ router.get('/api/booking-requests/:id', async (req, res) => {
     }
     
     res.json(booking);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch booking request', error);
   }
 });
@@ -1392,7 +1392,7 @@ router.put('/api/booking-requests/:id/member-cancel', async (req, res) => {
         refundSkipped: false
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to cancel booking', error);
   }
 });
@@ -1669,7 +1669,7 @@ router.get('/api/fee-estimate', async (req, res) => {
     });
     
     res.json({ ...estimate, _ts: Date.now() });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
   }
 });
@@ -1747,7 +1747,7 @@ router.get('/api/booking-requests/:id/fee-estimate', async (req, res) => {
     });
     
     res.json(estimate);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to calculate fee estimate', error);
   }
 });

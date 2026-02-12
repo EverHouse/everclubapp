@@ -96,8 +96,8 @@ const BuyDayPass: React.FC = () => {
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Something went wrong. Please try again.');
       setProcessingSlug(null);
     }
   };

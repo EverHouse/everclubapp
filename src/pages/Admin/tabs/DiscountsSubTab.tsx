@@ -56,8 +56,8 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
       if (!res.ok) throw new Error('Failed to fetch coupons');
       const data = await res.json();
       setCoupons(data.coupons || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load coupons');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to load coupons');
     } finally {
       setIsLoading(false);
     }
@@ -112,8 +112,8 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
         duration: 'forever',
         durationInMonths: 3,
       });
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to create coupon');
+    } catch (err: unknown) {
+      setFormError((err instanceof Error ? err.message : String(err)) || 'Failed to create coupon');
     } finally {
       setIsSaving(false);
     }
@@ -144,8 +144,8 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
       
       await fetchCoupons();
       setEditingCoupon(null);
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to update coupon');
+    } catch (err: unknown) {
+      setFormError((err instanceof Error ? err.message : String(err)) || 'Failed to update coupon');
     } finally {
       setIsUpdating(false);
     }
@@ -166,8 +166,8 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
       
       await fetchCoupons();
       setDeleteConfirmId(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete coupon');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to delete coupon');
     } finally {
       setIsDeleting(null);
     }

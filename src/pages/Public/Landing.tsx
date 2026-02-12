@@ -109,8 +109,8 @@ const HubSpotMeetingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
       
       setTourId(data.id);
       setStep('calendar');
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Something went wrong');
     } finally {
       setIsSubmitting(false);
     }

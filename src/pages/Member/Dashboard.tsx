@@ -1413,8 +1413,8 @@ const Dashboard: React.FC = () => {
                       throw new Error(paymentError.message);
                     }
                   }
-                } catch (err: any) {
-                  showToast(err.message || 'Payment failed', 'error');
+                } catch (err: unknown) {
+                  showToast((err instanceof Error ? err.message : String(err)) || 'Payment failed', 'error');
                   setIsPayingOverage(false);
                 }
               }}

@@ -2,6 +2,7 @@ import { getStripeClient } from '../stripe/client';
 import { pool } from '../db';
 import { notifyMember, notifyAllStaff } from '../notificationService';
 import { sendCardExpiringEmail } from '../../emails/membershipEmails';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface CheckExpiringCardsResult {
   checked: number;
@@ -109,8 +110,8 @@ export async function checkExpiringCards(): Promise<CheckExpiringCardsResult> {
 
             result.notified++;
           }
-        } catch (pmError: any) {
-          result.errors.push(`Error processing customer ${customer.id}: ${pmError.message}`);
+        } catch (pmError: unknown) {
+          result.errors.push(`Error processing customer ${customer.id}: ${getErrorMessage(pmError)}`);
         }
       }
 
@@ -121,9 +122,9 @@ export async function checkExpiringCards(): Promise<CheckExpiringCardsResult> {
     }
 
     console.log(`[CardExpiryChecker] Complete - checked: ${result.checked}, notified: ${result.notified}`);
-  } catch (error: any) {
-    console.error('[CardExpiryChecker] Error:', error.message);
-    result.errors.push(`Fatal error: ${error.message}`);
+  } catch (error: unknown) {
+    console.error('[CardExpiryChecker] Error:', getErrorMessage(error));
+    result.errors.push(`Fatal error: ${getErrorMessage(error)}`);
   }
 
   return result;

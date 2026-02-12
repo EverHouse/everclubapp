@@ -143,7 +143,7 @@ router.get('/api/members/search', isAuthenticated, async (req, res) => {
     });
     
     res.json(formattedResults);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Member search error:', error);
     res.status(500).json({ error: 'Failed to search members' });
   }
@@ -433,7 +433,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
       stale: false,
       refreshing: false,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Members Directory] Error:', error);
     res.status(500).json({ error: 'Failed to fetch members directory' });
   }
@@ -483,7 +483,7 @@ router.get('/api/guests/search', isAuthenticated, async (req, res) => {
     }));
     
     res.json(formattedResults);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Guest search error:', error);
     res.status(500).json({ error: 'Failed to search guests' });
   }

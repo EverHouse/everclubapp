@@ -197,7 +197,7 @@ const Profile: React.FC = () => {
       }, 1500);
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to set password', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to set password', 'error');
     },
   });
 
@@ -292,8 +292,8 @@ const Profile: React.FC = () => {
       if (res.error) throw new Error(res.error);
       showToast('Google account linked successfully', 'success');
       refetchGoogleStatus();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to link Google account', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to link Google account', 'error');
     } finally {
       setGoogleLinking(false);
     }
@@ -306,8 +306,8 @@ const Profile: React.FC = () => {
       if (res.error) throw new Error(res.error);
       showToast('Google account unlinked', 'success');
       refetchGoogleStatus();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to unlink Google account', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to unlink Google account', 'error');
     } finally {
       setGoogleUnlinking(false);
     }

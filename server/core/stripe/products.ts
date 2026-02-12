@@ -6,6 +6,7 @@ import { getStripeClient } from './client';
 import { getHubSpotClientWithFallback } from '../integrations';
 import { clearTierCache } from '../tierService';
 import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateCorporateVolumePricing, updateOverageRate, updateGuestFee, VolumeTier } from '../billing/pricingConfig';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 export interface HubSpotProduct {
   id: string;
@@ -130,8 +131,8 @@ export async function fetchHubSpotProducts(): Promise<HubSpotProduct[]> {
       description: product.properties.description || null,
       recurringPeriod: product.properties.hs_recurring_billing_period || null,
     }));
-  } catch (error: any) {
-    if (error.code === 403 && error.body?.category === 'MISSING_SCOPES') {
+  } catch (error: unknown) {
+    if (getErrorCode(error) === '403' && (error as any)?.body?.category === 'MISSING_SCOPES') {
       console.error('[Stripe Products] Missing HubSpot scopes. Add HUBSPOT_PRIVATE_APP_TOKEN secret with a Private App that has crm.objects.products.read scope.');
       throw new Error('HubSpot products access denied. Please add HUBSPOT_PRIVATE_APP_TOKEN secret with your Private App token that has products read permission.');
     }
@@ -291,11 +292,11 @@ export async function syncHubSpotProductToStripe(hubspotProduct: HubSpotProduct)
       stripeProductId: stripeProduct.id,
       stripePriceId: stripePrice.id,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Products] Error syncing product:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -326,13 +327,13 @@ export async function syncAllHubSpotProductsToStripe(): Promise<{
     console.log(`[Stripe Products] Sync complete: ${synced} synced, ${failed} failed`);
     
     return { success: true, synced, failed, errors };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Products] Error syncing all products:', error);
     return {
       success: false,
       synced: 0,
       failed: 0,
-      errors: [{ productId: 'all', error: error.message }],
+      errors: [{ productId: 'all', error: getErrorMessage(error) }],
     };
   }
 }
@@ -341,7 +342,7 @@ export async function getStripeProducts(): Promise<StripeProductWithPrice[]> {
   try {
     const products = await db.select().from(stripeProducts);
     return products;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Products] Error getting products:', error);
     return [];
   }
@@ -365,7 +366,7 @@ export async function getProductSyncStatus(): Promise<ProductSyncStatus[]> {
         stripePriceId: synced?.stripePriceId,
       };
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Products] Error getting sync status:', error);
     return [];
   }
@@ -612,14 +613,14 @@ export async function syncMembershipTiersToStripe(): Promise<{
           });
           synced++;
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[Tier Sync] Error syncing tier ${tier.name}:`, error);
         results.push({
           tierId: tier.id,
           tierName: tier.name,
           tierSlug: tier.slug,
           success: false,
-          error: error.message,
+          error: getErrorMessage(error),
           action: 'skipped',
         });
         failed++;
@@ -628,7 +629,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
 
     console.log(`[Tier Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
     return { success: true, results, synced, failed, skipped };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Tier Sync] Fatal error:', error);
     return {
       success: false,
@@ -663,7 +664,7 @@ export async function getTierSyncStatus(): Promise<Array<{
       stripeProductId: tier.stripeProductId,
       stripePriceId: tier.stripePriceId,
     }));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Tier Sync] Error getting status:', error);
     return [];
   }
@@ -758,13 +759,13 @@ export async function cleanupOrphanStripeProducts(): Promise<{
             reason,
           });
           archived++;
-        } catch (archiveError: any) {
+        } catch (archiveError: unknown) {
           console.error(`[Stripe Cleanup] Error archiving ${product.name}:`, archiveError);
           results.push({
             productId: product.id,
             productName: product.name,
             action: 'error',
-            reason: archiveError.message,
+            reason: getErrorMessage(archiveError),
           });
           errors++;
         }
@@ -778,7 +779,7 @@ export async function cleanupOrphanStripeProducts(): Promise<{
     
     console.log(`[Stripe Cleanup] Complete: ${archived} archived, ${skipped} skipped, ${errors} errors`);
     return { success: true, archived, skipped, errors, results };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Cleanup] Fatal error:', error);
     return { success: false, archived, skipped, errors, results };
   }
@@ -902,8 +903,8 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     }
 
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
-  } catch (error: any) {
-    console.error('[Overage Product] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Overage Product] Error:', getErrorMessage(error));
     return { success: false, action: 'error' };
   }
 }
@@ -1017,8 +1018,8 @@ export async function ensureGuestPassProduct(): Promise<{
     }
 
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
-  } catch (error: any) {
-    console.error('[Guest Pass Product] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Guest Pass Product] Error:', getErrorMessage(error));
     return { success: false, action: 'error' };
   }
 }
@@ -1122,8 +1123,8 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
     
     console.log(`[Day Pass Coworking Product] ${COWORKING_NAME} ready (${stripePriceId})`);
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
-  } catch (error: any) {
-    console.error('[Day Pass Coworking Product] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Day Pass Coworking Product] Error:', getErrorMessage(error));
     return { success: false, action: 'error' };
   }
 }
@@ -1227,8 +1228,8 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
     
     console.log(`[Day Pass Golf Sim Product] ${GOLF_SIM_NAME} ready (${stripePriceId})`);
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
-  } catch (error: any) {
-    console.error('[Day Pass Golf Sim Product] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Day Pass Golf Sim Product] Error:', getErrorMessage(error));
     return { success: false, action: 'error' };
   }
 }
@@ -1322,8 +1323,8 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
     
     console.log(`[Corporate Pricing] ${CORPORATE_PRICING_NAME} ready (${stripeProductId})`);
     return { success: true, stripeProductId, action: existing.length > 0 && existing[0].stripeProductId ? 'exists' : 'created' };
-  } catch (error: any) {
-    console.error('[Corporate Pricing] Error:', error.message);
+  } catch (error: unknown) {
+    console.error('[Corporate Pricing] Error:', getErrorMessage(error));
     return { success: false, action: 'error' };
   }
 }
@@ -1367,8 +1368,8 @@ export async function pullCorporateVolumePricingFromStripe(): Promise<boolean> {
     
     console.log('[Corporate Pricing] No volume tiers found in Stripe metadata, using defaults');
     return false;
-  } catch (error: any) {
-    console.error('[Corporate Pricing] Pull failed:', error.message);
+  } catch (error: unknown) {
+    console.error('[Corporate Pricing] Pull failed:', getErrorMessage(error));
     return false;
   }
 }
@@ -1504,14 +1505,14 @@ export async function syncTierFeaturesToStripe(): Promise<{
             existingFeatures.set(feature.lookupKey, created.id);
             featuresCreated++;
             console.log(`[Feature Sync] Created feature: ${feature.name} (${feature.lookupKey})`);
-          } catch (err: any) {
-            if (err.code === 'resource_already_exists') {
+          } catch (err: unknown) {
+            if (getErrorCode(err) === 'resource_already_exists') {
               const refetch = await stripe.entitlements.features.list({ lookup_key: feature.lookupKey, limit: 1 });
               if (refetch.data.length > 0) {
                 existingFeatures.set(feature.lookupKey, refetch.data[0].id);
               }
             } else {
-              console.error(`[Feature Sync] Error creating feature ${feature.lookupKey}:`, err.message);
+              console.error(`[Feature Sync] Error creating feature ${feature.lookupKey}:`, getErrorMessage(err));
             }
           }
         }
@@ -1546,8 +1547,8 @@ export async function syncTierFeaturesToStripe(): Promise<{
               });
               featuresAttached++;
               console.log(`[Feature Sync] Attached ${feature.lookupKey} to ${tier.name}`);
-            } catch (err: any) {
-              console.error(`[Feature Sync] Error attaching ${feature.lookupKey} to ${tier.name}:`, err.message);
+            } catch (err: unknown) {
+              console.error(`[Feature Sync] Error attaching ${feature.lookupKey} to ${tier.name}:`, getErrorMessage(err));
             }
           }
         }
@@ -1559,8 +1560,8 @@ export async function syncTierFeaturesToStripe(): Promise<{
             await stripe.products.deleteFeature(tier.stripeProductId, attachmentId);
             featuresRemoved++;
             console.log(`[Feature Sync] Removed ${attachedKey} from ${tier.name}`);
-          } catch (err: any) {
-            console.error(`[Feature Sync] Error removing ${attachedKey} from ${tier.name}:`, err.message);
+          } catch (err: unknown) {
+            console.error(`[Feature Sync] Error removing ${attachedKey} from ${tier.name}:`, getErrorMessage(err));
           }
         }
       }
@@ -1568,7 +1569,7 @@ export async function syncTierFeaturesToStripe(): Promise<{
 
     console.log(`[Feature Sync] Complete: ${featuresCreated} created, ${featuresAttached} attached, ${featuresRemoved} removed`);
     return { success: true, featuresCreated, featuresAttached, featuresRemoved };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Feature Sync] Fatal error:', error);
     return { success: false, featuresCreated, featuresAttached, featuresRemoved };
   }
@@ -1679,15 +1680,15 @@ export async function syncCafeItemsToStripe(): Promise<{
         );
 
         synced++;
-      } catch (error: any) {
-        console.error(`[Cafe Sync] Error syncing ${item.name}:`, error.message);
+      } catch (error: unknown) {
+        console.error(`[Cafe Sync] Error syncing ${item.name}:`, getErrorMessage(error));
         failed++;
       }
     }
 
     console.log(`[Cafe Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
     return { success: true, synced, failed, skipped };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Cafe Sync] Fatal error:', error);
     return { success: false, synced, failed, skipped };
   }
@@ -1831,8 +1832,8 @@ export async function pullTierFeaturesFromStripe(): Promise<{
 
         tiersUpdated++;
         console.log(`[Reverse Sync] Updated tier "${tier.name}" from ${attachedKeys.size} Stripe features`);
-      } catch (err: any) {
-        const msg = `Error pulling features for tier "${tier.name}": ${err.message}`;
+      } catch (err: unknown) {
+        const msg = `Error pulling features for tier "${tier.name}": ${getErrorMessage(err)}`;
         console.error(`[Reverse Sync] ${msg}`);
         errors.push(msg);
       }
@@ -1841,9 +1842,9 @@ export async function pullTierFeaturesFromStripe(): Promise<{
     console.log(`[Reverse Sync] Tier feature pull complete: ${tiersUpdated} updated, ${errors.length} errors`);
     clearTierCache();
     return { success: errors.length === 0, tiersUpdated, errors };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Reverse Sync] Fatal error pulling tier features:', error);
-    return { success: false, tiersUpdated, errors: [...errors, error.message] };
+    return { success: false, tiersUpdated, errors: [...errors, getErrorMessage(error)] };
   }
 }
 
@@ -1973,8 +1974,8 @@ export async function pullCafeItemsFromStripe(): Promise<{
           created++;
           console.log(`[Reverse Sync] Created cafe item "${product.name}" from Stripe`);
         }
-      } catch (err: any) {
-        const msg = `Error syncing cafe product "${product.name}": ${err.message}`;
+      } catch (err: unknown) {
+        const msg = `Error syncing cafe product "${product.name}": ${getErrorMessage(err)}`;
         console.error(`[Reverse Sync] ${msg}`);
         errors.push(msg);
       }
@@ -1992,8 +1993,8 @@ export async function pullCafeItemsFromStripe(): Promise<{
             console.log(`[Reverse Sync] Deactivated cafe item "${row.name}" (Stripe product inactive)`);
           }
         }
-      } catch (err: any) {
-        const msg = `Error deactivating cafe item for Stripe product ${stripeProductId}: ${err.message}`;
+      } catch (err: unknown) {
+        const msg = `Error deactivating cafe item for Stripe product ${stripeProductId}: ${getErrorMessage(err)}`;
         console.error(`[Reverse Sync] ${msg}`);
         errors.push(msg);
       }
@@ -2001,8 +2002,8 @@ export async function pullCafeItemsFromStripe(): Promise<{
 
     console.log(`[Reverse Sync] Cafe items pull complete: ${synced} synced, ${created} created, ${deactivated} deactivated, ${errors.length} errors`);
     return { success: errors.length === 0, synced, created, deactivated, errors };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Reverse Sync] Fatal error pulling cafe items:', error);
-    return { success: false, synced, created, deactivated, errors: [...errors, error.message] };
+    return { success: false, synced, created, deactivated, errors: [...errors, getErrorMessage(error)] };
   }
 }

@@ -1,6 +1,7 @@
 import { pool } from '../db';
 import { getStripeClient } from './client';
 import { alertOnExternalServiceError } from '../errorAlerts';
+import { getErrorMessage, getErrorCode, isStripeError } from '../../utils/errorUtils';
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
@@ -82,8 +83,8 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
         matchType: 'linked_email',
       };
     }
-  } catch (err: any) {
-    console.error(`[resolveUserByEmail] Error checking linked emails for ${normalizedEmail}:`, err?.message || err);
+  } catch (err: unknown) {
+    console.error(`[resolveUserByEmail] Error checking linked emails for ${normalizedEmail}:`, getErrorMessage(err));
   }
 
   try {
@@ -108,8 +109,8 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
         matchType: 'manually_linked',
       };
     }
-  } catch (err: any) {
-    console.error(`[resolveUserByEmail] Error checking manually linked emails for ${normalizedEmail}:`, err?.message || err);
+  } catch (err: unknown) {
+    console.error(`[resolveUserByEmail] Error checking manually linked emails for ${normalizedEmail}:`, getErrorMessage(err));
   }
 
   return null;
@@ -173,8 +174,8 @@ export async function getOrCreateStripeCustomer(
       }
       
       return { customerId: existingCustomerId, isNew: false };
-    } catch (validationError: any) {
-      if (validationError.code === 'resource_missing') {
+    } catch (validationError: unknown) {
+      if (getErrorCode(validationError) === 'resource_missing') {
         console.warn(`[Stripe] Stored customer ${existingCustomerId} no longer exists in Stripe for user ${userId}, clearing and re-creating`);
         await pool.query('UPDATE users SET stripe_customer_id = NULL WHERE id = $1', [userId]);
       } else {
@@ -221,8 +222,8 @@ export async function getOrCreateStripeCustomer(
       }
       
       return { customerId: existingCustomerId, isNew: false };
-    } catch (validationError: any) {
-      if (validationError.code === 'resource_missing') {
+    } catch (validationError: unknown) {
+      if (getErrorCode(validationError) === 'resource_missing') {
         console.warn(`[Stripe] Stale linked customer ${existingCustomerId} for ${email} — clearing and creating new`);
         await pool.query('UPDATE users SET stripe_customer_id = NULL WHERE stripe_customer_id = $1', [existingCustomerId]);
       } else {
@@ -275,8 +276,8 @@ export async function getOrCreateStripeCustomer(
         }
         
         return { customerId: existingCustomerId, isNew: false };
-      } catch (validationError: any) {
-        if (validationError.code === 'resource_missing') {
+      } catch (validationError: unknown) {
+        if (getErrorCode(validationError) === 'resource_missing') {
           console.warn(`[Stripe] Stale HubSpot-matched customer ${existingCustomerId} for ${email} — clearing and creating new`);
           await pool.query('UPDATE users SET stripe_customer_id = NULL WHERE stripe_customer_id = $1', [existingCustomerId]);
         } else {
@@ -297,7 +298,7 @@ export async function getOrCreateStripeCustomer(
   let stripe;
   try {
     stripe = await getStripeClient();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Failed to get Stripe client:', error);
     await alertOnExternalServiceError('Stripe', error, 'initialize Stripe client');
     throw error;
@@ -329,20 +330,20 @@ export async function getOrCreateStripeCustomer(
         }
         break;
       }
-    } catch (error: any) {
-      const isRateLimitOrNetwork = error.type === 'StripeRateLimitError' || 
-        error.type === 'StripeConnectionError' ||
-        error.code === 'ECONNREFUSED';
+    } catch (error: unknown) {
+      const isRateLimitOrNetwork = isStripeError(error) && (error.type === 'StripeRateLimitError' || 
+        error.type === 'StripeConnectionError') ||
+        getErrorCode(error) === 'ECONNREFUSED';
       
-      stripeErrors.push({ email: searchEmail, error: error.message });
+      stripeErrors.push({ email: searchEmail, error: getErrorMessage(error) });
       
       if (isRateLimitOrNetwork) {
         console.error(`[Stripe] Critical error searching for customer ${searchEmail}, aborting to prevent duplicates:`, error);
         await alertOnExternalServiceError('Stripe', error, `search for customer by email ${searchEmail}`);
-        throw new Error(`Stripe unavailable while searching for existing customers - cannot safely create new customer: ${error.message}`);
+        throw new Error(`Stripe unavailable while searching for existing customers - cannot safely create new customer: ${getErrorMessage(error)}`);
       }
       
-      console.warn(`[Stripe] Non-critical error searching for customer by email ${searchEmail}:`, error.message);
+      console.warn(`[Stripe] Non-critical error searching for customer by email ${searchEmail}:`, getErrorMessage(error));
     }
   }
   
@@ -388,7 +389,7 @@ export async function getOrCreateStripeCustomer(
       customerId = customer.id;
       isNew = true;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Failed to create/update customer:', error);
     await alertOnExternalServiceError('Stripe', error, 'create or update customer');
     throw error;
@@ -474,10 +475,10 @@ export async function syncCustomerMetadataToStripe(
     
     console.log(`[Stripe] Synced metadata for customer ${user.stripe_customer_id} (tier: ${user.tier})`);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Failed to sync customer metadata:', error);
     await alertOnExternalServiceError('Stripe', error, 'sync customer metadata');
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -510,8 +511,8 @@ export async function syncAllCustomerMetadata(): Promise<{ synced: number; faile
       
       await stripe.customers.update(user.stripe_customer_id, updateParams);
       synced++;
-    } catch (error: any) {
-      console.error(`[Stripe] Failed to sync metadata for ${user.email}:`, error.message);
+    } catch (error: unknown) {
+      console.error(`[Stripe] Failed to sync metadata for ${user.email}:`, getErrorMessage(error));
       failed++;
     }
   }

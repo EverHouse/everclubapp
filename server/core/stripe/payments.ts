@@ -5,6 +5,7 @@ import { billingAuditLog } from '../../../shared/schema';
 import { getStripeClient } from './client';
 import { getOrCreateStripeCustomer } from './customers';
 import { PaymentStatusService } from '../billing/PaymentStatusService';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 /**
  * Generate a deterministic idempotency key for Stripe payment intents.
@@ -227,8 +228,8 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
         try {
           await stripe.paymentIntents.cancel(invoicePiId);
           console.log(`[Stripe] Cancelled invoice-generated PI ${invoicePiId} — will use standalone card_present PI instead`);
-        } catch (cancelErr: any) {
-          console.warn(`[Stripe] Could not cancel invoice PI ${invoicePiId}: ${cancelErr.message}`);
+        } catch (cancelErr: unknown) {
+          console.warn(`[Stripe] Could not cancel invoice PI ${invoicePiId}: ${getErrorMessage(cancelErr)}`);
         }
       }
 
@@ -291,8 +292,8 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
         await stripe.invoices.voidInvoice(invoice.id);
         console.log(`[POS Invoice] Voided open invoice ${invoice.id} after error`);
       }
-    } catch (cleanupErr: any) {
-      console.error(`[POS Invoice] Failed to clean up invoice ${invoice.id}:`, cleanupErr.message);
+    } catch (cleanupErr: unknown) {
+      console.error(`[POS Invoice] Failed to clean up invoice ${invoice.id}:`, getErrorMessage(cleanupErr));
     }
     throw error;
   }
@@ -363,9 +364,9 @@ export async function confirmPaymentSuccess(
 
     console.log(`[Stripe] Payment ${paymentIntentId} confirmed as succeeded (${result.participantsUpdated || 0} participants updated)`);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error confirming payment:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -404,9 +405,9 @@ export async function cancelPaymentIntent(
 
     console.log(`[Stripe] Payment ${paymentIntentId} canceled`);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error canceling payment:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -548,14 +549,14 @@ export async function createBalanceAwarePayment(params: {
       balanceApplied: balanceToApply,
       remainingCents,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[Stripe] Error creating balance-aware payment:`, error);
     return {
       paidInFull: false,
       totalCents: amountCents,
       balanceApplied: 0,
       remainingCents: amountCents,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -618,8 +619,8 @@ export async function chargeWithBalance(params: {
     if (finalizedInvoice.amount_due > 0 && finalizedInvoice.status === 'open') {
       try {
         await stripe.invoices.pay(invoice.id);
-      } catch (payError: any) {
-        console.warn(`[Stripe] Auto-pay failed for invoice ${invoice.id}: ${payError.message}`);
+      } catch (payError: unknown) {
+        console.warn(`[Stripe] Auto-pay failed for invoice ${invoice.id}: ${getErrorMessage(payError)}`);
       }
     }
 
@@ -651,13 +652,13 @@ export async function chargeWithBalance(params: {
       amountCharged,
       error: paidInvoice.status !== 'paid' ? `Invoice status: ${paidInvoice.status}` : undefined,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[Stripe] Error charging ${purpose} with balance:`, error);
     return {
       success: false,
       amountFromBalance: 0,
       amountCharged: 0,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }

@@ -512,8 +512,8 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                             showToast('Cancellation completed successfully', 'success');
                                                                             queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
                                                                             queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
-                                                                        } catch (err: any) {
-                                                                            showToast(err.message || 'Failed to complete cancellation', 'error');
+                                                                        } catch (err: unknown) {
+                                                                            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
                                                                         } finally {
                                                                             setActionInProgress(prev => {
                                                                                 const next = { ...prev };

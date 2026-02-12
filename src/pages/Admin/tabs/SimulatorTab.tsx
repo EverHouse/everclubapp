@@ -385,7 +385,7 @@ const SimulatorTab: React.FC = () => {
                 const error = await res.json().catch(() => ({}));
                 throw new Error(error.error || 'Failed to confirm booking');
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             throw err;
         }
     }, [requests, showToast, handleRefresh]);
@@ -477,8 +477,8 @@ const SimulatorTab: React.FC = () => {
 
             showToast('Booking created successfully', 'success');
             handleRefresh();
-        } catch (err: any) {
-            showToast(err.message || 'Failed to create booking', 'error');
+        } catch (err: unknown) {
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to create booking', 'error');
         } finally {
             setIsCreatingBooking(false);
             setOptimisticNewBooking(null);
@@ -560,10 +560,10 @@ const SimulatorTab: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
             queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
             return true;
-        } catch (err: any) {
+        } catch (err: unknown) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
-            showToast(err.message || 'Failed to update status', 'error');
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update status', 'error');
             if (newStatus === 'attended') {
                 checkinInProgressRef.current.delete(bookingId);
             }
@@ -632,10 +632,10 @@ const SimulatorTab: React.FC = () => {
             } else {
                 setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
             queryClient.setQueryData(simulatorKeys.approvedBookings(startDate, endDate), previousApproved);
-            showToast(err.message || 'Failed to cancel booking', 'error');
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to cancel booking', 'error');
             setCancelConfirmModal({ isOpen: false, booking: null, hasTrackman: false, isCancelling: false, showSuccess: false });
         } finally {
             setActionInProgress(prev => {
@@ -939,10 +939,10 @@ const SimulatorTab: React.FC = () => {
                 queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
                 queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-            setError(err.message);
-            showToast(err.message || 'Failed to approve booking', 'error');
+            setError((err instanceof Error ? err.message : String(err)));
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to approve booking', 'error');
         } finally {
             setIsProcessing(false);
             setActionInProgress(prev => {
@@ -1019,10 +1019,10 @@ const SimulatorTab: React.FC = () => {
                 queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
                 queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-            setError(err.message);
-            showToast(err.message || 'Failed to process request', 'error');
+            setError((err instanceof Error ? err.message : String(err)));
+            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to process request', 'error');
         } finally {
             setIsProcessing(false);
             setActionInProgress(prev => {
@@ -1592,8 +1592,8 @@ const SimulatorTab: React.FC = () => {
                   showToast('Booking cancelled successfully', 'success');
                   setBookingSheet({ isOpen: false, trackmanBookingId: null });
                   handleRefresh();
-                } catch (err: any) {
-                  showToast(err.message || 'Failed to cancel booking', 'error');
+                } catch (err: unknown) {
+                  showToast((err instanceof Error ? err.message : String(err)) || 'Failed to cancel booking', 'error');
                 }
               }}
               onCheckIn={async (bookingId) => {

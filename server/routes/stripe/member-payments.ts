@@ -319,7 +319,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
       participantFees: participantFeesList,
       error: result.error
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating member payment intent:', error);
     await alertOnExternalServiceError('Stripe', error, 'create member payment intent');
     res.status(500).json({ 
@@ -462,7 +462,7 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
     }
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error confirming member payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'confirm member payment');
     res.status(500).json({ 
@@ -558,7 +558,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
       description: description,
       currency: invoice.currency || 'usd'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating invoice payment intent:', error);
     await alertOnExternalServiceError('Stripe', error, 'create invoice payment intent');
     res.status(500).json({ 
@@ -635,7 +635,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
     }
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error confirming invoice payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'confirm invoice payment');
     res.status(500).json({ 
@@ -752,7 +752,7 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
       balanceApplied: result.balanceApplied,
       remainingCents: result.remainingCents
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating guest pass payment intent:', error);
     await alertOnExternalServiceError('Stripe', error, 'create guest pass payment intent');
     res.status(500).json({ 
@@ -836,7 +836,7 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
     }
 
     res.json({ success: true, passesAdded: quantity });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error confirming guest pass purchase:', error);
     await alertOnExternalServiceError('Stripe', error, 'confirm guest pass purchase');
     res.status(500).json({ 
@@ -1021,7 +1021,7 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
       itemCount: breakdown.length,
       breakdown
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Member Balance] Error getting balance:', error);
     res.status(500).json({ error: 'Failed to get balance' });
   }
@@ -1331,7 +1331,7 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
       creditApplied,
       error: paymentResult.error
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Member Balance] Error creating payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'create balance payment');
     res.status(500).json({ 
@@ -1364,7 +1364,7 @@ router.post('/api/member/balance/confirm', async (req: Request, res: Response) =
     }
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Member Balance] Error confirming payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'confirm balance payment');
     res.status(500).json({ 

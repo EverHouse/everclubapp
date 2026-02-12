@@ -1,6 +1,7 @@
 import { getStripeClient } from './client';
 import { pool } from '../db';
 import Stripe from 'stripe';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface InvoiceItem {
   priceId?: string;
@@ -88,11 +89,11 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<{
       success: true,
       invoice: mapInvoice(updatedInvoice),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error creating invoice:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -142,11 +143,11 @@ export async function previewInvoice(params: {
         periodEnd: new Date(preview.period_end * 1000),
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error previewing invoice:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -169,11 +170,11 @@ export async function finalizeAndSendInvoice(invoiceId: string): Promise<{
       success: true,
       invoice: mapInvoice(finalized),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error finalizing invoice:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -198,11 +199,11 @@ export async function listCustomerInvoices(customerId: string): Promise<{
       success: true,
       invoices: invoices.data.map(mapInvoice),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error listing invoices:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -223,11 +224,11 @@ export async function getInvoice(invoiceId: string): Promise<{
       success: true,
       invoice: mapInvoice(invoice),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error getting invoice:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -244,11 +245,11 @@ export async function voidInvoice(invoiceId: string): Promise<{
     console.log(`[Stripe Invoices] Voided invoice ${invoiceId}`);
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error voiding invoice:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -302,9 +303,9 @@ export async function chargeOneTimeFee(params: {
     if (finalizedInvoice.amount_due > 0 && finalizedInvoice.status === 'open') {
       try {
         await stripe.invoices.pay(invoice.id);
-      } catch (payError: any) {
+      } catch (payError: unknown) {
         // Payment might fail if no card on file - invoice remains open
-        console.warn(`[Stripe Invoices] Auto-pay failed for invoice ${invoice.id}: ${payError.message}`);
+        console.warn(`[Stripe Invoices] Auto-pay failed for invoice ${invoice.id}: ${getErrorMessage(payError)}`);
       }
     }
 
@@ -327,11 +328,11 @@ export async function chargeOneTimeFee(params: {
       amountFromBalance,
       amountCharged: Math.max(0, amountCharged),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error charging one-time fee:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }
@@ -404,11 +405,11 @@ export async function getCustomerPaymentHistory(customerId: string, limit = 50):
         createdAt: new Date(row.created_at),
       })),
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe Invoices] Error getting cached payment history:', error);
     return {
       success: false,
-      error: error.message,
+      error: getErrorMessage(error),
     };
   }
 }

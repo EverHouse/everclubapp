@@ -102,8 +102,8 @@ export function GuestPaymentChoiceModal({
       } else {
         setError(apiError || 'Failed to add guest with pass');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to add guest');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to add guest');
     } finally {
       setLoading(false);
     }
@@ -137,8 +137,8 @@ export function GuestPaymentChoiceModal({
       } else {
         setError(apiError || 'Failed to initialize payment');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to initialize payment');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize payment');
     } finally {
       setLoading(false);
     }
@@ -170,9 +170,9 @@ export function GuestPaymentChoiceModal({
       }
 
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[GuestPaymentChoice] Error confirming payment:', err);
-      setError(err.message || 'Payment succeeded but confirmation failed. Please contact support.');
+      setError((err instanceof Error ? err.message : String(err)) || 'Payment succeeded but confirmation failed. Please contact support.');
     }
   };
 

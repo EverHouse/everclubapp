@@ -538,9 +538,9 @@ const BookGolf: React.FC = () => {
       } else {
         throw new Error('Payment failed. Please try again.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       haptic.error();
-      const errorMessage = err.message || 'Payment failed. Please try again.';
+      const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Payment failed. Please try again.';
       showToast(errorMessage, 'error');
       setBookingError(errorMessage);
     } finally {
@@ -802,9 +802,9 @@ const BookGolf: React.FC = () => {
         setSelectedSlot(null);
         setSelectedResource(null);
       }, 2500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       haptic.error();
-      const errorMessage = err.message || 'Booking failed. Please try again.';
+      const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Booking failed. Please try again.';
       if (errorMessage.includes('402') || errorMessage.includes('payment')) {
         setBookingError('Please contact the front desk to complete your booking.');
       } else {
@@ -872,9 +872,9 @@ const BookGolf: React.FC = () => {
       } else {
         throw new Error('Failed to confirm payment');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       haptic.error();
-      const errorMessage = err.message || 'Failed to confirm payment';
+      const errorMessage = (err instanceof Error ? err.message : String(err)) || 'Failed to confirm payment';
       showToast(errorMessage, 'error');
       setBookingError(errorMessage);
     }

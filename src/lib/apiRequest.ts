@@ -118,7 +118,7 @@ export async function apiRequest<T = any>(
         data = {} as T;
       }
       return { ok: true, data };
-    } catch (err: any) {
+    } catch (err: unknown) {
       lastError = err;
       
       if (canRetry && isRetryableError(err) && attempt < maxRetries) {
@@ -131,8 +131,8 @@ export async function apiRequest<T = any>(
         continue;
       }
 
-      if (isDev) console.error('[API]', url, err.message);
-      return { ok: false, error: err.message || 'Network error' };
+      if (isDev) console.error('[API]', url, (err instanceof Error ? err.message : String(err)));
+      return { ok: false, error: (err instanceof Error ? err.message : String(err)) || 'Network error' };
     }
   }
 

@@ -1,4 +1,5 @@
 import { pool } from '../db';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface GuestPassConsumptionResult {
   success: boolean;
@@ -197,12 +198,12 @@ export async function consumeGuestPassForParticipant(
       passesRemaining,
       purchaseId
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('[GuestPassConsumer] Error consuming guest pass:', error);
     return {
       success: false,
-      error: error.message || 'Failed to consume guest pass'
+      error: getErrorMessage(error) || 'Failed to consume guest pass'
     };
   } finally {
     client.release();
@@ -337,12 +338,12 @@ export async function refundGuestPassForParticipant(
       success: true,
       passesRemaining: remaining
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('[GuestPassConsumer] Error refunding guest pass:', error);
     return {
       success: false,
-      error: error.message || 'Failed to refund guest pass'
+      error: getErrorMessage(error) || 'Failed to refund guest pass'
     };
   } finally {
     client.release();

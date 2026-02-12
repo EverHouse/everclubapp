@@ -178,8 +178,8 @@ export function StripePaymentWithSecret({
           throw new Error('Stripe is not configured');
         }
         setStripeInstance(stripe);
-      } catch (err: any) {
-        setError(err.message || 'Failed to initialize Stripe');
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize Stripe');
       } finally {
         setLoading(false);
       }
@@ -305,8 +305,8 @@ export function StripePaymentForm({
         if (data.paymentIntentId) {
           paymentIntentIdRef.current = data.paymentIntentId;
         }
-      } catch (err: any) {
-        setError(err.message || 'Failed to initialize payment');
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize payment');
         intentCreatedRef.current = false;
       } finally {
         setLoading(false);

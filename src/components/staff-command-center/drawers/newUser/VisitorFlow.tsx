@@ -81,8 +81,8 @@ export function VisitorFlow({
       const data = await res.json();
       setClientSecret(data.clientSecret);
       setPaymentIntentId(data.paymentIntentId);
-    } catch (err: any) {
-      setStripeError(err.message || 'Failed to initialize payment');
+    } catch (err: unknown) {
+      setStripeError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize payment');
       paymentInitiatedRef.current = false;
     } finally {
       setStripeLoading(false);
@@ -125,7 +125,7 @@ export function VisitorFlow({
         email: form.email,
         name: `${form.firstName} ${form.lastName}`
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Payment confirmation failed. Please contact support.');
     } finally {
       setIsLoading(false);

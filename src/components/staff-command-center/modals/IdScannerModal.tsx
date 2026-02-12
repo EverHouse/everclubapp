@@ -110,13 +110,14 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+    } catch (err: unknown) {
+      const errName = err instanceof Error ? err.name : '';
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
         setCameraError('Camera permission was denied. Please allow camera access in your browser settings and try again.');
-      } else if (err.name === 'NotFoundError') {
+      } else if (errName === 'NotFoundError') {
         setCameraError('No camera found on this device.');
       } else {
-        setCameraError(`Could not access camera: ${err.message}`);
+        setCameraError(`Could not access camera: ${(err instanceof Error ? err.message : String(err))}`);
       }
     }
   }, []);
@@ -184,8 +185,8 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
       setScanResult(result);
       setEditedData(result.data);
       setState('results');
-    } catch (err: any) {
-      setError(err.message || 'Failed to scan ID');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to scan ID');
       setState('review');
     }
   }, [imageBase64, imageMimeType]);

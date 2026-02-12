@@ -174,10 +174,10 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
           message: result.details ? `${result.error}: ${result.details}` : (result.error || 'Failed to replay webhooks')
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setReplayResult({
         success: false,
-        message: err.message || 'Network error'
+        message: (err instanceof Error ? err.message : String(err)) || 'Network error'
       });
     } finally {
       setIsReplaying(false);

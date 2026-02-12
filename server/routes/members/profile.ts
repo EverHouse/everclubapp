@@ -222,7 +222,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       smsTransactionalOptIn: user.smsTransactionalOptIn,
       smsRemindersOptIn: user.smsRemindersOptIn,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to fetch member details' });
   }
@@ -291,7 +291,7 @@ router.put('/api/members/:email/sms-preferences', isAuthenticated, async (req, r
       smsTransactionalOptIn: result[0].smsTransactionalOptIn,
       smsRemindersOptIn: result[0].smsRemindersOptIn
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('SMS preferences update error:', error);
     res.status(500).json({ error: 'Failed to update SMS preferences' });
   }
@@ -554,7 +554,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       guestAppearances,
       attendedVisitsCount: totalAttendedVisits
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Member history error:', error);
     res.status(500).json({ error: 'Failed to fetch member history' });
   }
@@ -583,7 +583,7 @@ router.get('/api/members/:email/guests', isStaffOrAdmin, async (req, res) => {
       .orderBy(desc(bookingRequests.requestDate), desc(bookingRequests.startTime));
     
     res.json(guestHistory);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Member guests error:', error);
     res.status(500).json({ error: 'Failed to fetch member guests' });
   }
@@ -631,7 +631,7 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
     }
     
     res.json(result[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);
     res.status(500).json({ error: 'Failed to update member' });
   }
@@ -691,7 +691,7 @@ router.get('/api/members/:email/cascade-preview', isStaffOrAdmin, async (req, re
       },
       hasRelatedData: bookingsCount > 0 || rsvpsCount > 0 || enrollmentsCount > 0 || guestCheckInsCount > 0
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Member cascade preview error:', error);
     res.status(500).json({ error: 'Failed to fetch cascade preview' });
   }

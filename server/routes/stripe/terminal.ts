@@ -4,6 +4,7 @@ import { getStripeClient } from '../../core/stripe/client';
 import { createInvoiceWithLineItems, type CartLineItem } from '../../core/stripe/payments';
 import { logFromRequest } from '../../core/auditLog';
 import { pool } from '../../core/db';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post('/api/stripe/terminal/connection-token', isStaffOrAdmin, async (req:
     const connectionToken = await stripe.terminal.connectionTokens.create();
     
     res.json({ secret: connectionToken.secret });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error creating connection token:', error);
     res.status(500).json({ error: 'Failed to create connection token' });
   }
@@ -34,7 +35,7 @@ router.get('/api/stripe/terminal/readers', isStaffOrAdmin, async (req: Request, 
         serialNumber: reader.serial_number
       }))
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error listing readers:', error);
     res.status(500).json({ error: 'Failed to list readers' });
   }
@@ -86,9 +87,9 @@ router.post('/api/stripe/terminal/create-simulated-reader', isStaffOrAdmin, asyn
         deviceType: reader.device_type
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error creating simulated reader:', error);
-    res.status(500).json({ error: error.message || 'Failed to create simulated reader' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create simulated reader' });
   }
 });
 
@@ -303,9 +304,9 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       readerId: reader.id,
       readerAction: reader.action
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error processing payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to process payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to process payment' });
   }
 });
 
@@ -340,9 +341,9 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
         code: paymentIntent.last_payment_error.code || null,
       } : null
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error checking payment status:', error);
-    res.status(500).json({ error: error.message || 'Failed to check payment status' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to check payment status' });
   }
 });
 
@@ -408,9 +409,9 @@ router.post('/api/stripe/terminal/cancel-payment', isStaffOrAdmin, async (req: R
       readerId,
       canceled: true
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error canceling payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to cancel payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to cancel payment' });
   }
 });
 
@@ -577,9 +578,9 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       readerId: reader.id,
       readerAction: reader.action
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error processing subscription payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to process subscription payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to process subscription payment' });
   }
 });
 
@@ -809,9 +810,9 @@ router.post('/api/stripe/terminal/confirm-subscription-payment', isStaffOrAdmin,
       cardSaved,
       cardSaveWarning
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error confirming subscription payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to confirm subscription payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to confirm subscription payment' });
   }
 });
 
@@ -849,9 +850,9 @@ router.post('/api/stripe/terminal/refund-payment', isStaffOrAdmin, async (req: R
     console.log(`[Terminal] Auto-refunded PI ${paymentIntentId}, refund ${refund.id}`);
     
     res.json({ success: true, refundId: refund.id });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error refunding payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to refund payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to refund payment' });
   }
 });
 
@@ -947,9 +948,9 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
       readerId: reader.id,
       readerAction: reader.action
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error processing existing payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to process existing payment on terminal' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to process existing payment on terminal' });
   }
 });
 
@@ -1009,9 +1010,9 @@ router.post('/api/stripe/terminal/save-card', isStaffOrAdmin, async (req: Reques
       readerId: reader.id,
       readerAction: reader.action
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error initiating save card:', error);
-    res.status(500).json({ error: error.message || 'Failed to initiate save card' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to initiate save card' });
   }
 });
 
@@ -1027,9 +1028,9 @@ router.get('/api/stripe/terminal/setup-status/:setupIntentId', isStaffOrAdmin, a
       status: setupIntent.status,
       paymentMethod: setupIntent.payment_method
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error checking setup status:', error);
-    res.status(500).json({ error: error.message || 'Failed to check setup status' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to check setup status' });
   }
 });
 
@@ -1122,9 +1123,9 @@ router.post('/api/stripe/terminal/confirm-save-card', isStaffOrAdmin, async (req
       cardSaved: true,
       paymentMethodId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Terminal] Error confirming save card:', error);
-    res.status(500).json({ error: error.message || 'Failed to confirm save card' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to confirm save card' });
   }
 });
 

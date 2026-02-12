@@ -1,5 +1,6 @@
 import { pool } from '../db';
 import { PRICING } from './pricingConfig';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export interface ParticipantFee {
   participantId: number;
@@ -111,14 +112,14 @@ export async function calculateAndCacheParticipantFees(
       totalCents,
       success: true
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.query('ROLLBACK');
     console.error('[FeeCalculator] Error calculating fees:', error);
     return {
       fees: [],
       totalCents: 0,
       success: false,
-      error: error.message || 'Failed to calculate fees'
+      error: getErrorMessage(error) || 'Failed to calculate fees'
     };
   } finally {
     client.release();

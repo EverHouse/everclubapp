@@ -207,7 +207,7 @@ const DataIntegrityTab: React.FC = () => {
       showToast('Integrity checks completed', 'success');
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to run integrity checks', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to run integrity checks', 'error');
     },
   });
 
@@ -249,7 +249,7 @@ const DataIntegrityTab: React.FC = () => {
       runIntegrityMutation.mutate();
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to ignore issue', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to ignore issue', 'error');
     },
   });
 
@@ -262,7 +262,7 @@ const DataIntegrityTab: React.FC = () => {
       runIntegrityMutation.mutate();
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to un-ignore issue', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to un-ignore issue', 'error');
     },
   });
 
@@ -280,7 +280,7 @@ const DataIntegrityTab: React.FC = () => {
       runIntegrityMutation.mutate();
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to exclude issues', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to exclude issues', 'error');
     },
   });
 
@@ -302,7 +302,7 @@ const DataIntegrityTab: React.FC = () => {
         next.delete(variables.issueKey);
         return next;
       });
-      showToast(err.message || 'Failed to push sync', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to push sync', 'error');
     },
   });
 
@@ -324,7 +324,7 @@ const DataIntegrityTab: React.FC = () => {
         next.delete(variables.issueKey);
         return next;
       });
-      showToast(err.message || 'Failed to pull sync', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to pull sync', 'error');
     },
   });
 
@@ -337,8 +337,8 @@ const DataIntegrityTab: React.FC = () => {
       setResyncEmail('');
     },
     onError: (err: Error) => {
-      setResyncResult({ success: false, message: err.message || 'Failed to resync member' });
-      showToast(err.message || 'Failed to resync member', 'error');
+      setResyncResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to resync member' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to resync member', 'error');
     },
   });
 
@@ -368,7 +368,7 @@ const DataIntegrityTab: React.FC = () => {
         next.delete(bookingId);
         return next;
       });
-      showToast(err.message || 'Failed to cancel booking', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to cancel booking', 'error');
     },
   });
 
@@ -389,7 +389,7 @@ const DataIntegrityTab: React.FC = () => {
       showToast(summary, data.success ? 'success' : 'info');
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to reconcile group billing', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to reconcile group billing', 'error');
     },
   });
 
@@ -426,7 +426,7 @@ const DataIntegrityTab: React.FC = () => {
       setAvailableSessions([]);
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to link guest fee', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to link guest fee', 'error');
     },
   });
 
@@ -459,7 +459,7 @@ const DataIntegrityTab: React.FC = () => {
       setUpdatingAttendanceId(null);
     },
     onError: (err: Error) => {
-      showToast(err.message || 'Failed to update attendance', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update attendance', 'error');
       setUpdatingAttendanceId(null);
     },
   });
@@ -472,8 +472,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(data.message, 'success');
     },
     onError: (err: Error) => {
-      setMindbodyResult({ success: false, message: err.message || 'Failed to queue reimport' });
-      showToast(err.message || 'Failed to queue reimport', 'error');
+      setMindbodyResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to queue reimport' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to queue reimport', 'error');
     },
   });
 
@@ -504,8 +504,8 @@ const DataIntegrityTab: React.FC = () => {
       setSalesFile(null);
     },
     onError: (err: Error) => {
-      setCsvUploadResult({ success: false, message: err.message || 'Import failed' });
-      showToast(err.message || 'Failed to upload CSV files', 'error');
+      setCsvUploadResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Import failed' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to upload CSV files', 'error');
     },
   });
 
@@ -518,8 +518,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(msg, 'success');
     },
     onError: (err: Error) => {
-      setStripeCacheResult({ success: false, message: err.message || 'Failed to backfill cache' });
-      showToast(err.message || 'Failed to backfill cache', 'error');
+      setStripeCacheResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to backfill cache' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to backfill cache', 'error');
     },
   });
 
@@ -539,8 +539,8 @@ const DataIntegrityTab: React.FC = () => {
       }
     },
     onError: (err: Error) => {
-      setHubspotSyncResult({ success: false, message: err.message || 'Failed to sync to HubSpot' });
-      showToast(err.message || 'Failed to sync to HubSpot', 'error');
+      setHubspotSyncResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to sync to HubSpot' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to sync to HubSpot', 'error');
     },
   });
 
@@ -557,8 +557,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(dryRun ? 'Preview complete - no changes made' : data.message, dryRun ? 'info' : 'success');
     },
     onError: (err: Error) => {
-      setMindbodyCleanupResult({ success: false, message: err.message || 'Failed to cleanup Mind Body IDs' });
-      showToast(err.message || 'Failed to cleanup Mind Body IDs', 'error');
+      setMindbodyCleanupResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to cleanup Mind Body IDs' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to cleanup Mind Body IDs', 'error');
     },
   });
 
@@ -570,7 +570,7 @@ const DataIntegrityTab: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
     },
     onError: (err: any) => {
-      showToast(err.message || 'Failed to fix issue', 'error');
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to fix issue', 'error');
     }
   });
 
@@ -772,8 +772,8 @@ const DataIntegrityTab: React.FC = () => {
       }
     },
     onError: (err: Error) => {
-      setSubscriptionStatusResult({ success: false, message: err.message || 'Failed to sync subscription status' });
-      showToast(err.message || 'Failed to sync subscription status', 'error');
+      setSubscriptionStatusResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to sync subscription status' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to sync subscription status', 'error');
     },
   });
 
@@ -795,8 +795,8 @@ const DataIntegrityTab: React.FC = () => {
       }
     },
     onError: (err: Error) => {
-      setOrphanedStripeResult({ success: false, message: err.message || 'Failed to clear orphaned Stripe IDs' });
-      showToast(err.message || 'Failed to clear orphaned Stripe IDs', 'error');
+      setOrphanedStripeResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to clear orphaned Stripe IDs' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to clear orphaned Stripe IDs', 'error');
     },
   });
 
@@ -815,8 +815,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Stripe-HubSpot link complete'), dryRun ? 'info' : 'success');
     },
     onError: (err: Error) => {
-      setStripeHubspotLinkResult({ success: false, message: err.message || 'Failed to link Stripe and HubSpot' });
-      showToast(err.message || 'Failed to link Stripe and HubSpot', 'error');
+      setStripeHubspotLinkResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to link Stripe and HubSpot' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to link Stripe and HubSpot', 'error');
     },
   });
 
@@ -835,8 +835,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Payment status sync complete'), dryRun ? 'info' : 'success');
     },
     onError: (err: Error) => {
-      setPaymentStatusResult({ success: false, message: err.message || 'Failed to sync payment status' });
-      showToast(err.message || 'Failed to sync payment status', 'error');
+      setPaymentStatusResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to sync payment status' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to sync payment status', 'error');
     },
   });
 
@@ -855,8 +855,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Visit count sync complete'), dryRun ? 'info' : 'success');
     },
     onError: (err: Error) => {
-      setVisitCountResult({ success: false, message: err.message || 'Failed to sync visit counts' });
-      showToast(err.message || 'Failed to sync visit counts', 'error');
+      setVisitCountResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to sync visit counts' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to sync visit counts', 'error');
     },
   });
 
@@ -873,8 +873,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast('Preview complete - no changes made', 'info');
     },
     onError: (err: Error) => {
-      setGhostBookingResult({ success: false, message: err.message || 'Failed to preview' });
-      showToast(err.message || 'Failed to preview', 'error');
+      setGhostBookingResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to preview' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to preview', 'error');
     },
   });
 
@@ -894,8 +894,8 @@ const DataIntegrityTab: React.FC = () => {
       }
     },
     onError: (err: Error) => {
-      setGhostBookingResult({ success: false, message: err.message || 'Failed to create sessions' });
-      showToast(err.message || 'Failed to create sessions', 'error');
+      setGhostBookingResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to create sessions' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to create sessions', 'error');
     },
   });
 
@@ -913,8 +913,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(dryRun ? 'Preview complete - no changes made' : (data.message || 'Deal stage remediation complete'), dryRun ? 'info' : 'success');
     },
     onError: (err: Error) => {
-      setDealStageRemediationResult({ success: false, message: err.message || 'Failed to remediate deal stages' });
-      showToast(err.message || 'Failed to remediate deal stages', 'error');
+      setDealStageRemediationResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to remediate deal stages' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remediate deal stages', 'error');
     },
   });
 
@@ -934,8 +934,8 @@ const DataIntegrityTab: React.FC = () => {
       showToast(data.message || 'Duplicate detection complete', 'success');
     },
     onError: (err: Error) => {
-      setDuplicateDetectionResult({ success: false, message: err.message || 'Failed to detect duplicates' });
-      showToast(err.message || 'Failed to detect duplicates', 'error');
+      setDuplicateDetectionResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to detect duplicates' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to detect duplicates', 'error');
     },
   });
 
@@ -1099,8 +1099,8 @@ const DataIntegrityTab: React.FC = () => {
       };
       setSelectedMember(profile);
       setIsProfileDrawerOpen(true);
-    } catch (error: any) {
-      showToast(error.message || 'Failed to load member profile', 'error');
+    } catch (error: unknown) {
+      showToast((error instanceof Error ? error.message : String(error)) || 'Failed to load member profile', 'error');
     } finally {
       setLoadingMemberEmail(null);
     }
@@ -1118,8 +1118,8 @@ const DataIntegrityTab: React.FC = () => {
         setSystemHealth(response.health);
         showToast('System health check completed', 'success');
       }
-    } catch (error: any) {
-      showToast(error.message || 'Failed to check system health', 'error');
+    } catch (error: unknown) {
+      showToast((error instanceof Error ? error.message : String(error)) || 'Failed to check system health', 'error');
     } finally {
       setIsCheckingHealth(false);
     }
@@ -1214,9 +1214,9 @@ const DataIntegrityTab: React.FC = () => {
     try {
       await postWithCredentials('/api/data-tools/archive-stale-visitors', { dryRun });
       setIsRunningVisitorArchive(true);
-    } catch (err: any) {
-      setVisitorArchiveResult({ success: false, message: err.message || 'Failed to start archive job' });
-      showToast(err.message || 'Failed to start archive job', 'error');
+    } catch (err: unknown) {
+      setVisitorArchiveResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to start archive job' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to start archive job', 'error');
     }
   };
 
@@ -1226,9 +1226,9 @@ const DataIntegrityTab: React.FC = () => {
     try {
       await postWithCredentials('/api/data-tools/cleanup-stripe-customers', { dryRun });
       setIsRunningStripeCleanup(true);
-    } catch (err: any) {
-      setStripeCleanupResult({ success: false, message: err.message || 'Failed to start cleanup job' });
-      showToast(err.message || 'Failed to start cleanup job', 'error');
+    } catch (err: unknown) {
+      setStripeCleanupResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to start cleanup job' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to start cleanup job', 'error');
     }
   };
 

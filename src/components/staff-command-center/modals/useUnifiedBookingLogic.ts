@@ -240,8 +240,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
 
       setSlots(newSlots);
-    } catch (err: any) {
-      setRosterError(err.message || 'Failed to load roster data');
+    } catch (err: unknown) {
+      setRosterError((err instanceof Error ? err.message : String(err)) || 'Failed to load roster data');
     } finally {
       setIsLoadingRoster(false);
     }
@@ -593,8 +593,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setShowAddVisitor(false);
       setVisitorData({ firstName: '', lastName: '', email: '', visitorType: 'guest' });
       setActiveSlotIndex(null);
-    } catch (err: any) {
-      showToast(err.message || 'Failed to create visitor', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to create visitor', 'error');
     } finally {
       setIsCreatingVisitor(false);
     }
@@ -617,8 +617,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setEditingPlayerCount(newCount);
       showToast(`Player count updated to ${newCount}`, 'success');
       await fetchRosterData();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to update player count', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update player count', 'error');
     } finally {
       setIsUpdatingPlayerCount(false);
     }
@@ -640,8 +640,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
       showToast('Member linked successfully', 'success');
       await fetchRosterData();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to link member', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to link member', 'error');
     } finally {
       setIsLinkingMember(false);
       setManageModeSearchSlot(null);
@@ -663,8 +663,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
       showToast('Member removed', 'success');
       await fetchRosterData();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to unlink member', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to unlink member', 'error');
       if (rosterData) {
         setRosterData({ ...rosterData, members: membersSnapshotRef.current });
       }
@@ -720,8 +720,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
       setMemberMatchWarning(null);
       await fetchRosterData();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to add guest', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to add guest', 'error');
     } finally {
       setIsAddingManageGuest(false);
     }
@@ -827,8 +827,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
       showToast('Guest removed', 'success');
       await fetchRosterData();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to remove guest', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remove guest', 'error');
     } finally {
       setRemovingGuestId(null);
     }
@@ -866,8 +866,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         onRosterUpdated?.();
         onClose();
       }
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save changes', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to save changes', 'error');
     } finally {
       setSavingChanges(false);
     }
@@ -1004,8 +1004,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           }, 300);
         }
       }
-    } catch (err: any) {
-      showToast(err.message || 'Failed to assign booking', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to assign booking', 'error');
     } finally {
       setLinking(false);
     }
@@ -1090,8 +1090,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       showToast(`Booking marked as private event${linkedMsg}`, 'success');
       onSuccess?.({ markedAsEvent: true });
       onClose();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to mark as event', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to mark as event', 'error');
     } finally {
       setMarkingAsEvent(false);
       setShowNoticeSelection(false);
@@ -1177,8 +1177,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       showToast(`Booking assigned to ${staffName}`, 'success');
       onSuccess?.({ memberEmail: staff.email, memberName: staffName });
       onClose();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to assign to staff', 'error');
+    } catch (err: unknown) {
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to assign to staff', 'error');
     } finally {
       setAssigningToStaff(false);
     }
@@ -1200,8 +1200,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       }
       onSuccess?.();
       onClose();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete booking');
+    } catch (err: unknown) {
+      alert((err instanceof Error ? err.message : String(err)) || 'Failed to delete booking');
     } finally {
       setDeleting(false);
     }

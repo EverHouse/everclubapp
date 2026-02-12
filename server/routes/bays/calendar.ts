@@ -41,7 +41,7 @@ router.get('/api/conference-room-bookings', async (req, res) => {
     }));
     
     res.json(formattedBookings);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch conference room bookings', error);
   }
 });
@@ -227,7 +227,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       });
     
     res.json(allBookings);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch approved bookings', error);
   }
 });

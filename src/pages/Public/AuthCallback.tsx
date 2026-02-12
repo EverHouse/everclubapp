@@ -46,8 +46,8 @@ const AuthCallback: React.FC = () => {
           startNavigation();
           navigate('/login');
         }
-      } catch (err: any) {
-        setError(err.message || 'Authentication failed');
+      } catch (err: unknown) {
+        setError((err instanceof Error ? err.message : String(err)) || 'Authentication failed');
       }
     };
 

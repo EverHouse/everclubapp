@@ -34,6 +34,7 @@ import { sendPurchaseReceipt, PurchaseReceiptItem } from '../../emails/paymentEm
 import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS, SAVED_CARD_APPROVAL_THRESHOLD_CENTS } from './helpers';
 import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -69,7 +70,7 @@ router.get('/api/stripe/prices/recurring', isStaffOrAdmin, async (req: Request, 
     });
     
     res.json({ prices: formattedPrices });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error fetching recurring prices:', error);
     res.status(500).json({ error: 'Failed to fetch Stripe prices' });
   }
@@ -372,7 +373,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       clientSecret: result.clientSecret,
       customerId: result.customerId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating payment intent:', error);
     await alertOnExternalServiceError('Stripe', error, 'create payment intent');
     res.status(500).json({ 
@@ -410,7 +411,7 @@ router.post('/api/stripe/confirm-payment', isStaffOrAdmin, async (req: Request, 
     });
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error confirming payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'confirm payment');
     res.status(500).json({ 
@@ -430,7 +431,7 @@ router.get('/api/stripe/payment-intent/:id', isStaffOrAdmin, async (req: Request
     }
 
     res.json(status);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting payment intent:', error);
     res.status(500).json({ error: 'Failed to get payment intent status' });
   }
@@ -451,7 +452,7 @@ router.post('/api/stripe/cancel-payment', isStaffOrAdmin, async (req: Request, r
     }
 
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error canceling payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'cancel payment');
     res.status(500).json({ 
@@ -475,7 +476,7 @@ router.post('/api/stripe/create-customer', isStaffOrAdmin, async (req: Request, 
       customerId: result.customerId,
       isNew: result.isNew
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating customer:', error);
     await alertOnExternalServiceError('Stripe', error, 'create customer');
     res.status(500).json({ 
@@ -500,9 +501,9 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
         await cancelPaymentIntent(row.stripe_payment_intent_id);
         results.push({ id: row.stripe_payment_intent_id, success: true });
         console.log(`[Cleanup] Cancelled stale payment intent ${row.stripe_payment_intent_id}`);
-      } catch (err: any) {
-        results.push({ id: row.stripe_payment_intent_id, success: false, error: err.message });
-        console.error(`[Cleanup] Failed to cancel ${row.stripe_payment_intent_id}:`, err.message);
+      } catch (err: unknown) {
+        results.push({ id: row.stripe_payment_intent_id, success: false, error: getErrorMessage(err) });
+        console.error(`[Cleanup] Failed to cancel ${row.stripe_payment_intent_id}:`, getErrorMessage(err));
       }
     }
     
@@ -513,7 +514,7 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
       failed: results.filter(r => !r.success).length,
       details: results 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error cleaning up stale intents:', error);
     res.status(500).json({ error: 'Failed to cleanup stale intents' });
   }
@@ -550,7 +551,7 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
        LIMIT 50`);
 
     res.json({ payments: result.rows });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error fetching payments:', error);
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
@@ -598,7 +599,7 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
     }));
     
     res.json({ members });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Billing] Error searching members:', error);
     res.status(500).json({ error: 'Failed to search members' });
   }
@@ -817,7 +818,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
       clientSecret: result.clientSecret,
       paymentIntentId: result.paymentIntentId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating quick charge:', error);
     await alertOnExternalServiceError('Stripe', error, 'create quick charge');
     res.status(500).json({ 
@@ -889,7 +890,7 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
 
     console.log(`[Stripe] Quick charge confirmed: ${paymentIntentId} by ${staffEmail}`);
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error confirming quick charge:', error);
     await alertOnExternalServiceError('Stripe', error, 'confirm quick charge');
     res.status(500).json({ 
@@ -1210,19 +1211,19 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
         status: paymentIntent.status
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error charging saved card:', error);
     
     // Handle specific Stripe errors
     if (error.type === 'StripeCardError') {
       return res.status(400).json({ 
-        error: `Card declined: ${error.message}`,
+        error: `Card declined: ${getErrorMessage(error)}`,
         cardError: true,
         declineCode: error.decline_code
       });
     }
     
-    if (error.code === 'authentication_required') {
+    if (getErrorCode(error) === 'authentication_required') {
       return res.status(400).json({ 
         error: 'Card requires authentication. Please use the standard payment flow.',
         requiresAction: true
@@ -1411,12 +1412,12 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
         error: `Payment not completed (status: ${paymentIntent.status}). Try Online Card instead.`
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error with POS saved card charge:', error);
 
     if (error.type === 'StripeCardError') {
       return res.status(400).json({
-        error: `Card declined: ${error.message}`,
+        error: `Card declined: ${getErrorMessage(error)}`,
         cardError: true
       });
     }
@@ -1468,7 +1469,7 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
       cardExpMonth: card?.exp_month,
       cardExpYear: card?.exp_year
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error?.code === 'resource_missing') {
       console.warn(`[Stripe] Stale customer ID for ${req.params.email} — returning hasSavedCard: false`);
     } else {
@@ -1561,7 +1562,7 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
     const totalCents = items.reduce((sum, item) => sum + item.amountCents, 0);
 
     res.json({ totalCents, items });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Staff] Error fetching member balance:', error);
     res.status(500).json({ error: 'Failed to fetch member balance' });
   }
@@ -1609,7 +1610,7 @@ router.post('/api/purchases/send-receipt', isStaffOrAdmin, async (req: Request, 
     } else {
       res.status(500).json({ error: result.error || 'Failed to send receipt' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Purchases] Error sending receipt:', error);
     res.status(500).json({ error: 'Failed to send receipt email' });
   }
@@ -1674,7 +1675,7 @@ router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Req
       newCount,
       remaining: newCount - passesUsed
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GuestPasses] Error adjusting guest passes:', error);
     res.status(500).json({ error: 'Failed to adjust guest passes' });
   }
@@ -1782,7 +1783,7 @@ router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     res.json(allTransactions);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error fetching today transactions:', error);
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
@@ -1821,7 +1822,7 @@ router.post('/api/payments/add-note', isStaffOrAdmin, async (req: Request, res: 
 
     console.log(`[Payments] Note added to transaction ${transactionId} by ${finalPerformedByName}`);
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error adding note:', error);
     res.status(500).json({ error: 'Failed to add note' });
   }
@@ -1845,7 +1846,7 @@ router.get('/api/payments/:paymentIntentId/notes', isStaffOrAdmin, async (req: R
     }));
 
     res.json({ notes });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error fetching notes:', error);
     res.status(500).json({ error: 'Failed to fetch notes' });
   }
@@ -1855,7 +1856,7 @@ router.get('/api/payments/refundable', isStaffOrAdmin, async (req: Request, res:
   try {
     const payments = await getRefundablePayments();
     res.json(payments);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error fetching refundable payments:', error);
     res.status(500).json({ error: 'Failed to fetch refundable payments' });
   }
@@ -1865,7 +1866,7 @@ router.get('/api/payments/failed', isStaffOrAdmin, async (req: Request, res: Res
   try {
     const payments = await getFailedPayments();
     res.json(payments);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error fetching failed payments:', error);
     res.status(500).json({ error: 'Failed to fetch failed payments' });
   }
@@ -2000,7 +2001,7 @@ router.post('/api/payments/retry', isStaffOrAdmin, async (req: Request, res: Res
           : `Payment requires further action: ${confirmedIntent.status}`
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error retrying payment:', error);
     await alertOnExternalServiceError('Stripe', error, 'retry payment');
     res.status(500).json({ 
@@ -2072,9 +2073,9 @@ router.post('/api/payments/cancel', isStaffOrAdmin, async (req: Request, res: Re
     console.log(`[Payments] Payment ${paymentIntentId} canceled by ${staffEmail}`);
 
     res.json({ success: true, message: 'Payment canceled successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error canceling payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to cancel payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to cancel payment' });
   }
 });
 
@@ -2262,9 +2263,9 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
       refundedAmount,
       newStatus
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error creating refund:', error);
-    res.status(500).json({ error: error.message || 'Failed to create refund' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create refund' });
   }
 });
 
@@ -2272,7 +2273,7 @@ router.get('/api/payments/pending-authorizations', isStaffOrAdmin, async (req: R
   try {
     const authorizations = await getPendingAuthorizations();
     res.json(authorizations);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error fetching pending authorizations:', error);
     res.status(500).json({ error: 'Failed to fetch pending authorizations' });
   }
@@ -2340,7 +2341,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
     });
 
     res.json(futureBookings);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error fetching future bookings with fees:', error);
     res.status(500).json({ error: 'Failed to fetch future bookings' });
   }
@@ -2401,9 +2402,9 @@ router.post('/api/payments/capture', isStaffOrAdmin, async (req: Request, res: R
       capturedAmount,
       paymentIntentId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error capturing payment:', error);
-    res.status(500).json({ error: error.message || 'Failed to capture payment' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to capture payment' });
   }
 });
 
@@ -2453,9 +2454,9 @@ router.post('/api/payments/void-authorization', isStaffOrAdmin, async (req: Requ
       success: true,
       paymentIntentId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error voiding authorization:', error);
-    res.status(500).json({ error: error.message || 'Failed to void authorization' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to void authorization' });
   }
 });
 
@@ -2596,7 +2597,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
       breakdown,
       transactionCount
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Payments] Error getting daily summary:', error);
     res.status(500).json({ error: 'Failed to get daily summary' });
   }
@@ -2696,19 +2697,19 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, asy
       invoiceStatus: paidInvoice.status,
       amountPaid: paidInvoice.amount_paid
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error charging subscription invoice:', error);
     
     if (error.type === 'StripeCardError') {
       return res.status(400).json({ 
-        error: `Card declined: ${error.message}`,
+        error: `Card declined: ${getErrorMessage(error)}`,
         declineCode: error.decline_code
       });
     }
     
     await alertOnExternalServiceError('Stripe', error, 'charge subscription invoice');
     res.status(500).json({ 
-      error: error.message || 'Failed to charge subscription invoice',
+      error: getErrorMessage(error) || 'Failed to charge subscription invoice',
       retryable: true
     });
   }

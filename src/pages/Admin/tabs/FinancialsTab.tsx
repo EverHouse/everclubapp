@@ -160,8 +160,8 @@ const SubscriptionsSubTab: React.FC = () => {
       setSuccessMessage(`Synced from Stripe: ${data.created} created, ${data.updated} updated`);
       setTimeout(() => setSuccessMessage(null), 5000);
       refetch();
-    } catch (err: any) {
-      setLocalError(err.message);
+    } catch (err: unknown) {
+      setLocalError((err instanceof Error ? err.message : String(err)));
       setTimeout(() => setLocalError(null), 5000);
     } finally {
       setIsSyncing(false);
@@ -187,8 +187,8 @@ const SubscriptionsSubTab: React.FC = () => {
       }
       setSuccessMessage('Payment reminder sent successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err: any) {
-      setLocalError(err.message);
+    } catch (err: unknown) {
+      setLocalError((err instanceof Error ? err.message : String(err)));
       setTimeout(() => setLocalError(null), 3000);
     } finally {
       setSendingReminder(null);

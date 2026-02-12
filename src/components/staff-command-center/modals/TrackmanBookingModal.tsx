@@ -198,8 +198,8 @@ export function TrackmanBookingModal({
       showToast(`Booking confirmed for ${booking.user_name}`, 'success');
       setExternalId('');
       onClose();
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to confirm booking';
+    } catch (err: unknown) {
+      const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Failed to confirm booking';
       setError(errorMsg);
       showToast(errorMsg, 'error');
     } finally {

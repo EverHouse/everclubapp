@@ -33,7 +33,7 @@ router.get('/api/stripe/invoices/preview', isStaffOrAdmin, async (req: Request, 
     }
     
     res.json({ preview: result.preview });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error previewing invoice:', error);
     res.status(500).json({ error: 'Failed to preview invoice' });
   }
@@ -53,7 +53,7 @@ router.get('/api/stripe/invoices/:customerId', isStaffOrAdmin, async (req: Reque
       invoices: result.invoices,
       count: result.invoices?.length || 0
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error listing invoices:', error);
     res.status(500).json({ error: 'Failed to list invoices' });
   }
@@ -100,7 +100,7 @@ router.post('/api/stripe/invoices', isStaffOrAdmin, async (req: Request, res: Re
       success: true,
       invoice: result.invoice
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error creating invoice:', error);
     res.status(500).json({ error: 'Failed to create invoice' });
   }
@@ -144,7 +144,7 @@ router.post('/api/stripe/invoices/:invoiceId/finalize', isStaffOrAdmin, async (r
       success: true,
       invoice: result.invoice
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error finalizing invoice:', error);
     res.status(500).json({ error: 'Failed to finalize invoice' });
   }
@@ -161,7 +161,7 @@ router.get('/api/stripe/invoice/:invoiceId', isStaffOrAdmin, async (req: Request
     }
     
     res.json({ invoice: result.invoice });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error getting invoice:', error);
     res.status(500).json({ error: 'Failed to get invoice' });
   }
@@ -206,7 +206,7 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
     }
     
     res.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error voiding invoice:', error);
     res.status(500).json({ error: 'Failed to void invoice' });
   }
@@ -260,7 +260,7 @@ router.get('/api/my-invoices', async (req: Request, res: Response) => {
       invoices: result.invoices,
       count: result.invoices?.length || 0
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Stripe] Error listing member invoices:', error);
     res.status(500).json({ error: 'Failed to list invoices' });
   }

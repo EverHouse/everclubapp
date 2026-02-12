@@ -317,8 +317,8 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     } else {
                                         showToast('Calendar refreshed', 'success');
                                     }
-                                } catch (err: any) {
-                                    const errorMsg = err?.message || 'Network error - please check your connection';
+                                } catch (err: unknown) {
+                                    const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Network error - please check your connection';
                                     showToast(`Refresh failed: ${errorMsg}`, 'error');
                                 } finally {
                                     setIsSyncing(false);

@@ -22,6 +22,7 @@ import { getCalendarNameForBayAsync } from './helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent, CALENDAR_CONFIG } from '../../core/calendar/index';
 import { releaseGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -1220,11 +1221,11 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json(formatRow(result[0]));
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error.statusCode) {
       return res.status(error.statusCode).json({ 
         error: error.error, 
-        message: error.message 
+        message: getErrorMessage(error) 
       });
     }
     const { isConstraintError } = await import('../../core/db');
@@ -1536,7 +1537,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     }
     
     res.json({ success: true, booking: result[0] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update booking status', error);
   }
 });
@@ -1804,7 +1805,7 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
       totalFeeCents,
       message: 'Booking confirmed'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to confirm booking', error);
   }
 });
@@ -1891,8 +1892,8 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
           console.error(`[Complete Cancellation] Failed to cancel payment intent:`, cancelErr.message);
         }
       }
-    } catch (err: any) {
-      errors.push(`Failed to query pending intents: ${err.message}`);
+    } catch (err: unknown) {
+      errors.push(`Failed to query pending intents: ${getErrorMessage(err)}`);
       console.error('[Complete Cancellation] Failed to query pending intents:', err);
     }
     
@@ -1970,8 +1971,8 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
             console.error('[Complete Cancellation] Failed to refund guest pass:', guestErr);
           }
         }
-      } catch (err: any) {
-        errors.push(`Failed to query guest participants: ${err.message}`);
+      } catch (err: unknown) {
+        errors.push(`Failed to query guest participants: ${getErrorMessage(err)}`);
         console.error('[Complete Cancellation] Failed to query guest participants:', err);
       }
     }
@@ -1979,8 +1980,8 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
     // 5. Release guest pass holds
     try {
       await releaseGuestPassHold(bookingId);
-    } catch (err: any) {
-      errors.push(`Failed to release guest pass holds: ${err.message}`);
+    } catch (err: unknown) {
+      errors.push(`Failed to release guest pass holds: ${getErrorMessage(err)}`);
       console.error('[Complete Cancellation] Failed to release guest pass holds:', err);
     }
     
@@ -2042,7 +2043,7 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
       message: 'Cancellation completed successfully. Member has been notified.',
       cleanup_errors: errors.length > 0 ? errors : undefined
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Complete Cancellation] Error:', err);
     return res.status(500).json({ error: 'Failed to complete cancellation' });
   }

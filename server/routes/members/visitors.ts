@@ -7,6 +7,7 @@ import { isProduction } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
@@ -329,7 +330,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       hasMore: pageOffset + visitors.length < totalCount,
       visitors
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Visitors list error:', error);
     res.status(500).json({ error: 'Failed to fetch visitors' });
   }
@@ -381,7 +382,7 @@ router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
       purchases,
       total: purchases.length
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (!isProduction) console.error('Visitor purchases error:', error);
     res.status(500).json({ error: 'Failed to fetch visitor purchases' });
   }
@@ -425,7 +426,7 @@ router.get('/api/guests/needs-email', isStaffOrAdmin, async (req, res) => {
       })),
       count: result.rows.length
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Guests Needs Email] Error:', error);
     res.status(500).json({ error: 'Failed to fetch guests needing email' });
   }
@@ -453,7 +454,7 @@ router.patch('/api/guests/:guestId/email', isStaffOrAdmin, async (req, res) => {
       guest: result.rows[0],
       message: `Email updated for ${(result.rows[0] as any).name}`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Update Guest Email] Error:', error);
     res.status(500).json({ error: 'Failed to update guest email' });
   }
@@ -572,9 +573,9 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         stripeCustomerId: null
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Visitors] Create visitor error:', error);
-    res.status(500).json({ error: error.message || 'Failed to create visitor' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to create visitor' });
   }
 });
 
@@ -667,7 +668,7 @@ router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
     });
     
     res.json(visitors);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Visitors] Search error:', error);
     res.status(500).json({ error: 'Failed to search visitors' });
   }
@@ -753,9 +754,9 @@ router.post('/api/visitors/backfill-types', isAdmin, async (req, res) => {
         lead: leadResult.rows.length
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Visitors] Backfill types error:', error);
-    res.status(500).json({ error: error.message || 'Failed to backfill visitor types' });
+    res.status(500).json({ error: getErrorMessage(error) || 'Failed to backfill visitor types' });
   }
 });
 
@@ -977,7 +978,7 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
       hubspotArchived,
       message: `Visitor ${visitorName || visitor.email} permanently deleted`
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Visitors] Delete error:', error);
     res.status(500).json({ error: 'Failed to delete visitor' });
   }

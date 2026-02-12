@@ -142,8 +142,8 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
 
       showToast('Booking rescheduled successfully', 'success');
       onSuccess();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to reschedule booking');
+    } catch (err: unknown) {
+      setErrorMsg((err instanceof Error ? err.message : String(err)) || 'Failed to reschedule booking');
     } finally {
       setIsConfirming(false);
     }
