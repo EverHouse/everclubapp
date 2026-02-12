@@ -30,8 +30,6 @@ import ModalShell from '../../components/ModalShell';
 import MetricsGrid from '../../components/MetricsGrid';
 import { RosterManager } from '../../components/booking';
 import { apiRequest } from '../../lib/apiRequest';
-import BalanceCard from '../../components/billing/BalanceCard';
-import BalancePaymentModal from '../../components/billing/BalancePaymentModal';
 import { AnimatedPage } from '../../components/motion';
 
 const GUEST_CHECKIN_FIELDS = [
@@ -173,15 +171,12 @@ const Dashboard: React.FC = () => {
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [processingInviteId, setProcessingInviteId] = useState<number | null>(null);
-  const [showBalancePaymentModal, setShowBalancePaymentModal] = useState(false);
-  
   // Optimistic UI state
   const [optimisticCancellingIds, setOptimisticCancellingIds] = useState<Set<number>>(new Set());
   const [optimisticCancelledIds, setOptimisticCancelledIds] = useState<Set<number>>(new Set());
   const [optimisticAcceptedInviteIds, setOptimisticAcceptedInviteIds] = useState<Set<number>>(new Set());
   const [optimisticDeclinedInviteIds, setOptimisticDeclinedInviteIds] = useState<Set<number>>(new Set());
   const [optimisticInviteAction, setOptimisticInviteAction] = useState<{ id: number; action: 'accepting' | 'declining' } | null>(null);
-  const [balanceRefreshKey, setBalanceRefreshKey] = useState(0);
   const [overagePaymentBooking, setOveragePaymentBooking] = useState<{ id: number; amount: number; minutes: number } | null>(null);
   const [isPayingOverage, setIsPayingOverage] = useState(false);
 
@@ -243,15 +238,6 @@ const Dashboard: React.FC = () => {
     window.addEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
     return () => window.removeEventListener('member-stats-updated', handleMemberStatsUpdated as EventListener);
   }, [user?.email, queryClient]);
-
-  useEffect(() => {
-    const handleBillingUpdate = () => {
-      setBalanceRefreshKey(prev => prev + 1);
-    };
-
-    window.addEventListener('billing-update', handleBillingUpdate);
-    return () => window.removeEventListener('billing-update', handleBillingUpdate);
-  }, []);
 
   useEffect(() => {
     if (user?.email && bannerAnnouncement) {
@@ -982,17 +968,6 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* My Balance Section - show for members OR when admin is viewing as a member */}
-        {(!isStaffOrAdminProfile || isAdminViewingAs) && user?.email && (
-          <div className="mb-6 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
-            <BalanceCard 
-              key={`${balanceRefreshKey}-${user.email}`}
-              memberEmail={user.email}
-              onPayNow={() => setShowBalancePaymentModal(true)} 
-            />
-          </div>
-        )}
-
         {error ? (
         <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3 mb-6">
           <span className="material-symbols-outlined">error</span>
@@ -1342,21 +1317,6 @@ const Dashboard: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['member', 'dashboard-data'] });
       }}
     />
-
-    {/* Balance Payment Modal */}
-    {user && (
-      <BalancePaymentModal
-        isOpen={showBalancePaymentModal}
-        memberEmail={user.email}
-        memberName={user.name}
-        onSuccess={() => {
-          setShowBalancePaymentModal(false);
-          setBalanceRefreshKey(prev => prev + 1);
-          showToast('Payment successful! Your balance has been cleared.', 'success');
-        }}
-        onClose={() => setShowBalancePaymentModal(false)}
-      />
-    )}
 
     {/* Overage Payment Modal */}
     <ModalShell

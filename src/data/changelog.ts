@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.48.5",
+    date: "2026-02-12",
+    title: "Outstanding Balance Relocated to Staff View",
+    changes: [
+      "Changed: Outstanding balance card removed from the member dashboard — members no longer see unfinalized fee amounts that could cause confusion",
+      "Changed: Outstanding fees now appear in the staff member profile drawer under the Account Balance section, with total owed, item count, and expandable breakdown",
+      "Improved: Staff still have full visibility into overage and guest fees pending collection for each member",
+    ],
+  },
+  {
     version: "7.48.4",
     date: "2026-02-12",
     title: "Trackman Import Billing Accuracy Fix",

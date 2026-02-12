@@ -1,6 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { MemberProfile } from '../../types/data';
 import { formatDatePacific } from './memberProfileTypes';
+import { apiRequest } from '../../lib/apiRequest';
+
+interface OutstandingItem {
+  id: number;
+  sessionId: number;
+  type: 'overage' | 'guest';
+  description: string;
+  date: string;
+  amountCents: number;
+}
+
+interface OutstandingBalance {
+  totalCents: number;
+  totalDollars: number;
+  itemCount: number;
+  breakdown: OutstandingItem[];
+}
 
 interface OverviewTabProps {
   member: MemberProfile;
@@ -63,6 +80,24 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   removingEmail,
   handleRemoveLinkedEmail,
 }) => {
+  const [outstanding, setOutstanding] = useState<OutstandingBalance | null>(null);
+  const [outstandingExpanded, setOutstandingExpanded] = useState(false);
+
+  const fetchOutstanding = useCallback(async () => {
+    if (!isAdmin || visitorMode || !member?.email) return;
+    const url = `/api/member/balance?email=${encodeURIComponent(member.email)}`;
+    const { ok, data } = await apiRequest<OutstandingBalance>(url);
+    if (ok && data) setOutstanding(data);
+  }, [isAdmin, visitorMode, member?.email]);
+
+  useEffect(() => { fetchOutstanding(); }, [fetchOutstanding]);
+
+  useEffect(() => {
+    const refresh = () => { fetchOutstanding(); };
+    window.addEventListener('billing-update', refresh);
+    return () => window.removeEventListener('billing-update', refresh);
+  }, [fetchOutstanding]);
+
   const hasAddress = member?.streetAddress || member?.city || member?.state || member?.zipCode;
   const addressParts = [member?.streetAddress, member?.city, member?.state, member?.zipCode].filter(Boolean);
   const formattedAddress = addressParts.length > 0 
@@ -188,6 +223,67 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </button>
           )}
         </div>
+        </div>
+      )}
+
+      {isAdmin && !visitorMode && outstanding && outstanding.totalCents > 0 && (
+        <div
+          className="animate-slide-up-stagger"
+          style={{ '--stagger-index': 1.5 } as React.CSSProperties}
+        >
+          <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-900/20 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                Outstanding Fees
+              </h4>
+              <span className={`text-xl font-bold font-serif ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                ${outstanding.totalDollars.toFixed(2)}
+              </span>
+            </div>
+            <p className={`text-xs mb-2 ${isDark ? 'text-amber-400/70' : 'text-amber-600/70'}`}>
+              {outstanding.itemCount} {outstanding.itemCount === 1 ? 'item' : 'items'} pending collection
+            </p>
+            {outstanding.breakdown.length > 0 && (
+              <>
+                <button
+                  onClick={() => setOutstandingExpanded(!outstandingExpanded)}
+                  className={`w-full flex items-center justify-between text-xs font-medium py-1.5 transition-colors ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-800'}`}
+                >
+                  <span>View breakdown</span>
+                  <span className={`material-symbols-outlined text-base transition-transform ${outstandingExpanded ? 'rotate-180' : ''}`}>
+                    expand_more
+                  </span>
+                </button>
+                {outstandingExpanded && (
+                  <div className="space-y-1.5 mt-1">
+                    {outstanding.breakdown.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white/60'}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold flex-shrink-0 ${
+                            item.type === 'guest'
+                              ? isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
+                              : isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {item.type === 'guest' ? 'G' : 'O'}
+                          </span>
+                          <span className={`text-xs truncate ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                            {item.description}
+                          </span>
+                        </div>
+                        <span className={`text-xs font-medium flex-shrink-0 ml-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          ${(item.amountCents / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
