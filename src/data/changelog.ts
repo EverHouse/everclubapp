@@ -13,6 +13,19 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.49.0",
+    date: "2026-02-12",
+    title: "HubSpot Sync Accuracy & Auto-Merge",
+    isMajor: true,
+    changes: [
+      "Fixed: HubSpot sync mismatch checks now compare the correct active membership tier instead of a stale legacy field, dramatically reducing false mismatch alerts",
+      "Fixed: Terminated, expired, and non-member accounts no longer trigger false tier mismatches — their empty tier in HubSpot is now correctly recognized as expected",
+      "Fixed: 'Sync to HubSpot' push now sends the properly mapped tier value and clears the tier for churned members instead of pushing stale data",
+      "Fixed: 'Pull from HubSpot' now updates the active tier field in the app, not just a legacy column that the app doesn't use",
+      "New: HubSpot ID Duplicate issues now have a one-click Merge button — when contacts are merged on HubSpot's side, you can merge the matching app accounts with a single click",
+    ],
+  },
+  {
     version: "7.48.8",
     date: "2026-02-12",
     title: "Outstanding Balance Accuracy Fix",

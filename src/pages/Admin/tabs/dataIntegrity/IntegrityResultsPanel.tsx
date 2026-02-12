@@ -887,6 +887,34 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       </button>
                                     ))
                                   )}
+                                  {!issue.ignored && issue.context?.duplicateUsers && issue.context.duplicateUsers.length === 2 && (
+                                    <button
+                                      onClick={() => {
+                                        const users = issue.context!.duplicateUsers!;
+                                        const primaryUser = users[0];
+                                        const secondaryUser = users[1];
+                                        if (confirm(`Merge ${secondaryUser.email} into ${primaryUser.email}? All records from ${secondaryUser.email} will be transferred to ${primaryUser.email} and ${secondaryUser.email} will be marked as merged.`)) {
+                                          fixIssueMutation.mutate({
+                                            endpoint: '/api/data-integrity/fix/merge-hubspot-duplicates',
+                                            body: { 
+                                              primaryUserId: primaryUser.userId, 
+                                              secondaryUserId: secondaryUser.userId,
+                                              hubspotContactId: issue.context?.hubspotContactId
+                                            }
+                                          });
+                                        }
+                                      }}
+                                      disabled={fixIssueMutation.isPending}
+                                      className="p-1.5 text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-900/30 rounded transition-colors disabled:opacity-50"
+                                      title={`Merge ${issue.context.duplicateUsers[1]?.email} into ${issue.context.duplicateUsers[0]?.email}`}
+                                    >
+                                      {fixIssueMutation.isPending ? (
+                                        <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                      ) : (
+                                        <span className="material-symbols-outlined text-[16px]">merge</span>
+                                      )}
+                                    </button>
+                                  )}
                                   {!issue.ignored && (
                                     <button
                                       onClick={() => openIgnoreModal(issue, result.checkName)}

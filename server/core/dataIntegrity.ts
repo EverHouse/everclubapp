@@ -22,6 +22,10 @@ import { isProduction } from './db';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getStripeClient } from './stripe/client';
 import { alertOnCriticalIntegrityIssues, alertOnHighIntegrityIssues } from './dataAlerts';
+import { denormalizeTierForHubSpot } from '../utils/tierUtils';
+
+const CHURNED_STATUSES = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member'];
+const NO_TIER_STATUSES = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member', 'expired', 'pending'];
 
 const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'HubSpot Sync Mismatch': 'critical',
@@ -412,7 +416,7 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
   // FIX: Use ORDER BY RANDOM() to ensure all members are eventually checked over time
   // Previously, LIMIT 100 without ordering always checked the same 100 members
   const appMembersResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, membership_tier, hubspot_id
+    SELECT id, email, first_name, last_name, membership_tier, hubspot_id, tier, membership_status
     FROM users 
     WHERE hubspot_id IS NOT NULL
     ORDER BY RANDOM()
@@ -452,13 +456,22 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
         });
       }
       
-      const appTier = (member.membership_tier || '').trim().toLowerCase();
-      const hsTier = (props.membership_tier || '').trim().toLowerCase();
-      if (appTier !== hsTier) {
+      const memberStatus = (member.membership_status || '').toLowerCase();
+      const isChurned = CHURNED_STATUSES.includes(memberStatus);
+      const isNoTierStatus = NO_TIER_STATUSES.includes(memberStatus);
+      const expectedHubSpotTier = (isChurned || isNoTierStatus || !member.tier)
+        ? null
+        : denormalizeTierForHubSpot(member.tier);
+      const hsTierRaw = props.membership_tier || null;
+      const expectedNorm = (expectedHubSpotTier || '').trim().toLowerCase();
+      const hsNorm = (hsTierRaw || '').trim().toLowerCase();
+      if (!expectedNorm && !hsNorm) {
+        // Both empty/null — not a mismatch, skip
+      } else if (expectedNorm !== hsNorm) {
         comparisons.push({
           field: 'Membership Tier',
-          appValue: member.membership_tier || null,
-          externalValue: props.membership_tier || null
+          appValue: expectedHubSpotTier || null,
+          externalValue: hsTierRaw
         });
       }
       
@@ -474,7 +487,7 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
           context: {
             memberName: `${member.first_name || ''} ${member.last_name || ''}`.trim() || undefined,
             memberEmail: member.email || undefined,
-            memberTier: member.membership_tier || undefined,
+            memberTier: member.tier || undefined,
             syncType: 'hubspot',
             syncComparison: comparisons,
             hubspotContactId: member.hubspot_id,
@@ -2226,7 +2239,7 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
     }
     
     const userResult = await db.execute(sql`
-      SELECT first_name, last_name, email, membership_tier
+      SELECT first_name, last_name, email, membership_tier, tier, membership_status
       FROM users WHERE id = ${userId}
     `);
     
@@ -2238,11 +2251,14 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
     
     const hubspot = await getHubSpotClient();
     
+    const isChurned = ['terminated', 'cancelled', 'non-member', 'deleted', 'former_member', 'expired'].includes((user.membership_status || '').toLowerCase());
+    const mappedTier = isChurned ? '' : (denormalizeTierForHubSpot(user.tier) || '');
+    
     await hubspot.crm.contacts.basicApi.update(hubspotContactId, {
       properties: {
         firstname: user.first_name || '',
         lastname: user.last_name || '',
-        membership_tier: user.membership_tier || ''
+        membership_tier: mappedTier
       }
     });
     
@@ -2253,6 +2269,23 @@ export async function syncPush(params: SyncPushParams): Promise<{ success: boole
   }
   
   throw new Error(`Unsupported sync target: ${target}`);
+}
+
+function hubspotTierToAppTier(hsTier: string | null): string | null {
+  if (!hsTier) return null;
+  const HUBSPOT_TO_APP_TIER: Record<string, string> = {
+    'core membership': 'Core',
+    'core membership founding members': 'Core',
+    'premium membership': 'Premium',
+    'premium membership founding members': 'Premium',
+    'social membership': 'Social',
+    'social membership founding members': 'Social',
+    'vip membership': 'VIP',
+    'corporate membership': 'Corporate',
+    'group lessons membership': 'Group Lessons',
+  };
+  const match = HUBSPOT_TO_APP_TIER[hsTier.trim().toLowerCase()];
+  return match || null;
 }
 
 export async function syncPull(params: SyncPullParams): Promise<{ success: boolean; message: string }> {
@@ -2271,12 +2304,16 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
     );
     
     const props = contact.properties || {};
+    const hsTierValue = props.membership_tier || null;
+    const appTier = hubspotTierToAppTier(hsTierValue);
     
     await db.execute(sql`
       UPDATE users SET
         first_name = ${props.firstname || null},
         last_name = ${props.lastname || null},
-        membership_tier = ${props.membership_tier || null}
+        membership_tier = ${hsTierValue},
+        tier = ${appTier},
+        updated_at = NOW()
       WHERE id = ${userId}
     `);
     

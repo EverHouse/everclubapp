@@ -675,6 +675,37 @@ router.post('/api/data-integrity/fix/unlink-hubspot', isAdmin, async (req: Reque
   }
 });
 
+router.post('/api/data-integrity/fix/merge-hubspot-duplicates', isAdmin, async (req: Request, res) => {
+  try {
+    const { primaryUserId, secondaryUserId, hubspotContactId } = req.body;
+    if (!primaryUserId || !secondaryUserId) {
+      return res.status(400).json({ success: false, message: 'primaryUserId and secondaryUserId are required' });
+    }
+    
+    const sessionUser = getSessionUser(req);
+    const { executeMerge } = await import('../core/userMerge');
+    
+    const result = await executeMerge(primaryUserId, secondaryUserId, sessionUser?.email || 'admin');
+    
+    logFromRequest(req, 'merge_hubspot_duplicates', 'user', primaryUserId, undefined, {
+      secondary_user_id: secondaryUserId,
+      hubspot_contact_id: hubspotContactId,
+      records_merged: result.recordsMerged,
+      merged_lifetime_visits: result.mergedLifetimeVisits,
+      trigger: 'hubspot_id_duplicate_fix'
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Merged user into primary account. ${result.mergedLifetimeVisits} lifetime visits combined.`,
+      result 
+    });
+  } catch (error: unknown) {
+    console.error('[DataIntegrity] Merge HubSpot duplicates error:', getErrorMessage(error));
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
 router.post('/api/data-integrity/fix/delete-guest-pass', isAdmin, async (req: Request, res) => {
   try {
     const { recordId } = req.body;
