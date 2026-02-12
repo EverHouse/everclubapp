@@ -55,7 +55,7 @@ export async function queryWithRetry<T = any>(
   params?: any[],
   maxRetries: number = 3
 ): Promise<QueryResult<T>> {
-  let lastError: Error | null = null;
+  let lastError: unknown = null;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {

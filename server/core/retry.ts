@@ -24,7 +24,7 @@ export interface RetryOptions {
   maxRetries?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
-  onRetry?: (attempt: number, error: any) => void;
+  onRetry?: (attempt: number, error: unknown) => void;
 }
 
 export async function withRetry<T>(

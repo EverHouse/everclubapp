@@ -57,7 +57,7 @@ async function loadDailyStateFromDb(): Promise<void> {
     const result = await db.execute(sql`SELECT value FROM app_settings WHERE key = 'alert_rate_limits'`);
     dbAvailable = true;
     if (result.rows.length > 0 && result.rows[0].value) {
-      const saved = JSON.parse(result.rows[0].value);
+      const saved = JSON.parse(String(result.rows[0].value));
       const now = Date.now();
       if (now - (saved.dayStart || 0) < 24 * 60 * 60 * 1000) {
         dailyState = {
