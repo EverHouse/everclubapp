@@ -40,6 +40,8 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, conference room bookings, transactional with row-level locking. A unified Player Management Modal (TrackmanLinkModal) handles all player/roster management.
 - **Trackman Integration**: 1:1 sync with CSV imports and webhooks for real-time booking and delta billing, including cancellation flow and reconciliation tools.
 - **Google Sign-In**: Members can sign in with Google or link accounts.
+- **Error Handling**: Shared `server/utils/errorUtils.ts` utility for safe error handling (`getErrorMessage`, `getErrorCode`, `isStripeError`). All catch blocks use `catch (error: unknown)` with proper type narrowing instead of `catch (error: any)`.
+- **TypeScript Quality**: tsconfig uses `incremental`, `forceConsistentCasingInFileNames`, `noFallthroughCasesInSwitch`. Stripe webhook handlers use proper Stripe types (`Stripe.Charge`, `Stripe.Invoice`, etc.) instead of `any`.
 - **Security**: Role-based access control, rate limiting, SQL injection prevention, webhook signature verification, secure session management, CORS origin whitelist, authentication middleware.
 - **Notifications**: In-app real-time notifications with 3-channel delivery (in-app, email, push).
 - **Real-Time Sync**: Instant updates via WebSocket and Supabase Realtime.
