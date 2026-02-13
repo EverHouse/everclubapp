@@ -178,7 +178,25 @@ export async function syncMemberToHubSpot(
     const properties: Record<string, string> = {};
     const updated: SyncMemberToHubSpotResult['updated'] = {};
     
-    if (status) {
+    let effectiveBillingProvider = billingProvider?.toLowerCase() || null;
+    if (!effectiveBillingProvider) {
+      try {
+        const { users } = await import('../../../shared/schema');
+        const userResult = await db.select({ billingProvider: users.billingProvider })
+          .from(users)
+          .where(eq(users.email, email.toLowerCase()))
+          .limit(1);
+        effectiveBillingProvider = userResult[0]?.billingProvider || null;
+      } catch (e) {
+      }
+    }
+
+    const isMindbodyBilled = effectiveBillingProvider === 'mindbody';
+    if (isMindbodyBilled && status) {
+      console.log(`[HubSpot Sync] Skipping status push for Mindbody-billed member ${email} to prevent sync loop`);
+    }
+    
+    if (status && !isMindbodyBilled) {
       const normalizedStatus = status.toLowerCase();
       const hubspotStatus = DB_STATUS_TO_HUBSPOT_STATUS[normalizedStatus] || 'Suspended';
       properties.membership_status = hubspotStatus;

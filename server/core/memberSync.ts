@@ -250,6 +250,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     let statusChanges = 0;
     let hubspotIdCollisions = 0;
     let skippedNonTransacting = 0;
+    let stripeProtectedCount = 0;
     
     // Parse opt-in values from HubSpot (they come as strings like "true"/"false" or "Yes"/"No")
     const parseOptIn = (val?: string): boolean | null => {
@@ -348,6 +349,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
 
           const existingUser = await db.select({ 
             membershipStatus: users.membershipStatus,
+            billingProvider: users.billingProvider,
             lastHubspotNotesHash: users.lastHubspotNotesHash
           })
             .from(users)
@@ -359,6 +361,13 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
           if (!existingUser[0] && status === 'non-member' && !contact.properties.mindbody_client_id) {
             skippedNonTransacting++;
             return null;
+          }
+          
+          const isStripeProtected = existingUser[0]?.billingProvider === 'stripe';
+
+          if (isStripeProtected) {
+            stripeProtectedCount++;
+            console.log(`[MemberSync] STRIPE WINS: Skipping membership_status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);
           }
           
           // Extract address fields from HubSpot (synced from Mindbody)
@@ -411,11 +420,11 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 firstName: sql`COALESCE(${firstName}, ${users.firstName})`,
                 lastName: sql`COALESCE(${lastName}, ${users.lastName})`,
                 phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
-                tier: normalizedTier ? normalizedTier : sql`${users.tier}`,
-                tierId: tierId !== null ? tierId : sql`${users.tierId}`,
+                tier: isStripeProtected ? sql`${users.tier}` : (normalizedTier ? normalizedTier : sql`${users.tier}`),
+                tierId: isStripeProtected ? sql`${users.tierId}` : (tierId !== null ? tierId : sql`${users.tierId}`),
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
-                membershipStatus: status,
+                membershipStatus: isStripeProtected ? sql`${users.membershipStatus}` : status,
                 // Use HubSpot value directly - clear stale mindbody IDs not present in HubSpot
                 mindbodyClientId: contact.properties.mindbody_client_id || null,
                 joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
@@ -435,7 +444,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               }
             });
           
-          if (oldStatus !== status) {
+          if (oldStatus !== status && !isStripeProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
               console.error(`[MemberSync] Failed to notify status change for ${email}:`, err);
             });
@@ -538,7 +547,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
       }
     }
     
-    if (!isProduction) console.log(`[MemberSync] Complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}, ${skippedNonTransacting} non-transacting skipped`);
+    if (!isProduction) console.log(`[MemberSync] Complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}, ${skippedNonTransacting} non-transacting skipped, ${stripeProtectedCount} Stripe-protected`);
     
     // Process merged contact IDs to extract linked emails
     // hs_merged_object_ids contains semicolon-separated HubSpot contact IDs that were merged into this contact
@@ -803,6 +812,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
     let statusChanges = 0;
     let hubspotIdCollisions = 0;
     let skippedNonTransacting = 0;
+    let stripeProtectedCount = 0;
     
     const parseOptIn = (val?: string): boolean | null => {
       if (!val) return null;
@@ -889,6 +899,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
 
           const existingUser = await db.select({ 
             membershipStatus: users.membershipStatus,
+            billingProvider: users.billingProvider,
             lastHubspotNotesHash: users.lastHubspotNotesHash
           })
             .from(users)
@@ -900,6 +911,13 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
           if (!existingUser[0] && status === 'non-member' && !contact.properties.mindbody_client_id) {
             skippedNonTransacting++;
             return null;
+          }
+          
+          const isStripeProtected = existingUser[0]?.billingProvider === 'stripe';
+
+          if (isStripeProtected) {
+            stripeProtectedCount++;
+            console.log(`[MemberSync] STRIPE WINS: Skipping membership_status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);
           }
           
           const streetAddress = contact.properties.address?.trim() || null;
@@ -949,11 +967,11 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 firstName: sql`COALESCE(${firstName}, ${users.firstName})`,
                 lastName: sql`COALESCE(${lastName}, ${users.lastName})`,
                 phone: sql`COALESCE(${contact.properties.phone || null}, ${users.phone})`,
-                tier: normalizedTier ? normalizedTier : sql`${users.tier}`,
-                tierId: tierId !== null ? tierId : sql`${users.tierId}`,
+                tier: isStripeProtected ? sql`${users.tier}` : (normalizedTier ? normalizedTier : sql`${users.tier}`),
+                tierId: isStripeProtected ? sql`${users.tierId}` : (tierId !== null ? tierId : sql`${users.tierId}`),
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
-                membershipStatus: status,
+                membershipStatus: isStripeProtected ? sql`${users.membershipStatus}` : status,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,
                 joinDate: joinDate ? joinDate : sql`${users.joinDate}`,
                 emailOptIn: emailOptIn !== null ? emailOptIn : sql`${users.emailOptIn}`,
@@ -972,7 +990,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               }
             });
           
-          if (oldStatus !== status) {
+          if (oldStatus !== status && !isStripeProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
               console.error(`[MemberSync] Failed to notify status change for ${email}:`, err);
             });
@@ -1067,7 +1085,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
       }
     }
     
-    if (!isProduction) console.log(`[MemberSync] Focused sync complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}, ${skippedNonTransacting} non-transacting skipped`);
+    if (!isProduction) console.log(`[MemberSync] Focused sync complete - Synced: ${synced}, Errors: ${errors}, Status Changes: ${statusChanges}, HubSpot ID Collisions: ${hubspotIdCollisions}, ${skippedNonTransacting} non-transacting skipped, ${stripeProtectedCount} Stripe-protected`);
     
     const contactsWithMergedIds = allContacts.filter(c => c.properties.hs_merged_object_ids);
     if (contactsWithMergedIds.length > 0) {

@@ -263,11 +263,14 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                      membership_status = 'active',
                      billing_provider = 'stripe',
                      hubspot_id = COALESCE($5, hubspot_id),
+                     grace_period_start = NULL,
+                     grace_period_email_count = 0,
                      updated_at = NOW()
                  WHERE id = $4
                  AND (updated_at IS NULL OR updated_at < NOW() - INTERVAL '5 minutes')`,
                 [stripeCustomerId, stripeSubscriptionId, tier, user.id, hubspotId]
               );
+              console.log(`[Stripe Sync] Cleared grace period for migrated member ${email}`);
               
               // Sync to HubSpot
               try {
@@ -316,10 +319,12 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               await pool.query(
                 `UPDATE users SET stripe_customer_id = $1, stripe_subscription_id = $2, 
                  membership_status = 'active', billing_provider = 'stripe', data_source = 'stripe_sync',
-                 tier = COALESCE($3, tier), hubspot_id = COALESCE($4, hubspot_id), updated_at = NOW()
+                 tier = COALESCE($3, tier), hubspot_id = COALESCE($4, hubspot_id),
+                 grace_period_start = NULL, grace_period_email_count = 0, updated_at = NOW()
                  WHERE id = $5`,
                 [stripeCustomerId, stripeSubscriptionId, tier, hubspotId, resolved.userId]
               );
+              console.log(`[Stripe Sync] Cleared grace period for migrated member ${email}`);
               result.updated++;
               result.details.push({ email, action: 'updated', tier, reason: `Matched via ${resolved.matchType}` });
               console.log(`[Stripe Sync] Updated existing user ${resolved.primaryEmail} (matched ${email} via ${resolved.matchType}) with tier ${tier}`);

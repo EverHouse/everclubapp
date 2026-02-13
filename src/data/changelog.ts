@@ -13,6 +13,22 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.56.0",
+    date: "2026-02-13",
+    title: "Stripe Wins — Billing Provider Sync Hardening",
+    isMajor: true,
+    changes: [
+      "New: 'Stripe Wins' guard in HubSpot member sync — when a member is billed through Stripe, their membership status and tier can no longer be overwritten by stale Mindbody data flowing through HubSpot",
+      "New: Database CHECK constraint on billing_provider column — only valid values (stripe, mindbody, manual, comped, family_addon) can be stored, preventing data corruption",
+      "New: Billing Provider Hybrid State integrity check — daily scan detects members with mismatched billing data (e.g., labeled as Mindbody but holding a Stripe subscription)",
+      "New: Outbound HubSpot sync protection — membership status is no longer pushed back to HubSpot for Mindbody-billed members, preventing sync loops between HubSpot and the app",
+      "New: billing_provider_changed audit action for tracking billing provider migrations",
+      "Fixed: When a Mindbody member migrates to Stripe, their grace period flags are now automatically cleared",
+      "Fixed: Both full and focused HubSpot sync functions now respect the Stripe Wins guard consistently",
+      "Improved: Stripe subscription sync now clears grace period data when transitioning a member from Mindbody to Stripe billing"
+    ]
+  },
+  {
     version: "7.55.0",
     date: "2026-02-13",
     title: "Tier Data Integrity Hardening",

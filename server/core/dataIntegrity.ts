@@ -54,7 +54,8 @@ const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
   'Orphaned Fee Snapshots': 'critical',
   'Sessions Without Participants': 'low',
   'Orphaned Payment Intents': 'critical',
-  'Guest Passes Without Members': 'medium'
+  'Guest Passes Without Members': 'medium',
+  'Billing Provider Hybrid State': 'critical'
 };
 
 function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -1988,6 +1989,83 @@ async function checkGuestPassesForNonExistentMembers(): Promise<IntegrityCheckRe
   };
 }
 
+async function checkBillingProviderHybridState(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  
+  // Find members with billing_provider mismatch:
+  // 1. billing_provider='mindbody' but has a Stripe subscription (should be 'stripe')
+  // 2. billing_provider IS NULL but has active membership (should be classified)
+  // 3. billing_provider='stripe' but no stripe_subscription_id (data inconsistency)
+  const hybridResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, membership_status, 
+           billing_provider, stripe_subscription_id, stripe_customer_id, mindbody_client_id
+    FROM users 
+    WHERE role = 'member'
+      AND archived_at IS NULL
+      AND (
+        -- Mindbody member with active Stripe subscription (needs migration)
+        (billing_provider = 'mindbody' AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id != '')
+        OR
+        -- No billing provider but active member (needs classification)
+        (billing_provider IS NULL AND membership_status = 'active')
+        OR
+        -- Stripe billing provider but no subscription ID (data gap)
+        (billing_provider = 'stripe' AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '') AND membership_status = 'active')
+      )
+    ORDER BY membership_status, email
+    LIMIT 50
+  `);
+  const hybrids = hybridResult.rows as any[];
+  
+  for (const member of hybrids) {
+    const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
+    
+    let description: string;
+    let suggestion: string;
+    let severity: 'error' | 'warning' = 'warning';
+    
+    if (member.billing_provider === 'mindbody' && member.stripe_subscription_id) {
+      description = `Member "${memberName}" has billing_provider='mindbody' but has Stripe subscription ${member.stripe_subscription_id} — billing provider should be 'stripe'`;
+      suggestion = 'Update billing_provider to stripe — this member has migrated from Mindbody';
+      severity = 'error';
+    } else if (!member.billing_provider && member.membership_status === 'active') {
+      description = `Active member "${memberName}" has no billing provider set — unable to determine billing source`;
+      suggestion = 'Classify billing provider as stripe, mindbody, manual, or comped';
+    } else {
+      description = `Member "${memberName}" has billing_provider='stripe' but no Stripe subscription ID`;
+      suggestion = 'Verify Stripe subscription exists or update billing provider';
+    }
+    
+    issues.push({
+      category: 'sync_mismatch',
+      severity,
+      table: 'users',
+      recordId: member.id,
+      description,
+      suggestion,
+      context: {
+        memberName,
+        memberEmail: member.email,
+        memberTier: member.tier || 'none',
+        memberStatus: member.membership_status,
+        billingProvider: member.billing_provider || 'none',
+        stripeSubscriptionId: member.stripe_subscription_id || 'none',
+        stripeCustomerId: member.stripe_customer_id || 'none',
+        mindbodyClientId: member.mindbody_client_id || 'none',
+        userId: member.id
+      }
+    });
+  }
+  
+  return {
+    checkName: 'Billing Provider Hybrid State',
+    status: issues.length > 0 ? (issues.some(i => i.severity === 'error') ? 'fail' : 'warning') : 'pass',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual'): Promise<IntegrityCheckResult[]> {
   const checks = await Promise.all([
     safeCheck(checkOrphanBookingParticipants, 'Orphan Booking Participants'),
@@ -2014,6 +2092,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
     safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
     safeCheck(checkGuestPassesForNonExistentMembers, 'Guest Passes Without Members'),
+    safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
   ]);
   
   const now = new Date();

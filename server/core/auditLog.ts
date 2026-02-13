@@ -131,6 +131,7 @@ export type AuditAction =
   | 'replay_webhook'
   | 'charge_subscription_invoice'
   | 'stripe_member_sync'
+  | 'billing_provider_changed'
   | 'terminal_payment_initiated'
   | 'terminal_payment_canceled';
 

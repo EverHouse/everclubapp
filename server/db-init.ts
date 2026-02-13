@@ -334,6 +334,23 @@ export async function ensureDatabaseConstraints() {
       console.warn(`[DB Init] Skipping tier CHECK constraint: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'users_billing_provider_check'
+          ) THEN
+            ALTER TABLE users ADD CONSTRAINT users_billing_provider_check
+              CHECK (billing_provider IS NULL OR billing_provider IN ('stripe', 'mindbody', 'manual', 'comped', 'family_addon'));
+          END IF;
+        END $$;
+      `);
+      console.log('[DB Init] Billing provider CHECK constraint created/verified');
+    } catch (err: unknown) {
+      console.warn(`[DB Init] Skipping billing provider CHECK constraint: ${getErrorMessage(err)}`);
+    }
+
     const indexQueries = [
       { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
       { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },
