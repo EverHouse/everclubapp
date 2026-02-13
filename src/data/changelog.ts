@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.57.0",
+    date: "2026-02-13",
+    title: "HubSpot Integrity Sprint — Form Submission & Deal Enrichment",
+    changes: [
+      "Fixed: Form submissions no longer fail due to invalid contact properties being sent to HubSpot (event_date, event_time, additional_details, event_services, marketing_consent, topic were being rejected)",
+      "Fixed: membership_interest casing mismatch — 'Not sure yet' now correctly maps to HubSpot's 'Not Sure Yet' dropdown value",
+      "New: marketing_consent from forms now maps to eh_email_updates_opt_in contact property instead of being rejected",
+      "New: Backend field filtering — only valid HubSpot contact properties are sent to the Form Submission API; all original fields still saved to local database",
+      "New: Event deal enrichment — Private Hire and Event Inquiry forms now populate structured deal properties (event_date, event_time, event_type, expected_guest_count, event_services, additional_details) on the HubSpot deal record",
+      "New: Created 3 custom HubSpot deal properties (event_time, event_services, additional_details) for structured event data",
+      "New: Fire-and-forget deal enrichment finds the workflow-created deal and updates it with event details, or creates the deal directly if the workflow hasn't fired yet",
+      "Impact: HubSpot workflows tied to form submissions (deal creation, follow-up emails) will now trigger reliably since form submissions no longer fail"
+    ]
+  },
+  {
     version: "7.56.0",
     date: "2026-02-13",
     title: "Stripe Wins — Billing Provider Sync Hardening",

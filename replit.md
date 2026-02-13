@@ -84,7 +84,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 ## External Dependencies
 - **Stripe**: Payment collection, subscription management, webhooks, terminal/POS, product catalog sync, dynamic pricing.
 - **Resend**: Email-based OTP verification, automated alerts, transactional emails.
-- **HubSpot CRM**: Contact and member management, two-way data sync, deal pipeline, corporate membership sync.
+- **HubSpot CRM**: Contact and member management, two-way data sync, deal pipeline, corporate membership sync. Form submissions use HubSpot Form Submission API with backend field filtering (only valid contact properties sent). Event/private-hire forms trigger HubSpot workflows for deal creation; app enriches those deals with structured event properties (event_date, event_time, event_type, expected_guest_count, event_services, additional_details). Events pipeline ID: 1447785156.
 - **Google Calendar**: Integration for club calendars and booking sync.
 - **Google Sheets**: Announcement content sync.
 - **Supabase**: Realtime subscriptions, backend admin client, session token generation.
