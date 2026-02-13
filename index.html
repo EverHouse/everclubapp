@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Ever Members Club" />
     <!-- Safari toolbar color: respects device light/dark mode -->
     <meta name="theme-color" content="#293515" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#0f120a" media="(prefers-color-scheme: dark)" />
     <script>
       (function() {
         // Fix URL-encoded hash for dev preview routes (screenshot tool encodes # as %23)
@@ -47,6 +47,8 @@
     <link rel="preload" href="/images/hero-lounge-optimized.webp" as="image" type="image/webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://js.stripe.com" crossorigin>
+    <link rel="preconnect" href="https://api.stripe.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <style>
@@ -62,8 +64,26 @@
         pointer-events: none;
       }
     </style>
-    <!-- Start of HubSpot Embed Code -->
-    <script type="text/javascript" id="hs-script-loader" async defer src="//js-na2.hs-scripts.com/244200670.js"></script>
+    <!-- Start of HubSpot Embed Code (deferred loader) -->
+    <script>
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(function() {
+          var s = document.createElement('script');
+          s.src = '//js-na2.hs-scripts.com/244200670.js';
+          s.id = 'hs-script-loader';
+          s.async = true;
+          document.body.appendChild(s);
+        });
+      } else {
+        setTimeout(function() {
+          var s = document.createElement('script');
+          s.src = '//js-na2.hs-scripts.com/244200670.js';
+          s.id = 'hs-script-loader';
+          s.async = true;
+          document.body.appendChild(s);
+        }, 3000);
+      }
+    </script>
     <!-- End of HubSpot Embed Code -->
   </head>
   <body>

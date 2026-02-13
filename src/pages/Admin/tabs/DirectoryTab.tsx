@@ -980,12 +980,14 @@ const DirectoryTab: React.FC = () => {
                                             ? isSelected 
                                                 ? 'bg-primary dark:bg-lavender text-white' 
                                                 : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500'
-                                            : ''
+                                            : !isSelected
+                                                ? 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white/60 border border-gray-300 dark:border-white/10'
+                                                : ''
                                     }`}
-                                    style={tier !== 'All' ? {
-                                        backgroundColor: isSelected ? colors.bg : '#E5E7EB',
-                                        color: isSelected ? colors.text : '#9CA3AF',
-                                        border: `1px solid ${isSelected ? colors.border : '#D1D5DB'}`,
+                                    style={tier !== 'All' && isSelected ? {
+                                        backgroundColor: colors.bg,
+                                        color: colors.text,
+                                        border: `1px solid ${colors.border}`,
                                     } : undefined}
                                 >
                                     {tier}
@@ -1015,12 +1017,14 @@ const DirectoryTab: React.FC = () => {
                                 <button
                                     key={tag}
                                     onClick={() => setTagFilter(tag)}
-                                    className="px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap"
-                                    style={{
-                                        backgroundColor: isSelected ? colors.bg : '#E5E7EB',
-                                        color: isSelected ? colors.text : '#9CA3AF',
-                                        border: `1px solid ${isSelected ? colors.border : '#D1D5DB'}`,
-                                    }}
+                                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap ${
+                                        !isSelected ? 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white/60 border border-gray-300 dark:border-white/10' : ''
+                                    }`}
+                                    style={isSelected ? {
+                                        backgroundColor: colors.bg,
+                                        color: colors.text,
+                                        border: `1px solid ${colors.border}`,
+                                    } : undefined}
                                 >
                                     {tag}
                                 </button>

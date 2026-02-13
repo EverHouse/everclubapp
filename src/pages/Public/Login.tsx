@@ -326,30 +326,30 @@ const Login: React.FC = () => {
 
   if (otpSent) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden">
+      <div className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a] overflow-x-hidden">
         <div className="flex-1 flex flex-col justify-center px-6 py-12">
           <div className="w-full max-w-sm mx-auto space-y-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-primary text-[#F2F2EC] rounded-full flex items-center justify-center mx-auto text-2xl mb-6 shadow-xl">
+              <div className="w-16 h-16 bg-primary text-bone dark:text-[#0f120a] rounded-full flex items-center justify-center mx-auto text-2xl mb-6 shadow-xl dark:shadow-black/20">
                 <span className="material-symbols-outlined text-3xl">dialpad</span>
               </div>
-              <h2 className="text-3xl font-bold tracking-tight text-primary">
+              <h2 className="text-3xl font-bold tracking-tight text-primary dark:text-white">
                 Enter Your Code
               </h2>
-              <p className="mt-4 text-base text-primary/60 font-medium leading-relaxed">
+              <p className="mt-4 text-base text-primary/60 dark:text-white/60 font-medium leading-relaxed">
                 We sent a 6-digit code to<br />
-                <span className="font-bold text-primary">{email}</span>
+                <span className="font-bold text-primary dark:text-white">{email}</span>
               </p>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+              <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">error</span>
                 {error}
               </div>
             )}
 
-            <div className="bg-white py-8 px-6 shadow-sm rounded-2xl border border-black/5 space-y-6">
+            <div className="bg-white dark:bg-[#1a1d15] py-8 px-6 shadow-sm dark:shadow-black/20 rounded-2xl border border-black/5 dark:border-white/10 space-y-6">
               <div className="flex justify-center gap-2">
                 {otpInputs.map((digit, idx) => (
                   <input
@@ -362,30 +362,30 @@ const Login: React.FC = () => {
                     onChange={(e) => handleOtpChange(idx, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                     onPaste={(e) => handleOtpPaste(e, idx)}
-                    className="w-12 h-14 text-center text-2xl font-bold rounded-xl border border-black/10 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-primary"
+                    className="w-12 h-14 text-center text-2xl font-bold rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-primary dark:text-white dark:bg-white/5"
                     disabled={loading}
                   />
                 ))}
               </div>
               
               {loading && (
-                <div className="text-center text-sm text-primary/60">
+                <div className="text-center text-sm text-primary/60 dark:text-white/60">
                   Verifying...
                 </div>
               )}
               
-              <div className="flex items-center gap-2 text-center justify-center text-sm text-primary/60">
+              <div className="flex items-center gap-2 text-center justify-center text-sm text-primary/60 dark:text-white/60">
                 <span className="material-symbols-outlined text-sm">schedule</span>
                 Code expires in 15 minutes
               </div>
               
-              <hr className="border-black/5" />
+              <hr className="border-black/5 dark:border-white/10" />
               
               <div className="space-y-2">
                 <button
                   onClick={() => handleRequestOTP()}
                   disabled={loading}
-                  className="w-full text-center text-sm text-primary font-medium hover:underline transition-colors disabled:opacity-50"
+                  className="w-full text-center text-sm text-primary dark:text-white font-medium hover:underline transition-colors disabled:opacity-50"
                 >
                   Resend code
                 </button>
@@ -395,7 +395,7 @@ const Login: React.FC = () => {
                     setOtpInputs(['', '', '', '', '', '']);
                     setError('');
                   }}
-                  className="w-full text-center text-sm text-primary/60 hover:text-primary transition-colors"
+                  className="w-full text-center text-sm text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors"
                 >
                   Use a different email
                 </button>
@@ -409,52 +409,56 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden">
+    <div className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a] overflow-x-hidden">
       <div className="flex-1 flex flex-col justify-center px-6 py-12">
         <div className="w-full max-w-sm mx-auto space-y-8">
             
             <div className="text-center">
                 <img src="/assets/logos/EH-guy-icon.webp" alt="Ever Club" className="w-16 h-16 mx-auto mb-6 rounded-xl" />
-                <h2 className="text-3xl font-bold tracking-tight text-primary">
+                <h2 className="text-3xl font-bold tracking-tight text-primary dark:text-white">
                     Member's Portal
                 </h2>
-                <p className="mt-2 text-base text-primary/60 font-medium">
+                <p className="mt-2 text-base text-primary/60 dark:text-white/60 font-medium">
                     {isStaffOrAdmin && hasPassword ? 'Sign in with your password or verification code.' : 'Enter your email to receive a verification code.'}
                 </p>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+              <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">error</span>
                 {error}
               </div>
             )}
 
-            <div className="bg-white py-8 px-6 shadow-sm rounded-2xl border border-black/5 space-y-4">
+            <div className="bg-white dark:bg-[#1a1d15] py-8 px-6 shadow-sm dark:shadow-black/20 rounded-2xl border border-black/5 dark:border-white/10 space-y-4">
                 <form onSubmit={showPasswordField && hasPassword ? handlePasswordLogin : handleRequestOTP} className="space-y-4">
                   <div>
+                    <label htmlFor="login-email" className="sr-only">Membership Email</label>
                     <input
+                      id="login-email"
                       type="email"
                       placeholder="Membership Email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-black/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-primary placeholder:text-primary/40"
+                      className="w-full px-4 py-3 rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-primary dark:text-white placeholder:text-primary/40 dark:placeholder-white/40 dark:bg-white/5"
                       required
                       autoFocus
                     />
                     {checkingEmail && (
-                      <p className="text-xs text-primary/40 mt-1 pl-1">Checking...</p>
+                      <p className="text-xs text-primary/40 dark:text-white/40 mt-1 pl-1">Checking...</p>
                     )}
                   </div>
                   
                   {showPasswordField && hasPassword && (
                     <div className="animate-pop-in">
+                      <label htmlFor="login-password" className="sr-only">Password</label>
                       <input
+                        id="login-password"
                         type="password"
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-black/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-primary placeholder:text-primary/40"
+                        className="w-full px-4 py-3 rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all text-primary dark:text-white placeholder:text-primary/40 dark:placeholder-white/40 dark:bg-white/5"
                         required
                       />
                     </div>
@@ -464,7 +468,7 @@ const Login: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading || !password}
-                      className="flex w-full justify-center items-center gap-3 rounded-xl bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all active:scale-[0.98] disabled:opacity-50"
+                      className="flex w-full justify-center items-center gap-3 rounded-xl bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <span className="material-symbols-outlined">login</span>}
                       {loading ? 'Signing in...' : 'Sign In'}
@@ -473,7 +477,7 @@ const Login: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading || !email.includes('@')}
-                      className="flex w-full justify-center items-center gap-3 rounded-xl bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all active:scale-[0.98] disabled:opacity-50"
+                      className="flex w-full justify-center items-center gap-3 rounded-xl bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <span className="material-symbols-outlined">dialpad</span>}
                       {loading ? 'Sending...' : 'Send Verification Code'}
@@ -483,10 +487,10 @@ const Login: React.FC = () => {
 
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-black/10"></div>
+                    <div className="w-full border-t border-black/10 dark:border-white/10"></div>
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-white px-3 text-primary/40 font-medium">or</span>
+                    <span className="bg-white dark:bg-[#1a1d15] px-3 text-primary/40 dark:text-white/40 font-medium">or</span>
                   </div>
                 </div>
 
@@ -496,19 +500,19 @@ const Login: React.FC = () => {
                   disabled={loading || googleLoading}
                 />
                 {googleLoading && (
-                  <div className="text-center text-sm text-primary/60">
+                  <div className="text-center text-sm text-primary/60 dark:text-white/60">
                     Signing in with Google...
                   </div>
                 )}
 
                 {showPasswordField && hasPassword && (
                   <div className="animate-pop-in">
-                    <hr className="border-black/10" />
+                    <hr className="border-black/10 dark:border-white/10" />
                     <button
                       type="button"
                       onClick={handleRequestOTP}
                       disabled={loading}
-                      className="flex w-full justify-center items-center gap-2 rounded-xl bg-gray-100 px-3 py-3 text-sm font-bold leading-6 text-primary hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
+                      className="flex w-full justify-center items-center gap-2 rounded-xl bg-gray-100 dark:bg-white/5 px-3 py-3 text-sm font-bold leading-6 text-primary dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-[0.98] disabled:opacity-50 mt-4"
                     >
                       <span className="material-symbols-outlined text-lg">dialpad</span>
                       Use Verification Code Instead
@@ -518,7 +522,7 @@ const Login: React.FC = () => {
                 
                 {isDev && (
                   <>
-                    <hr className="border-black/10" />
+                    <hr className="border-black/10 dark:border-white/10" />
                     <button
                       type="button"
                       onClick={() => handleDevLogin()}
@@ -528,7 +532,7 @@ const Login: React.FC = () => {
                       <span className="material-symbols-outlined text-lg">developer_mode</span>
                       {devLoading ? 'Logging in...' : 'Dev Login (Nick)'}
                     </button>
-                    <p className="text-center text-xs text-amber-600">
+                    <p className="text-center text-xs text-amber-600 dark:text-amber-400">
                       Development only - logs in as nick@evenhouse.club
                     </p>
                     <button
@@ -540,16 +544,16 @@ const Login: React.FC = () => {
                       <span className="material-symbols-outlined text-lg">person</span>
                       {devMemberLoading ? 'Logging in...' : 'Dev Login (Nick Luu Member)'}
                     </button>
-                    <p className="text-center text-xs text-purple-600">
+                    <p className="text-center text-xs text-purple-600 dark:text-purple-400">
                       Development only - logs in as nicholasallanluu@gmail.com
                     </p>
                   </>
                 )}
             </div>
 
-            <p className="text-center text-sm text-primary/60 font-medium">
+            <p className="text-center text-sm text-primary/60 dark:text-white/60 font-medium">
                 Not a member?{' '}
-                <button onClick={() => { startNavigation(); navigate('/membership'); }} className="font-bold text-primary hover:underline">
+                <button onClick={() => { startNavigation(); navigate('/membership'); }} className="font-bold text-primary dark:text-white hover:underline">
                     Apply today
                 </button>
             </p>

@@ -1235,7 +1235,7 @@ const Dashboard: React.FC = () => {
                       title={item.title} 
                       subtitle={`${item.date} • ${item.details}`} 
                       icon={getIconForType(item.resourceType)} 
-                      color={isDark ? "text-[#E7E7DC]" : "text-primary"}
+                      color={isDark ? "text-secondary" : "text-primary"}
                       actions={actions}
                       staggerIndex={idx + 4}
                       badge={getStatusBadge()}
@@ -1281,7 +1281,7 @@ const Dashboard: React.FC = () => {
     >
       {confirmModal && (
         <div className="p-6">
-          <p className={`mb-6 text-sm ${isDark ? 'opacity-70' : 'opacity-70'}`}>{confirmModal.message}</p>
+          <p className="mb-6 text-sm opacity-70">{confirmModal.message}</p>
           <div className="flex gap-3">
             <button 
               onClick={() => setConfirmModal(null)}

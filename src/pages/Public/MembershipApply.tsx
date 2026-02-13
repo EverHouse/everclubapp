@@ -135,14 +135,14 @@ const MembershipApply: React.FC = () => {
 
   const getInputClass = (fieldName: string) => `w-full px-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 ${
     fieldErrors[fieldName] 
-      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
-      : 'border-primary/20 bg-white focus:ring-primary focus:border-primary'
-  } text-primary placeholder:text-gray-400`;
+      ? 'border-red-500 dark:border-red-500 focus:ring-red-500 bg-red-50 dark:bg-red-500/10' 
+      : 'border-primary/20 dark:border-white/10 bg-white dark:bg-white/5 focus:ring-primary focus:border-primary'
+  } text-primary dark:text-white placeholder:text-gray-400 dark:placeholder-white/40`;
 
   return (
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-[#F2F2EC]">
+    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#0f120a]">
       <div 
-        className="fixed top-0 left-0 right-0 bg-[#293515]"
+        className="fixed top-0 left-0 right-0 bg-primary"
         style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
         aria-hidden="true"
       />
@@ -150,7 +150,7 @@ const MembershipApply: React.FC = () => {
       <div className="pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-4">
         <Link 
           to="/membership" 
-          className="inline-flex items-center gap-1 text-primary/70 hover:text-primary transition-colors py-2"
+          className="inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
         >
           <span className="material-symbols-outlined text-lg">arrow_back</span>
           <span className="text-sm font-medium">Back to Membership</span>
@@ -160,21 +160,21 @@ const MembershipApply: React.FC = () => {
       <div className="px-4 pb-12">
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-serif font-light text-primary mb-3">
+            <h1 className="text-3xl md:text-4xl font-serif font-light text-primary dark:text-white mb-3">
               Apply for Membership
             </h1>
-            <p className="text-primary/60 text-sm md:text-base">
+            <p className="text-primary/60 dark:text-white/60 text-sm md:text-base">
               Join the Ever Members Club community and discover a new way to connect, play, and unwind.
             </p>
           </div>
 
           {success ? (
-            <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] p-8 text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[2rem] border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">check_circle</span>
               </div>
-              <h2 className="text-2xl font-bold text-primary mb-3">Thank You!</h2>
-              <p className="text-primary/70 mb-8 max-w-sm mx-auto">
+              <h2 className="text-2xl font-bold text-primary dark:text-white mb-3">Thank You!</h2>
+              <p className="text-primary/70 dark:text-white/70 mb-8 max-w-sm mx-auto">
                 We've received your membership application and will be in touch soon to discuss next steps.
               </p>
               <Link 
@@ -185,16 +185,16 @@ const MembershipApply: React.FC = () => {
               </Link>
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10">
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[2rem] border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden">
+              <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10 dark:border-white/10">
                 <div className="flex flex-col items-center gap-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>1</div>
-                  <span className={`text-[10px] font-medium ${step === 1 ? 'text-primary' : 'text-primary/40'}`}>Your Info</span>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>1</div>
+                  <span className={`text-[10px] font-medium ${step === 1 ? 'text-primary dark:text-white' : 'text-primary/40 dark:text-white/40'}`}>Your Info</span>
                 </div>
-                <div className="w-16 h-0.5 bg-primary/20 mb-5" />
+                <div className="w-16 h-0.5 bg-primary/20 dark:bg-white/20 mb-5" />
                 <div className="flex flex-col items-center gap-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>2</div>
-                  <span className={`text-[10px] font-medium ${step === 2 ? 'text-primary' : 'text-primary/40'}`}>Preferences</span>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>2</div>
+                  <span className={`text-[10px] font-medium ${step === 2 ? 'text-primary dark:text-white' : 'text-primary/40 dark:text-white/40'}`}>Preferences</span>
                 </div>
               </div>
 
@@ -203,10 +203,11 @@ const MembershipApply: React.FC = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
-                          First Name <span className="text-red-500">*</span>
+                        <label htmlFor="apply-firstname" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                          First Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
+                          id="apply-firstname"
                           type="text"
                           value={formData.firstname}
                           onChange={(e) => {
@@ -217,17 +218,18 @@ const MembershipApply: React.FC = () => {
                           className={getInputClass('firstname')}
                         />
                         {fieldErrors.firstname && (
-                          <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                          <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">error</span>
                             {fieldErrors.firstname}
                           </p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
-                          Last Name <span className="text-red-500">*</span>
+                        <label htmlFor="apply-lastname" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                          Last Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
+                          id="apply-lastname"
                           type="text"
                           value={formData.lastname}
                           onChange={(e) => {
@@ -238,7 +240,7 @@ const MembershipApply: React.FC = () => {
                           className={getInputClass('lastname')}
                         />
                         {fieldErrors.lastname && (
-                          <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                          <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">error</span>
                             {fieldErrors.lastname}
                           </p>
@@ -247,10 +249,11 @@ const MembershipApply: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
-                        Email <span className="text-red-500">*</span>
+                      <label htmlFor="apply-email" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                        Email <span className="text-red-500 dark:text-red-400">*</span>
                       </label>
                       <input
+                        id="apply-email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => {
@@ -261,7 +264,7 @@ const MembershipApply: React.FC = () => {
                         className={getInputClass('email')}
                       />
                       {fieldErrors.email && (
-                        <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                           <span className="material-symbols-outlined text-sm">error</span>
                           {fieldErrors.email}
                         </p>
@@ -269,10 +272,11 @@ const MembershipApply: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
-                        Phone Number <span className="text-primary/40 text-xs font-normal">(optional)</span>
+                      <label htmlFor="apply-phone" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                        Phone Number <span className="text-primary/40 dark:text-white/40 text-xs font-normal">(optional)</span>
                       </label>
                       <input
+                        id="apply-phone"
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => {
@@ -283,7 +287,7 @@ const MembershipApply: React.FC = () => {
                         className={getInputClass('phone')}
                       />
                       {fieldErrors.phone && (
-                        <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                           <span className="material-symbols-outlined text-sm">error</span>
                           {fieldErrors.phone}
                         </p>
@@ -291,9 +295,9 @@ const MembershipApply: React.FC = () => {
                     </div>
 
                     {error && (
-                      <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
-                        <span className="material-symbols-outlined text-red-600 text-lg mt-0.5">error</span>
-                        <span className="text-sm text-red-600">{error}</span>
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
+                        <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-lg mt-0.5">error</span>
+                        <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
                       </div>
                     )}
 
@@ -307,13 +311,14 @@ const MembershipApply: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    <h3 className="text-xl font-bold text-primary font-serif">Almost There</h3>
+                    <h3 className="text-xl font-bold text-primary dark:text-white font-serif">Almost There</h3>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
+                      <label htmlFor="apply-tier" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                         Which tier are you interested in?
                       </label>
                       <select
+                        id="apply-tier"
                         value={formData.membership_tier}
                         onChange={(e) => handleChange('membership_tier', e.target.value)}
                         className={getInputClass('membership_tier')}
@@ -326,10 +331,11 @@ const MembershipApply: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
+                      <label htmlFor="apply-message" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                         What brings you to Ever Members Club?
                       </label>
                       <textarea
+                        id="apply-message"
                         value={formData.message}
                         onChange={(e) => handleChange('message', e.target.value)}
                         placeholder="Golf, coworking, wellness, events — we'd love to know what interests you most."
@@ -338,8 +344,8 @@ const MembershipApply: React.FC = () => {
                       />
                     </div>
 
-                    <div className="pt-4 border-t border-primary/10">
-                      <label className={`flex items-start gap-3 cursor-pointer group p-3 rounded-xl transition-colors ${fieldErrors.consent ? 'bg-red-50 border border-red-200' : 'hover:bg-primary/5'}`}>
+                    <div className="pt-4 border-t border-primary/10 dark:border-white/10">
+                      <label className={`flex items-start gap-3 cursor-pointer group p-3 rounded-xl transition-colors ${fieldErrors.consent ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20' : 'hover:bg-primary/5 dark:hover:bg-white/5'}`}>
                         <input
                           type="checkbox"
                           checked={formData.consent}
@@ -349,13 +355,13 @@ const MembershipApply: React.FC = () => {
                           }}
                           className="mt-0.5 w-5 h-5 rounded border-primary/30 text-primary focus:ring-primary"
                         />
-                        <span className="text-sm text-primary leading-relaxed">
-                          I agree to receive communications from Ever Members Club. <span className="text-red-500">*</span>
-                          <Link to="/privacy" className="underline text-primary/60 hover:text-primary ml-1">Privacy Policy</Link>
+                        <span className="text-sm text-primary dark:text-white leading-relaxed">
+                          I agree to receive communications from Ever Members Club. <span className="text-red-500 dark:text-red-400">*</span>
+                          <Link to="/privacy" className="underline text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white ml-1">Privacy Policy</Link>
                         </span>
                       </label>
                       {fieldErrors.consent && (
-                        <p className="text-sm text-red-500 mt-2 flex items-center gap-1 pl-1">
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-2 flex items-center gap-1 pl-1">
                           <span className="material-symbols-outlined text-sm">error</span>
                           {fieldErrors.consent}
                         </p>
@@ -363,9 +369,9 @@ const MembershipApply: React.FC = () => {
                     </div>
 
                     {error && (
-                      <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
-                        <span className="material-symbols-outlined text-red-600 text-lg mt-0.5">error</span>
-                        <span className="text-sm text-red-600">{error}</span>
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
+                        <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-lg mt-0.5">error</span>
+                        <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
                       </div>
                     )}
 
@@ -373,7 +379,7 @@ const MembershipApply: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleBack}
-                        className="flex-1 py-4 bg-primary/10 text-primary rounded-[2rem] font-semibold hover:bg-primary/20 transition-all"
+                        className="flex-1 py-4 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-[2rem] font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-all"
                       >
                         Previous
                       </button>

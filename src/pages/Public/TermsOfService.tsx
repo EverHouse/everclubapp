@@ -3,7 +3,7 @@ import { Footer } from '../../components/Footer';
 
 const TermsOfService: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#F2F2EC] dark:bg-[#0f120a] text-[#293515] dark:text-[#F2F2EC] pt-24 pb-12">
+    <div className="min-h-screen bg-bone dark:bg-[#0f120a] text-primary dark:text-bone pt-24 pb-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl md:text-5xl font-display mb-8">Membership Terms & Conditions</h1>
         <p className="text-sm opacity-60 mb-12">Effective Date: January 20, 2026</p>
@@ -36,7 +36,7 @@ const TermsOfService: React.FC = () => {
             </ul>
           </section>
 
-          <section className="bg-white/50 dark:bg-white/5 p-6 rounded-xl border border-[#293515]/10 dark:border-white/10">
+          <section className="bg-white/50 dark:bg-white/5 p-6 rounded-xl border border-primary/10 dark:border-white/10">
             <h2 className="text-2xl font-display mb-4">4. Liability Waiver</h2>
             <p className="font-bold mb-2">Please read carefully:</p>
             <p className="mb-4">

@@ -497,7 +497,7 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
       </p>
     </div>
 
-    <div className={`sticky top-0 z-10 py-3 -mx-6 px-6 mb-6 ${isDark ? 'bg-[#0f120a]/95 backdrop-blur-sm' : 'bg-[#F2F2EC]/95 backdrop-blur-sm'}`}>
+    <div className={`sticky top-0 z-10 py-3 -mx-6 px-6 mb-6 ${isDark ? 'bg-[#0f120a]/95 backdrop-blur-sm' : 'bg-bone/95 backdrop-blur-sm'}`}>
        <a 
          href="https://www.amarieaesthetics.co" 
          target="_blank" 
@@ -581,7 +581,7 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
 );
 
 const FilterPill: React.FC<{label: string; active?: boolean; onClick?: () => void; isDark?: boolean}> = ({ label, active, onClick, isDark = true }) => (
-  <button onClick={onClick} className={`flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-bold border transition-colors ${active ? 'bg-accent text-[#293515] border-accent shadow-glow' : (isDark ? 'bg-transparent border-white/20 text-white hover:bg-white/5' : 'bg-white border-black/10 text-primary hover:bg-black/5')}`}>
+  <button onClick={onClick} className={`flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-bold border transition-colors ${active ? 'bg-accent text-primary border-accent shadow-glow' : (isDark ? 'bg-transparent border-white/20 text-white hover:bg-white/5' : 'bg-white border-black/10 text-primary hover:bg-black/5')}`}>
     {label}
   </button>
 );
@@ -708,7 +708,7 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
             <span className="material-symbols-outlined text-sm">open_in_new</span>
           </a>
         ) : isMembershipInactive ? (
-          <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
+          <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-bone'}`}>
             <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Wellness</span>
           </div>
         ) : isEnrolled ? (
@@ -721,7 +721,7 @@ const ClassCard: React.FC<any> = ({ title, date, time, instructor, duration, cat
             {isCancelDisabled ? (isOnWaitlist ? 'On Waitlist' : 'Confirmed') : isCancelling ? (isOnWaitlist ? 'Leaving Waitlist...' : 'Cancelling...') : isOnWaitlist ? 'Leave Waitlist' : 'Cancel'}
           </button>
         ) : showFullNoWaitlist ? (
-          <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
+          <div className={`w-full py-2.5 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-bone'}`}>
             <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Class Full</span>
           </div>
         ) : (

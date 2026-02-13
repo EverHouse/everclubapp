@@ -14,8 +14,6 @@ import type { CafeItem } from '../../../types/data';
 import RedeemDayPassSection from './RedeemPassCard';
 import IdScannerModal from '../../staff-command-center/modals/IdScannerModal';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
-
 interface CartItem {
   productId: string;
   name: string;
@@ -69,6 +67,8 @@ const POSRegister: React.FC = () => {
   const isDark = effectiveTheme === 'dark';
   const isMobile = useIsMobile();
   const { data: cafeItems, isLoading: cafeLoading } = useCafeMenu();
+
+  const stripePromise = useMemo(() => loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || ''), []);
 
   const [activeTab, setActiveTab] = useState<CategoryTab>('all');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);

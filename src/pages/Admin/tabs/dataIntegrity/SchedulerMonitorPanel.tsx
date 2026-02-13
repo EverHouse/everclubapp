@@ -63,6 +63,7 @@ const SchedulerMonitorPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     queryKey: ['admin', 'monitoring', 'schedulers'],
     queryFn: () => fetchWithCredentials<{ schedulers: SchedulerStatus[] }>('/api/admin/monitoring/schedulers'),
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
   });
 
   const schedulers = data?.schedulers || [];

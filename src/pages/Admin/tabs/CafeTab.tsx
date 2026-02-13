@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { usePageReady } from '../../../contexts/PageReadyContext';
+import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
 import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useUpdateCafeItem } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 
 const CafeTab: React.FC = () => {
     const { setPageReady } = usePageReady();
+    const { showToast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Queries and mutations
@@ -28,7 +30,7 @@ const CafeTab: React.FC = () => {
             let message = `Pulled from Stripe:\n• ${data.cafe?.synced || 0} cafe items synced`;
             if (data.cafe?.created > 0) message += `\n• ${data.cafe.created} new items created`;
             if (data.cafe?.deactivated > 0) message += `\n• ${data.cafe.deactivated} items deactivated`;
-            alert(message);
+            showToast(message, 'success');
         },
     });
     const handlePullFromStripe = () => pullMutation.mutate();
@@ -96,7 +98,7 @@ const CafeTab: React.FC = () => {
     const isLoading = uploadImageMutation.isPending || seedMenuMutation.isPending || updateItemMutation.isPending;
 
     return (
-        <div className="animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+        <div className="animate-slide-up-stagger backdrop-blur-sm" style={{ '--stagger-index': 0 } as React.CSSProperties}>
             <div className="flex justify-between items-center mb-4 animate-slide-up-stagger" style={{ '--stagger-index': 1 } as React.CSSProperties}>
                 <div>
                     <h2 className="text-xl font-bold text-primary dark:text-white">Menu Items</h2>

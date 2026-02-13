@@ -392,7 +392,7 @@ const Profile: React.FC = () => {
       setShowPrivacyModal(false);
     },
     onError: () => {
-      showToast('Deletion request sent to administration', 'success');
+      showToast('Failed to delete account. Please try again.', 'error');
       setShowDeleteConfirm(false);
       setShowPrivacyModal(false);
     },
@@ -433,7 +433,7 @@ const Profile: React.FC = () => {
          {/* Account Balance Section - only for members, not staff/admin */}
          {!isStaffOrAdminProfile && (
            <Section title="Account Balance" isDark={isDark} staggerIndex={2}>
-             <div className={`p-4 ${isDark ? '' : ''}`}>
+             <div className="p-4">
                <div className="flex items-center justify-between mb-4">
                  <div className="flex items-center gap-4">
                    <span className={`material-symbols-outlined ${isDark ? 'opacity-70' : 'text-primary/70'}`}>account_balance_wallet</span>
@@ -635,7 +635,7 @@ const Profile: React.FC = () => {
          </Section>
 
          <Section title="Connected Accounts" isDark={isDark} staggerIndex={5}>
-           <div className={`p-4 transition-colors ${isDark ? '' : ''}`}>
+           <div className="p-4 transition-colors">
              <div className="flex items-center justify-between">
                <div className="flex items-center gap-4">
                  <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -754,7 +754,7 @@ const Profile: React.FC = () => {
               </div>
               
               {showPasswordSection && (
-                <div className={`px-4 pb-4 space-y-4 ${isDark ? '' : ''}`}>
+                <div className="px-4 pb-4 space-y-4">
                   {hasPassword && (
                     <div>
                       <label className={`text-xs font-medium block mb-2 ${isDark ? 'opacity-70' : 'text-primary/70'}`}>

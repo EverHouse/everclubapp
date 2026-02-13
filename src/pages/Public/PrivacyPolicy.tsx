@@ -3,7 +3,7 @@ import { Footer } from '../../components/Footer';
 
 const PrivacyPolicy: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#F2F2EC] dark:bg-[#0f120a] text-[#293515] dark:text-[#F2F2EC] pt-24 pb-12">
+    <div className="min-h-screen bg-bone dark:bg-[#0f120a] text-primary dark:text-bone pt-24 pb-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl md:text-5xl font-display mb-8">Privacy Policy</h1>
         <p className="text-sm opacity-60 mb-12">Last updated: January 20, 2026</p>
@@ -33,7 +33,7 @@ const PrivacyPolicy: React.FC = () => {
             </ul>
           </section>
 
-          <section className="bg-white/50 dark:bg-white/5 p-6 rounded-xl border border-[#293515]/10 dark:border-white/10">
+          <section className="bg-white/50 dark:bg-white/5 p-6 rounded-xl border border-primary/10 dark:border-white/10">
             <h2 className="text-2xl font-display mb-4">Text Messaging & SMS Privacy</h2>
             <p className="mb-4">
               We value your privacy and the information you consent to share in relation to our SMS marketing service. We use this information to send you text notifications (for your bookings, including abandoned checkout reminders), marketing offers, and transactional texts, including requests for reviews from us.

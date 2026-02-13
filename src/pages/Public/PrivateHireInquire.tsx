@@ -161,14 +161,14 @@ const PrivateHireInquire: React.FC = () => {
 
   const getInputClass = (fieldName: string) => `w-full px-4 py-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 ${
     fieldErrors[fieldName] 
-      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
-      : 'border-primary/20 bg-white focus:ring-primary focus:border-primary'
-  } text-primary placeholder:text-gray-400`;
+      ? 'border-red-500 dark:border-red-500 focus:ring-red-500 bg-red-50 dark:bg-red-500/10' 
+      : 'border-primary/20 dark:border-white/10 bg-white dark:bg-white/5 focus:ring-primary focus:border-primary'
+  } text-primary dark:text-white placeholder:text-gray-400 dark:placeholder-white/40`;
 
   return (
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-[#F2F2EC]">
+    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#0f120a]">
       <div 
-        className="fixed top-0 left-0 right-0 bg-[#293515]"
+        className="fixed top-0 left-0 right-0 bg-primary"
         style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
         aria-hidden="true"
       />
@@ -176,7 +176,7 @@ const PrivateHireInquire: React.FC = () => {
       <div className="pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-4">
         <Link 
           to="/private-hire" 
-          className="inline-flex items-center gap-1 text-primary/70 hover:text-primary transition-colors py-2"
+          className="inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
         >
           <span className="material-symbols-outlined text-lg">arrow_back</span>
           <span className="text-sm font-medium">Back to Private Hire</span>
@@ -186,21 +186,21 @@ const PrivateHireInquire: React.FC = () => {
       <div className="px-4 pb-12">
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-serif font-light text-primary mb-3">
+            <h1 className="text-3xl md:text-4xl font-serif font-light text-primary dark:text-white mb-3">
               Host Your Event
             </h1>
-            <p className="text-primary/60 text-sm md:text-base">
+            <p className="text-primary/60 dark:text-white/60 text-sm md:text-base">
               Tell us about your vision, and our team will be in touch to help you bring it to life.
             </p>
           </div>
 
           {success ? (
-            <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] p-8 text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[2rem] border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="material-symbols-outlined text-4xl text-green-600 dark:text-green-400">check_circle</span>
               </div>
-              <h2 className="text-2xl font-bold text-primary mb-3">Thank You!</h2>
-              <p className="text-primary/70 mb-8 max-w-sm mx-auto">
+              <h2 className="text-2xl font-bold text-primary dark:text-white mb-3">Thank You!</h2>
+              <p className="text-primary/70 dark:text-white/70 mb-8 max-w-sm mx-auto">
                 We've received your event inquiry and will be in touch soon to discuss the details.
               </p>
               <Link 
@@ -211,21 +211,22 @@ const PrivateHireInquire: React.FC = () => {
               </Link>
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden">
-              <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>1</div>
-                <div className="w-16 h-0.5 bg-primary/20" />
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>2</div>
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-[2rem] border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden">
+              <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10 dark:border-white/10">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>1</div>
+                <div className="w-16 h-0.5 bg-primary/20 dark:bg-white/20" />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>2</div>
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 md:p-8">
                 {step === 1 ? (
                   <div className="space-y-5">
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
+                      <label htmlFor="hire-company" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                         Company / Organization
                       </label>
                       <input
+                        id="hire-company"
                         type="text"
                         value={formData.company}
                         onChange={(e) => handleChange('company', e.target.value)}
@@ -236,10 +237,11 @@ const PrivateHireInquire: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
-                          First Name <span className="text-red-500">*</span>
+                        <label htmlFor="hire-firstname" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                          First Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
+                          id="hire-firstname"
                           type="text"
                           value={formData.firstname}
                           onChange={(e) => {
@@ -250,17 +252,18 @@ const PrivateHireInquire: React.FC = () => {
                           className={getInputClass('firstname')}
                         />
                         {fieldErrors.firstname && (
-                          <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                          <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">error</span>
                             {fieldErrors.firstname}
                           </p>
                         )}
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
-                          Last Name <span className="text-red-500">*</span>
+                        <label htmlFor="hire-lastname" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                          Last Name <span className="text-red-500 dark:text-red-400">*</span>
                         </label>
                         <input
+                          id="hire-lastname"
                           type="text"
                           value={formData.lastname}
                           onChange={(e) => {
@@ -271,7 +274,7 @@ const PrivateHireInquire: React.FC = () => {
                           className={getInputClass('lastname')}
                         />
                         {fieldErrors.lastname && (
-                          <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                          <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm">error</span>
                             {fieldErrors.lastname}
                           </p>
@@ -280,10 +283,11 @@ const PrivateHireInquire: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
-                        Email <span className="text-red-500">*</span>
+                      <label htmlFor="hire-email" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                        Email <span className="text-red-500 dark:text-red-400">*</span>
                       </label>
                       <input
+                        id="hire-email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => {
@@ -294,7 +298,7 @@ const PrivateHireInquire: React.FC = () => {
                         className={getInputClass('email')}
                       />
                       {fieldErrors.email && (
-                        <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                           <span className="material-symbols-outlined text-sm">error</span>
                           {fieldErrors.email}
                         </p>
@@ -302,10 +306,11 @@ const PrivateHireInquire: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
-                        Phone Number <span className="text-red-500">*</span>
+                      <label htmlFor="hire-phone" className="block text-sm font-semibold text-primary dark:text-white mb-2">
+                        Phone Number <span className="text-red-500 dark:text-red-400">*</span>
                       </label>
                       <input
+                        id="hire-phone"
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => {
@@ -316,18 +321,18 @@ const PrivateHireInquire: React.FC = () => {
                         className={getInputClass('phone')}
                       />
                       {fieldErrors.phone && (
-                        <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-1 flex items-center gap-1">
                           <span className="material-symbols-outlined text-sm">error</span>
                           {fieldErrors.phone}
                         </p>
                       )}
                     </div>
 
-                    <div className="pt-4 border-t border-primary/10">
-                      <p className="text-xs text-primary/60 mb-4 leading-relaxed">
+                    <div className="pt-4 border-t border-primary/10 dark:border-white/10">
+                      <p className="text-xs text-primary/60 dark:text-white/60 mb-4 leading-relaxed">
                         Ever Club is committed to protecting and respecting your privacy. We use your information to administer your account and to provide the products, services, and updates you request from us. We also contact you with information about membership, events, promotions, operational updates, and other content that may be relevant to you. If you consent to receiving communications from us, please indicate your preferences below.
                       </p>
-                      <label className={`flex items-start gap-3 cursor-pointer group p-3 rounded-xl transition-colors ${fieldErrors.consent ? 'bg-red-50 border border-red-200' : 'hover:bg-primary/5'}`}>
+                      <label className={`flex items-start gap-3 cursor-pointer group p-3 rounded-xl transition-colors ${fieldErrors.consent ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20' : 'hover:bg-primary/5 dark:hover:bg-white/5'}`}>
                         <input
                           type="checkbox"
                           checked={formData.consent}
@@ -337,28 +342,28 @@ const PrivateHireInquire: React.FC = () => {
                           }}
                           className="mt-0.5 w-5 h-5 rounded border-primary/30 text-primary focus:ring-primary"
                         />
-                        <span className="text-sm text-primary leading-relaxed">
-                          I agree to receive communications from Ever Club regarding membership, account updates, events, and promotions. <span className="text-red-500">*</span>
+                        <span className="text-sm text-primary dark:text-white leading-relaxed">
+                          I agree to receive communications from Ever Club regarding membership, account updates, events, and promotions. <span className="text-red-500 dark:text-red-400">*</span>
                         </span>
                       </label>
                       {fieldErrors.consent && (
-                        <p className="text-sm text-red-500 mt-2 flex items-center gap-1 pl-1">
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-2 flex items-center gap-1 pl-1">
                           <span className="material-symbols-outlined text-sm">error</span>
                           {fieldErrors.consent}
                         </p>
                       )}
-                      <p className="text-xs text-primary/60 mt-4 leading-relaxed">
+                      <p className="text-xs text-primary/60 dark:text-white/60 mt-4 leading-relaxed">
                         You can unsubscribe from Ever Club communications at any time. For more information about how to unsubscribe, our privacy practices, and how we protect and respect your personal information, please review our Privacy Policy.
                       </p>
-                      <p className="text-xs text-primary/60 mt-3 leading-relaxed">
+                      <p className="text-xs text-primary/60 dark:text-white/60 mt-3 leading-relaxed">
                         By submitting this form, you authorize Ever Club to store and process your personal information to provide the content, services, and membership evaluation you have requested.
                       </p>
                     </div>
 
                     {error && (
-                      <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
-                        <span className="material-symbols-outlined text-red-600 text-lg mt-0.5">error</span>
-                        <span className="text-sm text-red-600">{error}</span>
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
+                        <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-lg mt-0.5">error</span>
+                        <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
                       </div>
                     )}
 
@@ -372,14 +377,15 @@ const PrivateHireInquire: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    <h3 className="text-xl font-bold text-primary font-serif">Event Details</h3>
+                    <h3 className="text-xl font-bold text-primary dark:text-white font-serif">Event Details</h3>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
+                        <label htmlFor="hire-event-date" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                           Event Date
                         </label>
                         <input
+                          id="hire-event-date"
                           type="date"
                           value={formData.event_date}
                           onChange={(e) => handleChange('event_date', e.target.value)}
@@ -387,10 +393,11 @@ const PrivateHireInquire: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
+                        <label htmlFor="hire-event-time" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                           Time
                         </label>
                         <input
+                          id="hire-event-time"
                           type="text"
                           value={formData.event_time}
                           onChange={(e) => handleChange('event_time', e.target.value)}
@@ -402,10 +409,11 @@ const PrivateHireInquire: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
+                        <label htmlFor="hire-event-type" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                           Event Type
                         </label>
                         <select
+                          id="hire-event-type"
                           value={formData.event_type}
                           onChange={(e) => handleChange('event_type', e.target.value)}
                           className={getInputClass('event_type')}
@@ -417,10 +425,11 @@ const PrivateHireInquire: React.FC = () => {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-primary mb-2">
+                        <label htmlFor="hire-guest-count" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                           Guest Count
                         </label>
                         <input
+                          id="hire-guest-count"
                           type="number"
                           value={formData.guest_count}
                           onChange={(e) => handleChange('guest_count', e.target.value)}
@@ -432,10 +441,11 @@ const PrivateHireInquire: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-2">
+                      <label htmlFor="hire-additional-details" className="block text-sm font-semibold text-primary dark:text-white mb-2">
                         Additional Details
                       </label>
                       <textarea
+                        id="hire-additional-details"
                         value={formData.additional_details}
                         onChange={(e) => handleChange('additional_details', e.target.value)}
                         placeholder="Tell us about your theme, dietary needs, or special requests."
@@ -445,19 +455,19 @@ const PrivateHireInquire: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-primary mb-3">
+                      <label htmlFor="hire-services" className="block text-sm font-semibold text-primary dark:text-white mb-3">
                         Event Services & Requirements
                       </label>
                       <div className="space-y-2">
                         {EVENT_SERVICES.map(service => (
-                          <label key={service.id} className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl hover:bg-primary/5 transition-colors">
+                          <label key={service.id} className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl hover:bg-primary/5 dark:hover:bg-white/5 transition-colors">
                             <input
                               type="checkbox"
                               checked={formData.services.includes(service.id)}
                               onChange={() => toggleService(service.id)}
                               className="w-5 h-5 rounded border-primary/30 text-primary focus:ring-primary"
                             />
-                            <span className="text-sm text-primary group-hover:text-primary transition-colors">
+                            <span className="text-sm text-primary dark:text-white group-hover:text-primary dark:group-hover:text-white transition-colors">
                               {service.label}
                             </span>
                           </label>
@@ -466,9 +476,9 @@ const PrivateHireInquire: React.FC = () => {
                     </div>
 
                     {error && (
-                      <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-2">
-                        <span className="material-symbols-outlined text-red-600 text-lg mt-0.5">error</span>
-                        <span className="text-sm text-red-600">{error}</span>
+                      <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
+                        <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-lg mt-0.5">error</span>
+                        <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
                       </div>
                     )}
 
@@ -476,7 +486,7 @@ const PrivateHireInquire: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleBack}
-                        className="flex-1 py-4 bg-primary/10 text-primary rounded-[2rem] font-semibold hover:bg-primary/20 transition-all"
+                        className="flex-1 py-4 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-[2rem] font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-all"
                       >
                         Previous
                       </button>

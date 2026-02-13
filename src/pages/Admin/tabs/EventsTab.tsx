@@ -90,7 +90,7 @@ const EventsTab: React.FC = () => {
 
     return (
         <PullToRefresh onRefresh={handlePullRefresh}>
-            <div className="animate-pop-in">
+            <div className="animate-pop-in backdrop-blur-sm">
                 {syncMessage && (
                     <div className={`mb-4 px-4 py-2 rounded-lg text-sm font-medium ${
                         syncMessage.startsWith('Error') || syncMessage.startsWith('Failed') || syncMessage.startsWith('Some syncs') || syncMessage.includes('failed')
@@ -108,8 +108,8 @@ const EventsTab: React.FC = () => {
                         style={{ touchAction: 'manipulation' }}
                         className={`flex-1 py-2.5 px-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${
                             activeSubTab === 'events'
-                                ? 'bg-primary text-white shadow-md'
-                                : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
+                                ? 'bg-primary dark:bg-primary text-white shadow-md'
+                                : 'bg-white/60 dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
                         <span aria-hidden="true" className="material-symbols-outlined text-[18px]">event</span>
@@ -121,8 +121,8 @@ const EventsTab: React.FC = () => {
                         style={{ touchAction: 'manipulation' }}
                         className={`flex-1 py-2.5 px-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${
                             activeSubTab === 'wellness'
-                                ? 'bg-[#CCB8E4] text-[#293515] shadow-md'
-                                : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
+                                ? 'bg-accent text-primary shadow-md'
+                                : 'bg-white/60 dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
                         }`}
                     >
                         <span aria-hidden="true" className="material-symbols-outlined text-[18px]">spa</span>

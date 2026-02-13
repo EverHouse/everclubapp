@@ -14,15 +14,13 @@ const PrivateHire: React.FC = () => {
   }, [setPageReady]);
 
   return (
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-[#F2F2EC]">
-       {/* Fixed brand green status bar fill for iOS PWA */}
+    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#0f120a]">
        <div 
-         className="fixed top-0 left-0 right-0 bg-[#293515]"
+         className="fixed top-0 left-0 right-0 bg-primary"
          style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
          aria-hidden="true"
        />
        
-       {/* Hero Section - full viewport like Landing page */}
        <div 
          ref={heroRef as React.RefObject<HTMLDivElement>}
          className="relative flex flex-col justify-end p-6 pb-[max(4rem,env(safe-area-inset-bottom))] overflow-visible"
@@ -31,7 +29,6 @@ const PrivateHire: React.FC = () => {
            minHeight: '700px'
          }}
        >
-         {/* Background container that extends into safe area */}
          <div 
            className="absolute inset-0 overflow-hidden rounded-b-[2.5rem]"
            style={{
@@ -57,7 +54,6 @@ const PrivateHire: React.FC = () => {
            />
          </div>
          
-         {/* Hero content - centered like Landing page */}
          <div className="relative z-10 flex flex-col items-center text-center">
            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight leading-[1.05] mb-4 text-white text-shadow-sm font-serif animate-hero-headline">
              Curated spaces for <br/> unforgettable moments.
@@ -76,16 +72,15 @@ const PrivateHire: React.FC = () => {
          </div>
        </div>
 
-       {/* Content wrapper with cream background */}
-       <div className="bg-[#F2F2EC]">
+       <div className="bg-bone dark:bg-[#0f120a]">
 
-       <section className="py-20 px-4 md:px-6 bg-[#F2F2EC]">
+       <section className="py-20 px-4 md:px-6 bg-bone dark:bg-[#0f120a]">
          <div className="max-w-7xl mx-auto">
            <div className="text-center mb-12 px-2">
-             <h2 className="text-3xl md:text-4xl font-light text-primary mb-4 font-serif">
+             <h2 className="text-3xl md:text-4xl font-light text-primary dark:text-white mb-4 font-serif">
                Explore the Space
              </h2>
-             <p className="text-primary/60 max-w-2xl mx-auto">
+             <p className="text-primary/60 dark:text-white/60 max-w-2xl mx-auto">
                Take a virtual walk through our lounges, simulator bays, and terrace before you visit.
              </p>
            </div>
@@ -93,13 +88,13 @@ const PrivateHire: React.FC = () => {
          </div>
        </section>
 
-       <section className="py-20 px-4 md:px-6 bg-[#F2F2EC]">
+       <section className="py-20 px-4 md:px-6 bg-bone dark:bg-[#0f120a]">
          <div className="max-w-7xl mx-auto">
            <div className="text-center mb-12 px-2">
-             <h2 className="text-3xl md:text-4xl font-light text-primary mb-4 font-serif">
+             <h2 className="text-3xl md:text-4xl font-light text-primary dark:text-white mb-4 font-serif">
                Tailored to Your Vision
              </h2>
-             <p className="text-primary/60 max-w-2xl mx-auto">
+             <p className="text-primary/60 dark:text-white/60 max-w-2xl mx-auto">
                From floorplan to final toast, every detail is crafted around your event.
              </p>
            </div>
@@ -116,12 +111,12 @@ const PrivateHire: React.FC = () => {
              ].map((feature, i) => (
                <div
                  key={feature.title}
-                 className="flex flex-col p-6 bg-white/40 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] animate-slide-up-stagger"
+                 className="flex flex-col p-6 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] animate-slide-up-stagger"
                  style={{ '--stagger-index': i } as React.CSSProperties}
                >
-                 <span className="material-symbols-outlined text-3xl text-primary mb-3">{feature.icon}</span>
-                 <h4 className="text-lg font-bold text-primary mb-2">{feature.title}</h4>
-                 <p className="text-sm text-primary/60 leading-relaxed">{feature.desc}</p>
+                 <span className="material-symbols-outlined text-3xl text-primary dark:text-white mb-3">{feature.icon}</span>
+                 <h4 className="text-lg font-bold text-primary dark:text-white mb-2">{feature.title}</h4>
+                 <p className="text-sm text-primary/60 dark:text-white/60 leading-relaxed">{feature.desc}</p>
                </div>
              ))}
            </div>
@@ -130,8 +125,8 @@ const PrivateHire: React.FC = () => {
 
        <div className="px-4 pb-8 space-y-6">
           <div className="flex items-center justify-between px-2 pb-2 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
-             <h3 className="text-lg font-bold text-primary">Available Spaces</h3>
-             <span className="text-xs font-bold text-primary/50 bg-[#E8E8E0] px-2 py-1 rounded uppercase tracking-widest">Select One</span>
+             <h3 className="text-lg font-bold text-primary dark:text-white">Available Spaces</h3>
+             <span className="text-xs font-bold text-primary/50 dark:text-white/50 bg-[#E8E8E0] dark:bg-white/5 px-2 py-1 rounded uppercase tracking-widest">Select One</span>
           </div>
           
           <SpaceCard
@@ -168,20 +163,20 @@ const PrivateHire: React.FC = () => {
 };
 
 const SpaceCard: React.FC<any> = ({ title, cap, img, tags, desc, index = 0 }) => (
-  <div className="group relative flex flex-col rounded-[2rem] overflow-hidden backdrop-blur-xl bg-white/40 border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms] animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+  <div className="group relative flex flex-col rounded-[2rem] overflow-hidden backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms] animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
      <div className="h-56 bg-cover bg-center relative" style={{backgroundImage: `url("${img}")`}}>
-        <div className="absolute inset-0 bg-gradient-to-t from-white/40 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white/40 dark:from-black/40 to-transparent"></div>
         <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-[0_0_12px_rgba(0,0,0,0.2)]">
            <span className="material-symbols-outlined text-sm text-white drop-shadow">groups</span>
            <span className="text-[10px] font-bold text-white uppercase drop-shadow">{cap}</span>
         </div>
      </div>
-     <div className="p-5 bg-white/30 backdrop-blur-sm">
-        <h4 className="text-xl font-bold text-primary mb-2">{title}</h4>
-        <p className="text-sm text-primary/60 mb-4 line-clamp-2 leading-relaxed">{desc}</p>
+     <div className="p-5 bg-white/30 dark:bg-white/5 backdrop-blur-sm">
+        <h4 className="text-xl font-bold text-primary dark:text-white mb-2">{title}</h4>
+        <p className="text-sm text-primary/60 dark:text-white/60 mb-4 line-clamp-2 leading-relaxed">{desc}</p>
         <div className="flex flex-wrap gap-2">
            {tags.map((tag: string) => (
-             <span key={tag} className="px-3 py-1 bg-white/60 backdrop-blur border border-white/80 rounded-full text-[10px] font-bold uppercase tracking-wide text-primary shadow-sm">{tag}</span>
+             <span key={tag} className="px-3 py-1 bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 dark:border-white/10 rounded-full text-[10px] font-bold uppercase tracking-wide text-primary dark:text-white shadow-sm dark:shadow-black/20">{tag}</span>
            ))}
         </div>
      </div>

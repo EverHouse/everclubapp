@@ -391,7 +391,7 @@ const MemberEvents: React.FC = () => {
                               <span className="material-symbols-outlined text-sm">open_in_new</span>
                             </a>
                           ) : user?.status && user.status.toLowerCase() !== 'active' ? (
-                            <div className={`flex-1 py-3 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-[#F2F2EC]'}`}>
+                            <div className={`flex-1 py-3 rounded-xl flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-bone'}`}>
                               <span className={`text-xs font-medium ${isDark ? 'text-white/60' : 'text-primary/60'}`}>Members Only Event</span>
                             </div>
                           ) : isPendingRsvp ? (

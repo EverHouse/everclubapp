@@ -10,6 +10,7 @@ import DiscountsSubTab from './DiscountsSubTab';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 import { useConfirmDialog } from '../../../components/ConfirmDialog';
 import { TiersTabSkeleton } from '../../../components/skeletons';
+import { useToast } from '../../../components/Toast';
 import CafeTab from './CafeTab';
 
 type SubTab = 'tiers' | 'products' | 'fees' | 'discounts' | 'cafe';
@@ -83,6 +84,7 @@ const BOOLEAN_FIELDS = [
 
 const TiersTab: React.FC = () => {
     const queryClient = useQueryClient();
+    const { showToast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const subtabParam = searchParams.get('subtab');
     const activeSubTab: SubTab = subtabParam === 'products' ? 'products' : subtabParam === 'fees' ? 'fees' : subtabParam === 'discounts' ? 'discounts' : subtabParam === 'cafe' ? 'cafe' : 'tiers';
@@ -341,15 +343,15 @@ const TiersTab: React.FC = () => {
             if (data.skipped > 0) {
                 message += `\n\nSkipped: ${data.skipped} (no price configured)`;
             }
-            alert(message);
+            showToast(message, 'success');
             queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
         },
         onError: (err: Error) => {
             const errorMsg = err.message || 'Unknown error';
             if (errorMsg.includes('connection not found')) {
-                alert('Stripe sync failed: Stripe is not configured for this environment. Please set up Stripe live keys in Replit\'s Integrations panel before publishing.');
+                showToast('Stripe sync failed: Stripe is not configured for this environment. Please set up Stripe live keys in Replit\'s Integrations panel before publishing.', 'error');
             } else {
-                alert('Sync failed: ' + errorMsg);
+                showToast('Sync failed: ' + errorMsg, 'error');
             }
         },
     });
@@ -364,12 +366,12 @@ const TiersTab: React.FC = () => {
             if (data.cafe.deactivated > 0) message += `\n• ${data.cafe.deactivated} cafe items deactivated`;
             const allErrors = [...(data.tiers.errors || []), ...(data.cafe.errors || [])];
             if (allErrors.length > 0) message += `\n\nWarnings:\n${allErrors.join('\n')}`;
-            alert(message);
+            showToast(message, allErrors.length > 0 ? 'warning' : 'success');
             queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
             queryClient.invalidateQueries({ queryKey: ['cafe-menu'] });
         },
         onError: (err: Error) => {
-            alert('Pull from Stripe failed: ' + (err.message || 'Unknown error'));
+            showToast('Pull from Stripe failed: ' + (err.message || 'Unknown error'), 'error');
         },
     });
 

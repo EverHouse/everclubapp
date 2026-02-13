@@ -100,12 +100,12 @@ const Gallery: React.FC = () => {
     <>
       <AnimatedPage>
       <div 
-        className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden"
+        className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a] overflow-x-hidden"
         style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
       >
         <div className="px-5 pt-4 md:pt-2 pb-6 animate-content-enter">
-          <h1 className="text-3xl font-medium tracking-tight text-primary leading-tight">Gallery</h1>
-          <p className="text-primary/70 text-base mt-2 font-light">Explore the exclusive spaces of Ever Club.</p>
+          <h1 className="text-3xl font-medium tracking-tight text-primary dark:text-white leading-tight">Gallery</h1>
+          <p className="text-primary/70 dark:text-white/70 text-base mt-2 font-light">Explore the exclusive spaces of Ever Club.</p>
         </div>
 
         <div className="pl-5 pr-5 py-2 w-full overflow-x-auto scrollbar-hide mb-6 animate-content-enter-delay-1">
@@ -138,7 +138,7 @@ const Gallery: React.FC = () => {
                 ))}
               </div>
               <div className="mt-12 flex justify-center pb-8">
-                <p className="text-xs text-primary/40 font-medium">
+                <p className="text-xs text-primary/40 dark:text-white/40 font-medium">
                   {filteredItems.length} {filteredItems.length === 1 ? 'image' : 'images'}
                 </p>
               </div>
@@ -169,8 +169,8 @@ const FilterButton: React.FC<{label: string; active?: boolean; onClick?: () => v
     disabled={disabled}
     className={`${
         active 
-        ? 'bg-primary text-white shadow-md' 
-        : 'bg-white/40 text-primary border border-white/50 hover:bg-white/60 backdrop-blur-md'
+        ? 'bg-primary text-white shadow-md dark:shadow-black/20' 
+        : 'bg-white/40 dark:bg-white/5 text-primary dark:text-white border border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 backdrop-blur-md'
     } px-5 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`}
   >
     {label}
@@ -194,11 +194,11 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, index, onItem
   
   return (
     <div 
-      className={`break-inside-avoid relative group rounded-2xl overflow-hidden shadow-sm cursor-pointer mb-4 border border-white/20 active:scale-[0.98] transition-transform animate-list-item-delay-${Math.min(index, 10)}`}
+      className={`break-inside-avoid relative group rounded-2xl overflow-hidden shadow-sm dark:shadow-black/20 cursor-pointer mb-4 border border-white/20 dark:border-white/10 active:scale-[0.98] transition-transform animate-list-item-delay-${Math.min(index, 10)}`}
       onClick={handleClick}
     >
       {!loaded && !error && (
-        <div className={`w-full ${skeletonHeight} bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 rounded-2xl overflow-hidden`}>
+        <div className={`w-full ${skeletonHeight} bg-gradient-to-br from-gray-200 dark:from-white/10 via-gray-100 dark:via-white/5 to-gray-200 dark:to-white/10 rounded-2xl overflow-hidden`}>
           <div className="w-full h-full shimmer-effect" />
         </div>
       )}
@@ -212,8 +212,8 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, index, onItem
         onError={() => setError(true)}
       />
       {error && (
-        <div className={`w-full ${skeletonHeight} bg-gray-200 flex items-center justify-center rounded-2xl`}>
-          <span className="material-symbols-outlined text-gray-400 text-3xl">broken_image</span>
+        <div className={`w-full ${skeletonHeight} bg-gray-200 dark:bg-white/5 flex items-center justify-center rounded-2xl`}>
+          <span className="material-symbols-outlined text-gray-400 dark:text-white/50 text-3xl">broken_image</span>
         </div>
       )}
       {loaded && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>}

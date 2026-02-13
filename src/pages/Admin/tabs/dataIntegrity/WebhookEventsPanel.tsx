@@ -45,6 +45,7 @@ const WebhookEventsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     queryKey: ['admin', 'monitoring', 'webhooks', statusFilter, typeFilter],
     queryFn: () => fetchWithCredentials<{ events: WebhookEvent[]; total: number }>(`/api/admin/monitoring/webhooks?${params.toString()}`),
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
     enabled: isOpen,
   });
 

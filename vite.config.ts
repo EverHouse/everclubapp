@@ -111,6 +111,12 @@ export default defineConfig({
             if (id.includes('@supabase')) {
               return 'vendor-supabase';
             }
+            if (id.includes('@stripe/stripe-js') || id.includes('@stripe/react-stripe-js')) {
+              return 'vendor-stripe';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-tanstack';
+            }
             if (id.includes('zustand') || id.includes('zod')) {
               return 'vendor-utils';
             }

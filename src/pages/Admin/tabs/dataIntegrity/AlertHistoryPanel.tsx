@@ -51,6 +51,7 @@ const AlertHistoryPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     queryKey: ['admin', 'monitoring', 'alerts', startDate, endDate],
     queryFn: () => fetchWithCredentials<{ alerts: AlertEntry[] }>(`/api/admin/monitoring/alerts?${params.toString()}`),
     refetchInterval: 60000,
+    refetchIntervalInBackground: false,
     enabled: isOpen,
   });
 

@@ -1101,7 +1101,7 @@ const BookGolf: React.FC = () => {
                         aria-pressed={duration === mins}
                         className={`relative p-3 rounded-xl border transition-all active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
                           duration === mins
-                            ? 'bg-accent text-[#293515] border-accent shadow-glow'
+                            ? 'bg-accent text-primary border-accent shadow-glow'
                             : isLowTime
                               ? (isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
                               : (isDark ? 'bg-black/20 border-white/20 text-white/80 hover:bg-white/5' : 'bg-white border-black/10 text-primary/80 hover:bg-black/5')
@@ -1367,7 +1367,7 @@ const BookGolf: React.FC = () => {
                             chevron_right
                           </span>
                           <div>
-                            <div className={`font-bold text-base ${hasSelectedSlot ? (isDark ? 'text-accent' : 'text-[#293515]') : (isDark ? 'text-white' : 'text-primary')}`}>
+                            <div className={`font-bold text-base ${hasSelectedSlot ? (isDark ? 'text-accent' : 'text-primary') : (isDark ? 'text-white' : 'text-primary')}`}>
                               {hourGroup.hourLabel}
                             </div>
                             <div className={`text-[10px] font-bold uppercase tracking-wide ${hasSelectedSlot ? 'text-accent/80' : 'opacity-50'}`}>
@@ -1394,7 +1394,7 @@ const BookGolf: React.FC = () => {
                             aria-pressed={selectedSlot?.id === slot.id}
                             className={`p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
                               selectedSlot?.id === slot.id
-                              ? 'bg-accent text-[#293515] border-accent shadow-glow'
+                              ? 'bg-accent text-primary border-accent shadow-glow'
                               : (isDark ? 'glass-card text-white hover:bg-white/10 border-white/25' : 'bg-white text-primary hover:bg-black/5 border-black/10 shadow-sm')
                             }`}
                             style={{ '--stagger-index': slotIndex } as React.CSSProperties}
@@ -1516,7 +1516,7 @@ const BookGolf: React.FC = () => {
                   isProcessingPayment 
                     ? 'opacity-50 cursor-not-allowed' 
                     : ''
-                } bg-accent text-[#293515] hover:bg-accent/90`}
+                } bg-accent text-primary hover:bg-accent/90`}
               >
                 {isProcessingPayment ? (
                   <WalkingGolferSpinner size="sm" />
@@ -1563,7 +1563,7 @@ const BookGolf: React.FC = () => {
           <button 
             onClick={() => { haptic.heavy(); handleConfirm(); }}
             disabled={isBooking}
-            className="w-full py-4 rounded-xl font-bold text-lg shadow-glow transition-all flex items-center justify-center gap-2 bg-accent text-[#293515] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus:ring-2 focus:ring-white focus:outline-none"
+            className="w-full py-4 rounded-xl font-bold text-lg shadow-glow transition-all flex items-center justify-center gap-2 bg-accent text-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus:ring-2 focus:ring-white focus:outline-none"
           >
             {isBooking ? (
               <>

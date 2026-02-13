@@ -44,6 +44,7 @@ const HubSpotQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     queryKey: ['admin', 'monitoring', 'hubspot-queue'],
     queryFn: () => fetchWithCredentials<HubSpotQueueData>('/api/admin/monitoring/hubspot-queue'),
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
     enabled: isOpen,
   });
 

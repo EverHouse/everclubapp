@@ -13,6 +13,29 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.54.0",
+    date: "2026-02-13",
+    title: "Full Frontend Audit — Dark Mode, Design Consistency & Performance Upgrades",
+    isMajor: true,
+    changes: [
+      "New: Dark mode support added to all 14 public pages that were missing it — Login, Contact, Gallery, Membership, WhatsOn, PrivateHire, FAQ, Cafe, forms, and more",
+      "New: Liquid Glass styling added to 5 admin tabs that were visually inconsistent (Cafe, Tours, Settings, Team, Events)",
+      "Improved: 70+ hardcoded color values replaced with design system tokens across 16 pages for easier theming",
+      "Improved: Modal close animation — modals now smoothly fade out instead of disappearing instantly",
+      "Improved: Admin feedback — CafeTab and TiersTab now show toast messages instead of browser alert popups",
+      "Improved: Monitoring panels stop polling when browser tab is in background — saves battery and bandwidth",
+      "Improved: Stripe and HubSpot scripts now load lazily for faster page loads",
+      "Improved: Large libraries (Stripe, TanStack) split into separate bundles for better caching",
+      "Improved: Stripe DNS preconnect added for faster checkout",
+      "Fixed: Accessibility — 25+ form labels properly linked to inputs for screen readers",
+      "Fixed: Profile page delete account error now correctly shows error message instead of success",
+      "Fixed: DirectoryTab filter pills now display correctly in dark mode",
+      "Fixed: EventsTab dark mode coverage expanded",
+      "Fixed: Reduced-motion preference now properly handles all animated elements — no more invisible content",
+      "Fixed: Theme transition speed improved from 0.4s to 0.3s for snappier feel",
+    ],
+  },
+  {
     version: "7.53.0",
     date: "2026-02-13",
     title: "Admin Monitoring Dashboard — See Everything Running Under the Hood",

@@ -108,26 +108,26 @@ const BuyDayPass: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#F2F2EC]">
+      <div className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-2 border-primary dark:border-white border-t-transparent rounded-full" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden">
+    <div className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a] overflow-x-hidden">
       <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-pop-in">
-        <h1 className="text-3xl font-bold tracking-tight text-primary mb-3">Day Passes</h1>
-        <p className="text-primary/70 text-sm leading-relaxed max-w-xs mx-auto">
+        <h1 className="text-3xl font-bold tracking-tight text-primary dark:text-white mb-3">Day Passes</h1>
+        <p className="text-primary/70 dark:text-white/70 text-sm leading-relaxed max-w-xs mx-auto">
           Experience Ever Club as a guest. No membership required.
         </p>
       </div>
 
       <section className="px-4 mb-6">
-        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-black/5">
-          <h2 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-[#1a1d15] rounded-[2rem] p-6 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10">
+          <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-xl">person</span>
             Your Information
           </h2>
@@ -164,20 +164,20 @@ const BuyDayPass: React.FC = () => {
 
       {error && (
         <div className="px-4 mb-4">
-          <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
+          <div className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         </div>
       )}
 
       <section className="px-4 mb-8">
-        <h2 className="text-lg font-bold text-primary mb-4 flex items-center gap-2 px-2">
+        <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2 px-2">
           <span className="material-symbols-outlined text-xl">confirmation_number</span>
           Available Passes
         </h2>
 
         {tiers.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-black/5">
+          <div className="bg-white dark:bg-[#1a1d15] rounded-2xl border border-black/5 dark:border-white/10">
             <EmptyState
               icon="confirmation_number"
               title="No day passes available"
@@ -190,17 +190,17 @@ const BuyDayPass: React.FC = () => {
             {tiers.map((tier) => (
               <div 
                 key={tier.id}
-                className="bg-white rounded-2xl p-5 border border-black/5 shadow-sm"
+                className="bg-white dark:bg-[#1a1d15] rounded-2xl p-5 border border-black/5 dark:border-white/10 shadow-sm dark:shadow-none"
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-primary">{tier.name}</h3>
+                    <h3 className="text-lg font-bold text-primary dark:text-white">{tier.name}</h3>
                     {tier.description && (
-                      <p className="text-sm text-primary/60 mt-1">{tier.description}</p>
+                      <p className="text-sm text-primary/60 dark:text-white/60 mt-1">{tier.description}</p>
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="text-2xl font-bold text-primary">
+                    <span className="text-2xl font-bold text-primary dark:text-white">
                       {tier.priceCents ? formatPrice(tier.priceCents) : tier.priceString}
                     </span>
                   </div>
@@ -232,22 +232,22 @@ const BuyDayPass: React.FC = () => {
       </section>
 
       <section className="px-4 mb-8">
-        <div className="bg-[#E8E8E0]/50 rounded-2xl p-5">
-          <h3 className="text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <div className="bg-[#E8E8E0]/50 dark:bg-white/5 rounded-2xl p-5">
+          <h3 className="text-base font-bold text-primary dark:text-white mb-3 flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">info</span>
             How It Works
           </h3>
-          <ul className="space-y-2 text-sm text-primary/70">
+          <ul className="space-y-2 text-sm text-primary/70 dark:text-white/70">
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-base text-primary/50 mt-0.5">check_circle</span>
+              <span className="material-symbols-outlined text-base text-primary/50 dark:text-white/50 mt-0.5">check_circle</span>
               <span>Complete your purchase securely with Stripe</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-base text-primary/50 mt-0.5">check_circle</span>
+              <span className="material-symbols-outlined text-base text-primary/50 dark:text-white/50 mt-0.5">check_circle</span>
               <span>Receive a QR code via email</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-base text-primary/50 mt-0.5">check_circle</span>
+              <span className="material-symbols-outlined text-base text-primary/50 dark:text-white/50 mt-0.5">check_circle</span>
               <span>Show your QR code at the front desk when you arrive</span>
             </li>
           </ul>
@@ -255,12 +255,12 @@ const BuyDayPass: React.FC = () => {
       </section>
 
       <section className="px-4 py-8 mb-4">
-        <div className="bg-[#293515] rounded-2xl p-6 text-center">
+        <div className="bg-primary rounded-2xl p-6 text-center">
           <h3 className="text-xl font-bold text-white mb-2">Want more than a day pass?</h3>
           <p className="text-white/70 text-sm mb-4">Become a member and enjoy unlimited access plus exclusive benefits.</p>
           <button 
             onClick={() => { startNavigation(); navigate('/membership'); }}
-            className="bg-[#F2F2EC] text-[#293515] px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+            className="bg-bone text-primary px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
           >
             Explore Memberships
           </button>

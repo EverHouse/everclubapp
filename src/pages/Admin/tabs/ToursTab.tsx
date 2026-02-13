@@ -200,7 +200,7 @@ const ToursTab: React.FC = () => {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-      <AnimatedPage className="space-y-6 pb-32">
+      <AnimatedPage className="space-y-6 pb-32 backdrop-blur-sm">
         <p className="text-sm text-primary/80 dark:text-white/80 animate-content-enter-delay-1">
           Synced from Google Calendar: <span className="font-medium">Tours Scheduled</span>
         </p>

@@ -20,7 +20,7 @@ export const BRAND = {
   
   colors: {
     primary: '#293515',
-    accent: '#C4A962',
+    accent: '#CCB8E4',
     background: {
       light: '#F2F2EC',
       dark: '#0f120a',

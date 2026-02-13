@@ -314,7 +314,7 @@ const TeamTab: React.FC = () => {
 
   return (
     <AnimatedPage>
-      <div className="bg-white dark:bg-surface-dark rounded-2xl p-6 border border-gray-200 dark:border-white/25 animate-content-enter-delay-1">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-1">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-bold text-primary dark:text-white">Manage Team</h3>

@@ -37,6 +37,7 @@ const JobQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     queryKey: ['admin', 'monitoring', 'jobs'],
     queryFn: () => fetchWithCredentials<JobQueueData>('/api/admin/monitoring/jobs'),
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
     enabled: isOpen,
   });
 

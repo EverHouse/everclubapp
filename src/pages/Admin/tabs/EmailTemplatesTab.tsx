@@ -87,7 +87,7 @@ const EmailTemplatesTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#293515] dark:border-[#F2F2EC]" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-bone" />
       </div>
     );
   }
@@ -95,10 +95,10 @@ const EmailTemplatesTab: React.FC = () => {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="material-symbols-outlined text-5xl text-[#293515]/50 dark:text-white/50 mb-4">error_outline</span>
-        <h3 className="text-lg font-bold text-[#293515] dark:text-white mb-2">Something went wrong</h3>
-        <p className="text-sm text-[#293515]/70 dark:text-white/70 mb-6">{error}</p>
-        <button onClick={fetchTemplates} className="px-5 py-2.5 bg-[#293515] dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-full font-medium">
+        <span className="material-symbols-outlined text-5xl text-primary/50 dark:text-white/50 mb-4">error_outline</span>
+        <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Something went wrong</h3>
+        <p className="text-sm text-primary/70 dark:text-white/70 mb-6">{error}</p>
+        <button onClick={fetchTemplates} className="px-5 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium">
           Try Again
         </button>
       </div>
@@ -108,7 +108,7 @@ const EmailTemplatesTab: React.FC = () => {
   return (
     <div className="space-y-6 animate-pop-in pb-32">
       <div className="mb-2">
-        <p className="text-sm text-[#293515]/70 dark:text-white/70">
+        <p className="text-sm text-primary/70 dark:text-white/70">
           Preview all email templates sent to members. Select a template to see its rendered HTML.
         </p>
       </div>
@@ -120,7 +120,7 @@ const EmailTemplatesTab: React.FC = () => {
             const t = templates.find(t => t.id === e.target.value);
             if (t) selectTemplate(t);
           }}
-          className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl border border-white/20 dark:border-white/10 text-[#293515] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#CCB8E4] appearance-none"
+          className="w-full px-4 py-3 rounded-xl bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl border border-white/20 dark:border-white/10 text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-accent appearance-none"
         >
           {sortedCategories.map(category => (
             <optgroup key={category} label={category}>
@@ -138,12 +138,12 @@ const EmailTemplatesTab: React.FC = () => {
             <div className="max-h-[calc(100vh-180px)] overflow-y-auto">
               {sortedCategories.map(category => (
                 <div key={category}>
-                  <div className="px-4 py-3 border-b border-[#293515]/5 dark:border-white/5">
+                  <div className="px-4 py-3 border-b border-primary/5 dark:border-white/5">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base text-[#293515]/40 dark:text-white/40">
+                      <span className="material-symbols-outlined text-base text-primary/40 dark:text-white/40">
                         {CATEGORY_ICONS[category] || 'folder'}
                       </span>
-                      <h3 className="text-xs font-semibold text-[#293515]/50 dark:text-white/40 uppercase tracking-widest font-['Playfair_Display']">
+                      <h3 className="text-xs font-semibold text-primary/50 dark:text-white/40 uppercase tracking-widest font-['Playfair_Display']">
                         {category}
                       </h3>
                     </div>
@@ -157,14 +157,14 @@ const EmailTemplatesTab: React.FC = () => {
                           onClick={() => selectTemplate(template)}
                           className={`w-full text-left px-4 py-2.5 transition-all duration-200 ${
                             isActive
-                              ? 'bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 border-l-2 border-[#CCB8E4]'
-                              : 'hover:bg-[#293515]/5 dark:hover:bg-white/5 border-l-2 border-transparent'
+                              ? 'bg-accent/20 dark:bg-accent/10 border-l-2 border-accent'
+                              : 'hover:bg-primary/5 dark:hover:bg-white/5 border-l-2 border-transparent'
                           }`}
                         >
-                          <p className={`text-sm font-medium ${isActive ? 'text-[#293515] dark:text-[#CCB8E4]' : 'text-[#293515]/80 dark:text-white/70'}`}>
+                          <p className={`text-sm font-medium ${isActive ? 'text-primary dark:text-accent' : 'text-primary/80 dark:text-white/70'}`}>
                             {template.name}
                           </p>
-                          <p className="text-xs text-[#293515]/50 dark:text-white/40 mt-0.5 line-clamp-1">
+                          <p className="text-xs text-primary/50 dark:text-white/40 mt-0.5 line-clamp-1">
                             {template.description}
                           </p>
                         </button>
@@ -180,24 +180,24 @@ const EmailTemplatesTab: React.FC = () => {
         <div className="flex-1 min-w-0">
           {selectedTemplate && (
             <div className="bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-lg overflow-hidden">
-              <div className="px-5 py-4 border-b border-[#293515]/5 dark:border-white/5 flex items-center justify-between">
+              <div className="px-5 py-4 border-b border-primary/5 dark:border-white/5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-[#293515] dark:text-white font-['Playfair_Display']">
+                  <h2 className="text-lg font-bold text-primary dark:text-white font-['Playfair_Display']">
                     {selectedTemplate.name}
                   </h2>
-                  <p className="text-xs text-[#293515]/50 dark:text-white/40 mt-0.5">
+                  <p className="text-xs text-primary/50 dark:text-white/40 mt-0.5">
                     {selectedTemplate.description}
                   </p>
                 </div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#CCB8E4]/20 text-[#293515] dark:text-[#CCB8E4]">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-accent/20 text-primary dark:text-accent">
                   {selectedTemplate.category}
                 </span>
               </div>
 
-              <div className="relative bg-[#F2F2EC] dark:bg-[#1a1a1a]" style={{ minHeight: '600px' }}>
+              <div className="relative bg-bone dark:bg-[#1a1a1a]" style={{ minHeight: '600px' }}>
                 {previewLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#F2F2EC]/80 dark:bg-[#1a1a1a]/80 z-10">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#293515] dark:border-[#CCB8E4]" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-bone/80 dark:bg-[#1a1a1a]/80 z-10">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-accent" />
                   </div>
                 )}
                 <iframe

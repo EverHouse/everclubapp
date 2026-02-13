@@ -685,7 +685,7 @@ const MemberUpdates: React.FC = () => {
           onClick={() => handleTabChange('announcements')}
           className={`flex-1 py-3 px-2 rounded-xl text-[11px] font-bold uppercase tracking-tight transition-all ${
             activeTab === 'announcements'
-              ? 'bg-[#CCB8E4] text-[#293515]'
+              ? 'bg-accent text-primary'
               : isDark ? 'bg-white/5 text-white/80 hover:bg-white/10' : 'bg-primary/5 text-primary/80 hover:bg-primary/10'
           }`}
         >

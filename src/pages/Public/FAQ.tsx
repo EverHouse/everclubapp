@@ -67,12 +67,12 @@ const FAQ: React.FC = () => {
   return (
     <AnimatedPage>
     <div 
-      className="flex flex-col min-h-screen bg-[#F2F2EC] overflow-x-hidden"
+      className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a] overflow-x-hidden"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}
     >
       <div className="px-6 pt-4 md:pt-2 pb-4 animate-content-enter">
-        <h1 className="text-3xl font-bold tracking-tight text-primary mb-2">Frequently Asked Questions</h1>
-        <p className="text-primary/70 text-base font-medium">Common questions about membership, amenities, and policies.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-primary dark:text-white mb-2">Frequently Asked Questions</h1>
+        <p className="text-primary/70 dark:text-white/70 text-base font-medium">Common questions about membership, amenities, and policies.</p>
       </div>
 
       {!loading && categories.length > 0 && (
@@ -83,7 +83,7 @@ const FAQ: React.FC = () => {
               className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
                 selectedCategory === null
                   ? 'bg-primary text-white'
-                  : 'bg-white/60 text-primary/70 hover:bg-white/80'
+                  : 'bg-white/60 dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-white/80 dark:hover:bg-white/10'
               }`}
             >
               All
@@ -95,7 +95,7 @@ const FAQ: React.FC = () => {
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
                   selectedCategory === category
                     ? 'bg-primary text-white'
-                    : 'bg-white/60 text-primary/70 hover:bg-white/80'
+                    : 'bg-white/60 dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-white/80 dark:hover:bg-white/10'
                 }`}
               >
                 {category}
@@ -136,10 +136,10 @@ const AccordionItem: React.FC<{ question: string; answer: string }> = ({ questio
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="border border-primary/10 rounded-xl overflow-hidden bg-white/40 backdrop-blur-xl">
+    <div className="border border-primary/10 dark:border-white/10 rounded-xl overflow-hidden bg-white/40 dark:bg-white/5 backdrop-blur-xl">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 text-left font-bold text-primary hover:bg-primary/5 transition-colors"
+        className="w-full flex items-center justify-between p-4 text-left font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
       >
         <span>{question}</span>
         <span className={`material-symbols-outlined transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
@@ -147,7 +147,7 @@ const AccordionItem: React.FC<{ question: string; answer: string }> = ({ questio
       <div 
         className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
       >
-        <div className="p-4 pt-0 text-sm text-primary/70 leading-relaxed">
+        <div className="p-4 pt-0 text-sm text-primary/70 dark:text-white/70 leading-relaxed">
           {answer}
         </div>
       </div>

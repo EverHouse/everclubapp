@@ -18,7 +18,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
       : (isDark ? 'glass-card hover:bg-white/5 border-white/25' : 'bg-white hover:bg-black/5 border-black/10 shadow-sm')
     }`}
   >
-    <div className={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center mr-4 overflow-hidden ${selected ? 'bg-accent text-[#293515]' : (isDark ? 'bg-white/5 text-white/70' : 'bg-black/5 text-primary/70')}`}>
+    <div className={`w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center mr-4 overflow-hidden ${selected ? 'bg-accent text-primary' : (isDark ? 'bg-white/5 text-white/70' : 'bg-black/5 text-primary/70')}`}>
       <span className="material-symbols-outlined text-2xl">{resource.icon || 'meeting_room'}</span>
     </div>
     
@@ -26,7 +26,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
       <div className="flex justify-between items-center mb-0.5">
         <span className={`font-bold text-base ${isDark ? 'text-white' : 'text-primary'}`}>{resource.name}</span>
         {resource.badge && (
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${selected ? 'bg-accent text-[#293515]' : (isDark ? 'bg-white/10 text-white/70' : 'bg-black/10 text-primary/70')}`}>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${selected ? 'bg-accent text-primary' : (isDark ? 'bg-white/10 text-white/70' : 'bg-black/10 text-primary/70')}`}>
             {resource.badge}
           </span>
         )}

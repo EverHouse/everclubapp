@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
@@ -46,16 +46,28 @@ export function ModalShell({
   const onCloseRef = useRef(onClose);
   const dismissibleRef = useRef(dismissible);
   const [modalZIndex, setModalZIndex] = useState(BASE_MODAL_Z_INDEX);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      onCloseRef.current();
+    }, 150);
+  }, [isClosing]);
 
   useEffect(() => {
     onCloseRef.current = onClose;
     dismissibleRef.current = dismissible;
   });
 
-  useScrollLockManager(isOpen, dismissible ? onClose : undefined);
+  useScrollLockManager(isOpen, dismissible ? handleClose : undefined);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setIsClosing(false);
+      return;
+    }
 
     previousActiveElement.current = document.activeElement as HTMLElement;
     
@@ -83,7 +95,7 @@ export function ModalShell({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isClosing) return null;
 
   const modalContent = (
     <div 
@@ -91,7 +103,7 @@ export function ModalShell({
       style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: modalZIndex, height: '100dvh' }}
     >
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-backdrop-fade-in"
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-150 ${isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'}`}
         aria-hidden="true"
         style={{ touchAction: 'none', height: '100dvh' }}
       />
@@ -101,7 +113,7 @@ export function ModalShell({
         style={{ overscrollBehavior: 'contain', height: '100dvh' }}
         onClick={(e) => {
           if (dismissible && e.target === e.currentTarget) {
-            onClose();
+            handleClose();
           }
         }}
       >
@@ -109,7 +121,7 @@ export function ModalShell({
           className="flex min-h-full items-center justify-center p-4"
           onClick={(e) => {
             if (dismissible && e.target === e.currentTarget) {
-              onClose();
+              handleClose();
             }
           }}
         >
@@ -120,7 +132,7 @@ export function ModalShell({
             aria-labelledby={title ? 'modal-title' : undefined}
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
-            className={`relative w-full ${sizeClasses[size]} ${isDark ? 'bg-[#1a1d15] border-white/10' : 'bg-white border-gray-200'} rounded-2xl shadow-2xl border animate-modal-slide-up ${className}`}
+            className={`relative w-full ${sizeClasses[size]} ${isDark ? 'bg-[#1a1d15] border-white/10' : 'bg-white border-gray-200'} rounded-2xl shadow-2xl border transform transition-all duration-150 ${isClosing ? 'scale-95 opacity-0' : 'animate-modal-slide-up'} ${className}`}
           >
             {(title || showCloseButton) && (
               <div className={`flex items-center justify-between p-4 ${hideTitleBorder ? '' : `border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}`}>
@@ -134,7 +146,7 @@ export function ModalShell({
                 )}
                 {showCloseButton && (
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
                     aria-label="Close modal"
                   >
