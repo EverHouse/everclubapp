@@ -63,7 +63,10 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } else {
       document.documentElement.classList.remove('dark');
     }
-    // Note: theme-color meta tag removed - iOS Safari shows page content behind translucent status bar
+    const themeColor = effectiveTheme === 'dark' ? '#1a2310' : '#293515';
+    document.querySelectorAll('meta[name="theme-color"]').forEach(el => {
+      el.setAttribute('content', themeColor);
+    });
   }, [effectiveTheme]);
 
   return (
