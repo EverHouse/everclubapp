@@ -296,7 +296,7 @@ const Landing: React.FC = () => {
         url="/"
         image="/images/hero-lounge-optimized.webp"
       />
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone">
+    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#0f120a]">
       {/* Fixed brand green status bar fill for iOS PWA */}
       <div 
         className="fixed top-0 left-0 right-0 bg-primary"
@@ -361,10 +361,10 @@ const Landing: React.FC = () => {
       </div>
 
       {/* Content wrapper with cream background */}
-      <div className="bg-bone">
+      <div className="bg-bone dark:bg-[#0f120a]">
       {/* Features Section - "Why Ever Club" (Moved to First Position) */}
       <section className="px-6 py-12 animate-content-enter-delay-1">
-        <h2 className="text-3xl font-bold text-primary mb-8 font-sans">Why Ever Members Club</h2>
+        <h2 className="text-3xl font-bold text-primary dark:text-white mb-8 font-sans">Why Ever Members Club</h2>
         <div className="grid grid-cols-2 gap-4">
           <FeatureCard 
             image="/images/golf-sims-optimized.webp"
@@ -424,8 +424,8 @@ const Landing: React.FC = () => {
       </div>
 
       {/* Press & Media Section */}
-      <div className="px-6 pt-6 pb-12 bg-bone animate-content-enter-delay-2">
-        <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-primary/50 mb-8">As Featured In</p>
+      <div className="px-6 pt-6 pb-12 bg-bone dark:bg-[#0f120a] animate-content-enter-delay-2">
+        <p className="text-center text-xs font-bold uppercase tracking-[0.2em] text-primary/50 dark:text-white/50 mb-8">As Featured In</p>
         
         {/* Quote Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">
@@ -434,13 +434,13 @@ const Landing: React.FC = () => {
             href="https://www.forbes.com/sites/mikedojc/2025/09/09/even-house-turns-indoor-golf-into-a-community-social-hub/" 
             target="_blank" 
             rel="noreferrer"
-            className="backdrop-blur-xl bg-white/40 p-6 rounded-[1.5rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-300 flex flex-col"
           >
-            <p className="text-xl font-bold text-primary/80 tracking-tight mb-4" style={{ fontFamily: 'Georgia, serif' }}>Forbes</p>
-            <blockquote className="text-sm text-primary/80 leading-relaxed flex-1">
+            <p className="text-xl font-bold text-primary/80 dark:text-white/80 tracking-tight mb-4" style={{ fontFamily: 'Georgia, serif' }}>Forbes</p>
+            <blockquote className="text-sm text-primary/80 dark:text-white/80 leading-relaxed flex-1">
               "Ever Club has fashioned a tribe-finding concept... creating a 'third place' around an indoor golf experience while layering in a farm-to-table café and flex space for co-working."
             </blockquote>
-            <p className="text-xs text-primary/50 font-medium mt-4">September 2025</p>
+            <p className="text-xs text-primary/50 dark:text-white/50 font-medium mt-4">September 2025</p>
           </a>
 
           {/* Hypebeast Quote */}
@@ -448,13 +448,13 @@ const Landing: React.FC = () => {
             href="https://hypebeast.com/2025/2/even-house-membership-golf-club-for-the-next-generation" 
             target="_blank" 
             rel="noreferrer"
-            className="backdrop-blur-xl bg-white/40 p-6 rounded-[1.5rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-300 flex flex-col"
           >
-            <p className="text-lg font-black text-primary/80 uppercase tracking-tighter mb-4">Hypebeast</p>
-            <blockquote className="text-sm text-primary/80 leading-relaxed flex-1">
+            <p className="text-lg font-black text-primary/80 dark:text-white/80 uppercase tracking-tighter mb-4">Hypebeast</p>
+            <blockquote className="text-sm text-primary/80 dark:text-white/80 leading-relaxed flex-1">
               "A laid-back yet high-end culture where people can connect and unwind... creating a place where people can come to recharge."
             </blockquote>
-            <p className="text-xs text-primary/50 font-medium mt-4">February 2025</p>
+            <p className="text-xs text-primary/50 dark:text-white/50 font-medium mt-4">February 2025</p>
           </a>
 
           {/* Fox 11 Good Day LA Quote */}
@@ -462,39 +462,39 @@ const Landing: React.FC = () => {
             href="https://www.foxla.com/video/fmc-t05loqz15hed9sfa" 
             target="_blank" 
             rel="noreferrer"
-            className="backdrop-blur-xl bg-white/40 p-6 rounded-[1.5rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-300 flex flex-col"
           >
-            <p className="text-lg font-black text-primary/80 uppercase tracking-wide mb-4">Fox 11</p>
-            <blockquote className="text-sm text-primary/80 leading-relaxed flex-1">
+            <p className="text-lg font-black text-primary/80 dark:text-white/80 uppercase tracking-wide mb-4">Fox 11</p>
+            <blockquote className="text-sm text-primary/80 dark:text-white/80 leading-relaxed flex-1">
               "It's all about having another place where you feel like you belong... the third space. We are missing out on third spaces."
             </blockquote>
-            <p className="text-xs text-primary/50 font-medium mt-4">December 2025</p>
+            <p className="text-xs text-primary/50 dark:text-white/50 font-medium mt-4">December 2025</p>
           </a>
         </div>
       </div>
 
       {/* Membership Preview Section */}
-      <section className="px-6 pb-12 bg-bone animate-content-enter-delay-3">
+      <section className="px-6 pb-12 bg-bone dark:bg-[#0f120a] animate-content-enter-delay-3">
          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-primary mb-2">Membership Tiers</h2>
-            <p className="text-primary/70 text-sm">Select the plan that fits your lifestyle.</p>
+            <h2 className="text-3xl font-bold text-primary dark:text-white mb-2">Membership Tiers</h2>
+            <p className="text-primary/70 dark:text-white/70 text-sm">Select the plan that fits your lifestyle.</p>
          </div>
          
          <div className="flex flex-col gap-4">
             {/* Social Tier */}
             {socialTier && (
-            <div className="backdrop-blur-xl bg-white/50 p-6 rounded-[2rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]">
+            <div className="backdrop-blur-xl bg-white/50 dark:bg-white/5 p-6 rounded-[2rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]">
                 <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-xl font-bold text-primary">{socialTier.name}</h3>
-                    <span className="text-lg font-bold text-primary">{extractPrice(socialTier.price_string)}<span className="text-xs font-medium opacity-60">{extractSuffix(socialTier.price_string)}</span></span>
+                    <h3 className="text-xl font-bold text-primary dark:text-white">{socialTier.name}</h3>
+                    <span className="text-lg font-bold text-primary dark:text-white">{extractPrice(socialTier.price_string)}<span className="text-xs font-medium opacity-60">{extractSuffix(socialTier.price_string)}</span></span>
                 </div>
-                <p className="text-sm text-primary/70 mb-4">{socialTier.description}</p>
+                <p className="text-sm text-primary/70 dark:text-white/70 mb-4">{socialTier.description}</p>
                 <ul className="space-y-2 mb-6">
                     {(socialTier.highlighted_features || []).slice(0, 3).map((feature, idx) => (
-                        <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
+                        <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80 dark:text-white/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/60 backdrop-blur border border-white/80 text-primary font-bold text-xs hover:bg-white/80 transition-all duration-300 block text-center">View Details</Link>
+                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-300 block text-center">View Details</Link>
             </div>
             )}
 
@@ -514,28 +514,28 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-white/90"><span className="material-symbols-outlined text-sm text-accent">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/95 backdrop-blur text-primary font-bold text-xs hover:bg-white transition-all duration-300 relative z-10 shadow-md block text-center">View Details</Link>
+                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/95 dark:bg-white/10 backdrop-blur text-primary dark:text-white font-bold text-xs hover:bg-white transition-all duration-300 relative z-10 shadow-md block text-center">View Details</Link>
             </div>
             )}
 
             {/* Corporate Tier */}
             {corporateTier && (
-            <div className="backdrop-blur-xl bg-white/50 p-6 rounded-[2rem] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]">
+            <div className="backdrop-blur-xl bg-white/50 dark:bg-white/5 p-6 rounded-[2rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]">
                 <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-xl font-bold text-primary">{corporateTier.name}</h3>
-                    <span className="text-lg font-bold text-primary">{extractPrice(corporateTier.price_string)}<span className="text-xs font-medium opacity-60">{extractSuffix(corporateTier.price_string)}</span></span>
+                    <h3 className="text-xl font-bold text-primary dark:text-white">{corporateTier.name}</h3>
+                    <span className="text-lg font-bold text-primary dark:text-white">{extractPrice(corporateTier.price_string)}<span className="text-xs font-medium opacity-60">{extractSuffix(corporateTier.price_string)}</span></span>
                 </div>
-                <p className="text-sm text-primary/70 mb-4">{corporateTier.description}</p>
+                <p className="text-sm text-primary/70 dark:text-white/70 mb-4">{corporateTier.description}</p>
                 <ul className="space-y-2 mb-6">
                     {(corporateTier.highlighted_features || []).slice(0, 3).map((feature, idx) => (
-                        <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
+                        <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80 dark:text-white/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership/corporate" className="w-full py-3 rounded-xl bg-white/60 backdrop-blur border border-white/80 text-primary font-bold text-xs hover:bg-white/80 transition-all duration-300 block text-center">View Details</Link>
+                <Link to="/membership/corporate" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-300 block text-center">View Details</Link>
             </div>
             )}
 
-            <Link to="/membership/compare" className="w-full mt-2 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors py-2">
+            <Link to="/membership/compare" className="w-full mt-2 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors py-2">
               Compare all tiers
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </Link>
@@ -543,39 +543,39 @@ const Landing: React.FC = () => {
       </section>
 
       {/* Social Proof Stats Section */}
-      <section className="px-6 py-10 bg-bone animate-content-enter-delay-4">
-        <h3 className="text-center text-2xl font-bold text-primary mb-6">Join 200+ Members</h3>
+      <section className="px-6 py-10 bg-bone dark:bg-[#0f120a] animate-content-enter-delay-4">
+        <h3 className="text-center text-2xl font-bold text-primary dark:text-white mb-6">Join 200+ Members</h3>
         <div className="flex justify-center items-center gap-0 overflow-x-auto">
           <div className="flex-1 min-w-0 text-center px-3">
-            <p className="text-xl sm:text-2xl font-bold text-primary">4</p>
-            <p className="text-[10px] sm:text-xs text-primary/70 uppercase tracking-wider font-medium">TrackMan Bays</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary dark:text-white">4</p>
+            <p className="text-[10px] sm:text-xs text-primary/70 dark:text-white/70 uppercase tracking-wider font-medium">TrackMan Bays</p>
           </div>
-          <div className="w-px h-8 bg-primary/20 shrink-0"></div>
+          <div className="w-px h-8 bg-primary/20 dark:bg-white/20 shrink-0"></div>
           <div className="flex-1 min-w-0 text-center px-3">
-            <p className="text-xl sm:text-2xl font-bold text-primary">200+</p>
-            <p className="text-[10px] sm:text-xs text-primary/70 uppercase tracking-wider font-medium">Active Members</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary dark:text-white">200+</p>
+            <p className="text-[10px] sm:text-xs text-primary/70 dark:text-white/70 uppercase tracking-wider font-medium">Active Members</p>
           </div>
-          <div className="w-px h-8 bg-primary/20 shrink-0"></div>
+          <div className="w-px h-8 bg-primary/20 dark:bg-white/20 shrink-0"></div>
           <div className="flex-1 min-w-0 text-center px-3">
-            <p className="text-xl sm:text-2xl font-bold text-primary">5-Star</p>
-            <p className="text-[10px] sm:text-xs text-primary/70 uppercase tracking-wider font-medium">Rated</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary dark:text-white">5-Star</p>
+            <p className="text-[10px] sm:text-xs text-primary/70 dark:text-white/70 uppercase tracking-wider font-medium">Rated</p>
           </div>
-          <div className="w-px h-8 bg-primary/20 shrink-0"></div>
+          <div className="w-px h-8 bg-primary/20 dark:bg-white/20 shrink-0"></div>
           <div className="flex-1 min-w-0 text-center px-3">
-            <p className="text-xl sm:text-2xl font-bold text-primary">Est. 2025</p>
-            <p className="text-[10px] sm:text-xs text-primary/70 uppercase tracking-wider font-medium">Founded</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary dark:text-white">Est. 2025</p>
+            <p className="text-[10px] sm:text-xs text-primary/70 dark:text-white/70 uppercase tracking-wider font-medium">Founded</p>
           </div>
         </div>
       </section>
 
       {/* Testimonial Section */}
-      <section className="px-6 py-12 bg-bone animate-content-enter-delay-5">
+      <section className="px-6 py-12 bg-bone dark:bg-[#0f120a] animate-content-enter-delay-5">
         <div className="max-w-2xl mx-auto text-center">
-          <span className="text-6xl text-primary/20 font-serif leading-none block mb-2">"</span>
-          <blockquote className="text-lg sm:text-xl italic text-primary/90 mb-4 leading-relaxed -mt-8">
+          <span className="text-6xl text-primary/20 dark:text-white/20 font-serif leading-none block mb-2">"</span>
+          <blockquote className="text-lg sm:text-xl italic text-primary/90 dark:text-white/90 mb-4 leading-relaxed -mt-8">
             Ever Club has become my second office. The golf is incredible, but the community is what keeps me coming back.
           </blockquote>
-          <p className="text-sm text-primary/60 font-medium">— Michael R., Core Member</p>
+          <p className="text-sm text-primary/60 dark:text-white/60 font-medium">— Michael R., Core Member</p>
         </div>
       </section>
 
@@ -613,7 +613,7 @@ const Landing: React.FC = () => {
           paddingBottom: 'max(1rem, env(safe-area-inset-bottom))'
         }}
       >
-        <div className="mx-4 mb-2 backdrop-blur-xl bg-white/80 border border-white/60 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.6)] p-3">
+        <div className="mx-4 mb-2 backdrop-blur-xl bg-white/80 dark:bg-white/10 border border-white/60 dark:border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.6)] p-3">
           <Link 
             to="/membership" 
             className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"

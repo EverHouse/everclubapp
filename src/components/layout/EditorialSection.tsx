@@ -21,7 +21,7 @@ const EditorialSection: React.FC<EditorialSectionProps> = ({
   className = '',
 }) => {
   return (
-    <section className={`bg-[#F2F2EC] py-16 px-6 md:py-24 md:px-12 lg:px-20 ${className}`}>
+    <section className={`bg-bone dark:bg-[#0f120a] py-16 px-6 md:py-24 md:px-12 lg:px-20 ${className}`}>
       <div className={`max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 lg:gap-16 items-center ${reversed ? 'md:flex-row-reverse' : ''}`}>
         {/* Image */}
         <div className={`${reversed ? 'md:order-2' : 'md:order-1'}`}>
@@ -37,18 +37,18 @@ const EditorialSection: React.FC<EditorialSectionProps> = ({
 
         {/* Text Content */}
         <div className={`${reversed ? 'md:order-1' : 'md:order-2'} flex flex-col justify-center`}>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-semibold text-[#293515] leading-tight mb-4 md:mb-6">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-semibold text-primary dark:text-white leading-tight mb-4 md:mb-6">
             {title}
           </h2>
-          <p className="text-base md:text-lg font-sans text-[#293515]/70 leading-relaxed mb-6 md:mb-8">
+          <p className="text-base md:text-lg font-sans text-primary/70 dark:text-white/70 leading-relaxed mb-6 md:mb-8">
             {description}
           </p>
           {ctaLabel && ctaLink && (
             <Link
               to={ctaLink}
-              className="inline-flex items-center gap-2 text-sm font-medium text-[#293515] hover:text-[#293515]/70 transition-colors group w-fit"
+              className="inline-flex items-center gap-2 text-sm font-medium text-primary dark:text-white hover:text-primary/70 dark:hover:text-white/70 transition-colors group w-fit"
             >
-              <span className="border-b border-[#293515]/30 group-hover:border-[#293515]/60 transition-colors pb-0.5">
+              <span className="border-b border-primary/30 dark:border-white/30 group-hover:border-primary/60 dark:group-hover:border-white/60 transition-colors pb-0.5">
                 {ctaLabel}
               </span>
               <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
