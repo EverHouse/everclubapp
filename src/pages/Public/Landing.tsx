@@ -196,37 +196,16 @@ const Landing: React.FC = () => {
         </div>
       </div>
 
-      <section className="px-6 py-12 animate-content-enter-delay-2">
-        <h2 className="text-3xl font-bold text-primary dark:text-white mb-8 font-sans">Why Ever Members Club</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <FeatureCard 
-            image="/images/golf-sims-optimized.webp"
-            icon="sports_golf"
-            title="Golf all year"
-            staggerIndex={0}
-          />
-          <FeatureCard 
-            image="/images/cowork-optimized.webp"
-            icon="work"
-            title="Work from the club"
-            staggerIndex={1}
-          />
-          <FeatureCard 
-            image="/images/wellness-yoga-optimized.webp"
-            icon="spa"
-            title="Wellness & classes"
-            staggerIndex={2}
-          />
-          <FeatureCard 
-            image="/images/events-crowd-optimized.webp"
-            icon="groups"
-            title="Events & community"
-            staggerIndex={3}
-          />
-        </div>
-      </section>
-
       <div>
+        <EditorialSection
+          image="/images/golf-sims-optimized.webp"
+          title="Trackman Golf Simulators"
+          description="Four state-of-the-art Trackman 4 bays for year-round play. Practice your swing, play world-class courses, or compete with friends — rain or shine. No tee time needed."
+          ctaLabel="Get a Day Pass"
+          ctaLink="/checkout"
+          reversed={false}
+        />
+
         <EditorialSection
           image="/images/private-dining-optimized.webp"
           title="Curated Events & Wellness"
@@ -241,7 +220,7 @@ const Landing: React.FC = () => {
           title="Farm-to-Table Cafe"
           description="Our chef-driven cafe serves thoughtfully crafted dishes and specialty coffee in a relaxed atmosphere. From morning espresso to afternoon bites, fuel your day with locally-sourced ingredients and a menu designed for both quick visits and lingering conversations."
           ctaLabel="View Menu"
-          ctaLink="/cafe"
+          ctaLink="/menu"
           reversed={true}
         />
         
@@ -390,27 +369,5 @@ const Landing: React.FC = () => {
     </AnimatedPage>
   );
 };
-
-const FeatureCard: React.FC<{image: string; icon: string; title: string; staggerIndex: number}> = ({ image, icon, title, staggerIndex }) => (
-  <div 
-    className="relative h-[240px] rounded-[2rem] overflow-hidden group animate-slide-up-stagger backdrop-blur-xl bg-black/20 border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]" 
-    style={{ '--stagger-index': staggerIndex } as React.CSSProperties}
-  >
-     <img 
-       src={image} 
-       alt={title}
-       loading="lazy"
-       decoding="async"
-       className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-110"
-     />
-     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-     <div className="absolute bottom-0 left-0 right-0 p-4">
-        <div className="mb-2 w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-[0_0_12px_rgba(255,255,255,0.1)]">
-            <span className="material-symbols-outlined text-white text-xl">{icon}</span>
-        </div>
-        <h3 className="font-bold text-white text-base leading-tight drop-shadow-md">{title}</h3>
-     </div>
-  </div>
-);
 
 export default Landing;
