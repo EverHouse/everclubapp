@@ -778,6 +778,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <main 
                 id="main-content"
                 className={`relative h-auto overflow-visible dark:bg-[#0f120a] ${showHeader && !isFullBleedHeroPage ? 'pt-[max(88px,calc(env(safe-area-inset-top)+72px))]' : ''}`}
+                style={{ paddingBottom: 'var(--safari-toolbar-padding, 0px)' }}
             >
                 {children}
                 {isMemberRoute && !isAdminRoute && !isProfilePage && <BottomSentinel />}
