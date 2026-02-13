@@ -408,6 +408,8 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
 }
 
 function DayPassesSection() {
+  const [searchParams] = useSearchParams();
+  const filterType = searchParams.get('type');
   const [products, setProducts] = useState<DayPassProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -423,7 +425,19 @@ function DayPassesSection() {
         const res = await fetch('/api/day-passes/products');
         if (!res.ok) throw new Error('Failed to fetch products');
         const data = await res.json();
-        setProducts(data.products || []);
+        const allProducts = data.products || [];
+        if (filterType) {
+          const filtered = allProducts.filter((p: DayPassProduct) => p.id === filterType || p.id.includes(filterType));
+          if (filtered.length > 0) {
+            setProducts(filtered);
+            if (filtered.length === 1) {
+              setSelectedProduct(filtered[0]);
+            }
+            setLoading(false);
+            return;
+          }
+        }
+        setProducts(allProducts);
       } catch (err: unknown) {
         setError((err instanceof Error ? err.message : String(err)));
       } finally {
@@ -431,7 +445,7 @@ function DayPassesSection() {
       }
     };
     fetchProducts();
-  }, []);
+  }, [filterType]);
 
   const handleCheckout = async (product: DayPassProduct) => {
     if (!email) {
