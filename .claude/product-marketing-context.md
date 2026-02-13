@@ -90,7 +90,7 @@
 **Key differentiators:**
 - **The "Third Space" concept:** The only venue combining premium workspace + Trackman golf technology + curated social club in one high-design setting
 - **The "Soho" element:** Members aren't buying hitting time — they're buying access to a refined atmosphere and a community of like-minded professionals who value aesthetics as much as their handicap
-- **24/7 access:** Fits the schedule of busy professionals (open late — 8pm weekdays, 10pm weekends, with extended hours)
+- **Extended hours:** Fits the schedule of busy professionals — open 8:30 AM to 8 PM (Tue–Thu), 10 PM (Fri–Sat), 6 PM (Sun), closed Mondays
 - **Tech-forward:** Best-in-class Trackman simulators that members can't justify buying for home
 - **Curated community:** Like-minded, driven individuals — not a random public crowd
 
@@ -128,7 +128,7 @@
 - No current venue combines work, play, and networking
 
 **Pull (what attracts them to Ever Club):**
-- Extended hours that fit their schedule (8pm weekdays, 10pm weekends)
+- Extended hours that fit their schedule (8:30 AM–8 PM Tue–Thu, until 10 PM Fri–Sat, until 6 PM Sun, closed Mon)
 - Best-in-class Trackman technology they can't justify buying for home
 - Curated community of like-minded, driven individuals
 - A space designed to look and feel like it belongs in their lifestyle
@@ -233,7 +233,7 @@
 | Business Utility | Client entertainment venue that keeps giving |
 | Community | Curated membership of like-minded professionals |
 | Technology | Trackman data — objective improvement, not guesswork |
-| Flexibility | 24/7 access fits any schedule |
+| Flexibility | Extended hours (8:30 AM–10 PM) fit any professional's schedule |
 
 ---
 
