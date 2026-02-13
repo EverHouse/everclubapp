@@ -494,7 +494,11 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
       { label: 'Manual', value: 'manual', displayOrder: 3 },
       { label: 'None', value: 'None', displayOrder: 4 },
       { label: 'Comped', value: 'Comped', displayOrder: 5 },
-      { label: 'Family Addon', value: 'Family Addon', displayOrder: 6 },
+    ];
+
+    const billingGroupRoleOptions = [
+      { label: 'Primary', value: 'Primary', displayOrder: 1 },
+      { label: 'Sub-member', value: 'Sub-member', displayOrder: 2 },
     ];
 
     const propertiesToCreate = [
@@ -506,6 +510,55 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
         groupName: 'contactinformation',
         description: 'The billing system managing this member\'s subscription',
         options: billingProviderOptions
+      },
+      {
+        name: 'billing_group_role',
+        label: 'Billing Group Role',
+        type: 'enumeration',
+        fieldType: 'select',
+        groupName: 'contactinformation',
+        description: 'Whether this member is the primary billing contact or a sub-member on a family/group plan',
+        options: billingGroupRoleOptions
+      },
+      {
+        name: 'stripe_customer_id',
+        label: 'Stripe Customer ID',
+        type: 'string',
+        fieldType: 'text',
+        groupName: 'contactinformation',
+        description: 'The Stripe customer ID for this member'
+      },
+      {
+        name: 'stripe_created_date',
+        label: 'Stripe Created Date',
+        type: 'string',
+        fieldType: 'text',
+        groupName: 'contactinformation',
+        description: 'When this member\'s Stripe customer was created'
+      },
+      {
+        name: 'stripe_delinquent',
+        label: 'Stripe Delinquent',
+        type: 'string',
+        fieldType: 'text',
+        groupName: 'contactinformation',
+        description: 'Whether this member has overdue payments in Stripe'
+      },
+      {
+        name: 'stripe_discount_id',
+        label: 'Stripe Discount ID',
+        type: 'string',
+        fieldType: 'text',
+        groupName: 'contactinformation',
+        description: 'Active Stripe discount/coupon ID for this member'
+      },
+      {
+        name: 'stripe_pricing_interval',
+        label: 'Stripe Pricing Interval',
+        type: 'string',
+        fieldType: 'text',
+        groupName: 'contactinformation',
+        description: 'Billing interval for this member\'s Stripe subscription (monthly/yearly)'
       },
       {
         name: 'member_since_date',
