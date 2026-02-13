@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.54.1",
+    date: "2026-02-13",
+    title: "Booking Fee Display Fix",
+    changes: [
+      "Fixed: Booking cards no longer show incorrect '$50 Due' for Premium members with unlimited access — the real-time fee calculation is now authoritative",
+      "Fixed: Stale cached fee data no longer overrides fresh calculations, resolving mismatch between booking list and booking details",
+      "Improved: Fee estimates for existing sessions now sync cached values to prevent future discrepancies"
+    ]
+  },
+  {
     version: "7.54.0",
     date: "2026-02-13",
     title: "Full Frontend Audit — Dark Mode, Design Consistency & Performance Upgrades",
