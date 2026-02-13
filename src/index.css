@@ -319,6 +319,19 @@ html.dark, html.dark body {
   }
 }
 
+/* Safe area bottom filler - transparent to allow content to show through frosted toolbar */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: transparent;
+  pointer-events: none;
+  z-index: -1;
+}
+
 /* Allow content to scroll behind iOS Safari's translucent bottom toolbar */
 @supports (-webkit-touch-callout: none) {
   html {
