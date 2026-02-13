@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { triggerHaptic } from '../../utils/haptics';
+import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import SEO from '../../components/SEO';
 
@@ -352,7 +353,7 @@ const BookTour: React.FC = () => {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => {
-                        setFormData(prev => ({ ...prev, phone: e.target.value }));
+                        setFormData(prev => ({ ...prev, phone: formatPhoneNumber(e.target.value) }));
                         if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
                       }}
                       placeholder="(949) 555-0100"

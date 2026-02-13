@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import Input from '../../components/Input';
 import { usePageReady } from '../../contexts/PageReadyContext';
@@ -72,6 +72,12 @@ const Contact: React.FC = () => {
         <p className="text-primary/70 dark:text-white/70 text-sm leading-relaxed max-w-xs mx-auto">
            We look forward to hearing from you. Please fill out the form below or visit us in Tustin.
         </p>
+        <div className="mt-4">
+          <Link to="/tour" className="inline-flex items-center gap-2 text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity">
+            Want to see the club? Book a private tour
+            <span className="material-symbols-outlined text-lg">arrow_forward</span>
+          </Link>
+        </div>
       </div>
 
       <section className="px-4 mb-8 space-y-3 animate-content-enter-delay-1">
@@ -137,6 +143,12 @@ const Contact: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-bold text-primary dark:text-white mb-2">Message Sent</h3>
                     <p className="text-primary/60 dark:text-white/60">Thank you for reaching out. Our team will respond to your inquiry shortly.</p>
+                    <p className="text-primary/60 dark:text-white/60 mt-2">In the meantime, book a private tour to experience the club firsthand.</p>
+                    <div className="mt-6">
+                      <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98]">
+                        Book a Tour
+                      </Link>
+                    </div>
                     <button 
                         onClick={() => setIsSubmitted(false)}
                         className="mt-6 text-sm font-bold text-primary dark:text-white underline hover:text-accent"

@@ -13,6 +13,26 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.59.0",
+    date: "2026-02-13",
+    title: "Public Pages CRO Optimization",
+    isMajor: true,
+    changes: [
+      "New: Landing page hero rewritten with outcome-focused headline and flipped CTA hierarchy — tour booking is now the primary action",
+      "New: Press/social proof bar added to landing page (Forbes, Hypebeast, etc.) and exclusivity signal with capped membership urgency",
+      "New: Membership page now features Third Space positioning header, value-framing against country clubs ($20k+), and social proof section",
+      "New: Book a Tour form enhanced with social proof, trust signals, and improved success screen with clear next steps",
+      "New: Apply form updated with reassurance copy, privacy trust signal near submit, and enhanced confirmation screen linking to membership tiers",
+      "New: Private Hire page CTA changed to 'Plan Your Event' with capacity signal (10–600+ guests), consent checkbox moved to final step per form best practices",
+      "New: Gallery, What's On, Cafe, and FAQ pages now include conversion CTAs guiding visitors toward tour booking or membership",
+      "New: FAQ page adds 'Is Ever Club just a simulator room?' as top objection-handling answer and a 'Still have questions?' CTA section",
+      "New: Day Pass page now shows access details (wifi, cafe, lounge) and membership upsell path after purchase",
+      "New: Contact page adds tour booking nudge at top and in success screen",
+      "New: Phone number is now required on tour booking, membership application, and private hire inquiry forms",
+      "New: Phone numbers auto-format as (xxx) xxx-xxxx across all forms for consistent data collection"
+    ]
+  },
+  {
     version: "7.58.0",
     date: "2026-02-13",
     title: "Native Tour Scheduler",

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { triggerHaptic } from '../../utils/haptics';
+import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
@@ -320,10 +321,10 @@ const PrivateHireInquire: React.FC = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => {
-                          handleChange('phone', e.target.value);
+                          handleChange('phone', formatPhoneNumber(e.target.value));
                           if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
                         }}
-                        placeholder="+1 (555) 000-0000"
+                        placeholder="(555) 000-0000"
                         className={getInputClass('phone')}
                       />
                       {fieldErrors.phone && (
