@@ -264,7 +264,6 @@ body {
 #root {
   min-height: 100%;
   background-color: inherit;
-  overflow: visible;
 }
 
 /* Modal scroll lock - override when modal is open */
@@ -331,20 +330,6 @@ body::after {
   pointer-events: none;
   z-index: -1;
 }
-
-/* Allow content to scroll behind iOS Safari's translucent bottom toolbar */
-@supports (-webkit-touch-callout: none) {
-  html {
-    scroll-padding-bottom: 96px;
-  }
-}
-@media (display-mode: standalone) {
-  html {
-    scroll-padding-bottom: 0px;
-  }
-}
-
-/* body::after safe-area filler removed — interferes with Safari 26 Liquid Glass toolbar translucency */
 
 /* Native scrolling container for main content - restores iOS rubber-band physics */
 .native-scroller {
