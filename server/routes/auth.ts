@@ -138,7 +138,7 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
       });
     
     if (isStaffOrAdmin) {
-      await db.execute(sql`UPDATE users SET membership_status = 'active', membership_tier = 'VIP Membership' WHERE LOWER(email) = LOWER(${normalizedEmailValue}) AND (membership_status IS NULL OR membership_status != 'active' OR membership_tier IS NULL OR membership_tier != 'VIP Membership')`);
+      await db.execute(sql`UPDATE users SET membership_status = 'active', tier = 'VIP', membership_tier = 'VIP' WHERE LOWER(email) = LOWER(${normalizedEmailValue}) AND (membership_status IS NULL OR membership_status != 'active' OR tier IS NULL OR tier != 'VIP')`);
     }
     
     if (!isProduction) console.log(`[Auth] Updated user ${normalizedEmailValue} with role ${data.role}, tier ${normalizedTier || 'none'}`);

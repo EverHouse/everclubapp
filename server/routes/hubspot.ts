@@ -1091,14 +1091,14 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     let hubspotContactId = localUser.hubspotId;
     
     // Map tier name to tier_id and membership_tier format
-    const tierMapping: Record<string, { tier_id: number | null; membership_tier: string; tier: string }> = {
-      'Social': { tier_id: 1, membership_tier: 'Social Membership', tier: 'Social' },
-      'Core': { tier_id: 2, membership_tier: 'Core Membership', tier: 'Core' },
-      'Premium': { tier_id: 3, membership_tier: 'Premium Membership', tier: 'Premium' },
-      'Corporate': { tier_id: 4, membership_tier: 'Corporate Membership', tier: 'Corporate' },
-      'VIP': { tier_id: 5, membership_tier: 'VIP Membership', tier: 'VIP' },
-      'Founding': { tier_id: 2, membership_tier: 'Core Membership Founding Members', tier: 'Founding' },
-      'Unlimited': { tier_id: 3, membership_tier: 'Premium Membership', tier: 'Unlimited' },
+    const tierMapping: Record<string, { tier_id: number | null; tier: string }> = {
+      'Social': { tier_id: 1, tier: 'Social' },
+      'Core': { tier_id: 2, tier: 'Core' },
+      'Premium': { tier_id: 3, tier: 'Premium' },
+      'Corporate': { tier_id: 4, tier: 'Corporate' },
+      'VIP': { tier_id: 5, tier: 'VIP' },
+      'Founding': { tier_id: 2, tier: 'Core' },
+      'Unlimited': { tier_id: 3, tier: 'Premium' },
     };
     
     const tierData = tierMapping[tier];
@@ -1106,13 +1106,12 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
       return res.status(400).json({ error: `Invalid tier: ${tier}` });
     }
     
-    // Update local database - we already have the user from our lookup
     await db.update(users)
       .set({
         tier: tierData.tier,
         tier_id: tierData.tier_id,
-        membership_tier: tierData.membership_tier,
-        membership_status: 'active', // Set status to active when assigning a tier
+        membership_tier: tierData.tier,
+        membership_status: 'active',
       })
       .where(eq(users.id, localUser.id));
     

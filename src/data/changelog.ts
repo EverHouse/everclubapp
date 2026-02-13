@@ -24,6 +24,9 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: All 3 HubSpot outbound push paths now consistently use denormalizeTierForHubSpot() instead of hardcoded mappings or raw values",
       "Fixed: Stripe webhook handlers now normalize tier metadata before database writes — covers subscription creation, checkout completion, group billing, and quick charge flows",
       "Fixed: Backfilled 465 membership_tier records to match canonical tier values, eliminating stale HubSpot-format values like 'Core Membership Founding Members'",
+      "Fixed: Staff VIP enforcement on login now writes canonical 'VIP' to both tier and membership_tier instead of raw 'VIP Membership' format",
+      "Fixed: Manual tier update tool now writes canonical tier names to database and maps legacy 'Founding' and 'Unlimited' to their correct tiers (Core and Premium)",
+      "Fixed: HubSpot outbound pushes now skip unsupported tiers (like Staff) instead of sending raw values that HubSpot can't recognize",
       "Improved: membership_tier column now always derives from the canonical tier column — no more divergent values between the two columns"
     ]
   },
