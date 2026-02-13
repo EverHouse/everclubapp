@@ -203,7 +203,7 @@ const Landing: React.FC = () => {
           description="Four state-of-the-art Trackman 4 bays for year-round play. Practice your swing, play world-class courses, or compete with friends — rain or shine. No tee time needed."
           ctaLabel="Get a Day Pass"
           ctaLink="/checkout"
-          reversed={false}
+          reversed={true}
         />
 
         <EditorialSection
