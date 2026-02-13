@@ -300,25 +300,7 @@ const MembershipOverview: React.FC = () => {
 
       <Footer hideCta />
       
-      <div className="h-24 md:hidden bg-primary -mx-4 w-[calc(100%+2rem)] -mt-8" aria-hidden="true"></div>
-
       <BackToTop threshold={200} />
-
-      <div 
-        className="fixed bottom-0 left-0 right-0 md:hidden bg-primary px-4 pt-3 pb-4 border-t border-white/10"
-        style={{ 
-          zIndex: 50,
-          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))'
-        }}
-      >
-        <button 
-          onClick={() => navigate('/membership/apply')}
-          className="w-full max-w-md mx-auto py-4 px-6 rounded-2xl bg-bone dark:bg-white text-primary font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-bone/80 dark:border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
-        >
-          Start Your Membership
-          <span className="material-symbols-outlined text-lg">arrow_forward</span>
-        </button>
-      </div>
     </div>
     </AnimatedPage>
   );

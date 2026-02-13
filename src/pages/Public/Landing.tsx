@@ -226,7 +226,6 @@ const Landing: React.FC = () => {
   const [showTourModal, setShowTourModal] = useState(false);
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showStickyMobileCta, setShowStickyMobileCta] = useState(false);
   const { offset: parallaxOffset, opacity: parallaxOpacity, gradientShift, ref: heroRef } = useParallax({ speed: 0.25, maxOffset: 120 });
 
   useEffect(() => {
@@ -237,14 +236,6 @@ const Landing: React.FC = () => {
     }
   }, [sessionChecked, user, actualUser, isViewingAs, navigate]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const heroHeight = window.innerHeight;
-      setShowStickyMobileCta(window.scrollY > heroHeight * 0.8);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     if (!isLoading) {
@@ -601,28 +592,6 @@ const Landing: React.FC = () => {
 
       <BackToTop threshold={200} />
 
-      {/* Sticky Mobile CTA */}
-      <div 
-        className={`fixed bottom-0 left-0 right-0 md:hidden transition-all duration-300 ${
-          showStickyMobileCta 
-            ? 'translate-y-0 opacity-100' 
-            : 'translate-y-full opacity-0 pointer-events-none'
-        }`}
-        style={{ 
-          zIndex: 'var(--z-sticky)',
-          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))'
-        }}
-      >
-        <div className="mx-4 mb-2 backdrop-blur-xl bg-white/80 dark:bg-white/10 border border-white/60 dark:border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.6)] p-3">
-          <Link 
-            to="/membership" 
-            className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-          >
-            Start Your Membership
-            <span className="material-symbols-outlined text-lg">arrow_forward</span>
-          </Link>
-        </div>
-      </div>
     </div>
     </AnimatedPage>
   );
