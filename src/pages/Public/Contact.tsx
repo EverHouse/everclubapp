@@ -106,10 +106,10 @@ const Contact: React.FC = () => {
 
       <section className="px-4 mb-8">
          <div className="bg-[#E8E8E0]/50 dark:bg-white/5 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-primary dark:text-white mb-4 flex items-center gap-2">
                <span className="material-symbols-outlined text-xl">schedule</span>
                Hours of Operation
-            </h3>
+            </h2>
             <div className="space-y-3 text-sm">
                <div className="flex justify-between items-center pb-2 border-b border-primary/5 dark:border-white/10">
                   <span className="text-primary/70 dark:text-white/70 font-medium">Monday</span>

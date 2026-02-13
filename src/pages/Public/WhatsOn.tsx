@@ -213,7 +213,7 @@ const WhatsOn: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base text-primary dark:text-white leading-tight truncate">{item.title}</h3>
+                        <h2 className="font-bold text-base text-primary dark:text-white leading-tight truncate">{item.title}</h2>
                         <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
                           {isEvent 
                             ? `${formatTime(item.start_time)} • ${item.location}`

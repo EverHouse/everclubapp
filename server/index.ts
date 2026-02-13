@@ -640,7 +640,8 @@ async function initializeApp() {
         "latitude": 33.709,
         "longitude": -117.8272
       },
-      "maximumAttendeeCapacity": 100
+      "maximumAttendeeCapacity": 100,
+      "telephone": "+19495455855"
     };
 
     const GEO_META_TAGS = `<meta name="geo.region" content="US-CA" />\n<meta name="geo.placename" content="Tustin, California" />\n<meta name="geo.position" content="33.709;-117.8272" />\n<meta name="ICBM" content="33.709, -117.8272" />`;
@@ -668,6 +669,7 @@ async function initializeApp() {
         '/contact': [{ name: "Contact", item: "https://everclub.app/contact" }],
         '/day-pass': [{ name: "Day Pass", item: "https://everclub.app/day-pass" }],
         '/faq': [{ name: "FAQ", item: "https://everclub.app/faq" }],
+        '/about': [{ name: "About", item: "https://everclub.app/about" }],
       };
 
       const additionalItems = breadcrumbMap[routePath] || [];
@@ -694,9 +696,19 @@ async function initializeApp() {
           "url": "https://everclub.app",
           "logo": "https://everclub.app/images/everclub-logo-dark.webp",
           "sameAs": [
-            "https://www.instagram.com/everhouse.app/",
-            "https://evenhouse.club"
+            "https://www.instagram.com/everclub/",
+            "https://evenhouse.club",
+            "https://www.linkedin.com/company/ever-club",
+            "https://www.tiktok.com/@everclub"
           ],
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "15771 Red Hill Ave, Ste 500",
+            "addressLocality": "Tustin",
+            "addressRegion": "CA",
+            "postalCode": "92780",
+            "addressCountry": "US"
+          },
           "contactPoint": {
             "@type": "ContactPoint",
             "telephone": "+19495455855",
@@ -709,9 +721,14 @@ async function initializeApp() {
           "@id": "https://everclub.app/#website",
           "url": "https://everclub.app",
           "name": "Ever Members Club",
-          "publisher": { "@id": "https://everclub.app/#organization" }
+          "publisher": { "@id": "https://everclub.app/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://everclub.app/faq?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
         },
-        { ...BASE_JSON_LD, "@id": "https://everclub.app/#organization" }
+        { ...BASE_JSON_LD, "@id": "https://everclub.app/#localbusiness" }
       ];
 
       if (routePath === '/faq') {

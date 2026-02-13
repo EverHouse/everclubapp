@@ -163,7 +163,7 @@ const MembershipOverview: React.FC = () => {
                 <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none"></div>
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div className="pr-2">
-                    <h3 className="text-xl font-semibold mb-2">{tier.name} Membership</h3>
+                    <h2 className="text-xl font-semibold mb-2">{tier.name} Membership</h2>
                     <p className="text-sm text-white/70 leading-relaxed font-light">{tier.description}</p>
                   </div>
                   <span className="shrink-0 px-3 py-1 bg-accent/90 backdrop-blur text-primary text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm border border-white/20 mt-1">
@@ -327,7 +327,7 @@ const MembershipOverview: React.FC = () => {
 const MembershipCard: React.FC<any> = ({ title, price, suffix="/mo", desc, features, onClick, btnText="Apply" }) => (
   <div className="relative flex flex-col p-6 bg-white/50 dark:bg-white/5 backdrop-blur-xl rounded-[2rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]">
     <div className="mb-4">
-      <h3 className="text-xl font-semibold text-primary dark:text-white mb-2">{title}</h3>
+      <h2 className="text-xl font-semibold text-primary dark:text-white mb-2">{title}</h2>
       <p className="text-sm text-primary/70 dark:text-white/70 leading-relaxed font-light">{desc}</p>
     </div>
     <div className="flex items-baseline gap-1 mb-6">

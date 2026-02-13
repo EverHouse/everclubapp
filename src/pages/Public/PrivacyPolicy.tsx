@@ -1,9 +1,11 @@
 import React from 'react';
 import { Footer } from '../../components/Footer';
+import SEO from '../../components/SEO';
 
 const PrivacyPolicy: React.FC = () => {
   return (
     <div className="min-h-screen bg-bone dark:bg-[#0f120a] text-primary dark:text-bone pt-24 pb-12">
+      <SEO title="Privacy Policy | Ever Club" description="Ever Club privacy policy. Learn how we collect, use, and protect your personal information at our Tustin, CA indoor golf & social club." url="/privacy" />
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl md:text-5xl font-display mb-8">Privacy Policy</h1>
         <p className="text-sm opacity-60 mb-12">Last updated: January 20, 2026</p>

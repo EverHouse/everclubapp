@@ -137,7 +137,7 @@ const Gallery: React.FC = () => {
             <>
               <div className="columns-2 gap-4 space-y-4 animate-in fade-in duration-500">
                 {filteredItems.map((item, index) => (
-                  <GalleryItem key={item.id || item.img} img={item.img} onItemClick={openViewer} index={index} />
+                  <GalleryItem key={item.id || item.img} img={item.img} title={item.title} category={item.category} onItemClick={openViewer} index={index} />
                 ))}
               </div>
               <div className="mt-12 flex justify-center pb-8">
@@ -189,11 +189,13 @@ const FilterButton: React.FC<{label: string; active?: boolean; onClick?: () => v
 
 interface GalleryItemProps {
   img: string;
+  title?: string;
+  category?: string;
   index: number;
   onItemClick: (index: number) => void;
 }
 
-const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, index, onItemClick }) => {
+const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, category, index, onItemClick }) => {
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState(false);
 
@@ -215,7 +217,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, index, onItem
       <img 
         src={img} 
         className={`w-full h-auto object-cover transform group-hover:scale-105 transition-all duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'}`}
-        alt="Inside Ever Members Club — indoor golf and social club gallery in Tustin, OC"
+        alt={title || category || "Inside Ever Club — indoor golf and social club in Tustin, OC"}
         loading="lazy"
         decoding="async"
         onLoad={() => setLoaded(true)}

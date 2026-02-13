@@ -157,7 +157,7 @@ const PublicCafe: React.FC = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-center gap-2">
-                            <h3 className="font-bold text-base leading-tight text-primary dark:text-white">{item.name}</h3>
+                            <h2 className="font-bold text-base leading-tight text-primary dark:text-white">{item.name}</h2>
                             <span className="font-bold text-sm whitespace-nowrap text-primary dark:text-white">
                               {item.price === 0 ? 'MP' : `$${item.price}`}
                             </span>
