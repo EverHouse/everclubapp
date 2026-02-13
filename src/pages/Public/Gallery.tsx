@@ -100,7 +100,7 @@ const Gallery: React.FC = () => {
 
   return (
     <>
-      <SEO title="Gallery & Photos | Ever Members Club — Indoor Golf Club in Orange County" description="See inside Ever Members Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at Orange County's private social club." url="/gallery" />
+      <SEO title="Gallery & Photos | Ever Club — Golf Club in OC" description="See inside Ever Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at OC's private social club." url="/gallery" />
       <AnimatedPage>
       <div 
         className="flex flex-col min-h-screen bg-bone dark:bg-[#0f120a] overflow-x-hidden"

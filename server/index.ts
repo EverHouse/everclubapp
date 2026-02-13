@@ -420,48 +420,48 @@ async function initializeApp() {
   if (isProduction) {
     const SEO_META: Record<string, { title: string; description: string }> = {
       '/': {
-        title: 'Ever Members Club | Indoor Golf & Social Club in Tustin, Orange County',
-        description: 'Orange County\'s premier private indoor golf & social club, formerly Even House. Trackman golf simulators, premium coworking, café, wellness & curated events. Visit us in Tustin — book a private tour today.',
+        title: 'Ever Club | Indoor Golf & Social Club in Tustin, OC',
+        description: 'Orange County\'s premier indoor golf & social club, formerly Even House. Trackman simulators, coworking, café & wellness in Tustin. Book a tour today.',
       },
       '/membership': {
-        title: 'Membership Plans & Pricing | Ever Members Club — Tustin, OC',
-        description: 'Explore membership tiers at Ever Members Club in Orange County. Social, Core, Premium & Corporate plans with Trackman simulator access, coworking, wellness programs & exclusive member events.',
+        title: 'Membership Plans & Pricing | Ever Club — Tustin, OC',
+        description: 'Explore membership tiers at Ever Club in OC. Social, Core, Premium & Corporate plans with Trackman access, coworking, wellness & exclusive events.',
       },
       '/membership/apply': {
-        title: 'Apply for Membership | Ever Members Club — Orange County Indoor Golf Club',
-        description: 'Join Orange County\'s premier indoor golf & social club. Apply for membership at Ever Members Club in Tustin — Trackman simulators, premium workspace, wellness & a curated community.',
+        title: 'Apply for Membership | Ever Club — OC Golf Club',
+        description: 'Join OC\'s premier indoor golf & social club. Apply for membership at Ever Club in Tustin — Trackman simulators, workspace, wellness & community.',
       },
       '/private-hire': {
-        title: 'Private Events & Venue Hire in Orange County | Ever Members Club',
-        description: 'Host private events, corporate gatherings & celebrations at Ever Members Club in Tustin. Trackman golf simulator bays, conference rooms & elegant event spaces in Orange County.',
+        title: 'Private Events & Venue Hire | Ever Club, Tustin',
+        description: 'Host private events, corporate gatherings & celebrations at Ever Club in Tustin. Trackman simulator bays, conference rooms & event spaces in OC.',
       },
       '/whats-on': {
-        title: 'Events & Happenings in Orange County | Ever Members Club',
-        description: 'Discover golf tournaments, social nights, wellness classes & curated events at Ever Members Club in Tustin, Orange County. See what\'s on and RSVP.',
+        title: 'Events & Happenings in OC | Ever Club',
+        description: 'Discover golf tournaments, social nights, wellness classes & curated events at Ever Club in Tustin, OC. See what\'s on and RSVP.',
       },
       '/menu': {
-        title: 'Café Menu | Ever Members Club — Tustin, Orange County',
-        description: 'Explore the Ever Members Club café menu. Farm-to-table breakfast, artisan lunch, craft coffee & curated beverages inside Orange County\'s premier indoor golf & social club.',
+        title: 'Café Menu | Ever Club — Tustin, OC',
+        description: 'Explore the Ever Club café menu. Farm-to-table breakfast, artisan lunch, craft coffee & curated beverages at OC\'s premier indoor golf & social club.',
       },
       '/gallery': {
-        title: 'Gallery & Photos | Ever Members Club — Indoor Golf Club in Orange County',
-        description: 'See inside Ever Members Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at Orange County\'s private social club.',
+        title: 'Gallery & Photos | Ever Club — Golf Club in OC',
+        description: 'See inside Ever Club in Tustin. Photos of Trackman golf simulators, lounge, café, coworking spaces & member events at OC\'s private social club.',
       },
       '/contact': {
-        title: 'Contact Us | Ever Members Club — Tustin, Orange County',
-        description: 'Get in touch with Ever Members Club at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780. Membership inquiries, private events, tours & general questions. Call (949) 545-5855.',
+        title: 'Contact Us | Ever Club — Tustin, OC',
+        description: 'Contact Ever Club at 15771 Red Hill Ave, Ste 500, Tustin, CA 92780. Membership inquiries, private events, tours & questions. (949) 545-5855.',
       },
       '/tours': {
-        title: 'Book a Private Tour | Ever Members Club — Indoor Golf & Social Club, OC',
-        description: 'Schedule a free 30-minute tour of Ever Members Club in Tustin. See Trackman simulators, premium coworking, café & wellness facilities at Orange County\'s top private club.',
+        title: 'Book a Tour | Ever Club — Golf & Social Club, OC',
+        description: 'Schedule a free 30-min tour of Ever Club in Tustin. See Trackman simulators, coworking, café & wellness at OC\'s top private club.',
       },
       '/day-pass': {
-        title: 'Day Pass — Golf Simulator & Coworking | Ever Members Club, Orange County',
-        description: 'No membership needed. Purchase a day pass for Trackman golf simulators or premium coworking at Ever Members Club in Tustin, Orange County. Walk in & experience the club.',
+        title: 'Day Pass — Golf Simulator & Coworking | Ever Club',
+        description: 'No membership needed. Buy a day pass for Trackman golf simulators or coworking at Ever Club in Tustin, OC. Walk in & experience the club.',
       },
       '/faq': {
-        title: 'FAQ — Frequently Asked Questions | Ever Members Club, Orange County',
-        description: 'Got questions about Ever Members Club? Find answers about memberships, Trackman golf simulators, events, hours, day passes & more at our Tustin, OC location.',
+        title: 'FAQ — Frequently Asked Questions | Ever Club',
+        description: 'Got questions about Ever Club? Find answers about memberships, Trackman golf simulators, events, hours, day passes & more at our Tustin, OC location.',
       },
       '/privacy': {
         title: 'Privacy Policy | Ever Members Club',
@@ -472,8 +472,8 @@ async function initializeApp() {
         description: 'Ever Members Club terms of service. Membership agreement, usage policies, and club rules.',
       },
       '/private-hire/inquire': {
-        title: 'Private Event Inquiry | Ever Members Club — Orange County Venue',
-        description: 'Submit an inquiry for private events at Ever Members Club in Tustin, OC. Golf simulator parties, corporate events, celebrations & more at Orange County\'s premier venue.',
+        title: 'Private Event Inquiry | Ever Club — OC Venue',
+        description: 'Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate events, celebrations & more.',
       },
     };
 

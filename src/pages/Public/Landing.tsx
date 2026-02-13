@@ -81,8 +81,8 @@ const Landing: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="Ever Members Club | Indoor Golf & Social Club in Tustin, Orange County"
-        description="Orange County's premier private indoor golf & social club, formerly Even House. Trackman golf simulators, premium coworking, café, wellness & curated events. Visit us in Tustin — book a private tour today."
+        title="Ever Club | Indoor Golf & Social Club in Tustin, OC"
+        description="Orange County's premier indoor golf & social club, formerly Even House. Trackman simulators, coworking, café & wellness in Tustin. Book a tour today."
         url="/"
         image="/images/hero-lounge-optimized.webp"
       />

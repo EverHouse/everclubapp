@@ -90,7 +90,7 @@ const PublicCafe: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <SEO title="Café Menu | Ever Members Club — Tustin, Orange County" description="Explore the Ever Members Club café menu. Farm-to-table breakfast, artisan lunch, craft coffee & curated beverages inside Orange County's premier indoor golf & social club." url="/menu" />
+    <SEO title="Café Menu | Ever Club — Tustin, OC" description="Explore the Ever Club café menu. Farm-to-table breakfast, artisan lunch, craft coffee & curated beverages at OC's premier indoor golf & social club." url="/menu" />
     <div 
       className="flex flex-col min-h-screen bg-[#EAEBE6] dark:bg-[#0f120a] overflow-x-hidden w-full max-w-full"
       style={{ marginTop: 'calc(-1 * var(--header-offset))', paddingTop: 'var(--header-offset)' }}

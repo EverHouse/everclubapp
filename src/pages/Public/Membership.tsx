@@ -118,8 +118,8 @@ const MembershipOverview: React.FC = () => {
   return (
     <AnimatedPage>
       <SEO
-        title="Membership Plans & Pricing | Ever Members Club — Tustin, OC"
-        description="Explore membership tiers at Ever Members Club in Orange County. Social, Core, Premium & Corporate plans with Trackman simulator access, coworking, wellness programs & exclusive member events."
+        title="Membership Plans & Pricing | Ever Club — Tustin, OC"
+        description="Explore membership tiers at Ever Club in OC. Social, Core, Premium & Corporate plans with Trackman access, coworking, wellness & exclusive events."
         url="/membership"
         image="/images/hero-lounge-optimized.webp"
       />

@@ -5,6 +5,7 @@ import { triggerHaptic } from '../../utils/haptics';
 import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import SEO from '../../components/SEO';
 
 const getHubspotCookie = (): string | null => {
   const cookies = document.cookie.split(';');
@@ -143,6 +144,7 @@ const MembershipApply: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#0f120a]">
+      <SEO title="Apply for Membership | Ever Club — OC Golf Club" description="Join OC's premier indoor golf & social club. Apply for membership at Ever Club in Tustin — Trackman simulators, workspace, wellness & community." url="/membership/apply" />
       <div 
         className="fixed top-0 left-0 right-0 bg-primary"
         style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
