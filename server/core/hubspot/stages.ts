@@ -455,6 +455,15 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
   try {
     const hubspot = await getHubSpotClient();
     
+    const billingProviderOptions = [
+      { label: 'Stripe', value: 'stripe', displayOrder: 1 },
+      { label: 'MindBody', value: 'mindbody', displayOrder: 2 },
+      { label: 'Manual', value: 'manual', displayOrder: 3 },
+      { label: 'None', value: 'None', displayOrder: 4 },
+      { label: 'Comped', value: 'Comped', displayOrder: 5 },
+      { label: 'Family Addon', value: 'Family Addon', displayOrder: 6 },
+    ];
+
     const propertiesToCreate = [
       {
         name: 'billing_provider',
@@ -462,12 +471,8 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
         type: 'enumeration',
         fieldType: 'select',
         groupName: 'contactinformation',
-        description: 'The billing system managing this member\'s subscription (Stripe, MindBody, or Manual)',
-        options: [
-          { label: 'Stripe', value: 'Stripe', displayOrder: 1 },
-          { label: 'MindBody', value: 'MindBody', displayOrder: 2 },
-          { label: 'Manual', value: 'Manual', displayOrder: 3 },
-        ]
+        description: 'The billing system managing this member\'s subscription',
+        options: billingProviderOptions
       },
       {
         name: 'member_since_date',
@@ -481,11 +486,32 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
     
     for (const prop of propertiesToCreate) {
       try {
-        await retryableHubSpotRequest(() =>
+        const existingProp = await retryableHubSpotRequest(() =>
           hubspot.crm.properties.coreApi.getByName('contacts', prop.name)
         );
         existing.push(prop.name);
         console.log(`[HubSpot] Property ${prop.name} already exists`);
+
+        if (prop.type === 'enumeration' && prop.options) {
+          const existingValues = new Set(
+            (existingProp.options || []).map((o: any) => o.value)
+          );
+          const missingOptions = prop.options.filter(
+            (o: any) => !existingValues.has(o.value)
+          );
+          if (missingOptions.length > 0) {
+            const allOptions = [
+              ...(existingProp.options || []),
+              ...missingOptions,
+            ];
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.properties.coreApi.update('contacts', prop.name, {
+                options: allOptions,
+              } as any)
+            );
+            console.log(`[HubSpot] Added options to ${prop.name}: ${missingOptions.map((o: any) => o.label).join(', ')}`);
+          }
+        }
       } catch (getError: unknown) {
         if (getErrorCode(getError) === '404' || getErrorMessage(getError)?.includes('not exist')) {
           try {
