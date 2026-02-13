@@ -19,6 +19,7 @@ export function getErrorCode(error: unknown): string | undefined {
 export function getErrorStatusCode(error: unknown): number | undefined {
   if (hasProperty(error, 'statusCode')) return Number(error.statusCode);
   if (hasProperty(error, 'status')) return Number(error.status);
+  if (hasProperty(error, 'code') && typeof error.code === 'number') return error.code;
   return undefined;
 }
 
