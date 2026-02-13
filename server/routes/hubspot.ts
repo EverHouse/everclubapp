@@ -15,6 +15,7 @@ import pRetry, { AbortError } from 'p-retry';
 import { broadcastDirectoryUpdate } from '../core/websocket';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { getErrorMessage } from '../utils/errorUtils';
+import { denormalizeTierForHubSpot } from '../utils/tierUtils';
 
 /**
  * Cutoff date for HubSpot batch import.
@@ -991,9 +992,12 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
         newTier: newTier
       });
       
+      const hubspotTier = denormalizeTierForHubSpot(newTier);
+      if (!hubspotTier) continue;
+      
       updateBatch.push({
         id: contact.id,
-        properties: { membership_tier: newTier }
+        properties: { membership_tier: hubspotTier }
       });
     }
     
@@ -1114,13 +1118,15 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     
     console.log(`[Tier Update] Updated local database for ${contactEmail}`);
     
-    // Update the tier in HubSpot only if we have a valid HubSpot contact ID
     if (hubspotContactId) {
-      await retryableHubSpotRequest(() =>
-        hubspot.crm.contacts.basicApi.update(hubspotContactId!, {
-          properties: { membership_tier: tierData.membership_tier }
-        })
-      );
+      const hubspotTier = denormalizeTierForHubSpot(tier);
+      if (hubspotTier) {
+        await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.basicApi.update(hubspotContactId!, {
+            properties: { membership_tier: hubspotTier }
+          })
+        );
+      }
     }
     
     // Log the change for audit purposes
@@ -1325,9 +1331,12 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
         hubspotId: member.hubspotId
       });
       
+      const hubspotTier = denormalizeTierForHubSpot(member.tier);
+      if (!hubspotTier) continue;
+      
       updateBatch.push({
         id: member.hubspotId,
-        properties: { membership_tier: member.tier }
+        properties: { membership_tier: hubspotTier }
       });
     }
     

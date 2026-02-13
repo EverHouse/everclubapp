@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.55.0",
+    date: "2026-02-13",
+    title: "Tier Data Integrity Hardening",
+    isMajor: true,
+    changes: [
+      "New: Database CHECK constraint on the tier column — only valid normalized tier values (Core, Premium, Social, VIP, Corporate, Staff, Group Lessons) can be stored, preventing data corruption at the source",
+      "New: Database trigger auto-normalizes tier values on write — catches variants like 'Core Membership' and converts them to 'Core' before they reach the database",
+      "Fixed: Data integrity reconciliation now normalizes HubSpot tier values before writing to the database instead of storing raw HubSpot format",
+      "Fixed: All 3 HubSpot outbound push paths now consistently use denormalizeTierForHubSpot() instead of hardcoded mappings or raw values",
+      "Fixed: Stripe webhook handlers now normalize tier metadata before database writes — covers subscription creation, checkout completion, group billing, and quick charge flows",
+      "Fixed: Backfilled 465 membership_tier records to match canonical tier values, eliminating stale HubSpot-format values like 'Core Membership Founding Members'",
+      "Improved: membership_tier column now always derives from the canonical tier column — no more divergent values between the two columns"
+    ]
+  },
+  {
     version: "7.54.2",
     date: "2026-02-13",
     title: "Unified Billing — Eliminate Duplicate Fee Logic",

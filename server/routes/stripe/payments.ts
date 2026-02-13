@@ -35,6 +35,7 @@ import { getStaffInfo, MAX_RETRY_ATTEMPTS, GUEST_FEE_CENTS, SAVED_CARD_APPROVAL_
 import { broadcastBillingUpdate, sendNotificationToUser } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { normalizeTierName } from '../../utils/tierUtils';
 
 const router = Router();
 
@@ -862,7 +863,7 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
       const stripeCustomerId = typeof paymentIntent.customer === 'string' ? paymentIntent.customer : paymentIntent.customer?.id;
       
       const tierResult = await db.execute(sql`SELECT name FROM membership_tiers WHERE slug = ${tierSlug} OR name = ${tierSlug}`);
-      const validatedTierName = tierResult.rows[0]?.name || tierName;
+      const validatedTierName = tierResult.rows[0]?.name || normalizeTierName(tierName);
       
       // Check if this email resolves to an existing user via linked email
       const { resolveUserByEmail } = await import('../../core/stripe/customers');

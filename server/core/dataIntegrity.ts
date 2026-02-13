@@ -2500,7 +2500,7 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
       UPDATE users SET
         first_name = ${props.firstname || null},
         last_name = ${props.lastname || null},
-        membership_tier = ${hsTierValue},
+        membership_tier = ${appTier},
         tier = ${appTier},
         updated_at = NOW()
       WHERE id = ${userId}

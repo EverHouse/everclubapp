@@ -24,6 +24,7 @@ import { clearTierCache } from '../tierService';
 import { updateFamilyDiscountPercent, updateOverageRate, updateGuestFee } from '../billing/pricingConfig';
 import type { PoolClient } from 'pg';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { normalizeTierName } from '../../utils/tierUtils';
 
 const EVENT_DEDUP_WINDOW_DAYS = 7;
 
@@ -1990,7 +1991,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
               updated_at = NOW()
             WHERE id = $4 OR LOWER(email) = LOWER($5)
             RETURNING id, email`,
-            [customerId, subscriptionId, tierNameMeta || tierSlugMeta, userId, memberEmail]
+            [customerId, subscriptionId, normalizeTierName(tierNameMeta || tierSlugMeta), userId, memberEmail]
           );
 
           if (updateResult.rowCount && updateResult.rowCount > 0) {
@@ -2343,7 +2344,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
         } else if (metadataTierName) {
           // Use the tier name from metadata if slug lookup fails
           tierSlug = metadataTierSlug;
-          tierName = metadataTierName;
+          tierName = normalizeTierName(metadataTierName);
           console.log(`[Stripe Webhook] Using tier from metadata (no DB match): ${tierSlug} (${tierName})`);
         }
       }

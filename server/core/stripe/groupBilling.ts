@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 import { randomUUID } from 'crypto';
 import { getCorporateVolumeTiers, getCorporateBasePrice, getFamilyDiscountPercent, updateFamilyDiscountPercent } from '../billing/pricingConfig';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { normalizeTierName } from '../../utils/tierUtils';
 
 export interface BillingGroupWithMembers {
   id: number;
@@ -432,6 +433,7 @@ export async function addGroupMember(params: {
   addedBy: string;
   addedByName: string;
 }): Promise<{ success: boolean; memberId?: number; error?: string }> {
+  const normalizedTier = normalizeTierName(params.memberTier);
   const client = await pool.connect();
   
   try {
@@ -492,11 +494,11 @@ export async function addGroupMember(params: {
     
     const addOnProduct = await db.select()
       .from(familyAddOnProducts)
-      .where(eq(familyAddOnProducts.tierName, params.memberTier))
+      .where(eq(familyAddOnProducts.tierName, normalizedTier))
       .limit(1);
     
     if (addOnProduct.length === 0) {
-      return { success: false, error: `No add-on product found for tier: ${params.memberTier}` };
+      return { success: false, error: `No add-on product found for tier: ${normalizedTier}` };
     }
     
     const product = addOnProduct[0];
@@ -530,7 +532,7 @@ export async function addGroupMember(params: {
         [
           params.billingGroupId,
           params.memberEmail.toLowerCase(),
-          params.memberTier,
+          normalizedTier,
           params.relationship || null,
           product.stripePriceId,
           product.priceCents,
@@ -544,7 +546,7 @@ export async function addGroupMember(params: {
       // Create or update user account (matching addCorporateMember pattern)
       if (userExists) {
         const updateFields: string[] = ['billing_group_id = $1', 'tier = $2', "billing_provider = 'stripe'", "membership_status = 'active'", 'updated_at = NOW()'];
-        const updateValues: any[] = [params.billingGroupId, params.memberTier];
+        const updateValues: any[] = [params.billingGroupId, normalizedTier];
         let paramIndex = 3;
         
         if (params.firstName) {
@@ -608,7 +610,7 @@ export async function addGroupMember(params: {
             params.lastName || null,
             params.phone || null,
             params.dob || null,
-            params.memberTier,
+            normalizedTier,
             params.billingGroupId,
             params.streetAddress || null,
             params.city || null,
@@ -616,7 +618,7 @@ export async function addGroupMember(params: {
             params.zipCode || null
           ]
         );
-        console.log(`[GroupBilling] Created new user ${params.memberEmail} for family group with tier ${params.memberTier}`);
+        console.log(`[GroupBilling] Created new user ${params.memberEmail} for family group with tier ${normalizedTier}`);
       }
 
       if (group[0].primaryStripeSubscriptionId && product.stripePriceId) {
@@ -632,7 +634,7 @@ export async function addGroupMember(params: {
             metadata: {
               group_member_email: params.memberEmail.toLowerCase(),
               billing_group_id: params.billingGroupId.toString(),
-              tier: params.memberTier,
+              tier: normalizedTier,
             },
           };
           
@@ -725,6 +727,7 @@ export async function addCorporateMember(params: {
   addedBy: string;
   addedByName: string;
 }): Promise<{ success: boolean; memberId?: number; error?: string }> {
+  const normalizedTier = normalizeTierName(params.memberTier);
   const client = await pool.connect();
   
   try {
@@ -823,7 +826,7 @@ export async function addCorporateMember(params: {
         [
           params.billingGroupId,
           params.memberEmail.toLowerCase(),
-          params.memberTier,
+          normalizedTier,
           pricePerSeat,
           params.addedBy,
           params.addedByName,
@@ -841,7 +844,7 @@ export async function addCorporateMember(params: {
       
       if (existingUserCheck.rows.length > 0) {
         const updateFields: string[] = ['billing_group_id = $1', 'tier = $2', "billing_provider = 'stripe'", "membership_status = 'active'"];
-        const updateValues: any[] = [params.billingGroupId, params.memberTier];
+        const updateValues: any[] = [params.billingGroupId, normalizedTier];
         let paramIndex = 3;
         
         if (params.firstName) {
@@ -888,11 +891,11 @@ export async function addCorporateMember(params: {
             params.lastName || null,
             params.phone || null,
             params.dob || null,
-            params.memberTier,
+            normalizedTier,
             params.billingGroupId
           ]
         );
-        console.log(`[GroupBilling] Created new user ${params.memberEmail} with tier ${params.memberTier}`);
+        console.log(`[GroupBilling] Created new user ${params.memberEmail} with tier ${normalizedTier}`);
       }
 
       const hasPrePaidSeats = group[0].max_seats && group[0].max_seats > 0;

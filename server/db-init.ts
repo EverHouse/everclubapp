@@ -270,7 +270,70 @@ export async function ensureDatabaseConstraints() {
     } catch (err: unknown) {
       console.warn(`[DB Init] Skipping overlap trigger: ${getErrorMessage(err)}`);
     }
-    
+
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION normalize_tier_value()
+        RETURNS TRIGGER AS $$
+        DECLARE
+          raw_tier TEXT;
+          lowered TEXT;
+          normalized TEXT;
+        BEGIN
+          raw_tier := NEW.tier;
+          IF raw_tier IS NULL THEN
+            RETURN NEW;
+          END IF;
+          IF raw_tier IN ('Social', 'Core', 'Premium', 'Corporate', 'VIP', 'Staff', 'Group Lessons') THEN
+            RETURN NEW;
+          END IF;
+          lowered := LOWER(TRIM(raw_tier));
+          normalized := CASE
+            WHEN lowered LIKE '%vip%' THEN 'VIP'
+            WHEN lowered LIKE '%premium%' THEN 'Premium'
+            WHEN lowered LIKE '%corporate%' THEN 'Corporate'
+            WHEN lowered LIKE '%core%' THEN 'Core'
+            WHEN lowered LIKE '%social%' THEN 'Social'
+            WHEN lowered LIKE '%staff%' THEN 'Staff'
+            WHEN lowered LIKE '%group lesson%' OR lowered LIKE '%group-lesson%' THEN 'Group Lessons'
+            ELSE NULL
+          END;
+          IF normalized IS NOT NULL THEN
+            NEW.tier := normalized;
+            RETURN NEW;
+          END IF;
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS normalize_tier_before_write ON users;
+        CREATE TRIGGER normalize_tier_before_write
+          BEFORE INSERT OR UPDATE OF tier ON users
+          FOR EACH ROW
+          EXECUTE FUNCTION normalize_tier_value();
+      `);
+      console.log('[DB Init] Tier normalization trigger created/verified');
+    } catch (err: unknown) {
+      console.warn(`[DB Init] Skipping tier normalization trigger: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'users_tier_check'
+          ) THEN
+            ALTER TABLE users ADD CONSTRAINT users_tier_check
+              CHECK (tier IS NULL OR tier IN ('Social', 'Core', 'Premium', 'Corporate', 'VIP', 'Staff', 'Group Lessons'));
+          END IF;
+        END $$;
+      `);
+      console.log('[DB Init] Tier CHECK constraint created/verified');
+    } catch (err: unknown) {
+      console.warn(`[DB Init] Skipping tier CHECK constraint: ${getErrorMessage(err)}`);
+    }
+
     const indexQueries = [
       { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
       { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },
