@@ -83,12 +83,9 @@ const Contact: React.FC = () => {
       <section className="px-4 mb-8 space-y-3 animate-content-enter-delay-1">
            <ContactCard icon="location_on" title="VISIT US" value="15771 Red Hill Ave, Ste 500" />
            <ContactCard icon="call" title="CALL US" value="(949) 545-5855" href="tel:9495455855" />
-           <ContactCard icon="mail" title="EMAIL US" value="info@everclub.app" href="mailto:info@everclub.app" />
-           <a 
-             href="https://bcrw.apple.com/urn:biz:91355ac7-f202-440d-a19e-f5a1cca16848" 
-             target="_blank" 
-             rel="noopener noreferrer"
-             className="group flex items-center justify-between bg-zinc-700 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-all cursor-pointer"
+           <ContactCard icon="mail" title="EMAIL US" value="info@joinever.club" href="mailto:info@joinever.club" />
+           <div 
+             className="group flex items-center justify-between bg-zinc-700/50 p-4 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 opacity-60 cursor-default"
            >
               <div className="flex items-center gap-4">
                    <div className="flex items-center justify-center size-12 rounded-full bg-white/10 text-white shrink-0">
@@ -98,11 +95,10 @@ const Contact: React.FC = () => {
                    </div>
                    <div className="flex-1 min-w-0 text-left">
                        <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">MESSAGE US</p>
-                       <p className="text-white font-bold truncate text-sm">Apple Messages</p>
+                       <p className="text-white font-bold truncate text-sm">Apple Messages <span className="text-white/40 font-normal text-xs">(Coming Soon)</span></p>
                    </div>
               </div>
-              <span className="material-symbols-outlined text-white/30 group-hover:text-white transition-colors">chevron_right</span>
-           </a>
+           </div>
       </section>
 
       <section className="px-4 mb-8">
@@ -268,7 +264,7 @@ const Contact: React.FC = () => {
           <p className="text-white/70 text-sm mb-4">Join our community of golfers, creatives, and wellness enthusiasts.</p>
           <button 
             onClick={() => { startNavigation(); navigate('/membership'); }}
-            className="bg-bone dark:bg-white text-primary px-6 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+            className="bg-white text-primary px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors"
           >
             Apply for Membership
           </button>

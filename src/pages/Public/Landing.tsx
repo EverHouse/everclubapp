@@ -369,11 +369,11 @@ const Landing: React.FC = () => {
          </div>
       </div>
 
-      <section className="px-6 py-16 bg-primary dark:bg-[#1a1f12]">
+      <section className="px-6 py-16 bg-bone dark:bg-[#0f120a]">
         <div className="max-w-md mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3 font-serif">See it for yourself.</h2>
-          <p className="text-sm sm:text-base text-white/70 mb-8">Book a private tour and experience Ever Club firsthand.</p>
-          <Link to="/tour" className="inline-block px-10 py-4 rounded-2xl bg-white text-primary font-bold text-xs uppercase tracking-[0.15em] shadow-lg hover:scale-[1.02] hover:bg-white/90 transition-all">
+          <h2 className="text-2xl sm:text-3xl font-bold text-primary dark:text-white mb-3 font-serif">See it for yourself.</h2>
+          <p className="text-sm sm:text-base text-primary/60 dark:text-white/60 mb-8">Book a private tour and experience Ever Club firsthand.</p>
+          <Link to="/tour" className="inline-block px-10 py-4 rounded-2xl bg-primary text-white font-bold text-xs uppercase tracking-[0.15em] shadow-lg hover:scale-[1.02] hover:bg-primary/90 transition-all">
             Book Your Private Tour
           </Link>
         </div>
