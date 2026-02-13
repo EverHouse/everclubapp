@@ -480,7 +480,7 @@ async function initializeApp() {
     const BASE_JSON_LD = {
       "@type": ["SportsActivityLocation", "LocalBusiness"],
       "name": "Ever Members Club",
-      "alternateName": "Ever Club",
+      "alternateName": ["Ever Club", "Even House"],
       "description": "Orange County's premier private indoor golf & social club featuring Trackman simulators, premium coworking, wellness programs, and curated events.",
       "url": "https://everclub.app",
       "telephone": "+17143907500",
