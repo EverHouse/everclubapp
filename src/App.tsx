@@ -113,6 +113,7 @@ const PublicCafe = lazy(() => import('./pages/Public/Cafe'));
 const FAQ = lazy(() => import('./pages/Public/FAQ'));
 const BuyDayPass = lazy(() => import('./pages/Public/BuyDayPass'));
 const DayPassSuccess = lazy(() => import('./pages/Public/DayPassSuccess'));
+const BookTour = lazy(() => import('./pages/Public/BookTour'));
 const PrivacyPolicy = lazy(() => import('./pages/Public/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/Public/TermsOfService'));
 const Login = lazy(() => import('./pages/Public/Login'));
@@ -367,6 +368,7 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="/private-hire/inquire" element={<DirectionalPageTransition><PageErrorBoundary pageName="PrivateHireInquire"><PrivateHireInquire /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/menu" element={<DirectionalPageTransition><PageErrorBoundary pageName="Cafe"><PublicCafe /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/faq" element={<DirectionalPageTransition><PageErrorBoundary pageName="FAQ"><FAQ /></PageErrorBoundary></DirectionalPageTransition>} />
+            <Route path="/tour" element={<DirectionalPageTransition><PageErrorBoundary pageName="BookTour"><BookTour /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/day-pass" element={<DirectionalPageTransition><PageErrorBoundary pageName="BuyDayPass"><BuyDayPass /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/day-pass/success" element={<DirectionalPageTransition><PageErrorBoundary pageName="DayPassSuccess"><DayPassSuccess /></PageErrorBoundary></DirectionalPageTransition>} />
             <Route path="/privacy" element={<DirectionalPageTransition><PageErrorBoundary pageName="Privacy"><PrivacyPolicy /></PageErrorBoundary></DirectionalPageTransition>} />

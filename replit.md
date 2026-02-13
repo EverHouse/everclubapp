@@ -72,7 +72,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Stripe Product Catalog as Source of Truth**: Two-way sync between app and Stripe.
 - **Google Sheets Integration**: Announcement sync.
 - **Staff Training System**: Training sections managed via `server/routes/training.ts` with seed data.
-- **Tours Management**: Tour scheduling and tracking.
+- **Tours Management**: Native tour scheduling at /tour with Google Calendar integration. 2-step booking flow (visitor info → date/time picker), server-side conflict detection, configurable business hours (10am–5pm) and slot duration (30 min). Confirmation emails via Resend. Public endpoint, no auth required.
 - **Cafe/POS System**: Cafe item management, POS register for in-person sales.
 - **Guest Pass System**: Monthly guest pass allocation, guest pass purchase, hold/consume flow.
 - **Availability/Closures Management**: Bay availability blocks and club closure scheduling.

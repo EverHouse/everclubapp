@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useData } from '../../contexts/DataContext';
 import { useParallax } from '../../hooks/useParallax';
-import { playSound } from '../../utils/sounds';
-import ModalShell from '../../components/ModalShell';
 import EditorialSection from '../../components/layout/EditorialSection';
 import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
@@ -21,209 +19,10 @@ interface MembershipTier {
   highlighted_features: string[];
 }
 
-
-interface TourFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-}
-
-const HubSpotMeetingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [step, setStep] = useState<'form' | 'calendar'>('form');
-  const [formData, setFormData] = useState<TourFormData>({ firstName: '', lastName: '', email: '', phone: '' });
-  const [tourId, setTourId] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [bookingConfirmed, setBookingConfirmed] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setStep('form');
-      setFormData({ firstName: '', lastName: '', email: '', phone: '' });
-      setTourId(null);
-      setError(null);
-      setBookingConfirmed(false);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (step === 'calendar' && containerRef.current && formData.email) {
-      containerRef.current.innerHTML = '';
-      const script = document.createElement('script');
-      script.src = 'https://static.hsappstatic.net/MeetingsEmbed/ex/MeetingsEmbedCode.js';
-      script.async = true;
-      
-      const params = new URLSearchParams({
-        embed: 'true',
-        firstname: formData.firstName,
-        lastname: formData.lastName,
-        email: formData.email,
-        ...(formData.phone && { phone: formData.phone })
-      });
-      
-      const meetingsDiv = document.createElement('div');
-      meetingsDiv.className = 'meetings-iframe-container';
-      meetingsDiv.setAttribute('data-src', `https://meetings-na2.hubspot.com/memberships/tourbooking?${params.toString()}`);
-      
-      containerRef.current.appendChild(meetingsDiv);
-      containerRef.current.appendChild(script);
-    }
-  }, [step, formData]);
-
-  useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.data?.meetingBookSucceeded && tourId) {
-        try {
-          await fetch(`/api/tours/${tourId}/confirm`, { method: 'PATCH' });
-          playSound('bookingConfirmed');
-          setBookingConfirmed(true);
-        } catch (err) {
-          console.error('Failed to confirm tour:', err);
-        }
-      }
-    };
-    
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [tourId]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    
-    try {
-      const res = await fetch('/api/tours/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit');
-      }
-      
-      setTourId(data.id);
-      setStep('calendar');
-    } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : String(err)) || 'Something went wrong');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const subtitle = step === 'form' ? 'Tell us a bit about yourself.' : bookingConfirmed ? 'Your tour is confirmed!' : 'Select a time that works for you.';
-
-  return (
-    <ModalShell isOpen={isOpen} onClose={onClose} title="Book a Tour" size="lg" className="bg-bone dark:bg-[#1a1f12]" hideTitleBorder>
-      <div className="px-6 pb-2">
-        <p className="text-sm text-primary/60 dark:text-white/60">{subtitle}</p>
-      </div>
-      
-      {step === 'form' ? (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="tour-firstName" className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">First Name *</label>
-                <input
-                  id="tour-firstName"
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white placeholder-primary/40 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                  placeholder="Jane"
-                />
-              </div>
-              <div>
-                <label htmlFor="tour-lastName" className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">Last Name *</label>
-                <input
-                  id="tour-lastName"
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white placeholder-primary/40 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="tour-email" className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">Email *</label>
-              <input
-                id="tour-email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white placeholder-primary/40 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                placeholder="jane@example.com"
-              />
-            </div>
-            <div>
-              <label htmlFor="tour-phone" className="block text-sm font-medium text-primary/70 dark:text-white/70 mb-1">Phone</label>
-              <input
-                id="tour-phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 text-primary dark:text-white placeholder-primary/40 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                placeholder="(949) 555-0100"
-              />
-            </div>
-            
-            {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
-            )}
-            
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-4 rounded-xl bg-primary text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  Continue to Select Time
-                  <span className="material-symbols-outlined text-lg">arrow_forward</span>
-                </>
-              )}
-            </button>
-          </form>
-        ) : bookingConfirmed ? (
-          <div className="p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-4xl text-green-600">check_circle</span>
-            </div>
-            <h3 className="text-xl font-bold text-primary dark:text-white mb-2">Tour Confirmed!</h3>
-            <p className="text-primary/60 dark:text-white/60 mb-6">We've received your booking. You'll receive a confirmation email shortly.</p>
-            <button
-              onClick={onClose}
-              className="px-8 py-3 rounded-xl bg-primary text-white font-bold text-sm hover:opacity-90 transition-opacity"
-            >
-              Done
-            </button>
-          </div>
-      ) : (
-        <div ref={containerRef} className="p-4 overflow-y-auto flex-1 min-h-[500px]"></div>
-      )}
-    </ModalShell>
-  );
-};
-
 const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { setPageReady } = usePageReady();
   const { user, actualUser, isViewingAs, sessionChecked } = useData();
-  const [showTourModal, setShowTourModal] = useState(false);
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { offset: parallaxOffset, opacity: parallaxOpacity, gradientShift, ref: heroRef } = useParallax({ speed: 0.25, maxOffset: 120 });
@@ -343,10 +142,10 @@ const Landing: React.FC = () => {
              <Link to="/membership" className="w-full py-4 rounded-2xl bg-white/30 backdrop-blur-xl text-white font-bold text-xs uppercase tracking-[0.15em] shadow-lg hover:scale-[1.02] hover:bg-white/40 transition-all text-center border border-white/40">
                 Explore Membership Plans
              </Link>
-             <button onClick={() => setShowTourModal(true)} className="w-full py-3 text-white font-medium text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-2 group">
+             <Link to="/tour" className="w-full py-3 text-white font-medium text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-2 group">
                 Book a Tour
                 <span className="material-symbols-outlined text-lg group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
-             </button>
+             </Link>
           </div>
         </div>
       </div>
@@ -588,7 +387,6 @@ const Landing: React.FC = () => {
 
       <Footer hideCta />
 
-      <HubSpotMeetingModal isOpen={showTourModal} onClose={() => setShowTourModal(false)} />
 
       <BackToTop threshold={200} />
 

@@ -82,7 +82,7 @@ export function generateTimeSlots(
 }
 
 export async function getCalendarAvailability(
-  resourceType: 'golf' | 'conference',
+  resourceType: 'golf' | 'conference' | 'tours',
   date: string,
   durationMinutes?: number
 ): Promise<{ slots: TimeSlot[]; calendarId: string | null; error?: string }> {

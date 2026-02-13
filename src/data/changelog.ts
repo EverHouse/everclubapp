@@ -13,6 +13,20 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.58.0",
+    date: "2026-02-13",
+    title: "Native Tour Scheduler",
+    changes: [
+      "New: Dedicated /tour page replaces the old external HubSpot meeting scheduler with a fully native booking experience built into the app",
+      "New: 2-step flow — enter your info, then pick a date and time from real available slots pulled directly from the Tours Scheduled Google Calendar",
+      "New: Booking creates a Google Calendar event on the Tours Scheduled calendar automatically",
+      "New: Confirmation email sent to the guest with tour date, time, and club address",
+      "New: Staff notifications for new tour bookings via in-app alerts and real-time updates",
+      "New: Available time slots shown in 30-minute increments, 10am–5pm, filtered against existing calendar events and booked tours",
+      "Removed: HubSpot meeting scheduler embed from landing page — 'Book a Tour' now links directly to /tour"
+    ]
+  },
+  {
     version: "7.57.0",
     date: "2026-02-13",
     title: "HubSpot Integrity Sprint — Form Submission & Deal Enrichment",

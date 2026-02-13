@@ -18,6 +18,8 @@ export const CALENDAR_CONFIG = {
   },
   tours: {
     name: 'Tours Scheduled',
+    businessHours: { start: 10, end: 17 },
+    slotDuration: 30,
   },
   internal: {
     name: 'Internal Calendar',

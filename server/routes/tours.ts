@@ -5,7 +5,8 @@ import { tours, dismissedHubspotMeetings } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike, inArray } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getGoogleCalendarClient, getHubSpotClient } from '../core/integrations';
-import { CALENDAR_CONFIG, getCalendarIdByName, discoverCalendarIds } from '../core/calendar/index';
+import { CALENDAR_CONFIG, getCalendarIdByName, discoverCalendarIds, getCalendarAvailability, createCalendarEventOnCalendar } from '../core/calendar/index';
+import { safeSendEmail } from '../utils/resend';
 import { notifyAllStaff } from '../core/notificationService';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getSessionUser } from '../types/session';
@@ -1065,5 +1066,274 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
     return { synced: 0, created: 0, updated: 0, cancelled: 0, error: getErrorMessage(error) || 'Failed to sync tours from HubSpot' };
   }
 }
+
+const CLUB_COLORS = {
+  deepGreen: '#293515',
+  lavender: '#CCB8E4',
+  bone: '#F2F2EC',
+  textDark: '#1f2937',
+  textMuted: '#4b5563',
+  borderLight: '#e5e7eb'
+};
+
+function getTourConfirmationHtml(data: { guestName: string; date: string; time: string }): string {
+  const formattedDate = new Date(data.date + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const formattedTime = data.time.length === 5
+    ? new Date(`2000-01-01T${data.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    : data.time;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tour Confirmed - Ever Club</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: ${CLUB_COLORS.bone}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone};">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; padding: 40px;">
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <img src="https://everclub.app/images/everclub-logo-dark.png" alt="Ever Club" width="180" height="60" style="display: inline-block;">
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center; padding-bottom: 16px;">
+              <h1 style="margin: 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: 400; color: ${CLUB_COLORS.deepGreen};">
+                Tour Confirmed
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center; padding-bottom: 24px;">
+              <div style="width: 64px; height: 64px; background-color: ${CLUB_COLORS.lavender}; border-radius: 50%; margin: 0 auto; line-height: 64px;">
+                <span style="font-size: 32px; color: ${CLUB_COLORS.deepGreen};">&#10003;</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
+                Hi ${data.guestName}, your tour at Ever Club is confirmed!
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom: 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: ${CLUB_COLORS.bone}; border-radius: 12px; padding: 24px;">
+                <tr>
+                  <td>
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding-bottom: 16px;">
+                          <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: ${CLUB_COLORS.textMuted};">Date</p>
+                          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: ${CLUB_COLORS.textDark};">${formattedDate}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom: 16px;">
+                          <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: ${CLUB_COLORS.textMuted};">Time</p>
+                          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: ${CLUB_COLORS.textDark};">${formattedTime}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <p style="margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: ${CLUB_COLORS.textMuted};">Location</p>
+                          <p style="margin: 4px 0 0 0; font-size: 18px; font-weight: 600; color: ${CLUB_COLORS.textDark};">Ever Club</p>
+                          <p style="margin: 4px 0 0 0; font-size: 14px; color: ${CLUB_COLORS.textMuted};">3625 W MacArthur Blvd, Santa Ana, CA 92704</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center; padding-bottom: 32px;">
+              <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
+                We look forward to showing you around. If you need to make changes, please contact us.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center; border-top: 1px solid ${CLUB_COLORS.borderLight}; padding-top: 24px;">
+              <p style="margin: 0; font-size: 12px; color: ${CLUB_COLORS.textMuted};">
+                Ever Club &bull; 3625 W MacArthur Blvd &bull; Santa Ana, CA 92704
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+}
+
+router.get('/api/tours/availability', async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'Valid date in YYYY-MM-DD format is required' });
+    }
+
+    const result = await getCalendarAvailability('tours', date);
+
+    if (result.error) {
+      return res.status(500).json({ error: 'Unable to fetch availability' });
+    }
+
+    const existingTours = await db.select().from(tours)
+      .where(and(
+        eq(tours.tourDate, date),
+        or(eq(tours.status, 'scheduled'), eq(tours.status, 'pending'))
+      ));
+
+    const bookedStartTimes = new Set(
+      existingTours.map(t => {
+        const timeParts = t.startTime.split(':');
+        return `${timeParts[0]}:${timeParts[1]}`;
+      })
+    );
+
+    const availableSlots = result.slots.filter(slot => slot.available && !bookedStartTimes.has(slot.start));
+
+    res.json({ date, slots: result.slots, availableSlots });
+  } catch (error: unknown) {
+    console.error('Tour availability error:', getErrorMessage(error));
+    res.status(500).json({ error: 'Failed to fetch tour availability' });
+  }
+});
+
+router.post('/api/tours/schedule', async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, date, startTime } = req.body;
+
+    if (!firstName || !lastName || !email || !date || !startTime) {
+      return res.status(400).json({ error: 'firstName, lastName, email, date, and startTime are required' });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'date must be in YYYY-MM-DD format' });
+    }
+
+    if (!/^\d{2}:\d{2}$/.test(startTime)) {
+      return res.status(400).json({ error: 'startTime must be in HH:MM format' });
+    }
+
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const { businessHours, slotDuration } = CALENDAR_CONFIG.tours;
+
+    if (startHours < businessHours.start || startHours >= businessHours.end) {
+      return res.status(400).json({ error: `Tours are only available between ${String(businessHours.start).padStart(2, '0')}:00 and ${String(businessHours.end).padStart(2, '0')}:00 Pacific` });
+    }
+
+    const endTotalMinutes = startHours * 60 + startMinutes + slotDuration;
+    const endHourNum = Math.floor(endTotalMinutes / 60);
+    if (endHourNum > businessHours.end || (endHourNum === businessHours.end && endTotalMinutes % 60 > 0)) {
+      return res.status(400).json({ error: `Selected time slot extends beyond business hours (${String(businessHours.end).padStart(2, '0')}:00 Pacific)` });
+    }
+
+    const result = await getCalendarAvailability('tours', date);
+    if (result.error) {
+      return res.status(500).json({ error: 'Unable to verify availability' });
+    }
+
+    const existingTours = await db.select().from(tours)
+      .where(and(
+        eq(tours.tourDate, date),
+        or(eq(tours.status, 'scheduled'), eq(tours.status, 'pending'))
+      ));
+    const bookedStartTimes = new Set(
+      existingTours.map(t => {
+        const timeParts = t.startTime.split(':');
+        return `${timeParts[0]}:${timeParts[1]}`;
+      })
+    );
+
+    const isSlotAvailable = result.slots.some(slot => slot.start === startTime && slot.available) && !bookedStartTimes.has(startTime);
+    if (!isSlotAvailable) {
+      return res.status(409).json({ error: 'This time slot is no longer available. Please select a different time.' });
+    }
+
+    const endHours = Math.floor(endTotalMinutes / 60).toString().padStart(2, '0');
+    const endMins = (endTotalMinutes % 60).toString().padStart(2, '0');
+    const endTime = `${endHours}:${endMins}`;
+
+    const guestName = `${firstName} ${lastName}`.trim();
+
+    const [newTour] = await db.insert(tours).values({
+      title: `Tour: ${guestName}`,
+      guestName,
+      guestEmail: email,
+      guestPhone: phone || null,
+      tourDate: date,
+      startTime,
+      endTime,
+      status: 'scheduled',
+    }).returning();
+
+    const calendarId = await getCalendarIdByName('Tours Scheduled');
+    if (calendarId) {
+      const summary = `Tour: ${firstName} ${lastName}`;
+      const description = `Tour booking\nGuest: ${firstName} ${lastName}\nEmail: ${email}\nPhone: ${phone || 'N/A'}`;
+      const googleEventId = await createCalendarEventOnCalendar(calendarId, summary, description, date, startTime, endTime);
+
+      if (googleEventId) {
+        await db.update(tours)
+          .set({ googleCalendarId: googleEventId })
+          .where(eq(tours.id, newTour.id));
+      }
+    }
+
+    const tourDateObj = new Date(date);
+    const formattedDate = tourDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+    await notifyAllStaff(
+      'New Tour Scheduled',
+      `${guestName} scheduled a tour for ${formattedDate} at ${startTime}`,
+      'tour_scheduled',
+      { relatedId: newTour.id, relatedType: 'tour', url: '/admin/tours' }
+    );
+
+    broadcastToStaff({ type: 'tour_update', action: 'created', tourId: newTour.id });
+
+    if (email) {
+      safeSendEmail({
+        to: email,
+        subject: 'Your Tour at Ever Club is Confirmed!',
+        html: getTourConfirmationHtml({ guestName, date, time: startTime }),
+      }).catch(err => {
+        console.error('Failed to send tour confirmation email:', getErrorMessage(err));
+      });
+    }
+
+    res.json({
+      success: true,
+      tour: {
+        id: newTour.id,
+        date,
+        startTime,
+        endTime,
+        guestName,
+      },
+    });
+  } catch (error: unknown) {
+    console.error('Tour schedule error:', getErrorMessage(error));
+    res.status(500).json({ error: 'Failed to schedule tour' });
+  }
+});
 
 export default router;
