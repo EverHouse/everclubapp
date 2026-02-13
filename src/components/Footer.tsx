@@ -55,6 +55,7 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
      <div className="w-full max-w-xs mx-auto h-px bg-[#E7E7DC]/10 mb-8"></div>
      
      <div className="flex justify-center gap-6 mb-6 text-xs">
+        <Link to="/about" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">About</Link>
         <Link to="/privacy" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Privacy Policy</Link>
         <Link to="/terms" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Terms of Service</Link>
      </div>

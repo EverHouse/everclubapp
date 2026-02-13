@@ -475,6 +475,10 @@ async function initializeApp() {
         title: 'Private Event Inquiry | Ever Club — OC Venue',
         description: 'Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate events, celebrations & more.',
       },
+      '/about': {
+        title: 'About Ever Club | Indoor Golf & Social Club in Tustin',
+        description: 'Learn about Ever Club, Orange County\'s premier indoor golf & social club in Tustin. Trackman simulators, coworking, café, events & wellness.',
+      },
     };
 
     const BASE_JSON_LD = {
@@ -718,6 +722,18 @@ async function initializeApp() {
       }
       if (routePath === '/private-hire') {
         graphItems.push(EVENT_VENUE_JSON_LD);
+      }
+      if (routePath === '/about') {
+        graphItems.push({
+          "@type": "AboutPage",
+          "name": "About Ever Club",
+          "description": "Learn about Ever Club, Orange County's premier indoor golf & social club in Tustin.",
+          "url": "https://everclub.app/about",
+          "mainEntity": {
+            "@type": "Organization",
+            "name": "Ever Members Club"
+          }
+        });
       }
 
       if (routePath !== '/') {

@@ -8,24 +8,6 @@
     <meta name="apple-mobile-web-app-title" content="Ever Members Club" />
     <meta name="theme-color" content="#293515" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1a2310" media="(prefers-color-scheme: dark)" />
-    <script>
-      (function() {
-        // Fix URL-encoded hash for dev preview routes (screenshot tool encodes # as %23)
-        if (window.location.pathname.includes('%23/dev-preview/')) {
-          var decoded = decodeURIComponent(window.location.pathname);
-          var match = decoded.match(/#\/dev-preview\/([\w-]+)/);
-          if (match) {
-            window.location.replace('/#/dev-preview/' + match[1]);
-          }
-        }
-        
-        var themeMode = localStorage.getItem('themeMode');
-        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var isDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark) || (!themeMode && prefersDark);
-        if (isDark) document.documentElement.classList.add('dark');
-        
-      })();
-    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -55,6 +37,7 @@
     <link rel="preconnect" href="https://api.stripe.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link rel="canonical" href="https://everclub.app/" />
     <style>
       #app-splash {
         position: fixed;
@@ -84,6 +67,24 @@
         background-color: #293515;
       }
     </style>
+    <script>
+      (function() {
+        // Fix URL-encoded hash for dev preview routes (screenshot tool encodes # as %23)
+        if (window.location.pathname.includes('%23/dev-preview/')) {
+          var decoded = decodeURIComponent(window.location.pathname);
+          var match = decoded.match(/#\/dev-preview\/([\w-]+)/);
+          if (match) {
+            window.location.replace('/#/dev-preview/' + match[1]);
+          }
+        }
+        
+        var themeMode = localStorage.getItem('themeMode');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var isDark = themeMode === 'dark' || (themeMode === 'system' && prefersDark) || (!themeMode && prefersDark);
+        if (isDark) document.documentElement.classList.add('dark');
+        
+      })();
+    </script>
     <!-- Start of HubSpot Embed Code (deferred loader) -->
     <script>
       if ('requestIdleCallback' in window) {
@@ -123,6 +124,7 @@
           <a href="/whats-on">Events</a> |
           <a href="/menu">Café Menu</a> |
           <a href="/gallery">Gallery</a> |
+          <a href="/about">About</a> |
           <a href="/faq">FAQ</a> |
           <a href="/contact">Contact</a> |
           <a href="/privacy">Privacy Policy</a> |
