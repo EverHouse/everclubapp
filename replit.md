@@ -62,6 +62,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **ID/License Scanning**: Staff can scan IDs using OpenAI Vision (GPT-4o) to extract and auto-fill registration form fields, with images stored and viewable in member profiles.
 - **Corporate Membership**: Unified billing groups, volume pricing, corporate checkout, HubSpot sync.
 - **Data Integrity**: Stripe as source of truth for billing, transaction rollback, webhook idempotency, dual-source active tracking with HubSpot.
+- **Stripe Wins Rule**: When a member has `billing_provider='stripe'`, HubSpot member sync skips their `membership_status` and `tier` — Stripe webhooks are authoritative. Outbound HubSpot pushes skip `membership_status` for Mindbody-billed members to prevent sync loops. Database CHECK constraint enforces valid `billing_provider` values (stripe, mindbody, manual, comped, family_addon). Hybrid state integrity check detects billing provider mismatches daily.
 - **Stripe Member Auto-Fix**: Login flow verifies Stripe subscription status and corrects `membership_status`.
 - **Stripe Subscription → HubSpot Sync**: Automated sync of membership status and tier.
 - **Booking Prepayment**: Creates prepayment intents for expected fees, blocking check-in until paid, with auto-refunds on cancellation.
