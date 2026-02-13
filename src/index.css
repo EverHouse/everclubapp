@@ -263,6 +263,7 @@ body {
 
 #root {
   min-height: 100%;
+  background-color: inherit;
 }
 
 /* Modal scroll lock - override when modal is open */
@@ -276,7 +277,7 @@ html, body {
   width: 100%;
   max-width: 100vw;
   -webkit-tap-highlight-color: transparent;
-  background-color: #293515;
+  background-color: #F2F2EC;
   color: var(--brand-primary);
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -292,7 +293,7 @@ html, body {
 }
 
 html.dark, html.dark body {
-  background-color: #1a2310;
+  background-color: #0f120a;
   color: #F2F2EC;
 }
 
