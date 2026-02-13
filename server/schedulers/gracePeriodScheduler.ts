@@ -115,7 +115,7 @@ async function processGracePeriodMembers(): Promise<void> {
             // Sync terminated status to HubSpot
             try {
               const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
-              await syncMemberToHubSpot({ email, status: 'terminated' });
+              await syncMemberToHubSpot({ email, status: 'terminated', billingProvider: 'mindbody' });
               console.log(`[Grace Period] Synced ${email} status=terminated to HubSpot`);
               schedulerTracker.recordRun('Grace Period', true);
             } catch (hubspotError) {

@@ -616,7 +616,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
         tierName = userResult.rows[0].tier;
         
         await pool.query(
-          `UPDATE users SET membership_status = 'active', updated_at = NOW() WHERE id = $1`,
+          `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE id = $1`,
           [userId]
         );
         console.log(`[Stripe Subscriptions] Activated member ${userEmail}`);
@@ -632,7 +632,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
         tierName = custResult.rows[0].tier;
         
         await pool.query(
-          `UPDATE users SET membership_status = 'active', updated_at = NOW() WHERE stripe_customer_id = $1`,
+          `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE stripe_customer_id = $1`,
           [paymentIntent.customer]
         );
         console.log(`[Stripe Subscriptions] Activated member ${userEmail} via customer ID`);

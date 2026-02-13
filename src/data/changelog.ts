@@ -25,7 +25,10 @@ export const changelog: ChangelogEntry[] = [
       "New: billing_provider_changed audit action for tracking billing provider migrations",
       "Fixed: When a Mindbody member migrates to Stripe, their grace period flags are now automatically cleared",
       "Fixed: Both full and focused HubSpot sync functions now respect the Stripe Wins guard consistently",
-      "Improved: Stripe subscription sync now clears grace period data when transitioning a member from Mindbody to Stripe billing"
+      "Improved: Stripe subscription sync now clears grace period data when transitioning a member from Mindbody to Stripe billing",
+      "Fixed: All Stripe webhook handlers (subscription updates, terminal payments, disputes) now reinforce billing_provider='stripe' on every status change — prevents edge cases where billing provider could be missing",
+      "Fixed: Subscription payment confirmation and invoice charge endpoints now set billing_provider='stripe' alongside membership activation",
+      "Fixed: Grace period scheduler now explicitly passes billingProvider when syncing terminated status to HubSpot"
     ]
   },
   {
