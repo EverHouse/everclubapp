@@ -135,6 +135,27 @@ export const sounds = {
     const now = ctx.currentTime;
     playTone(349.23, 0.12, now, 0.1, 'triangle');
     playTone(293.66, 0.18, now + 0.1, 0.1, 'triangle');
+  },
+
+  checkinSuccess: () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    
+    const now = ctx.currentTime;
+    playTone(523.25, 0.12, now, 0.15, 'sine');
+    playTone(659.25, 0.12, now + 0.1, 0.15, 'sine');
+    playTone(783.99, 0.12, now + 0.2, 0.18, 'sine');
+    playTone(1046.5, 0.3, now + 0.3, 0.2, 'sine');
+  },
+
+  checkinWarning: () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    
+    const now = ctx.currentTime;
+    playTone(440, 0.25, now, 0.18, 'sawtooth');
+    playTone(349.23, 0.25, now + 0.25, 0.18, 'sawtooth');
+    playTone(293.66, 0.4, now + 0.5, 0.2, 'sawtooth');
   }
 };
 

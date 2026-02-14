@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { playSound } from '../../../utils/sounds';
 
 interface PinnedNote {
   content: string;
@@ -25,8 +26,14 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
 }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const statusLower = membershipStatus?.toLowerCase() || '';
+  const isActive = statusLower === 'active' || statusLower === 'trialing';
+
   useEffect(() => {
     if (isOpen) {
+      const showWarning = !isActive && statusLower !== '';
+      playSound(showWarning ? 'checkinWarning' : 'checkinSuccess');
+
       timerRef.current = setTimeout(() => {
         onClose();
       }, 4000);
@@ -37,12 +44,9 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
         timerRef.current = null;
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isActive, statusLower]);
 
   if (!isOpen) return null;
-
-  const statusLower = membershipStatus?.toLowerCase() || '';
-  const isActive = statusLower === 'active' || statusLower === 'trialing';
   const isExpired = statusLower === 'expired';
   const isInactive = ['cancelled', 'suspended', 'inactive', 'unpaid', 'terminated', 'past_due', 'paused'].includes(statusLower);
   const showWarning = !isActive && statusLower !== '';
