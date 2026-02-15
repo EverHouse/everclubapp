@@ -98,7 +98,7 @@ export function useCommandCenterData(userEmail?: string) {
       if (requestsRes.ok) {
         const data = await requestsRes.json();
         const pending = data.filter((r: BookingRequest) => 
-          r.status === 'pending' || r.status === 'pending_approval'
+          r.status === 'pending' || r.status === 'pending_approval' || r.status === 'cancellation_pending'
         ).map((r: BookingRequest) => ({ 
           ...r, 
           user_name: getDisplayName(r.user_email, r.user_name),
@@ -468,10 +468,12 @@ export function useCommandCenterData(userEmail?: string) {
       fetchAllData();
     };
     window.addEventListener('booking-update', handleGlobalBookingUpdate);
+    window.addEventListener('booking-action-completed', handleGlobalBookingUpdate);
     
     return () => {
       clearInterval(interval);
       window.removeEventListener('booking-update', handleGlobalBookingUpdate);
+      window.removeEventListener('booking-action-completed', handleGlobalBookingUpdate);
     };
   }, [fetchAllData]);
 

@@ -37,6 +37,7 @@ function getNotificationColor(type: string): string {
     case 'fee_waived':
       return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30';
     case 'booking_cancelled':
+    case 'cancellation_pending':
     case 'booking_declined':
     case 'payment_failed':
     case 'membership_failed':
@@ -67,6 +68,7 @@ function getNotificationIcon(type: string): string {
     case 'booking_approved':
       return 'check_circle';
     case 'booking_cancelled':
+    case 'cancellation_pending':
     case 'booking_declined':
       return 'cancel';
     case 'system_alert':
@@ -119,11 +121,13 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-          {notifications.slice(0, 3).map((notif) => (
+          {notifications.slice(0, 3).map((notif) => {
+            const isCancellation = notif.type === 'booking_cancelled' || notif.type === 'cancellation_pending';
+            return (
             <div 
               key={notif.id}
               onClick={onAlertClick}
-              className={`flex items-start gap-3 p-2 rounded-lg hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${!notif.is_read ? 'bg-primary/5 dark:bg-white/5' : ''}`}
+              className={`flex items-start gap-3 p-2 rounded-lg hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer ${!notif.is_read ? 'bg-primary/5 dark:bg-white/5' : ''} ${isCancellation && !notif.is_read ? 'ring-1 ring-red-300 dark:ring-red-500/50 bg-red-50/50 dark:bg-red-900/10' : ''}`}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getNotificationColor(notif.type)}`}>
                 <span className="material-symbols-outlined text-base">{getNotificationIcon(notif.type)}</span>
@@ -140,7 +144,8 @@ export const AlertsCard: React.FC<AlertsCardProps> = ({ notifications, onAlertCl
                 {formatRelativeTime(notif.created_at)}
               </span>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

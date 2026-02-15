@@ -365,6 +365,48 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     }
   };
 
+  const handleCompleteCancellation = async (request: BookingRequest) => {
+    const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', '')) : request.id;
+    setActionInProgress(`complete-cancel-${request.id}`);
+    
+    const previousPendingRequests = [...data.pendingRequests];
+    updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
+    
+    const newActivity: RecentActivity = {
+      id: `cancel-${apiId}-${Date.now()}`,
+      type: 'cancellation',
+      timestamp: new Date().toISOString(),
+      primary_text: request.user_name || 'Member',
+      secondary_text: request.bay_name || 'Bay',
+      icon: 'cancel'
+    };
+    updateRecentActivity(prev => [newActivity, ...prev]);
+    
+    try {
+      const res = await fetch(`/api/booking-requests/${apiId}/complete-cancellation`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      if (res.ok) {
+        showToast('Cancellation completed', 'success');
+        window.dispatchEvent(new CustomEvent('booking-action-completed'));
+        refresh();
+      } else {
+        const error = await res.json().catch(() => ({}));
+        updatePendingRequests(() => previousPendingRequests);
+        updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
+        showToast(error.error || 'Failed to complete cancellation', 'error');
+      }
+    } catch (err) {
+      updatePendingRequests(() => previousPendingRequests);
+      updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
+      showToast('Failed to complete cancellation', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const handleCheckIn = async (booking: BookingRequest) => {
     const id = typeof booking.id === 'string' ? parseInt(String(booking.id).replace('cal_', '')) : booking.id;
     setActionInProgress(`checkin-${id}`);
@@ -566,6 +608,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               onApprove={handleApprove}
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
+              onCompleteCancellation={handleCompleteCancellation}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
               onRosterClick={(bookingId) => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
               onAssignMember={(booking) => setBookingSheet({
@@ -611,6 +654,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               onApprove={handleApprove}
               onDeny={handleDeny}
               onCheckIn={handleCheckIn}
+              onCompleteCancellation={handleCompleteCancellation}
               onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
               onRosterClick={(bookingId) => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
               onAssignMember={(booking) => setBookingSheet({
@@ -699,6 +743,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             onApprove={handleApprove}
             onDeny={handleDeny}
             onCheckIn={handleCheckIn}
+            onCompleteCancellation={handleCompleteCancellation}
             onPaymentClick={(bookingId) => setBillingModal({ isOpen: true, bookingId })}
             onRosterClick={(bookingId) => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
             onAssignMember={(booking) => setBookingSheet({
