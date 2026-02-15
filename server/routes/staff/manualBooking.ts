@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../../core/db';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { notifyAllStaff } from '../../core/staffNotifications';
+import { notifyAllStaff } from '../../core/notificationService';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { logFromRequest } from '../../core/auditLog';
 import { logAndRespond } from '../../core/logger';
@@ -315,8 +315,10 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         staffTitle,
         staffMessage,
         'booking',
-        row.id,
-        'booking_request'
+        {
+          relatedId: row.id,
+          relatedType: 'booking_request'
+        }
       ).catch(err => console.error('Staff notification failed:', err));
       
       broadcastAvailabilityUpdate({

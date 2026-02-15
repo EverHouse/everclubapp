@@ -8,7 +8,7 @@ import { isAuthorizedForMemberBooking } from '../core/bookingAuth';
 import { isStaffOrAdmin } from '../core/middleware';
 import { createCalendarEventOnCalendar, getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../core/calendar/index';
 import { logAndRespond, logger } from '../core/logger';
-import { sendPushNotification, sendPushNotificationToStaff } from './push';
+import { sendPushNotification } from './push';
 import { DEFAULT_TIER } from '../../shared/constants/tiers';
 import { withRetry } from '../core/retry';
 import { checkDailyBookingLimit } from '../core/tierService';

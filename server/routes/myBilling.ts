@@ -5,7 +5,7 @@ import { isPlaceholderEmail, getOrCreateStripeCustomer } from '../core/stripe/cu
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
-import { notifyAllStaffRequired, getStaffAndAdminEmails } from '../core/staffNotifications';
+import { notifyAllStaff } from '../core/notificationService';
 import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
@@ -407,36 +407,14 @@ router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) =
     const notificationMessage = `${memberName} has added a payment method and is ready to transition from MindBody billing`;
     
     try {
-      await notifyAllStaffRequired(
+      await notifyAllStaff(
         notificationTitle,
         notificationMessage,
         'billing_migration'
       );
       console.log(`[MyBilling] Staff notification sent for billing migration request from ${member.email}`);
     } catch (notifyError: unknown) {
-      console.error(`[MyBilling] Real-time staff notification failed for ${member.email}:`, getErrorMessage(notifyError));
-      
-      try {
-        const staffEmails = await getStaffAndAdminEmails();
-        if (staffEmails.length > 0) {
-          const placeholders: string[] = [];
-          const params: string[] = [];
-          staffEmails.forEach((staffEmail, i) => {
-            const base = i * 4;
-            placeholders.push('($' + (base + 1) + ', $' + (base + 2) + ', $' + (base + 3) + ', $' + (base + 4) + ', NOW())');
-            params.push(staffEmail, notificationTitle, notificationMessage, 'billing_migration');
-          });
-          await pool.query(
-            'INSERT INTO notifications (user_email, title, message, type, created_at) VALUES ' + placeholders.join(', '),
-            params
-          );
-          console.log('[MyBilling] Fallback notification inserted for ' + staffEmails.length + ' staff members');
-        } else {
-          console.error('[MyBilling] No staff members found for fallback notification');
-        }
-      } catch (fallbackError: unknown) {
-        console.error('[MyBilling] Fallback notification insertion failed:', getErrorMessage(fallbackError));
-      }
+      console.error(`[MyBilling] Staff notification failed for ${member.email}:`, getErrorMessage(notifyError));
     }
     
     res.json({ url: session.url });
@@ -934,11 +912,10 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
     );
     
     try {
-      const { notifyAllStaffRequired } = await import('../core/staffNotifications');
-      await notifyAllStaffRequired(
+      await notifyAllStaff(
         'Member Cancellation Request',
         `${email} has requested to cancel their membership. Effective date: ${effectiveDate.toLocaleDateString()}. Reason: ${reason || 'Not specified'}`,
-        { email }
+        'membership_cancellation'
       );
     } catch (notifyErr) {
       console.warn('[MyBilling] Failed to notify staff of cancellation request:', notifyErr);

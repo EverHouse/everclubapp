@@ -3,7 +3,7 @@ import { db } from '../../db';
 import { pool } from '../../core/db';
 import { bookingRequests, resources, users, bookingMembers, bookingGuests, bookingParticipants, notifications } from '../../../shared/schema';
 import { eq, and, or, ne, desc, sql } from 'drizzle-orm';
-import { sendPushNotification, sendPushNotificationToStaff } from '../push';
+import { sendPushNotification } from '../push';
 import { checkDailyBookingLimit, getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } from '../../core/tierService';
 import { notifyAllStaff } from '../../core/notificationService';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour, createPacificDate } from '../../utils/dateUtils';

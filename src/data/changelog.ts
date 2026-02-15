@@ -20,7 +20,11 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: All cancellation notifications now reach every staff member individually instead of going to a single shared address — no more missed alerts",
       "Fixed: Staff-initiated cancellations, Trackman cancellation reminders, and stuck cancellation alerts all deliver to each staff member's notification feed, push, and real-time channel",
       "Fixed: Cancellation requests from the member booking page now use the same improved delivery as the command center",
-      "Improved: Stuck cancellation scheduler checks all staff notifications instead of a single address when detecting recently alerted bookings"
+      "Fixed: Trackman webhook cancellations now create proper staff notifications (database + push + real-time) instead of push-only",
+      "Fixed: Manual bookings, billing migration alerts, and membership cancellation requests now use full delivery (previously database-only, no push or real-time)",
+      "Fixed: Membership cancellation notification was sending broken data — now sends proper notification type",
+      "Improved: Stuck cancellation scheduler checks all staff notifications instead of a single address when detecting recently alerted bookings",
+      "Improved: Consolidated all staff notifications through a single reliable delivery system across the entire app"
     ]
   },
   {

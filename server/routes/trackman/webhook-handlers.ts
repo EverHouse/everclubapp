@@ -1,8 +1,7 @@
 import { pool } from '../../core/db';
 import { logger } from '../../core/logger';
 import { sendNotificationToUser, broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
-import { notifyAllStaff } from '../../core/staffNotifications';
-import { notifyMember } from '../../core/notificationService';
+import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
 import { formatDatePacific, formatTimePacific } from '../../utils/dateUtils';
 import { checkUnifiedAvailability } from '../../core/bookingService/availabilityGuard';
@@ -29,7 +28,7 @@ import {
 } from './webhook-billing';
 import { refundGuestPass } from '../guestPasses';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { sendPushNotificationToStaff } from '../push';
+
 import { createSessionWithUsageTracking, ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { logSystemAction } from '../../core/auditLog';
@@ -361,28 +360,16 @@ export async function cancelBookingByTrackmanId(
         ? `Cancellation completed via TrackMan: ${memberName}'s booking on ${formattedDate} at ${formattedTime}${bayInfo}${refundInfo}`
         : `Booking cancelled via TrackMan: ${memberName}'s booking on ${formattedDate} at ${formattedTime}${bayInfo}${refundInfo}`;
       
-      broadcastToStaff({
-        type: 'booking_cancelled',
-        title: notificationTitle,
-        message: notificationMessage,
-        data: {
-          bookingId,
-          memberEmail,
-          memberName,
-          date: bookingDate,
-          time: startTime,
-          bayName,
-          refundedPasses,
-          source: 'trackman_webhook'
+      await notifyAllStaff(
+        notificationTitle,
+        notificationMessage,
+        'booking_cancelled',
+        {
+          relatedId: bookingId,
+          relatedType: 'booking_request',
+          url: '/admin/bookings'
         }
-      });
-      
-      await sendPushNotificationToStaff({
-        title: notificationTitle,
-        body: notificationMessage,
-        url: '/admin/bookings',
-        tag: `booking-cancelled-${bookingId}`
-      });
+      );
       
       logger.info('[Trackman Webhook] Sent staff notifications for cancelled booking', {
         extra: { bookingId, memberEmail, refundedPasses }
@@ -756,8 +743,10 @@ async function notifyStaffCancelledBookingLinked(
       title,
       message,
       'trackman_cancelled_link',
-      bookingId,
-      'trackman_booking'
+      {
+        relatedId: bookingId,
+        relatedType: 'trackman_booking'
+      }
     );
     
     logger.info('[Trackman Webhook] Notified staff about cancelled booking link', { 
@@ -900,8 +889,10 @@ async function notifyStaffBookingCreated(
         title,
         message,
         notificationType,
-        bookingId,
-        'trackman_booking'
+        {
+          relatedId: bookingId,
+          relatedType: 'trackman_booking'
+        }
       );
     }
     

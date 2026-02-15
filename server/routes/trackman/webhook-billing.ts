@@ -1,8 +1,7 @@
 import { pool } from '../../core/db';
 import { logger } from '../../core/logger';
 import { sendNotificationToUser, broadcastToStaff } from '../../core/websocket';
-import { notifyAllStaff } from '../../core/staffNotifications';
-import { notifyMember } from '../../core/notificationService';
+import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { refundGuestPass } from '../guestPasses';
 import { calculateFullSessionBilling } from '../../core/bookingService/usageCalculator';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';

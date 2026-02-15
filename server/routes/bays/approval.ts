@@ -4,7 +4,7 @@ import { pool } from '../../core/db';
 import { bookingRequests, resources, notifications, users, bookingMembers, bookingParticipants } from '../../../shared/schema';
 import { eq, and, or, gt, lt, lte, gte, ne, sql } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { sendPushNotification, sendPushNotificationToStaff } from '../push';
+import { sendPushNotification } from '../push';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { logAndRespond } from '../../core/logger';
 import { logFromRequest } from '../../core/auditLog';
