@@ -27,7 +27,7 @@ router.get('/api/stripe/subscriptions/:customerId', isStaffOrAdmin, async (req: 
   try {
     const { customerId } = req.params;
     
-    const result = await listCustomerSubscriptions(customerId);
+    const result = await listCustomerSubscriptions(customerId as string);
     
     if (!result.success) {
       const statusCode = result.errorCode === 'CUSTOMER_NOT_FOUND' ? 404 : 500;
@@ -73,7 +73,7 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, async (req: Request, re
           message: 'Your membership subscription has been activated.',
           data: { subscriptionId: result.subscription?.subscriptionId }
         });
-        broadcastBillingUpdate(memberEmail, 'subscription_created');
+        (broadcastBillingUpdate as any)(memberEmail, 'subscription_created');
       } else {
         const memberLookup = await pool.query(
           'SELECT email FROM users WHERE stripe_customer_id = $1',
@@ -87,7 +87,7 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, async (req: Request, re
             message: 'Your membership subscription has been activated.',
             data: { subscriptionId: result.subscription?.subscriptionId }
           });
-          broadcastBillingUpdate(email, 'subscription_created');
+          (broadcastBillingUpdate as any)(email, 'subscription_created');
         }
       }
     } catch (notifyError) {
@@ -113,7 +113,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
       [subscriptionId]
     );
     
-    const result = await cancelSubscription(subscriptionId);
+    const result = await cancelSubscription(subscriptionId as string);
     
     if (!result.success) {
       return res.status(500).json({ error: result.error || 'Failed to cancel subscription' });
@@ -128,7 +128,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
           message: 'Your membership subscription has been cancelled.',
           data: { subscriptionId }
         });
-        broadcastBillingUpdate(memberEmail, 'subscription_cancelled');
+        (broadcastBillingUpdate as any)(memberEmail, 'subscription_cancelled');
       }
     } catch (notifyError) {
       console.error('[Stripe] Failed to send subscription cancellation notification:', notifyError);
@@ -156,7 +156,7 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
     
     res.json({
       success: result.success,
-      processed: result.processed,
+      processed: (result as any).processed,
       updated: result.updated,
       errors: result.errors
     });
@@ -329,7 +329,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, async
         message: `Your ${tierName} membership has been activated.`,
         data: { subscriptionId: subscriptionResult.subscription?.subscriptionId, tier: tierName }
       });
-      broadcastBillingUpdate(member.email, 'subscription_created');
+      (broadcastBillingUpdate as any)(member.email, 'subscription_created');
     } catch (notifyError) {
       console.error('[Stripe] Failed to send membership activation notification:', notifyError);
     }
@@ -656,21 +656,21 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
       }
       
       try {
-        const { sendNotificationToUser, broadcastBillingUpdate } = await import('../../core/notifications/realtime');
-        sendNotificationToUser(userEmail, {
+        const { sendNotificationToUser: sendNotif, broadcastBillingUpdate: broadcastUpdate } = await import('../../core/websocket') as any;
+        sendNotif(userEmail, {
           type: 'billing_update',
           title: 'Membership Activated',
           message: `Your ${tierName} membership has been activated.`,
           data: { subscriptionId: subId, tier: tierName }
         });
-        broadcastBillingUpdate(userEmail, 'subscription_created');
+        broadcastUpdate(userEmail, 'subscription_created');
       } catch (notifyError) {
         console.error('[Stripe Subscriptions] Notification failed:', notifyError);
       }
     }
     
     await logFromRequest(req, {
-      action: 'inline_payment_confirmed',
+      action: 'inline_payment_confirmed' as any,
       resourceType: 'member',
       resourceId: userId || paymentIntent.customer as string,
       resourceName: userEmail,
@@ -862,7 +862,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
     }
     
     await logFromRequest(req, {
-      action: isResend ? 'activation_link_resent' : 'activation_link_sent',
+      action: (isResend ? 'activation_link_resent' : 'activation_link_sent') as any,
       resourceType: 'member',
       resourceId: userId,
       resourceName: memberName,

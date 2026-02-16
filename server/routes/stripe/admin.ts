@@ -251,7 +251,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       return res.status(404).json({ error: 'Tier not found or inactive' });
     }
 
-    const tier = tierResult.rows[0];
+    const tier = tierResult.rows[0] as any;
 
     if (!tier.stripe_price_id) {
       return res.status(400).json({ error: 'This tier has not been synced to Stripe. Please sync tiers first.' });
@@ -268,7 +268,7 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       customer_email: email,
       line_items: [
         {
-          price: tier.stripe_price_id,
+          price: tier.stripe_price_id as string,
           quantity: 1,
         },
       ],
@@ -277,8 +277,8 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       metadata: {
         firstName: sanitizedFirstName,
         lastName: sanitizedLastName,
-        tierId: tier.id.toString(),
-        tierName: tier.name,
+        tierId: String(tier.id),
+        tierName: tier.name as string,
         source: 'staff_invite',
       },
     });
@@ -290,8 +290,8 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       const { client: resend, fromEmail } = await getResendClient();
 
       const priceFormatted = tier.billing_interval === 'year' 
-        ? `$${(tier.price_cents / 100).toFixed(0)}/year`
-        : `$${(tier.price_cents / 100).toFixed(0)}/month`;
+        ? `$${(Number(tier.price_cents) / 100).toFixed(0)}/year`
+        : `$${(Number(tier.price_cents) / 100).toFixed(0)}/month`;
 
       const safeFirstName = escapeHtml(sanitizedFirstName);
 
@@ -371,7 +371,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const member = memberResult.rows[0];
+    const member = memberResult.rows[0] as any;
     const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
     let reactivationLink = 'https://everclub.app/billing';
@@ -384,7 +384,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
           : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://everclub.app');
 
         const session = await stripe.billingPortal.sessions.create({
-          customer: member.stripe_customer_id,
+          customer: member.stripe_customer_id as string,
           return_url: returnUrl,
           flow_data: {
             type: 'payment_method_update',
@@ -399,7 +399,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
 
     const { sendGracePeriodReminderEmail } = await import('../../emails/membershipEmails');
     
-    await sendGracePeriodReminderEmail(member.email, {
+    await sendGracePeriodReminderEmail(member.email as string, {
       memberName,
       currentDay: 1,
       totalDays: 3,
@@ -444,7 +444,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       return res.status(404).json({ error: 'Day pass type not found' });
     }
 
-    const tier = tierResult.rows[0];
+    const tier = tierResult.rows[0] as any;
 
     if (!tier.stripe_price_id) {
       return res.status(400).json({ error: 'This day pass is not set up in Stripe yet. This usually resolves itself on server restart. Try refreshing in a minute.' });
@@ -461,7 +461,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       payment_method_types: ['card'],
       line_items: [
         {
-          price: tier.stripe_price_id,
+          price: tier.stripe_price_id as string,
           quantity: 1,
         },
       ],
@@ -469,8 +469,8 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       success_url: `${domain}/day-pass/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${domain}/day-pass`,
       metadata: {
-        productType: tier.slug,
-        tierName: tier.name,
+        productType: tier.slug as string,
+        tierName: tier.name as string,
         email: email,
         firstName: sanitizedFirstName,
         lastName: sanitizedLastName,
@@ -515,12 +515,12 @@ router.post('/api/stripe/sync-customers', isStaffOrAdmin, sensitiveActionRateLim
     
     res.json({
       success: result.success,
-      created: result.created,
-      linked: result.linked,
+      created: (result as any).created,
+      linked: (result as any).linked,
       skipped: result.skipped,
       errorCount: result.errors.length,
       errors: result.errors.slice(0, 10),
-      message: `Created ${result.created} new customers, linked ${result.linked} existing customers`,
+      message: `Created ${(result as any).created} new customers, linked ${(result as any).linked} existing customers`,
     });
   } catch (error: unknown) {
     console.error('[Stripe Customer Sync] Error:', error);
@@ -636,8 +636,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
           try {
             const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
             const mappedStatus = statusMap[subscription.status] || subscription.status;
-            const periodEnd = subscription.current_period_end
-              ? new Date(subscription.current_period_end * 1000)
+            const periodEnd = (subscription as any).current_period_end
+              ? new Date((subscription as any).current_period_end * 1000)
               : null;
             const resolvedTier = await resolveTierFromSubscription(subscription);
             const changes: string[] = [];
@@ -727,8 +727,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
             if (subscriptions.data.length > 0) {
               const sub = subscriptions.data[0];
               const mappedStatus = statusMap[sub.status] || sub.status;
-              const periodEnd = sub.current_period_end
-                ? new Date(sub.current_period_end * 1000)
+              const periodEnd = (sub as any).current_period_end
+                ? new Date((sub as any).current_period_end * 1000)
                 : null;
               const resolvedTier = await resolveTierFromSubscription(sub);
 

@@ -63,8 +63,8 @@ router.post('/api/admin/trackman/import', isStaffOrAdmin, async (req, res) => {
     
     logFromRequest(req, 'import_trackman', 'trackman', undefined, 'Trackman CSV Import', {
       filename: safeFilename,
-      bookingsImported: result.bookingsCreated || 0,
-      sessionsCreated: result.sessionsCreated || 0
+      bookingsImported: (result as any).bookingsCreated || 0,
+      sessionsCreated: (result as any).sessionsCreated || 0
     });
     
     res.json({
@@ -114,7 +114,7 @@ router.post('/api/admin/trackman/rescan', isStaffOrAdmin, async (req, res) => {
     const result = await rescanUnmatchedBookings(user);
     
     await logFromRequest(req, {
-      action: 'trackman_rescan',
+      action: 'trackman_rescan' as any,
       resourceType: 'trackman_booking',
       resourceName: 'Unmatched Bookings Rescan',
       details: { matched: result.matched, lessonsConverted: result.lessonsConverted, scanned: result.scanned }

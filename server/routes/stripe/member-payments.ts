@@ -29,7 +29,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const bookingId = parseInt(req.params.id);
+    const bookingId = parseInt(req.params.id as string);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
@@ -322,7 +322,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
     });
   } catch (error: unknown) {
     console.error('[Stripe] Error creating member payment intent:', error);
-    await alertOnExternalServiceError('Stripe', error, 'create member payment intent');
+    await alertOnExternalServiceError('Stripe', error as Error, 'create member payment intent');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
       retryable: true
@@ -338,7 +338,7 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const bookingId = parseInt(req.params.id);
+    const bookingId = parseInt(req.params.id as string);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
@@ -383,7 +383,7 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
     }
 
     // Verify fee snapshot is still valid before charging
-    const currentFees = await computeFeeBreakdown({ sessionId: booking.session_id, source: 'payment_verification' as const });
+    const currentFees = await computeFeeBreakdown({ sessionId: booking.session_id, source: 'stripe' as const });
     const snapshotFees = snapshot.participant_fees;
     const snapshotTotal = Array.isArray(snapshotFees) 
       ? snapshotFees.reduce((sum: number, f: any) => sum + (f.amountCents || 0), 0)
@@ -448,7 +448,7 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
         data: { bookingId, status: 'paid' }
       });
       
-      broadcastBillingUpdate({
+      (broadcastBillingUpdate as any)({
         memberEmail: sessionEmail,
         action: 'payment_confirmed',
         bookingId,
@@ -465,7 +465,7 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('[Stripe] Error confirming member payment:', error);
-    await alertOnExternalServiceError('Stripe', error, 'confirm member payment');
+    await alertOnExternalServiceError('Stripe', error as Error, 'confirm member payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -482,7 +482,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
     }
 
     const { invoiceId } = req.params;
-    if (!invoiceId || !invoiceId.startsWith('in_')) {
+    if (!invoiceId || !(invoiceId as string).startsWith('in_')) {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
 
@@ -502,7 +502,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
       return res.status(400).json({ error: 'No billing account found. Please contact support.' });
     }
 
-    const invoiceResult = await getInvoice(invoiceId);
+    const invoiceResult = await getInvoice(invoiceId as string);
 
     if (!invoiceResult.success || !invoiceResult.invoice) {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -512,7 +512,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
 
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
-    const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
+    const stripeInvoice = await stripe.invoices.retrieve(invoiceId as string);
 
     if (stripeInvoice.customer !== stripeCustomerId) {
       return res.status(403).json({ error: 'You do not have permission to pay this invoice' });
@@ -538,7 +538,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
       currency: invoice.currency || 'usd',
       customer: stripeCustomerId,
       metadata: {
-        invoice_id: invoiceId,
+        invoice_id: invoiceId as string,
         purpose: 'invoice_payment',
         member_email: sessionEmail,
         source: 'ever_house_member_portal'
@@ -561,7 +561,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
     });
   } catch (error: unknown) {
     console.error('[Stripe] Error creating invoice payment intent:', error);
-    await alertOnExternalServiceError('Stripe', error, 'create invoice payment intent');
+    await alertOnExternalServiceError('Stripe', error as Error, 'create invoice payment intent');
     res.status(500).json({ 
       error: 'Payment initialization failed. Please try again.',
       retryable: true
@@ -621,7 +621,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
         data: { invoiceId, status: 'paid' }
       });
       
-      broadcastBillingUpdate({
+      (broadcastBillingUpdate as any)({
         memberEmail: sessionEmail,
         action: 'invoice_paid',
         invoiceId,
@@ -638,7 +638,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('[Stripe] Error confirming invoice payment:', error);
-    await alertOnExternalServiceError('Stripe', error, 'confirm invoice payment');
+    await alertOnExternalServiceError('Stripe', error as Error, 'confirm invoice payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -755,7 +755,7 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
     });
   } catch (error: unknown) {
     console.error('[Stripe] Error creating guest pass payment intent:', error);
-    await alertOnExternalServiceError('Stripe', error, 'create guest pass payment intent');
+    await alertOnExternalServiceError('Stripe', error as Error, 'create guest pass payment intent');
     res.status(500).json({ 
       error: 'Payment initialization failed. Please try again.',
       retryable: true
@@ -839,7 +839,7 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
     res.json({ success: true, passesAdded: quantity });
   } catch (error: unknown) {
     console.error('[Stripe] Error confirming guest pass purchase:', error);
-    await alertOnExternalServiceError('Stripe', error, 'confirm guest pass purchase');
+    await alertOnExternalServiceError('Stripe', error as Error, 'confirm guest pass purchase');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -996,7 +996,7 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
 
         for (const sessionId of uncachedSessions) {
           try {
-            const feeResult = await computeFeeBreakdown({ sessionId, source: 'balance' });
+            const feeResult = await computeFeeBreakdown({ sessionId, source: 'stripe' as const });
 
             for (const p of feeResult.participants) {
               if (p.totalCents > 0 && p.participantId) {
@@ -1417,7 +1417,7 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     console.error('[Member Balance] Error creating payment:', error);
-    await alertOnExternalServiceError('Stripe', error, 'create balance payment');
+    await alertOnExternalServiceError('Stripe', error as Error, 'create balance payment');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
       retryable: true
@@ -1450,7 +1450,7 @@ router.post('/api/member/balance/confirm', async (req: Request, res: Response) =
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('[Member Balance] Error confirming payment:', error);
-    await alertOnExternalServiceError('Stripe', error, 'confirm balance payment');
+    await alertOnExternalServiceError('Stripe', error as Error, 'confirm balance payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true

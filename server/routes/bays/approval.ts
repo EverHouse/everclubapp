@@ -55,7 +55,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     });
     
     if (status === 'approved') {
-      const bookingId = parseInt(id, 10);
+      const bookingId = parseInt(id as string, 10);
       
       const { updated, bayName, approvalMessage, isConferenceRoom } = await db.transaction(async (tx) => {
         const [req_data] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
@@ -252,19 +252,19 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 
                 // If type is 'member' but no userId, try to resolve by email
                 if (isMember && !resolvedUserId && rpEmailNormalized) {
-                  const memberResult = await tx.select({ id: users.id, name: users.name })
+                  const memberResult = await tx.select({ id: users.id, firstName: users.firstName })
                     .from(users)
                     .where(eq(sql`LOWER(${users.email})`, rpEmailNormalized))
                     .limit(1);
                   if (memberResult.length > 0) {
                     resolvedUserId = memberResult[0].id;
-                    if (!resolvedName) resolvedName = memberResult[0].name || rpEmailNormalized;
+                    if (!resolvedName) resolvedName = memberResult[0].firstName || rpEmailNormalized;
                   }
                 }
                 
                 // Also check if email matches an existing user (for guests who are actually members)
                 if (!resolvedUserId && rpEmailNormalized) {
-                  const memberResult = await tx.select({ id: users.id, name: users.name })
+                  const memberResult = await tx.select({ id: users.id, firstName: users.firstName })
                     .from(users)
                     .where(eq(sql`LOWER(${users.email})`, rpEmailNormalized))
                     .limit(1);
@@ -272,19 +272,19 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                     // This "guest" is actually a member
                     resolvedUserId = memberResult[0].id;
                     isMember = true;
-                    if (!resolvedName) resolvedName = memberResult[0].name || rpEmailNormalized;
+                    if (!resolvedName) resolvedName = memberResult[0].firstName || rpEmailNormalized;
                     console.log(`[Booking Approval] Converted guest to member: ${rpEmailNormalized}`);
                   }
                 }
                 
                 // Get member name if we have userId but no name
                 if (resolvedUserId && !resolvedName) {
-                  const memberResult = await tx.select({ name: users.name, email: users.email })
+                  const memberResult = await tx.select({ firstName: users.firstName, email: users.email })
                     .from(users)
                     .where(eq(users.id, resolvedUserId))
                     .limit(1);
                   if (memberResult.length > 0) {
-                    resolvedName = memberResult[0].name || memberResult[0].email;
+                    resolvedName = memberResult[0].firstName || memberResult[0].email;
                   }
                 }
                 
@@ -468,7 +468,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
               if (participantEmail) {
                 try {
                   await db.insert(bookingMembers).values({
-                    bookingId: parseInt(id, 10),
+                    bookingId: parseInt(id as string, 10),
                     userEmail: participantEmail,
                     slotNumber: slotNumber,
                     isPrimary: false,
@@ -491,7 +491,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           const linkedMembers = await db.select({ userEmail: bookingMembers.userEmail })
             .from(bookingMembers)
             .where(and(
-              eq(bookingMembers.bookingId, parseInt(id, 10)),
+              eq(bookingMembers.bookingId, parseInt(id as string, 10)),
               sql`${bookingMembers.userEmail} IS NOT NULL`,
               sql`${bookingMembers.isPrimary} IS NOT TRUE`
             ));
@@ -505,7 +505,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 title: 'Booking Confirmed',
                 message: linkedMessage,
                 type: 'booking_approved',
-                relatedId: parseInt(id, 10),
+                relatedId: parseInt(id as string, 10),
                 relatedType: 'booking_request'
               });
               
@@ -519,8 +519,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
                 type: 'notification',
                 title: 'Booking Confirmed',
                 message: linkedMessage,
-                data: { bookingId: parseInt(id, 10), eventType: 'booking_approved' }
-              }, { action: 'booking_approved_linked', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
+                data: { bookingId: parseInt(id as string, 10), eventType: 'booking_approved' }
+              }, { action: 'booking_approved_linked', bookingId: parseInt(id as string, 10), triggerSource: 'approval.ts' });
             }
           }
         } catch (err) {
@@ -529,7 +529,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       })();
       
       bookingEvents.publish('booking_approved', {
-        bookingId: parseInt(id, 10),
+        bookingId: parseInt(id as string, 10),
         memberEmail: updated.userEmail,
         memberName: updated.userName || undefined,
         resourceId: updated.resourceId || undefined,
@@ -552,8 +552,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         type: 'notification',
         title: 'Booking Approved',
         message: approvalMessage,
-        data: { bookingId: parseInt(id, 10), eventType: 'booking_approved' }
-      }, { action: 'booking_approved', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
+        data: { bookingId: parseInt(id as string, 10), eventType: 'booking_approved' }
+      }, { action: 'booking_approved', bookingId: parseInt(id as string, 10), triggerSource: 'approval.ts' });
       
       // Notify participants (excluding owner) that they've been added to the approved booking
       // Use request_participants directly to avoid race condition with booking_members linking
@@ -625,7 +625,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     if (status === 'declined') {
-      const bookingId = parseInt(id, 10);
+      const bookingId = parseInt(id as string, 10);
       
       const { updated, declineMessage, resourceTypeName } = await db.transaction(async (tx) => {
         const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
@@ -687,7 +687,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       }).catch(err => console.error('Push notification failed:', err));
       
       bookingEvents.publish('booking_declined', {
-        bookingId: parseInt(id, 10),
+        bookingId: parseInt(id as string, 10),
         memberEmail: updated.userEmail,
         memberName: updated.userName || undefined,
         bookingDate: updated.requestDate,
@@ -700,14 +700,14 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         type: 'notification',
         title: 'Booking Declined',
         message: declineMessage,
-        data: { bookingId: parseInt(id, 10), eventType: 'booking_declined' }
-      }, { action: 'booking_declined', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
+        data: { bookingId: parseInt(id as string, 10), eventType: 'booking_declined' }
+      }, { action: 'booking_declined', bookingId: parseInt(id as string, 10), triggerSource: 'approval.ts' });
       
       return res.json(formatRow(updated));
     }
     
     if (status === 'cancelled') {
-      const bookingId = parseInt(id, 10);
+      const bookingId = parseInt(id as string, 10);
       const { cancelled_by } = req.body;
       
       const { updated, bookingData, pushInfo, overageRefundResult, isConferenceRoom: isConfRoom, isPendingCancel, alreadyPending } = await db.transaction(async (tx) => {
@@ -1147,7 +1147,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       
       const cancelledBy = pushInfo?.type === 'both' ? 'member' : 'staff';
       bookingEvents.publish('booking_cancelled', {
-        bookingId: parseInt(id, 10),
+        bookingId: parseInt(id as string, 10),
         memberEmail: bookingData.userEmail,
         memberName: bookingData.userName || undefined,
         resourceId: bookingData.resourceId || undefined,
@@ -1169,11 +1169,11 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           type: 'notification',
           title: 'Booking Cancelled',
           message: pushInfo.memberMessage || pushInfo.message,
-          data: { bookingId: parseInt(id, 10), eventType: 'booking_cancelled' }
-        }, { action: 'booking_cancelled', bookingId: parseInt(id, 10), triggerSource: 'approval.ts' });
+          data: { bookingId: parseInt(id as string, 10), eventType: 'booking_cancelled' }
+        }, { action: 'booking_cancelled', bookingId: parseInt(id as string, 10), triggerSource: 'approval.ts' });
       }
       
-      logFromRequest(req, 'cancel_booking', 'booking', id, undefined, {
+      logFromRequest(req, 'cancel_booking', 'booking', id as string, undefined, {
         member_email: bookingData.userEmail,
         member_name: bookingData.userName,
         booking_date: bookingData.requestDate,
@@ -1190,7 +1190,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         staffNotes: staff_notes || undefined,
         updatedAt: new Date()
       })
-      .where(eq(bookingRequests.id, parseInt(id, 10)))
+      .where(eq(bookingRequests.id, parseInt(id as string, 10)))
       .returning();
     
     if (result.length === 0) {
@@ -1222,7 +1222,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status: targetStatus, confirmPayment, skipPaymentCheck } = req.body;
-    const bookingId = parseInt(id, 10);
+    const bookingId = parseInt(id as string, 10);
     const sessionUser = getSessionUser(req);
     const staffEmail = sessionUser?.email || 'unknown';
     const staffName = sessionUser?.name || null;
@@ -1267,7 +1267,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
         });
         if (sessionResult.sessionId) {
           existing.session_id = sessionResult.sessionId;
-          await recalculateSessionFees(sessionResult.sessionId, 'checkin_auto');
+          await recalculateSessionFees(sessionResult.sessionId, 'checkin' as any);
         }
       } catch (err) {
         console.error('[Checkin] Failed to auto-create session:', err);
@@ -1472,8 +1472,8 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       }
       
       // Send check-in confirmation notification to member
-      const dateStr = booking.requestDate instanceof Date 
-        ? booking.requestDate.toISOString().split('T')[0] 
+      const dateStr = (booking.requestDate as any) instanceof Date 
+        ? (booking.requestDate as any).toISOString().split('T')[0] 
         : String(booking.requestDate).split('T')[0];
       const formattedDate = formatDateDisplayWithDay(dateStr);
       const formattedTime = formatTime12Hour(booking.startTime);
@@ -1494,8 +1494,8 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     
     // Send no-show notification to member
     if (newStatus === 'no_show' && booking.userEmail) {
-      const noShowDateStr = booking.requestDate instanceof Date 
-        ? booking.requestDate.toISOString().split('T')[0] 
+      const noShowDateStr = (booking.requestDate as any) instanceof Date 
+        ? (booking.requestDate as any).toISOString().split('T')[0] 
         : String(booking.requestDate).split('T')[0];
       const formattedDate = formatDateDisplayWithDay(noShowDateStr);
       const formattedTime = formatTime12Hour(booking.startTime);
@@ -1524,7 +1524,7 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
 // Creates session, participants, calculates fees, and marks as approved
 router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id, 10);
+    const bookingId = parseInt(req.params.id as string, 10);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
@@ -1674,7 +1674,7 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
         
         // Calculate fees
         try {
-          const feeResult = await recalculateSessionFees(sessionId);
+          const feeResult = await recalculateSessionFees(sessionId, 'approval');
           if (feeResult?.totalSessionFee) {
             totalFeeCents = feeResult.totalSessionFee;
           }
@@ -1793,7 +1793,7 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
     const staffEmail = getSessionUser(req)?.email;
     if (!staffEmail) return res.status(401).json({ error: 'Authentication required' });
     
-    const bookingId = parseInt(req.params.id, 10);
+    const bookingId = parseInt(req.params.id as string, 10);
     
     const [existing] = await db.select({
       id: bookingRequests.id,
@@ -1997,7 +1997,7 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
       relatedType: 'booking_request'
     });
     
-    logFromRequest(req, 'complete_cancellation', 'booking', req.params.id, staffEmail, {
+    logFromRequest(req, 'complete_cancellation' as any, 'booking', req.params.id as string, staffEmail, {
       member_email: existing.userEmail,
       trackman_booking_id: existing.trackmanBookingId,
       completed_manually: true,
@@ -2006,12 +2006,12 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
     
     bookingEvents.publish('booking_cancelled', {
       bookingId,
-      userEmail: existing.userEmail || '',
+      memberEmail: existing.userEmail || '',
       resourceId: existing.resourceId || undefined,
-      date: bookingDate,
-      cancelledBy: 'staff',
-      source: 'manual_completion'
-    });
+      bookingDate: bookingDate,
+      status: 'cancelled',
+      actionBy: 'staff'
+    } as any);
     
     console.log(`[Complete Cancellation] Staff ${staffEmail} manually completed cancellation of booking ${bookingId}${errors.length > 0 ? ` with ${errors.length} error(s)` : ''}`);
     

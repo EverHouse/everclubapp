@@ -91,7 +91,7 @@ async function getMemberByEmail(email: string) {
 
 router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -192,7 +192,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       }
     } else if (member.billing_provider === 'family_addon') {
       try {
-        const familyGroup = await getBillingGroupByMemberEmail(email);
+        const familyGroup = await getBillingGroupByMemberEmail(email as string);
         billingInfo.familyGroup = familyGroup;
       } catch (familyError: unknown) {
         console.error('[MemberBilling] Family group error:', getErrorMessage(familyError));
@@ -231,7 +231,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
 
     const result = await pool.query(`
       SELECT 
@@ -295,7 +295,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
 
 router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const { billingProvider } = req.body;
 
     const validProviders = ['stripe', 'mindbody', 'family_addon', 'comped', null];
@@ -310,7 +310,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
 
     await pool.query(
       'UPDATE users SET billing_provider = $1, updated_at = NOW() WHERE LOWER(email) = $2',
-      [billingProvider, email.toLowerCase()]
+      [billingProvider, (email as string).toLowerCase()]
     );
 
     console.log(`[MemberBilling] Updated billing provider for ${email} to ${billingProvider}`);
@@ -321,7 +321,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
       // Include current membership status so HubSpot uses app as source of truth
       await syncMemberToHubSpot({ 
-        email, 
+        email: email as string, 
         billingProvider: billingProvider || 'manual',
         status: member.membership_status || 'active'
       });
@@ -339,7 +339,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
 
 router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const { durationDays } = req.body;
 
     if (!durationDays || (durationDays !== 30 && durationDays !== 60)) {
@@ -379,7 +379,7 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
 
     console.log(`[MemberBilling] Paused subscription ${subscription.id} for ${email} until ${resumeDate.toISOString()} (${durationDays} days)`);
     
-    logFromRequest(req, 'pause_subscription', 'subscription', subscription.id, email, {
+    logFromRequest(req, 'pause_subscription' as any, 'subscription', subscription.id, email as string, {
       pause_until: resumeDate.toISOString()
     });
     
@@ -398,7 +398,7 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
 
 router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -426,7 +426,7 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
 
     console.log(`[MemberBilling] Resumed subscription ${subscription.id} for ${email}`);
     
-    logFromRequest(req, 'resume_subscription', 'subscription', subscription.id, email, {});
+    logFromRequest(req, 'resume_subscription' as any, 'subscription', subscription.id, email as string, {});
     
     res.json({ success: true, subscriptionId: subscription.id, status: 'active' });
   } catch (error: unknown) {
@@ -437,7 +437,7 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
 
 router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const { reason, immediate } = req.body;
     const member = await getMemberByEmail(email);
 
@@ -462,7 +462,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
 
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
     
     const effectiveDate = immediate ? currentPeriodEnd : 
       (thirtyDaysFromNow > currentPeriodEnd ? thirtyDaysFromNow : currentPeriodEnd);
@@ -479,12 +479,12 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
         cancellation_reason = $2,
         updated_at = NOW()
        WHERE LOWER(email) = $3`,
-      [effectiveDate.toISOString().split('T')[0], reason || null, email.toLowerCase()]
+      [effectiveDate.toISOString().split('T')[0], reason || null, (email as string).toLowerCase()]
     );
 
     console.log(`[MemberBilling] Set cancel_at for subscription ${subscription.id}, email ${email}, effective ${effectiveDate.toISOString()}`);
     
-    logFromRequest(req, 'cancel_subscription', 'subscription', subscription.id, email, {
+    logFromRequest(req, 'cancel_subscription' as any, 'subscription', subscription.id, email as string, {
       reason: reason || 'Not specified',
       effective_date: effectiveDate.toISOString(),
       immediate: !!immediate
@@ -506,7 +506,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
 
 router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -547,12 +547,12 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
         cancellation_reason = NULL,
         updated_at = NOW()
        WHERE LOWER(email) = $1`,
-      [email.toLowerCase()]
+      [(email as string).toLowerCase()]
     );
 
     console.log(`[MemberBilling] Undid cancellation for subscription ${pendingCancelSub.id}, email ${email}`);
     
-    logFromRequest(req, 'undo_cancel_subscription', 'subscription', pendingCancelSub.id, email, {});
+    logFromRequest(req, 'undo_cancel_subscription' as any, 'subscription', pendingCancelSub.id, email as string, {});
     
     res.json({
       success: true,
@@ -567,7 +567,7 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
 
 router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const { amountCents, description } = req.body;
 
     if (typeof amountCents !== 'number' || amountCents <= 0) {
@@ -585,7 +585,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
     }
     
     // Prevent operations on placeholder emails
-    if (isPlaceholderEmail(email)) {
+    if (isPlaceholderEmail(email as string)) {
       return res.status(400).json({ error: 'Cannot add credits to placeholder accounts' });
     }
 
@@ -600,7 +600,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
       const memberName = member.first_name && member.last_name 
         ? `${member.first_name} ${member.last_name}` 
         : email;
-      const custResult = await getOrCreateStripeCustomer(member.id, email, memberName, member.tier);
+      const custResult = await getOrCreateStripeCustomer(member.id, email as string, memberName, member.tier);
       stripeCustomerId = custResult.customerId;
       console.log(`[MemberBilling] ${custResult.isNew ? 'Created' : 'Found existing'} Stripe customer ${stripeCustomerId} for ${email}`);
     }
@@ -617,7 +617,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
     console.log(`[MemberBilling] Applied credit of ${amountCents} cents to ${email}`);
     
     // Audit log the credit application
-    await logFromRequest(req, 'apply_credit', 'member', email, email, {
+    await logFromRequest(req, 'apply_credit' as any, 'member', email as string, email as string, {
       amountCents,
       amountDollars: (amountCents / 100).toFixed(2),
       description,
@@ -639,7 +639,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
 
 router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const { couponId, percentOff, duration = 'once' } = req.body;
 
     if (!couponId && !percentOff) {
@@ -689,7 +689,7 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
       appliedCouponId = coupon.id;
     }
 
-    await stripe.subscriptions.update(subscription.id, {
+    await (stripe.subscriptions as any).update(subscription.id, {
       coupon: appliedCouponId,
     });
 
@@ -707,7 +707,7 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
 
 router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -733,7 +733,7 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
 
 router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const { limit = '50' } = req.query;
     const member = await getMemberByEmail(email);
 
@@ -763,7 +763,7 @@ router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (
 
 router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -792,7 +792,7 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
 
     console.log(`[MemberBilling] Created billing portal session for ${email}`);
     
-    logFromRequest(req, 'send_payment_link', 'member', member.id?.toString() || null, email, {});
+    logFromRequest(req, 'send_payment_link' as any, 'member', member.id?.toString() || null, email as string, {});
     
     res.json({
       success: true,

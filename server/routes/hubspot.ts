@@ -422,7 +422,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   const dbResult = await db.execute(sql`SELECT id, email, join_date, joined_on, mindbody_client_id, manually_linked_emails 
      FROM users WHERE LOWER(email) IN (${sql.join(emails.map(e => sql`${e}`), sql`, `)})`);
   for (const row of dbResult.rows) {
-    dbUserMap[row.email.toLowerCase()] = row;
+    dbUserMap[(row as any).email.toLowerCase()] = row;
   }
   
   // Get last visit date - most recent PAST date from bookings or experiences
@@ -444,8 +444,8 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
     GROUP BY email`);
   for (const row of lastActivityResult.rows) {
     if (row.last_activity) {
-      const date = row.last_activity instanceof Date ? row.last_activity : new Date(row.last_activity);
-      lastActivityMap[row.email] = date.toISOString().split('T')[0];
+      const date = (row as any).last_activity instanceof Date ? (row as any).last_activity : new Date((row as any).last_activity);
+      lastActivityMap[(row as any).email] = date.toISOString().split('T')[0];
     }
   }
   
@@ -457,7 +457,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
        AND status NOT IN ('cancelled', 'declined', 'cancellation_pending')
      GROUP BY LOWER(user_email)`);
   for (const row of pastBookingsResult.rows) {
-    pastBookingsMap[row.email] = row.count;
+    pastBookingsMap[(row as any).email] = (row as any).count;
   }
   
   // Count past event RSVPs (excluding cancelled) - include both email and matched_user_id
@@ -470,7 +470,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
        AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
      GROUP BY u.email`);
   for (const row of eventVisitsResult.rows) {
-    eventVisitsMap[row.email.toLowerCase()] = row.count;
+    eventVisitsMap[(row as any).email.toLowerCase()] = (row as any).count;
   }
   
   // Count past wellness enrollments (excluding cancelled)
@@ -482,7 +482,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
        AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
      GROUP BY LOWER(we.user_email)`);
   for (const row of wellnessVisitsResult.rows) {
-    wellnessVisitsMap[row.email] = row.count;
+    wellnessVisitsMap[(row as any).email] = (row as any).count;
   }
   
   const walkInCountResult = await db.execute(sql`
@@ -492,7 +492,7 @@ async function enrichContactsWithDbData(contacts: any[]): Promise<any[]> {
   `);
   const walkInCounts: Record<string, number> = {};
   for (const row of walkInCountResult.rows) {
-    walkInCounts[row.email] = row.count;
+    walkInCounts[(row as any).email] = (row as any).count;
   }
 
   // Merge contact data with database data
@@ -671,7 +671,7 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
     const { id } = req.params;
     
     const contact = await retryableHubSpotRequest(() => 
-      hubspot.crm.contacts.basicApi.getById(id, [
+      hubspot.crm.contacts.basicApi.getById(id as string, [
         'firstname',
         'lastname',
         'email',
@@ -760,7 +760,7 @@ async function enrichEventDeal(
         filterGroups: [{
           filters: [{
             propertyName: 'email',
-            operator: 'EQ',
+            operator: FilterOperatorEnum.Eq,
             value: contactEmail.toLowerCase()
           }]
         }],
@@ -778,11 +778,11 @@ async function enrichEventDeal(
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const associations = await retryableHubSpotRequest(() =>
-        hubspot.crm.contacts.associationsApi.getAll(contactId, 'deals')
+        (hubspot.crm.contacts as any).associationsApi.getAll(contactId, 'deals')
       );
 
-      if (associations.results?.length) {
-        for (const assoc of associations.results) {
+      if ((associations as any).results?.length) {
+        for (const assoc of (associations as any).results) {
           const deal = await retryableHubSpotRequest(() =>
             hubspot.crm.deals.basicApi.getById(assoc.id, ['pipeline', 'dealstage', 'createdate'])
           );
@@ -822,7 +822,7 @@ async function enrichEventDeal(
         associations: [{
           to: { id: contactId },
           types: [{
-            associationCategory: 'HUBSPOT_DEFINED',
+            associationCategory: 'HUBSPOT_DEFINED' as any,
             associationTypeId: 3
           }]
         }]
@@ -1242,7 +1242,7 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
       firstName: users.firstName,
       lastName: users.lastName,
       tier: users.tier,
-    }).from(users).where(eq(users.id, id)).limit(1);
+    }).from(users).where(eq(users.id, id as string)).limit(1);
     
     if (userResult.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -1273,10 +1273,10 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     await db.update(users)
       .set({
         tier: tierData.tier,
-        tier_id: tierData.tier_id,
-        membership_tier: tierData.tier,
-        membership_status: 'active',
-      })
+        tierId: tierData.tier_id,
+        membershipTier: tierData.tier,
+        membershipStatus: 'active',
+      } as any)
       .where(eq(users.id, localUser.id));
     
     console.log(`[Tier Update] Updated local database for ${contactEmail}`);
@@ -1293,7 +1293,7 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
     }
     
     // Log the change for audit purposes
-    console.log(`[Tier Update] Contact ${id} (${contactName}, ${contactEmail}): ${oldTier} -> ${tierData.membership_tier} by staff ${staffUser?.name || 'Unknown'}`);
+    console.log(`[Tier Update] Contact ${id} (${contactName}, ${contactEmail}): ${oldTier} -> ${tierData.tier} by staff ${staffUser?.name || 'Unknown'}`);
     
     // Invalidate cache to reflect the change
     allContactsCache.timestamp = 0;
@@ -1573,10 +1573,11 @@ router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, r
     };
     
     for (const member of membersResult.rows) {
-      const email = member.email;
-      const status = member.membership_status || 'active';
-      const billingProvider = member.billing_provider || 'manual';
-      const tier = member.tier;
+      const m = member as any;
+      const email: string = m.email;
+      const status: string = m.membership_status || 'active';
+      const billingProvider: string = m.billing_provider || 'manual';
+      const tier: string = m.tier;
       
       if (dryRun) {
         results.details.push({

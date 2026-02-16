@@ -255,7 +255,7 @@ router.post('/api/events/:id/mark-reviewed', isStaffOrAdmin, async (req, res) =>
       reviewedAt: new Date(),
       reviewDismissed: true,
       conflictDetected: false,
-    }).where(eq(events.id, parseInt(id))).returning();
+    }).where(eq(events.id, parseInt(id as string))).returning();
     
     if (result.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
@@ -488,7 +488,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       blockSimulators: events.blockSimulators,
       blockConferenceRoom: events.blockConferenceRoom,
       needsReview: events.needsReview
-    }).from(events).where(eq(events.id, parseInt(id)));
+    }).from(events).where(eq(events.id, parseInt(id as string)));
     
     const previousBlockBookings = existing[0]?.blockBookings || false;
     const previousBlockSimulators = existing[0]?.blockSimulators || false;
@@ -536,7 +536,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     // Always clear conflict_detected when saving an event (user is acknowledging changes)
     updateData.conflictDetected = false;
     
-    const result = await db.update(events).set(updateData).where(eq(events.id, parseInt(id))).returning();
+    const result = await db.update(events).set(updateData).where(eq(events.id, parseInt(id as string))).returning();
     
     if (result.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
@@ -563,7 +563,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       }
     }
     
-    const eventId = parseInt(id);
+    const eventId = parseInt(id as string);
     const userEmail = getSessionUser(req)?.email || 'system';
     
     // Determine if blocking has changed
@@ -608,7 +608,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
 router.get('/api/events/:id/cascade-preview', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id);
+    const eventId = parseInt(id as string);
     
     const [event] = await db.select({ id: events.id }).from(events).where(eq(events.id, eventId));
     if (!event) {
@@ -636,7 +636,7 @@ router.get('/api/events/:id/cascade-preview', isStaffOrAdmin, async (req, res) =
 router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id);
+    const eventId = parseInt(id as string);
     const sessionUser = getSessionUser(req);
     const archivedBy = sessionUser?.email || 'unknown';
     
@@ -662,7 +662,7 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           console.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event deletion`);
         }
       } catch (calError: unknown) {
-        console.error('Failed to delete Google Calendar event:', calError?.message || calError);
+        console.error('Failed to delete Google Calendar event:', (calError as any)?.message || calError);
       }
     }
     
@@ -696,8 +696,8 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, archived: true, archivedBy });
   } catch (error: unknown) {
-    console.error('Event archive error:', error?.message || error);
-    res.status(500).json({ error: 'Failed to archive event', details: error?.message });
+    console.error('Event archive error:', (error as any)?.message || error);
+    res.status(500).json({ error: 'Failed to archive event', details: (error as any)?.message });
   }
 });
 
@@ -1078,11 +1078,11 @@ router.delete('/api/rsvps/:event_id/:user_email', async (req, res) => {
     broadcastToStaff({
       type: 'rsvp_event',
       action: 'rsvp_cancelled',
-      eventId: parseInt(event_id),
+      eventId: parseInt(event_id as string),
       memberEmail: user_email
     });
     
-    logFromRequest(req, 'cancel_event_rsvp', 'event', event_id, undefined, {
+    logFromRequest(req, 'cancel_event_rsvp' as any, 'event', event_id as string, undefined, {
       member_email: user_email,
       event_title: evt.title,
       event_date: evt.eventDate
@@ -1121,7 +1121,7 @@ router.get('/api/events/:id/rsvps', isStaffOrAdmin, async (req, res) => {
       eq(eventRsvps.matchedUserId, users.id)
     ))
     .where(and(
-      eq(eventRsvps.eventId, parseInt(id)),
+      eq(eventRsvps.eventId, parseInt(id as string)),
       eq(eventRsvps.status, 'confirmed')
     ))
     .orderBy(desc(eventRsvps.createdAt));
@@ -1140,8 +1140,8 @@ router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, 
     const existingRsvp = await db.select()
       .from(eventRsvps)
       .where(and(
-        eq(eventRsvps.id, parseInt(rsvpId)),
-        eq(eventRsvps.eventId, parseInt(eventId))
+        eq(eventRsvps.id, parseInt(rsvpId as string)),
+        eq(eventRsvps.eventId, parseInt(eventId as string))
       ))
       .limit(1);
     
@@ -1153,13 +1153,13 @@ router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, 
     const eventData = await db.select({
       title: events.title,
       eventDate: events.eventDate
-    }).from(events).where(eq(events.id, parseInt(eventId)));
+    }).from(events).where(eq(events.id, parseInt(eventId as string)));
     
     await db.delete(eventRsvps)
-      .where(eq(eventRsvps.id, parseInt(rsvpId)));
+      .where(eq(eventRsvps.id, parseInt(rsvpId as string)));
     
     const event = eventData[0] || { title: 'Unknown', eventDate: '' };
-    logFromRequest(req, 'remove_rsvp', 'event', eventId, event.title, {
+    logFromRequest(req, 'remove_rsvp', 'event', eventId as string, event.title, {
       rsvp_email: rsvp.userEmail,
       attendee_name: rsvp.attendeeName,
       event_date: event.eventDate
@@ -1184,7 +1184,7 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
     const existingRsvp = await db.select()
       .from(eventRsvps)
       .where(and(
-        eq(eventRsvps.eventId, parseInt(id)),
+        eq(eventRsvps.eventId, parseInt(id as string)),
         eq(eventRsvps.userEmail, email),
         eq(eventRsvps.status, 'confirmed')
       ))
@@ -1195,7 +1195,7 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
     }
 
     await db.insert(eventRsvps).values({
-      eventId: parseInt(id),
+      eventId: parseInt(id as string),
       userEmail: email,
       status: 'confirmed',
       checkedIn: true,
@@ -1204,10 +1204,10 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
     const eventData = await db.select({
       title: events.title,
       eventDate: events.eventDate
-    }).from(events).where(eq(events.id, parseInt(id)));
+    }).from(events).where(eq(events.id, parseInt(id as string)));
     
     const event = eventData[0] || { title: 'Unknown', eventDate: '' };
-    logFromRequest(req, 'manual_rsvp', 'event', id, event.title, {
+    logFromRequest(req, 'manual_rsvp', 'event', id as string, event.title, {
       attendee_email: email,
       event_date: event.eventDate
     });
@@ -1231,7 +1231,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
       eventbriteId: events.eventbriteId,
     })
     .from(events)
-    .where(eq(events.id, parseInt(id)))
+    .where(eq(events.id, parseInt(id as string)))
     .limit(1);
     
     if (eventResult.length === 0) {
@@ -1341,7 +1341,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
         const existingToCancel = await db.select()
           .from(eventRsvps)
           .where(and(
-            eq(eventRsvps.eventId, parseInt(id)),
+            eq(eventRsvps.eventId, parseInt(id as string)),
             eq(eventRsvps.userEmail, email)
           ))
           .limit(1);
@@ -1376,7 +1376,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
       const existingByAnyAttendeeId = await db.select()
         .from(eventRsvps)
         .where(and(
-          eq(eventRsvps.eventId, parseInt(id)),
+          eq(eventRsvps.eventId, parseInt(id as string)),
           eq(eventRsvps.userEmail, email)
         ))
         .limit(1);
@@ -1406,7 +1406,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
       
       // Insert new RSVP with correct guest count
       await db.insert(eventRsvps).values({
-        eventId: parseInt(id),
+        eventId: parseInt(id as string),
         userEmail: email,
         status: 'confirmed', // We only insert for attending attendees
         source: 'eventbrite',
@@ -1429,7 +1429,7 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
     const totalMatchedResult = await db.select({ count: sql<number>`count(*)` })
       .from(eventRsvps)
       .where(and(
-        eq(eventRsvps.eventId, parseInt(id)),
+        eq(eventRsvps.eventId, parseInt(id as string)),
         isNotNull(eventRsvps.matchedUserId)
       ));
     const totalMatched = Number(totalMatchedResult[0]?.count || 0);
@@ -1471,7 +1471,7 @@ router.get('/api/events/:id/eventbrite-attendees', isStaffOrAdmin, async (req, r
     .from(eventRsvps)
     .leftJoin(users, eq(eventRsvps.matchedUserId, users.id))
     .where(and(
-      eq(eventRsvps.eventId, parseInt(id)),
+      eq(eventRsvps.eventId, parseInt(id as string)),
       eq(eventRsvps.source, 'eventbrite')
     ))
     .orderBy(desc(eventRsvps.createdAt));

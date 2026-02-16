@@ -273,7 +273,7 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
         const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
         await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
       } catch (e: unknown) {
-        console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, e?.message || e);
+        console.warn(`[MyBilling] Failed to sync billing provider to HubSpot for ${member.email}:`, (e as any)?.message || e);
       }
     }
     
@@ -893,7 +893,7 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
     const subscription = subscriptions.data[0];
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
     const effectiveDate = thirtyDaysFromNow > currentPeriodEnd ? thirtyDaysFromNow : currentPeriodEnd;
     const cancelAtTimestamp = Math.floor(effectiveDate.getTime() / 1000);
     

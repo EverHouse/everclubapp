@@ -140,7 +140,7 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
     
-    const coupon = await stripe.coupons.update(id, {
+    const coupon = await stripe.coupons.update(id as string, {
       name: name || undefined,
     });
     
@@ -180,7 +180,7 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
     
-    await stripe.coupons.del(id);
+    await stripe.coupons.del(id as string);
     
     console.log(`[Stripe] Deleted coupon ${id}`);
     

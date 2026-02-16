@@ -70,7 +70,7 @@ async function notifyMemberBookingConfirmed(
       );
     }
   } catch (e) {
-    logger.error('[Trackman Webhook] Failed to notify member', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to notify member', { error: e as any });
   }
 }
 
@@ -407,7 +407,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     );
     
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Processing error', { error });
+    logger.error('[Trackman Webhook] Processing error', { error: error as any });
     
     await logWebhookEvent(
       'error',
@@ -457,12 +457,12 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
     
     res.json({
       events: result.rows,
-      total: parseInt(countResult.rows[0].total),
+      total: parseInt((countResult.rows[0] as any).total),
       limit,
       offset
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch webhook events', { error });
+    logger.error('[Trackman Webhook] Failed to fetch webhook events', { error: error as any });
     res.status(500).json({ error: 'Failed to fetch webhook events' });
   }
 });
@@ -493,7 +493,7 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
       slotStats: slotStats.rows[0],
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch stats', { error });
+    logger.error('[Trackman Webhook] Failed to fetch stats', { error: error as any });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -524,7 +524,7 @@ router.get('/api/admin/trackman-webhook/stats', isStaffOrAdmin, async (req: Requ
       slotStats: slotStats.rows[0],
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch stats', { error });
+    logger.error('[Trackman Webhook] Failed to fetch stats', { error: error as any });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -559,7 +559,7 @@ router.post('/api/admin/linked-emails', isStaffOrAdmin, async (req: Request, res
     
     res.json({ success: true, message: 'Email link created successfully' });
   } catch (error: unknown) {
-    logger.error('[Linked Emails] Failed to create link', { error });
+    logger.error('[Linked Emails] Failed to create link', { error: error as any });
     res.status(500).json({ error: 'Failed to create email link' });
   }
 });
@@ -581,8 +581,8 @@ router.get('/api/admin/linked-emails/:email', isStaffOrAdmin, async (req: Reques
        WHERE LOWER(primary_email) = LOWER(${email})`);
     
     res.json({
-      linkedTo: asLinked.rows.length > 0 ? asLinked.rows[0].primary_email : null,
-      linkedEmails: asPrimary.rows.map(r => ({
+      linkedTo: asLinked.rows.length > 0 ? (asLinked.rows[0] as any).primary_email : null,
+      linkedEmails: asPrimary.rows.map((r: any) => ({
         linkedEmail: r.linked_email,
         source: r.source,
         createdBy: r.created_by,
@@ -590,7 +590,7 @@ router.get('/api/admin/linked-emails/:email', isStaffOrAdmin, async (req: Reques
       }))
     });
   } catch (error: unknown) {
-    logger.error('[Linked Emails] Failed to fetch links', { error });
+    logger.error('[Linked Emails] Failed to fetch links', { error: error as any });
     res.status(500).json({ error: 'Failed to fetch email links' });
   }
 });
@@ -629,7 +629,7 @@ router.get('/api/availability/trackman-cache', async (req: Request, res: Respons
     
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch availability cache', { error });
+    logger.error('[Trackman Webhook] Failed to fetch availability cache', { error: error as any });
     res.status(500).json({ error: 'Failed to fetch availability' });
   }
 });
@@ -651,14 +651,14 @@ router.get('/api/admin/trackman-webhook/failed', isStaffOrAdmin, async (req: Req
     
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch failed events', { error });
+    logger.error('[Trackman Webhook] Failed to fetch failed events', { error: error as any });
     res.status(500).json({ error: 'Failed to fetch failed events' });
   }
 });
 
 router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const eventId = parseInt(req.params.eventId);
+    const eventId = parseInt(req.params.eventId as string);
     
     if (isNaN(eventId)) {
       return res.status(400).json({ error: 'Invalid event ID' });
@@ -672,7 +672,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
       return res.status(404).json({ error: 'Event not found' });
     }
     
-    const event = eventResult.rows[0];
+    const event = eventResult.rows[0] as any;
     const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
     
     await db.execute(sql`UPDATE trackman_webhook_events 
@@ -703,7 +703,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
       } catch (processError: unknown) {
         message = `Reprocessing failed: ${getErrorMessage(processError)}`;
         logger.error('[Trackman Webhook] Retry processing error', {
-          error: processError,
+          error: processError as any,
           extra: { eventId }
         });
       }
@@ -724,14 +724,14 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
     
     res.json({ success, message, matchedBookingId });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to retry event', { error });
+    logger.error('[Trackman Webhook] Failed to retry event', { error: error as any });
     res.status(500).json({ error: 'Failed to retry event' });
   }
 });
 
 router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const eventId = parseInt(req.params.eventId);
+    const eventId = parseInt(req.params.eventId as string);
     
     if (isNaN(eventId)) {
       return res.status(400).json({ error: 'Invalid event ID' });
@@ -745,12 +745,12 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       return res.status(404).json({ error: 'Event not found' });
     }
     
-    const event = eventResult.rows[0];
+    const event = eventResult.rows[0] as any;
     
     if (event.matched_booking_id) {
       const matchedBooking = await db.execute(sql`SELECT id, user_email, is_unmatched FROM booking_requests WHERE id = ${event.matched_booking_id}`);
       
-      if (matchedBooking.rows.length > 0 && !matchedBooking.rows[0].is_unmatched) {
+      if (matchedBooking.rows.length > 0 && !(matchedBooking.rows[0] as any).is_unmatched) {
         return res.json({ 
           success: false, 
           message: 'This event is already linked to a member booking',
@@ -832,7 +832,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         });
       }
       
-      const match = approvedMatchResult.rows[0];
+      const match = approvedMatchResult.rows[0] as any;
       
       const updateResult = await db.execute(sql`UPDATE booking_requests 
          SET trackman_booking_id = ${trackmanBookingId},
@@ -869,7 +869,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       });
     }
     
-    const match = matchResult.rows[0];
+    const match = matchResult.rows[0] as any;
     
     const pendingUpdateResult = await db.execute(sql`UPDATE booking_requests 
        SET status = 'approved',
@@ -923,7 +923,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         `Bay ${resourceId}`
       );
     } catch (notifyErr) {
-      logger.warn('[Trackman Auto-Match] Failed to notify member', { error: notifyErr as Error });
+      logger.warn('[Trackman Auto-Match] Failed to notify member', { error: notifyErr as any });
     }
     
     linkAndNotifyParticipants(match.id, {
@@ -948,7 +948,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     });
     
   } catch (error: unknown) {
-    logger.error('[Trackman Auto-Match] Failed to auto-match event', { error });
+    logger.error('[Trackman Auto-Match] Failed to auto-match event', { error: error as any });
     res.status(500).json({ error: 'Failed to auto-match event' });
   }
 });
@@ -968,7 +968,7 @@ export async function cleanupOldWebhookLogs(): Promise<{ deleted: number }> {
     
     return { deleted };
   } catch (error) {
-    logger.error('[Trackman Webhook] Failed to cleanup old logs', { error: error as Error });
+    logger.error('[Trackman Webhook] Failed to cleanup old logs', { error: error as any });
     return { deleted: 0 };
   }
 }
@@ -978,14 +978,14 @@ router.post('/api/admin/trackman-webhook/cleanup', isStaffOrAdmin, async (req: R
     const result = await cleanupOldWebhookLogs();
     res.json({ success: true, deleted: result.deleted });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Manual cleanup failed', { error });
+    logger.error('[Trackman Webhook] Manual cleanup failed', { error: error as any });
     res.status(500).json({ error: 'Failed to cleanup logs' });
   }
 });
 
 router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id, 10);
+    const bookingId = parseInt(req.params.id as string, 10);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
@@ -999,7 +999,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    const booking = bookingResult.rows[0];
+    const booking = bookingResult.rows[0] as any;
     
     if (booking.status !== 'pending' && booking.status !== 'pending_approval') {
       return res.status(400).json({ error: `Booking is already ${booking.status}` });
@@ -1008,7 +1008,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     const fakeTrackmanId = `SIM-${Date.now()}`;
     
     const resourceResult = await db.execute(sql`SELECT id, name FROM resources WHERE id = ${booking.resource_id}`);
-    const resource = resourceResult.rows[0];
+    const resource = resourceResult.rows[0] as any;
     const bayRef = resource?.name?.match(/\d+/)?.[0] || '1';
     // Map bay number to Trackman bay ID (approximate mapping)
     const bayIdMap: Record<string, number> = { '1': 7410, '2': 7411, '3': 7412, '4': 7413 };
@@ -1077,14 +1077,14 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     logger.info('[Simulate Confirm] Created webhook event record', {
       bookingId,
       trackmanId: fakeTrackmanId,
-      webhookEventId: webhookEventResult.rows[0]?.id
+      webhookEventId: (webhookEventResult.rows[0] as any)?.id
     });
 
     let sessionId = booking.session_id;
     if (!sessionId && booking.resource_id) {
       try {
         const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.user_email})`);
-        const userId = userResult.rows[0]?.id || null;
+        const userId = (userResult.rows[0] as any)?.id || null;
 
         const sessionResult = await ensureSessionForBooking({
           bookingId,
@@ -1123,7 +1123,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
           }
 
           try {
-            const feeResult = await recalculateSessionFees(sessionId);
+            const feeResult = await recalculateSessionFees(sessionId, 'simulate_confirm' as any);
             if (feeResult?.totalSessionFee) {
               (booking as any).calculatedTotalFeeCents = feeResult.totalSessionFee;
             }
@@ -1132,11 +1132,11 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
               feeResult: feeResult?.totalSessionFee || 0
             });
           } catch (feeError) {
-            logger.warn('[Simulate Confirm] Failed to calculate fees (non-blocking)', { error: feeError });
+            logger.warn('[Simulate Confirm] Failed to calculate fees (non-blocking)', { error: feeError as any });
           }
         }
       } catch (sessionError) {
-        logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { error: sessionError });
+        logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { error: sessionError as any });
       }
     }
 
@@ -1175,7 +1175,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
           success: paymentResult.success
         });
       } catch (paymentError: unknown) {
-        logger.error('[Simulate Confirm] Failed to charge overage fee', { error: paymentError });
+        logger.error('[Simulate Confirm] Failed to charge overage fee', { error: paymentError as any });
       }
     }
 
@@ -1185,21 +1185,24 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
         ? booking.start_time.substring(0, 5) 
         : formatTimePacific(booking.start_time);
       
-      await notifyMember(booking.user_email, {
+      await notifyMember({
+        userEmail: booking.user_email,
         title: 'Booking Confirmed',
-        body: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
+        message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
         type: 'booking_confirmed',
-        metadata: { bookingId: bookingId.toString() }
-      });
+        relatedId: bookingId,
+        relatedType: 'booking',
+        url: '/bookings'
+      } as any);
 
-      sendNotificationToUser(booking.user_email, {
+      sendNotificationToUser(booking.user_email as string, {
         type: 'booking_approved',
         message: 'Your booking has been confirmed',
         bookingId: bookingId,
         timestamp: new Date().toISOString()
-      });
+      } as any);
     } catch (notifyError) {
-      logger.error('[Simulate Confirm] Notification error (non-blocking)', { error: notifyError });
+      logger.error('[Simulate Confirm] Notification error (non-blocking)', { error: notifyError as any });
     }
     
     linkAndNotifyParticipants(bookingId, {
@@ -1238,7 +1241,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       totalFeeCents
     });
   } catch (error: unknown) {
-    logger.error('[Simulate Confirm] Error', { error });
+    logger.error('[Simulate Confirm] Error', { error: error as any });
     res.status(500).json({ error: 'Failed to confirm booking' });
   }
 });
@@ -1263,7 +1266,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
       details: [] as any[]
     };
     
-    for (const event of unmatchedEvents.rows) {
+    for (const event of unmatchedEvents.rows as any[]) {
       try {
         const payload = typeof event.payload === 'string' 
           ? JSON.parse(event.payload) 
@@ -1312,7 +1315,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
         const existingByTrackman = await db.execute(sql`SELECT id FROM booking_requests WHERE trackman_booking_id = ${event.trackman_booking_id}`);
         
         if (existingByTrackman.rows.length > 0) {
-          await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${existingByTrackman.rows[0].id} WHERE id = ${event.id}`);
+          await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${(existingByTrackman.rows[0] as any).id} WHERE id = ${event.id}`);
           results.skipped++;
           results.details.push({ 
             trackmanId: event.trackman_booking_id, 
@@ -1332,7 +1335,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           LIMIT 1`);
         
         if (matchingBooking.rows.length > 0) {
-          const existingBooking = matchingBooking.rows[0];
+          const existingBooking = matchingBooking.rows[0] as any;
           
           await db.execute(sql`UPDATE booking_requests 
             SET trackman_booking_id = ${event.trackman_booking_id},
@@ -1369,7 +1372,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             RETURNING id, (xmax = 0) AS was_inserted`);
           
           if (newBooking.rows.length > 0) {
-            const bookingId = newBooking.rows[0].id;
+            const bookingId = (newBooking.rows[0] as any).id;
             
             await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${bookingId} WHERE id = ${event.id}`);
             
@@ -1405,7 +1408,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           reason: getErrorMessage(eventError) 
         });
         logger.error('[Trackman Backfill] Error processing event', { 
-          error: eventError, 
+          error: eventError as any, 
           trackmanBookingId: event.trackman_booking_id 
         });
       }
@@ -1433,7 +1436,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
       results
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Backfill] Error', { error });
+    logger.error('[Trackman Backfill] Error', { error: error as any });
     res.status(500).json({ error: 'Failed to run backfill', details: getErrorMessage(error) });
   }
 });
@@ -1468,7 +1471,7 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
     let failed = 0;
     const errors: string[] = [];
     
-    for (const event of events.rows) {
+    for (const event of events.rows as any[]) {
       try {
         const payload = typeof event.payload === 'string' 
           ? JSON.parse(event.payload) 
@@ -1510,7 +1513,7 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
       errors: errors.slice(0, 10)
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Replay] Error', { error });
+    logger.error('[Trackman Replay] Error', { error: error as any });
     res.status(500).json({ error: 'Failed to replay webhooks', details: getErrorMessage(error) });
   }
 });

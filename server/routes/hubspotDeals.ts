@@ -27,7 +27,7 @@ const router = Router();
 router.get('/api/hubspot/deals/member/:email', isStaffOrAdmin, async (req, res) => {
   try {
     const { email } = req.params;
-    const deal = await getMemberDealWithLineItems(email);
+    const deal = await getMemberDealWithLineItems(email as string);
     
     if (!deal) {
       return res.json({ deal: null, message: 'No deal found for this member' });
@@ -62,7 +62,7 @@ router.put('/api/hubspot/products/:id', isStaffOrAdmin, async (req, res) => {
         ...(description !== undefined && { description }),
         updatedAt: new Date()
       })
-      .where(eq(hubspotProductMappings.id, parseInt(id)));
+      .where(eq(hubspotProductMappings.id, parseInt(id as string)));
     
     res.json({ success: true });
   } catch (error: unknown) {
@@ -93,7 +93,7 @@ router.put('/api/hubspot/discount-rules/:tag', isStaffOrAdmin, async (req, res) 
         ...(isActive !== undefined && { isActive }),
         updatedAt: new Date()
       })
-      .where(eq(discountRules.discountTag, decodeURIComponent(tag)));
+      .where(eq(discountRules.discountTag, decodeURIComponent(tag as string)));
     
     res.json({ success: true });
   } catch (error: unknown) {
@@ -115,7 +115,7 @@ router.post('/api/hubspot/deals/:dealId/line-items', isStaffOrAdmin, async (req,
     }
     
     const result = await addLineItemToDeal(
-      dealId,
+      dealId as string,
       productId,
       quantity || 1,
       discountPercent || 0,
@@ -142,7 +142,7 @@ router.delete('/api/hubspot/line-items/:lineItemId', isStaffOrAdmin, async (req,
     const staffEmail = sessionUser?.email || 'system';
     const staffName = sessionUser?.name || 'System';
     
-    const success = await removeLineItemFromDeal(lineItemId, staffEmail, staffName);
+    const success = await removeLineItemFromDeal(lineItemId as string, staffEmail, staffName);
     
     if (!success) {
       return res.status(500).json({ error: 'Failed to remove line item' });
@@ -160,7 +160,7 @@ router.get('/api/hubspot/billing-audit/:email', isStaffOrAdmin, async (req, res)
     const { email } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
     
-    const auditLog = await getBillingAuditLog(email, limit);
+    const auditLog = await getBillingAuditLog(email as string, limit);
     res.json({ auditLog });
   } catch (error: unknown) {
     if (!isProduction) console.error('Error fetching billing audit log:', error);
@@ -277,10 +277,10 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req, 
         batch.map(async (member) => {
           try {
             const result = await syncMemberToHubSpot({
-              email: member.email,
-              status: member.membership_status,
-              tier: member.tier,
-              billingProvider: member.billing_provider
+              email: member.email as string,
+              status: member.membership_status as string,
+              tier: member.tier as string,
+              billingProvider: member.billing_provider as string
             });
             synced++;
             
@@ -338,13 +338,13 @@ router.post('/api/hubspot/remediate-deal-stages', isStaffOrAdmin, async (req, re
     }[] = [];
     
     for (const member of members) {
-      const normalizedStatus = (member.membership_status || 'non-member').toLowerCase().replace(/[^a-z-]/g, '');
+      const normalizedStatus = ((member.membership_status as string) || 'non-member').toLowerCase().replace(/[^a-z-]/g, '');
       const targetStage = MINDBODY_TO_STAGE_MAP[normalizedStatus] || HUBSPOT_STAGE_IDS.CLOSED_LOST;
       
       if (member.pipeline_stage !== targetStage) {
         remediationPlan.push({
-          email: member.email,
-          currentStage: member.pipeline_stage,
+          email: member.email as string,
+          currentStage: member.pipeline_stage as string,
           targetStage,
           membershipStatus: normalizedStatus
         });
@@ -452,9 +452,9 @@ router.get('/api/hubspot/deal-stage-summary', isStaffOrAdmin, async (req, res) =
     
     res.json({
       stageBreakdown: stagesResult.rows,
-      activeMemberCount: parseInt(activeMembers.rows[0].count),
-      activeStageDealsCount: parseInt(activeDeals.rows[0].count),
-      discrepancy: parseInt(activeDeals.rows[0].count) - parseInt(activeMembers.rows[0].count)
+      activeMemberCount: parseInt(activeMembers.rows[0].count as string),
+      activeStageDealsCount: parseInt(activeDeals.rows[0].count as string),
+      discrepancy: parseInt(activeDeals.rows[0].count as string) - parseInt(activeMembers.rows[0].count as string)
     });
   } catch (error: unknown) {
     console.error('[HubSpotDeals] Error fetching stage summary:', error);
@@ -480,7 +480,7 @@ router.post('/api/admin/hubspot/deals/batch-delete', isStaffOrAdmin, async (req:
         await hubspot.crm.deals.basicApi.archive(deal.hubspot_deal_id);
         deleted++;
       } catch (err: unknown) {
-        if (err?.code === 404 || err?.statusCode === 404 || err?.message?.includes('NOT_FOUND')) {
+        if ((err as any)?.code === 404 || (err as any)?.statusCode === 404 || (err as any)?.message?.includes('NOT_FOUND')) {
           deleted++;
         } else {
           failed++;
@@ -497,7 +497,7 @@ router.post('/api/admin/hubspot/deals/batch-delete', isStaffOrAdmin, async (req:
     await pool.query('DELETE FROM hubspot_deals');
     
     const { logFromRequest } = await import('../core/auditLog');
-    logFromRequest(req, 'hubspot_deals_batch_delete', 'hubspot', 'all',
+    logFromRequest(req, 'bulk_action' as any, 'system' as any, 'all',
       `Batch deleted ${deleted} deals`, { deleted, failed, total: deals.length });
     
     console.log(`[HubSpot] Batch deleted ${deleted} deals from HubSpot, ${failed} failures, cleared local tables`);

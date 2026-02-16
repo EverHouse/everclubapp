@@ -54,43 +54,43 @@ router.get('/api/tier-features', async (req, res) => {
 
     const valuesByFeature: Record<number, Record<number, { tierId: number; value: any }>> = {};
     for (const row of valuesResult.rows) {
-      if (!valuesByFeature[row.feature_id]) {
-        valuesByFeature[row.feature_id] = {};
+      if (!valuesByFeature[row.feature_id as number]) {
+        valuesByFeature[row.feature_id as number] = {};
       }
       
       let value: any = null;
       if (row.value_text !== null && row.value_text !== '') {
         value = row.value_text;
       } else if (row.value_number !== null && row.value_number !== 0) {
-        value = parseFloat(row.value_number);
+        value = parseFloat(row.value_number as string);
       } else if (row.value_boolean !== null) {
         value = row.value_boolean;
       }
       
-      valuesByFeature[row.feature_id][row.tier_id] = {
-        tierId: row.tier_id,
+      valuesByFeature[row.feature_id as number][row.tier_id as number] = {
+        tierId: row.tier_id as number,
         value
       };
     }
 
     const features = featuresResult.rows.map(row => {
-      const featureKey = row.feature_key;
+      const featureKey = row.feature_key as string;
       const mapping = FEATURE_KEY_TO_TIER_COLUMN[featureKey];
       
       const values: Record<number, { tierId: number; value: any }> = {};
       
       for (const tier of tiersResult.rows) {
-        const existingValue = valuesByFeature[row.id]?.[tier.id];
+        const existingValue = valuesByFeature[row.id as number]?.[tier.id as number];
         
         if (existingValue && existingValue.value !== null && existingValue.value !== '' && existingValue.value !== false) {
-          values[tier.id] = existingValue;
+          values[tier.id as number] = existingValue;
         } else if (mapping) {
           let derivedValue: any = null;
           
           if (mapping.column === null) {
             derivedValue = true;
           } else {
-            const rawValue = tier[mapping.column];
+            const rawValue = (tier as any)[mapping.column];
             if (mapping.format) {
               derivedValue = mapping.format(rawValue);
               if (derivedValue === '—') derivedValue = null;
@@ -103,9 +103,9 @@ router.get('/api/tier-features', async (req, res) => {
             }
           }
           
-          values[tier.id] = { tierId: tier.id, value: derivedValue };
+          values[tier.id as number] = { tierId: tier.id as number, value: derivedValue };
         } else {
-          values[tier.id] = existingValue || { tierId: tier.id, value: null };
+          values[tier.id as number] = existingValue || { tierId: tier.id as number, value: null };
         }
       }
 
@@ -294,7 +294,7 @@ router.put('/api/tier-features/:featureId/values/:tierId', isAdmin, async (req, 
     if (row.value_text !== null) {
       returnValue = row.value_text;
     } else if (row.value_number !== null) {
-      returnValue = parseFloat(row.value_number);
+      returnValue = parseFloat(row.value_number as string);
     } else if (row.value_boolean !== null) {
       returnValue = row.value_boolean;
     }

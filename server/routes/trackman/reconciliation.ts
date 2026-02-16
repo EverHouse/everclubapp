@@ -62,7 +62,7 @@ router.put('/api/admin/trackman/reconciliation/:id', isStaffOrAdmin, async (req,
     
     if (status === 'adjusted' && adjustLedger) {
       const adjustResult = await adjustLedgerForReconciliation(
-        parseInt(id),
+        parseInt(id as string),
         staffEmail,
         notes
       );
@@ -78,7 +78,7 @@ router.put('/api/admin/trackman/reconciliation/:id', isStaffOrAdmin, async (req,
       };
     } else {
       const reconcileResult = await markAsReconciled(
-        parseInt(id),
+        parseInt(id as string),
         staffEmail,
         status,
         notes

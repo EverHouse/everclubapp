@@ -622,7 +622,7 @@ router.get('/api/pending-bookings', isStaffOrAdmin, async (req, res) => {
 router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     
     const result = await db.transaction(async (tx) => {
       const [booking] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
@@ -694,8 +694,8 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
         try {
           const dateStr = typeof updated.requestDate === 'string'
             ? updated.requestDate
-            : updated.requestDate instanceof Date
-              ? updated.requestDate.toISOString().split('T')[0]
+            : (updated.requestDate as any) instanceof Date
+              ? (updated.requestDate as any).toISOString().split('T')[0]
               : '';
           await ensureSessionForBooking({
             bookingId: updated.id,
@@ -732,7 +732,7 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
       data: { bookingId, status: 'confirmed' }
     });
     
-    logFromRequest(req, 'approve_booking', 'booking', id, result.userEmail, {
+    logFromRequest(req, 'approve_booking', 'booking', id as string, result.userEmail, {
       bay: result.resourceId,
       time: result.startTime
     });
@@ -741,7 +741,7 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
   } catch (error: unknown) {
     if (getErrorStatusCode(error)) {
       return res.status(getErrorStatusCode(error)).json({ 
-        error: error.error, 
+        error: (error as any).error, 
         message: getErrorMessage(error) 
       });
     }
@@ -752,7 +752,7 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
 router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     
     const result = await db.transaction(async (tx) => {
       const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
@@ -789,7 +789,7 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
       }
     }
     
-    logFromRequest(req, 'decline_booking', 'booking', id, {
+    logFromRequest(req, 'decline_booking', 'booking', id as string, result.userEmail, {
       member_email: result.userEmail,
       reason: req.body.reason || 'Not specified'
     });
@@ -804,7 +804,7 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
     res.json(result);
   } catch (error: unknown) {
     if (getErrorStatusCode(error)) {
-      return res.status(getErrorStatusCode(error)).json({ error: error.error });
+      return res.status(getErrorStatusCode(error)).json({ error: (error as any).error });
     }
     logAndRespond(req, res, 500, 'Failed to decline booking', error, 'DECLINE_BOOKING_ERROR');
   }
@@ -813,7 +813,7 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, async (req, res) => {
 router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     const { member_email, member_name, member_id } = req.body;
     
     if (!member_email || !member_name) {
@@ -854,7 +854,7 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
       action: 'member_assigned',
       memberEmail: member_email,
       memberName: member_name
-    });
+    } as any);
     
     const formattedDate = result.requestDate ? new Date(result.requestDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
     const formattedTime = result.startTime || '';
@@ -880,7 +880,7 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
       data: { bookingId },
     });
     
-    logFromRequest(req, 'assign_member_to_booking', 'booking', id, {
+    logFromRequest(req, 'assign_member_to_booking', 'booking', id as string, member_email, {
       member_email,
       member_name,
       was_unmatched: true
@@ -889,7 +889,7 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, async (req, res) 
     res.json(result);
   } catch (error: unknown) {
     if (getErrorStatusCode(error)) {
-      return res.status(getErrorStatusCode(error)).json({ error: error.error });
+      return res.status(getErrorStatusCode(error)).json({ error: (error as any).error });
     }
     logAndRespond(req, res, 500, 'Failed to assign member to booking', error, 'ASSIGN_MEMBER_ERROR');
   }
@@ -1081,7 +1081,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
         noticeType: 'private_event',
         isActive: true,
         createdBy: getSessionUser(req)?.email || 'staff_link'
-      }).returning();
+      } as any).returning();
       
       await db.insert(availabilityBlocks).values({
         closureId: closure.id,
@@ -1118,9 +1118,9 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
         closureId: closure.id,
         instructorEmail: ownerEmail,
         instructorName: ownerName
-      });
+      } as any);
       
-      logFromRequest(req, 'convert_trackman_to_lesson_block', 'closure', closure.id.toString(), {
+      logFromRequest(req, 'create_closure' as any, 'closure', closure.id.toString(), ownerName, {
         trackman_booking_id,
         instructor_email: ownerEmail,
         instructor_name: ownerName,
@@ -1166,13 +1166,14 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
           .returning();
         booking = updated;
       } else {
-        const [webhookLog] = await tx.execute(sql`
+        const webhookResult = await tx.execute(sql`
           SELECT payload, trackman_booking_id 
           FROM trackman_webhook_events 
           WHERE trackman_booking_id = ${trackman_booking_id}
           ORDER BY created_at DESC
           LIMIT 1
         `);
+        const webhookLog = (webhookResult as any).rows?.[0] ?? (webhookResult as any)[0];
         
         if (!webhookLog) {
           throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
@@ -1227,7 +1228,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
             staffNotes: `[Linked from Trackman webhook by staff: ${ownerName} with ${totalPlayerCount} players]`,
             createdAt: new Date(),
             updatedAt: new Date()
-          })
+          } as any)
           .returning();
         booking = newBooking;
         created = true;
@@ -1281,7 +1282,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
     
     if (result.sessionId) {
       try {
-        await recalculateSessionFees(result.sessionId);
+        await recalculateSessionFees(result.sessionId, 'approval' as any);
         logger.info('[link-trackman-to-member] Recalculated fees after member assignment', {
           extra: { bookingId: result.booking.id, sessionId: result.sessionId, newOwner: ownerEmail }
         });
@@ -1300,7 +1301,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       memberEmail: ownerEmail,
       memberName: ownerName,
       totalPlayers: totalPlayerCount
-    });
+    } as any);
     
     let emailLinked = false;
     if (rememberEmail && originalEmail && originalEmail.toLowerCase() !== ownerEmail.toLowerCase()) {
@@ -1330,7 +1331,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
       }
     }
     
-    logFromRequest(req, 'link_trackman_to_member', 'booking', result.booking.id.toString(), {
+    logFromRequest(req, 'link_trackman_to_member', 'booking', result.booking.id.toString(), ownerEmail, {
       trackman_booking_id,
       owner_email: ownerEmail,
       owner_name: ownerName,
@@ -1352,7 +1353,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, async (req,
     });
   } catch (error: unknown) {
     if (getErrorStatusCode(error)) {
-      return res.status(getErrorStatusCode(error)).json({ error: error.error });
+      return res.status(getErrorStatusCode(error)).json({ error: (error as any).error });
     }
     logAndRespond(req, res, 500, 'Failed to link Trackman booking to member', error, 'LINK_TRACKMAN_ERROR');
   }
@@ -1703,16 +1704,16 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
       action: 'converted_to_private_event',
       bookingIds: result.bookingIds,
       closureId: result.closure?.id
-    });
+    } as any);
     
     if (result.closure) {
       broadcastClosureUpdate({
         type: 'closure_created',
         closureId: result.closure.id
-      });
+      } as any);
     }
     
-    logFromRequest(req, 'mark_booking_as_event', 'booking', primaryBooking.id.toString(), `Private Event: ${eventTitle}`, {
+    logFromRequest(req, 'update_booking' as any, 'booking', primaryBooking.id.toString(), `Private Event: ${eventTitle}`, {
       booking_id: primaryBooking.id,
       trackman_booking_id,
       grouped_booking_count: result.bookingIds.length,
@@ -1749,7 +1750,7 @@ router.post('/api/bookings/mark-as-event', isStaffOrAdmin, async (req, res) => {
 
 router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id);
+    const bookingId = parseInt(req.params.id as string);
     const { owner, additional_players, rememberEmail, originalEmail } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
@@ -1833,7 +1834,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
     
     if (result.sessionId) {
       try {
-        await recalculateSessionFees(result.sessionId);
+        await recalculateSessionFees(result.sessionId, 'approval' as any);
         logger.info('[assign-with-players] Recalculated fees after member assignment', {
           extra: { bookingId, sessionId: result.sessionId, newOwner: owner.email }
         });
@@ -1898,7 +1899,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       memberEmail: owner.email,
       memberName: owner.name,
       totalPlayers: totalPlayerCount
-    });
+    } as any);
     
     if (owner.member_id) {
       try {
@@ -1971,7 +1972,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
       }
     }
     
-    logFromRequest(req, 'assign_booking_with_players', 'booking', bookingId.toString(), {
+    logFromRequest(req, 'assign_member_to_booking' as any, 'booking', bookingId.toString(), owner.email, {
       owner_email: owner.email,
       owner_name: owner.name,
       total_players: totalPlayerCount,
@@ -1990,18 +1991,17 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
     });
   } catch (error: unknown) {
     if (getErrorStatusCode(error)) {
-      return res.status(getErrorStatusCode(error)).json({ error: error.error });
+      return res.status(getErrorStatusCode(error)).json({ error: (error as any).error });
     }
-    // Log additional error details for debugging
     logger.error('[assign-with-players] Database error details', {
       extra: {
         bookingId: req.params.id,
         owner: req.body.owner,
         errorMessage: getErrorMessage(error),
         errorCode: getErrorCode(error),
-        errorDetail: error.detail,
-        errorConstraint: error.constraint,
-        errorStack: error.stack?.split('\n').slice(0, 5).join('\n')
+        errorDetail: (error as any).detail,
+        errorConstraint: (error as any).constraint,
+        errorStack: (error as any).stack?.split('\n').slice(0, 5).join('\n')
       }
     });
     logAndRespond(req, res, 500, 'Failed to assign players to booking', error, 'ASSIGN_PLAYERS_ERROR');
@@ -2010,7 +2010,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, async (req, 
 
 router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id);
+    const bookingId = parseInt(req.params.id as string);
     const { new_email, new_name, member_id } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
@@ -2052,9 +2052,9 @@ router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, async (req, res) =>
       previousOwner,
       newOwnerEmail: new_email,
       newOwnerName: new_name
-    });
+    } as any);
     
-    logFromRequest(req, 'change_booking_owner', 'booking', bookingId.toString(), {
+    logFromRequest(req, 'change_booking_owner', 'booking', bookingId.toString(), new_email, {
       previous_owner: previousOwner,
       new_email,
       new_name
@@ -2245,7 +2245,7 @@ router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
 router.get('/api/bookings/:id/cascade-preview', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     
     const [booking] = await db.select({
       id: bookingRequests.id,
@@ -2289,7 +2289,7 @@ router.get('/api/bookings/:id/cascade-preview', isStaffOrAdmin, async (req, res)
 router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     const sessionUser = getSessionUser(req);
     const archivedBy = sessionUser?.email || 'unknown';
     const hardDelete = req.query.hard_delete === 'true';
@@ -2460,7 +2460,7 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     
     const [existing] = await db.select({
       id: bookingRequests.id,
@@ -2657,7 +2657,7 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       }
     }
     
-    logMemberAction('booking_cancelled_member', 'booking', bookingId.toString(), existing.userEmail || '', {
+    logMemberAction({ action: 'booking_cancelled_member', resourceType: 'booking', resourceId: bookingId.toString(), memberEmail: existing.userEmail || '', details: {
       member_email: existing.userEmail,
       member_name: existing.userName,
       booking_date: existing.requestDate,
@@ -2665,7 +2665,7 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
       bay_name: resourceName,
       refunded_passes: cascadeResult.guestPassesRefunded,
       prepayment_refunds: cascadeResult.prepaymentRefunds
-    });
+    }});
     
     res.json({ 
       success: true, 
@@ -2698,7 +2698,7 @@ router.put('/api/bookings/:id/member-cancel', async (req, res) => {
 router.post('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id);
+    const bookingId = parseInt(id as string);
     const staffEmail = getSessionUser(req)?.email;
     
     const unpaidCheck = await pool.query(`

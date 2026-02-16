@@ -551,7 +551,7 @@ export async function createUnmatchedBookingRequest(
         });
         
         // If conflict is a Private Event block, downgrade to pending for staff review
-        if (availability.conflictType === 'private_event' || availability.conflictType === 'availability_block') {
+        if ((availability.conflictType as string) === 'private_event' || availability.conflictType === 'availability_block') {
           bookingStatus = 'pending';
           conflictNote = ` [Pending: Conflicts with ${availability.conflictTitle || 'private event'}]`;
           logger.info('[Trackman Webhook] Downgrading to pending due to private event conflict', {
@@ -997,7 +997,6 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         resourceId,
         date: startParsed.date,
         action: 'cancelled',
-        bookingId: cancelResult.bookingId
       });
       
       logger.info('[Trackman Webhook] Handled booking cancellation', {
@@ -1043,8 +1042,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       broadcastAvailabilityUpdate({
         resourceId,
         date: startParsed.date,
-        action: 'created',
-        bookingId: unmatchedResult.bookingId
+        action: 'booked',
       });
     }
     
@@ -1089,8 +1087,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     broadcastAvailabilityUpdate({
       resourceId: autoApproveResult.resourceId || resourceId,
       date: startParsed.date,
-      action: 'approved',
-      bookingId: autoApproveResult.bookingId
+      action: 'booked',
     });
     
     await notifyMemberBookingConfirmed(
@@ -1200,8 +1197,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         broadcastAvailabilityUpdate({
           resourceId: undefined,
           date: startParsed.date,
-          action: 'created',
-          bookingId: unmatchedResult.bookingId
+          action: 'booked',
         });
         
         await notifyStaffBookingCreated(
@@ -1258,8 +1254,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       broadcastAvailabilityUpdate({
         resourceId,
         date: startParsed.date,
-        action: 'created',
-        bookingId: createResult.bookingId
+        action: 'booked',
       });
       
       logger.info('[Trackman Webhook] Auto-created booking for known member (no pending request)', {
@@ -1304,8 +1299,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     broadcastAvailabilityUpdate({
       resourceId,
       date: startParsed.date,
-      action: 'created',
-      bookingId: unmatchedResult.bookingId
+      action: 'booked',
     });
   }
   

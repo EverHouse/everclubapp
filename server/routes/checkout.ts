@@ -29,7 +29,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
     const parseResult = checkoutSessionSchema.safeParse(req.body);
     
     if (!parseResult.success) {
-      const firstError = parseResult.error.errors[0];
+      const firstError = (parseResult.error as any).errors[0];
       return res.status(400).json({ error: firstError.message || 'Invalid input' });
     }
     
@@ -191,7 +191,7 @@ router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, 
     
     const stripe = await getStripeClient();
     
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await stripe.checkout.sessions.retrieve(sessionId as string) as any;
     
     res.json({
       status: session.status,

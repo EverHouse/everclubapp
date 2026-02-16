@@ -68,7 +68,7 @@ router.post('/api/family-billing/products/sync', isStaffOrAdmin, async (req, res
 
 router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, res) => {
   try {
-    const { tierName } = req.params;
+    const tierName = req.params.tierName as string;
     const { priceCents } = req.body;
     
     if (typeof priceCents !== 'number' || priceCents < 0) {
@@ -90,7 +90,7 @@ router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, 
 
 router.put('/api/family-billing/products/:tierName', isStaffOrAdmin, async (req, res) => {
   try {
-    const { tierName } = req.params;
+    const tierName = req.params.tierName as string;
     const { priceCents } = req.body;
     
     if (typeof priceCents !== 'number' || priceCents < 0) {
@@ -132,7 +132,7 @@ router.get('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const group = await getBillingGroupByMemberEmail(email);
     
     if (!group) {
@@ -148,7 +148,7 @@ router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) =
 
 router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
+    const email = req.params.email as string;
     const group = await getBillingGroupByMemberEmail(email);
     
     if (!group) {
@@ -164,7 +164,7 @@ router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) 
 
 router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     let { groupName } = req.body;
     
     // Normalize empty strings to null
@@ -197,7 +197,7 @@ router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req,
 
 router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     
     const result = await deleteBillingGroup(parseInt(groupId, 10));
     
@@ -268,7 +268,7 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 
 router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode } = req.body;
     const user = req.user as any;
     
@@ -306,7 +306,7 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
 
 router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { email, firstName, lastName, phone, dob } = req.body;
     const user = req.user as any;
     
@@ -372,7 +372,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
 
 router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode } = req.body;
     const user = req.user as any;
     
@@ -428,7 +428,7 @@ router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, async (req, r
 
 router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
   try {
-    const { memberId } = req.params;
+    const memberId = req.params.memberId as string;
     const user = req.user as any;
     const memberIdInt = parseInt(memberId, 10);
     
@@ -482,7 +482,7 @@ router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req
 
 router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
   try {
-    const { memberId } = req.params;
+    const memberId = req.params.memberId as string;
     const user = req.user as any;
     
     const result = await removeGroupMember({
@@ -507,7 +507,7 @@ router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (re
 
 router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { stripeSubscriptionId } = req.body;
     
     if (!stripeSubscriptionId) {
@@ -536,7 +536,7 @@ router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdm
 
 router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { stripeSubscriptionId } = req.body;
     
     if (!stripeSubscriptionId) {

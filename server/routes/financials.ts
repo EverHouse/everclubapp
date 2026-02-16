@@ -115,7 +115,7 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
     `);
     
     const hasMore = result.rows.length > limit;
-    const transactions: RecentTransaction[] = result.rows.slice(0, limit).map(row => ({
+    const transactions: RecentTransaction[] = result.rows.slice(0, limit).map((row: any) => ({
       id: row.id,
       type: row.type,
       amount_cents: parseInt(row.amount_cents),
@@ -315,7 +315,7 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
             metadata: inv.metadata,
             source: 'backfill',
             invoiceId: inv.id,
-            paymentIntentId: typeof inv.payment_intent === 'string' ? inv.payment_intent : undefined,
+            paymentIntentId: typeof (inv as any).payment_intent === 'string' ? (inv as any).payment_intent : undefined,
           });
           invoicesProcessed++;
         }
@@ -386,7 +386,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
       return res.status(404).json({ success: false, error: 'User not found' });
     }
     
-    const user = userResult.rows[0];
+    const user = userResult.rows[0] as any;
     if (!user.stripe_customer_id) {
       return res.status(400).json({ success: false, error: 'User has no Stripe customer linked' });
     }
@@ -633,8 +633,8 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       
       console.log(`[Financials] Found ${dbResult.rows.length} Stripe-billed customers in database`);
       
-      const uniqueCustomers = new Map<string, typeof dbResult.rows[0]>();
-      for (const row of dbResult.rows) {
+      const uniqueCustomers = new Map<string, any>();
+      for (const row of dbResult.rows as any[]) {
         if (!uniqueCustomers.has(row.stripe_customer_id)) {
           uniqueCustomers.set(row.stripe_customer_id, row);
         }
@@ -648,7 +648,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
         const batchResults = await Promise.allSettled(
           batch.map(async (row) => {
             const custSubs = await stripe.subscriptions.list({ 
-              customer: row.stripe_customer_id, 
+              customer: row.stripe_customer_id as string, 
               status: statusFilter,
               limit: 100,
               expand: ['data.items.data.price', 'data.customer']
@@ -704,7 +704,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
         currency: price?.currency || 'usd',
         interval: price?.recurring?.interval || 'month',
         status: sub.status,
-        currentPeriodEnd: sub.current_period_end,
+        currentPeriodEnd: (sub as any).current_period_end,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
       };
     });
@@ -737,7 +737,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
     const { subscriptionId } = req.params;
     const stripe = await getStripeClient();
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, {
       expand: ['customer', 'items.data.price.product'],
     });
 
@@ -759,7 +759,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
       memberName: customer.name || 'Member',
       amount,
       description: `${product?.name || 'Membership'} subscription payment is past due`,
-      dueDate: new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
+      dueDate: new Date((subscription as any).current_period_end * 1000).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

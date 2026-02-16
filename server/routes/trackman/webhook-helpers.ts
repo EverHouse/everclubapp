@@ -57,6 +57,8 @@ export interface TrackmanBookingPayload {
   playerCount?: number;
   created_at?: string;
   updated_at?: string;
+  external_booking_id?: string;
+  externalBookingId?: string;
 }
 
 export interface TrackmanV2BayOption {

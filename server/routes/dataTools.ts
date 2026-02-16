@@ -75,7 +75,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       return res.status(404).json({ error: 'Member not found in database' });
     }
     
-    const user = existingUser.rows[0];
+    const user = existingUser.rows[0] as any;
     let hubspotContactId = user.hubspot_id;
     
     const hubspot = await getHubSpotClient();
@@ -86,7 +86,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
           filterGroups: [{
             filters: [{
               propertyName: 'email',
-              operator: 'EQ',
+              operator: 'EQ' as any,
               value: normalizedEmail
             }]
           }],
@@ -123,7 +123,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
             filterGroups: [{
               filters: [{
                 propertyName: 'email',
-                operator: 'EQ',
+                operator: 'EQ' as any,
                 value: normalizedEmail
               }]
             }],
@@ -277,7 +277,7 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
     
     const result = await db.execute(queryBuilder);
     
-    res.json(result.rows.map(row => ({
+    res.json(result.rows.map((row: any) => ({
       id: row.id,
       userEmail: row.user_email,
       userName: row.user_name,
@@ -392,7 +392,7 @@ router.get('/api/data-tools/bookings-search', isStaffOrAdmin, async (req: Reques
     
     const result = await db.execute(queryBuilder);
     
-    res.json(result.rows.map(row => ({
+    res.json(result.rows.map((row: any) => ({
       id: row.id,
       userEmail: row.user_email,
       userName: row.user_name,
@@ -431,8 +431,8 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    const previousStatus = existingBooking.rows[0].reconciliation_status;
-    const previousNotes = existingBooking.rows[0].reconciliation_notes;
+    const previousStatus = (existingBooking.rows[0] as any).reconciliation_status;
+    const previousNotes = (existingBooking.rows[0] as any).reconciliation_notes;
     
     await db.execute(sql`UPDATE booking_requests SET 
         reconciliation_status = ${attendanceStatus},
@@ -443,7 +443,7 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
       WHERE id = ${bookingId}`);
     
     await db.insert(billingAuditLog).values({
-      memberEmail: existingBooking.rows[0].user_email || 'unknown',
+      memberEmail: (existingBooking.rows[0] as any).user_email || 'unknown',
       actionType: 'attendance_manually_updated',
       previousValue: previousStatus || 'none',
       newValue: attendanceStatus,
@@ -455,7 +455,7 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
       },
       performedBy: staffEmail,
       performedByName: staffEmail
-    });
+    } as any);
     
     if (!isProduction) {
       console.log(`[DataTools] Updated attendance for booking ${bookingId} to ${attendanceStatus} by ${staffEmail}`);
@@ -524,7 +524,7 @@ router.get('/api/data-tools/audit-log', isAdmin, async (req: Request, res: Respo
   try {
     const { limit = '20', actionType } = req.query;
     
-    let query = db.select()
+    let query: any = db.select()
       .from(billingAuditLog)
       .orderBy(desc(billingAuditLog.createdAt))
       .limit(parseInt(limit as string));
@@ -627,7 +627,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
     // Process in batches to avoid rate limits
     const batchSize = 50;
     for (let i = 0; i < usersWithMindbody.rows.length; i += batchSize) {
-      const batch = usersWithMindbody.rows.slice(i, i + batchSize);
+      const batch = (usersWithMindbody.rows.slice(i, i + batchSize) as any[]);
       
       for (const user of batch) {
         try {
@@ -646,7 +646,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
                 filterGroups: [{
                   filters: [{
                     propertyName: 'email',
-                    operator: 'EQ',
+                    operator: 'EQ' as any,
                     value: user.email.toLowerCase()
                   }]
                 }],
@@ -783,7 +783,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
     const errors: string[] = [];
     
     if (!dryRun) {
-      for (const member of membersWithoutHubspot.rows) {
+      for (const member of membersWithoutHubspot.rows as any[]) {
         try {
           const result = await findOrCreateHubSpotContact(
             member.email,
@@ -828,7 +828,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
         ? `Dry run: Found ${membersWithoutHubspot.rows.length} members without HubSpot contacts` 
         : `Synced ${created.length + existing.length} members to HubSpot (${created.length} new, ${existing.length} existing)`,
       totalFound: membersWithoutHubspot.rows.length,
-      members: membersWithoutHubspot.rows.map(m => ({
+      members: membersWithoutHubspot.rows.map((m: any) => ({
         email: m.email,
         name: `${m.first_name || ''} ${m.last_name || ''}`.trim(),
         tier: m.tier,
@@ -898,7 +898,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
     const BATCH_DELAY_MS = 100;
     
     for (let i = 0; i < membersWithStripe.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithStripe.rows.slice(i, i + BATCH_SIZE);
+      const batch = (membersWithStripe.rows.slice(i, i + BATCH_SIZE) as any[]);
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -907,7 +907,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
           
           const customerSubs = await stripe.subscriptions.list({
             customer: customerId,
-            status: 'all',
+            status: 'all' as any,
             limit: 10
           });
           
@@ -958,7 +958,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
                 const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
                 await syncMemberToHubSpot({ email: member.email, status: expectedAppStatus, billingProvider: 'stripe' });
               } catch (e: unknown) {
-                console.warn(`[DataTools] Failed to sync status to HubSpot for ${member.email}:`, e?.message || e);
+                console.warn(`[DataTools] Failed to sync status to HubSpot for ${member.email}:`, (e as any)?.message || e);
               }
               
               await db.insert(billingAuditLog).values({
@@ -974,7 +974,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
                 },
                 performedBy: staffEmail,
                 performedByName: staffEmail
-              });
+              } as any);
               
               updated.push({
                 email: member.email,
@@ -1066,7 +1066,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
     const BATCH_DELAY_MS = 100;
     
     for (let i = 0; i < usersWithStripe.rows.length; i += BATCH_SIZE) {
-      const batch = usersWithStripe.rows.slice(i, i + BATCH_SIZE);
+      const batch = (usersWithStripe.rows.slice(i, i + BATCH_SIZE) as any[]);
       
       await Promise.all(batch.map(async (user) => {
         try {
@@ -1167,7 +1167,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
        ORDER BY email
        LIMIT 200`);
     
-    const stripeOnlyList = stripeOnlyMembers.rows.map(m => ({
+    const stripeOnlyList = stripeOnlyMembers.rows.map((m: any) => ({
       id: m.id,
       email: m.email,
       name: [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown',
@@ -1176,7 +1176,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
       issue: 'has_stripe_no_hubspot'
     }));
     
-    const hubspotOnlyList = hubspotOnlyMembers.rows.map(m => ({
+    const hubspotOnlyList = hubspotOnlyMembers.rows.map((m: any) => ({
       id: m.id,
       email: m.email,
       name: [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown',
@@ -1190,7 +1190,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
     const errors: string[] = [];
     
     if (!dryRun) {
-      for (const member of stripeOnlyMembers.rows) {
+      for (const member of stripeOnlyMembers.rows as any[]) {
         try {
           const result = await findOrCreateHubSpotContact(
             member.email,
@@ -1228,7 +1228,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
         }
       }
       
-      for (const member of hubspotOnlyMembers.rows) {
+      for (const member of hubspotOnlyMembers.rows as any[]) {
         try {
           const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
           const result = await getOrCreateStripeCustomer(
@@ -1334,7 +1334,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
     const BATCH_DELAY_MS = 150;
     
     for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE);
+      const batch = (membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as any[]);
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -1377,9 +1377,9 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
               AND we.status != 'cancelled'
           `);
           
-          const bookingCount = parseInt(visitCountResult.rows[0]?.count || '0');
-          const eventCount = parseInt(eventCountResult.rows[0]?.count || '0');
-          const wellnessCount = parseInt(wellnessCountResult.rows[0]?.count || '0');
+          const bookingCount = parseInt((visitCountResult.rows[0] as any)?.count || '0');
+          const eventCount = parseInt((eventCountResult.rows[0] as any)?.count || '0');
+          const wellnessCount = parseInt((wellnessCountResult.rows[0] as any)?.count || '0');
           const appVisitCount = bookingCount + eventCount + wellnessCount;
           
           let hubspotVisitCount: number | null = null;
@@ -1438,7 +1438,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
                   },
                   performedBy: staffEmail,
                   performedByName: staffEmail
-                });
+                } as any);
                 
                 if (!isProduction) {
                   console.log(`[DataTools] Updated HubSpot visit count for ${member.email}: ${hubspotVisitCount} -> ${appVisitCount}`);
@@ -1517,7 +1517,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
       ORDER BY COUNT(*) DESC
     `);
     
-    const appDuplicates = appDuplicatesResult.rows.map(row => ({
+    const appDuplicates = appDuplicatesResult.rows.map((row: any) => ({
       email: row.normalized_email,
       count: parseInt(row.count),
       members: row.user_ids.map((id: string, idx: number) => ({
@@ -1546,7 +1546,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
     const BATCH_DELAY_MS = 50;
     
     for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE);
+      const batch = (membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as any[]);
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -1555,7 +1555,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
               filterGroups: [{
                 filters: [{
                   propertyName: 'email',
-                  operator: 'EQ',
+                  operator: 'EQ' as any,
                   value: member.email
                 }]
               }],
@@ -1670,14 +1670,14 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
     const BATCH_DELAY_MS = 150;
     
     for (let i = 0; i < membersWithBoth.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithBoth.rows.slice(i, i + BATCH_SIZE);
+      const batch = (membersWithBoth.rows.slice(i, i + BATCH_SIZE) as any[]);
       
       await Promise.all(batch.map(async (member) => {
         try {
           const invoices = await stripe.invoices.list({
             customer: member.stripe_customer_id,
             limit: 1,
-            status: 'paid'
+            status: 'paid' as any
           });
           
           let stripePaymentStatus = 'no_invoices';
@@ -1693,7 +1693,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
             lastInvoiceAmount = latestInvoice.amount_paid || null;
           } else {
             const allInvoices = await stripe.invoices.list({
-              customer: member.stripe_customer_id,
+              customer: member.stripe_customer_id as string,
               limit: 1
             });
             
@@ -1767,7 +1767,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
                   },
                   performedBy: staffEmail,
                   performedByName: staffEmail
-                });
+                } as any);
                 
                 if (!isProduction) {
                   console.log(`[DataTools] Updated HubSpot payment status for ${member.email}: ${hubspotPaymentStatus} -> ${stripePaymentStatus}`);
@@ -1859,7 +1859,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     
     const ghostBookingsResult = await db.execute(ghostQuery);
     
-    const ghostBookings = ghostBookingsResult.rows.map(row => ({
+    const ghostBookings = ghostBookingsResult.rows.map((row: any) => ({
       bookingId: row.id,
       userId: row.user_id,
       userEmail: row.user_email,
@@ -1876,7 +1876,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     }));
     
     if (dryRun) {
-      logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, undefined, {
+      logFromRequest(req, 'fix_trackman_ghost_bookings' as any, 'booking_requests' as any, null, undefined, {
         action: 'preview',
         ghostBookingsFound: ghostBookings.length,
         staffEmail
@@ -1909,7 +1909,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         const duplicateSessionCheck = await db.execute(sql`SELECT id FROM booking_sessions WHERE trackman_booking_id = ${booking.trackmanBookingId}`);
         
         if (duplicateSessionCheck.rows.length > 0) {
-          const existingSessionId = duplicateSessionCheck.rows[0].id;
+          const existingSessionId = (duplicateSessionCheck.rows[0] as any).id as number;
           await db.execute(sql`UPDATE booking_requests SET session_id = ${existingSessionId}, updated_at = NOW() WHERE id = ${booking.bookingId}`);
           
           fixed.push({
@@ -1929,7 +1929,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             },
             performedBy: staffEmail,
             performedByName: staffEmail
-          });
+          } as any);
           
           continue;
         }
@@ -1957,7 +1957,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         const ownerTier = booking.tier || await getMemberTierByEmail(booking.userEmail, { allowInactive: true });
         
         const resourceResult = await pool.query(`SELECT type FROM resources WHERE id = $1`, [booking.resourceId]);
-        const resourceType = resourceResult.rows[0]?.type || 'simulator';
+        const resourceType = (resourceResult.rows[0] as any)?.type || 'simulator';
         
         const participants = [
           { email: booking.userEmail, participantType: 'owner' as const, displayName: booking.userName || booking.userEmail }
@@ -1966,7 +1966,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         for (let i = 1; i < booking.playerCount; i++) {
           participants.push({
             email: undefined as any,
-            participantType: 'guest' as const,
+            participantType: 'guest' as any,
             displayName: `Guest ${i + 1}`
           });
         }
@@ -1999,9 +1999,9 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
                 minutesCharged: billing.minutesAllocated,
                 overageFee: billing.overageFee,
                 guestFee: 0,
-                tierAtBooking: billing.tier || ownerTier || undefined,
+                tierAtBooking: (billing as any).tier || ownerTier || undefined,
                 paymentMethod: 'unpaid'
-              }, 'staff_manual');
+              } as any, 'staff_manual' as any);
             }
           }
         } catch (billingErr: unknown) {
@@ -2025,7 +2025,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             : booking.durationMinutes || 60;
           
           const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.userEmail})`);
-          const userId = userResult.rows[0]?.id || null;
+          const userId = (userResult.rows[0] as any)?.id || null;
           
           await db.execute(sql`
             INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
@@ -2040,7 +2040,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             `);
           }
           
-          await recalculateSessionFees(sessionId);
+          await recalculateSessionFees(sessionId, 'staff_manual' as any);
         } catch (participantErr: unknown) {
           console.warn(`[DataTools] Failed to create participants for session ${sessionId}:`, getErrorMessage(participantErr));
         }
@@ -2065,7 +2065,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           },
           performedBy: staffEmail,
           performedByName: staffEmail
-        });
+        } as any);
         
         if (!isProduction) {
           console.log(`[DataTools] Fixed ghost booking ${booking.bookingId} -> session ${sessionId}`);
@@ -2077,7 +2077,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
       }
     }
     
-    logFromRequest(req, 'fix_trackman_ghost_bookings', 'booking_requests', null, undefined, {
+    logFromRequest(req, 'fix_trackman_ghost_bookings' as any, 'booking_requests' as any, null, undefined, {
       action: 'execute',
       ghostBookingsFound: ghostBookings.length,
       fixedCount: fixed.length,
@@ -2117,7 +2117,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
       const batch = await stripe.customers.list(params);
       
       for (const cust of batch.data) {
-        if (!cust.deleted) {
+        if (!(cust as any).deleted) {
           allCustomers.push({
             id: cust.id,
             email: cust.email,
@@ -2161,7 +2161,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
         const charges = await stripe.charges.list({ customer: customer.id, limit: 1 });
         if (charges.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
         
-        const subscriptions = await stripe.subscriptions.list({ customer: customer.id, limit: 1, status: 'all' });
+        const subscriptions = await stripe.subscriptions.list({ customer: customer.id, limit: 1, status: 'all' as any });
         if (subscriptions.data.length > 0) { activeCleanupJob!.progress.checked++; if (activeCleanupJob!.progress.checked % 25 === 0) broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress }); continue; }
         
         const invoices = await stripe.invoices.list({ customer: customer.id, limit: 1 });
@@ -2192,7 +2192,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
     console.log(`[DataTools] Skipping ${skippedActiveCount} active members with zero transactions (keeping for future charges)`);
     
     if (dryRun) {
-      logFromRequest(req, 'cleanup_stripe_customers', 'stripe', null, undefined, {
+      logFromRequest(req, 'cleanup_stripe_customers' as any, 'stripe', null, undefined, {
         action: 'preview',
         totalCustomers: allCustomers.length,
         emptyFound: emptyCustomers.length,
@@ -2219,7 +2219,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
       activeCleanupJob!.completedAt = new Date();
       activeCleanupJob!.result = result;
       activeCleanupJob!.progress.phase = 'done';
-      broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result });
+      broadcastToStaff({  type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result } as any);
       return;
     }
     
@@ -2250,7 +2250,7 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
       }
     }
     
-    logFromRequest(req, 'cleanup_stripe_customers', 'stripe', null, undefined, {
+    logFromRequest(req, 'cleanup_stripe_customers' as any, 'stripe', null, undefined, {
       action: 'execute',
       totalCustomers: allCustomers.length,
       emptyFound: emptyCustomers.length,
@@ -2278,14 +2278,14 @@ async function runCleanupInBackground(dryRun: boolean, staffEmail: string, req: 
     activeCleanupJob!.completedAt = new Date();
     activeCleanupJob!.result = result;
     activeCleanupJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result });
+    broadcastToStaff({  type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, result } as any);
   } catch (error: unknown) {
     console.error('[DataTools] Stripe customer cleanup error:', error);
     activeCleanupJob!.status = 'failed';
     activeCleanupJob!.completedAt = new Date();
     activeCleanupJob!.error = getErrorMessage(error);
     activeCleanupJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, error: getErrorMessage(error) });
+    broadcastToStaff({  type: 'stripe_cleanup_progress', data: activeCleanupJob!.progress, error: getErrorMessage(error) } as any);
   }
 }
 
@@ -2422,13 +2422,13 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
 
         await Promise.all(batch.map(async (visitor) => {
           try {
-            const charges = await stripe.charges.list({ customer: visitor.stripe_customer_id, limit: 1 });
+            const charges = await stripe.charges.list({ customer: visitor.stripe_customer_id as string, limit: 1 });
             if (charges.data.length > 0) { keptCount++; return; }
 
-            const invoices = await stripe.invoices.list({ customer: visitor.stripe_customer_id, limit: 1 });
+            const invoices = await stripe.invoices.list({ customer: visitor.stripe_customer_id as string, limit: 1 });
             if (invoices.data.length > 0) { keptCount++; return; }
 
-            const paymentIntents = await stripe.paymentIntents.list({ customer: visitor.stripe_customer_id, limit: 1 });
+            const paymentIntents = await stripe.paymentIntents.list({ customer: visitor.stripe_customer_id as string, limit: 1 });
             if (paymentIntents.data.length > 0) { keptCount++; return; }
 
             eligible.push(visitor);
@@ -2514,14 +2514,14 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
     activeVisitorArchiveJob!.completedAt = new Date();
     activeVisitorArchiveJob!.result = result;
     activeVisitorArchiveJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, result });
+    broadcastToStaff({  type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, result } as any);
   } catch (error: unknown) {
     console.error('[DataTools] Visitor archive error:', error);
     activeVisitorArchiveJob!.status = 'failed';
     activeVisitorArchiveJob!.completedAt = new Date();
     activeVisitorArchiveJob!.error = getErrorMessage(error);
     activeVisitorArchiveJob!.progress.phase = 'done';
-    broadcastToStaff({ type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, error: getErrorMessage(error) });
+    broadcastToStaff({  type: 'visitor_archive_progress', data: activeVisitorArchiveJob!.progress, error: getErrorMessage(error) } as any);
   }
 }
 
