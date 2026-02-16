@@ -215,7 +215,7 @@ router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, r
 router.post('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
   try {
     const { primaryEmail, groupName } = req.body;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     
     if (!primaryEmail) {
       return res.status(400).json({ error: 'Primary email is required' });
@@ -225,7 +225,7 @@ router.post('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
       primaryEmail,
       groupName,
       createdBy: user?.email || 'staff',
-      createdByName: user?.displayName || 'Staff Member',
+      createdByName: user?.name || 'Staff Member',
     });
     
     if (result.success) {
@@ -242,7 +242,7 @@ router.post('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
 router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
   try {
     const { primaryEmail, groupName } = req.body;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     
     if (!primaryEmail) {
       return res.status(400).json({ error: 'Primary email is required' });
@@ -252,7 +252,7 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
       primaryEmail,
       groupName,
       createdBy: user?.email || 'staff',
-      createdByName: user?.displayName || 'Staff Member',
+      createdByName: user?.name || 'Staff Member',
     });
     
     if (result.success) {
@@ -270,7 +270,7 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
   try {
     const groupId = req.params.groupId as string;
     const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode } = req.body;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     
     if (!memberEmail || !memberTier) {
       return res.status(400).json({ error: 'Member email and tier are required' });
@@ -290,7 +290,7 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
       state,
       zipCode,
       addedBy: user?.email || 'staff',
-      addedByName: user?.displayName || 'Staff Member',
+      addedByName: user?.name || 'Staff Member',
     });
     
     if (result.success) {
@@ -308,7 +308,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
   try {
     const groupId = req.params.groupId as string;
     const { email, firstName, lastName, phone, dob } = req.body;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -351,7 +351,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
       phone: phone || undefined,
       dob: dob || undefined,
       addedBy: user?.email || 'staff',
-      addedByName: user?.displayName || 'Staff Member',
+      addedByName: user?.name || 'Staff Member',
     });
     
     if (result.success) {
@@ -374,7 +374,7 @@ router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async
   try {
     const groupId = req.params.groupId as string;
     const { memberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode } = req.body;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     
     if (!memberEmail || !memberTier) {
       return res.status(400).json({ error: 'Member email and tier are required' });
@@ -394,7 +394,7 @@ router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async
       state,
       zipCode,
       addedBy: user?.email || 'staff',
-      addedByName: user?.displayName || 'Staff Member',
+      addedByName: user?.name || 'Staff Member',
     });
     
     if (result.success) {
@@ -429,7 +429,7 @@ router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, async (req, r
 router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
   try {
     const memberId = req.params.memberId as string;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     const memberIdInt = parseInt(memberId, 10);
     
     const memberRecord = await db.select({
@@ -483,7 +483,7 @@ router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req
 router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
   try {
     const memberId = req.params.memberId as string;
-    const user = req.user as any;
+    const user = getSessionUser(req);
     
     const result = await removeGroupMember({
       memberId: parseInt(memberId, 10),

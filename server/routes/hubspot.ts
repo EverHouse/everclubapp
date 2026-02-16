@@ -1321,7 +1321,7 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
  * Handles contact and deal property change events
  * Raw body is captured by express.json verify function in server/index.ts
  */
-router.post('/webhooks', async (req, res) => {
+router.post('/api/hubspot/webhooks', async (req, res) => {
   if (!validateHubSpotWebhookSignature(req)) {
     console.warn('[HubSpot Webhook] Signature validation failed');
     return res.status(401).json({ error: 'Invalid signature' });

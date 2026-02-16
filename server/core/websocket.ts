@@ -186,9 +186,9 @@ function isAllowedOrigin(origin: string | undefined): boolean {
     
     // Allow production domains
     if (hostname === 'everclub.app' || 
-        hostname === 'everclub.app' ||
+        hostname === 'everhouse.app' ||
         hostname.endsWith('.everclub.app') ||
-        hostname.endsWith('.everclub.app')) {
+        hostname.endsWith('.everhouse.app')) {
       return true;
     }
     
