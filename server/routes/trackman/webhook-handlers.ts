@@ -846,7 +846,7 @@ async function notifyStaffBookingCreated(
   try {
     let title: string;
     let message: string;
-    let notificationType: string;
+    let notificationType: import('../../core/notificationService').NotificationType;
     
     const friendly = formatNotifDateTime(slotDate, startTime);
     const dur = calcDurationMin(startTime, endTime);
