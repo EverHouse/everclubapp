@@ -102,7 +102,6 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         
         if (dayPassResult.rows.length === 0) {
           await client.query('ROLLBACK');
-          client.release();
           return res.status(404).json({ error: 'Day pass not found' });
         }
         
@@ -110,19 +109,16 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         
         if (dayPass.purchaser_email.toLowerCase() !== user_email.toLowerCase()) {
           await client.query('ROLLBACK');
-          client.release();
           return res.status(403).json({ error: 'Day pass belongs to a different user' });
         }
         
         if (dayPass.redeemed_at !== null || dayPass.booking_id !== null) {
           await client.query('ROLLBACK');
-          client.release();
           return res.status(400).json({ error: 'Day pass has already been redeemed' });
         }
         
         if (dayPass.status === 'redeemed' || (dayPass.remaining_uses !== null && dayPass.remaining_uses <= 0)) {
           await client.query('ROLLBACK');
-          client.release();
           return res.status(400).json({ error: 'Day pass has already been used' });
         }
       }
@@ -152,7 +148,6 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         
         if (overlapCheck.rows.length > 0) {
           await client.query('ROLLBACK');
-          client.release();
           return res.status(409).json({ error: 'This time slot is already booked' });
         }
       }
