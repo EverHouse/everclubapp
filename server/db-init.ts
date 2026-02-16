@@ -351,6 +351,48 @@ export async function ensureDatabaseConstraints() {
       console.warn(`[DB Init] Skipping billing provider CHECK constraint: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
+          ALTER TABLE notifications ADD CONSTRAINT notifications_type_check
+            CHECK (type IN (
+              'info', 'success', 'warning', 'error', 'system',
+              'booking', 'booking_approved', 'booking_declined', 'booking_reminder',
+              'booking_cancelled', 'booking_cancelled_by_staff', 'booking_cancelled_via_trackman',
+              'booking_invite', 'booking_update', 'booking_updated', 'booking_confirmed',
+              'booking_auto_confirmed', 'booking_checked_in', 'booking_created',
+              'booking_participant_added', 'booking_request',
+              'closure', 'closure_today', 'closure_created',
+              'wellness_booking', 'wellness_enrollment', 'wellness_cancellation',
+              'wellness_reminder', 'wellness_class', 'wellness',
+              'guest_pass',
+              'event', 'event_rsvp', 'event_rsvp_cancelled', 'event_reminder',
+              'tour', 'tour_scheduled', 'tour_reminder',
+              'trackman_booking', 'trackman_unmatched', 'trackman_cancelled_link',
+              'announcement',
+              'payment_method_update', 'payment_success', 'payment_failed',
+              'payment_receipt', 'payment_error',
+              'outstanding_balance', 'fee_waived',
+              'membership_renewed', 'membership_failed', 'membership_past_due',
+              'membership_cancelled', 'membership_terminated', 'membership_cancellation',
+              'billing_alert', 'billing_migration',
+              'day_pass', 'new_member', 'member_status_change',
+              'card_expiring', 'staff_note', 'account_deletion',
+              'terminal_refund', 'terminal_dispute', 'terminal_dispute_closed',
+              'terminal_payment_canceled',
+              'funds_added', 'trial_expired',
+              'waiver_review', 'cancellation_pending', 'cancellation_stuck',
+              'bug_report', 'import_failure', 'integration_error', 'attendance'
+            ));
+        END $$;
+      `);
+      console.log('[DB Init] Notification type CHECK constraint synced');
+    } catch (err: unknown) {
+      console.warn(`[DB Init] Skipping notification type CHECK constraint: ${getErrorMessage(err)}`);
+    }
+
     const indexQueries = [
       { name: 'idx_booking_requests_status', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON booking_requests(status)` },
       { name: 'idx_booking_requests_user_email', query: sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_user_email ON booking_requests(user_email)` },
