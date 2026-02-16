@@ -84,6 +84,10 @@ async function getAffectedBayIds(affectedAreas: string): Promise<number[]> {
     return conferenceRoomId ? [conferenceRoomId] : [];
   }
   
+  if (affectedAreas === 'none' || affectedAreas === 'None' || affectedAreas === '') {
+    return [];
+  }
+  
   if (affectedAreas.startsWith('bay_') && !affectedAreas.includes(',') && !affectedAreas.includes('[')) {
     const bayId = parseInt(affectedAreas.replace('bay_', ''));
     if (!isNaN(bayId)) {
