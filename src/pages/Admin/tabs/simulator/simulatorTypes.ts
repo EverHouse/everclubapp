@@ -10,7 +10,7 @@ export interface BookingRequest {
     end_time: string;
     duration_minutes: number | null;
     notes: string | null;
-    status: 'pending' | 'pending_approval' | 'approved' | 'declined' | 'cancelled' | 'confirmed' | 'attended' | 'no_show';
+    status: 'pending' | 'pending_approval' | 'approved' | 'declined' | 'cancelled' | 'cancellation_pending' | 'confirmed' | 'attended' | 'no_show';
     staff_notes: string | null;
     suggested_time: string | null;
     created_at: string | null;

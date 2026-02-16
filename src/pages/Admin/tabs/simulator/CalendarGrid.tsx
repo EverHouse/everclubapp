@@ -487,7 +487,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                             ) : booking ? (
                                                 <div className="px-0.5 sm:px-1 h-full flex items-center justify-center sm:justify-start relative">
                                                     <CalendarFeeIndicator
-                                                        bookingId={booking.id}
+                                                        bookingId={Number(booking.id)}
                                                         bookingDisplayName={bookingDisplayName}
                                                         declaredPlayerCount={declaredPlayers}
                                                         filledPlayerCount={filledSlots}

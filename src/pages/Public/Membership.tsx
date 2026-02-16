@@ -20,6 +20,7 @@ interface MembershipTier {
   is_popular: boolean;
   show_in_comparison: boolean;
   show_on_membership_page?: boolean;
+  product_type?: string;
   highlighted_features: string[];
   daily_sim_minutes: number;
   guest_passes_per_month: number;
@@ -350,7 +351,7 @@ const MembershipCard: React.FC<any> = ({ title, price, suffix="/mo", desc, featu
 
 const Corporate: React.FC = () => {
     const { setPageReady } = usePageReady();
-    const { getCorporatePrice, corporateTiers, corporateBasePrice } = usePricing();
+    const { getCorporatePrice, corporateTiers, corporateBasePrice, guestFeeDollars } = usePricing();
     const [employeeCount, setEmployeeCount] = useState(5);
 
     const getPricePerEmployee = (count: number): number => {

@@ -42,6 +42,9 @@ export interface IssueContext {
   importedName?: string;
   notes?: string;
   originalEmail?: string;
+  bayNumber?: string;
+  userName?: string;
+  userEmail?: string;
   syncType?: 'hubspot' | 'calendar';
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;

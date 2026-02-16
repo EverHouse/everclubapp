@@ -47,7 +47,8 @@ export interface BookingRequest {
   end_time: string;
   duration_minutes: number;
   notes: string | null;
-  status: 'pending' | 'approved' | 'confirmed' | 'attended' | 'no_show' | 'declined' | 'cancelled';
+  status: 'pending' | 'pending_approval' | 'approved' | 'confirmed' | 'attended' | 'no_show' | 'declined' | 'cancelled' | 'cancellation_pending';
+  trackman_booking_id?: string | null;
   staff_notes: string | null;
   suggested_time: string | null;
   created_at: string;

@@ -6,6 +6,7 @@ interface TabButtonProps {
   active: boolean;
   onClick: () => void;
   isDark?: boolean;
+  icon?: string;
 }
 
 const TabButton: React.FC<TabButtonProps> = ({ label, active, onClick, isDark = true }) => {

@@ -91,7 +91,7 @@ const Profile: React.FC = () => {
 
   const { data: googleStatus, refetch: refetchGoogleStatus } = useQuery({
     queryKey: ['google-status'],
-    queryFn: () => fetchWithCredentials('/api/auth/google/status'),
+    queryFn: () => fetchWithCredentials<{ linked: boolean; googleEmail?: string }>('/api/auth/google/status'),
     enabled: !!user,
   });
 
@@ -288,7 +288,7 @@ const Profile: React.FC = () => {
   const handleGoogleLink = async (credential: string) => {
     setGoogleLinking(true);
     try {
-      const res = await postWithCredentials('/api/auth/google/link', { credential });
+      const res = await postWithCredentials<{ error?: string }>('/api/auth/google/link', { credential });
       if (res.error) throw new Error(res.error);
       showToast('Google account linked successfully', 'success');
       refetchGoogleStatus();
@@ -302,7 +302,7 @@ const Profile: React.FC = () => {
   const handleGoogleUnlink = async () => {
     setGoogleUnlinking(true);
     try {
-      const res = await postWithCredentials('/api/auth/google/unlink', {});
+      const res = await postWithCredentials<{ error?: string }>('/api/auth/google/unlink', {});
       if (res.error) throw new Error(res.error);
       showToast('Google account unlinked', 'success');
       refetchGoogleStatus();

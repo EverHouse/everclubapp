@@ -1623,7 +1623,7 @@ const BookGolf: React.FC = () => {
                 Cancel
               </button>
               <button 
-                onClick={submitBooking}
+                onClick={() => submitBooking()}
                 className="flex-1 py-3 px-4 rounded-xl font-bold text-sm bg-accent text-brand-green hover:bg-accent/90 transition-colors"
               >
                 Confirm Booking

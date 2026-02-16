@@ -136,7 +136,7 @@ interface CorporateCheckoutFormProps {
 }
 
 function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateCheckoutFormProps) {
-  const { getCorporatePrice, corporateTiers } = usePricing();
+  const { getCorporatePrice, corporateTiers, corporateBasePrice } = usePricing();
   const [companyName, setCompanyName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [quantity, setQuantity] = useState(Math.max(initialQuantity, 5));
