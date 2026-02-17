@@ -991,4 +991,131 @@ router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, async (
   }
 });
 
+router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, async (req: Request, res) => {
+  const client = await pool.connect();
+  try {
+    const { recordId } = req.body;
+    if (!recordId) return res.status(400).json({ success: false, message: 'recordId is required' });
+
+    await client.query('BEGIN');
+
+    // Verify session exists and has no participants
+    const sessionCheck = await client.query(
+      'SELECT bs.id FROM booking_sessions bs LEFT JOIN booking_participants bp ON bp.session_id = bs.id WHERE bs.id = $1 GROUP BY bs.id HAVING COUNT(bp.id) = 0',
+      [recordId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Session not found or has participants' });
+    }
+
+    // Unlink booking requests
+    await client.query('UPDATE booking_requests SET session_id = NULL WHERE session_id = $1', [recordId]);
+
+    // Delete the session
+    const deleteResult = await client.query('DELETE FROM booking_sessions WHERE id = $1', [recordId]);
+
+    // Verify deletion was successful
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Session not found or already deleted' });
+    }
+
+    await client.query('COMMIT');
+
+    logFromRequest(req, 'delete' as any, 'booking_session' as any, recordId.toString(), 'Deleted empty session', {});
+
+    res.json({ success: true, message: `Deleted empty session #${recordId}` });
+  } catch (error: unknown) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {}
+    logger.error('[DataIntegrity] Delete empty session error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  } finally {
+    client.release();
+  }
+});
+
+router.post('/api/data-integrity/fix/merge-stripe-customers', isAdmin, async (req: Request, res) => {
+  try {
+    const { email, keepCustomerId, removeCustomerId } = req.body;
+    if (!email || !keepCustomerId || !removeCustomerId) {
+      return res.status(400).json({ success: false, message: 'email, keepCustomerId, and removeCustomerId are required' });
+    }
+
+    const result = await db.execute(sql`
+      UPDATE users 
+      SET stripe_customer_id = ${keepCustomerId}, updated_at = NOW() 
+      WHERE LOWER(email) = LOWER(${email}) AND stripe_customer_id = ${removeCustomerId}
+    `);
+
+    logFromRequest(req, 'merge_stripe_customers' as any, 'user' as any, undefined, `Merged Stripe customers for ${email}`, {
+      email,
+      keepCustomerId,
+      removeCustomerId,
+      rowsUpdated: result.rowCount
+    });
+
+    res.json({ success: true, message: `Merged Stripe customer for ${email}: kept ${keepCustomerId}, removed ${removeCustomerId}` });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Merge Stripe customers error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, async (req: Request, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ success: false, message: 'userId is required' });
+
+    const result = await db.execute(sql`
+      UPDATE users 
+      SET membership_status = 'inactive', updated_at = NOW() 
+      WHERE id = ${userId} AND billing_provider = 'mindbody'
+    `);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: `User ${userId} not found or not a MindBody user` });
+    }
+
+    logFromRequest(req, 'deactivate_stale_member' as any, 'user' as any, userId.toString(), 'Deactivated stale MindBody member', { userId });
+
+    res.json({ success: true, message: `Deactivated MindBody member #${userId}` });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Deactivate stale member error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, async (req: Request, res) => {
+  try {
+    const { userId, newProvider } = req.body;
+    if (!userId || !newProvider) return res.status(400).json({ success: false, message: 'userId and newProvider are required' });
+
+    const validProviders = ['stripe', 'manual', 'comped'];
+    if (!validProviders.includes(newProvider)) {
+      return res.status(400).json({ success: false, message: `Invalid provider. Must be one of: ${validProviders.join(', ')}` });
+    }
+
+    const result = await db.execute(sql`
+      UPDATE users 
+      SET billing_provider = ${newProvider}, updated_at = NOW() 
+      WHERE id = ${userId}
+    `);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: `User ${userId} not found` });
+    }
+
+    logFromRequest(req, 'change_billing_provider' as any, 'user' as any, userId.toString(), `Changed billing provider to ${newProvider}`, { userId, newProvider });
+
+    res.json({ success: true, message: `Changed billing provider to ${newProvider} for user #${userId}` });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Change billing provider error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
 export default router;

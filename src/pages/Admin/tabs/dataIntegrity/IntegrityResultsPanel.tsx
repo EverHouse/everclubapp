@@ -1125,6 +1125,78 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       )}
                                     </button>
                                   )}
+                                  {!issue.ignored && issue.table === 'booking_sessions' && issue.category === 'orphan_record' && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Delete empty session #${issue.recordId}? This cannot be undone.`)) {
+                                          fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/delete-empty-session', body: { recordId: issue.recordId } });
+                                        }
+                                      }}
+                                      disabled={fixIssueMutation.isPending}
+                                      className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                      title="Delete empty session"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                                    </button>
+                                  )}
+                                  {!issue.ignored && (issue.context?.email || (issue.context?.memberEmails && issue.context.memberEmails.length > 0)) && (issue.context?.stripeCustomerIds || issue.context?.stripeCustomerId) && (
+                                    <button
+                                      onClick={() => handleViewProfile(issue.context!.email || (issue.context!.memberEmails as any)?.[0])}
+                                      disabled={loadingMemberEmail === (issue.context!.email || (issue.context!.memberEmails as any)?.[0])}
+                                      className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                      title="View member profile"
+                                    >
+                                      <span className="material-symbols-outlined text-[16px]">person</span>
+                                    </button>
+                                  )}
+                                  {!issue.ignored && issue.context?.userId && issue.category === 'sync_mismatch' && issue.context?.memberEmail && (
+                                    <>
+                                      <button
+                                        onClick={() => handleViewProfile(issue.context!.memberEmail!)}
+                                        disabled={loadingMemberEmail === issue.context.memberEmail}
+                                        className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="View member profile"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Deactivate "${issue.context?.memberName}"? This will set their membership to inactive.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/deactivate-stale-member', body: { userId: issue.context?.userId } });
+                                          }
+                                        }}
+                                        disabled={fixIssueMutation.isPending}
+                                        className="p-1.5 text-orange-600 hover:bg-orange-100 dark:text-orange-400 dark:hover:bg-orange-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Deactivate member"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">person_off</span>
+                                      </button>
+                                    </>
+                                  )}
+                                  {!issue.ignored && issue.context?.userId && issue.context?.mindbodyClientId === 'none' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleViewProfile(issue.context!.memberEmail!)}
+                                        disabled={loadingMemberEmail === issue.context.memberEmail}
+                                        className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="View member profile"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">person</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Switch "${issue.context?.memberName}" billing to manual? This removes MindBody as their billing provider.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/change-billing-provider', body: { userId: issue.context?.userId, newProvider: 'manual' } });
+                                          }
+                                        }}
+                                        disabled={fixIssueMutation.isPending}
+                                        className="p-1.5 text-purple-600 hover:bg-purple-100 dark:text-purple-400 dark:hover:bg-purple-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Switch to manual billing"
+                                      >
+                                        <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
+                                      </button>
+                                    </>
+                                  )}
                                   {!issue.ignored && (
                                     <button
                                       onClick={() => openIgnoreModal(issue, result.checkName)}
