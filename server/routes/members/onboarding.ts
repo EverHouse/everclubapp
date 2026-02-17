@@ -34,17 +34,41 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
     const hasWaiver = !!user.waiver_signed_at;
     const hasFirstBooking = !!user.first_booking_at;
     const hasAppInstalled = !!user.app_installed_at;
-    
+
+    let needsRefresh = false;
+    if (hasProfile && !user.profile_completed_at) {
+      await db.execute(sql`UPDATE users SET profile_completed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND profile_completed_at IS NULL`);
+      needsRefresh = true;
+    }
+
+    const allComplete = hasProfile && hasWaiver && hasFirstBooking && hasAppInstalled;
+    if (allComplete && !user.onboarding_completed_at) {
+      await db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND onboarding_completed_at IS NULL`);
+      needsRefresh = true;
+    }
+
+    let finalUser = user;
+    if (needsRefresh) {
+      const refreshResult = await db.execute(sql`
+        SELECT profile_completed_at, onboarding_completed_at
+        FROM users WHERE LOWER(email) = ${email} LIMIT 1
+      `);
+      const refreshed = (refreshResult as any).rows?.[0];
+      if (refreshed) {
+        finalUser = { ...user, ...refreshed };
+      }
+    }
+
     const steps = [
-      { key: 'profile', label: 'Complete your profile', description: 'Add your name, phone, and photo', completed: hasProfile, completedAt: user.profile_completed_at },
-      { key: 'waiver', label: 'Sign the club waiver', description: 'Required before your first visit', completed: hasWaiver, completedAt: user.waiver_signed_at },
-      { key: 'booking', label: 'Book your first session', description: 'Reserve a golf simulator', completed: hasFirstBooking, completedAt: user.first_booking_at },
-      { key: 'app', label: 'Install the app', description: 'Add to your home screen for quick access', completed: hasAppInstalled, completedAt: user.app_installed_at },
+      { key: 'profile', label: 'Complete your profile', description: 'Add your name, phone, and photo', completed: hasProfile, completedAt: finalUser.profile_completed_at },
+      { key: 'waiver', label: 'Sign the club waiver', description: 'Required before your first visit', completed: hasWaiver, completedAt: finalUser.waiver_signed_at },
+      { key: 'booking', label: 'Book your first session', description: 'Reserve a golf simulator', completed: hasFirstBooking, completedAt: finalUser.first_booking_at },
+      { key: 'app', label: 'Install the app', description: 'Add to your home screen for quick access', completed: hasAppInstalled, completedAt: finalUser.app_installed_at },
     ];
 
     const completedCount = steps.filter(s => s.completed).length;
     const isComplete = completedCount === steps.length;
-    const isDismissed = !!user.onboarding_dismissed_at;
+    const isDismissed = !!finalUser.onboarding_dismissed_at;
 
     res.json({
       steps,
@@ -52,7 +76,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
       totalSteps: steps.length,
       isComplete,
       isDismissed,
-      onboardingCompletedAt: user.onboarding_completed_at,
+      onboardingCompletedAt: finalUser.onboarding_completed_at,
     });
   } catch (error: unknown) {
     logger.error('[onboarding] Failed to get onboarding status', { error: error instanceof Error ? error : new Error(String(error)) });

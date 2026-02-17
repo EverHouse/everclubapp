@@ -51,6 +51,26 @@ const OnboardingChecklist: React.FC = () => {
     const fetchStatus = async () => {
       try {
         const data = await fetchWithCredentials('/api/member/onboarding');
+        if (isInStandaloneMode && data.steps) {
+          const appStep = data.steps.find((s: OnboardingStep) => s.key === 'app');
+          if (appStep && !appStep.completed) {
+            try {
+              await fetch('/api/member/onboarding/complete-step', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ step: 'app' }),
+              });
+              const refreshed = await fetchWithCredentials('/api/member/onboarding');
+              setStatus(refreshed);
+              if (refreshed.isComplete && !refreshed.isDismissed) {
+                setCelebrating(true);
+                setTimeout(() => setCelebrating(false), 3000);
+              }
+              return;
+            } catch {}
+          }
+        }
         setStatus(data);
         if (data.isComplete && !data.isDismissed) {
           setCelebrating(true);
