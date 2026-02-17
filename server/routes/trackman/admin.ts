@@ -282,15 +282,23 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
     
     for (const row of matchableResult.rows as any[]) {
       try {
-        // Update booking to link to the matched user
+        const autoResolveName = `${row.first_name} ${row.last_name}`.trim();
         await db.execute(sql`UPDATE booking_requests 
            SET user_id = ${row.user_id}, 
                user_email = ${row.user_email}, 
-               user_name = ${`${row.first_name} ${row.last_name}`},
+               user_name = ${autoResolveName},
                is_unmatched = false,
                staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved by ${staffEmail} on ${new Date().toISOString()}]`},
                updated_at = NOW()
            WHERE id = ${row.booking_id}`);
+        
+        const sessionForAutoResolve = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.booking_id}`);
+        const autoSessionId = (sessionForAutoResolve.rows[0] as any)?.session_id;
+        if (autoSessionId) {
+          await db.execute(sql`UPDATE booking_participants 
+             SET user_id = ${row.user_id}, display_name = ${autoResolveName}
+             WHERE session_id = ${autoSessionId} AND participant_type = 'owner'`);
+        }
         
         resolvedCount++;
       } catch (err: unknown) {
@@ -457,19 +465,25 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       await db.execute(sql`UPDATE booking_requests 
          SET user_id = ${member.id}, 
              user_email = ${member.email}, 
+             user_name = ${`${member.first_name} ${member.last_name}`.trim()},
              is_unmatched = false,
              staff_notes = COALESCE(staff_notes, '') || ${` [Resolved by ${staffEmail} on ${new Date().toISOString()}]`},
              updated_at = NOW()
          WHERE id = ${id}`);
     }
     
-    await db.execute(sql`UPDATE booking_requests 
-       SET user_id = ${member.id}, 
-           user_email = ${member.email}, 
-           is_unmatched = false,
-           staff_notes = COALESCE(staff_notes, '') || ${` [Resolved by ${staffEmail} on ${new Date().toISOString()}]`},
-           updated_at = NOW()
-       WHERE id = ${id}`);
+    const memberFullName = `${member.first_name} ${member.last_name}`.trim();
+    
+    if (booking.session_id) {
+      await db.execute(sql`UPDATE booking_participants 
+         SET user_id = ${member.id},
+             display_name = ${memberFullName}
+         WHERE session_id = ${booking.session_id} 
+           AND participant_type = 'owner'`);
+      logger.info('[Trackman Resolve] Updated owner participant display_name and user_id', { 
+        extra: { sessionId: booking.session_id, memberName: memberFullName, memberId: member.id } 
+      });
+    }
     
     let originalEmailForLearning: string | null = null;
     if (fromLegacyTable) {
@@ -531,10 +545,20 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                 await db.execute(sql`UPDATE booking_requests 
                    SET user_id = ${member.id}, 
                        user_email = ${member.email}, 
+                       user_name = ${memberFullName},
                        is_unmatched = false,
                        staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved via linked email by ${staffEmail} on ${new Date().toISOString()}]`},
                        updated_at = NOW()
                    WHERE id = ${otherBooking.id}`);
+                
+                const otherSession = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${otherBooking.id}`);
+                const otherSessionId = (otherSession.rows[0] as any)?.session_id;
+                if (otherSessionId) {
+                  await db.execute(sql`UPDATE booking_participants 
+                     SET user_id = ${member.id}, display_name = ${memberFullName}
+                     WHERE session_id = ${otherSessionId} AND participant_type = 'owner'`);
+                }
+                
                 autoResolvedCount++;
               } catch (autoErr: unknown) {
                 logger.error('[Email Learning] Failed to auto-resolve booking', { extra: { id: otherBooking.id, error: getErrorMessage(autoErr) } });
@@ -689,7 +713,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             startTime: booking.start_time,
             endTime: booking.end_time,
             ownerEmail: member.email || '',
-            ownerName: `${member.first_name} ${member.last_name}`,
+            ownerName: memberFullName,
             ownerUserId: member.id?.toString(),
             trackmanBookingId: booking.trackman_booking_id,
             source: 'trackman_import',
@@ -699,6 +723,10 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         }
         
         if (sessionId) {
+          await db.execute(sql`UPDATE booking_participants 
+             SET user_id = ${member.id}, display_name = ${memberFullName}
+             WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
+          
           await recordUsage(sessionId, {
             memberId: member.id,
             minutesCharged: booking.duration_minutes || 60,
@@ -724,7 +752,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             startTime: booking.start_time,
             endTime: booking.end_time,
             ownerEmail: member.email || '',
-            ownerName: `${member.first_name} ${member.last_name}`,
+            ownerName: memberFullName,
             ownerUserId: member.id?.toString(),
             trackmanBookingId: booking.trackman_booking_id,
             source: 'trackman_import',
@@ -734,6 +762,10 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         }
         
         if (sessionId) {
+          await db.execute(sql`UPDATE booking_participants 
+             SET user_id = ${member.id}, display_name = ${memberFullName}
+             WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
+          
           // Recalculate fees for the session now that we have an owner
           try {
             await recalculateSessionFees(sessionId, 'assign_to_member' as any);
@@ -845,14 +877,23 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
               }
               await db.execute(sql`DELETE FROM booking_requests WHERE id = ${booking.id}`);
             } else {
+              const sameEmailName = `${member.first_name} ${member.last_name}`.trim();
               await db.execute(sql`UPDATE booking_requests 
                  SET user_id = ${member.id}, 
                      user_email = ${member.email}, 
-                     user_name = ${`${member.first_name} ${member.last_name}`},
+                     user_name = ${sameEmailName},
                      is_unmatched = false,
                      staff_notes = COALESCE(staff_notes, '') || ${` [Auto-resolved via same email by ${staffEmail} on ${new Date().toISOString()}]`},
                      updated_at = NOW()
                  WHERE id = ${booking.id}`);
+              
+              const sameEmailSession = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${booking.id}`);
+              const sameEmailSessionId = (sameEmailSession.rows[0] as any)?.session_id;
+              if (sameEmailSessionId) {
+                await db.execute(sql`UPDATE booking_participants 
+                   SET user_id = ${member.id}, display_name = ${sameEmailName}
+                   WHERE session_id = ${sameEmailSessionId} AND participant_type = 'owner'`);
+              }
             }
             bookingRequestsResolved++;
           } catch (err: unknown) {
