@@ -11,6 +11,7 @@ import { logFromRequest } from '../core/auditLog';
 import { getSessionUser } from '../types/session';
 import { broadcastToStaff } from '../core/websocket';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
+import { getStripeClient } from '../core/stripe/client';
 import { bulkPushToHubSpot } from '../core/dataIntegrity';
 import { normalizeTierName } from '@shared/constants/tiers';
 
@@ -2413,8 +2414,7 @@ async function runVisitorArchiveInBackground(dryRun: boolean, staffEmail: string
     let keptCount = 0;
 
     if (visitorsWithStripe.length > 0) {
-      const Stripe = (await import('stripe')).default;
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+      const stripe = await getStripeClient();
 
       const BATCH_SIZE = 25;
       for (let i = 0; i < visitorsWithStripe.length; i += BATCH_SIZE) {
