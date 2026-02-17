@@ -8,6 +8,7 @@ import { broadcastDayPassUpdate } from '../core/websocket';
 import { getStripeClient } from '../core/stripe/client';
 import { getErrorMessage } from '../utils/errorUtils';
 import { getPacificMidnightUTC } from '../utils/dateUtils';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -239,6 +240,12 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
       quantity: passDetails?.quantity || 1,
     });
 
+    logFromRequest(req, 'redeem_pass' as any, 'day_pass' as any, id as string, guestName, {
+      passType: passDetails?.productType,
+      remainingUses: remainingUses ?? 0,
+      location: location || 'front_desk',
+    });
+
     res.json({
       success: true,
       remainingUses,
@@ -358,6 +365,12 @@ router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Requ
       productType: pass.productType,
       remainingUses: 0,
       quantity: pass.quantity || 1,
+    });
+
+    logFromRequest(req, 'refund_pass' as any, 'day_pass' as any, passId as string, guestName, {
+      passType: pass.productType,
+      previousRemainingUses: pass.remainingUses,
+      stripePaymentIntentId: pass.stripePaymentIntentId,
     });
 
     res.json({

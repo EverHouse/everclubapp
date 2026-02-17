@@ -8,6 +8,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { getConferenceRoomId } from '../../core/affectedAreas';
 import { logAndRespond } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
+import { getTodayPacific } from '../../utils/dateUtils';
 
 const router = Router();
 
@@ -50,9 +51,10 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
     
-    const today = new Date();
-    const defaultStartDate = start_date || new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const defaultEndDate = end_date || new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const todayStr = getTodayPacific();
+    const todayMs = new Date(todayStr + 'T12:00:00Z').getTime();
+    const defaultStartDate = start_date || new Date(todayMs - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const defaultEndDate = end_date || new Date(todayMs + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
     const conditions: any[] = [
       or(
