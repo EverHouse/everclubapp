@@ -1358,7 +1358,10 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
             const email = contact.properties.email?.toLowerCase();
             
             if (email) {
-              if (propertyName === 'membership_status') {
+              const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${email}`);
+              if (exclusionCheck.rows.length > 0) {
+                logger.info('[HubSpot Webhook] Skipping excluded/deleted email', { extra: { email, propertyName, propertyValue } });
+              } else if (propertyName === 'membership_status') {
                 const newStatus = (propertyValue || 'non-member').toLowerCase();
                 
                 // Don't allow HubSpot to downgrade status to 'non-member' if user has active Stripe subscription

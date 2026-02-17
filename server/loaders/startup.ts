@@ -1,4 +1,4 @@
-import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, setupEmailNormalization, normalizeExistingEmails, cleanupOrphanedRecords, seedTierFeatures } from '../db-init';
+import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, cleanupOrphanedRecords, seedTierFeatures } from '../db-init';
 import { seedTrainingSections } from '../routes/training';
 import { getStripeSync } from '../core/stripe';
 import { getStripeEnvironmentInfo, getStripeClient } from '../core/stripe/client';
@@ -96,6 +96,13 @@ export async function runStartupTasks(): Promise<void> {
   } catch (err: unknown) {
     logger.error('[Startup] Seeding training sections failed', { error: err instanceof Error ? err : new Error(String(err)) });
     startupHealth.warnings.push(`Training sections: ${getErrorMessage(err)}`);
+  }
+
+  try {
+    await createSyncExclusionsTable();
+  } catch (err: unknown) {
+    logger.error('[Startup] Creating sync exclusions table failed', { error: err instanceof Error ? err : new Error(String(err)) });
+    startupHealth.warnings.push(`Sync exclusions table: ${getErrorMessage(err)}`);
   }
 
   try {

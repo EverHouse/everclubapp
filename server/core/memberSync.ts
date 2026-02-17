@@ -240,6 +240,9 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     
     if (!isProduction) console.log(`[MemberSync] Fetched ${allContacts.length} contacts from HubSpot`);
     
+    const exclusionResult = await db.execute(sql`SELECT email FROM sync_exclusions`);
+    const excludedEmails = new Set((exclusionResult.rows as any[]).map(r => r.email?.toLowerCase()));
+    
     const tierCache = new Map<string, number>();
     const tierResults = await db.select({ id: membershipTiers.id, name: membershipTiers.name }).from(membershipTiers);
     for (const tier of tierResults) {
@@ -291,6 +294,11 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
         batch.map(contact => syncLimit(async () => {
           let email = contact.properties.email?.toLowerCase();
           if (!email) return null;
+          
+          if (excludedEmails.has(email)) {
+            if (!isProduction) console.log(`[MemberSync] Skipping excluded email: ${email}`);
+            return null;
+          }
           
           const status = (contact.properties.membership_status || 'non-member').toLowerCase();
           
@@ -802,6 +810,9 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
     
     console.log(`[MemberSync] Focused sync: fetched ${allContacts.length} relevant contacts from HubSpot`);
     
+    const exclusionResult = await db.execute(sql`SELECT email FROM sync_exclusions`);
+    const excludedEmails = new Set((exclusionResult.rows as any[]).map(r => r.email?.toLowerCase()));
+    
     const tierCache = new Map<string, number>();
     const tierResults = await db.select({ id: membershipTiers.id, name: membershipTiers.name }).from(membershipTiers);
     for (const tier of tierResults) {
@@ -849,6 +860,11 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
         batch.map(contact => syncLimit(async () => {
           let email = contact.properties.email?.toLowerCase();
           if (!email) return null;
+          
+          if (excludedEmails.has(email)) {
+            if (!isProduction) console.log(`[MemberSync] Skipping excluded email: ${email}`);
+            return null;
+          }
           
           const status = (contact.properties.membership_status || 'non-member').toLowerCase();
           

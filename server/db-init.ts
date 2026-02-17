@@ -126,6 +126,23 @@ export async function cleanupOrphanedRecords(): Promise<{ notifications: number;
   return { notifications: notificationsDeleted, oldBookings: oldBookingsArchived };
 }
 
+export async function createSyncExclusionsTable(): Promise<void> {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS sync_exclusions (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        reason TEXT DEFAULT 'permanent_delete',
+        excluded_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log('[DB Init] sync_exclusions table created/verified');
+  } catch (error: unknown) {
+    console.error('[DB Init] Failed to create sync_exclusions:', getErrorMessage(error));
+  }
+}
+
 export async function createStripeTransactionCache(): Promise<void> {
   try {
     await db.execute(sql`

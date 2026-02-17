@@ -664,17 +664,26 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     }
     
     let hubspotArchived = false;
-    if (deleteFromHubSpot === 'true' && hubspotId) {
+    if (hubspotId) {
       try {
         const { getHubSpotClient } = await import('../../core/integrations');
         const hubspot = await getHubSpotClient();
-        await hubspot.crm.contacts.basicApi.archive(hubspotId);
-        hubspotArchived = true;
-        deletionLog.push('hubspot_contact (archived)');
+        await hubspot.crm.contacts.basicApi.update(hubspotId, { properties: { membership_status: 'terminated' } });
+        deletionLog.push('hubspot_membership_status_set_terminated');
+        logger.info('[Admin] Set HubSpot membership_status to terminated before deletion', { extra: { hubspotId, normalizedEmail } });
+
+        if (deleteFromHubSpot === 'true') {
+          await hubspot.crm.contacts.basicApi.archive(hubspotId);
+          hubspotArchived = true;
+          deletionLog.push('hubspot_contact (archived)');
+        }
       } catch (hubspotError: unknown) {
-        logger.error('[Admin] Failed to archive HubSpot contact', { extra: { hubspotId, error: getErrorMessage(hubspotError) } });
+        logger.error('[Admin] Failed to update/archive HubSpot contact', { extra: { hubspotId, error: getErrorMessage(hubspotError) } });
       }
     }
+    
+    await db.execute(sql`INSERT INTO sync_exclusions (email, reason, excluded_by) VALUES (${normalizedEmail}, 'permanent_delete', ${sessionUser?.email || 'unknown'}) ON CONFLICT (email) DO NOTHING`);
+    deletionLog.push('sync_exclusions');
     
     await db.execute(sql`DELETE FROM users WHERE id = ${userId}`);
     deletionLog.push('users');
