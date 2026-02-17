@@ -329,6 +329,11 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               result.details.push({ email, action: 'updated', tier, reason: `Matched via ${resolved.matchType}` });
               console.log(`[Stripe Sync] Updated existing user ${resolved.primaryEmail} (matched ${email} via ${resolved.matchType}) with tier ${tier}`);
             } else {
+            const exclusionCheck = await pool.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [email.toLowerCase()]);
+            if (exclusionCheck.rows.length > 0) {
+              console.log(`[Stripe Sync] Skipping user creation for ${email} — permanently deleted (sync_exclusions)`);
+              result.details.push({ email, action: 'skipped', tier, reason: 'sync_exclusions' });
+            } else {
             await pool.query(
               `INSERT INTO users (
                  email, first_name, last_name, role, tier, 
@@ -354,6 +359,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               tier,
             });
             console.log(`[Stripe Sync] Created user ${email} with tier ${tier}`);
+            }
             }
           }
         } catch (err: unknown) {

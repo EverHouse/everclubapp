@@ -373,6 +373,11 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
   const { firstName, lastName, email, phone, tier, startDate, discountReason } = input;
   const normalizedEmail = email.toLowerCase().trim();
   
+  const exclusionCheck = await pool.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [normalizedEmail]);
+  if (exclusionCheck.rows.length > 0) {
+    return { success: false, error: 'This email belongs to a permanently deleted member and cannot be re-added. Remove them from the sync exclusions list first if this is intentional.' };
+  }
+  
   if (!tier || tier.trim() === '') {
     return { success: false, error: 'Membership tier is required when creating a member' };
   }

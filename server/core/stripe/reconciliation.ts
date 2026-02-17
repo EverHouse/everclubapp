@@ -249,6 +249,10 @@ export async function reconcileSubscriptions() {
             console.log(`[Reconcile] Updated existing user ${resolved.primaryEmail} (matched ${customerEmail} via ${resolved.matchType})`);
             usersCreated++;
           } else {
+          const exclusionCheck = await pool.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [customerEmail.toLowerCase()]);
+          if (exclusionCheck.rows.length > 0) {
+            console.log(`[Reconcile] Skipping user creation for ${customerEmail} — permanently deleted (sync_exclusions)`);
+          } else {
           // Create user in DB
           await pool.query(
             `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, join_date, created_at, updated_at)
@@ -264,6 +268,7 @@ export async function reconcileSubscriptions() {
           
           console.log(`[Reconcile] Created user ${customerEmail} with tier ${tierSlug || 'none'}, subscription ${subscription.id}`);
           usersCreated++;
+          }
           }
           
           // Sync to HubSpot

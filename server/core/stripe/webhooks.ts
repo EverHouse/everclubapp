@@ -2203,6 +2203,10 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         // Create new user
         console.log(`[Stripe Webhook] Creating new user from staff invite: ${email}`);
         
+        const exclusionCheck = await client.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [email.toLowerCase()]);
+        if (exclusionCheck.rows.length > 0) {
+          console.log(`[Stripe Webhook] Skipping user creation for ${email} — permanently deleted (sync_exclusions)`);
+        } else {
         // Get tier slug from tier ID
         let tierSlug = null;
         if (tierId) {
@@ -2230,6 +2234,7 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         );
         
         console.log(`[Stripe Webhook] Created user ${email} with tier ${tierSlug || 'none'}`);
+        }
         }
       }
       
@@ -2508,6 +2513,10 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
         );
         console.log(`[Stripe Webhook] Updated existing user ${resolvedSub.primaryEmail} via linked email with tier ${tierName || 'none'}, subscription ${subscription.id}`);
       } else {
+        const exclusionCheck = await client.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [customerEmail.toLowerCase()]);
+        if (exclusionCheck.rows.length > 0) {
+          console.log(`[Stripe Webhook] Skipping user creation for ${customerEmail} — permanently deleted (sync_exclusions)`);
+        } else {
         await client.query(
           `INSERT INTO users (email, first_name, last_name, phone, tier, membership_status, stripe_customer_id, stripe_subscription_id, billing_provider, stripe_current_period_end, join_date, created_at, updated_at)
            VALUES ($1, $2, $3, $8, $4, $7, $5, $6, 'stripe', $9, NOW(), NOW(), NOW())
@@ -2528,6 +2537,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
         );
         
         console.log(`[Stripe Webhook] Created user ${customerEmail} with tier ${tierName || 'none'}, phone ${metadataPhone || 'none'}, subscription ${subscription.id}`);
+        }
       }
       
       try {
