@@ -900,4 +900,95 @@ router.post('/api/data-integrity/fix/convert-participant-to-guest', isAdmin, asy
   }
 });
 
+router.post('/api/data-integrity/fix/approve-review-item', isAdmin, async (req: Request, res) => {
+  try {
+    const { recordId, table } = req.body;
+    if (!recordId || !table) return res.status(400).json({ success: false, message: 'recordId and table are required' });
+    
+    const sessionUser = getSessionUser(req);
+    const reviewedBy = sessionUser?.email || 'staff';
+    
+    if (table === 'wellness_classes') {
+      await db.execute(sql`UPDATE wellness_classes 
+        SET needs_review = false, reviewed_by = ${reviewedBy}, reviewed_at = NOW(), updated_at = NOW(), review_dismissed = true, conflict_detected = false, locally_edited = true, app_last_modified_at = NOW()
+        WHERE id = ${recordId}`);
+    } else if (table === 'events') {
+      await db.execute(sql`UPDATE events SET needs_review = false WHERE id = ${recordId}`);
+    } else {
+      return res.status(400).json({ success: false, message: `Unsupported table: ${table}` });
+    }
+    
+    logFromRequest(req, 'approve_review_item' as any, table as any, recordId, undefined, { table, reviewedBy });
+    
+    res.json({ success: true, message: `Approved ${table === 'wellness_classes' ? 'wellness class' : 'event'} #${recordId}` });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Approve review item error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/delete-review-item', isAdmin, async (req: Request, res) => {
+  try {
+    const { recordId, table } = req.body;
+    if (!recordId || !table) return res.status(400).json({ success: false, message: 'recordId and table are required' });
+    
+    if (table === 'wellness_classes') {
+      await db.execute(sql`UPDATE wellness_classes SET is_active = false, updated_at = NOW() WHERE id = ${recordId}`);
+    } else if (table === 'events') {
+      await db.execute(sql`DELETE FROM events WHERE id = ${recordId}`);
+    } else {
+      return res.status(400).json({ success: false, message: `Unsupported table: ${table}` });
+    }
+    
+    logFromRequest(req, 'delete_review_item' as any, table as any, recordId, undefined, { table });
+    
+    res.json({ success: true, message: `Removed ${table === 'wellness_classes' ? 'wellness class' : 'event'} #${recordId}` });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Delete review item error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
+router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, async (req: Request, res) => {
+  try {
+    const { dryRun = true } = req.body;
+    const sessionUser = getSessionUser(req);
+    const reviewedBy = sessionUser?.email || 'staff';
+    
+    const wellnessCount = await db.execute(sql`SELECT COUNT(*)::int as count FROM wellness_classes WHERE needs_review = true AND is_active = true`);
+    const eventCount = await db.execute(sql`SELECT COUNT(*)::int as count FROM events WHERE needs_review = true`);
+    
+    const wCount = (wellnessCount.rows[0] as any)?.count || 0;
+    const eCount = (eventCount.rows[0] as any)?.count || 0;
+    const total = wCount + eCount;
+    
+    if (!dryRun) {
+      if (wCount > 0) {
+        await db.execute(sql`UPDATE wellness_classes 
+          SET needs_review = false, reviewed_by = ${reviewedBy}, reviewed_at = NOW(), updated_at = NOW(), review_dismissed = true, conflict_detected = false, locally_edited = true, app_last_modified_at = NOW()
+          WHERE needs_review = true AND is_active = true`);
+      }
+      if (eCount > 0) {
+        await db.execute(sql`UPDATE events SET needs_review = false WHERE needs_review = true`);
+      }
+      
+      logFromRequest(req, 'approve_all_review_items' as any, 'wellness_classes' as any, undefined, undefined, { wellnessApproved: wCount, eventsApproved: eCount, total, reviewedBy });
+    }
+    
+    res.json({
+      success: true,
+      message: dryRun
+        ? `Found ${total} items needing review: ${wCount} wellness classes, ${eCount} events`
+        : `Approved ${total} items: ${wCount} wellness classes, ${eCount} events`,
+      wellnessCount: wCount,
+      eventCount: eCount,
+      total,
+      dryRun
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Approve all review items error', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, message: getErrorMessage(error) });
+  }
+});
+
 export default router;

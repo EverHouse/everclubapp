@@ -119,6 +119,7 @@ const DataIntegrityTab: React.FC = () => {
   const [visitCountResult, setVisitCountResult] = useState<{ success: boolean; message: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: any[]; dryRun?: boolean } | null>(null);
   const [ghostBookingResult, setGhostBookingResult] = useState<{ success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean } | null>(null);
   const [orphanedParticipantResult, setOrphanedParticipantResult] = useState<{ success: boolean; message: string; relinked?: number; converted?: number; total?: number; dryRun?: boolean; relinkedDetails?: any[]; convertedDetails?: any[] } | null>(null);
+  const [reviewItemsResult, setReviewItemsResult] = useState<{ success: boolean; message: string; wellnessCount?: number; eventCount?: number; total?: number; dryRun?: boolean } | null>(null);
   const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: any[]; hubspotDuplicates?: any[] } | null>(null);
   const [expandedDuplicates, setExpandedDuplicates] = useState<{ app: boolean; hubspot: boolean }>({ app: false, hubspot: false });
   const [dealStageRemediationResult, setDealStageRemediationResult] = useState<{ success: boolean; message: string; total?: number; fixed?: number; dryRun?: boolean } | null>(null);
@@ -580,6 +581,7 @@ const DataIntegrityTab: React.FC = () => {
     onSuccess: (data) => {
       showToast(data.message || 'Issue fixed successfully', 'success');
       queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
+      runIntegrityMutation.mutate();
     },
     onError: (err: any) => {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to fix issue', 'error');
@@ -933,6 +935,29 @@ const DataIntegrityTab: React.FC = () => {
     onError: (err: Error) => {
       setOrphanedParticipantResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed' });
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to fix', 'error');
+    },
+  });
+
+  const approveAllReviewItemsMutation = useMutation({
+    mutationFn: (dryRun: boolean) =>
+      postWithCredentials<{ message?: string; wellnessCount?: number; eventCount?: number; total?: number; dryRun?: boolean }>('/api/data-integrity/fix/approve-all-review-items', { dryRun }),
+    onSuccess: (data, dryRun) => {
+      setReviewItemsResult({
+        success: true,
+        message: data.message || `${dryRun ? 'Found' : 'Approved'} ${data.total || 0} items`,
+        wellnessCount: data.wellnessCount,
+        eventCount: data.eventCount,
+        total: data.total,
+        dryRun
+      });
+      showToast(data.message || `${dryRun ? 'Preview complete' : 'All items approved'}`, dryRun ? 'info' : 'success');
+      if (!dryRun && (data.total || 0) > 0) {
+        runIntegrityMutation.mutate();
+      }
+    },
+    onError: (err: Error) => {
+      setReviewItemsResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed' });
+      showToast((err instanceof Error ? err.message : String(err)) || 'Failed', 'error');
     },
   });
 
@@ -1303,6 +1328,11 @@ const DataIntegrityTab: React.FC = () => {
     fixOrphanedParticipantsMutation.mutate(dryRun);
   };
 
+  const handleApproveAllReviewItems = (dryRun: boolean = true) => {
+    setReviewItemsResult(null);
+    approveAllReviewItemsMutation.mutate(dryRun);
+  };
+
   const handleRemediateDealStages = (dryRun: boolean = true) => {
     setDealStageRemediationResult(null);
     remediateDealStagesMutation.mutate(dryRun);
@@ -1350,6 +1380,7 @@ const DataIntegrityTab: React.FC = () => {
   const isRunningVisitCountSync = syncVisitCountsMutation.isPending;
   const isRunningGhostBookingFix = previewGhostBookingsMutation.isPending || fixGhostBookingsMutation.isPending;
   const isRunningOrphanedParticipantFix = fixOrphanedParticipantsMutation.isPending;
+  const isRunningReviewItemsApproval = approveAllReviewItemsMutation.isPending;
   const isRunningDealStageRemediation = remediateDealStagesMutation.isPending;
   const isRunningDuplicateDetection = detectDuplicatesMutation.isPending;
   const isLoadingPlaceholders = scanPlaceholdersMutation.isPending;
@@ -1775,6 +1806,9 @@ const DataIntegrityTab: React.FC = () => {
         isRunningOrphanedParticipantFix={isRunningOrphanedParticipantFix}
         orphanedParticipantResult={orphanedParticipantResult}
         handleFixOrphanedParticipants={handleFixOrphanedParticipants}
+        isRunningReviewItemsApproval={isRunningReviewItemsApproval}
+        reviewItemsResult={reviewItemsResult}
+        handleApproveAllReviewItems={handleApproveAllReviewItems}
       />
 
       <SyncToolsPanel

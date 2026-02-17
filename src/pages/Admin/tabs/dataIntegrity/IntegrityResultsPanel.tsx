@@ -96,6 +96,9 @@ interface IntegrityResultsPanelProps {
   isRunningOrphanedParticipantFix: boolean;
   orphanedParticipantResult: { success: boolean; message: string; relinked?: number; converted?: number; total?: number; dryRun?: boolean; relinkedDetails?: any[]; convertedDetails?: any[] } | null;
   handleFixOrphanedParticipants: (dryRun: boolean) => void;
+  isRunningReviewItemsApproval: boolean;
+  reviewItemsResult: { success: boolean; message: string; wellnessCount?: number; eventCount?: number; total?: number; dryRun?: boolean } | null;
+  handleApproveAllReviewItems: (dryRun: boolean) => void;
 }
 
 const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
@@ -152,6 +155,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   isRunningOrphanedParticipantFix,
   orphanedParticipantResult,
   handleFixOrphanedParticipants,
+  isRunningReviewItemsApproval,
+  reviewItemsResult,
+  handleApproveAllReviewItems,
 }) => {
   const getStatusColor = (status: 'pass' | 'warning' | 'fail' | 'info') => {
     switch (status) {
@@ -696,6 +702,43 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
           </div>
         );
 
+      case 'Items Needing Review':
+        return (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+              <strong>Quick Actions:</strong> These are wellness classes or events that were imported and need your approval. Approve them to make them visible to members, or delete ones you don't want.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleApproveAllReviewItems(true)}
+                disabled={isRunningReviewItemsApproval}
+                className="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningReviewItemsApproval && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                Preview
+              </button>
+              <button
+                onClick={() => handleApproveAllReviewItems(false)}
+                disabled={isRunningReviewItemsApproval}
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {isRunningReviewItemsApproval && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Approve All
+              </button>
+            </div>
+            {reviewItemsResult && (
+              <div className={`mt-2 p-2 rounded ${!reviewItemsResult.success ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700' : reviewItemsResult.dryRun ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700' : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700'}`}>
+                {reviewItemsResult.dryRun && (
+                  <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
+                )}
+                <p className={`text-xs ${!reviewItemsResult.success ? 'text-red-700 dark:text-red-400' : reviewItemsResult.dryRun ? 'text-blue-700 dark:text-blue-400' : 'text-green-700 dark:text-green-400'}`}>{reviewItemsResult.message}</p>
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return null;
     }
@@ -941,6 +984,40 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
                                         ) : (
                                           <span className="material-symbols-outlined text-[16px]">visibility_off</span>
+                                        )}
+                                      </button>
+                                    </>
+                                  )}
+                                  {!issue.ignored && (issue.table === 'wellness_classes' || issue.table === 'events') && issue.description?.includes('needs review') && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/approve-review-item', body: { recordId: issue.recordId, table: issue.table } });
+                                        }}
+                                        disabled={fixIssueMutation.isPending}
+                                        className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Approve this item"
+                                      >
+                                        {fixIssueMutation.isPending ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                        )}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Remove this ${issue.table === 'wellness_classes' ? 'wellness class' : 'event'}? This cannot be undone.`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/delete-review-item', body: { recordId: issue.recordId, table: issue.table } });
+                                          }
+                                        }}
+                                        disabled={fixIssueMutation.isPending}
+                                        className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Remove this item"
+                                      >
+                                        {fixIssueMutation.isPending ? (
+                                          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-[16px]">delete</span>
                                         )}
                                       </button>
                                     </>
