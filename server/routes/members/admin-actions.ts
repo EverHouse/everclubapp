@@ -66,10 +66,17 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query(
-        'UPDATE users SET tier = $1, updated_at = $2 WHERE LOWER(email) = $3',
-        [normalizedTier, new Date(), normalizedEmail]
-      );
+      if (normalizedTier) {
+        await client.query(
+          'UPDATE users SET tier = $1, updated_at = $2 WHERE LOWER(email) = $3',
+          [normalizedTier, new Date(), normalizedEmail]
+        );
+      } else {
+        await client.query(
+          'UPDATE users SET tier = NULL, membership_status = $1, updated_at = $2 WHERE LOWER(email) = $3',
+          ['non-member', new Date(), normalizedEmail]
+        );
+      }
       await client.query('COMMIT');
     } catch (txError) {
       await client.query('ROLLBACK');

@@ -612,7 +612,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   }, [memberEmail, billingInfo?.stripeCustomerId, fetchBillingInfo]);
 
   const handleManualTierSave = async () => {
-    if (!memberEmail || !manualTier) return;
+    if (!memberEmail) return;
     
     setIsSavingTier(true);
     try {

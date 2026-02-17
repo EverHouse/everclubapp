@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.66.2",
+    date: "2026-02-17",
+    title: "Fix 'No Tier' Save for Members",
+    changes: [
+      "Fixed: Setting a member's Membership Level to 'No Tier' now works correctly — previously the Save button did nothing when clearing someone's tier",
+      "Improved: Clearing a member's tier also sets their membership status to 'non-member' automatically",
+    ]
+  },
+  {
     version: "7.66.1",
     date: "2026-02-17",
     title: "Data Integrity Alert Rate Limiting",
