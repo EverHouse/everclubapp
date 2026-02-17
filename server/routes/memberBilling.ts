@@ -9,6 +9,7 @@ import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
+import { formatDatePacific } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -262,7 +263,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
       const feeCents = row.cached_fee_cents || 0;
       const feeLabel = row.participant_type === 'guest' ? 'Guest Fee' : 'Overage Fee';
       const bookingDate = row.booking_date instanceof Date
-        ? row.booking_date.toISOString().split('T')[0]
+        ? formatDatePacific(row.booking_date)
         : String(row.booking_date || '').split('T')[0];
       return {
         bookingId: row.booking_id,
@@ -479,7 +480,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
         cancellation_reason = $2,
         updated_at = NOW()
        WHERE LOWER(email) = $3`,
-      [effectiveDate.toISOString().split('T')[0], reason || null, (email as string).toLowerCase()]
+      [formatDatePacific(effectiveDate), reason || null, (email as string).toLowerCase()]
     );
 
     console.log(`[MemberBilling] Set cancel_at for subscription ${subscription.id}, email ${email}, effective ${effectiveDate.toISOString()}`);

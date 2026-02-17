@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { eq, sql, and, lt, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { guestPasses, notifications, staffUsers, bookingRequests } from '../../shared/schema';
@@ -22,7 +23,7 @@ async function isStaffOrAdminCheck(email: string): Promise<boolean> {
   return !!staff;
 }
 
-router.get('/api/guest-passes/:email', async (req, res) => {
+router.get('/api/guest-passes/:email', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -139,7 +140,7 @@ router.get('/api/guest-passes/:email', async (req, res) => {
   }
 });
 
-router.post('/api/guest-passes/:email/use', async (req, res) => {
+router.post('/api/guest-passes/:email/use', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -210,7 +211,7 @@ router.post('/api/guest-passes/:email/use', async (req, res) => {
   }
 });
 
-router.put('/api/guest-passes/:email', async (req, res) => {
+router.put('/api/guest-passes/:email', isStaffOrAdmin, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {

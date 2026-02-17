@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { isAuthenticated } from '../../core/middleware';
 import { pool } from '../../core/db';
 import { getMemberTierByEmail, getTierLimits, getDailyBookedMinutes } from '../../core/tierService';
 import { getOrCreateStripeCustomer, createBalanceAwarePayment } from '../../core/stripe';
@@ -33,7 +34,7 @@ interface CreateIntentRequest {
   useCredit?: boolean;
 }
 
-router.post('/api/member/conference/prepay/estimate', async (req: Request, res: Response) => {
+router.post('/api/member/conference/prepay/estimate', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
@@ -90,7 +91,7 @@ router.post('/api/member/conference/prepay/estimate', async (req: Request, res: 
   }
 });
 
-router.post('/api/member/conference/prepay/create-intent', async (req: Request, res: Response) => {
+router.post('/api/member/conference/prepay/create-intent', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
@@ -397,7 +398,7 @@ router.post('/api/member/conference/prepay/create-intent', async (req: Request, 
   }
 });
 
-router.post('/api/member/conference/prepay/:id/confirm', async (req: Request, res: Response) => {
+router.post('/api/member/conference/prepay/:id/confirm', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
@@ -481,7 +482,7 @@ router.post('/api/member/conference/prepay/:id/confirm', async (req: Request, re
   }
 });
 
-router.get('/api/member/conference/prepay/:id', async (req: Request, res: Response) => {
+router.get('/api/member/conference/prepay/:id', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {

@@ -19,7 +19,7 @@ import { isProduction } from '../../core/db';
 import { isStaffOrAdmin, isAuthenticated, isAdmin } from '../../core/middleware';
 import { syncSmsPreferencesToHubSpot } from '../../core/hubspot/contacts';
 import { getSessionUser } from '../../types/session';
-import { logSystemAction } from '../../core/auditLog';
+import { logSystemAction, logFromRequest } from '../../core/auditLog';
 import { memberLookupRateLimiter } from '../../middleware/rateLimiting';
 import { z } from 'zod';
 
@@ -627,9 +627,11 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
           }
         })
         .returning();
+      logFromRequest(req, 'change_member_role', 'user', req.params.id, '', { newRole: req.body.role, tags: req.body.tags });
       return res.json(insertResult[0]);
     }
     
+    logFromRequest(req, 'change_member_role', 'user', req.params.id, '', { newRole: req.body.role, tags: req.body.tags });
     res.json(result[0]);
   } catch (error: unknown) {
     if (!isProduction) console.error('API error:', error);

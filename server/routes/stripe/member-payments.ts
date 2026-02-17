@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { isAuthenticated } from '../../core/middleware';
 import { paymentRateLimiter } from '../../middleware/rateLimiting';
 import { pool } from '../../core/db';
 import { db } from '../../db';
@@ -21,7 +22,7 @@ import { getErrorCode } from '../../utils/errorUtils';
 
 const router = Router();
 
-router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req: Request, res: Response) => {
+router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLimiter, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -330,7 +331,7 @@ router.post('/api/member/bookings/:id/pay-fees', paymentRateLimiter, async (req:
   }
 });
 
-router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res: Response) => {
+router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -473,7 +474,7 @@ router.post('/api/member/bookings/:id/confirm-payment', async (req: Request, res
   }
 });
 
-router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Response) => {
+router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -569,7 +570,7 @@ router.post('/api/member/invoices/:invoiceId/pay', async (req: Request, res: Res
   }
 });
 
-router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res: Response) => {
+router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -646,7 +647,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', async (req: Request, res:
   }
 });
 
-router.post('/api/member/guest-passes/purchase', async (req: Request, res: Response) => {
+router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -763,7 +764,7 @@ router.post('/api/member/guest-passes/purchase', async (req: Request, res: Respo
   }
 });
 
-router.post('/api/member/guest-passes/confirm', async (req: Request, res: Response) => {
+router.post('/api/member/guest-passes/confirm', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -847,7 +848,7 @@ router.post('/api/member/guest-passes/confirm', async (req: Request, res: Respon
   }
 });
 
-router.get('/api/member/balance', async (req: Request, res: Response) => {
+router.get('/api/member/balance', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
@@ -1111,7 +1112,7 @@ router.get('/api/member/balance', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
+router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
@@ -1425,7 +1426,7 @@ router.post('/api/member/balance/pay', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/api/member/balance/confirm', async (req: Request, res: Response) => {
+router.post('/api/member/balance/confirm', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {

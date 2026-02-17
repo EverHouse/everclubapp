@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { isAuthenticated } from '../../core/middleware';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
@@ -10,7 +11,7 @@ import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
-router.post('/api/stripe/overage/create-payment-intent', async (req: Request, res: Response) => {
+router.post('/api/stripe/overage/create-payment-intent', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.body;
     const sessionUser = getSessionUser(req);
@@ -217,7 +218,7 @@ router.post('/api/stripe/overage/create-payment-intent', async (req: Request, re
   }
 });
 
-router.post('/api/stripe/overage/confirm-payment', async (req: Request, res: Response) => {
+router.post('/api/stripe/overage/confirm-payment', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { bookingId, paymentIntentId } = req.body;
     const sessionUser = getSessionUser(req);
@@ -290,7 +291,7 @@ router.post('/api/stripe/overage/confirm-payment', async (req: Request, res: Res
   }
 });
 
-router.get('/api/stripe/overage/check/:bookingId', async (req: Request, res: Response) => {
+router.get('/api/stripe/overage/check/:bookingId', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
     const sessionUser = getSessionUser(req);

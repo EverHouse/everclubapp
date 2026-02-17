@@ -583,7 +583,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
               memberName,
               originalAmount: feeAmount,
               reason,
-              bookingDescription: `${booking.resource_name} on ${new Date().toLocaleDateString()}`
+              bookingDescription: `${booking.resource_name} on ${new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}`
             });
             
             console.log(`[StaffCheckin] Sent waiver notification to ${recipientEmail}`);
@@ -720,7 +720,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             memberName: ownerName,
             originalAmount: totalWaived,
             reason: reason || 'Bulk waiver applied',
-            bookingDescription: `${booking.resource_name} on ${new Date().toLocaleDateString()} (${pendingParticipants.rows.length} participant${pendingParticipants.rows.length > 1 ? 's' : ''})`
+            bookingDescription: `${booking.resource_name} on ${new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })} (${pendingParticipants.rows.length} participant${pendingParticipants.rows.length > 1 ? 's' : ''})`
           });
           
           console.log(`[StaffCheckin] Sent bulk waiver notification to ${booking.owner_email} for ${pendingParticipants.rows.length} participants`);

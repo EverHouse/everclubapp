@@ -1,5 +1,6 @@
 import { db } from '../db';
 import { getErrorStatusCode } from '../utils/errorUtils';
+import { formatDatePacific } from '../utils/dateUtils';
 import { users, membershipTiers } from '../../shared/schema';
 import { memberNotes, communicationLogs, userLinkedEmails } from '../../shared/models/membership';
 import { getHubSpotClient } from './integrations';
@@ -321,7 +322,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             try {
               const createDate = new Date(contact.properties.createdate);
               if (!isNaN(createDate.getTime())) {
-                joinDate = createDate.toISOString().split('T')[0];
+                joinDate = formatDatePacific(createDate);
               }
             } catch (e) {
               // If parsing fails, joinDate remains null
@@ -873,7 +874,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             try {
               const createDate = new Date(contact.properties.createdate);
               if (!isNaN(createDate.getTime())) {
-                joinDate = createDate.toISOString().split('T')[0];
+                joinDate = formatDatePacific(createDate);
               }
             } catch (e) {
               console.error('[MemberSync] Failed to parse createdate:', e);

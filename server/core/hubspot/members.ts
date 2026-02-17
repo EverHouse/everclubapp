@@ -9,6 +9,7 @@ import { HUBSPOT_STAGE_IDS, MEMBERSHIP_PIPELINE_ID, MINDBODY_TO_STAGE_MAP } from
 import { getProductMapping } from './products';
 import { addLineItemToDeal } from './lineItems';
 import { isPlaceholderEmail } from '../stripe/customers';
+import { getTodayPacific } from '../../utils/dateUtils';
 
 export interface AddMemberInput {
   firstName: string;
@@ -178,7 +179,7 @@ export async function createMembershipDeal(
     dealname: dealName,
     pipeline: MEMBERSHIP_PIPELINE_ID,
     dealstage: stage || HUBSPOT_STAGE_IDS.CLOSED_WON_ACTIVE,
-    closedate: startDate || new Date().toISOString().split('T')[0]
+    closedate: startDate || getTodayPacific()
   };
   
   if (hubspotTier) {
@@ -413,7 +414,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
           updated_at = NOW()
         WHERE id = $1
         RETURNING id`,
-        [existing.id, firstName, lastName, phone || null, tier, startDate || new Date().toISOString().split('T')[0]]
+        [existing.id, firstName, lastName, phone || null, tier, startDate || getTodayPacific()]
       );
       
       console.log(`[AddMember] Converted existing visitor ${normalizedEmail} to member with tier ${tier}`);
@@ -435,7 +436,7 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
         phone || null,
         tier,
         JSON.stringify(tags),
-        startDate || new Date().toISOString().split('T')[0]
+        startDate || getTodayPacific()
       ]
     );
     
@@ -670,7 +671,7 @@ export async function createMemberWithDeal(input: AddMemberInput): Promise<AddMe
           tier,
           contactId,
           JSON.stringify(tags),
-          startDate || new Date().toISOString().split('T')[0]
+          startDate || getTodayPacific()
         ]
       );
     } catch (userError: unknown) {

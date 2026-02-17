@@ -194,7 +194,7 @@ function isAllowedOrigin(origin: string | undefined): boolean {
     
     // Allow domains from ALLOWED_ORIGINS env var
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
-    if (allowedOrigins.some(allowed => origin.includes(allowed))) {
+    if (allowedOrigins.some(allowed => hostname === allowed || hostname.endsWith('.' + allowed))) {
       return true;
     }
     

@@ -7,6 +7,7 @@ import { sendRedemptionConfirmationEmail } from '../emails/passEmails';
 import { broadcastDayPassUpdate } from '../core/websocket';
 import { getStripeClient } from '../core/stripe/client';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getPacificMidnightUTC } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -143,9 +144,8 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
         .limit(10);
 
       // Check if already redeemed today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const redeemedToday = logs.find(log => new Date(log.redeemedAt as Date) >= today);
+      const todayMidnightPacific = getPacificMidnightUTC();
+      const redeemedToday = logs.find(log => new Date(log.redeemedAt as Date) >= todayMidnightPacific);
       
       if (pass.status !== 'active') {
         return res.status(400).json({ 

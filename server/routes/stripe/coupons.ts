@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { logFromRequest } from '../../core/auditLog';
 
 const router = Router();
 
@@ -104,6 +105,7 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
     const coupon = await stripe.coupons.create(couponParams);
     
     console.log(`[Stripe] Created coupon ${coupon.id}`);
+    logFromRequest(req, 'create_coupon', 'coupon', coupon.id, coupon.name || '', {});
     
     res.json({
       success: true,
@@ -145,6 +147,7 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
     });
     
     console.log(`[Stripe] Updated coupon ${id} - name: "${name}"`);
+    logFromRequest(req, 'update_coupon', 'coupon', req.params.id, '', {});
     
     res.json({
       success: true,
@@ -183,6 +186,7 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
     await stripe.coupons.del(id as string);
     
     console.log(`[Stripe] Deleted coupon ${id}`);
+    logFromRequest(req, 'delete_coupon', 'coupon', req.params.id, '', {});
     
     res.json({ success: true });
   } catch (error: unknown) {

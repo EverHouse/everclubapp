@@ -7,6 +7,7 @@ import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
 import { notifyAllStaff } from '../core/notificationService';
 import { getErrorMessage } from '../utils/errorUtils';
+import { formatDatePacific } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -908,7 +909,7 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
         cancellation_reason = $2,
         updated_at = NOW()
        WHERE LOWER(email) = $3`,
-      [effectiveDate.toISOString().split('T')[0], reason || null, email.toLowerCase()]
+      [formatDatePacific(effectiveDate), reason || null, email.toLowerCase()]
     );
     
     try {

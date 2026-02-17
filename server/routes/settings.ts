@@ -5,6 +5,7 @@ import { appSettings } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { logAndRespond } from '../core/logger';
 import { getSessionUser } from '../types/session';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -100,6 +101,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
         .where(eq(appSettings.key, key as string))
         .returning();
       
+      logFromRequest(req, 'update_setting', 'setting', req.params.key, req.params.key, { value: req.body.value });
       res.json(updated);
     } else {
       const [created] = await db
@@ -112,6 +114,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
         } as any)
         .returning();
       
+      logFromRequest(req, 'update_setting', 'setting', req.params.key, req.params.key, { value: req.body.value });
       res.json(created);
     }
   } catch (error: unknown) {
@@ -160,6 +163,7 @@ router.put('/api/admin/settings', isAdmin, async (req, res) => {
       }
     }
     
+    logFromRequest(req, 'update_settings_bulk', 'settings', '', 'bulk_update', { keys: Object.keys(settings) });
     res.json({ success: true, updated: results.length });
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update settings', error, 'SETTINGS_BULK_UPDATE_ERROR');

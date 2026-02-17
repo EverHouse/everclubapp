@@ -13,6 +13,29 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.62.0",
+    date: "2026-02-17",
+    title: "Security Hardening & Bug Fixes",
+    isMajor: true,
+    changes: [
+      "Fixed: Payment routes (overage, member payments, guest pass purchases, balance payments) now require proper authentication — previously accessible without login in edge cases",
+      "Fixed: Conference room prepayment routes now require authentication middleware",
+      "Fixed: Member dashboard data endpoint now requires authentication middleware",
+      "Fixed: RSVP creation now requires authentication — previously could be submitted without a logged-in session",
+      "Fixed: Guest pass routes now require authentication middleware for all operations",
+      "Fixed: Day pass redemption timezone bug — 'already redeemed today' check now uses Pacific time instead of UTC, preventing potential double-use near midnight",
+      "Fixed: HubSpot member sync dates now use Pacific timezone instead of UTC — join dates and close dates are now accurate for evening signups",
+      "Fixed: Billing date displays (booking dates, cancellation effective dates) now use Pacific timezone throughout",
+      "Fixed: Staff check-in booking descriptions now show Pacific-timezone dates",
+      "Fixed: Member join dates calculated from Stripe/HubSpot now use Pacific timezone",
+      "Fixed: WebSocket origin validation tightened — previously a permissive substring check could match unintended domains",
+      "New: Staff and admin user creation, modification, and deletion now logged in the Staff Activity feed",
+      "New: Application settings changes (individual and bulk) now logged in the Staff Activity feed",
+      "New: Stripe coupon creation, updates, and deletion now logged in the Staff Activity feed",
+      "New: Member role changes now logged in the Staff Activity feed for full accountability"
+    ]
+  },
+  {
     version: "7.61.0",
     date: "2026-02-15",
     title: "Staff Notification Delivery Fix",

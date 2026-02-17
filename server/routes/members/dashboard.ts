@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isAuthenticated } from '../../core/middleware';
 import { db } from '../../db';
 import { pool, isProduction } from '../../core/db';
 import { 
@@ -23,7 +24,7 @@ import { getTodayPacific } from '../../utils/dateUtils';
 
 const router = Router();
 
-router.get('/api/member/dashboard-data', async (req, res) => {
+router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     

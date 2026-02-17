@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { isProduction, pool } from '../core/db';
-import { isStaffOrAdmin } from '../core/middleware';
+import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { db } from '../db';
 import { events, eventRsvps, users, notifications, availabilityBlocks } from '../../shared/schema';
 import { eq, and, or, sql, gte, desc, isNotNull } from 'drizzle-orm';
@@ -907,7 +907,7 @@ router.get('/api/rsvps', async (req, res) => {
   }
 });
 
-router.post('/api/rsvps', async (req, res) => {
+router.post('/api/rsvps', isAuthenticated, async (req, res) => {
   try {
     const { event_id, user_email } = req.body;
     

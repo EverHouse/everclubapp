@@ -152,7 +152,19 @@ export type AuditAction =
   | 'sync_visit_counts'
   | 'detect_duplicates'
   | 'sync_payment_status'
-  | 'fix_trackman_ghost_bookings';
+  | 'fix_trackman_ghost_bookings'
+  | 'create_staff_user'
+  | 'update_staff_user'
+  | 'delete_staff_user'
+  | 'create_admin_user'
+  | 'update_admin_user'
+  | 'delete_admin_user'
+  | 'update_setting'
+  | 'update_settings_bulk'
+  | 'create_coupon'
+  | 'update_coupon'
+  | 'delete_coupon'
+  | 'change_member_role';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
@@ -188,7 +200,10 @@ export type ResourceType =
   | 'bulk_waiver'
   | 'terminal_reader'
   | 'setup_intent'
-  | 'trackman_booking';
+  | 'trackman_booking'
+  | 'staff_user'
+  | 'setting'
+  | 'coupon';
 
 interface AuditLogParams {
   staffEmail: string;

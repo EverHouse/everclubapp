@@ -6,6 +6,7 @@ import { isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { normalizeEmail } from '../core/utils/emailNormalization';
 import { getErrorCode } from '../utils/errorUtils';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -93,6 +94,7 @@ router.post('/api/staff-users', isAdmin, async (req, res) => {
       })
       .returning();
     
+    logFromRequest(req, 'create_staff_user', 'staff_user', String(result[0].id), result[0].email || '', { role: result[0].role });
     res.status(201).json({
       id: result[0].id,
       email: result[0].email,
@@ -139,6 +141,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Staff user not found' });
     }
     
+    logFromRequest(req, 'update_staff_user', 'staff_user', req.params.id, '', { changes: req.body });
     res.json({
       id: result[0].id,
       email: result[0].email,
@@ -170,6 +173,7 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Staff user not found' });
     }
     
+    logFromRequest(req, 'delete_staff_user', 'staff_user', req.params.id, '', {});
     res.json({ 
       message: 'Staff user removed', 
       staff: {
@@ -233,6 +237,7 @@ router.post('/api/admin-users', isAdmin, async (req, res) => {
       })
       .returning();
     
+    logFromRequest(req, 'create_admin_user', 'staff_user', String(result[0].id), result[0].email || '', { role: 'admin' });
     res.status(201).json({
       id: result[0].id,
       email: result[0].email,
@@ -277,6 +282,7 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Admin user not found' });
     }
     
+    logFromRequest(req, 'update_admin_user', 'staff_user', req.params.id, '', { changes: req.body });
     res.json({
       id: result[0].id,
       email: result[0].email,
@@ -315,6 +321,7 @@ router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Admin user not found' });
     }
     
+    logFromRequest(req, 'delete_admin_user', 'staff_user', req.params.id, '', {});
     res.json({ 
       message: 'Admin user removed', 
       admin: {
