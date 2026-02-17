@@ -11,9 +11,11 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
   let synced = 0;
   let errors = 0;
   
+  const client = await pool.connect();
   try {
-    // Find pending fee snapshots older than 5 minutes with payment intents
-    const staleSnapshots = await pool.query(
+    await client.query('SET statement_timeout = 30000');
+    
+    const staleSnapshots = await client.query(
       `SELECT bfs.id, bfs.stripe_payment_intent_id, bfs.booking_id, bfs.session_id, bfs.total_cents
        FROM booking_fee_snapshots bfs
        WHERE bfs.status = 'pending'
@@ -38,7 +40,6 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
         const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
         
         if (pi.status === 'succeeded') {
-          // Payment succeeded but we didn't get the webhook - sync it
           const result = await PaymentStatusService.markPaymentSucceeded({
             paymentIntentId: snapshot.stripe_payment_intent_id,
             bookingId: snapshot.booking_id,
@@ -57,7 +58,6 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
             errors++;
           }
         } else if (pi.status === 'canceled') {
-          // Payment was cancelled in Stripe - sync it
           await PaymentStatusService.markPaymentCancelled({
             paymentIntentId: snapshot.stripe_payment_intent_id
           });
@@ -65,11 +65,10 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
           synced++;
         }
-        // For other statuses (requires_payment_method, etc.), leave as pending
         
       } catch (err: unknown) {
         if (getErrorCode(err) === 'resource_missing') {
-          await pool.query(
+          await client.query(
             `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE id = $1`,
             [snapshot.id]
           );
@@ -89,6 +88,8 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
     console.error('[Fee Snapshot Reconciliation] Scheduler error:', error);
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(error));
     return { synced, errors: errors + 1 };
+  } finally {
+    client.release();
   }
 }
 
@@ -96,8 +97,11 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
   let cancelled = 0;
   let errors = 0;
 
+  const client = await pool.connect();
   try {
-    const abandonedIntents = await pool.query(
+    await client.query('SET statement_timeout = 30000');
+    
+    const abandonedIntents = await client.query(
       `SELECT spi.id, spi.stripe_payment_intent_id, spi.booking_id
        FROM stripe_payment_intents spi
        WHERE spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')
@@ -118,7 +122,6 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
 
     for (const spi of abandonedIntents.rows) {
       try {
-        // Cancel in Stripe
         try {
           await stripe.paymentIntents.cancel(spi.stripe_payment_intent_id);
           console.log(`[Abandoned PI Cleanup] Cancelled payment intent ${spi.stripe_payment_intent_id} in Stripe`);
@@ -126,34 +129,28 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
           const errorCode = getErrorCode(stripeErr);
           
           if (errorCode === 'resource_missing') {
-            // PI doesn't exist in Stripe, just mark as cancelled in DB
             console.log(`[Abandoned PI Cleanup] Payment intent ${spi.stripe_payment_intent_id} not found in Stripe, marking as cancelled`);
           } else if (errorCode === 'payment_intent_unexpected_state') {
-            // Already succeeded or cancelled - retrieve actual status and sync
             try {
               const pi = await stripe.paymentIntents.retrieve(spi.stripe_payment_intent_id);
               console.log(`[Abandoned PI Cleanup] Payment intent ${spi.stripe_payment_intent_id} already in state: ${pi.status}, syncing status`);
               
-              // Update local DB with actual Stripe status (in a transaction)
-              const syncClient = await pool.connect();
+              await client.query('BEGIN');
               try {
-                await syncClient.query('BEGIN');
-                await syncClient.query(
+                await client.query(
                   `UPDATE stripe_payment_intents SET status = $1, updated_at = NOW() WHERE id = $2`,
                   [pi.status, spi.id]
                 );
                 if (pi.status !== 'succeeded') {
-                  await syncClient.query(
+                  await client.query(
                     `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE stripe_payment_intent_id = $1 AND status = 'pending'`,
                     [spi.stripe_payment_intent_id]
                   );
                 }
-                await syncClient.query('COMMIT');
+                await client.query('COMMIT');
               } catch (txErr) {
-                await syncClient.query('ROLLBACK');
+                await client.query('ROLLBACK');
                 throw txErr;
-              } finally {
-                syncClient.release();
               }
               cancelled++;
               continue;
@@ -171,24 +168,20 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
           }
         }
 
-        // Update the stripe_payment_intents and fee snapshots in a transaction
-        const cancelClient = await pool.connect();
+        await client.query('BEGIN');
         try {
-          await cancelClient.query('BEGIN');
-          await cancelClient.query(
+          await client.query(
             `UPDATE stripe_payment_intents SET status = 'canceled', failure_reason = 'Auto-cancelled: abandoned after 2 hours', updated_at = NOW() WHERE id = $1`,
             [spi.id]
           );
-          await cancelClient.query(
+          await client.query(
             `UPDATE booking_fee_snapshots SET status = 'cancelled' WHERE stripe_payment_intent_id = $1 AND status = 'pending'`,
             [spi.stripe_payment_intent_id]
           );
-          await cancelClient.query('COMMIT');
+          await client.query('COMMIT');
         } catch (txErr) {
-          await cancelClient.query('ROLLBACK');
+          await client.query('ROLLBACK');
           throw txErr;
-        } finally {
-          cancelClient.release();
         }
 
         console.log(`[Abandoned PI Cleanup] Cancelled and cleaned up payment intent ${spi.stripe_payment_intent_id}`);
@@ -206,6 +199,8 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
     console.error('[Abandoned PI Cleanup] Scheduler error:', error);
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(error));
     return { cancelled, errors: errors + 1 };
+  } finally {
+    client.release();
   }
 }
 
@@ -213,8 +208,11 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
   let reconciled = 0;
   let errors = 0;
 
+  const client = await pool.connect();
   try {
-    const staleIntents = await pool.query(
+    await client.query('SET statement_timeout = 30000');
+    
+    const staleIntents = await client.query(
       `SELECT spi.id, spi.stripe_payment_intent_id, spi.booking_id, spi.status
        FROM stripe_payment_intents spi
        WHERE spi.status = 'pending'
@@ -236,7 +234,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
     for (const spi of staleIntents.rows) {
       try {
         if (spi.booking_id == null) {
-          await pool.query(
+          await client.query(
             `UPDATE stripe_payment_intents SET status = 'canceled', failure_reason = $1 WHERE id = $2`,
             ['Auto-reconciled: orphan payment intent with no linked booking', spi.id]
           );
@@ -246,13 +244,13 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
           continue;
         }
 
-        const bookingResult = await pool.query(
+        const bookingResult = await client.query(
           `SELECT status FROM booking_requests WHERE id = $1`,
           [spi.booking_id]
         );
 
         if (bookingResult.rows.length === 0) {
-          await pool.query(
+          await client.query(
             `UPDATE stripe_payment_intents SET status = 'canceled', failure_reason = $1 WHERE id = $2`,
             ['Auto-reconciled: orphan payment intent with no linked booking', spi.id]
           );
@@ -265,7 +263,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
         const bookingStatus = bookingResult.rows[0].status;
 
         if (['cancelled', 'declined', 'expired'].includes(bookingStatus)) {
-          await pool.query(
+          await client.query(
             `UPDATE stripe_payment_intents SET status = 'canceled', failure_reason = $1 WHERE id = $2`,
             ['Auto-reconciled: linked booking was cancelled/declined/expired', spi.id]
           );
@@ -277,7 +275,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
             const pi = await stripe.paymentIntents.retrieve(spi.stripe_payment_intent_id);
 
             if (pi.status === 'succeeded') {
-              await pool.query(
+              await client.query(
                 `UPDATE stripe_payment_intents SET status = 'succeeded' WHERE id = $1`,
                 [spi.id]
               );
@@ -285,7 +283,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
               schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
               reconciled++;
             } else if (pi.status === 'canceled') {
-              await pool.query(
+              await client.query(
                 `UPDATE stripe_payment_intents SET status = 'canceled' WHERE id = $1`,
                 [spi.id]
               );
@@ -295,7 +293,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
             }
           } catch (stripeErr: unknown) {
             if (getErrorCode(stripeErr) === 'resource_missing') {
-              await pool.query(
+              await client.query(
                 `UPDATE stripe_payment_intents SET status = 'canceled', failure_reason = $1 WHERE id = $2`,
                 ['Auto-reconciled: payment intent not found in Stripe', spi.id]
               );
@@ -321,6 +319,8 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
     console.error('[Payment Intent Reconciliation] Scheduler error:', error);
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(error));
     return { reconciled, errors: errors + 1 };
+  } finally {
+    client.release();
   }
 }
 

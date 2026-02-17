@@ -287,13 +287,13 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
 
       db.execute(sql`INSERT INTO notifications (user_email, title, message, type, related_id, related_type)
          VALUES (${booking.user_email}, ${'Booking Rescheduled'}, ${notifMessage}, ${'booking_rescheduled'}, ${bookingId}, ${'booking'})`
-      ).catch(() => {});
+      ).catch(err => logger.error('[Reschedule] Failed to send notification', { error: err instanceof Error ? err : new Error(String(err)) }));
 
       sendPushNotification(booking.user_email as string, {
         title: 'Booking Rescheduled',
         body: notifMessage,
         url: '/sims'
-      }).catch(() => {});
+      }).catch(err => logger.error('[Reschedule] Failed to send push notification', { error: err instanceof Error ? err : new Error(String(err)) }));
 
       sendBookingRescheduleEmail(booking.user_email as string, {
         date: request_date,
