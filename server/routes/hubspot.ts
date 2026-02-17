@@ -990,7 +990,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
       
       const formTypeLabels: Record<string, string> = {
         'tour-request': 'Tour Request',
-        'membership': 'Membership Inquiry',
+        'membership': 'Membership Application',
         'private-hire': 'Private Hire Inquiry',
         'guest-checkin': 'Guest Check-in',
         'contact': 'Contact Form'
@@ -999,14 +999,17 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
       const submitterName = [getFieldValue('firstname') || getFieldValue('first_name'), getFieldValue('lastname') || getFieldValue('last_name')].filter(Boolean).join(' ') || getFieldValue('email') || 'Someone';
       const staffMessage = `${submitterName} submitted a ${formLabel}`;
       
+      const notificationUrl = formType === 'membership' ? '/admin/applications' : '/admin/inquiries';
+      const notificationRelatedType = formType === 'membership' ? 'application' : 'inquiry';
+      
       notifyAllStaff(
         `New ${formLabel}`,
         staffMessage,
         'system',
         {
           relatedId: insertResult[0]?.id,
-          relatedType: 'inquiry',
-          url: '/admin/inquiries'
+          relatedType: notificationRelatedType as any,
+          url: notificationUrl
         }
       ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { err } }));
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db';
 import { formSubmissions } from '../../shared/schema';
-import { eq, desc, and, SQL } from 'drizzle-orm';
+import { eq, desc, and, ne, SQL } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
@@ -12,7 +12,9 @@ router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
   try {
     const { status, formType } = req.query;
     
-    const conditions: SQL[] = [];
+    const conditions: SQL[] = [
+      ne(formSubmissions.formType, 'membership'),
+    ];
     
     if (status && typeof status === 'string') {
       conditions.push(eq(formSubmissions.status, status));

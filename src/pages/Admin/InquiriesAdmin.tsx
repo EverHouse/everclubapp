@@ -40,7 +40,6 @@ const FORM_TYPE_CHIPS = [
     { id: 'all', label: 'All Types' },
     { id: 'contact', label: 'Contact' },
     { id: 'tour-request', label: 'Tour Request' },
-    { id: 'membership', label: 'Membership' },
     { id: 'private-hire', label: 'Private Hire' },
     { id: 'guest-checkin', label: 'Guest Check-in' },
 ];

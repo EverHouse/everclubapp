@@ -2263,6 +2263,16 @@ async function handleCheckoutSessionCompleted(client: PoolClient, session: Strip
         console.error('[Stripe Webhook] HubSpot sync failed for staff invite:', hubspotError);
       }
       
+      try {
+        await client.query(
+          `UPDATE form_submissions SET status = 'converted', updated_at = NOW() WHERE form_type = 'membership' AND LOWER(email) = LOWER($1) AND status = 'invited'`,
+          [email]
+        );
+        console.log(`[Stripe Webhook] Marked membership application as converted for ${email}`);
+      } catch (convErr) {
+        console.error('[Stripe Webhook] Failed to mark application as converted:', convErr);
+      }
+      
       console.log(`[Stripe Webhook] Staff invite checkout completed for ${email}`);
       return deferredActions;
     }
