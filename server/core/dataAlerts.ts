@@ -9,9 +9,10 @@ export type DataAlertType =
   | 'sync_failure'
   | 'scheduled_task_failure';
 
-// Rate limiting for alerts to prevent duplicate notifications
 const alertCooldowns: Map<string, number> = new Map();
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between same-type alerts
+const INTEGRITY_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours for integrity checks (issues persist until manually fixed)
+const lastIntegrityFingerprint: Map<string, string> = new Map();
 
 function canSendAlert(alertKey: string): boolean {
   const now = Date.now();
@@ -109,6 +110,22 @@ export async function alertOnCriticalIntegrityIssues(
 
   if (criticalChecks.length === 0) return;
 
+  const alertKey = 'integrity_critical';
+  const fingerprint = criticalChecks.map(c => `${c.checkName}:${c.issueCount}`).sort().join('|');
+  const prevFingerprint = lastIntegrityFingerprint.get(alertKey);
+
+  const issuesChanged = fingerprint !== prevFingerprint;
+  const now = Date.now();
+  const lastSent = alertCooldowns.get(alertKey);
+  const cooldownExpired = !lastSent || (now - lastSent) >= INTEGRITY_COOLDOWN_MS;
+
+  if (!issuesChanged && !cooldownExpired) {
+    if (!isProduction) {
+      console.log(`[DataAlerts] Critical integrity alert rate-limited (same issues, ${Math.round((INTEGRITY_COOLDOWN_MS - (now - (lastSent || 0))) / 60000)} min remaining)`);
+    }
+    return;
+  }
+
   const totalCriticalIssues = criticalChecks.reduce((sum, c) => sum + c.issueCount, 0);
   const checkNames = criticalChecks.map(c => `${c.checkName} (${c.issueCount})`).join(', ');
 
@@ -117,10 +134,12 @@ export async function alertOnCriticalIntegrityIssues(
     `Please review the Data Integrity tab in the admin panel.`;
 
   if (!isProduction) {
-    console.log(`[DataAlerts] Creating critical integrity alert: ${totalCriticalIssues} issues`);
+    console.log(`[DataAlerts] Creating critical integrity alert: ${totalCriticalIssues} issues${issuesChanged ? ' (issues changed)' : ' (cooldown expired)'}`);
   }
 
   await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
+  alertCooldowns.set(alertKey, now);
+  lastIntegrityFingerprint.set(alertKey, fingerprint);
 }
 
 export async function alertOnHighIntegrityIssues(
@@ -135,6 +154,22 @@ export async function alertOnHighIntegrityIssues(
 
   if (highChecks.length === 0) return;
 
+  const alertKey = 'integrity_high';
+  const fingerprint = highChecks.map(c => `${c.checkName}:${c.issueCount}`).sort().join('|');
+  const prevFingerprint = lastIntegrityFingerprint.get(alertKey);
+
+  const issuesChanged = fingerprint !== prevFingerprint;
+  const now = Date.now();
+  const lastSent = alertCooldowns.get(alertKey);
+  const cooldownExpired = !lastSent || (now - lastSent) >= INTEGRITY_COOLDOWN_MS;
+
+  if (!issuesChanged && !cooldownExpired) {
+    if (!isProduction) {
+      console.log(`[DataAlerts] High priority integrity alert rate-limited (same issues, ${Math.round((INTEGRITY_COOLDOWN_MS - (now - (lastSent || 0))) / 60000)} min remaining)`);
+    }
+    return;
+  }
+
   const totalHighIssues = highChecks.reduce((sum, c) => sum + c.issueCount, 0);
   const checkNames = highChecks.map(c => `${c.checkName} (${c.issueCount})`).join(', ');
 
@@ -143,10 +178,12 @@ export async function alertOnHighIntegrityIssues(
     `Review the Data Integrity tab in the admin panel.`;
 
   if (!isProduction) {
-    console.log(`[DataAlerts] Creating high priority integrity alert: ${totalHighIssues} issues`);
+    console.log(`[DataAlerts] Creating high priority integrity alert: ${totalHighIssues} issues${issuesChanged ? ' (issues changed)' : ' (cooldown expired)'}`);
   }
 
   await notifyAllStaff(title, message, 'system', { url: '/admin/data-integrity' });
+  alertCooldowns.set(alertKey, now);
+  lastIntegrityFingerprint.set(alertKey, fingerprint);
 }
 
 export async function alertOnSyncFailure(

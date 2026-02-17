@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.66.1",
+    date: "2026-02-17",
+    title: "Data Integrity Alert Rate Limiting",
+    changes: [
+      "Fixed: Data integrity alerts (Critical and High Priority) now use a 4-hour cooldown with content-aware deduplication — you'll only be re-notified if the issues actually change or 4 hours pass",
+      "Fixed: Cleaned up 724 duplicate data integrity notifications that had accumulated in the Updates feed",
+    ]
+  },
+  {
     version: "7.66.0",
     date: "2026-02-17",
     title: "Training Guide Audit & Update",
