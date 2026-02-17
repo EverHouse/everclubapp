@@ -85,7 +85,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     } catch (err: unknown) {
       // Only log actual network errors, not session-related failures
       const message = ((err instanceof Error ? err.message : String(err)) || '').toLowerCase() || '';
-      if (!message.includes('failed to fetch') && !message.includes('network')) {
+      if (!message.includes('failed to fetch') && !message.includes('network') && !message.includes('load failed')) {
         console.error('Failed to fetch notifications:', err);
       }
     } finally {
@@ -109,7 +109,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     } catch (err: unknown) {
       // Only log actual network errors, not session-related failures
       const message = ((err instanceof Error ? err.message : String(err)) || '').toLowerCase() || '';
-      if (!message.includes('failed to fetch') && !message.includes('network')) {
+      if (!message.includes('failed to fetch') && !message.includes('network') && !message.includes('load failed')) {
         console.error('Failed to fetch unread count:', err);
       }
     }

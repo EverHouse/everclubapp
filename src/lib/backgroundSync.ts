@@ -72,7 +72,7 @@ export const fetchAndCache = async <T>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, credentials: 'include' });
     clearTimeout(timeoutId);
     
     if (res.status === 304) {
@@ -96,7 +96,7 @@ export const fetchAndCache = async <T>(
   } catch (e: unknown) {
     const isAbort = e instanceof Error && e.name === 'AbortError';
     const eMsg = e instanceof Error ? e.message : String(e);
-    const isNetworkError = eMsg?.includes('Failed to fetch') || eMsg?.includes('NetworkError');
+    const isNetworkError = eMsg?.includes('Failed to fetch') || eMsg?.includes('NetworkError') || eMsg?.includes('Load failed');
     
     if (!isAbort) {
       const errorType = isNetworkError ? 'network' : 'unknown';

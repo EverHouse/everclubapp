@@ -151,8 +151,7 @@ export function useCommandCenterData(userEmail?: string) {
       }
       const bayMap = new Map<number, BayStatus>();
 
-      // Handle 304 (Not Modified) as success - browser uses cached response body
-      if (bookingsRes.ok || bookingsRes.status === 304) {
+      if (bookingsRes.ok) {
         const data = await bookingsRes.json();
         // Enhance booking names with HubSpot member names
         const enhancedBookings = data.map((b: BookingRequest) => ({
@@ -454,7 +453,8 @@ export function useCommandCenterData(userEmail?: string) {
       }
 
       setLastSynced(new Date());
-    } catch {
+    } catch (err) {
+      console.warn('[CommandCenter] Data fetch error:', err instanceof Error ? err.message : err);
     } finally {
       setIsLoading(false);
     }
