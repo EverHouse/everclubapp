@@ -10,7 +10,7 @@ import { getCalendarIdByName, discoverCalendarIds } from '../cache';
 import { createCalendarEventOnCalendar } from '../google-client';
 import { alertOnSyncFailure } from '../../dataAlerts';
 
-export async function syncWellnessCalendarEvents(): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
+export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boolean }): Promise<{ synced: number; created: number; updated: number; deleted: number; pushedToCalendar: number; error?: string }> {
   try {
     const calendar = await getGoogleCalendarClient();
     const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.wellness.name);
@@ -313,15 +313,16 @@ export async function syncWellnessCalendarEvents(): Promise<{ synced: number; cr
   } catch (error) {
     console.error('Error syncing Wellness Calendar events:', error);
     
-    // Notify staff about calendar sync failure
-    alertOnSyncFailure(
-      'calendar',
-      'Wellness calendar sync',
-      error instanceof Error ? error : new Error(String(error)),
-      { calendarName: CALENDAR_CONFIG.wellness.name }
-    ).catch(alertErr => {
-      console.error('[Wellness Sync] Failed to send staff alert:', alertErr);
-    });
+    if (!options?.suppressAlert) {
+      alertOnSyncFailure(
+        'calendar',
+        'Wellness calendar sync',
+        error instanceof Error ? error : new Error(String(error)),
+        { calendarName: CALENDAR_CONFIG.wellness.name }
+      ).catch(alertErr => {
+        console.error('[Wellness Sync] Failed to send staff alert:', alertErr);
+      });
+    }
     
     return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Failed to sync wellness classes' };
   }
