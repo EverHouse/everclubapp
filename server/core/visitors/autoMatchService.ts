@@ -756,6 +756,7 @@ async function autoMatchBookingRequests(
       id, 
       user_email,
       user_name,
+      session_id,
       request_date as booking_date,
       start_time,
       end_time,
@@ -955,7 +956,8 @@ async function autoMatchBookingRequests(
         }
       }
       
-      // Update booking_request with the visitor email
+      // Update booking_request with the visitor email and name
+      const visitorDisplayName = `${firstName} ${lastName}`.trim() || userName;
       const matchNote = ` [Auto-matched to existing ${visitorType} visitor ${visitor.email} by ${staffEmail || 'system'}]`;
       
       await pool.query(`
@@ -963,6 +965,7 @@ async function autoMatchBookingRequests(
         SET 
           user_id = $2,
           user_email = $3,
+          user_name = $6,
           is_unmatched = false,
           session_id = COALESCE($4, session_id),
           staff_notes = COALESCE(staff_notes, '') || $5,
@@ -973,8 +976,19 @@ async function autoMatchBookingRequests(
         visitor.id,
         visitor.email,
         sessionId,
-        matchNote
+        matchNote,
+        visitorDisplayName
       ]);
+      
+      // Update participant display name if a session exists
+      const finalSessionId = sessionId || row.session_id;
+      if (finalSessionId) {
+        await pool.query(`
+          UPDATE booking_participants 
+          SET user_id = $1, display_name = $2
+          WHERE session_id = $3 AND participant_type = 'owner'
+        `, [visitor.id, visitorDisplayName, finalSessionId]);
+      }
       
       results.push({
         bookingId: row.id,
