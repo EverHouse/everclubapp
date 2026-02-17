@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../contexts/DataContext';
 import { AnnouncementFormDrawer } from '../admin/AnnouncementFormDrawer';
 import { NoticeFormDrawer } from '../admin/NoticeFormDrawer';
+import { EventFormDrawer } from '../admin/EventFormDrawer';
+import { WellnessFormDrawer } from '../admin/WellnessFormDrawer';
 import { useBottomNav } from '../../contexts/BottomNavContext';
 import { useIsMobile } from '../../hooks/useBreakpoint';
 import PullToRefresh from '../PullToRefresh';
@@ -68,6 +70,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   const [prefillHostMember, setPrefillHostMember] = useState<SelectedMember | null>(null);
   const [announcementDrawerOpen, setAnnouncementDrawerOpen] = useState(false);
   const [noticeDrawerOpen, setNoticeDrawerOpen] = useState(false);
+  const [eventDrawerOpen, setEventDrawerOpen] = useState(false);
+  const [wellnessDrawerOpen, setWellnessDrawerOpen] = useState(false);
   const [trackmanModal, setTrackmanModal] = useState<{ isOpen: boolean; booking: BookingRequest | null }>({ isOpen: false, booking: null });
   const [checkinConfirmation, setCheckinConfirmation] = useState<{
     isOpen: boolean;
@@ -871,8 +875,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 <button
                   onClick={() => { 
                     setFabOpen(false); 
-                    navigate('/admin/calendar?subtab=events');
-                    setTimeout(() => window.dispatchEvent(new CustomEvent('openEventCreate')), 300);
+                    setEventDrawerOpen(true);
                   }}
                   className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-5"
                   role="menuitem"
@@ -886,8 +889,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 <button
                   onClick={() => { 
                     setFabOpen(false); 
-                    navigate('/admin/calendar?subtab=wellness');
-                    setTimeout(() => window.dispatchEvent(new CustomEvent('openWellnessCreate')), 300);
+                    setWellnessDrawerOpen(true);
                   }}
                   className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/90 dark:bg-surface-dark/90 backdrop-blur-xl shadow-lg border border-gray-200 dark:border-white/20 transition-all duration-200 hover:scale-105 active:scale-95 animate-fab-item-4"
                   role="menuitem"
@@ -1012,6 +1014,24 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       <NoticeFormDrawer
         isOpen={noticeDrawerOpen}
         onClose={() => setNoticeDrawerOpen(false)}
+      />
+
+      <EventFormDrawer
+        isOpen={eventDrawerOpen}
+        onClose={() => setEventDrawerOpen(false)}
+        onSuccess={() => {
+          refresh();
+          window.dispatchEvent(new CustomEvent('refreshEventsData'));
+        }}
+      />
+
+      <WellnessFormDrawer
+        isOpen={wellnessDrawerOpen}
+        onClose={() => setWellnessDrawerOpen(false)}
+        onSuccess={() => {
+          refresh();
+          window.dispatchEvent(new CustomEvent('refreshWellnessData'));
+        }}
       />
     </PullToRefresh>
   );
