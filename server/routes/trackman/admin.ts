@@ -2681,8 +2681,9 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
     // Get count and sample of bookings without sessions
     const countResult = await db.execute(sql`SELECT COUNT(*) as total
       FROM booking_requests br
-      WHERE br.session_id IS NULL
-        AND br.status IN ('attended', 'approved', 'confirmed')
+      LEFT JOIN booking_sessions bs ON br.session_id = bs.id
+      WHERE br.status IN ('attended', 'approved', 'confirmed')
+        AND (br.session_id IS NULL OR bs.id IS NULL)
         AND br.resource_id IS NOT NULL
         AND (br.is_unmatched = false OR br.is_unmatched IS NULL)`);
     
@@ -2703,9 +2704,10 @@ router.get('/api/admin/backfill-sessions/preview', isStaffOrAdmin, async (req, r
         br.origin,
         br.created_at
       FROM booking_requests br
+      LEFT JOIN booking_sessions bs ON br.session_id = bs.id
       LEFT JOIN resources r ON br.resource_id = r.id
-      WHERE br.session_id IS NULL
-        AND br.status IN ('attended', 'approved', 'confirmed')
+      WHERE br.status IN ('attended', 'approved', 'confirmed')
+        AND (br.session_id IS NULL OR bs.id IS NULL)
         AND br.resource_id IS NOT NULL
         AND (br.is_unmatched = false OR br.is_unmatched IS NULL)
       ORDER BY br.request_date DESC, br.start_time DESC
@@ -2744,7 +2746,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
     
     const staffEmail = (req as any).session?.user?.email || 'admin';
     
-    // Find all bookings without sessions
+    // Find all bookings without sessions (including broken session references)
     const bookingsResult = await client.query(`
       SELECT 
         br.id,
@@ -2756,11 +2758,14 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         br.start_time,
         br.end_time,
         br.trackman_booking_id,
+        br.session_id,
+        CASE WHEN bs.id IS NOT NULL THEN true ELSE false END as session_exists,
         u.id as owner_user_id
       FROM booking_requests br
+      LEFT JOIN booking_sessions bs ON br.session_id = bs.id
       LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
-      WHERE br.session_id IS NULL
-        AND br.status IN ('attended', 'approved', 'confirmed')
+      WHERE br.status IN ('attended', 'approved', 'confirmed')
+        AND (br.session_id IS NULL OR bs.id IS NULL)
         AND br.resource_id IS NOT NULL
         AND (br.is_unmatched = false OR br.is_unmatched IS NULL)
       ORDER BY br.request_date ASC
@@ -2792,6 +2797,10 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         
         const displayName = booking.user_name || booking.user_email || 'Unknown';
         const userId = booking.owner_user_id || booking.user_id;
+        
+        if (booking.session_id && !booking.session_exists) {
+          await client.query('UPDATE booking_requests SET session_id = NULL WHERE id = $1', [booking.id]);
+        }
         
         let source = 'member_request';
         if (booking.trackman_booking_id) {
@@ -2838,6 +2847,7 @@ router.post('/api/admin/backfill-sessions', isStaffOrAdmin, async (req, res) => 
         }
         
         logger.error('[Backfill] Error processing booking', { extra: { id: booking.id, error: getErrorMessage(bookingError) } });
+        logger.warn('[Backfill] Failed to process booking', { extra: { bookingId: booking.id, error: getErrorMessage(bookingError) } });
         errors.push({
           bookingId: booking.id,
           error: getErrorMessage(bookingError) || 'Unknown error'

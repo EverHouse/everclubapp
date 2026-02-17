@@ -117,7 +117,7 @@ const DataIntegrityTab: React.FC = () => {
   const [stripeHubspotLinkResult, setStripeHubspotLinkResult] = useState<{ success: boolean; message: string; stripeOnlyMembers?: any[]; hubspotOnlyMembers?: any[]; linkedCount?: number; dryRun?: boolean } | null>(null);
   const [paymentStatusResult, setPaymentStatusResult] = useState<{ success: boolean; message: string; totalChecked?: number; updatedCount?: number; updates?: any[]; dryRun?: boolean } | null>(null);
   const [visitCountResult, setVisitCountResult] = useState<{ success: boolean; message: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: any[]; dryRun?: boolean } | null>(null);
-  const [ghostBookingResult, setGhostBookingResult] = useState<{ success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean } | null>(null);
+  const [ghostBookingResult, setGhostBookingResult] = useState<{ success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean; errors?: Array<{ bookingId: number; error: string }> } | null>(null);
   const [orphanedParticipantResult, setOrphanedParticipantResult] = useState<{ success: boolean; message: string; relinked?: number; converted?: number; total?: number; dryRun?: boolean; relinkedDetails?: any[]; convertedDetails?: any[] } | null>(null);
   const [reviewItemsResult, setReviewItemsResult] = useState<{ success: boolean; message: string; wellnessCount?: number; eventCount?: number; total?: number; dryRun?: boolean } | null>(null);
   const [duplicateDetectionResult, setDuplicateDetectionResult] = useState<{ success: boolean; message: string; appDuplicates?: any[]; hubspotDuplicates?: any[] } | null>(null);
@@ -893,19 +893,19 @@ const DataIntegrityTab: React.FC = () => {
   });
 
   const fixGhostBookingsMutation = useMutation({
-    mutationFn: () => postWithCredentials<{ message?: string; sessionsCreated?: number }>('/api/admin/backfill-sessions', {}),
+    mutationFn: () => postWithCredentials<{ message?: string; sessionsCreated?: number; sessionsLinked?: number; totalProcessed?: number; errorsCount?: number; errors?: Array<{ bookingId: number; error: string }> }>('/api/admin/backfill-sessions', {}),
     onSuccess: (data) => {
+      const hasErrors = data.errorsCount && data.errorsCount > 0;
       setGhostBookingResult({
         success: true,
         message: data.message || `Created ${data.sessionsCreated} sessions`,
-        ghostBookings: data.sessionsCreated,
-        fixed: data.sessionsCreated,
-        dryRun: false
+        ghostBookings: data.totalProcessed,
+        fixed: (data.sessionsCreated || 0) + (data.sessionsLinked || 0),
+        dryRun: false,
+        errors: data.errors
       });
-      showToast(data.message || `Created ${data.sessionsCreated} sessions`, 'success');
-      if (data.sessionsCreated && data.sessionsCreated > 0) {
-        runIntegrityMutation.mutate();
-      }
+      showToast(data.message || `Created ${data.sessionsCreated} sessions`, hasErrors ? 'warning' : 'success');
+      runIntegrityMutation.mutate();
     },
     onError: (err: Error) => {
       setGhostBookingResult({ success: false, message: (err instanceof Error ? err.message : String(err)) || 'Failed to create sessions' });

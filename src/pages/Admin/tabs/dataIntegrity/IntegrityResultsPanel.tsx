@@ -55,7 +55,7 @@ interface IntegrityResultsPanelProps {
     errors: number;
   } | null;
   isRunningGhostBookingFix: boolean;
-  ghostBookingResult: { success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean } | null;
+  ghostBookingResult: { success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean; errors?: Array<{ bookingId: number; error: string }> } | null;
   handleFixGhostBookings: (dryRun: boolean) => void;
   isCleaningMindbodyIds: boolean;
   mindbodyCleanupResult: { success: boolean; message: string; toClean?: number; dryRun?: boolean } | null;
@@ -570,6 +570,16 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                   <p className="text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400 mb-1">Preview Only - No Changes Made</p>
                 )}
                 <p className={`text-xs ${getTextStyle(ghostBookingResult)}`}>{ghostBookingResult.message}</p>
+                {ghostBookingResult.errors && ghostBookingResult.errors.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-red-600 dark:text-red-400">Errors:</p>
+                    {ghostBookingResult.errors.map((err, i) => (
+                      <p key={i} className="text-[10px] text-red-600 dark:text-red-400">
+                        Booking #{err.bookingId}: {err.error}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
