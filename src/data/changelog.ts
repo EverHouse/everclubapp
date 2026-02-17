@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.63.0",
+    date: "2026-02-17",
+    title: "Billing System Hardening",
+    changes: [
+      "New: Abandoned payment intents are now automatically cancelled after 2 hours — previously required manual Stripe dashboard visits or 7-day wait",
+      "New: Payment modal now cleans up incomplete payments when closed or when the browser tab is closed — prevents orphaned charges",
+      "New: Invoice PDF download links now appear alongside the 'View' button in the billing section",
+      "New: Stripe credit notes are now processed via webhooks — members receive a notification when a credit is applied to their account",
+      "Improved: Reconciliation scheduler now runs three cleanup passes every 15 minutes: fee snapshot sync, stale intent cleanup, and abandoned payment cancellation",
+    ]
+  },
+  {
     version: "7.62.0",
     date: "2026-02-17",
     title: "Security Hardening & Bug Fixes",

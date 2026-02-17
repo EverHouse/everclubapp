@@ -362,6 +362,16 @@ export default function BillingSection({ isDark }: Props) {
                         View
                       </a>
                     )}
+                    {invoice.invoicePdf && (
+                      <a
+                        href={invoice.invoicePdf}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`text-xs ${isDark ? 'text-accent/70' : 'text-primary/70'} hover:underline`}
+                      >
+                        PDF
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

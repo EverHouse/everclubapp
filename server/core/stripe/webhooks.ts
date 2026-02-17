@@ -295,6 +295,8 @@ export async function processStripeWebhook(
       if (coupon.id === 'FAMILY20') {
         console.log('[Stripe Webhook] FAMILY20 coupon deleted - will be recreated on next use');
       }
+    } else if (event.type === 'credit_note.created') {
+      deferredActions = await handleCreditNoteCreated(client, event.data.object as Stripe.CreditNote);
     }
 
     await client.query('COMMIT');
@@ -398,6 +400,8 @@ export async function replayStripeEvent(
       if (coupon.id === 'FAMILY20') {
         console.log('[Stripe Webhook Replay] FAMILY20 coupon deleted - will be recreated on next use');
       }
+    } else if (event.type === 'credit_note.created') {
+      deferredActions = await handleCreditNoteCreated(client, event.data.object as Stripe.CreditNote);
     }
 
     await client.query('COMMIT');
@@ -413,6 +417,67 @@ export async function replayStripeEvent(
   } finally {
     client.release();
   }
+}
+
+async function handleCreditNoteCreated(client: PoolClient, creditNote: Stripe.CreditNote): Promise<DeferredAction[]> {
+  const deferredActions: DeferredAction[] = [];
+  
+  const { id, number, invoice, customer, total, currency, status, created, reason, memo, lines } = creditNote;
+  
+  console.log(`[Stripe Webhook] Credit note created: ${id} (${number}), total: $${(total / 100).toFixed(2)}, reason: ${reason || 'none'}`);
+  
+  const customerId = typeof customer === 'string' ? customer : customer?.id;
+  const invoiceId = typeof invoice === 'string' ? invoice : invoice?.id;
+  
+  deferredActions.push(async () => {
+    await upsertTransactionCache({
+      stripeId: id,
+      objectType: 'refund',
+      amountCents: total,
+      currency: currency || 'usd',
+      status: status || 'issued',
+      createdAt: new Date(created * 1000),
+      customerId,
+      invoiceId,
+      description: memo || `Credit note ${number}`,
+      metadata: { type: 'credit_note', reason, number },
+      source: 'webhook',
+    });
+  });
+  
+  if (customerId) {
+    const memberResult = await client.query(
+      `SELECT email, display_name FROM users WHERE stripe_customer_id = $1 LIMIT 1`,
+      [customerId]
+    );
+    
+    if (memberResult.rows.length > 0) {
+      const member = memberResult.rows[0];
+      const amountStr = `$${(total / 100).toFixed(2)}`;
+      
+      deferredActions.push(async () => {
+        try {
+          await pool.query(
+            `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
+             VALUES ($1, $2, $3, $4, $5, NOW())`,
+            [
+              member.email.toLowerCase(),
+              'Credit Applied',
+              `A credit of ${amountStr} has been applied to your account${reason ? ` (${reason.replace(/_/g, ' ')})` : ''}.`,
+              'billing',
+              'payment'
+            ]
+          );
+        } catch (err) {
+          console.error('[Stripe Webhook] Failed to create credit note notification:', err);
+        }
+      });
+      
+      console.log(`[Stripe Webhook] Credit note ${id} for member ${member.email}: ${amountStr}`);
+    }
+  }
+  
+  return deferredActions;
 }
 
 async function handleChargeRefunded(client: PoolClient, charge: Stripe.Charge): Promise<DeferredAction[]> {

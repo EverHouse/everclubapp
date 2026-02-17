@@ -1459,4 +1459,46 @@ router.post('/api/member/balance/confirm', isAuthenticated, async (req: Request,
   }
 });
 
+router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const bookingId = parseInt(req.params.bookingId);
+    const { paymentIntentId } = req.body;
+
+    if (!paymentIntentId || typeof paymentIntentId !== 'string') {
+      return res.status(400).json({ error: 'Missing paymentIntentId' });
+    }
+
+    const verification = await pool.query(
+      `SELECT spi.id FROM stripe_payment_intents spi
+       JOIN booking_requests br ON spi.booking_id = br.id
+       WHERE spi.stripe_payment_intent_id = $1 
+       AND spi.booking_id = $2
+       AND br.user_email = $3
+       AND spi.status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation')`,
+      [paymentIntentId, bookingId, sessionUser.email.toLowerCase()]
+    );
+
+    if (verification.rows.length === 0) {
+      return res.status(404).json({ error: 'Payment intent not found or already processed' });
+    }
+
+    const { cancelPaymentIntent } = await import('../../core/stripe');
+    const result = await cancelPaymentIntent(paymentIntentId);
+
+    if (result.success) {
+      console.log(`[Member Payment] User ${sessionUser.email} cancelled abandoned PI ${paymentIntentId} for booking ${bookingId}`);
+    }
+
+    res.json({ success: result.success });
+  } catch (error: unknown) {
+    console.error('[Member Payment] Error cancelling payment:', error);
+    res.json({ success: false });
+  }
+});
+
 export default router;

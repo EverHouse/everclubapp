@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
 import { StripePaymentWithSecret } from '../stripe/StripePaymentForm';
@@ -48,9 +48,11 @@ export function MemberPaymentModal({
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<PayFeesResponse | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const paymentSucceededRef = useRef(false);
 
   const initializePayment = useCallback(async () => {
     try {
+      paymentSucceededRef.current = false;
       setLoading(true);
       setError(null);
 
@@ -86,7 +88,38 @@ export function MemberPaymentModal({
     }
   }, [isOpen, initializePayment]);
 
+  useEffect(() => {
+    const currentPiId = paymentIntentId;
+    
+    const handleBeforeUnload = () => {
+      if (currentPiId && !paymentSucceededRef.current) {
+        navigator.sendBeacon(
+          `/api/member/bookings/${bookingId}/cancel-payment`,
+          new Blob([JSON.stringify({ paymentIntentId: currentPiId })], { type: 'application/json' })
+        );
+      }
+    };
+
+    if (currentPiId && isOpen) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (currentPiId && !paymentSucceededRef.current) {
+        fetch(`/api/member/bookings/${bookingId}/cancel-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ paymentIntentId: currentPiId }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+  }, [paymentIntentId, bookingId, isOpen]);
+
   const handlePaymentSuccess = async () => {
+    paymentSucceededRef.current = true;
     if (!paymentIntentId) {
       onSuccess();
       return;
