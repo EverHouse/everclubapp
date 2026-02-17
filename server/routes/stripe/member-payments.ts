@@ -548,6 +548,8 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       automatic_payment_methods: {
         enabled: true,
       },
+    }, {
+      idempotencyKey: `invoice_payment_${invoiceId}_${stripeCustomerId}`
     });
 
     console.log(`[Stripe] Member invoice payment intent created for ${invoiceId}: $${(amountDue / 100).toFixed(2)}`);

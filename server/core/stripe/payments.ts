@@ -246,6 +246,8 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
           invoice_id: finalizedInvoice.id,
         },
         ...(receiptEmail ? { receipt_email: receiptEmail } : {}),
+      }, {
+        idempotencyKey: `terminal_standalone_${customerId}_${finalizedInvoice.id}`
       });
 
       console.log(`[Stripe] Created invoice ${invoice.id} with standalone terminal PI: ${standalonePi.id}, total: ${cartTotal}`);

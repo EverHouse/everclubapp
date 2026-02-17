@@ -13,6 +13,18 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.63.2",
+    date: "2026-02-17",
+    title: "Billing Idempotency & Transaction Safety",
+    changes: [
+      "Fixed: All Stripe payment intent creation calls now include idempotency keys — prevents accidental double charges from network retries or duplicate requests",
+      "Fixed: Staff saved-card charge now wraps all database updates (participants, payment records, staff actions) in a single transaction — if any step fails, everything rolls back cleanly",
+      "Fixed: POS saved-card charges now record in the payment intents table immediately — previously relied on webhook processing, which could leave a tracking gap",
+      "Fixed: POS charge database writes (payment record + audit log) now wrapped in a transaction for consistency",
+      "Improved: All Stripe API calls now use the managed client singleton — eliminated the last direct instantiation",
+    ]
+  },
+  {
     version: "7.63.1",
     date: "2026-02-17",
     title: "Billing State Consistency Improvements",

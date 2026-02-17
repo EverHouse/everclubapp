@@ -615,6 +615,8 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                   visitor_email: member.email,
                   created_via: 'trackman_resolve'
                 }
+              }, {
+                idempotencyKey: `trackman_daypass_${booking.id}_${customerId}`
               });
               
               paymentIntentId = paymentIntent.id;

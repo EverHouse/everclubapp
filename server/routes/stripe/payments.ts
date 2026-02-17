@@ -1153,35 +1153,61 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       off_session: true,
       description: adjustedDescription,
       metadata: chargeMetadata
+    }, {
+      idempotencyKey: `staff_charge_${member.id}_${resolvedBookingId || 'nobooking'}_${chargeAmount}`
     });
 
     if (paymentIntent.status === 'succeeded') {
-      if (participantIds && Array.isArray(participantIds) && participantIds.length > 0) {
-        await db.execute(sql`UPDATE booking_participants 
-           SET payment_status = 'paid', 
-               stripe_payment_intent_id = ${paymentIntent.id},
-               paid_at = NOW()
-           WHERE id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)})`);
-        console.log(`[Stripe] Staff charged saved card: $${(chargeAmount / 100).toFixed(2)} (credit: $${(balanceToApply / 100).toFixed(2)}) for ${member.email}, marked ${participantIds.length} participants as paid`);
+      const txClient = await pool.connect();
+      try {
+        await txClient.query('BEGIN');
+
+        const safeParticipantIds = (participantIds || []).filter((id: unknown) => typeof id === 'number' && Number.isFinite(id) && id > 0).map((id: number) => Math.floor(id));
+        if (safeParticipantIds.length > 0) {
+          const idPlaceholders = safeParticipantIds.map((_: number, i: number) => `$${i + 1}`).join(', ');
+          await txClient.query(
+            `UPDATE booking_participants 
+             SET payment_status = 'paid', 
+                 stripe_payment_intent_id = $${safeParticipantIds.length + 1},
+                 paid_at = NOW()
+             WHERE id IN (${idPlaceholders})`,
+            [...safeParticipantIds, paymentIntent.id]
+          );
+          console.log(`[Stripe] Staff charged saved card: $${(chargeAmount / 100).toFixed(2)} (credit: $${(balanceToApply / 100).toFixed(2)}) for ${member.email}, marked ${participantIds.length} participants as paid`);
+        }
+
+        await txClient.query(
+          `INSERT INTO stripe_payment_intents 
+            (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
+           VALUES ($1, $2, $3, $4, 'succeeded', 'booking_fee', 'Staff charged saved card', $5)
+           ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`,
+          [paymentIntent.id, member.email, member.id, authoritativeAmountCents, staffEmail]
+        );
+
+        const staffActionDetails = JSON.stringify({
+            amountCents: authoritativeAmountCents,
+            cardCharged: chargeAmount,
+            balanceApplied: balanceToApply,
+            cardLast4,
+            cardBrand,
+            paymentIntentId: paymentIntent.id,
+            bookingId: resolvedBookingId,
+            sessionId: resolvedSessionId
+          });
+        await txClient.query(
+          `INSERT INTO staff_actions (action_type, staff_email, staff_name, target_email, details, created_at)
+           VALUES ('charge_saved_card', $1, $2, $3, $4, NOW())`,
+          [staffEmail, staffName || '', member.email, staffActionDetails]
+        );
+
+        await txClient.query('COMMIT');
+      } catch (txErr) {
+        await txClient.query('ROLLBACK');
+        console.error('[Stripe] Transaction failed for staff charge post-payment DB updates:', txErr);
+        throw txErr;
+      } finally {
+        txClient.release();
       }
-
-      await db.execute(sql`INSERT INTO stripe_payment_intents 
-          (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
-         VALUES (${paymentIntent.id}, ${member.email}, ${member.id}, ${authoritativeAmountCents}, 'succeeded', 'booking_fee', ${'Staff charged saved card'}, ${staffEmail})
-         ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`);
-
-      const staffActionDetails = JSON.stringify({
-          amountCents: authoritativeAmountCents,
-          cardCharged: chargeAmount,
-          balanceApplied: balanceToApply,
-          cardLast4,
-          cardBrand,
-          paymentIntentId: paymentIntent.id,
-          bookingId: resolvedBookingId,
-          sessionId: resolvedSessionId
-        });
-      await db.execute(sql`INSERT INTO staff_actions (action_type, staff_email, staff_name, target_email, details, created_at)
-         VALUES ('charge_saved_card', ${staffEmail}, ${staffName || ''}, ${member.email}, ${staffActionDetails}, NOW())`);
 
       broadcastBillingUpdate({
         action: 'payment_succeeded',
@@ -1382,11 +1408,37 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
         source: 'pos',
         productId: productId || ''
       }
+    }, {
+      idempotencyKey: `pos_saved_card_${member.id}_${numericAmount}_${Date.now()}`
     });
 
     if (paymentIntent.status === 'succeeded') {
-      await db.execute(sql`INSERT INTO billing_audit_log (payment_intent_id, member_email, member_id, amount_cents, description, staff_email, created_at)
-         VALUES (${paymentIntent.id}, ${member.email}, ${member.id}, ${numericAmount}, ${description || 'POS saved card charge'}, ${staffEmail}, NOW())`);
+      const txClient = await pool.connect();
+      try {
+        await txClient.query('BEGIN');
+
+        await txClient.query(
+          `INSERT INTO stripe_payment_intents 
+            (payment_intent_id, member_email, member_id, amount_cents, status, purpose, description, created_by)
+           VALUES ($1, $2, $3, $4, 'succeeded', 'pos_charge', $5, $6)
+           ON CONFLICT (payment_intent_id) DO UPDATE SET status = 'succeeded', updated_at = NOW()`,
+          [paymentIntent.id, member.email, member.id, numericAmount, description || 'POS saved card charge', staffEmail]
+        );
+
+        await txClient.query(
+          `INSERT INTO billing_audit_log (payment_intent_id, member_email, member_id, amount_cents, description, staff_email, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+          [paymentIntent.id, member.email, member.id, numericAmount, description || 'POS saved card charge', staffEmail]
+        );
+
+        await txClient.query('COMMIT');
+      } catch (txErr) {
+        await txClient.query('ROLLBACK');
+        console.error('[Stripe] Transaction failed for POS charge post-payment DB updates:', txErr);
+        throw txErr;
+      } finally {
+        txClient.release();
+      }
 
       logFromRequest(req, 'charge_saved_card' as any, 'payment', paymentIntent.id, member.email, {
         amountCents: numericAmount,

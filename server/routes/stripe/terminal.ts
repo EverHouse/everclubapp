@@ -228,6 +228,8 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
           metadata: finalMetadata,
           ...(customerId ? { customer: customerId } : {}),
           ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
+        }, {
+          idempotencyKey: `terminal_fallback_${customerId || 'anon'}_${amount}_${Date.now()}`
         });
       }
     } else {
@@ -240,6 +242,8 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
         metadata: finalMetadata,
         ...(customerId ? { customer: customerId } : {}),
         ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
+      }, {
+        idempotencyKey: `terminal_${customerId || 'anon'}_${amount}_${Date.now()}`
       });
     }
     
