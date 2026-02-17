@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.65.1",
+    date: "2026-02-17",
+    title: "Trackman Booking ID Verification",
+    changes: [
+      "New: Trackman Booking ID verification — the system now validates that pasted IDs are real Trackman numbers (not UUIDs or other formats) before saving",
+      "New: Duplicate Trackman ID prevention — blocks linking the same Trackman booking to multiple app bookings",
+      "Fixed: Bookings with invalid Trackman IDs (like UUIDs) can now be cancelled directly without getting stuck in 'awaiting Trackman cancellation' state",
+    ]
+  },
+  {
     version: "7.65.0",
     date: "2026-02-17",
     title: "Data Integrity & Zombie Member Prevention",

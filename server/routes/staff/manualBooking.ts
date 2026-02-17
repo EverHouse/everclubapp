@@ -7,7 +7,7 @@ import { logFromRequest } from '../../core/auditLog';
 import {logAndRespond, logger } from '../../core/logger';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { db } from '../../db';
-import { resources, dayPassPurchases, passRedemptionLogs } from '../../../shared/schema';
+import { resources, dayPassPurchases, passRedemptionLogs, bookingRequests } from '../../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
@@ -32,6 +32,25 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
     const trackman_external_id_val = req.body.trackman_external_id;
     const trackman_id = trackman_booking_id_val || trackman_external_id_val;
     
+    if (trackman_id && !/^\d+$/.test(trackman_id)) {
+      return res.status(400).json({ 
+        error: 'Trackman Booking ID must be a number (e.g., 19510379). UUIDs and other formats are not valid Trackman IDs.' 
+      });
+    }
+
+    if (trackman_id) {
+      const [duplicate] = await db.select({ id: bookingRequests.id })
+        .from(bookingRequests)
+        .where(eq(bookingRequests.trackmanBookingId, trackman_id))
+        .limit(1);
+      
+      if (duplicate) {
+        return res.status(409).json({ 
+          error: `Trackman Booking ID ${trackman_id} is already linked to another booking (#${duplicate.id}). Each Trackman booking can only be linked once.` 
+        });
+      }
+    }
+
     if (!user_email || !request_date || !start_time || !duration_minutes) {
       return res.status(400).json({ error: 'Missing required fields: user_email, request_date, start_time, duration_minutes' });
     }

@@ -32,6 +32,29 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
     const { id } = req.params;
     const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = req.body;
     
+    if (trackman_booking_id !== undefined && trackman_booking_id !== null && trackman_booking_id !== '') {
+      if (!/^\d+$/.test(trackman_booking_id)) {
+        return res.status(400).json({ 
+          error: 'Trackman Booking ID must be a number (e.g., 19510379). UUIDs and other formats are not valid Trackman IDs.' 
+        });
+      }
+      
+      const bookingId = parseInt(id as string, 10);
+      const [duplicate] = await db.select({ id: bookingRequests.id })
+        .from(bookingRequests)
+        .where(and(
+          eq(bookingRequests.trackmanBookingId, trackman_booking_id),
+          ne(bookingRequests.id, bookingId)
+        ))
+        .limit(1);
+      
+      if (duplicate) {
+        return res.status(409).json({ 
+          error: `Trackman Booking ID ${trackman_booking_id} is already linked to another booking (#${duplicate.id}). Each Trackman booking can only be linked once.` 
+        });
+      }
+    }
+    
     const formatRow = (row: any) => ({
       id: row.id,
       user_email: row.userEmail,
@@ -746,7 +769,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           };
         }
         
-        const isTrackmanLinked = !!existing.trackmanBookingId;
+        const isTrackmanLinked = !!existing.trackmanBookingId && /^\d+$/.test(existing.trackmanBookingId);
         const wasApproved = existing.status === 'approved';
         const needsPendingCancel = isTrackmanLinked && wasApproved;
         

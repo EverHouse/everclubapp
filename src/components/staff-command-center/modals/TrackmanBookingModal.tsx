@@ -185,6 +185,10 @@ export function TrackmanBookingModal({
     }
 
     const trimmedId = externalId.trim();
+    if (!/^\d+$/.test(trimmedId)) {
+      setError("Trackman Booking IDs are numbers only (e.g., 19510379). This doesn't look like a Trackman ID.");
+      return;
+    }
     if (trimmedId.length < 5) {
       setError('The ID looks too short.');
       return;
