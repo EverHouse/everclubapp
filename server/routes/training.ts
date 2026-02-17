@@ -5,6 +5,7 @@ import { eq, asc, and, max } from 'drizzle-orm';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
 import { PRICING } from '../core/billing/pricingConfig';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -754,6 +755,7 @@ router.post('/api/admin/training-sections', isAdmin, async (req, res) => {
       sortOrder: sortOrder ?? 0,
     }).returning();
     
+    logFromRequest(req, 'create_training' as any, 'training' as any, String(newSection.id), newSection.title, {});
     res.status(201).json(newSection);
   } catch (error: unknown) {
     console.error('Training section creation error:', error);
@@ -783,6 +785,7 @@ router.put('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Training section not found' });
     }
     
+    logFromRequest(req, 'update_training' as any, 'training' as any, String(id), title, {});
     res.json(updated);
   } catch (error: unknown) {
     console.error('Training section update error:', error);
@@ -802,6 +805,7 @@ router.delete('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Training section not found' });
     }
     
+    logFromRequest(req, 'delete_training' as any, 'training' as any, String(id), undefined, {});
     res.json({ success: true, deleted });
   } catch (error: unknown) {
     console.error('Training section deletion error:', error);
@@ -817,6 +821,7 @@ router.post('/api/admin/training-sections/seed', isAdmin, async (req, res) => {
     const insertedSections = await db.select().from(trainingSections)
       .orderBy(asc(trainingSections.sortOrder), asc(trainingSections.id));
     
+    logFromRequest(req, 'seed_training' as any, 'training' as any, undefined, 'Training Seed', {});
     res.status(201).json({ 
       success: true, 
       message: `Seeded ${insertedSections.length} training sections`,

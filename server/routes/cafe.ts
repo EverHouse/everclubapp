@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool, isProduction } from '../core/db';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { broadcastCafeMenuUpdate } from '../core/websocket';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.post('/api/cafe-menu', isStaffOrAdmin, async (req, res) => {
     );
     
     broadcastCafeMenuUpdate('created');
+    logFromRequest(req, 'create_cafe_item' as any, 'cafe' as any, String(result.rows[0].id), result.rows[0].name || name, {});
     res.status(201).json(result.rows[0]);
   } catch (error: unknown) {
     if (!isProduction) console.error('Cafe item creation error:', error);
@@ -94,6 +96,7 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     broadcastCafeMenuUpdate('updated');
+    logFromRequest(req, 'update_cafe_item' as any, 'cafe' as any, String(id), name, {});
     res.json(result.rows[0]);
   } catch (error: unknown) {
     if (!isProduction) console.error('Cafe item update error:', error);
@@ -112,6 +115,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     
     await pool.query('DELETE FROM cafe_items WHERE id = $1', [id]);
     broadcastCafeMenuUpdate('deleted');
+    logFromRequest(req, 'delete_cafe_item' as any, 'cafe' as any, String(id), undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
     if (!isProduction) console.error('Cafe item delete error:', error);
@@ -188,6 +192,7 @@ router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
     );
     const inserted = insertResult.rowCount || 0;
     
+    logFromRequest(req, 'seed_cafe' as any, 'cafe' as any, undefined, 'Cafe Menu Seed', {});
     res.json({ 
       success: true, 
       message: `Cafe menu seeded: ${inserted} new items added`,

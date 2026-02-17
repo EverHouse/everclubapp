@@ -340,6 +340,7 @@ router.post('/api/notice-types', isStaffOrAdmin, async (req, res) => {
       return res.json(existing);
     }
     
+    logFromRequest(req, 'create_notice_type' as any, 'notice_type' as any, String(result.id), result.name, {});
     res.status(201).json(result);
   } catch (error: unknown) {
     if (!isProduction) console.error('Notice type creation error:', error);
@@ -379,6 +380,7 @@ router.put('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
       .where(eq(noticeTypes.id, parseInt(id as string)))
       .returning();
     
+    logFromRequest(req, 'update_notice_type' as any, 'notice_type' as any, String(id), undefined, {});
     res.json(result);
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
@@ -410,6 +412,7 @@ router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
       .delete(noticeTypes)
       .where(eq(noticeTypes.id, parseInt(id as string)));
     
+    logFromRequest(req, 'delete_notice_type' as any, 'notice_type' as any, String(id), undefined, {});
     res.json({ success: true, message: 'Notice type deleted' });
   } catch (error: unknown) {
     if (!isProduction) console.error('Notice type delete error:', error);
@@ -457,6 +460,7 @@ router.post('/api/closure-reasons', isStaffOrAdmin, async (req, res) => {
       })
       .returning();
     
+    logFromRequest(req, 'create_closure_reason' as any, 'closure_reason' as any, String(result.id), result.label, {});
     res.status(201).json(result);
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
@@ -491,6 +495,7 @@ router.put('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Closure reason not found' });
     }
     
+    logFromRequest(req, 'update_closure_reason' as any, 'closure_reason' as any, String(id), undefined, {});
     res.json(result);
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
@@ -515,6 +520,7 @@ router.delete('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Closure reason not found' });
     }
     
+    logFromRequest(req, 'delete_closure_reason' as any, 'closure_reason' as any, String(id), undefined, {});
     res.json({ success: true, message: 'Closure reason deactivated' });
   } catch (error: unknown) {
     if (!isProduction) console.error('Closure reason delete error:', error);

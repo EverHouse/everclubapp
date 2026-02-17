@@ -5,6 +5,7 @@ import { eq, desc, and, SQL } from 'drizzle-orm';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { notifyAllStaff, notifyMember } from '../core/notificationService';
 import { getSessionUser } from '../types/session';
+import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
 
@@ -139,6 +140,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Bug report not found' });
     }
     
+    logFromRequest(req, 'update_bug_report' as any, 'bug_report' as any, String(id), undefined, { status: req.body.status });
     res.json(updated);
   } catch (error: unknown) {
     console.error('Bug report update error:', error);
@@ -158,6 +160,7 @@ router.delete('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => 
       return res.status(404).json({ error: 'Bug report not found' });
     }
     
+    logFromRequest(req, 'delete_bug_report' as any, 'bug_report' as any, String(id), undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
     console.error('Bug report delete error:', error);
