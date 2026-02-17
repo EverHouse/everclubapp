@@ -210,6 +210,11 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                   handleManageModeAddGuest={logic.handleManageModeAddGuest}
                   handleManageModeMemberMatchResolve={logic.handleManageModeMemberMatchResolve}
                   renderTierBadge={logic.renderTierBadge}
+                  isReassigningOwner={logic.isReassigningOwner}
+                  reassignSearchOpen={logic.reassignSearchOpen}
+                  setReassignSearchOpen={logic.setReassignSearchOpen}
+                  handleReassignOwner={logic.handleReassignOwner}
+                  bookingId={bookingId}
                 />
               </ErrorBoundary>
 

@@ -129,6 +129,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const [waiverReason, setWaiverReason] = useState('');
   const [showWaiverInput, setShowWaiverInput] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reassignSearchOpen, setReassignSearchOpen] = useState(false);
+  const [isReassigningOwner, setIsReassigningOwner] = useState(false);
 
   const isManageMode = mode === 'manage';
 
@@ -284,6 +286,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setShowWaiverInput(false);
       setWaiverReason('');
       setFetchedContext(null);
+      setReassignSearchOpen(false);
+      setIsReassigningOwner(false);
     }
   }, [isOpen]);
 
@@ -1207,6 +1211,37 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     }
   };
 
+  const handleReassignOwner = useCallback(async (newMemberEmail: string) => {
+    if (!bookingId) {
+      showToast('No booking ID found', 'error');
+      return;
+    }
+
+    setIsReassigningOwner(true);
+    try {
+      const response = await fetch(`/api/admin/trackman/matched/${bookingId}/reassign`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ newMemberEmail }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reassign owner');
+      }
+
+      showToast(data.message || `Booking reassigned to ${newMemberEmail}`, 'success');
+      setReassignSearchOpen(false);
+
+      await fetchRosterData();
+    } catch (error: any) {
+      showToast(error.message || 'Failed to reassign owner', 'error');
+    } finally {
+      setIsReassigningOwner(false);
+    }
+  }, [bookingId, showToast, fetchRosterData]);
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'golf_instructor':
@@ -1321,5 +1356,9 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     handleAssignToStaff,
     deleting,
     handleDeleteBooking,
+    reassignSearchOpen,
+    setReassignSearchOpen,
+    isReassigningOwner,
+    handleReassignOwner,
   };
 }

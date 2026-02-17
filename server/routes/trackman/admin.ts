@@ -1196,10 +1196,9 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       }
     }
     
-    // 1. Update booking_requests
     await client.query(
-      `UPDATE booking_requests SET user_id = $1, user_email = $2, updated_at = NOW() WHERE id = $3`,
-      [newMember.id, newMemberEmail.toLowerCase(), id]
+      `UPDATE booking_requests SET user_id = $1, user_email = $2, user_name = $3, updated_at = NOW() WHERE id = $4`,
+      [newMember.id, newMemberEmail.toLowerCase(), newMemberName, id]
     );
     
     // 2. CRITICAL FIX: Update booking_participants if session exists
@@ -1270,13 +1269,27 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     
     await client.query('COMMIT');
     
-    logFromRequest(req, 'reassign_booking' as any, 'booking', id as string, newMemberEmail.toLowerCase(), {
-      oldEmail,
-      newEmail: newMemberEmail.toLowerCase(),
-      placeholderEmail,
-      sessionId,
-      updatedParticipants: !!sessionId,
-      updatedLedger: !!sessionId
+    if (sessionId) {
+      try {
+        await recalculateSessionFees(sessionId, 'reassign_owner' as any);
+      } catch (feeErr) {
+        logger.warn('[Reassign] Fee recalculation failed', { extra: { sessionId, feeErr } });
+      }
+    }
+
+    await logFromRequest(req, {
+      action: 'reassign_booking' as any,
+      resourceType: 'booking',
+      resourceId: id as string,
+      resourceName: `Reassigned booking to ${newMemberName}`,
+      details: {
+        oldEmail,
+        newEmail: newMemberEmail.toLowerCase(),
+        placeholderEmail,
+        sessionId,
+        updatedParticipants: !!sessionId,
+        updatedLedger: !!sessionId
+      }
     });
     
     res.json({ 

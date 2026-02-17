@@ -25,6 +25,11 @@ interface ManageModeRosterProps {
   handleManageModeAddGuest: (slotNumber: number, forceAddAsGuest?: boolean) => Promise<void>;
   handleManageModeMemberMatchResolve: (action: 'member' | 'guest') => Promise<void>;
   renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
+  isReassigningOwner: boolean;
+  reassignSearchOpen: boolean;
+  setReassignSearchOpen: (open: boolean) => void;
+  handleReassignOwner: (newMemberEmail: string) => Promise<void>;
+  bookingId?: number;
 }
 
 export function ManageModeRoster({
@@ -50,6 +55,11 @@ export function ManageModeRoster({
   handleManageModeAddGuest,
   handleManageModeMemberMatchResolve,
   renderTierBadge,
+  isReassigningOwner,
+  reassignSearchOpen,
+  setReassignSearchOpen,
+  handleReassignOwner,
+  bookingId,
 }: ManageModeRosterProps) {
   const filledMembers = (rosterData?.members.filter(m => (m.userEmail || m.guestInfo) && m.slotNumber <= editingPlayerCount) || []);
   const emptySlotNumbers: number[] = [];
@@ -132,7 +142,15 @@ export function ManageModeRoster({
               ) : null}
             </div>
           </div>
-          {!isOwner && (
+          {isOwner ? (
+            <button
+              onClick={() => setReassignSearchOpen(!reassignSearchOpen)}
+              className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500 transition-colors flex-shrink-0"
+              title="Reassign Owner"
+            >
+              <span className="material-symbols-outlined text-sm">swap_horiz</span>
+            </button>
+          ) : (
             <button
               onClick={() => {
                 if (isGuestSlot && member.guestInfo) {
@@ -149,6 +167,30 @@ export function ManageModeRoster({
             </button>
           )}
         </div>
+        {isOwner && reassignSearchOpen && (
+          <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-primary/60 dark:text-white/60">Search new owner</span>
+              <button onClick={() => setReassignSearchOpen(false)} className="text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white">
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+            <MemberSearchInput
+              placeholder="Search member..."
+              onSelect={(selected) => handleReassignOwner(selected.email)}
+              showTier={true}
+              autoFocus={true}
+              includeVisitors={true}
+              disabled={isReassigningOwner}
+            />
+            {isReassigningOwner && (
+              <div className="flex items-center justify-center gap-2 mt-2 text-sm text-primary/50 dark:text-white/50">
+                <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                Reassigning...
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
