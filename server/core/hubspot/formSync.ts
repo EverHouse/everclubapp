@@ -77,8 +77,7 @@ async function fetchFormSubmissions(
     });
 
     if (response.status === 403) {
-      console.warn('[HubSpot FormSync] Access denied (403) - token may lack "forms" scope. Skipping form sync.');
-      return [];
+      throw new Error('HUBSPOT_FORMS_ACCESS_DENIED');
     }
 
     if (!response.ok) {
@@ -143,7 +142,12 @@ export async function syncHubSpotFormSubmissions(): Promise<{
       try {
         submissions = await fetchFormSubmissions(formId, accessToken, sinceTimestamp);
       } catch (err: unknown) {
-        const msg = `Failed to fetch form ${formId}: ${getErrorMessage(err)}`;
+        const errMsg = getErrorMessage(err);
+        if (errMsg.includes('HUBSPOT_FORMS_ACCESS_DENIED')) {
+          console.warn('[HubSpot FormSync] Access denied (403) - token may lack "forms" scope. Skipping remaining forms.');
+          break;
+        }
+        const msg = `Failed to fetch form ${formId}: ${errMsg}`;
         console.error(`[HubSpot FormSync] ${msg}`);
         result.errors.push(msg);
         continue;

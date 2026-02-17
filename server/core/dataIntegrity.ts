@@ -564,6 +564,15 @@ async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
     }
   }
   
+  const staleHubSpotIssues = issues.filter(i => i.description.includes('not found in HubSpot'));
+  if (staleHubSpotIssues.length > 0) {
+    for (const issue of staleHubSpotIssues) {
+      const userId = issue.recordId;
+      await db.execute(sql`UPDATE users SET hubspot_id = NULL, updated_at = NOW() WHERE id = ${userId}`);
+      console.log(`[AutoFix] Cleared stale HubSpot ID for user ${issue.context?.memberEmail}`);
+    }
+  }
+
   return {
     checkName: 'HubSpot Sync Mismatch',
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
@@ -2887,12 +2896,30 @@ export async function runDataCleanup(): Promise<{
 }
 
 export async function autoFixMissingTiers(): Promise<{
+  fixedBillingProvider: number;
   fixedFromAlternateEmail: number;
   remainingWithoutTier: number;
 }> {
+  let fixedBillingProvider = 0;
   let fixedFromAlternateEmail = 0;
   
   try {
+    const billingProviderResult = await db.execute(sql`
+      UPDATE users SET billing_provider = 'mindbody', updated_at = NOW()
+      WHERE membership_status = 'active'
+        AND billing_provider IS NULL
+        AND mindbody_client_id IS NOT NULL
+        AND mindbody_client_id != ''
+        AND email NOT LIKE '%test%'
+        AND email NOT LIKE '%example.com'
+      RETURNING email
+    `);
+    fixedBillingProvider = billingProviderResult.rows.length;
+    if (fixedBillingProvider > 0) {
+      const emails = (billingProviderResult.rows as any[]).map(r => r.email).join(', ');
+      console.log(`[AutoFix] Set billing_provider='mindbody' for ${fixedBillingProvider} members with MindBody IDs: ${emails}`);
+    }
+
     const fixResult = await db.execute(sql`
       WITH tier_fixes AS (
         SELECT DISTINCT ON (u1.id)
@@ -2960,9 +2987,9 @@ export async function autoFixMissingTiers(): Promise<{
       console.log(`[AutoFix] ${remainingWithoutTier} members still without tier: ${emails}`);
     }
     
-    return { fixedFromAlternateEmail, remainingWithoutTier };
+    return { fixedBillingProvider, fixedFromAlternateEmail, remainingWithoutTier };
   } catch (error: unknown) {
     console.error('[AutoFix] Error fixing missing tiers:', getErrorMessage(error));
-    return { fixedFromAlternateEmail: 0, remainingWithoutTier: -1 };
+    return { fixedBillingProvider: 0, fixedFromAlternateEmail: 0, remainingWithoutTier: -1 };
   }
 }

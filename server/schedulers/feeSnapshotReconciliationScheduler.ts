@@ -11,8 +11,12 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
   let synced = 0;
   let errors = 0;
   
-  const client = await pool.connect();
+  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
   try {
+    const connectTimeout = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('DB connection timeout after 10s')), 10000)
+    );
+    client = await Promise.race([pool.connect(), connectTimeout]);
     await client.query('SET statement_timeout = 30000');
     
     const staleSnapshots = await client.query(
@@ -85,11 +89,16 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
     
     return { synced, errors };
   } catch (error) {
-    console.error('[Fee Snapshot Reconciliation] Scheduler error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('timeout')) {
+      console.warn('[Fee Snapshot Reconciliation] Skipped due to DB connection timeout — will retry next cycle');
+    } else {
+      console.error('[Fee Snapshot Reconciliation] Scheduler error:', error);
+    }
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(error));
     return { synced, errors: errors + 1 };
   } finally {
-    client.release();
+    client?.release();
   }
 }
 
@@ -97,8 +106,12 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
   let cancelled = 0;
   let errors = 0;
 
-  const client = await pool.connect();
+  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
   try {
+    const connectTimeout = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('DB connection timeout after 10s')), 10000)
+    );
+    client = await Promise.race([pool.connect(), connectTimeout]);
     await client.query('SET statement_timeout = 30000');
     
     const abandonedIntents = await client.query(
@@ -196,11 +209,16 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
 
     return { cancelled, errors };
   } catch (error) {
-    console.error('[Abandoned PI Cleanup] Scheduler error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('timeout')) {
+      console.warn('[Abandoned PI Cleanup] Skipped due to DB connection timeout — will retry next cycle');
+    } else {
+      console.error('[Abandoned PI Cleanup] Scheduler error:', error);
+    }
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(error));
     return { cancelled, errors: errors + 1 };
   } finally {
-    client.release();
+    client?.release();
   }
 }
 
@@ -208,8 +226,12 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
   let reconciled = 0;
   let errors = 0;
 
-  const client = await pool.connect();
+  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
   try {
+    const connectTimeout = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('DB connection timeout after 10s')), 10000)
+    );
+    client = await Promise.race([pool.connect(), connectTimeout]);
     await client.query('SET statement_timeout = 30000');
     
     const staleIntents = await client.query(
@@ -316,11 +338,16 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
 
     return { reconciled, errors };
   } catch (error) {
-    console.error('[Payment Intent Reconciliation] Scheduler error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('timeout')) {
+      console.warn('[Payment Intent Reconciliation] Skipped due to DB connection timeout — will retry next cycle');
+    } else {
+      console.error('[Payment Intent Reconciliation] Scheduler error:', error);
+    }
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, String(error));
     return { reconciled, errors: errors + 1 };
   } finally {
-    client.release();
+    client?.release();
   }
 }
 

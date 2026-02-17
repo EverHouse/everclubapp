@@ -118,6 +118,9 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
 async function runPeriodicAutoFix(): Promise<void> {
   try {
     const result = await autoFixMissingTiers();
+    if (result.fixedBillingProvider > 0) {
+      console.log(`[Auto-Fix] Set billing_provider='mindbody' for ${result.fixedBillingProvider} members with MindBody IDs`);
+    }
     if (result.fixedFromAlternateEmail > 0) {
       console.log(`[Auto-Fix] Fixed ${result.fixedFromAlternateEmail} members, ${result.remainingWithoutTier} still without tier`);
     }
