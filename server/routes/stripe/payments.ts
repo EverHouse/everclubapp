@@ -659,22 +659,27 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
         try {
           const existingUser = await db.execute(sql`SELECT id, stripe_customer_id, archived_at FROM users WHERE LOWER(email) = LOWER(${memberEmail})`);
           if (existingUser.rows.length === 0) {
-            const crypto = await import('crypto');
-            const visitorId = crypto.randomUUID();
-            await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, street_address, city, state, zip_code, created_at, updated_at)
-               VALUES (${visitorId}, ${memberEmail}, ${firstName}, ${lastName}, 'visitor', ${stripeCustomerId}, 'APP', 'day_pass', 'visitor', ${streetAddress || null}, ${city || null}, ${state || null}, ${zipCode || null}, NOW(), NOW())
-               ON CONFLICT (email) DO UPDATE SET
-                 stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
-                 first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
-                 last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
-                 street_address = COALESCE(NULLIF(EXCLUDED.street_address, ''), users.street_address),
-                 city = COALESCE(NULLIF(EXCLUDED.city, ''), users.city),
-                 state = COALESCE(NULLIF(EXCLUDED.state, ''), users.state),
-                 zip_code = COALESCE(NULLIF(EXCLUDED.zip_code, ''), users.zip_code),
-                 archived_at = NULL,
-                 archived_by = NULL,
-                 updated_at = NOW()`);
-            logger.info('[QuickCharge] Created visitor record for new customer', { extra: { memberEmail } });
+            const visitorExclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${memberEmail.toLowerCase()}`);
+            if ((visitorExclusionCheck.rows as any[]).length > 0) {
+              logger.warn('[QuickCharge] Skipping visitor creation for permanently deleted member', { extra: { memberEmail } });
+            } else {
+              const crypto = await import('crypto');
+              const visitorId = crypto.randomUUID();
+              await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, street_address, city, state, zip_code, created_at, updated_at)
+                 VALUES (${visitorId}, ${memberEmail}, ${firstName}, ${lastName}, 'visitor', ${stripeCustomerId}, 'APP', 'day_pass', 'visitor', ${streetAddress || null}, ${city || null}, ${state || null}, ${zipCode || null}, NOW(), NOW())
+                 ON CONFLICT (email) DO UPDATE SET
+                   stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
+                   first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
+                   last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
+                   street_address = COALESCE(NULLIF(EXCLUDED.street_address, ''), users.street_address),
+                   city = COALESCE(NULLIF(EXCLUDED.city, ''), users.city),
+                   state = COALESCE(NULLIF(EXCLUDED.state, ''), users.state),
+                   zip_code = COALESCE(NULLIF(EXCLUDED.zip_code, ''), users.zip_code),
+                   archived_at = NULL,
+                   archived_by = NULL,
+                   updated_at = NOW()`);
+              logger.info('[QuickCharge] Created visitor record for new customer', { extra: { memberEmail } });
+            }
           } else if (!existingUser.rows[0].stripe_customer_id) {
             await db.execute(sql`UPDATE users SET stripe_customer_id = ${stripeCustomerId}, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${existingUser.rows[0].id}`);
             if (existingUser.rows[0].archived_at) {
@@ -875,10 +880,15 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, async (req
            WHERE id = ${resolved.userId}`);
         logger.info('[Stripe] Updated user with tier after payment confirmation (matched via )', { extra: { resolvedPrimaryEmail: resolved.primaryEmail, validatedTierName, resolvedMatchType: resolved.matchType } });
       } else {
-        const userId = require('crypto').randomUUID();
-        await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, stripe_customer_id, created_at)
-           VALUES (${userId}, ${memberEmail.toLowerCase()}, ${firstName}, ${lastName}, ${phone}, ${dob}, ${validatedTierName}, 'inactive', 'stripe', ${stripeCustomerId || null}, NOW())`);
-        logger.info('[Stripe] Created user with tier after payment confirmation', { extra: { memberEmail, validatedTierName } });
+        const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${memberEmail.toLowerCase()}`);
+        if ((exclusionCheck.rows as any[]).length > 0) {
+          logger.warn('[Stripe] Skipping user creation for permanently deleted member after payment', { extra: { memberEmail } });
+        } else {
+          const userId = require('crypto').randomUUID();
+          await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, stripe_customer_id, created_at)
+             VALUES (${userId}, ${memberEmail.toLowerCase()}, ${firstName}, ${lastName}, ${phone}, ${dob}, ${validatedTierName}, 'inactive', 'stripe', ${stripeCustomerId || null}, NOW())`);
+          logger.info('[Stripe] Created user with tier after payment confirmation', { extra: { memberEmail, validatedTierName } });
+        }
       }
     }
 

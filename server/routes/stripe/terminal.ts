@@ -152,21 +152,26 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
               }
               logger.info('[Terminal] Linked Stripe customer to existing user via', { extra: { resolvedTerminalPrimaryEmail: resolvedTerminal.primaryEmail, resolvedTerminalMatchType: resolvedTerminal.matchType } });
             } else {
-              const crypto = await import('crypto');
-              const visitorId = crypto.randomUUID();
-              await pool.query(
-                `INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, 'visitor', $5, 'APP', 'day_pass', 'visitor', NOW(), NOW())
-                 ON CONFLICT (email) DO UPDATE SET
-                   stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
-                   first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
-                   last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
-                   archived_at = NULL,
-                   archived_by = NULL,
-                   updated_at = NOW()`,
-                [visitorId, metadata.ownerEmail, firstName, lastName, customerId]
-              );
-              logger.info('[Terminal] Created/updated visitor record for POS customer', { extra: { metadataOwnerEmail: metadata.ownerEmail } });
+              const termExclusionCheck = await pool.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [metadata.ownerEmail.toLowerCase()]);
+              if (termExclusionCheck.rows.length > 0) {
+                logger.info('[Terminal] Skipping visitor creation for permanently deleted member', { extra: { email: metadata.ownerEmail } });
+              } else {
+                const crypto = await import('crypto');
+                const visitorId = crypto.randomUUID();
+                await pool.query(
+                  `INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, 'visitor', $5, 'APP', 'day_pass', 'visitor', NOW(), NOW())
+                   ON CONFLICT (email) DO UPDATE SET
+                     stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
+                     first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
+                     last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
+                     archived_at = NULL,
+                     archived_by = NULL,
+                     updated_at = NOW()`,
+                  [visitorId, metadata.ownerEmail, firstName, lastName, customerId]
+                );
+                logger.info('[Terminal] Created/updated visitor record for POS customer', { extra: { metadataOwnerEmail: metadata.ownerEmail } });
+              }
             }
           } catch (visitorErr: unknown) {
             logger.warn('[Terminal] Could not create visitor record for new POS customer (non-blocking)', { extra: { visitorErr: getErrorMessage(visitorErr) } });

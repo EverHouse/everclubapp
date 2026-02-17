@@ -436,6 +436,11 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       );
       logger.info('[Stripe] Unarchived and updated existing user with tier', { extra: { email, tierName: tier.name } });
     } else {
+      const exclusionCheck = await pool.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [email.toLowerCase()]);
+      if (exclusionCheck.rows.length > 0) {
+        logger.warn('[Stripe] Blocked subscription creation for permanently deleted member', { extra: { email } });
+        return res.status(400).json({ error: 'This email belongs to a previously removed member and cannot be re-used for a new membership.' });
+      }
       await pool.query(
         `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, street_address, city, state, zip_code, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8, $9, $10, $11, NOW())`,
@@ -777,6 +782,11 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
       );
       logger.info('[Activation Link] user with tier', { extra: { isResend_Updated_existing_Unarchived_and_updated_existing: isResend ? 'Updated existing' : 'Unarchived and updated existing', email, tierName: tier.name } });
     } else {
+      const exclusionCheck2 = await pool.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [email.toLowerCase()]);
+      if (exclusionCheck2.rows.length > 0) {
+        logger.warn('[Stripe] Blocked activation link for permanently deleted member', { extra: { email } });
+        return res.status(400).json({ error: 'This email belongs to a previously removed member and cannot be re-used for a new membership.' });
+      }
       await pool.query(
         `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, street_address, city, state, zip_code, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8, $9, $10, $11, NOW())`,

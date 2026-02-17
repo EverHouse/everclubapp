@@ -535,6 +535,11 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
       });
     }
     
+    const visitorExclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${normalizedEmail}`);
+    if ((visitorExclusionCheck.rows as any[]).length > 0) {
+      return res.status(400).json({ error: 'This email belongs to a previously removed member and cannot be re-used.' });
+    }
+
     const userId = crypto.randomUUID();
     
     const insertResult = await db.execute(sql`

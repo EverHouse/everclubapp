@@ -606,27 +606,31 @@ export async function addGroupMember(params: {
           console.log(`[GroupBilling] Updated existing user ${params.memberEmail} with family group`);
         }
       } else {
-        // Auto-create user so they can log in
-        const userId = randomUUID();
-        await client.query(
-          `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, street_address, city, state, zip_code, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, $9, $10, $11, $12, NOW())`,
-          [
-            userId,
-            params.memberEmail.toLowerCase(),
-            params.firstName || null,
-            params.lastName || null,
-            params.phone || null,
-            params.dob || null,
-            normalizedTier,
-            params.billingGroupId,
-            params.streetAddress || null,
-            params.city || null,
-            params.state || null,
-            params.zipCode || null
-          ]
-        );
-        console.log(`[GroupBilling] Created new user ${params.memberEmail} for family group with tier ${normalizedTier}`);
+        const exclusionCheck = await client.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [params.memberEmail.toLowerCase()]);
+        if (exclusionCheck.rows.length > 0) {
+          console.log(`[GroupBilling] Skipping family sub-member creation for ${params.memberEmail} — permanently deleted (sync_exclusions)`);
+        } else {
+          const userId = randomUUID();
+          await client.query(
+            `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, street_address, city, state, zip_code, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, $9, $10, $11, $12, NOW())`,
+            [
+              userId,
+              params.memberEmail.toLowerCase(),
+              params.firstName || null,
+              params.lastName || null,
+              params.phone || null,
+              params.dob || null,
+              normalizedTier,
+              params.billingGroupId,
+              params.streetAddress || null,
+              params.city || null,
+              params.state || null,
+              params.zipCode || null
+            ]
+          );
+          console.log(`[GroupBilling] Created new user ${params.memberEmail} for family group with tier ${normalizedTier}`);
+        }
       }
 
       if (group[0].primaryStripeSubscriptionId && product.stripePriceId) {
@@ -888,22 +892,27 @@ export async function addCorporateMember(params: {
           console.log(`[GroupBilling] Updated existing user ${params.memberEmail} with corporate group`);
         }
       } else {
-        const userId = randomUUID();
-        await client.query(
-          `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, NOW())`,
-          [
-            userId,
-            params.memberEmail.toLowerCase(),
-            params.firstName || null,
-            params.lastName || null,
-            params.phone || null,
-            params.dob || null,
-            normalizedTier,
-            params.billingGroupId
-          ]
-        );
-        console.log(`[GroupBilling] Created new user ${params.memberEmail} with tier ${normalizedTier}`);
+        const corpExclusionCheck = await client.query('SELECT 1 FROM sync_exclusions WHERE email = $1', [params.memberEmail.toLowerCase()]);
+        if (corpExclusionCheck.rows.length > 0) {
+          console.log(`[GroupBilling] Skipping corporate sub-member creation for ${params.memberEmail} — permanently deleted (sync_exclusions)`);
+        } else {
+          const userId = randomUUID();
+          await client.query(
+            `INSERT INTO users (id, email, first_name, last_name, phone, date_of_birth, tier, membership_status, billing_provider, billing_group_id, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'stripe', $8, NOW())`,
+            [
+              userId,
+              params.memberEmail.toLowerCase(),
+              params.firstName || null,
+              params.lastName || null,
+              params.phone || null,
+              params.dob || null,
+              normalizedTier,
+              params.billingGroupId
+            ]
+          );
+          console.log(`[GroupBilling] Created new user ${params.memberEmail} with tier ${normalizedTier}`);
+        }
       }
 
       const hasPrePaidSeats = group[0].max_seats && group[0].max_seats > 0;

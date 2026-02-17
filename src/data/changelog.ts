@@ -17,7 +17,7 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-02-17",
     title: "Data Integrity & Zombie Member Prevention",
     changes: [
-      "New: Permanently deleted members are now blocked from being re-created by ALL external sync systems (HubSpot sync, HubSpot webhooks, Stripe webhooks, Stripe subscription sync, Stripe reconciliation, and manual staff add) — they stay deleted",
+      "New: Permanently deleted members are now blocked from being re-created by ALL 16 user creation paths — including HubSpot sync, HubSpot webhooks, Stripe webhooks, Stripe subscription sync, Stripe reconciliation, group billing, subscription checkout, activation links, payment confirmations, POS terminal, visitor creation, and visitor matching",
       "New: Automated data integrity checks run daily and auto-fix common issues (billing provider gaps, case-inconsistent statuses, staff role mismatches)",
       "New: Calendar sync retry logic — temporary failures retry once before alerting, reducing false alarm notifications",
       "Fixed: 3 zombie test members (nick+astoria, adam+core, jack+testcore) that kept reappearing have been permanently removed and blocked",

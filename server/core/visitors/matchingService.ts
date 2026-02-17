@@ -204,6 +204,14 @@ export async function upsertVisitor(data: VisitorData, createStripeCustomer: boo
     return updated[0];
   }
 
+  // Check sync exclusions before creating visitor
+  if (data.email) {
+    const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${data.email.toLowerCase().trim()}`);
+    if ((exclusionCheck.rows as any[]).length > 0) {
+      throw new Error(`Cannot create visitor for ${data.email} — permanently deleted (sync_exclusions)`);
+    }
+  }
+
   // Create new visitor user
   const newUser = await db
     .insert(users)
