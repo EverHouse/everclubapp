@@ -77,7 +77,7 @@ router.post('/api/admin/applications/:id/send-invite', isStaffOrAdmin, async (re
 
     const app = appResult.rows[0];
 
-    const internalRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stripe/staff/send-membership-link`, {
+    const internalRes = await fetch(`http://localhost:${process.env.PORT || 3001}/api/stripe/staff/send-membership-link`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -84,7 +84,7 @@ const OnboardingChecklist: React.FC = () => {
         navigate('/profile');
         break;
       case 'waiver':
-        navigate('/waiver');
+        navigate('/profile', { state: { showWaiver: true } });
         break;
       case 'booking':
         navigate('/book');
