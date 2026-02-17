@@ -139,6 +139,7 @@ const DataIntegrityTab: React.FC = () => {
     importedName?: string;
     notes?: string;
     originalEmail?: string;
+    isUnmatched?: boolean;
   }>({ isOpen: false, bookingId: null });
 
   const [showPlaceholderCleanup, setShowPlaceholderCleanup] = useState(true);
@@ -1877,12 +1878,12 @@ const DataIntegrityTab: React.FC = () => {
       <UnifiedBookingSheet
         isOpen={bookingSheet.isOpen}
         onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
-        mode="manage"
+        mode={bookingSheet.isUnmatched ? "assign" : "manage"}
         trackmanBookingId={bookingSheet.trackmanBookingId || null}
         bayName={bookingSheet.bayName}
         bookingDate={bookingSheet.bookingDate}
         timeSlot={bookingSheet.timeSlot}
-        matchedBookingId={bookingSheet.bookingId || undefined}
+        matchedBookingId={bookingSheet.isUnmatched ? undefined : (bookingSheet.bookingId || undefined)}
         currentMemberName={bookingSheet.memberName}
         currentMemberEmail={bookingSheet.memberEmail}
         importedName={bookingSheet.importedName}

@@ -27,6 +27,7 @@ interface IntegrityResultsPanelProps {
     importedName?: string;
     notes?: string;
     originalEmail?: string;
+    isUnmatched?: boolean;
   }) => void;
   fixIssueMutation: UseMutationResult<{ success: boolean; message: string }, any, { endpoint: string; body: Record<string, any> }, unknown>;
   openIgnoreModal: (issue: IntegrityIssue, checkName: string) => void;
@@ -918,7 +919,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           trackmanBookingId: issue.context?.trackmanBookingId,
                                           importedName: issue.context?.importedName || issue.context?.userName,
                                           notes: issue.context?.notes,
-                                          originalEmail: issue.context?.originalEmail
+                                          originalEmail: issue.context?.originalEmail,
+                                          isUnmatched: true
                                         })}
                                         className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
                                         title="Assign to a member"
