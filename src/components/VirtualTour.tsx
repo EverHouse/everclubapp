@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import WalkingGolferSpinner from './WalkingGolferSpinner';
 
 interface VirtualTourProps {
   url?: string;
@@ -20,7 +21,7 @@ const VirtualTour: React.FC<VirtualTourProps> = ({
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#F2F2EC] z-10">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-[#293515] border-t-transparent rounded-full animate-spin" />
+              <WalkingGolferSpinner size="sm" />
               <p className="text-[#293515] font-medium text-sm tracking-widest uppercase">Loading Tour...</p>
             </div>
           </div>
@@ -28,7 +29,7 @@ const VirtualTour: React.FC<VirtualTourProps> = ({
 
         <iframe
           src={url}
-          className={`absolute top-0 left-0 w-full h-full transition-opacity duration-700 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute top-0 left-0 w-full h-full transition-opacity duration-emphasis ${isLoading ? 'opacity-0' : 'opacity-100'}`}
           title={title}
           allow="xr-spatial-tracking; fullscreen; accelerometer; gyroscope; magnetometer"
           allowFullScreen

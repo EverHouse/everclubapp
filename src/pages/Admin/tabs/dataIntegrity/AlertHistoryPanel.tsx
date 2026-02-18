@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 
 interface AlertEntry {
@@ -55,6 +56,7 @@ const AlertHistoryPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     enabled: isOpen,
   });
 
+  const [alertsRef] = useAutoAnimate();
   const alerts = data?.alerts || [];
 
   return (
@@ -99,14 +101,14 @@ const AlertHistoryPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
             )}
           </div>
 
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          <div ref={alertsRef} className="space-y-2 max-h-[400px] overflow-y-auto">
             {alerts.map((alert) => {
               const severity = getAlertSeverity(alert.title);
               const styles = getSeverityStyles(severity);
               return (
                 <div
                   key={alert.id}
-                  className={`border-l-4 ${styles.border} pl-3 py-2 bg-gray-50/50 dark:bg-white/[0.02] rounded-r-lg`}
+                  className={`border-l-4 ${styles.border} pl-3 py-2 bg-gray-50/50 dark:bg-white/[0.02] rounded-r-lg tactile-row`}
                 >
                   <div className="flex items-start gap-2">
                     <span className={`material-symbols-outlined text-[16px] mt-0.5 ${styles.iconColor}`}>{styles.icon}</span>

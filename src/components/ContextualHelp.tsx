@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SlideUpDrawer } from './SlideUpDrawer';
+import WalkingGolferSpinner from './WalkingGolferSpinner';
 
 interface TrainingSectionDB {
   id: number;
@@ -56,7 +57,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
         <div className="p-4 space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <WalkingGolferSpinner size="sm" />
             </div>
           ) : sections.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">

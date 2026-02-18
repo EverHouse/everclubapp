@@ -14,13 +14,14 @@ import { useWebSocketQuerySync } from '../../hooks/useWebSocketQuerySync';
 import StaffMobileSidebar from '../../components/StaffMobileSidebar';
 import { useConfirmDialog } from '../../components/ConfirmDialog';
 import { TabTransition } from '../../components/motion';
+import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
 import { TabType, StaffBottomNav, StaffSidebar, usePendingCounts, useUnreadNotifications, getTabFromPathname, tabToPath } from './layout';
 
 // Loading fallback for lazy-loaded tabs - matches app aesthetic
 const TabLoadingFallback = () => (
   <div className="flex items-center justify-center py-20">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#293515] dark:border-[#F2F2EC]" />
+    <WalkingGolferSpinner size="sm" />
   </div>
 );
 
@@ -484,7 +485,7 @@ const StaffTrainingGuide: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                <WalkingGolferSpinner size="sm" />
             </div>
         );
     }

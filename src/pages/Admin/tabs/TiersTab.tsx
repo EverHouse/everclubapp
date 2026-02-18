@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmptyState from '../../../components/EmptyState';
 import SlideUpDrawer from '../../../components/SlideUpDrawer';
 import Toggle from '../../../components/Toggle';
@@ -85,6 +86,7 @@ const BOOLEAN_FIELDS = [
 const TiersTab: React.FC = () => {
     const queryClient = useQueryClient();
     const { showToast } = useToast();
+    const [tiersRef] = useAutoAnimate();
     const [searchParams, setSearchParams] = useSearchParams();
     const subtabParam = searchParams.get('subtab');
     const activeSubTab: SubTab = subtabParam === 'products' ? 'products' : subtabParam === 'fees' ? 'fees' : subtabParam === 'discounts' ? 'discounts' : subtabParam === 'cafe' ? 'cafe' : 'tiers';
@@ -1166,12 +1168,12 @@ const TiersTab: React.FC = () => {
                             variant="compact"
                         />
                     ) : (
-                        <div className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
+                        <div ref={tiersRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 0 } as React.CSSProperties}>
                             {subscriptionTiers.map((tier, index) => (
                                 <div 
                                     key={tier.id} 
                                     onClick={() => openEdit(tier)}
-                                    className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all animate-slide-up-stagger"
+                                    className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-colors tactile-card animate-slide-up-stagger"
                                     style={{ '--stagger-index': index + 1 } as React.CSSProperties}
                                 >
                                     <div className="flex items-start justify-between mb-3">

@@ -31,7 +31,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
               {onScanQr && (
                 <button
                   onClick={onScanQr}
-                  className="flex flex-col items-center p-3 bg-green-500/20 dark:bg-green-500/30 rounded-xl hover:bg-green-500/30 dark:hover:bg-green-500/40 transition-colors"
+                  className="flex flex-col items-center p-3 bg-green-500/20 dark:bg-green-500/30 rounded-xl hover:bg-green-500/30 dark:hover:bg-green-500/40 transition-colors tactile-btn"
                 >
                   <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">qr_code_scanner</span>
                   <span className="text-xs text-primary dark:text-white font-medium text-center">Scan QR</span>
@@ -41,7 +41,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
                 <button
                   key={link.id}
                   onClick={() => navigateToTab(link.id)}
-                  className="flex flex-col items-center p-3 bg-[#CCB8E4]/30 dark:bg-[#CCB8E4]/20 rounded-xl hover:bg-[#CCB8E4]/50 dark:hover:bg-[#CCB8E4]/30 transition-colors"
+                  className="flex flex-col items-center p-3 bg-[#CCB8E4]/30 dark:bg-[#CCB8E4]/20 rounded-xl hover:bg-[#CCB8E4]/50 dark:hover:bg-[#CCB8E4]/30 transition-colors tactile-btn"
                 >
                   <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">{link.icon}</span>
                   <span className="text-xs text-primary dark:text-white font-medium text-center">{link.label}</span>
@@ -58,7 +58,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
                   <button
                     key={link.id}
                     onClick={() => navigateToTab(link.id)}
-                    className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+                    className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
                   >
                     <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">{link.icon}</span>
                     <span className="text-xs text-primary dark:text-white font-medium text-center">{link.label}</span>
@@ -68,7 +68,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
                   <button
                     key={link.route}
                     onClick={() => { startNavigation(); navigate(link.route); }}
-                    className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+                    className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
                   >
                     <span className="material-symbols-outlined text-2xl text-primary dark:text-white mb-1">{link.icon}</span>
                     <span className="text-xs text-primary dark:text-white font-medium text-center">{link.label}</span>
@@ -88,7 +88,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
         <div className="mb-4">
           <button
             onClick={onScanQr}
-            className="w-full flex items-center justify-center gap-2 p-3 bg-green-500/20 dark:bg-green-500/30 rounded-xl hover:bg-green-500/30 transition-colors"
+            className="w-full flex items-center justify-center gap-2 p-3 bg-green-500/20 dark:bg-green-500/30 rounded-xl hover:bg-green-500/30 transition-colors tactile-btn"
           >
             <span className="material-symbols-outlined text-xl text-primary dark:text-white">qr_code_scanner</span>
             <span className="text-sm text-primary dark:text-white font-medium">Scan QR Code</span>
@@ -104,7 +104,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
               <button
                 key={link.id}
                 onClick={() => navigateToTab(link.id)}
-                className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 transition-colors"
+                className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 transition-colors tactile-btn"
               >
                 <span className="material-symbols-outlined text-xl text-primary dark:text-white mb-1">{link.icon}</span>
                 <span className="text-[10px] text-primary dark:text-white font-medium text-center leading-tight">{link.label}</span>
@@ -114,7 +114,7 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({ isAdmin, var
               <button
                 key={link.route}
                 onClick={() => { startNavigation(); navigate(link.route); }}
-                className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 transition-colors"
+                className="flex flex-col items-center p-3 bg-primary/5 dark:bg-white/5 rounded-xl hover:bg-primary/10 transition-colors tactile-btn"
               >
                 <span className="material-symbols-outlined text-xl text-primary dark:text-white mb-1">{link.icon}</span>
                 <span className="text-[10px] text-primary dark:text-white font-medium text-center leading-tight">{link.label}</span>

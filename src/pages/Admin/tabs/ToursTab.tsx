@@ -102,7 +102,7 @@ const ToursTab: React.FC = () => {
     const isUpdating = updateStatusMutation.isPending;
     
     return (
-      <div className={`p-4 rounded-2xl border ${tour.status === 'checked_in' 
+      <div className={`p-4 rounded-2xl border tactile-card ${tour.status === 'checked_in' 
         ? 'bg-green-500/10 border-green-500/30' 
         : tour.status === 'no-show'
           ? 'bg-red-500/5 border-red-500/20'

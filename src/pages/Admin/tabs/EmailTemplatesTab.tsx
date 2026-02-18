@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
+import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 
 interface EmailTemplate {
   id: string;
@@ -87,7 +88,7 @@ const EmailTemplatesTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-bone" />
+        <WalkingGolferSpinner size="sm" />
       </div>
     );
   }
@@ -197,7 +198,7 @@ const EmailTemplatesTab: React.FC = () => {
               <div className="relative bg-bone dark:bg-[#1a1a1a]" style={{ minHeight: '600px' }}>
                 {previewLoading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-bone/80 dark:bg-[#1a1a1a]/80 z-10">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-accent" />
+                    <WalkingGolferSpinner size="sm" />
                   </div>
                 )}
                 <iframe

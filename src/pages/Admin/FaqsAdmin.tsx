@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import Toggle from '../../components/Toggle';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import FloatingActionButton from '../../components/FloatingActionButton';
@@ -32,6 +33,7 @@ const FaqsAdmin: React.FC = () => {
     const [previewOrder, setPreviewOrder] = useState<FAQ[] | null>(null);
     const originalOrderRef = useRef<FAQ[] | null>(null);
     const { startAutoScroll, updatePosition, stopAutoScroll } = useDragAutoScroll();
+    const [faqsRef] = useAutoAnimate();
 
     useEffect(() => {
         if (!isLoading) {
@@ -390,7 +392,7 @@ const FaqsAdmin: React.FC = () => {
                     </button>
                 </div>
             ) : (
-                <div className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                <div ref={faqsRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
                     {displayFaqs.map((faq) => {
                         const isDragging = faq.id === draggedItemId;
                         return (
@@ -405,7 +407,7 @@ const FaqsAdmin: React.FC = () => {
                                     faq.isActive 
                                         ? 'border-gray-200 dark:border-white/20' 
                                         : 'border-amber-200 dark:border-amber-800/30 opacity-60'
-                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-all duration-150 ease-out'}`}
+                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-all duration-fast ease-out'}`}
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="w-11 h-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 touch-manipulation" role="img" aria-label="Drag to reorder">

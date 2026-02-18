@@ -6,6 +6,7 @@ import EmptyState from '../../components/EmptyState';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import { useNavigationLoading } from '../../contexts/NavigationLoadingContext';
 import SEO from '../../components/SEO';
+import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 
 interface DayPassTier {
   id: number;
@@ -116,7 +117,7 @@ const BuyDayPass: React.FC = () => {
     return (
       <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-2 border-primary dark:border-white border-t-transparent rounded-full" />
+          <WalkingGolferSpinner size="sm" />
         </div>
       </div>
     );

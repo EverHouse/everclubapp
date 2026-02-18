@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import ModalShell from '../../components/ModalShell';
 import { getInquiryStatusColor, formatStatusLabel } from '../../utils/statusColors';
@@ -54,6 +55,7 @@ const InquiriesAdmin: React.FC = () => {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [inquiriesRef] = useAutoAnimate();
 
     useEffect(() => {
         if (!isLoading) {
@@ -335,12 +337,12 @@ const InquiriesAdmin: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-300">No form submissions match your current filters.</p>
                 </div>
             ) : (
-                <div className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 3 } as React.CSSProperties}>
+                <div ref={inquiriesRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 3 } as React.CSSProperties}>
                     {inquiries.map((inquiry, index) => (
                         <button
                             key={inquiry.id}
                             onClick={() => openDetail(inquiry)}
-                            className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-all animate-slide-up-stagger ${
+                            className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-colors tactile-card animate-slide-up-stagger ${
                                 inquiry.status === 'new' 
                                     ? 'border-blue-200 dark:border-blue-800/30' 
                                     : inquiry.status === 'archived'

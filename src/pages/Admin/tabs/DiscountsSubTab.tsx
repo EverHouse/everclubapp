@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import ModalShell from '../../../components/ModalShell';
 import EmptyState from '../../../components/EmptyState';
 
@@ -44,6 +45,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [discountsRef] = useAutoAnimate();
 
   const fetchCoupons = async () => {
     setIsLoading(true);
@@ -265,11 +267,11 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
           variant="compact"
         />
       ) : (
-        <div className="space-y-3">
+        <div ref={discountsRef} className="space-y-3">
           {coupons.map((coupon, index) => (
             <div 
               key={coupon.id} 
-              className={`p-4 rounded-xl border transition-all animate-pop-in ${
+              className={`p-4 rounded-xl border transition-colors animate-pop-in tactile-row ${
                 coupon.valid 
                   ? 'bg-white dark:bg-surface-dark border-gray-200 dark:border-white/20' 
                   : 'bg-gray-50 dark:bg-surface-dark/50 border-gray-200 dark:border-white/10 opacity-60'

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import Toggle from '../../components/Toggle';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import FloatingActionButton from '../../components/FloatingActionButton';
@@ -33,6 +34,7 @@ const GalleryAdmin: React.FC = () => {
     const originalOrderRef = useRef<GalleryImage[] | null>(null);
     const [reorderError, setReorderError] = useState<string | null>(null);
     const { startAutoScroll, updatePosition, stopAutoScroll } = useDragAutoScroll();
+    const [galleryRef] = useAutoAnimate();
 
     useEffect(() => {
         if (!isLoading) {
@@ -390,7 +392,7 @@ const GalleryAdmin: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-300">Add images to the gallery to get started.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
+                <div ref={galleryRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-slide-up-stagger" style={{ '--stagger-index': 2 } as React.CSSProperties}>
                     {displayImages.map((image) => {
                         const isDragging = image.id === draggedItemId;
                         return (

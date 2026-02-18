@@ -208,7 +208,7 @@ function ConfirmDialogComponent({
                   disabled={isLoading}
                   className={`
                     flex-1 px-4 py-3 rounded-xl font-medium text-sm
-                    transition-all duration-150 ease-out
+                    transition-all duration-fast ease-out
                     disabled:opacity-50 disabled:cursor-not-allowed
                     ${isDark 
                       ? 'bg-white/10 hover:bg-white/15 active:bg-white/20 text-white border border-white/10' 
@@ -226,7 +226,7 @@ function ConfirmDialogComponent({
                   disabled={isLoading}
                   className={`
                     flex-1 px-4 py-3 rounded-xl font-medium text-sm text-white
-                    transition-all duration-150 ease-out
+                    transition-all duration-fast ease-out
                     disabled:opacity-70 disabled:cursor-not-allowed
                     ${isDark ? variantConfig.dark : variantConfig.light}
                     flex items-center justify-center gap-2

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useData } from '../../../contexts/DataContext';
 import ModalShell from '../../../components/ModalShell';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
@@ -81,6 +82,7 @@ const TeamTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [teamRef] = useAutoAnimate();
   const [isAddingPerson, setIsAddingPerson] = useState(false);
   const [newPerson, setNewPerson] = useState({ firstName: '', lastName: '', email: '', phone: '', jobTitle: '', role: 'staff' as StaffRole });
   const [addError, setAddError] = useState<string | null>(null);
@@ -359,12 +361,12 @@ const TeamTab: React.FC = () => {
             {searchQuery ? 'No team members match your search.' : (isAdmin ? 'No team members added yet. Add an email to grant portal access.' : 'No team members to display.')}
           </div>
         ) : (
-          <div className="space-y-3 animate-content-enter-delay-2">
+          <div ref={teamRef} className="space-y-3 animate-content-enter-delay-2">
             {filteredMembers.map((member, index) => (
               <div 
                 key={member.id}
                 onClick={() => openDetailsModal(member)}
-                className={`flex items-center justify-between p-4 rounded-xl border transition-colors animate-list-item-delay-${Math.min(index, 10)} cursor-pointer hover:border-primary/50 ${
+                className={`flex items-center justify-between p-4 rounded-xl border transition-colors tactile-row animate-list-item-delay-${Math.min(index, 10)} cursor-pointer hover:border-primary/50 ${
                   member.is_active 
                     ? 'bg-white dark:bg-surface-dark border-gray-200 dark:border-white/25 hover:bg-gray-50 dark:hover:bg-surface-dark' 
                     : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-white/20 opacity-60'

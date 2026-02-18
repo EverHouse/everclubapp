@@ -14,6 +14,7 @@ import { useConfirmDialog } from '../../../components/ConfirmDialog';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import { isBlockingClosure } from '../../../utils/closureUtils';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 
 interface BlocksClosure {
     id: number;
@@ -633,7 +634,7 @@ const BlocksTab: React.FC = () => {
     if (isLoading && closuresLoading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                <WalkingGolferSpinner size="sm" />
             </div>
         );
     }

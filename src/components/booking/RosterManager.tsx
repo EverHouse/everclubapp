@@ -9,6 +9,7 @@ import Input from '../Input';
 import MemberPaymentModal from './MemberPaymentModal';
 import GuestPaymentChoiceModal from './GuestPaymentChoiceModal';
 import { usePricing } from '../../hooks/usePricing';
+import WalkingGolferSpinner from '../WalkingGolferSpinner';
 
 export interface RosterParticipant {
   id: number;
@@ -455,7 +456,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     return (
       <div className={`glass-card rounded-3xl p-6 ${isDark ? 'border-white/10' : 'border-black/5'}`}>
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin w-6 h-6 border-2 border-[#CCB8E4] border-t-transparent rounded-full" />
+          <WalkingGolferSpinner size="sm" />
         </div>
       </div>
     );
@@ -718,7 +719,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           
           {searchLoading && (
             <div className="flex items-center justify-center py-6">
-              <div className="animate-spin w-6 h-6 border-2 border-[#CCB8E4] border-t-transparent rounded-full" />
+              <WalkingGolferSpinner size="sm" />
             </div>
           )}
           

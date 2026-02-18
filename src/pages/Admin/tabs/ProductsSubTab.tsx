@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import Toggle from '../../../components/Toggle';
 
 interface ProductMapping {
@@ -32,6 +33,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [productsRef] = useAutoAnimate();
 
   useEffect(() => {
     fetchData();
@@ -125,7 +127,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
     const isEditing = editingId === product.id;
     
     return (
-      <div key={product.id} className="p-4 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10">
+      <div key={product.id} className="p-4 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 tactile-row">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -304,7 +306,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
 
   if (activeSubTab === 'membership') {
     return (
-      <div className="space-y-4">
+      <div ref={productsRef} className="space-y-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {membershipProducts.length} membership product{membershipProducts.length !== 1 ? 's' : ''} linked to HubSpot
@@ -320,7 +322,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
 
   if (activeSubTab === 'fees') {
     return (
-      <div className="space-y-4">
+      <div ref={productsRef} className="space-y-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {feeProducts.length} fee product{feeProducts.length !== 1 ? 's' : ''} for charges and passes
@@ -336,7 +338,7 @@ const ProductsSubTab: React.FC<ProductsSubTabProps> = ({ activeSubTab }) => {
 
   if (activeSubTab === 'discounts') {
     return (
-      <div className="space-y-4">
+      <div ref={productsRef} className="space-y-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {discountRules.length} discount rule{discountRules.length !== 1 ? 's' : ''} based on member tags

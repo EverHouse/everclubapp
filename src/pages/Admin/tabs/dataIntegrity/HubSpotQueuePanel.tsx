@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 
 interface FailedQueueItem {
@@ -48,6 +49,7 @@ const HubSpotQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
     enabled: isOpen,
   });
 
+  const [queueRef] = useAutoAnimate();
   const stats = data?.stats || { pending: 0, failed: 0, completed_24h: 0, processing: 0 };
 
   return (
@@ -106,9 +108,9 @@ const HubSpotQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                       <th className="pb-2">Next Retry</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={queueRef}>
                     {data.recentFailed.map((item, idx) => (
-                      <tr key={item.id} className={`border-b border-gray-100 dark:border-gray-800 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/[0.02]' : ''}`}>
+                      <tr key={item.id} className={`border-b border-gray-100 dark:border-gray-800 tactile-row ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/[0.02]' : ''}`}>
                         <td className="py-2 pr-3 font-medium text-gray-900 dark:text-gray-100">{item.operation}</td>
                         <td className="py-2 pr-3 text-red-600 dark:text-red-400 max-w-[200px] truncate" title={item.lastError || ''}>
                           {item.lastError || '-'}

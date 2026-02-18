@@ -61,7 +61,7 @@ const CleanupToolsPanel: React.FC<CleanupToolsPanelProps> = ({
           <button
             onClick={handleScanPlaceholders}
             disabled={isLoadingPlaceholders}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2 tactile-btn"
           >
             {isLoadingPlaceholders && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
             Scan for Placeholders
@@ -93,7 +93,7 @@ const CleanupToolsPanel: React.FC<CleanupToolsPanelProps> = ({
                   {!showDeleteConfirm ? (
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2 tactile-btn"
                     >
                       <span className="material-symbols-outlined text-[16px]">delete_forever</span>
                       Delete All Placeholders

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import EmptyState from '../../components/EmptyState';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -43,6 +44,7 @@ const BugReportsAdmin: React.FC = () => {
     const [staffNotes, setStaffNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+    const [reportsRef] = useAutoAnimate();
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -203,12 +205,12 @@ const BugReportsAdmin: React.FC = () => {
                         variant="compact"
                     />
                 ) : (
-                    <div className="space-y-3">
+                    <div ref={reportsRef} className="space-y-3">
                         {reports.map((report, idx) => (
                             <button
                                 key={report.id}
                                 onClick={() => openDetail(report)}
-                                className={`w-full text-left p-4 rounded-2xl transition-all animate-slide-up-stagger ${isDark ? 'glass-card hover:bg-white/5' : 'bg-white border border-black/5 hover:shadow-md'}`}
+                                className={`w-full text-left p-4 rounded-2xl transition-colors tactile-card animate-slide-up-stagger ${isDark ? 'glass-card hover:bg-white/5' : 'bg-white border border-black/5 hover:shadow-md'}`}
                                 style={{ '--stagger-index': idx } as React.CSSProperties}
                             >
                                 <div className="flex items-start justify-between gap-3">

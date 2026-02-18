@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../contexts/PageReadyContext';
 import ModalShell from '../../components/ModalShell';
 import { formatRelativeTime } from '../../utils/dateUtils';
@@ -80,6 +81,7 @@ const ApplicationPipeline: React.FC = () => {
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [applicationsRef] = useAutoAnimate();
 
   useEffect(() => {
     if (!isLoading) {
@@ -425,12 +427,12 @@ const ApplicationPipeline: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">No membership applications match your current filter.</p>
         </div>
       ) : (
-        <div className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 3 } as React.CSSProperties}>
+        <div ref={applicationsRef} className="space-y-3 animate-slide-up-stagger" style={{ '--stagger-index': 3 } as React.CSSProperties}>
           {filteredApplications.map((app, index) => (
             <button
               key={app.id}
               onClick={() => openDetail(app)}
-              className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-all animate-slide-up-stagger ${
+              className={`w-full text-left bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border cursor-pointer hover:border-primary/30 transition-colors tactile-card animate-slide-up-stagger ${
                 app.status === 'new'
                   ? 'border-blue-200 dark:border-blue-800/30'
                   : app.status === 'archived'

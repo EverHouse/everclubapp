@@ -5,6 +5,7 @@ import TierBadge from '../TierBadge';
 import Avatar from '../Avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
+import WalkingGolferSpinner from '../WalkingGolferSpinner';
 
 interface MemberSearchResult {
   id: string;
@@ -118,7 +119,7 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
         
         {isSearching && (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin w-6 h-6 border-2 border-[#CCB8E4] border-t-transparent rounded-full" />
+            <WalkingGolferSpinner size="sm" />
           </div>
         )}
         

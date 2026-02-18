@@ -12,6 +12,7 @@ import { fetchWithCredentials, deleteWithCredentials } from '../../../../hooks/q
 import { EventsTabSkeleton } from '../../../../components/skeletons';
 import { getTodayPacific } from '../../../../utils/dateUtils';
 import { Participant, DBEvent, NeedsReviewEvent, CATEGORY_TABS } from './eventsTypes';
+import WalkingGolferSpinner from '../../../../components/WalkingGolferSpinner';
 import { ParticipantDetailsModal } from './ParticipantDetailsModal';
 
 export const EventsAdminContent: React.FC = () => {
@@ -368,7 +369,7 @@ export const EventsAdminContent: React.FC = () => {
                     <div className="border-t border-amber-500/20 p-4 space-y-4">
                         {needsReviewLoading ? (
                             <div className="flex items-center justify-center py-8">
-                                <div className="w-6 h-6 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin"></div>
+                                <WalkingGolferSpinner size="sm" />
                             </div>
                         ) : (
                             needsReviewEvents.map((event) => {

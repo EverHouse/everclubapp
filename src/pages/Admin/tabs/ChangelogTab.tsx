@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { changelog } from '../../../data/changelog';
 import EmptyState from '../../../components/EmptyState';
 import { formatRelativeTime } from '../../../utils/dateUtils';
@@ -190,6 +191,8 @@ const ChangelogTab: React.FC = () => {
     
     // Changelog pagination - show 25 entries initially, load 25 more per click
     const [changelogLimit, setChangelogLimit] = useState(25);
+    const [changelogRef] = useAutoAnimate();
+    const [activityRef] = useAutoAnimate();
     const visibleChangelog = changelog.slice(0, changelogLimit);
     const hasMoreChangelog = changelogLimit < changelog.length;
 
@@ -690,7 +693,7 @@ const ChangelogTab: React.FC = () => {
     };
 
     const renderUpdatesTab = () => (
-        <div className="space-y-6 animate-pop-in">
+        <div ref={changelogRef} className="space-y-6 animate-pop-in">
             <div className="text-sm text-primary/80 dark:text-white/80 mb-6">
                 A complete history of updates, improvements, and new features added to the Ever Club app.
             </div>
@@ -824,13 +827,13 @@ const ChangelogTab: React.FC = () => {
                         variant="compact"
                     />
                 ) : (
-                    <div className="space-y-3">
+                    <div ref={activityRef} className="space-y-3">
                         {entries.map((entry, index) => {
                             const actionInfo = getActionInfo(entry.action);
                             return (
                                 <div
                                     key={entry.id}
-                                    className="rounded-2xl bg-white dark:bg-white/[0.03] shadow-layered dark:shadow-layered-dark overflow-hidden animate-slide-up-stagger"
+                                    className="rounded-2xl bg-white dark:bg-white/[0.03] shadow-layered dark:shadow-layered-dark overflow-hidden animate-slide-up-stagger tactile-row"
                                     style={{ '--stagger-index': index } as React.CSSProperties}
                                 >
                                     <div className="flex gap-3 p-4">

@@ -336,7 +336,7 @@ const Landing: React.FC = () => {
 
       <div className="px-4 pb-12 animate-content-enter-delay-6">
          <div className="relative rounded-[2rem] overflow-hidden h-[400px] group backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.01] transition-all duration-[400ms]">
-            <div className="absolute inset-0 bg-[url('/images/gallery/gallery-l1050555.webp')] bg-cover bg-center opacity-70 transition-transform duration-700 group-hover:scale-105"></div>
+            <div className="absolute inset-0 bg-[url('/images/gallery/gallery-l1050555.webp')] bg-cover bg-center opacity-70 transition-transform duration-emphasis group-hover:scale-105"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20"></div>
             <div className="absolute inset-0 p-8 flex flex-col justify-center items-center text-center">
                 <span className="px-4 py-1.5 bg-white/15 backdrop-blur-md border border-white/30 rounded-full text-white/90 text-xs font-bold uppercase tracking-[0.2em] mb-4 shadow-[0_0_12px_rgba(255,255,255,0.1)]">Host with Us</span>
