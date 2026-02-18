@@ -423,6 +423,10 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
       );
       
       console.log(`[AddMember] Converted existing visitor ${normalizedEmail} to member with tier ${tier}`);
+
+      findOrCreateHubSpotContact(normalizedEmail, firstName, lastName, phone || undefined, tier)
+        .catch((err: unknown) => console.error(`[AddMember] HubSpot contact sync failed for converted visitor ${normalizedEmail}:`, getErrorMessage(err)));
+
       return { success: true, userId: updateResult.rows[0].id };
     }
     
@@ -444,6 +448,9 @@ export async function createMemberLocally(input: AddMemberInput): Promise<Create
         startDate || getTodayPacific()
       ]
     );
+
+    findOrCreateHubSpotContact(normalizedEmail, firstName, lastName, phone || undefined, tier)
+      .catch((err: unknown) => console.error(`[AddMember] HubSpot contact sync failed for ${normalizedEmail}:`, getErrorMessage(err)));
     
     return { success: true, userId: result.rows[0].id };
   } catch (error: unknown) {

@@ -13,9 +13,9 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.67.2",
+    version: "7.67.3",
     date: "2026-02-18",
-    title: "Visitor Billing Setup & Full Sync Audit",
+    title: "Complete Sync Audit — All Gaps Closed",
     changes: [
       "Fixed: Creating a new visitor from the booking Player Management modal now automatically creates a Stripe customer for billing",
       "Fixed: Linking an existing visitor as a player now creates a Stripe customer if they don't have one yet",
@@ -23,6 +23,9 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Stripe Subscription Sync tool now creates HubSpot contacts with proper first/last name (was creating contacts with empty names)",
       "Fixed: Stripe Reconciliation tool now creates HubSpot contacts with proper first/last name",
       "Fixed: Corrected HubSpot phone parameter format in visitor sync calls",
+      "Fixed: Booking modal visitor Stripe customer ID was created but never saved back to the member record in the database",
+      "Fixed: Staff-created HubSpot-billed members now sync to HubSpot as contacts (was skipped because deal creation was disabled)",
+      "Fixed: Visitor-to-member conversions via staff admin now sync to HubSpot with name, phone, and tier",
     ]
   },
   {
