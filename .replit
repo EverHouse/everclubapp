@@ -1,7 +1,7 @@
 modules = ["nodejs-20", "python-3.11", "postgresql-16"]
 [nix]
 channel = "stable-25_05"
-packages = ["g-ls", "gifsicle", "gitFull", "imagemagick", "libwebp", "playwright-driver", "unzip", "yakut"]
+packages = ["g-ls", "gifsicle", "gitFull", "imagemagick", "libwebp", "playwright-driver", "unzip", "yakut", "glib", "nss", "nspr", "at-spi2-atk", "cups", "dbus", "expat", "libdrm", "xorg.libxcb", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "mesa", "alsa-lib", "pango", "cairo", "libgbm", "libxkbcommon"]
 
 [agent]
 expertMode = true
