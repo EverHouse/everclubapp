@@ -14,6 +14,7 @@ import { NewUserDrawer } from '../../../components/staff-command-center/drawers/
 import { DirectoryTabSkeleton } from '../../../components/skeletons';
 import { formatPhoneNumber } from '../../../utils/formatting';
 import { getTierColor, getTagColor } from '../../../utils/tierUtils';
+import { getMemberStatusLabel, getMemberStatusBadgeClass } from '../../../utils/statusColors';
 import { AnimatedPage } from '../../../components/motion';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import { useToast } from '../../../components/Toast';
@@ -72,7 +73,7 @@ type MemberTab = 'active' | 'former' | 'visitors' | 'team';
 
 type VisitorType = 'all' | 'NEW' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
 type VisitorSource = 'all' | 'mindbody' | 'hubspot' | 'stripe' | 'APP';
-type VisitorSortField = 'name' | 'type' | 'source' | 'lastActivity' | 'createdAt';
+type VisitorSortField = 'name' | 'type' | 'source' | 'lastActivity' | 'createdAt' | 'purchases';
 
 type StaffRole = 'staff' | 'admin' | 'golf_instructor';
 
@@ -212,6 +213,7 @@ const DirectoryTab: React.FC = () => {
     const [tierFilter, setTierFilter] = useState<string>('All');
     const [tagFilter, setTagFilter] = useState<string>('All');
     const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [membershipStatusFilter, setMembershipStatusFilter] = useState<string>('All');
     const [billingFilter, setBillingFilter] = useState<BillingFilter>('All');
     const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
     const [isViewingDetails, setIsViewingDetails] = useState(false);
@@ -500,6 +502,7 @@ const DirectoryTab: React.FC = () => {
     const handleTabChange = useCallback(async (tab: MemberTab) => {
         setMemberTab(tab);
         setStatusFilter('All');
+        setMembershipStatusFilter('All');
         if (tab === 'former') {
             setFormerLoading(true);
             setFormerError(false);
@@ -632,6 +635,18 @@ const DirectoryTab: React.FC = () => {
         return Array.from(statusSet).sort();
     }, [formerMembers]);
 
+    const allMembershipStatuses = useMemo(() => {
+        const statusSet = new Set<string>();
+        if (memberTab === 'active' && Array.isArray(regularMembers)) {
+            regularMembers.forEach(m => {
+                if (m?.membershipStatus && typeof m.membershipStatus === 'string') {
+                    statusSet.add(m.membershipStatus);
+                }
+            });
+        }
+        return Array.from(statusSet).sort();
+    }, [regularMembers, memberTab]);
+
     const sortedVisitors = useMemo(() => {
         const sorted = [...visitors];
         sorted.sort((a, b) => {
@@ -672,6 +687,9 @@ const DirectoryTab: React.FC = () => {
                     else if (!validA) comparison = 1;
                     else if (!validB) comparison = -1;
                     else comparison = timestampA - timestampB;
+                    break;
+                case 'purchases':
+                    comparison = (a.purchaseCount || 0) - (b.purchaseCount || 0);
                     break;
                 case 'createdAt':
                     const createdA = a.createdAt ? Date.parse(a.createdAt) : NaN;
@@ -743,6 +761,10 @@ const DirectoryTab: React.FC = () => {
             filtered = filtered.filter(m => m.status === statusFilter);
         }
         
+        if (memberTab === 'active' && membershipStatusFilter !== 'All') {
+            filtered = filtered.filter(m => m.membershipStatus === membershipStatusFilter);
+        }
+        
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(m => 
@@ -781,7 +803,7 @@ const DirectoryTab: React.FC = () => {
         });
         
         return filtered;
-    }, [regularMembers, tierFilter, tagFilter, statusFilter, billingFilter, memberTab, searchQuery, sortField, sortDirection, showMissingTierOnly]);
+    }, [regularMembers, tierFilter, tagFilter, statusFilter, membershipStatusFilter, billingFilter, memberTab, searchQuery, sortField, sortDirection, showMissingTierOnly]);
     
     const { visibleItems, hasMore, loadMoreRef, totalCount, visibleCount } = useIncrementalLoad(filteredList);
     
@@ -1030,6 +1052,35 @@ const DirectoryTab: React.FC = () => {
                                 </button>
                             );
                         })}
+                    </div>
+                )}
+
+                {memberTab === 'active' && allMembershipStatuses.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
+                        <button
+                            onClick={() => setMembershipStatusFilter('All')}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                membershipStatusFilter === 'All'
+                                    ? 'bg-primary dark:bg-lavender text-white'
+                                    : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                            }`}
+                        >
+                            All
+                        </button>
+                        {allMembershipStatuses.map(status => (
+                            <button
+                                key={status}
+                                onClick={() => setMembershipStatusFilter(status)}
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                    membershipStatusFilter === status
+                                        ? getMemberStatusBadgeClass(status)
+                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                }`}
+                            >
+                                {getMemberStatusLabel(status)}
+                            </button>
+                        ))}
                     </div>
                 )}
 
@@ -1376,7 +1427,26 @@ const DirectoryTab: React.FC = () => {
                                         <th className="p-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Email</th>
                                         <th className="p-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Type</th>
                                         <th className="p-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Source</th>
-                                        <th className="p-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Purchases</th>
+                                        <th 
+                                            className="p-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                                            onClick={() => {
+                                                if (visitorSortField === 'purchases') {
+                                                    setVisitorSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                                                } else {
+                                                    setVisitorSortField('purchases');
+                                                    setVisitorSortDirection('desc');
+                                                }
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-1">
+                                                Purchases
+                                                {visitorSortField === 'purchases' && (
+                                                    <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender">
+                                                        {visitorSortDirection === 'asc' ? 'arrow_upward' : 'arrow_downward'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </th>
                                         <th className="p-3 text-left text-xs font-bold text-gray-600 dark:text-gray-400 uppercase">Last Activity</th>
                                     </tr>
                                 </thead>
@@ -1601,6 +1671,11 @@ const DirectoryTab: React.FC = () => {
                                                             <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender animate-spin">progress_activity</span>
                                                         )}
                                                     </div>
+                                                    {m.membershipStatus && (
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
+                                                            {getMemberStatusLabel(m.membershipStatus)}
+                                                        </span>
+                                                    )}
                                                     {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
                                                         <TagBadge key={tag} tag={tag} size="sm" />
                                                     ))}
@@ -1632,14 +1707,15 @@ const DirectoryTab: React.FC = () => {
 
                         <div className="hidden md:block relative">
                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20">
-                                <SortableHeader field="name" label="Name" width="15%" />
-                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '20%' }}>Tier & Tags</div>
-                                <SortableHeader field="visits" label="Visits" width="8%" className="text-center" />
-                                <SortableHeader field="joinDate" label="Joined" width="10%" />
-                                <SortableHeader field="lastVisit" label="Last Visit" width="10%" />
-                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '22%' : '37%' }}>Email</div>
+                                <SortableHeader field="name" label="Name" width="14%" />
+                                <SortableHeader field="tier" label="Tier" width="12%" />
+                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%' }}>Status</div>
+                                <SortableHeader field="visits" label="Visits" width="7%" className="text-center" />
+                                <SortableHeader field="joinDate" label="Joined" width="9%" />
+                                <SortableHeader field="lastVisit" label="Last Visit" width="9%" />
+                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '24%' : '39%' }}>Email</div>
                                 {memberTab === 'former' && (
-                                    <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>Status</div>
+                                    <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '15%' }}>Former Status</div>
                                 )}
                             </div>
                             <div>
@@ -1649,8 +1725,8 @@ const DirectoryTab: React.FC = () => {
                                         onClick={() => openDetailsModal(m)}
                                         className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                     >
-                                        <div style={{ width: '15%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
-                                        <div style={{ width: '20%' }} className="p-4">
+                                        <div style={{ width: '14%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
+                                        <div style={{ width: '12%' }} className="p-4">
                                             <div className="flex items-center gap-1 flex-wrap">
                                                 <div className="flex items-center gap-1">
                                                     <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
@@ -1672,16 +1748,25 @@ const DirectoryTab: React.FC = () => {
                                                 )}
                                             </div>
                                         </div>
-                                        <div style={{ width: '8%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                                        <div style={{ width: '10%' }} className="p-4">
+                                            {m.membershipStatus ? (
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
+                                                    {getMemberStatusLabel(m.membershipStatus)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                                            )}
+                                        </div>
+                                        <div style={{ width: '7%' }} className="p-4 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
                                             {m.lifetimeVisits || 0}
                                         </div>
-                                        <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                        <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.joinDate)}
                                         </div>
-                                        <div style={{ width: '10%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                                        <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.lastBookingDate)}
                                         </div>
-                                        <div style={{ width: memberTab === 'former' ? '22%' : '37%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
+                                        <div style={{ width: memberTab === 'former' ? '24%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
                                         {memberTab === 'former' && (
                                             <div style={{ width: '15%' }} className="p-4">
                                                 {m.status ? (

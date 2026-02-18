@@ -169,6 +169,15 @@ function getMemberStatusInfo(status: string | undefined | null): MemberStatusInf
   return STATUS_MAP[s] || { ...DEFAULT_STATUS_INFO, label: status.replace(/_/g, ' ') };
 }
 
+export function getMemberStatusBadgeClass(status: string | undefined | null): string {
+  if (!status || typeof status !== 'string') {
+    return 'bg-gray-500/20 text-gray-500 dark:bg-gray-500/20 dark:text-gray-400';
+  }
+  const info = getMemberStatusInfo(status);
+  const darkClasses = info.colorClass.dark.split(' ').map((c: string) => `dark:${c}`).join(' ');
+  return `${info.colorClass.light} ${darkClasses}`;
+}
+
 export function getMemberStatusColor(status: string | undefined | null, isDark: boolean): string {
   const info = getMemberStatusInfo(status);
   return isDark ? info.colorClass.dark : info.colorClass.light;
