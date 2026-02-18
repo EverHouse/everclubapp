@@ -8,6 +8,7 @@ import { AssignModeFooter } from './AssignModeFooter';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import { useUnifiedBookingLogic } from './useUnifiedBookingLogic';
 import { isPlaceholderEmail } from './bookingSheetTypes';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import type { BookingContextType } from './bookingSheetTypes';
 
 export type BookingType = 'simulator' | 'conference_room' | 'lesson' | 'staff_block';
@@ -127,7 +128,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         <div className="p-4 space-y-4">
           {logic.isLoadingRoster ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+              <WalkingGolferSpinner size="sm" variant="dark" />
             </div>
           ) : logic.rosterError ? (
             <div className="text-center py-8">

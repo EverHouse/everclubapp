@@ -10,6 +10,7 @@ import {
 import { loadStripe, Stripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import { getStripeAppearance } from '../stripe/stripeAppearance';
+import WalkingGolferSpinner from '../WalkingGolferSpinner';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
@@ -215,7 +216,7 @@ export function InvoicePaymentModal({
         type="button"
         onClick={handleFormSubmit}
         disabled={isProcessing}
-        className="flex-1 py-4 rounded-xl backdrop-blur-md transition-all duration-300 flex items-center justify-center gap-2 group border bg-emerald-100/60 text-emerald-900 border-emerald-200 hover:bg-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-500/20 dark:hover:bg-emerald-900/60 disabled:opacity-50 font-semibold"
+        className="flex-1 py-4 rounded-xl backdrop-blur-md transition-all duration-normal flex items-center justify-center gap-2 group border bg-emerald-100/60 text-emerald-900 border-emerald-200 hover:bg-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-500/20 dark:hover:bg-emerald-900/60 disabled:opacity-50 font-semibold"
       >
         {isProcessing ? (
           <>
@@ -251,7 +252,7 @@ export function InvoicePaymentModal({
       <div className="p-4">
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#CCB8E4] border-t-transparent" />
+            <WalkingGolferSpinner size="sm" variant="light" />
           </div>
         )}
 

@@ -93,7 +93,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                 <button 
                   onClick={() => handleNav('/')}
                   aria-label="Go to home"
-                  className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition-transform duration-300 rounded-full active:scale-90 hover:scale-105"
+                  className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center transition-transform duration-normal rounded-full active:scale-90 hover:scale-105"
                 >
                   <img 
                     src={isDark ? "/assets/logos/mascot-white.webp" : "/assets/logos/mascot-dark.webp"}
@@ -104,7 +104,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                 <button 
                   onClick={handleClose}
                   aria-label="Close menu"
-                  className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-300 rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
+                  className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-normal rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
                 >
                     <span className="material-symbols-outlined text-3xl">close</span>
                 </button>
@@ -160,7 +160,7 @@ const MenuLink: React.FC<MenuLinkProps> = ({ label, onClick, staggerIndex, isDar
       onClick={onClick}
       onPointerUp={handlePointerUp}
       style={{ '--stagger-index': staggerIndex, touchAction: 'manipulation', animationFillMode: 'both' } as React.CSSProperties}
-      className={`text-left text-[24px] font-display font-medium transition-all duration-300 tracking-tight animate-slide-up-stagger leading-tight min-h-[44px] hoverable-translate active:translate-x-2 ${isDark ? 'text-[#F2F2EC] hover:text-[#F2F2EC]/80' : 'text-[#293515] hover:text-[#293515]/80'}`}
+      className={`text-left text-[24px] font-display font-medium transition-all duration-normal tracking-tight animate-slide-up-stagger leading-tight min-h-[44px] hoverable-translate active:translate-x-2 ${isDark ? 'text-[#F2F2EC] hover:text-[#F2F2EC]/80' : 'text-[#293515] hover:text-[#293515]/80'}`}
     >
       {label}
     </button>

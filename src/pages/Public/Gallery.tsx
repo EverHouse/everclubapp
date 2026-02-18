@@ -151,7 +151,7 @@ const Gallery: React.FC = () => {
 
         <section className="px-6 py-10 text-center bg-bone dark:bg-[#141414]">
           <p className="text-primary/60 dark:text-white/60 text-sm mb-4">Like what you see?</p>
-          <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
+          <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
             Book Your Private Tour
           </Link>
         </section>
@@ -228,7 +228,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
           <span className="material-symbols-outlined text-gray-400 dark:text-white/50 text-3xl">broken_image</span>
         </div>
       )}
-      {loaded && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>}
+      {loaded && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-normal"></div>}
     </div>
   );
 });

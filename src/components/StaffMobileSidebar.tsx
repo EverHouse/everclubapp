@@ -108,19 +108,19 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
-          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200
+          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-fast
           ${isActive 
             ? 'text-white font-semibold' 
             : 'text-white/70 hover:bg-white/10 hover:text-white'
           }
         `}
       >
-        <div className={`absolute inset-0 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} />
-        <span className={`material-symbols-outlined text-xl relative z-10 transition-colors duration-300 ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
+        <div className={`absolute inset-0 rounded-xl bg-white/15 border border-white/25 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-md transition-all duration-normal ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} />
+        <span className={`material-symbols-outlined text-xl relative z-10 transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : ''}`}>
           {item.icon}
         </span>
         <span className="text-sm relative z-10">{item.label}</span>
-        <span className={`relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4] transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+        <span className={`relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4] transition-all duration-normal ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
       </button>
     );
   };
@@ -178,7 +178,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-3" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           <button
             onClick={() => setShowBugReport(true)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 text-white/70 hover:bg-white/10 hover:text-white"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-fast text-white/70 hover:bg-white/10 hover:text-white"
           >
             <span className="material-symbols-outlined text-xl">bug_report</span>
             <span className="text-sm">Report a Bug</span>

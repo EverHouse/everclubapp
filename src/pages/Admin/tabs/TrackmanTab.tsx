@@ -515,7 +515,7 @@ const TrackmanTab: React.FC = () => {
                   return (
                     <div 
                       key={booking.id} 
-                      className={`rounded-xl p-4 border animate-slide-up-stagger transition-all duration-300 ${
+                      className={`rounded-xl p-4 border animate-slide-up-stagger transition-all duration-normal ${
                         isLinking 
                           ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30 opacity-75' 
                           : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'

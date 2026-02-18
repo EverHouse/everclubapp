@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import WalkingGolferSpinner from '../WalkingGolferSpinner';
 
 interface TerminalReader {
   id: string;
@@ -374,7 +375,7 @@ export function TerminalPayment({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-600 border-t-transparent" />
+        <WalkingGolferSpinner size="sm" variant="dark" />
       </div>
     );
   }

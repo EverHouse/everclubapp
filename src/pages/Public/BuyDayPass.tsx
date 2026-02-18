@@ -291,7 +291,7 @@ const BuyDayPass: React.FC = () => {
       <section className="px-6 py-10 text-center">
         <p className="text-primary/60 dark:text-white/60 text-sm mb-2">Loved your visit?</p>
         <p className="text-primary/80 dark:text-white/80 text-sm font-medium mb-4">Membership gives you unlimited access, priority booking, and a community of professionals.</p>
-        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
+        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
           Book a Tour
         </Link>
       </section>

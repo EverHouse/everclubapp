@@ -50,7 +50,7 @@ const PrivateHire: React.FC = () => {
              }}
            />
            <div 
-             className="absolute inset-0 transition-opacity duration-300 animate-hero-overlay"
+             className="absolute inset-0 transition-opacity duration-normal animate-hero-overlay"
              style={{
                background: `linear-gradient(to top, rgba(0,0,0,${0.7 + gradientShift * 0.003}) 0%, rgba(0,0,0,${0.45 + gradientShift * 0.005}) 20%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.08) 50%, transparent 60%)`
              }}

@@ -356,7 +356,7 @@ export const EventsAdminContent: React.FC = () => {
                             </span>
                         )}
                     </div>
-                    <span className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform duration-200 ${needsReviewExpanded ? 'rotate-180' : ''}`}>
+                    <span className={`material-symbols-outlined text-amber-600 dark:text-amber-400 transition-transform duration-fast ${needsReviewExpanded ? 'rotate-180' : ''}`}>
                         expand_more
                     </span>
                 </button>

@@ -5,6 +5,7 @@ import { TerminalPayment } from '../TerminalPayment';
 import SlideUpDrawer from '../../SlideUpDrawer';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
 import { useBookingActions } from '../../../hooks/useBookingActions';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 function formatTime12Hour(time: string | undefined): string {
   if (!time) return '';
@@ -743,7 +744,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
               />
             ) : (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                <WalkingGolferSpinner size="sm" variant="dark" />
               </div>
             )}
           </div>
@@ -808,7 +809,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+            <WalkingGolferSpinner size="sm" variant="dark" />
           </div>
         ) : error ? (
           <div className="text-center py-8">

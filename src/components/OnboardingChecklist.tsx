@@ -191,7 +191,7 @@ const OnboardingChecklist: React.FC = () => {
 
       <div className="w-full h-2 bg-primary/10 dark:bg-white/10 rounded-full mb-4 overflow-hidden">
         <div
-          className="h-full bg-accent rounded-full transition-all duration-500"
+          className="h-full bg-accent rounded-full transition-all duration-emphasis"
           style={{ width: `${progressPercent}%` }}
         />
       </div>

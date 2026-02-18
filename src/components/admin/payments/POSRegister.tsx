@@ -13,6 +13,7 @@ import { useCafeMenu } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';
 import RedeemDayPassSection from './RedeemPassCard';
 import IdScannerModal from '../../staff-command-center/modals/IdScannerModal';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 interface CartItem {
   productId: string;
@@ -929,7 +930,7 @@ const POSRegister: React.FC = () => {
           <div>
             {isCreatingIntent ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary dark:border-lavender border-t-transparent" />
+                <WalkingGolferSpinner size="sm" variant="dark" />
               </div>
             ) : clientSecret ? (
               <Elements

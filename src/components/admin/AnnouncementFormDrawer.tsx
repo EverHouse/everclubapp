@@ -125,11 +125,11 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
           <button
             type="button"
             onClick={() => setFormData({...formData, notifyMembers: !formData.notifyMembers})}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${formData.notifyMembers ? 'bg-primary' : 'bg-gray-200 dark:bg-white/20'}`}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-fast ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${formData.notifyMembers ? 'bg-primary' : 'bg-gray-200 dark:bg-white/20'}`}
             role="switch"
             aria-checked={formData.notifyMembers || false}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.notifyMembers ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-fast ease-in-out ${formData.notifyMembers ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
         
@@ -141,11 +141,11 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
           <button
             type="button"
             onClick={() => setFormData({...formData, showAsBanner: !formData.showAsBanner})}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${formData.showAsBanner ? 'bg-lavender' : 'bg-gray-200 dark:bg-white/20'}`}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-fast ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${formData.showAsBanner ? 'bg-lavender' : 'bg-gray-200 dark:bg-white/20'}`}
             role="switch"
             aria-checked={formData.showAsBanner || false}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.showAsBanner ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-fast ease-in-out ${formData.showAsBanner ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
         

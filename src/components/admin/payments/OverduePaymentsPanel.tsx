@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../../EmptyState';
 import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
 import { getTodayPacific } from '../../../utils/dateUtils';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 export interface SectionProps {
   onClose?: () => void;
@@ -73,7 +74,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
 
   const content = loading ? (
     <div className="flex items-center justify-center py-12">
-      <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
   ) : overduePayments.length === 0 ? (
     <EmptyState icon="payments" title="No overdue payments" description="All payments are up to date" variant="compact" />

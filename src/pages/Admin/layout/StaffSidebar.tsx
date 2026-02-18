@@ -112,18 +112,18 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
-          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-300 ease-out
+          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-normal ease-out
           ${isActive 
             ? 'text-white font-semibold' 
             : 'text-white/60 hover:text-white hover:bg-white/[0.07] group/nav'
           }
         `}
       >
-        <span className={`material-symbols-outlined text-xl relative z-10 transition-colors duration-300 ${isActive ? 'filled text-[#CCB8E4]' : 'group-hover/nav:text-white/90'}`}>
+        <span className={`material-symbols-outlined text-xl relative z-10 transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'group-hover/nav:text-white/90'}`}>
           {item.icon}
         </span>
         <span className="text-sm relative z-10">{item.label}</span>
-        <span className={`relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4] transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+        <span className={`relative z-10 ml-auto w-2 h-2 rounded-full bg-[#CCB8E4] transition-all duration-normal ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
       </button>
     );
   };
@@ -150,7 +150,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
       <nav ref={navContainerRef} className="relative flex-1 overflow-y-auto px-3 py-4">
         {indicatorStyle && (
           <div 
-            className="absolute left-3 right-3 rounded-xl bg-white/10 border border-white/20 shadow-[0_0_24px_rgba(204,184,228,0.1),0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.2)] backdrop-blur-xl pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            className="absolute left-3 right-3 rounded-xl bg-white/10 border border-white/20 shadow-[0_0_24px_rgba(204,184,228,0.1),0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.2)] backdrop-blur-xl pointer-events-none transition-all duration-emphasis ease-[cubic-bezier(0.34,1.56,0.64,1)]"
             style={{ 
               top: indicatorStyle.top,
               height: indicatorStyle.height

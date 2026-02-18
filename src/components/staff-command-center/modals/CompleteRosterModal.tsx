@@ -5,6 +5,7 @@ import { CheckinBillingModal } from './CheckinBillingModal';
 import SlideUpDrawer from '../../SlideUpDrawer';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../utils/errorHandling';
 import { useToast } from '../../Toast';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 interface BookingContext {
   bookingId: number;
@@ -187,7 +188,7 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
 
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+              <WalkingGolferSpinner size="sm" variant="dark" />
             </div>
           ) : error ? (
             <div className="text-center py-8">

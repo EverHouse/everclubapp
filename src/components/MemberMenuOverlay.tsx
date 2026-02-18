@@ -155,7 +155,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                 <button 
                   onClick={() => handleNav('/')}
                   aria-label="Go to home"
-                  className="w-14 h-14 min-w-[56px] min-h-[56px] flex items-center justify-center transition-transform duration-300 rounded-full active:scale-90 hover:scale-105"
+                  className="w-14 h-14 min-w-[56px] min-h-[56px] flex items-center justify-center transition-transform duration-normal rounded-full active:scale-90 hover:scale-105"
                 >
                   <img 
                     src={isDark ? "/assets/logos/mascot-white.webp" : "/assets/logos/mascot-dark.webp"}
@@ -166,7 +166,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                 <button 
                   onClick={handleClose}
                   aria-label="Close menu"
-                  className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-300 rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
+                  className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-normal rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
                 >
                     <span className="material-symbols-outlined text-3xl">close</span>
                 </button>
@@ -191,7 +191,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                   haptic.light();
                   setShowBugReport(true);
                 }}
-                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-300 leading-tight min-h-[48px] ${
+                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-normal leading-tight min-h-[48px] ${
                   isDark 
                     ? 'text-[#F2F2EC]/60 hover:text-[#F2F2EC] hover:bg-white/5' 
                     : 'text-[#293515]/60 hover:text-[#293515] hover:bg-black/5'
@@ -240,7 +240,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
       onClick={onClick}
       onPointerUp={handlePointerUp}
       style={{ '--stagger-index': staggerIndex, touchAction: 'manipulation', animationFillMode: 'both' } as React.CSSProperties}
-      className={`relative flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-300 animate-slide-up-stagger leading-tight min-h-[48px] ${
+      className={`relative flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-normal animate-slide-up-stagger leading-tight min-h-[48px] ${
         isActive
           ? isDark 
             ? 'text-[#F2F2EC]' 
@@ -251,7 +251,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
       }`}
     >
       <div 
-        className={`absolute inset-0 rounded-xl transition-all duration-300 ${
+        className={`absolute inset-0 rounded-xl transition-all duration-normal ${
           isActive
             ? isDark 
               ? 'opacity-100 scale-100 bg-white/10 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.1)]' 
@@ -269,7 +269,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
       </span>
       <span className="relative z-10 flex-1">{item.label}</span>
       
-      <span className={`relative z-10 w-2 h-2 rounded-full transition-all duration-300 ${
+      <span className={`relative z-10 w-2 h-2 rounded-full transition-all duration-normal ${
         isActive 
           ? isDark ? 'opacity-100 scale-100 bg-[#CCB8E4]' : 'opacity-100 scale-100 bg-[#293515]'
           : 'opacity-0 scale-0'

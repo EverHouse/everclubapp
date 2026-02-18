@@ -1105,7 +1105,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
             return (
               <div 
                 key={member.id} 
-                className={`relative flex items-center justify-between p-2 rounded-lg border transition-all duration-300 ${
+                className={`relative flex items-center justify-between p-2 rounded-lg border transition-all duration-normal ${
                   isOptimisticallyUnlinking 
                     ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30' 
                     : 'bg-white dark:bg-black/20 border-gray-100 dark:border-white/10'

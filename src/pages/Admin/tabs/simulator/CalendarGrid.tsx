@@ -138,7 +138,7 @@ function CalendarFeeIndicator({
             )}
 
             {showHoverTooltip && startTime && endTime && (
-                <div className="hidden sm:block opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50">
+                <div className="hidden sm:block opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-fast absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50">
                     <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-lg shadow-xl border border-gray-200/50 dark:border-white/10 px-3 py-2 text-left min-w-[180px]">
                         <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{bookingDisplayName}</p>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}</p>
@@ -351,7 +351,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             if (a.type !== 'conference_room' && b.type === 'conference_room') return -1;
                             return 0;
                         }).map(resource => (
-                            <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 sticky top-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-150 ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
+                            <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 sticky top-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-fast ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
                                 <span className="hidden sm:inline">{resource.type === 'conference_room' ? 'Conf' : resource.name.replace('Simulator Bay ', 'Bay ')}</span>
                                 <span className="sm:hidden">{resource.type === 'conference_room' ? 'CR' : resource.name.replace('Simulator Bay ', 'B')}</span>
                             </div>
@@ -468,7 +468,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                         : pendingRequest
                                                                 ? 'bg-blue-50 dark:bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20'
                                                                 : 'bg-white dark:bg-white/5 border border-gray-200 dark:border-white/15 cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10'
-                                            } transition-all duration-150`}
+                                            } transition-all duration-fast`}
                                             style={isEmptyCell ? {
                                                 backgroundImage: isDark 
                                                     ? 'radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)'

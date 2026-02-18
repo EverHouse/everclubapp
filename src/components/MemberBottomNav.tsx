@@ -59,7 +59,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
         <div className="relative flex items-center w-full">
           {activeIndex >= 0 && (
             <div 
-              className="absolute top-0 bottom-0 left-0 rounded-full pointer-events-none bg-gradient-to-b from-white/20 to-white/10 shadow-[0_0_20px_rgba(41,53,21,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+              className="absolute top-0 bottom-0 left-0 rounded-full pointer-events-none bg-gradient-to-b from-white/20 to-white/10 shadow-[0_0_20px_rgba(41,53,21,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-transform duration-emphasis ease-[cubic-bezier(0.34,1.56,0.64,1)]"
               style={{ 
                 width: `${blobWidth}%`, 
                 transform: `translateX(${activeIndex * 100}%)`,
@@ -81,17 +81,17 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                 className={`
                   flex-1 flex flex-col items-center gap-0.5 py-3.5 px-1 min-h-[48px] relative z-10 cursor-pointer
-                  select-none transition-colors duration-300 ease-out active:scale-95
+                  select-none transition-colors duration-normal ease-out active:scale-95
                   focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-inset focus-visible:outline-none
                   ${isActive ? 'text-white' : 'text-white/70 hover:text-white/90'}
                 `}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className={`material-symbols-outlined text-[22px] transition-transform duration-300 pointer-events-none ${shouldFill ? 'filled' : ''} ${isActive ? 'scale-110' : ''}`}>
+                <span className={`material-symbols-outlined text-[22px] transition-transform duration-normal pointer-events-none ${shouldFill ? 'filled' : ''} ${isActive ? 'scale-110' : ''}`}>
                   {item.icon}
                 </span>
-                <span className={`text-[10px] tracking-wide transition-colors duration-300 pointer-events-none ${isActive ? 'font-bold' : 'font-medium'}`}>
+                <span className={`text-[10px] tracking-wide transition-colors duration-normal pointer-events-none ${isActive ? 'font-bold' : 'font-medium'}`}>
                   {item.label}
                 </span>
               </button>

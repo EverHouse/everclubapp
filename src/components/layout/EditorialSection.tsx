@@ -29,7 +29,7 @@ const EditorialSection: React.FC<EditorialSectionProps> = ({
             <img
               src={image}
               alt={title}
-              className="w-full h-auto aspect-[4/3] object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+              className="w-full h-auto aspect-[4/3] object-cover transition-transform duration-emphasis ease-out group-hover:scale-105"
               loading="lazy"
             />
           </div>

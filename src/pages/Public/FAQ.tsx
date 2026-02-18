@@ -148,7 +148,7 @@ const AccordionItem: React.FC<{ question: string; answer: string }> = ({ questio
         className="w-full flex items-center justify-between p-4 text-left font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
       >
         <span>{question}</span>
-        <span className={`material-symbols-outlined transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
+        <span className={`material-symbols-outlined transition-transform duration-normal ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
       <div className={`accordion-content ${isOpen ? 'is-open' : ''}`}>
         <div className="accordion-inner">

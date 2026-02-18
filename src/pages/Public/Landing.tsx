@@ -120,7 +120,7 @@ const Landing: React.FC = () => {
             }}
           />
           <div 
-            className="absolute inset-0 transition-opacity duration-300 animate-hero-overlay"
+            className="absolute inset-0 transition-opacity duration-normal animate-hero-overlay"
             style={{
               background: `linear-gradient(to top, rgba(0,0,0,${0.7 + gradientShift * 0.003}) 0%, rgba(0,0,0,${0.45 + gradientShift * 0.005}) 20%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.08) 50%, transparent 60%)`
             }}
@@ -159,7 +159,7 @@ const Landing: React.FC = () => {
             href="https://www.forbes.com/sites/mikedojc/2025/09/09/even-house-turns-indoor-golf-into-a-community-social-hub/" 
             target="_blank" 
             rel="noreferrer"
-            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-normal flex flex-col"
           >
             <p className="text-xl font-bold text-primary/80 dark:text-white/80 tracking-tight mb-4" style={{ fontFamily: 'Georgia, serif' }}>Forbes</p>
             <blockquote className="text-sm text-primary/80 dark:text-white/80 leading-relaxed flex-1">
@@ -172,7 +172,7 @@ const Landing: React.FC = () => {
             href="https://hypebeast.com/2025/2/even-house-membership-golf-club-for-the-next-generation" 
             target="_blank" 
             rel="noreferrer"
-            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-normal flex flex-col"
           >
             <p className="text-lg font-black text-primary/80 dark:text-white/80 uppercase tracking-tighter mb-4">Hypebeast</p>
             <blockquote className="text-sm text-primary/80 dark:text-white/80 leading-relaxed flex-1">
@@ -185,7 +185,7 @@ const Landing: React.FC = () => {
             href="https://www.foxla.com/video/fmc-t05loqz15hed9sfa" 
             target="_blank" 
             rel="noreferrer"
-            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-300 flex flex-col"
+            className="backdrop-blur-xl bg-white/40 dark:bg-white/5 p-6 rounded-[1.5rem] border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.01] transition-all duration-normal flex flex-col"
           >
             <p className="text-lg font-black text-primary/80 dark:text-white/80 uppercase tracking-wide mb-4">Fox 11</p>
             <blockquote className="text-sm text-primary/80 dark:text-white/80 leading-relaxed flex-1">
@@ -253,7 +253,7 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80 dark:text-white/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-300 block text-center">View Details</Link>
+                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-normal block text-center">View Details</Link>
             </div>
             )}
 
@@ -272,7 +272,7 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-white/90"><span className="material-symbols-outlined text-sm text-accent">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/95 dark:bg-white/10 backdrop-blur text-primary dark:text-white font-bold text-xs hover:bg-white transition-all duration-300 relative z-10 shadow-md block text-center">View Details</Link>
+                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/95 dark:bg-white/10 backdrop-blur text-primary dark:text-white font-bold text-xs hover:bg-white transition-all duration-normal relative z-10 shadow-md block text-center">View Details</Link>
             </div>
             )}
 
@@ -288,7 +288,7 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80 dark:text-white/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership/corporate" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-300 block text-center">View Details</Link>
+                <Link to="/membership/corporate" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-normal block text-center">View Details</Link>
             </div>
             )}
 
@@ -341,7 +341,7 @@ const Landing: React.FC = () => {
             <div className="absolute inset-0 p-8 flex flex-col justify-center items-center text-center">
                 <span className="px-4 py-1.5 bg-white/15 backdrop-blur-md border border-white/30 rounded-full text-white/90 text-xs font-bold uppercase tracking-[0.2em] mb-4 shadow-[0_0_12px_rgba(255,255,255,0.1)]">Host with Us</span>
                 <h2 className="text-4xl font-bold text-white mb-6 leading-tight drop-shadow-lg">Private Events &<br/>Full Buyouts</h2>
-                <Link to="/private-hire" className="px-8 py-3 bg-white/95 backdrop-blur text-primary rounded-xl font-bold text-sm hover:scale-105 hover:bg-white transition-all duration-300 shadow-[0_8px_24px_rgba(0,0,0,0.2)] inline-block">
+                <Link to="/private-hire" className="px-8 py-3 bg-white/95 backdrop-blur text-primary rounded-xl font-bold text-sm hover:scale-105 hover:bg-white transition-all duration-normal shadow-[0_8px_24px_rgba(0,0,0,0.2)] inline-block">
                     Inquire Now
                 </Link>
             </div>

@@ -164,7 +164,7 @@ const PublicCafe: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 ml-2 text-primary/40 dark:text-white/40 ${isExpanded ? 'rotate-180' : ''}`}>
+                      <span className={`material-symbols-outlined text-[20px] transition-transform duration-normal ml-2 text-primary/40 dark:text-white/40 ${isExpanded ? 'rotate-180' : ''}`}>
                         expand_more
                       </span>
                     </div>

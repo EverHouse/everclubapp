@@ -90,7 +90,7 @@ const AnnouncementAlert: React.FC = () => {
 
   return (
     <article 
-      className={`mb-6 p-4 rounded-2xl border cursor-pointer transition-all duration-200 ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none`}
+      className={`mb-6 p-4 rounded-2xl border cursor-pointer transition-all duration-fast ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none`}
       onClick={handleViewAll}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}

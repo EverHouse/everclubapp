@@ -144,7 +144,7 @@ const Contact: React.FC = () => {
                     <p className="text-primary/60 dark:text-white/60">Thank you for reaching out. Our team will respond to your inquiry shortly.</p>
                     <p className="text-primary/60 dark:text-white/60 mt-2">In the meantime, book a private tour to experience the club firsthand.</p>
                     <div className="mt-6">
-                      <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98]">
+                      <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98]">
                         Book a Tour
                       </Link>
                     </div>

@@ -172,7 +172,7 @@ export function SwipeableListItem({
       {/* Action containers positioned behind the card, clipped independently */}
       {leftActions.length > 0 && (
         <div 
-          className={`absolute inset-0 flex items-stretch rounded-2xl overflow-hidden transition-opacity duration-100 ${showLeftActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`absolute inset-0 flex items-stretch rounded-2xl overflow-hidden transition-opacity duration-instant ${showLeftActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           style={{ zIndex: 1 }}
         >
           <div className="flex">
@@ -183,14 +183,14 @@ export function SwipeableListItem({
                 <button
                   key={action.id}
                   onClick={() => handleActionClick(action)}
-                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-all duration-150 pointer-events-auto ${isExpanded ? 'scale-105' : ''}`}
+                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-all duration-fast pointer-events-auto ${isExpanded ? 'scale-105' : ''}`}
                   style={{ 
                     width: isExpanded ? actionWidth * 1.2 : actionWidth,
                     minWidth: actionWidth 
                   }}
                   aria-label={action.label}
                 >
-                  <span className={`material-symbols-outlined transition-transform duration-150 ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`}>{action.icon}</span>
+                  <span className={`material-symbols-outlined transition-transform duration-fast ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`}>{action.icon}</span>
                   <span className="text-xs font-medium">{action.label}</span>
                 </button>
               );
@@ -202,7 +202,7 @@ export function SwipeableListItem({
 
       {rightActions.length > 0 && (
         <div 
-          className={`absolute inset-0 flex items-stretch justify-end rounded-2xl overflow-hidden transition-opacity duration-100 ${showRightActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`absolute inset-0 flex items-stretch justify-end rounded-2xl overflow-hidden transition-opacity duration-instant ${showRightActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           style={{ zIndex: 1 }}
         >
           <div className={`flex-1 ${rightActions.length > 0 ? colorClasses[rightActions[0].color].split(' ')[0] : ''}`} />
@@ -214,14 +214,14 @@ export function SwipeableListItem({
                 <button
                   key={action.id}
                   onClick={() => handleActionClick(action)}
-                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-all duration-150 pointer-events-auto ${isExpanded ? 'scale-105' : ''}`}
+                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-all duration-fast pointer-events-auto ${isExpanded ? 'scale-105' : ''}`}
                   style={{ 
                     width: isExpanded ? actionWidth * 1.2 : actionWidth,
                     minWidth: actionWidth 
                   }}
                   aria-label={action.label}
                 >
-                  <span className={`material-symbols-outlined transition-transform duration-150 ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`}>{action.icon}</span>
+                  <span className={`material-symbols-outlined transition-transform duration-fast ${isExpanded ? 'text-2xl scale-125' : 'text-xl'}`}>{action.icon}</span>
                   <span className="text-xs font-medium">{action.label}</span>
                 </button>
               );
@@ -232,7 +232,7 @@ export function SwipeableListItem({
 
       {/* Card container - no overflow-hidden so border shows fully */}
       <div
-        className={`relative ${isTransitioning ? 'transition-transform duration-200 ease-out' : ''}`}
+        className={`relative ${isTransitioning ? 'transition-transform duration-fast ease-out' : ''}`}
         style={{ transform: `translateX(${translateX}px)`, zIndex: 2 }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

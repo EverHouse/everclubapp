@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import EmptyState from '../../EmptyState';
 import { useIsMobile } from '../../../hooks/useBreakpoint';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { useConfirmDialog } from '../../ConfirmDialog';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import RecentTransactionsSection, { TransactionListRef, Transaction } from './TransactionList';
@@ -123,7 +124,7 @@ const DailySummaryCard: React.FC<SectionProps> = ({ onClose, variant = 'modal' }
     <div className="space-y-4">
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-600 border-t-transparent" />
+          <WalkingGolferSpinner size="sm" variant="dark" />
         </div>
       ) : error ? (
         <div className="text-center py-4 text-red-500">{error instanceof Error ? error.message : 'Failed to fetch summary'}</div>
@@ -302,7 +303,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" />
+      <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
   ) : authorizations.length === 0 ? (
     <EmptyState 
@@ -575,7 +576,7 @@ const FutureBookingsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-green-500 border-t-transparent" />
+      <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
   ) : futureBookings.length === 0 ? (
     <EmptyState 
@@ -741,7 +742,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+      <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
   ) : failedPayments.length === 0 ? (
     <EmptyState 
@@ -979,7 +980,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-500 border-t-transparent" />
+      <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
   ) : selectedPayment ? (
     success ? (
@@ -1289,7 +1290,7 @@ const MobileTransactionsView: React.FC = () => {
           <button
             key={action.id}
             onClick={() => setActiveSection(action.id)}
-            className={`${action.bgClass} ${action.textClass} ${action.borderClass} ${action.hoverClass} border backdrop-blur-md rounded-2xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-all duration-300 relative animate-list-item-delay-${Math.min(index, 10)}`}
+            className={`${action.bgClass} ${action.textClass} ${action.borderClass} ${action.hoverClass} border backdrop-blur-md rounded-2xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-all duration-normal relative animate-list-item-delay-${Math.min(index, 10)}`}
           >
             <span className={`material-symbols-outlined text-3xl ${action.iconClass}`}>{action.icon}</span>
             <span className="font-semibold text-sm">{action.label}</span>

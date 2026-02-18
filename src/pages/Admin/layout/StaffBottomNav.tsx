@@ -53,7 +53,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
       <div className="relative flex items-center w-full">
         {activeIndex >= 0 && (
         <div 
-          className="absolute top-0 bottom-0 left-0 rounded-full pointer-events-none bg-gradient-to-b from-white/20 to-white/10 shadow-[0_0_20px_rgba(41,53,21,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+          className="absolute top-0 bottom-0 left-0 rounded-full pointer-events-none bg-gradient-to-b from-white/20 to-white/10 shadow-[0_0_20px_rgba(41,53,21,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-transform duration-emphasis ease-[cubic-bezier(0.34,1.56,0.64,1)]"
           style={{ 
             width: `${blobWidth}%`, 
             transform: `translateX(${activeIndex * 100}%)`,
@@ -74,12 +74,12 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
             aria-current={isActive ? 'page' : undefined}
             className={`
               flex-1 flex flex-col items-center gap-1 py-2 px-1 min-h-[48px] relative z-10 cursor-pointer
-              transition-colors duration-300 ease-out active:scale-95
+              transition-colors duration-normal ease-out active:scale-95
               ${isActive ? 'text-white' : 'text-white/60 hover:text-white'}
             `}
           >
             <div className="relative">
-              <span className={`material-symbols-outlined text-xl transition-transform duration-300 ${isActive ? 'filled scale-110' : ''}`} aria-hidden="true">
+              <span className={`material-symbols-outlined text-xl transition-transform duration-normal ${isActive ? 'filled scale-110' : ''}`} aria-hidden="true">
                 {item.icon}
               </span>
               {item.id === 'simulator' && pendingRequestsCount > 0 && (
@@ -88,7 +88,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
                 </span>
               )}
             </div>
-            <span className={`text-[11px] tracking-wide transition-colors duration-300 ${isActive ? 'font-semibold' : 'font-medium'}`}>
+            <span className={`text-[11px] tracking-wide transition-colors duration-normal ${isActive ? 'font-semibold' : 'font-medium'}`}>
               {item.label}
             </span>
           </button>

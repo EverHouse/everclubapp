@@ -53,7 +53,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             text-white dark:text-brand-green 
             rounded-2xl font-semibold 
             hover:scale-[1.02] active:scale-[0.98] 
-            transition-all duration-300
+            transition-all duration-normal
             shadow-lg hover:shadow-xl
           `}
         >

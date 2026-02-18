@@ -405,13 +405,13 @@ const GalleryAdmin: React.FC = () => {
                                     image.isActive 
                                         ? 'border-gray-200 dark:border-white/20' 
                                         : 'border-orange-200 dark:border-orange-800/30 opacity-60'
-                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-all duration-150 ease-out'}`}
+                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-all duration-fast ease-out'}`}
                             >
                                 <div className="aspect-square bg-gray-100 dark:bg-white/5 overflow-hidden relative">
                                     <img 
                                         src={image.imageUrl} 
                                         alt={image.title || 'Gallery image'} 
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-normal pointer-events-none"
                                         draggable={false}
                                     />
                                     <div className="absolute top-2 left-2 w-11 h-11 flex items-center justify-center bg-black/50 hover:bg-black/70 text-white rounded-lg touch-manipulation transition-colors" aria-label="Drag to reorder">

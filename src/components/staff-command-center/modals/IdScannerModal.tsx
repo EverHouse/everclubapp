@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 interface IdScannerModalProps {
   isOpen: boolean;
@@ -422,7 +423,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
 
               {state === 'scanning' && (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  <WalkingGolferSpinner size="md" variant="dark" />
                   <p className={`text-sm font-medium ${textClass}`}>Scanning ID document...</p>
                   <p className={`text-xs ${subtextClass}`}>This may take a few seconds</p>
                 </div>

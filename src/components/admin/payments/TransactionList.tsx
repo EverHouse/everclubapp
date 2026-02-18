@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import EmptyState from '../../EmptyState';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 export interface Transaction {
   id: string;
@@ -120,7 +121,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+      <WalkingGolferSpinner size="sm" variant="dark" />
     </div>
   ) : transactions.length === 0 ? (
     <EmptyState icon="receipt_long" title="No transactions today" description="Payments will appear here as they're processed" variant="compact" />

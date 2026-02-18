@@ -3,6 +3,7 @@ import EmptyState from '../../EmptyState';
 import { DateBlock, GlassListRow } from '../helpers';
 import { getTodayPacific } from '../../../utils/dateUtils';
 import { UnifiedBookingSheet } from '../modals/UnifiedBookingSheet';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 interface OverduePayment {
   bookingId: number;
@@ -83,7 +84,7 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
     return (
       <div className={`${isDesktop ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4`}>
         <div className="flex items-center justify-center flex-1">
-          <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+          <WalkingGolferSpinner size="sm" variant="dark" />
         </div>
       </div>
     );

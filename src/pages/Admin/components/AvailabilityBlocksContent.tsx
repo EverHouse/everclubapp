@@ -450,7 +450,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                             </p>
                                         </div>
                                     </div>
-                                    <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                                    <span aria-hidden="true" className={`material-symbols-outlined text-gray-500 dark:text-gray-400 transition-transform duration-fast ${isExpanded ? 'rotate-180' : ''}`}>
                                         expand_more
                                     </span>
                                 </button>

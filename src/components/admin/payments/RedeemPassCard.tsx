@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import ModalShell from '../../ModalShell';
+import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 
 export interface SectionProps {
   onClose?: () => void;
@@ -1081,7 +1082,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           
           {isLoadingUnredeemed ? (
             <div className="flex items-center justify-center py-6">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-teal-500 border-t-transparent" />
+              <WalkingGolferSpinner size="sm" variant="dark" />
             </div>
           ) : unredeemedPasses.length === 0 ? (
             <div className="text-center py-6">

@@ -230,7 +230,7 @@ const WhatsOn: React.FC = () => {
                         {isEvent && item.eventbrite_url && (
                           <span className="px-1.5 py-0.5 rounded bg-[#F05537] text-white text-[8px] font-bold uppercase">Tickets</span>
                         )}
-                        <span className={`material-symbols-outlined text-[20px] text-primary/40 dark:text-white/40 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+                        <span className={`material-symbols-outlined text-[20px] text-primary/40 dark:text-white/40 transition-transform duration-normal ${isExpanded ? 'rotate-180' : ''}`}>
                           expand_more
                         </span>
                       </div>
@@ -340,7 +340,7 @@ const WhatsOn: React.FC = () => {
 
       <section className="px-6 py-10 text-center">
         <p className="text-primary/60 dark:text-white/60 text-sm mb-4">Want to attend? Membership gives you access to all events and classes.</p>
-        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-300 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
+        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
           Book a Tour
         </Link>
       </section>

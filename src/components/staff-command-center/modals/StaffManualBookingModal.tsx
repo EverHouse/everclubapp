@@ -629,11 +629,11 @@ export function StaffManualBookingModal({
 
         {/* Sliding Tab Content Container */}
         <div 
-          className="overflow-hidden transition-[height] duration-300 ease-out"
+          className="overflow-hidden transition-[height] duration-normal ease-out"
           style={{ height: containerHeight !== undefined ? `${containerHeight}px` : 'auto' }}
         >
           <div 
-            className="flex transition-transform duration-300 ease-out"
+            className="flex transition-transform duration-normal ease-out"
             style={{ transform: `translateX(-${modeIndex[mode] * 100}%)` }}
           >
             {/* Member Booking Tab (index 0) */}

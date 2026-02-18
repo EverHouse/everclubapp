@@ -3,6 +3,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
 import { StripePaymentWithSecret } from '../stripe/StripePaymentForm';
 import { SlideUpDrawer } from '../SlideUpDrawer';
+import WalkingGolferSpinner from '../WalkingGolferSpinner';
 
 interface ParticipantFee {
   id: number;
@@ -155,7 +156,7 @@ export function MemberPaymentModal({
       <div className="p-4">
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#CCB8E4] border-t-transparent" />
+            <WalkingGolferSpinner size="sm" variant="light" />
           </div>
         )}
 

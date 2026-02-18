@@ -79,13 +79,13 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                       <h3 className="font-bold text-primary dark:text-white">{section.title}</h3>
                       <p className="text-sm text-primary/80 dark:text-white/80">{section.description}</p>
                     </div>
-                    <span className={`material-symbols-outlined text-primary/70 dark:text-white/70 transition-transform duration-300 ${expandedSection === String(section.id) ? 'rotate-180' : ''}`}>
+                    <span className={`material-symbols-outlined text-primary/70 dark:text-white/70 transition-transform duration-normal ${expandedSection === String(section.id) ? 'rotate-180' : ''}`}>
                       expand_more
                     </span>
                   </div>
                 </div>
 
-                <div className={`overflow-hidden transition-all duration-300 ${expandedSection === String(section.id) ? 'max-h-[5000px]' : 'max-h-0'}`}>
+                <div className={`overflow-hidden transition-all duration-normal ${expandedSection === String(section.id) ? 'max-h-[5000px]' : 'max-h-0'}`}>
                   <div className="px-5 pb-5 space-y-4">
                     {section.steps.map((step, index) => (
                       <div key={index} className="flex gap-4">

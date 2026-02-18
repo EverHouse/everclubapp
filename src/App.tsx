@@ -634,10 +634,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           ? "bg-[#293515] text-white shadow-lg shadow-black/20 border-b border-white/10"
           : "bg-[#293515] text-white")
       : "bg-[#293515] text-[#F2F2EC] shadow-lg shadow-black/20";
-  const headerBtnClasses = "text-white hover:opacity-70 active:scale-95 transition-opacity duration-200";
+  const headerBtnClasses = "text-white hover:opacity-70 active:scale-95 transition-opacity duration-fast";
 
   const headerContent = showHeader ? (
-    <header className={`fixed top-0 left-0 right-0 flex items-center px-4 sm:px-6 pt-[max(16px,env(safe-area-inset-top))] pb-4 pointer-events-auto transition-[box-shadow,border-color] duration-300 ${headerClasses}`} style={{ zIndex: 'var(--z-header)' }} role="banner">
+    <header className={`fixed top-0 left-0 right-0 flex items-center px-4 sm:px-6 pt-[max(16px,env(safe-area-inset-top))] pb-4 pointer-events-auto transition-[box-shadow,border-color] duration-normal ${headerClasses}`} style={{ zIndex: 'var(--z-header)' }} role="banner">
       {/* Left section - flex-1 for symmetric spacing with right */}
       <div className="flex-1 flex justify-start">
         {isMemberRoute ? (
@@ -721,7 +721,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <button 
             onClick={handleTopRightClick}
             disabled={isNavigating}
-            className={`px-1.5 py-0.5 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 flex items-center justify-center gap-1.5 shrink ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full backdrop-blur-xl bg-white/15 border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] text-[9px] xs:text-[10px] sm:text-xs font-semibold tracking-wide hover:bg-white/25 hover:border-white/50 transition-all duration-300 ${isNavigating ? 'opacity-70' : ''}`}
+            className={`px-1.5 py-0.5 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 flex items-center justify-center gap-1.5 shrink ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full backdrop-blur-xl bg-white/15 border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] text-[9px] xs:text-[10px] sm:text-xs font-semibold tracking-wide hover:bg-white/25 hover:border-white/50 transition-all duration-normal ${isNavigating ? 'opacity-70' : ''}`}
             aria-label={user ? 'Go to dashboard' : 'Sign in'}
           >
             {isNavigating && (
@@ -735,7 +735,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   ) : null;
 
   return (
-    <div className={`${isDarkTheme ? 'dark liquid-bg text-white' : 'bg-[#F2F2EC] text-primary'} min-h-screen w-full relative transition-colors duration-500 font-sans`}>
+    <div className={`${isDarkTheme ? 'dark liquid-bg text-white' : 'bg-[#F2F2EC] text-primary'} min-h-screen w-full relative transition-colors duration-emphasis font-sans`}>
       
       {/* Skip to main content link for keyboard navigation - WCAG 2.4.1 */}
       <a href="#main-content" className="skip-link">
@@ -744,7 +744,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       
       {/* Edge swipe indicator - back arrow that fades and bounces */}
       <div 
-        className={`fixed left-0 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-200 ${isEdgeSwipeActive ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed left-0 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-fast ${isEdgeSwipeActive ? 'opacity-100' : 'opacity-0'}`}
         style={{ 
           zIndex: 'var(--z-header)',
           transform: `translateY(-50%) translateX(${isEdgeSwipeActive ? Math.min(edgeSwipeProgress * 60, 50) : -40}px) scale(${0.8 + edgeSwipeProgress * 0.3})`,
