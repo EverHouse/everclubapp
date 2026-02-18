@@ -13,7 +13,7 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.67.4",
+    version: "7.67.5",
     date: "2026-02-18",
     title: "Complete Sync Audit — All Gaps Closed",
     changes: [
@@ -30,6 +30,7 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Day pass webhook recordings now sync buyers to HubSpot with name and phone",
       "Fixed: Returning visitors with updated contact info now sync changes to Stripe and HubSpot when their record is updated",
       "Fixed: Unarchived visitors now sync to HubSpot and Stripe when reactivated via day pass purchase",
+      "Fixed: Admin email change now syncs the new email to Stripe customer and HubSpot contact (was only updating database tables)",
     ]
   },
   {

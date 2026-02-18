@@ -128,6 +128,35 @@ export async function cascadeEmailChange(
 
     console.log(`[EmailChangeService] Successfully cascaded email change from ${oldEmail} to ${newEmail}. Tables updated:`, tablesUpdated);
 
+    (async () => {
+      try {
+        const userRow = await pool.query(
+          'SELECT stripe_customer_id, hubspot_id FROM users WHERE LOWER(email) = $1',
+          [normalizedNewEmail]
+        );
+        const user = userRow.rows[0];
+        if (!user) return;
+
+        if (user.stripe_customer_id) {
+          const { getStripeClient } = await import('../stripe/client');
+          const stripe = await getStripeClient();
+          await stripe.customers.update(user.stripe_customer_id, { email: normalizedNewEmail });
+          console.log(`[EmailChangeService] Updated Stripe customer ${user.stripe_customer_id} email to ${normalizedNewEmail}`);
+        }
+
+        if (user.hubspot_id) {
+          const { getHubSpotClient } = await import('../integrations');
+          const hubspotClient = await getHubSpotClient();
+          await hubspotClient.crm.contacts.basicApi.update(user.hubspot_id, {
+            properties: { email: normalizedNewEmail },
+          });
+          console.log(`[EmailChangeService] Updated HubSpot contact ${user.hubspot_id} email to ${normalizedNewEmail}`);
+        }
+      } catch (err) {
+        console.error('[EmailChangeService] Background sync failed:', err);
+      }
+    })();
+
     return {
       success: true,
       oldEmail: normalizedOldEmail,
