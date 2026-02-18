@@ -13,6 +13,7 @@ import { getSessionUser } from '../types/session';
 import { broadcastToStaff } from '../core/websocket';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 import { getStripeClient } from '../core/stripe/client';
+import { syncCustomerMetadataToStripe } from '../core/stripe/customers';
 import { bulkPushToHubSpot } from '../core/dataIntegrity';
 import { normalizeTierName } from '@shared/constants/tiers';
 
@@ -173,6 +174,10 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
         membership_status = COALESCE(${props.membership_status || null}, membership_status),
         updated_at = NOW()
       WHERE id = ${user.id}`);
+    
+    syncCustomerMetadataToStripe(normalizedEmail).catch((err) => {
+      console.error('[DataTools] Background Stripe sync after HubSpot resync failed:', err);
+    });
     
     await db.insert(billingAuditLog).values({
       memberEmail: normalizedEmail,

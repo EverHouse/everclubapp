@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { getCorporateVolumeTiers, getCorporateBasePrice, getFamilyDiscountPercent, updateFamilyDiscountPercent } from '../billing/pricingConfig';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
+import { findOrCreateHubSpotContact } from '../hubspot/members';
 
 export interface BillingGroupWithMembers {
   id: number;
@@ -676,6 +677,16 @@ export async function addGroupMember(params: {
 
       await client.query('COMMIT');
       
+      // Background sync sub-member to HubSpot
+      findOrCreateHubSpotContact(
+        params.memberEmail,
+        params.firstName || '',
+        params.lastName || '',
+        params.phone
+      ).catch((err) => {
+        console.error('[GroupBilling] Background HubSpot sync for sub-member failed:', err);
+      });
+      
       return { success: true, memberId: insertedMemberId };
 
     } catch (dbErr: unknown) {
@@ -998,6 +1009,16 @@ export async function addCorporateMember(params: {
       }
       
       await client.query('COMMIT');
+      
+      // Background sync sub-member to HubSpot
+      findOrCreateHubSpotContact(
+        params.memberEmail,
+        params.firstName || '',
+        params.lastName || '',
+        params.phone
+      ).catch((err) => {
+        console.error('[GroupBilling] Background HubSpot sync for sub-member failed:', err);
+      });
       
       return { success: true, memberId: insertedMemberId };
       

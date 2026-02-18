@@ -17,6 +17,7 @@ import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { sendNotificationToUser, broadcastBillingUpdate } from '../../core/websocket';
 import { sendMembershipActivationEmail } from '../../emails/membershipEmails';
+import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { randomUUID } from 'crypto';
 import { checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter } from '../../middleware/rateLimiting';
@@ -557,6 +558,11 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, async
       userId,
       tierName: tier.name
     });
+
+    // Background sync to HubSpot (fire-and-forget)
+    findOrCreateHubSpotContact(email, firstName || '', lastName || '', phone).catch((err) => {
+      logger.error('[Subscriptions] Background HubSpot contact sync failed:', { extra: { error: getErrorMessage(err), email } });
+    });
   } catch (error: unknown) {
     logger.error('[Stripe] Error creating new member subscription', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: getErrorMessage(error) || 'Failed to create subscription' });
@@ -894,6 +900,11 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, as
       userId,
       tierName: tier.name,
       emailSent: emailResult.success
+    });
+
+    // Background sync to HubSpot (fire-and-forget)
+    findOrCreateHubSpotContact(email, firstName || '', lastName || '', phone).catch((err) => {
+      logger.error('[Subscriptions] Background HubSpot contact sync failed:', { extra: { error: getErrorMessage(err), email } });
     });
   } catch (error: unknown) {
     logger.error('[Stripe] Error sending activation link', { error: error instanceof Error ? error : new Error(String(error)) });

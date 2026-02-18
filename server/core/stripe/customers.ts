@@ -129,7 +129,7 @@ export async function getOrCreateStripeCustomer(
   }
   
   const userResult = await pool.query(
-    'SELECT stripe_customer_id, tier, first_name, last_name, email, archived_at FROM users WHERE id = $1',
+    'SELECT stripe_customer_id, tier, first_name, last_name, email, phone, archived_at FROM users WHERE id = $1',
     [userId]
   );
   
@@ -167,9 +167,11 @@ export async function getOrCreateStripeCustomer(
         if (firstName) updateMetadata.firstName = firstName;
         if (lastName) updateMetadata.lastName = lastName;
         
+        const userPhone = userResult.rows[0]?.phone;
         await stripeForValidation.customers.update(existingCustomerId, {
           metadata: updateMetadata,
           ...(resolvedName && !(existingCustomer as any).name ? { name: resolvedName } : {}),
+          ...(userPhone && !(existingCustomer as any).phone ? { phone: userPhone } : {}),
         });
         console.log(`[Stripe] Updated metadata for existing customer ${existingCustomerId}`);
       }
@@ -373,19 +375,23 @@ export async function getOrCreateStripeCustomer(
   }
 
   try {
+    const userPhone = userResult.rows[0]?.phone;
+
     if (foundCustomerId) {
       customerId = foundCustomerId;
       await stripe.customers.update(customerId, {
         metadata: metadata,
         name: resolvedName || undefined,
-        email: email.toLowerCase()
+        email: email.toLowerCase(),
+        ...(userPhone ? { phone: userPhone } : {}),
       });
       console.log(`[Stripe] Updated metadata for existing customer ${customerId}, set primary email to ${email}`);
     } else {
       const customer = await stripe.customers.create({
         email: email.toLowerCase(),
         name: resolvedName || undefined,
-        metadata: metadata
+        metadata: metadata,
+        ...(userPhone ? { phone: userPhone } : {}),
       });
       customerId = customer.id;
       isNew = true;
@@ -442,7 +448,7 @@ export async function syncCustomerMetadataToStripe(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const userResult = await pool.query(
-      'SELECT id, tier, stripe_customer_id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
+      'SELECT id, tier, stripe_customer_id, first_name, last_name, phone FROM users WHERE LOWER(email) = LOWER($1)',
       [email]
     );
     
@@ -471,6 +477,9 @@ export async function syncCustomerMetadataToStripe(
     if (user.first_name || user.last_name) {
       updateParams.name = [user.first_name, user.last_name].filter(Boolean).join(' ');
     }
+    if (user.phone) {
+      updateParams.phone = user.phone;
+    }
     
     await stripe.customers.update(user.stripe_customer_id, updateParams);
     
@@ -485,7 +494,7 @@ export async function syncCustomerMetadataToStripe(
 
 export async function syncAllCustomerMetadata(): Promise<{ synced: number; failed: number }> {
   const result = await pool.query(
-    'SELECT id, email, tier, stripe_customer_id, first_name, last_name FROM users WHERE stripe_customer_id IS NOT NULL'
+    'SELECT id, email, tier, stripe_customer_id, first_name, last_name, phone FROM users WHERE stripe_customer_id IS NOT NULL'
   );
   
   let synced = 0;
@@ -508,6 +517,9 @@ export async function syncAllCustomerMetadata(): Promise<{ synced: number; faile
       const updateParams: any = { metadata };
       if (user.first_name || user.last_name) {
         updateParams.name = [user.first_name, user.last_name].filter(Boolean).join(' ');
+      }
+      if (user.phone) {
+        updateParams.phone = user.phone;
       }
       
       await stripe.customers.update(user.stripe_customer_id, updateParams);

@@ -15,10 +15,14 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "7.67.1",
     date: "2026-02-18",
-    title: "Profile Changes Sync to Stripe & HubSpot",
+    title: "Member Info Syncs Everywhere (Stripe & HubSpot)",
     changes: [
       "Fixed: When a member updates their name or phone number from their profile, the changes now automatically sync to Stripe and HubSpot in the background",
-      "Improved: Stripe customer records now include the member's phone number alongside their name and tier metadata",
+      "Fixed: Stripe customer records now include the member's phone number — previously only name and tier were synced",
+      "Fixed: Creating a new Stripe subscription for a member now syncs their name and phone to HubSpot",
+      "Fixed: Adding a family or corporate sub-member to a billing group now syncs their contact info to HubSpot",
+      "Fixed: Resyncing member data from HubSpot (via Data Tools) now also updates their Stripe customer record",
+      "Fixed: Data Integrity sync-pull now includes phone number and updates Stripe records to match",
     ]
   },
   {

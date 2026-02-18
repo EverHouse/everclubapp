@@ -21,6 +21,7 @@ import { getHubSpotClient } from './integrations';
 import { isProduction } from './db';
 import { getTodayPacific } from '../utils/dateUtils';
 import { getStripeClient } from './stripe/client';
+import { syncCustomerMetadataToStripe } from './stripe/customers';
 import { alertOnCriticalIntegrityIssues, alertOnHighIntegrityIssues } from './dataAlerts';
 import { denormalizeTierForHubSpot } from '../utils/tierUtils';
 import { retryableHubSpotRequest } from './hubspot/request';
@@ -2586,22 +2587,31 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
     
     const contact = await hubspot.crm.contacts.basicApi.getById(
       hubspotContactId,
-      ['firstname', 'lastname', 'email', 'membership_tier']
+      ['firstname', 'lastname', 'email', 'phone', 'membership_tier']
     );
     
     const props = contact.properties || {};
     const hsTierValue = props.membership_tier || null;
     const appTier = hubspotTierToAppTier(hsTierValue);
     
+    // Get user email for Stripe sync
+    const userResult = await db.execute(sql`SELECT email FROM users WHERE id = ${userId}`);
+    const userEmail = userResult.rows[0]?.email;
+    
     await db.execute(sql`
       UPDATE users SET
         first_name = ${props.firstname || null},
         last_name = ${props.lastname || null},
+        phone = ${props.phone || null},
         membership_tier = ${appTier},
         tier = ${appTier},
         updated_at = NOW()
       WHERE id = ${userId}
     `);
+    
+    if (userEmail) {
+      syncCustomerMetadataToStripe(userEmail).catch(() => {});
+    }
     
     return { 
       success: true, 
