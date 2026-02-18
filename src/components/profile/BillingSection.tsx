@@ -258,7 +258,7 @@ export default function BillingSection({ isDark }: Props) {
           <button
             onClick={handleOpenBillingPortal}
             disabled={openingPortal}
-            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all duration-fast disabled:opacity-50 ${
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all duration-fast disabled:opacity-50 tactile-btn ${
               isDark 
                 ? 'bg-accent/20 text-accent hover:bg-accent/30' 
                 : 'bg-primary/10 text-primary hover:bg-primary/20'
@@ -285,7 +285,7 @@ export default function BillingSection({ isDark }: Props) {
               <button
                 onClick={handleUpdatePaymentMethod}
                 disabled={updatingPayment}
-                className={`text-xs font-medium ${isDark ? 'text-accent' : 'text-primary'} hover:underline disabled:opacity-50`}
+                className={`text-xs font-medium ${isDark ? 'text-accent' : 'text-primary'} hover:underline disabled:opacity-50 tactile-btn`}
               >
                 {updatingPayment ? 'Loading...' : 'Update'}
               </button>
@@ -323,7 +323,7 @@ export default function BillingSection({ isDark }: Props) {
           
           <button
             onClick={() => setShowInvoices(!showInvoices)}
-            className={`w-full flex items-center justify-between py-3 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}
+            className={`w-full flex items-center justify-between py-3 border-t tactile-btn ${isDark ? 'border-white/10' : 'border-black/5'}`}
           >
             <div className="flex items-center gap-3">
               <span className={`material-symbols-outlined text-sm ${isDark ? 'opacity-50' : 'text-primary/50'}`}>
@@ -425,7 +425,7 @@ export default function BillingSection({ isDark }: Props) {
           <button
             onClick={handleAddPaymentMethod}
             disabled={migratingPayment}
-            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all duration-fast disabled:opacity-50 ${
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all duration-fast disabled:opacity-50 tactile-btn ${
               isDark 
                 ? 'bg-accent/20 text-accent hover:bg-accent/30' 
                 : 'bg-primary/10 text-primary hover:bg-primary/20'
@@ -443,7 +443,7 @@ export default function BillingSection({ isDark }: Props) {
           {invoices.length > 0 && (
             <div className="mt-4 pt-4 border-t border-white/10">
               <button
-                className={`w-full flex items-center justify-between py-2 text-sm font-medium ${isDark ? 'opacity-80 hover:opacity-100' : 'text-primary/80 hover:text-primary'}`}
+                className={`w-full flex items-center justify-between py-2 text-sm font-medium tactile-btn ${isDark ? 'opacity-80 hover:opacity-100' : 'text-primary/80 hover:text-primary'}`}
                 onClick={() => setShowInvoices(!showInvoices)}
               >
                 <span className="flex items-center gap-2">

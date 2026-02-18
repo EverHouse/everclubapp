@@ -50,7 +50,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
         <div className="space-y-3 text-left mb-6">
           <button
             onClick={() => handleAction('/profile')}
-            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
           >
             <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-accent">person</span>
@@ -64,7 +64,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
 
           <button
             onClick={handleSaveConcierge}
-            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
           >
             <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-accent">contact_phone</span>
@@ -78,7 +78,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
 
           <button
             onClick={() => { onClose(); navigate('/profile', { state: { showWaiver: true } }); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
           >
             <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-accent">description</span>
@@ -92,7 +92,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
 
           <button
             onClick={() => handleAction('/book')}
-            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors tactile-btn"
           >
             <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-accent">sports_golf</span>
@@ -107,7 +107,7 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
 
         <button
           onClick={onClose}
-          className="w-full py-3 rounded-xl font-medium text-primary/60 dark:text-white/60 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-sm"
+          className="w-full py-3 rounded-xl font-medium text-primary/60 dark:text-white/60 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-sm tactile-btn"
         >
           I'll explore on my own
         </button>

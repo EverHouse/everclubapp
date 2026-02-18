@@ -562,14 +562,14 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           <div className="flex flex-wrap gap-2 pt-2">
             <button
               onClick={handleSearchByEmail}
-              className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">mail</span>
               Search by email
             </button>
             <button
               onClick={handleSellNewPass}
-              className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
               Sell new pass
@@ -606,14 +606,14 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           <div className="flex flex-wrap gap-2 pt-2">
             <button
               onClick={handleSellNewPass}
-              className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
               Charge for new pass
             </button>
             <button
               onClick={clearErrorAndReset}
-              className="px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">refresh</span>
               Start over
@@ -655,14 +655,14 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
             <div className="flex flex-wrap gap-2 pt-2">
               <button
                 onClick={() => handleProceedAnyway('current')}
-                className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
+                className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-amber-100 dark:bg-amber-800/40 text-amber-900 dark:text-amber-100 font-medium text-sm hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-lg">warning</span>
                 Redeem anyway
               </button>
               <button
                 onClick={clearErrorAndReset}
-                className="px-4 py-2.5 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-sm hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                className="tactile-btn px-4 py-2.5 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-sm hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined text-lg">close</span>
                 Cancel
@@ -681,7 +681,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
                     if (lastAttemptedPassId) handleRedeem(lastAttemptedPassId, true);
                   }}
                   disabled={forceRedeeming || !lastAttemptedPassId}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="tactile-btn flex-1 px-4 py-2.5 rounded-lg bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {forceRedeeming ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
@@ -692,7 +692,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
                 </button>
                 <button
                   onClick={() => setConfirmingRedeemAnyway(null)}
-                  className="px-4 py-2.5 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-sm hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+                  className="tactile-btn px-4 py-2.5 rounded-lg bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium text-sm hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
                 >
                   Cancel
                 </button>
@@ -720,14 +720,14 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           <div className="flex flex-wrap gap-2 pt-2">
             <button
               onClick={handleSellNewPass}
-              className="flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn flex-1 min-w-[140px] px-4 py-2.5 rounded-lg bg-teal-500 text-white font-medium text-sm hover:bg-teal-600 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
               Sell new pass
             </button>
             <button
               onClick={clearErrorAndReset}
-              className="px-4 py-2.5 rounded-lg bg-red-100 dark:bg-red-800/40 text-red-900 dark:text-red-100 font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn px-4 py-2.5 rounded-lg bg-red-100 dark:bg-red-800/40 text-red-900 dark:text-red-100 font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">refresh</span>
               Start over
@@ -745,7 +745,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
         </div>
         <button
           onClick={clearErrorAndReset}
-          className="w-full px-4 py-2 rounded-lg bg-red-100 dark:bg-red-800/40 text-red-900 dark:text-red-100 font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors flex items-center justify-center gap-2"
+          className="tactile-btn w-full px-4 py-2 rounded-lg bg-red-100 dark:bg-red-800/40 text-red-900 dark:text-red-100 font-medium text-sm hover:bg-red-200 dark:hover:bg-red-800/60 transition-colors flex items-center justify-center gap-2"
         >
           <span className="material-symbols-outlined text-lg">refresh</span>
           Try again
@@ -776,7 +776,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
                 handleCloseScanner();
                 setShowPassIdInput(true);
               }}
-              className="w-full mt-4 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+              className="tactile-btn w-full mt-4 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">keyboard</span>
               Enter Pass ID manually
@@ -798,7 +798,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           <button
             onClick={handleSearch}
             disabled={!searchEmail.trim() || isSearching}
-            className="shrink-0 px-3 py-3 rounded-xl bg-teal-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="tactile-btn shrink-0 px-3 py-3 rounded-xl bg-teal-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isSearching ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
@@ -808,7 +808,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
           </button>
           <button
             onClick={handleScanQR}
-            className="shrink-0 px-3 py-3 rounded-xl bg-teal-600 text-white font-semibold flex items-center gap-2 hover:bg-teal-700 transition-colors"
+            className="tactile-btn shrink-0 px-3 py-3 rounded-xl bg-teal-600 text-white font-semibold flex items-center gap-2 hover:bg-teal-700 transition-colors"
             title="Scan QR / Enter Pass ID"
           >
             <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
@@ -835,7 +835,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
             <button
               onClick={handleManualPassIdSubmit}
               disabled={!manualPassId.trim() || redeemingId !== null}
-              className="px-4 py-3 rounded-xl bg-teal-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="tactile-btn px-4 py-3 rounded-xl bg-teal-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {redeemingId !== null ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
@@ -848,7 +848,7 @@ const RedeemDayPassSection: React.FC<SectionProps> = ({ onClose, variant = 'moda
                 setShowPassIdInput(false);
                 setManualPassId('');
               }}
-              className="px-4 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
+              className="tactile-btn px-4 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors"
             >
               <span className="material-symbols-outlined text-lg">close</span>
             </button>

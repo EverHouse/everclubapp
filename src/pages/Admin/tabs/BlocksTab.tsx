@@ -653,7 +653,7 @@ const BlocksTab: React.FC = () => {
                     />
                     <button
                         onClick={() => setActiveSubTab('notices')}
-                        className={`relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-fast rounded-full flex items-center gap-1.5 ${
+                        className={`tactile-btn relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-fast rounded-full flex items-center gap-1.5 ${
                             activeSubTab === 'notices'
                                 ? 'text-primary dark:text-white'
                                 : 'text-gray-500 dark:text-white/60'
@@ -664,7 +664,7 @@ const BlocksTab: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setActiveSubTab('blocks')}
-                        className={`relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-fast rounded-full flex items-center gap-1.5 ${
+                        className={`tactile-btn relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-fast rounded-full flex items-center gap-1.5 ${
                             activeSubTab === 'blocks'
                                 ? 'text-primary dark:text-white'
                                 : 'text-gray-500 dark:text-white/60'
@@ -754,7 +754,7 @@ const BlocksTab: React.FC = () => {
                             <button
                                 onClick={handleAddClosureReason}
                                 disabled={!newReasonLabel.trim() || addClosureReasonMutation.isPending}
-                                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
+                                className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
                             >
                                 <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>
                                 Add
@@ -772,14 +772,14 @@ const BlocksTab: React.FC = () => {
                                     <div className="flex gap-2 flex-shrink-0">
                                         <button
                                             onClick={() => openReasonDrawer(reason)}
-                                            className="p-1.5 rounded-lg bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/30 transition-colors"
+                                            className="tactile-btn p-1.5 rounded-lg bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/30 transition-colors"
                                             title="Edit"
                                         >
                                             <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
                                         </button>
                                         <button
                                             onClick={() => handleDeleteClosureReason(reason.id)}
-                                            className="p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
+                                            className="tactile-btn p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
                                             title="Delete"
                                         >
                                             <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
@@ -801,7 +801,7 @@ const BlocksTab: React.FC = () => {
                                             <span className="flex-1 text-sm text-gray-500 dark:text-white/50 line-through">{reason.label}</span>
                                             <button
                                                 onClick={() => handleReactivateClosureReason(reason.id)}
-                                                className="px-3 py-1.5 rounded-lg bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors"
+                                                className="tactile-btn px-3 py-1.5 rounded-lg bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors"
                                             >
                                                 Reactivate
                                             </button>
@@ -833,7 +833,7 @@ const BlocksTab: React.FC = () => {
                             <button
                                 onClick={handleAddNoticeType}
                                 disabled={!newNoticeTypeName.trim() || addNoticeTypeMutation.isPending}
-                                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
+                                className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
                             >
                                 <span aria-hidden="true" className="material-symbols-outlined text-base">add</span>
                                 Add
@@ -857,14 +857,14 @@ const BlocksTab: React.FC = () => {
                                         <div className="flex gap-2 flex-shrink-0">
                                             <button
                                                 onClick={() => openNoticeTypeDrawer(noticeType)}
-                                                className="p-1.5 rounded-lg bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/30 transition-colors"
+                                                className="tactile-btn p-1.5 rounded-lg bg-gray-200 dark:bg-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/30 transition-colors"
                                                 title="Edit"
                                             >
                                                 <span aria-hidden="true" className="material-symbols-outlined text-base">edit</span>
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteNoticeType(noticeType.id)}
-                                                className="p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
+                                                className="tactile-btn p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
                                                 title="Delete"
                                             >
                                                 <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>

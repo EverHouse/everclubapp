@@ -224,14 +224,14 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
         <div className="flex gap-3 p-4">
           <button 
             onClick={handleClose} 
-            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors tactile-btn"
           >
             Cancel
           </button>
           <button 
             onClick={handleSave}
             disabled={saving || !formData.start_date || !isClosureFormValid}
-            className={`flex-1 py-3 rounded-xl font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3 rounded-xl font-medium text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn ${
               isBlocking
                 ? 'bg-red-500 hover:bg-red-600 disabled:bg-red-300'
                 : 'bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300'

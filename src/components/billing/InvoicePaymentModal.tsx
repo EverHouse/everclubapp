@@ -216,7 +216,7 @@ export function InvoicePaymentModal({
         type="button"
         onClick={handleFormSubmit}
         disabled={isProcessing}
-        className="flex-1 py-4 rounded-xl backdrop-blur-md transition-all duration-normal flex items-center justify-center gap-2 group border bg-emerald-100/60 text-emerald-900 border-emerald-200 hover:bg-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-500/20 dark:hover:bg-emerald-900/60 disabled:opacity-50 font-semibold"
+        className="flex-1 py-4 rounded-xl backdrop-blur-md transition-all duration-normal flex items-center justify-center gap-2 group border bg-emerald-100/60 text-emerald-900 border-emerald-200 hover:bg-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-500/20 dark:hover:bg-emerald-900/60 disabled:opacity-50 font-semibold tactile-btn"
       >
         {isProcessing ? (
           <>
@@ -234,7 +234,7 @@ export function InvoicePaymentModal({
         type="button"
         onClick={onClose}
         disabled={isProcessing}
-        className="py-3 px-6 rounded-lg font-medium transition-colors text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/5 disabled:opacity-50"
+        className="py-3 px-6 rounded-lg font-medium transition-colors text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/5 disabled:opacity-50 tactile-btn"
       >
         Cancel
       </button>
@@ -262,7 +262,7 @@ export function InvoicePaymentModal({
             <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={onClose}
-              className="py-3 px-6 rounded-lg font-medium transition-colors text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/5"
+              className="py-3 px-6 rounded-lg font-medium transition-colors text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/5 tactile-btn"
             >
               Go Back
             </button>

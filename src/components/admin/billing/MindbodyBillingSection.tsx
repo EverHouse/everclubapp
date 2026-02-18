@@ -111,7 +111,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
               </p>
               <button
                 onClick={onMigrateToStripe}
-                className={`inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`tactile-btn inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isDark ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' : 'bg-green-100 text-green-700 hover:bg-green-200'
                 }`}
               >

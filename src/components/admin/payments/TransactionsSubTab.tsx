@@ -353,7 +353,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                       setSelectedAuth(auth);
                       setActionType('capture');
                     }}
-                    className="px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
+                    className="tactile-btn px-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                   >
                     Capture
                   </button>
@@ -362,7 +362,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                       setSelectedAuth(auth);
                       setActionType('void');
                     }}
-                    className="px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                    className="tactile-btn px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                   >
                     Void
                   </button>
@@ -396,7 +396,7 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                   </h3>
                   <button
                     onClick={resetModal}
-                    className="p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
+                    className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
                   >
                     <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
                   </button>
@@ -492,14 +492,14 @@ const PendingAuthorizationsSection: React.FC<SectionProps> = ({ onClose, variant
                 <div className="flex gap-3">
                   <button
                     onClick={resetModal}
-                    className="flex-1 py-3 rounded-full bg-white dark:bg-white/10 text-primary dark:text-white font-medium border border-primary/20 dark:border-white/20 hover:bg-primary/5 dark:hover:bg-white/20 transition-colors"
+                    className="tactile-btn flex-1 py-3 rounded-full bg-white dark:bg-white/10 text-primary dark:text-white font-medium border border-primary/20 dark:border-white/20 hover:bg-primary/5 dark:hover:bg-white/20 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={actionType === 'capture' ? handleCapture : handleVoid}
                     disabled={isProcessing || (actionType === 'capture' && isPartialCapture && (!captureAmount || parseFloat(captureAmount) <= 0))}
-                    className={`flex-1 py-3 rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                    className={`tactile-btn flex-1 py-3 rounded-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                       actionType === 'capture' 
                         ? 'bg-green-500 text-white' 
                         : 'bg-red-500 text-white'
@@ -809,7 +809,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                     <button
                       onClick={() => handleRetryPayment(payment.paymentIntentId)}
                       disabled={isRetrying}
-                      className="px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                      className="tactile-btn px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                     >
                       {isRetrying ? (
                         <span className="animate-spin w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full" />
@@ -822,7 +822,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                   <button
                     onClick={() => handleCancelPayment(payment.paymentIntentId)}
                     disabled={cancelingPaymentId === payment.paymentIntentId}
-                    className="px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                    className="tactile-btn px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                   >
                     {cancelingPaymentId === payment.paymentIntentId ? (
                       <span className="animate-spin w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full" />
@@ -833,7 +833,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
                   </button>
                   <button
                     onClick={() => handleContactMember(payment.memberEmail)}
-                    className="px-2 py-1 text-xs font-medium text-primary dark:text-lavender hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
+                    className="tactile-btn px-2 py-1 text-xs font-medium text-primary dark:text-lavender hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-sm">mail</span>
                     Contact
@@ -855,7 +855,7 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
               <h3 className="font-bold text-primary dark:text-white">Contact Member</h3>
               <button
                 onClick={() => setSelectedEmail(null)}
-                className="p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
+                className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
               >
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
               </button>

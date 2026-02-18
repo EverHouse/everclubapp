@@ -481,7 +481,7 @@ const POSRegister: React.FC = () => {
     <button
       key={product.productId}
       onClick={() => addToCart(product)}
-      className={`flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-all duration-fast text-center active:scale-95 ${
+      className={`tactile-card flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-all duration-fast text-center active:scale-95 ${
         addedProductId === product.productId ? 'scale-95 ring-2 ring-emerald-400/50' : ''
       }`}
     >

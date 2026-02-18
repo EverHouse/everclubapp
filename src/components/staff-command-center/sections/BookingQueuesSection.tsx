@@ -190,7 +190,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             e.stopPropagation(); 
             onPaymentClick?.(bookingId);
           }}
-          className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
+          className="tactile-btn text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">payments</span>
           Charge ${(booking.total_owed || 0).toFixed(0)}
@@ -211,7 +211,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       return (
         <button
           onClick={(e) => { e.stopPropagation(); onAssignMember?.(booking); }}
-          className="text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1"
+          className="tactile-btn text-xs px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">link</span>
           Assign Member
@@ -229,7 +229,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             e.stopPropagation(); 
             onRosterClick?.(bookingId);
           }}
-          className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+          className="tactile-btn text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">group</span>
           {filledPlayers}/{declaredPlayers} Players
@@ -244,7 +244,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
             e.stopPropagation(); 
             onPaymentClick?.(bookingId);
           }}
-          className="text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
+          className="tactile-btn text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
         >
           <span className="material-symbols-outlined text-sm">payments</span>
           Charge ${(booking.total_owed || 0).toFixed(0)}
@@ -262,7 +262,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
         }}
         onTouchEnd={(e) => e.stopPropagation()}
         disabled={isCheckingIn}
-        className="text-xs px-2 py-1 bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-accent rounded-lg hover:bg-glass-surface-primary/80 dark:hover:bg-glass-surface-primary-dark/80 transition-colors disabled:opacity-50 flex items-center gap-1"
+        className="tactile-btn text-xs px-2 py-1 bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-accent rounded-lg hover:bg-glass-surface-primary/80 dark:hover:bg-glass-surface-primary-dark/80 transition-colors disabled:opacity-50 flex items-center gap-1"
       >
         {isCheckingIn ? (
           <>
@@ -303,7 +303,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
               </span>
             )}
           </div>
-          <button onClick={() => navigateToTab('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+          <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
         </div>
         <div className="space-y-2">
           {pendingRequests.length === 0 ? (
@@ -356,7 +356,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                         {onCompleteCancellation && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onCompleteCancellation(request); }}
-                            className="flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1.5"
+                            className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1.5"
                           >
                             <span className="material-symbols-outlined text-sm">check_circle</span>
                             Complete Cancellation
@@ -394,7 +394,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                       <div className="flex gap-2 ml-[56px]">
                         <button
                           onClick={(e) => { e.stopPropagation(); onOpenTrackman(request); }}
-                          className="flex-1 py-1.5 px-3 bg-[#E55A22]/10 text-[#E55A22] dark:bg-[#E55A22]/20 dark:text-[#FF7A44] text-xs font-medium rounded-lg hover:bg-[#E55A22]/20 dark:hover:bg-[#E55A22]/30 transition-colors flex items-center justify-center gap-1.5"
+                          className="tactile-btn flex-1 py-1.5 px-3 bg-[#E55A22]/10 text-[#E55A22] dark:bg-[#E55A22]/20 dark:text-[#FF7A44] text-xs font-medium rounded-lg hover:bg-[#E55A22]/20 dark:hover:bg-[#E55A22]/30 transition-colors flex items-center justify-center gap-1.5"
                         >
                           <span className="material-symbols-outlined text-sm">sports_golf</span>
                           Book on Trackman
@@ -402,7 +402,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                         <button
                           onClick={(e) => { e.stopPropagation(); executeDeny(request); }}
                           disabled={isDenying}
-                          className="flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                          className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                         >
                           {isDenying ? (
                             <>
@@ -439,7 +439,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
       >
         <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
           <h3 className="font-bold text-primary dark:text-white">Today's Bookings</h3>
-          <button onClick={() => navigateToTab('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
+          <button onClick={() => navigateToTab('simulator')} className="tactile-btn text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
         </div>
         <div className="space-y-2">
           {mergedUpcomingBookings.length === 0 ? (
@@ -510,7 +510,7 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                       {onEditBooking && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onEditBooking(booking); }}
-                          className="p-1.5 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
+                          className="tactile-btn p-1.5 text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg transition-colors"
                           aria-label="Edit booking"
                         >
                           <span className="material-symbols-outlined text-base">edit</span>

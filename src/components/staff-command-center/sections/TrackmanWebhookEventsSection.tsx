@@ -326,7 +326,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
             </p>
             <button
               onClick={() => setShowReplayModal(true)}
-              className="shrink-0 px-3 py-1.5 text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors flex items-center gap-1"
+              className="shrink-0 px-3 py-1.5 text-xs font-medium bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors flex items-center gap-1 tactile-btn"
             >
               <span className="material-symbols-outlined text-sm">send</span>
               Replay to Dev
@@ -401,7 +401,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                   const playerCount = getPlayerCount(bookingData);
 
                   return (
-                    <div key={event.id} className="p-3 md:p-4 bg-white/50 dark:bg-white/5 rounded-xl">
+                    <div key={event.id} className="p-3 md:p-4 bg-white/50 dark:bg-white/5 rounded-xl tactile-row">
                       <div className="flex items-start justify-between gap-2 md:gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">

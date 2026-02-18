@@ -222,7 +222,7 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors tactile-btn ${
               isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -231,7 +231,7 @@ export function TierChangeWizard({ isOpen, onClose, memberEmail, subscriptionId,
           <button
             onClick={handleConfirm}
             disabled={!selectedPriceId || loading}
-            className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+            className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors tactile-btn"
           >
             {loading ? 'Changing...' : 'Confirm Change'}
           </button>

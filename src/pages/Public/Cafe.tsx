@@ -145,7 +145,7 @@ const PublicCafe: React.FC = () => {
                   >
                     <div
                       onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
-                      className={`flex justify-between items-center group p-3 cursor-pointer transition-all duration-fast ${isExpanded ? '' : 'active:scale-[0.98]'}`}
+                      className={`tactile-row flex justify-between items-center group p-3 cursor-pointer transition-all duration-fast ${isExpanded ? '' : 'active:scale-[0.98]'}`}
                     >
                       <div className="flex gap-4 flex-1 items-center">
                         <div className="w-14 h-14 flex-shrink-0 rounded-lg flex items-center justify-center overflow-hidden relative bg-[#EAEBE6] dark:bg-white/5 text-primary/40 dark:text-white/40">
@@ -186,11 +186,11 @@ const PublicCafe: React.FC = () => {
       <section className="px-6 py-10 text-center">
         <p className="text-primary/60 dark:text-white/60 text-sm mb-2">Our cafe is available to members and day pass holders.</p>
         <div className="flex items-center justify-center gap-4">
-          <Link to="/tour" className="text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity flex items-center gap-1">
+          <Link to="/tour" className="tactile-btn text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity flex items-center gap-1">
             Book a Tour
             <span className="material-symbols-outlined text-lg">arrow_forward</span>
           </Link>
-          <Link to="/checkout" className="text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity flex items-center gap-1">
+          <Link to="/checkout" className="tactile-btn text-sm font-semibold text-primary dark:text-white hover:opacity-80 transition-opacity flex items-center gap-1">
             Get a Day Pass
             <span className="material-symbols-outlined text-lg">arrow_forward</span>
           </Link>

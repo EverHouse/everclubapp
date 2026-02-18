@@ -75,7 +75,7 @@ const WelcomeBanner: React.FC = () => {
     <>
       <div 
         onClick={() => handleInstallClick()}
-        className={`mb-6 py-2 px-4 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-transform active:scale-[0.98] animate-pop-in ${
+        className={`mb-6 py-2 px-4 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-transform active:scale-[0.98] animate-pop-in tactile-card ${
           isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'
         }`}
       >
@@ -88,7 +88,7 @@ const WelcomeBanner: React.FC = () => {
         
         <button 
           onClick={handleDismiss}
-          className={`p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${
+          className={`p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors flex-shrink-0 tactile-btn ${
             isDark ? 'hover:bg-black/10 text-brand-green/70 hover:text-brand-green' : 'hover:bg-white/10 text-white/70 hover:text-white'
           }`}
           aria-label="Dismiss banner"
@@ -116,7 +116,7 @@ const IOSModal: React.FC<{ isDark: boolean; onClose: () => void }> = ({ isDark, 
           </h3>
           <button 
             onClick={onClose}
-            className={`p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full ${isDark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full tactile-btn ${isDark ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
             aria-label="Close install instructions"
           >
             <span className="material-symbols-outlined" aria-hidden="true">close</span>
@@ -173,7 +173,7 @@ const IOSModal: React.FC<{ isDark: boolean; onClose: () => void }> = ({ isDark, 
           target="_blank"
           rel="noopener noreferrer"
           onClick={onClose}
-          className={`w-full mt-6 py-3 rounded-xl font-bold text-center block ${isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'}`}
+          className={`w-full mt-6 py-3 rounded-xl font-bold text-center block tactile-btn ${isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'}`}
         >
           View Full Instructions
         </a>

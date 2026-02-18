@@ -108,7 +108,7 @@ const AdminDashboard: React.FC = () => {
       <div className="flex items-center flex-shrink-0 w-[88px] lg:w-0">
         <button 
           onClick={() => setIsMobileSidebarOpen(true)}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity lg:hidden"
+          className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity lg:hidden"
           aria-label="Open menu"
         >
           <span className="material-symbols-outlined text-[24px]">menu</span>
@@ -125,7 +125,7 @@ const AdminDashboard: React.FC = () => {
             navigateToTab('updates');
             setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-alerts-tab')), 100);
           }}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity relative"
+          className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity relative"
           aria-label="Updates"
         >
           <span aria-hidden="true" className="material-symbols-outlined text-[24px]">campaign</span>
@@ -137,7 +137,7 @@ const AdminDashboard: React.FC = () => {
         </button>
         <button 
           onClick={() => navigate('/profile')}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity rounded-full"
+          className="tactile-btn flex items-center justify-center min-w-[44px] min-h-[44px] hover:opacity-70 transition-opacity rounded-full"
           aria-label="View profile"
         >
           <Avatar name={actualUser?.name} email={actualUser?.email} size="md" />
@@ -310,7 +310,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                         <button
                             type="button"
                             onClick={() => setShowIconPicker(!showIconPicker)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/20 dark:border-white/25 bg-white/60 dark:bg-white/5 text-primary dark:text-white"
+                            className="tactile-btn flex items-center gap-2 px-4 py-2.5 rounded-xl border border-primary/20 dark:border-white/25 bg-white/60 dark:bg-white/5 text-primary dark:text-white"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined">{icon}</span>
                             <span className="text-sm">{icon}</span>
@@ -322,7 +322,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                                         key={ic}
                                         type="button"
                                         onClick={() => { setIcon(ic); setShowIconPicker(false); }}
-                                        className={`p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 ${icon === ic ? 'bg-primary/20 dark:bg-white/20' : ''}`}
+                                        className={`tactile-btn p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 ${icon === ic ? 'bg-primary/20 dark:bg-white/20' : ''}`}
                                     >
                                         <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">{ic}</span>
                                     </button>
@@ -348,7 +348,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveStep(index)}
-                                            className="p-1 text-red-500 hover:bg-red-500/10 rounded-full"
+                                            className="tactile-btn p-1 text-red-500 hover:bg-red-500/10 rounded-full"
                                         >
                                             <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
                                         </button>
@@ -373,7 +373,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                         <button
                             type="button"
                             onClick={handleAddStep}
-                            className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full border border-dashed border-primary/30 dark:border-white/30 text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-sm"
+                            className="tactile-btn mt-4 flex items-center gap-2 px-4 py-2 rounded-full border border-dashed border-primary/30 dark:border-white/30 text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors text-sm"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>
                             Add Step
@@ -382,13 +382,13 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4 border-t border-primary/10 dark:border-white/25">
-                    <button onClick={onClose} className="px-5 py-2.5 rounded-full text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10">
+                    <button onClick={onClose} className="tactile-btn px-5 py-2.5 rounded-full text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10">
                         Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving || !title.trim() || !description.trim() || steps.every(s => !s.title.trim() || !s.content.trim())}
-                        className="px-5 py-2.5 rounded-full bg-primary dark:bg-accent text-white dark:text-primary font-medium disabled:opacity-50"
+                        className="tactile-btn px-5 py-2.5 rounded-full bg-primary dark:bg-accent text-white dark:text-primary font-medium disabled:opacity-50"
                     >
                         {saving ? 'Saving...' : 'Save Section'}
                     </button>
@@ -500,7 +500,7 @@ const StaffTrainingGuide: React.FC = () => {
                 </p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="px-5 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium"
+                    className="tactile-btn px-5 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-full font-medium"
                 >
                     Refresh Page
                 </button>
@@ -524,7 +524,7 @@ const StaffTrainingGuide: React.FC = () => {
                     <div className="flex gap-2 print:hidden">
                         <button
                             onClick={openAddModal}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-accent text-primary rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
+                            className="tactile-btn flex items-center gap-2 px-4 py-2.5 bg-accent text-primary rounded-full text-sm font-medium hover:opacity-90 transition-opacity"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-lg">add</span>
                             Add Section
@@ -542,7 +542,7 @@ const StaffTrainingGuide: React.FC = () => {
                 {sections.map((section) => (
                     <div 
                         key={section.id}
-                        className="group bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl border border-primary/10 dark:border-white/25 overflow-hidden print:border print:border-gray-200 print:break-inside-avoid hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        className="tactile-row group bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl border border-primary/10 dark:border-white/25 overflow-hidden print:border print:border-gray-200 print:break-inside-avoid hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
                         onClick={() => setExpandedSection(expandedSection === String(section.id) ? null : String(section.id))}
                     >
                         <div className="flex items-center">
@@ -562,10 +562,10 @@ const StaffTrainingGuide: React.FC = () => {
                             </div>
                             {isAdmin && (
                                 <div className="flex gap-1 pr-4 print:hidden" onClick={(e) => e.stopPropagation()}>
-                                    <button onClick={() => openEditModal(section)} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+                                    <button onClick={() => openEditModal(section)} className="tactile-btn p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
                                         <span aria-hidden="true" className="material-symbols-outlined text-primary/80 dark:text-white/80">edit</span>
                                     </button>
-                                    <button onClick={() => handleDelete(section.id)} className="p-2 hover:bg-red-500/10 rounded-full">
+                                    <button onClick={() => handleDelete(section.id)} className="tactile-btn p-2 hover:bg-red-500/10 rounded-full">
                                         <span aria-hidden="true" className="material-symbols-outlined text-red-500/60">delete</span>
                                     </button>
                                 </div>

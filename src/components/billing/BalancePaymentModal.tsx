@@ -139,7 +139,7 @@ export function BalancePaymentModal({
             <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-xl"
+              className="px-4 py-2 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-xl tactile-btn"
             >
               Go Back
             </button>
@@ -249,7 +249,7 @@ export function BalancePaymentModal({
                 </p>
                 <button
                   onClick={() => setPaymentData(null)}
-                  className="mt-3 px-4 py-2 rounded-lg text-sm bg-red-500 text-white hover:bg-red-600"
+                  className="mt-3 px-4 py-2 rounded-lg text-sm bg-red-500 text-white hover:bg-red-600 tactile-btn"
                 >
                   Try Again
                 </button>

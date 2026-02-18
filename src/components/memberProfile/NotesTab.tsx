@@ -84,7 +84,7 @@ const NotesTab: React.FC<NotesTabProps> = ({
           style={{ '--stagger-index': 1 } as React.CSSProperties}
         >
           {notes.map((note) => (
-            <div key={note.id} className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} ${note.isPinned ? 'ring-2 ring-yellow-500/50' : ''}`}>
+            <div key={note.id} className={`p-4 rounded-xl tactile-row ${isDark ? 'bg-white/5' : 'bg-gray-50'} ${note.isPinned ? 'ring-2 ring-yellow-500/50' : ''}`}>
               {editingNoteId === note.id ? (
                 <div className="space-y-2">
                   <textarea
@@ -96,13 +96,13 @@ const NotesTab: React.FC<NotesTabProps> = ({
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setEditingNoteId(null); setEditingNoteContent(''); }}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium ${isDark ? 'bg-white/10 text-white' : 'bg-gray-200 text-gray-700'}`}
+                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium tactile-btn ${isDark ? 'bg-white/10 text-white' : 'bg-gray-200 text-gray-700'}`}
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => handleUpdateNote(note.id, editingNoteContent, note.isPinned)}
-                      className="flex-1 py-2 px-3 rounded-lg bg-brand-green text-white text-sm font-medium"
+                      className="flex-1 py-2 px-3 rounded-lg bg-brand-green text-white text-sm font-medium tactile-btn"
                     >
                       Save
                     </button>
@@ -123,21 +123,21 @@ const NotesTab: React.FC<NotesTabProps> = ({
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleUpdateNote(note.id, note.content, !note.isPinned)}
-                        className={`p-1 ${note.isPinned ? 'text-yellow-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                        className={`p-1 tactile-btn ${note.isPinned ? 'text-yellow-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`}
                         aria-label={note.isPinned ? 'Unpin note' : 'Pin note'}
                       >
                         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">push_pin</span>
                       </button>
                       <button
                         onClick={() => { setEditingNoteId(note.id); setEditingNoteContent(note.content); }}
-                        className={`p-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                        className={`p-1 tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                         aria-label="Edit note"
                       >
                         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
                       </button>
                       <button
                         onClick={() => handleDeleteNote(note.id)}
-                        className="text-red-500 hover:text-red-600 p-1"
+                        className="text-red-500 hover:text-red-600 p-1 tactile-btn"
                         aria-label="Delete note"
                       >
                         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>

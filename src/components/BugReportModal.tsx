@@ -143,7 +143,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
             </p>
             <button
               onClick={handleClose}
-              className={`mt-6 px-6 py-3 min-h-[44px] rounded-xl font-bold text-sm ${isDark ? 'bg-white text-black' : 'bg-primary text-white'}`}
+              className={`mt-6 px-6 py-3 min-h-[44px] rounded-xl font-bold text-sm tactile-btn ${isDark ? 'bg-white text-black' : 'bg-primary text-white'}`}
             >
               Done
             </button>
@@ -189,7 +189,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                   <button
                     type="button"
                     onClick={removeScreenshot}
-                    className="absolute top-2 right-2 min-w-[44px] min-h-[44px] bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                    className="absolute top-2 right-2 min-w-[44px] min-h-[44px] bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors tactile-btn"
                     aria-label="Remove screenshot"
                   >
                     <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>
@@ -199,7 +199,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`w-full py-8 min-h-[44px] rounded-xl border-2 border-dashed transition-colors flex flex-col items-center gap-2 ${
+                  className={`w-full py-8 min-h-[44px] rounded-xl border-2 border-dashed transition-colors flex flex-col items-center gap-2 tactile-btn ${
                     isDark 
                       ? 'border-white/25 hover:border-white/40 text-white/80' 
                       : 'border-black/20 hover:border-black/40 text-primary/70'
@@ -222,7 +222,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
             <button
               type="submit"
               disabled={loading || !description.trim()}
-              className={`w-full py-4 min-h-[44px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-fast disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full py-4 min-h-[44px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-fast disabled:opacity-50 disabled:cursor-not-allowed tactile-btn ${
                 isDark 
                   ? 'bg-accent text-primary hover:opacity-90' 
                   : 'bg-primary text-white hover:bg-primary/90'

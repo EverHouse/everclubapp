@@ -220,13 +220,13 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     <div className="flex gap-3 p-4">
                         <button 
                             onClick={() => setIsEditing(false)} 
-                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors tactile-btn"
                         >
                             Cancel
                         </button>
                         <button 
                             onClick={handleSave} 
-                            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium shadow-md hover:bg-primary/90 transition-colors"
+                            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium shadow-md hover:bg-primary/90 transition-colors tactile-btn"
                         >
                             Post
                         </button>
@@ -412,7 +412,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     const idB = parseInt(b.id) || 0;
                     return idB - idA;
                 }).map((item, index) => (
-                    <div key={item.id} onClick={() => openEdit(item)} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-all duration-fast animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+                    <div key={item.id} onClick={() => openEdit(item)} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-all duration-fast animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
                         <div>
                             <div className="flex items-center gap-2 mb-1.5">
                                 <span className="w-2 h-2 rounded-full bg-accent"></span>

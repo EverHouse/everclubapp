@@ -185,7 +185,7 @@ const PrivateHireInquire: React.FC = () => {
       <div className="pt-[max(1rem,env(safe-area-inset-top))] px-4 pb-4">
         <Link 
           to="/private-hire" 
-          className="inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
+          className="tactile-btn inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
         >
           <span className="material-symbols-outlined text-lg">arrow_back</span>
           <span className="text-sm font-medium">Back to Private Hire</span>
@@ -495,7 +495,7 @@ const PrivateHireInquire: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleBack}
-                        className="flex-1 py-4 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-[2rem] font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-all duration-fast"
+                        className="tactile-btn flex-1 py-4 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-[2rem] font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-all duration-fast"
                       >
                         Previous
                       </button>

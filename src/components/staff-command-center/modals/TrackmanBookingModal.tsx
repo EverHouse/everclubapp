@@ -288,7 +288,7 @@ export function TrackmanBookingModal({
 
         <button
           onClick={handleOpenTrackman}
-          className="w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="tactile-btn w-full py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           <span className="material-symbols-outlined">open_in_new</span>
           Open Trackman Portal
@@ -321,7 +321,7 @@ export function TrackmanBookingModal({
         <button
           onClick={handleConfirm}
           disabled={isSubmitting || !externalId.trim()}
-          className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+          className="tactile-btn w-full py-3 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <>

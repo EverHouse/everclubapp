@@ -84,7 +84,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
         <button
           key={payment.bookingId}
           onClick={() => setBookingSheet({ isOpen: true, bookingId: payment.bookingId })}
-          className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors text-left"
+          className="tactile-row w-full flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10 hover:bg-primary/5 dark:hover:bg-white/10 transition-colors text-left"
         >
           <div className="flex flex-col items-center justify-center min-w-[44px] h-[44px] rounded-lg bg-red-100 dark:bg-red-900/30">
             <span className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase">
@@ -132,7 +132,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
             <button
               onClick={handleBulkReviewWaivers}
               disabled={bulkReviewing}
-              className="mb-3 px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors disabled:opacity-50 flex items-center gap-1"
+              className="tactile-btn mb-3 px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors disabled:opacity-50 flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-sm">check_circle</span>
               {bulkReviewing ? 'Reviewing...' : `Review All Waivers (${staleWaiverCount})`}
@@ -152,7 +152,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
                 </span>
               )}
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
+            <button onClick={onClose} className="tactile-btn p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full">
               <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
             </button>
           </div>
@@ -160,7 +160,7 @@ const OverduePaymentsPanel: React.FC<SectionProps> = ({ onClose, variant = 'moda
             <button
               onClick={handleBulkReviewWaivers}
               disabled={bulkReviewing}
-              className="mb-3 px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors disabled:opacity-50 flex items-center gap-1"
+              className="tactile-btn mb-3 px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors disabled:opacity-50 flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-sm">check_circle</span>
               {bulkReviewing ? 'Reviewing...' : `Review All Waivers (${staleWaiverCount})`}

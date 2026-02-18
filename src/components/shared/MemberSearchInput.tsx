@@ -298,7 +298,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = ({
                 type="button"
                 onClick={() => handleSelect(member)}
                 onMouseEnter={() => setHighlightedIndex(index)}
-                className={`w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
+                className={`tactile-row w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
                   index === highlightedIndex 
                     ? 'bg-primary/10 dark:bg-white/10' 
                     : 'hover:bg-primary/5 dark:hover:bg-white/5'

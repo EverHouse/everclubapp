@@ -1049,7 +1049,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
               return (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between p-2 bg-amber-50/50 dark:bg-amber-500/5 rounded-lg border border-amber-100 dark:border-amber-500/20"
+                  className="flex items-center justify-between p-2 bg-amber-50/50 dark:bg-amber-500/5 rounded-lg border border-amber-100 dark:border-amber-500/20 tactile-row"
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center flex-shrink-0">
@@ -1105,7 +1105,7 @@ const BookingMembersEditor: React.FC<BookingMembersEditorProps> = ({
             return (
               <div 
                 key={member.id} 
-                className={`relative flex items-center justify-between p-2 rounded-lg border transition-all duration-normal ${
+                className={`relative flex items-center justify-between p-2 rounded-lg border transition-all duration-normal tactile-row ${
                   isOptimisticallyUnlinking 
                     ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30' 
                     : 'bg-white dark:bg-black/20 border-gray-100 dark:border-white/10'

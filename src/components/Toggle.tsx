@@ -50,7 +50,7 @@ const Toggle: React.FC<ToggleProps> = ({
       onClick={handleClick}
       className={`
         relative inline-flex items-center ${track} shrink-0 rounded-full p-[2px]
-        border-2 transition-colors duration-fast ease-in-out 
+        border-2 transition-colors duration-fast ease-in-out tactile-btn
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#34C759]/50 focus-visible:ring-offset-2
         ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
         ${checked ? 'bg-[#34C759] border-[#34C759]' : 'bg-[#E5E5EA] border-[#E5E5EA]'}

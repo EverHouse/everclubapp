@@ -82,7 +82,7 @@ export function ManageModeRoster({
     return (
       <div 
         key={member.id}
-        className={`relative p-3 rounded-xl border transition-all duration-fast ${
+        className={`relative tactile-row p-3 rounded-xl border transition-all duration-fast ${
           isOwner 
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
             : isGuestSlot
@@ -264,13 +264,13 @@ export function ManageModeRoster({
               <div className="flex gap-2">
                 <button
                   onClick={() => handleManageModeMemberMatchResolve('member')}
-                  className="flex-1 py-1.5 px-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
+                  className="tactile-btn flex-1 py-1.5 px-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
                 >
                   Add as Member
                 </button>
                 <button
                   onClick={() => handleManageModeMemberMatchResolve('guest')}
-                  className="flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                  className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
                 >
                   Add as Guest Anyway
                 </button>
@@ -281,7 +281,7 @@ export function ManageModeRoster({
           <button
             onClick={() => handleManageModeAddGuest(slotNumber)}
             disabled={!manageModeGuestData.firstName || !manageModeGuestData.lastName || !manageModeGuestData.email || isAddingManageGuest}
-            className="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
+            className="tactile-btn w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
           >
             {isAddingManageGuest ? (
               <>
@@ -358,7 +358,7 @@ export function ManageModeRoster({
                 setManageModeSearchSlot(slotNumber);
                 setManageModeGuestForm(null);
               }}
-              className="py-1 px-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1"
+              className="tactile-btn py-1 px-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 text-xs font-medium hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-xs">search</span>
               Search
@@ -369,7 +369,7 @@ export function ManageModeRoster({
                 setManageModeSearchSlot(null);
                 setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
               }}
-              className="py-1 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center gap-1"
+              className="tactile-btn py-1 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-xs">person_add</span>
               New Guest

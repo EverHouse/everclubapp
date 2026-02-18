@@ -37,14 +37,14 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
     <div className={`${variant === 'desktop' ? 'h-full' : ''} bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 ${variant === 'desktop' ? 'flex flex-col' : ''}`}>
       <div className="flex items-center justify-between mb-3 lg:mb-4">
         <h3 className="font-bold text-primary dark:text-white">Internal Notice Board</h3>
-        <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
+        <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline tactile-btn">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (
         upcomingClosure ? (
           <div className={`space-y-3 ${variant === 'desktop' ? 'flex-1' : ''}`}>
             <button 
               onClick={() => navigateToTab('blocks')}
-              className={`w-full text-left rounded-lg p-3 transition-colors ${
+              className={`w-full text-left rounded-lg p-3 transition-colors tactile-card ${
                 isBlocking(upcomingClosure.affectedAreas)
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
                   : 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
@@ -96,7 +96,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
               <button 
                 key={closure.id}
                 onClick={() => navigateToTab('blocks')}
-                className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger ${
+                className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger tactile-card ${
                   blocking
                     ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
                     : 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
@@ -137,7 +137,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
             <button 
               key={announcement.id}
               onClick={() => navigateToTab('announcements')}
-              className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger"
+              className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger tactile-card"
               style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <p className="text-sm font-medium text-purple-800 dark:text-purple-200">{announcement.title}</p>
@@ -167,7 +167,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
           <button
             key={`conf-${variant}-${bay.id}`}
             onClick={() => navigate(`/admin/bookings?resourceType=conference&bay=${bay.id}`)}
-            className="w-full flex items-center gap-2 py-2 mb-2 border-b border-primary/5 dark:border-white/10 text-left hover:opacity-80 transition-opacity animate-slide-up-stagger"
+            className="w-full flex items-center gap-2 py-2 mb-2 border-b border-primary/5 dark:border-white/10 text-left hover:opacity-80 transition-opacity animate-slide-up-stagger tactile-card"
             style={{ '--stagger-index': index } as React.CSSProperties}
           >
             <span className={`w-2 h-2 rounded-full ${dotColor}`} />
@@ -192,7 +192,7 @@ export const ResourcesSection: React.FC<ResourcesSectionProps> = ({
             <button
               key={`bay-${variant}-${bay.id}`}
               onClick={() => navigate(`/admin/bookings?bay=${bay.id}`)}
-              className={`p-3 rounded-xl border text-left hover:opacity-80 transition-opacity animate-slide-up-stagger ${isClosed ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-white dark:bg-white/10 border-primary/5 dark:border-white/10'}`}
+              className={`p-3 rounded-xl border text-left hover:opacity-80 transition-opacity animate-slide-up-stagger tactile-card ${isClosed ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-white dark:bg-white/10 border-primary/5 dark:border-white/10'}`}
               style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <div className="flex items-center gap-2 mb-1">
@@ -248,14 +248,14 @@ export const NoticeBoardWidget: React.FC<{
     <div className="h-full min-h-[140px] bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-primary dark:text-white">Internal Notice Board</h3>
-        <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">Manage</button>
+        <button onClick={() => navigateToTab('blocks')} className="text-xs text-primary/80 dark:text-white/80 hover:underline tactile-btn">Manage</button>
       </div>
       {closures.length === 0 && announcements.length === 0 ? (
         upcomingClosure ? (
           <div className="space-y-3 flex-1">
             <button 
               onClick={() => navigateToTab('blocks')}
-              className={`w-full text-left rounded-lg p-3 transition-colors ${
+              className={`w-full text-left rounded-lg p-3 transition-colors tactile-card ${
                 isBlocking(upcomingClosure.affectedAreas)
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
                   : 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
@@ -307,7 +307,7 @@ export const NoticeBoardWidget: React.FC<{
               <button 
                 key={closure.id} 
                 onClick={() => navigateToTab('blocks')}
-                className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger ${
+                className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger tactile-card ${
                   blocking
                     ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
                     : 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
@@ -348,7 +348,7 @@ export const NoticeBoardWidget: React.FC<{
             <button 
               key={announcement.id}
               onClick={() => navigateToTab('announcements')}
-              className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger"
+              className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger tactile-card"
               style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <p className="text-sm font-medium text-purple-800 dark:text-purple-200">{announcement.title}</p>

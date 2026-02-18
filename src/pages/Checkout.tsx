@@ -395,7 +395,7 @@ function CorporateCheckoutForm({ tier, email, initialQuantity }: CorporateChecko
 
       <button
         onClick={handleContinue}
-        className="w-full py-4 px-6 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-lg"
+        className="w-full py-4 px-6 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-lg tactile-btn"
       >
         <span className="material-symbols-outlined">arrow_forward</span>
         Continue to Payment
@@ -574,7 +574,7 @@ function DayPassesSection() {
               <button
                 onClick={() => handleCheckout(selectedProduct)}
                 disabled={!email || submitting}
-                className="flex-1 py-3 px-4 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 py-3 px-4 rounded-xl font-semibold bg-accent text-brand-green hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 tactile-btn"
               >
                 {submitting ? (
                   <WalkingGolferSpinner size="sm" variant="dark" />

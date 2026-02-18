@@ -216,7 +216,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           ) : (
             <button
               onClick={() => setShowApplyCreditModal(true)}
-              className="w-full py-2.5 bg-brand-green text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              className="w-full py-2.5 bg-brand-green text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
             >
               <span className="material-symbols-outlined text-lg">add</span>
               Apply Credit
@@ -248,7 +248,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               <>
                 <button
                   onClick={() => setOutstandingExpanded(!outstandingExpanded)}
-                  className={`w-full flex items-center justify-between text-xs font-medium py-1.5 transition-colors ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-800'}`}
+                  className={`w-full flex items-center justify-between text-xs font-medium py-1.5 transition-colors tactile-btn ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-700 hover:text-amber-800'}`}
                 >
                   <span>View breakdown</span>
                   <span className={`material-symbols-outlined text-base transition-transform ${outstandingExpanded ? 'rotate-180' : ''}`}>
@@ -300,7 +300,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </h4>
               <button
                 onClick={() => setShowIdScanner(true)}
-                className={`text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
+                className={`text-xs flex items-center gap-1 px-2 py-1 rounded-lg transition-colors tactile-btn ${
                   isDark ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-emerald-600 hover:bg-emerald-50'
                 }`}
               >
@@ -316,7 +316,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               <div className="space-y-2">
                 <button
                   onClick={() => setShowIdImageFull(true)}
-                  className="w-full rounded-lg overflow-hidden border border-white/10 hover:opacity-90 transition-opacity"
+                  className="w-full rounded-lg overflow-hidden border border-white/10 hover:opacity-90 transition-opacity tactile-btn"
                 >
                   <img
                     src={idImageUrl}
@@ -331,7 +331,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                   <button
                     onClick={handleDeleteIdImage}
                     disabled={isDeletingIdImage}
-                    className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 disabled:opacity-50"
+                    className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 disabled:opacity-50 tactile-btn"
                   >
                     <span className="material-symbols-outlined text-sm">delete</span>
                     Remove
@@ -344,7 +344,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                 <p className="text-xs">No ID on file</p>
                 <button
                   onClick={() => setShowIdScanner(true)}
-                  className={`mt-2 text-xs px-3 py-1.5 rounded-lg border border-dashed transition-colors ${
+                  className={`mt-2 text-xs px-3 py-1.5 rounded-lg border border-dashed transition-colors tactile-btn ${
                     isDark
                       ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
                       : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
@@ -435,7 +435,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                 <button
                   onClick={() => handleRemoveLinkedEmail(email)}
                   disabled={removingEmail === email}
-                  className="text-red-500 hover:text-red-600 p-1 disabled:opacity-50"
+                  className="text-red-500 hover:text-red-600 p-1 disabled:opacity-50 tactile-btn"
                   aria-label="Remove linked email"
                 >
                   {removingEmail === email ? (

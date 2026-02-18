@@ -308,7 +308,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   {onCollectPayment && (
                     <button
                       onClick={onCollectPayment}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isDark ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                       }`}
                     >
@@ -320,7 +320,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                     <button
                       onClick={onSendActivationEmail}
                       disabled={isSendingActivation}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                      className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                         isDark ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                       }`}
                     >
@@ -335,7 +335,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   {onCopyActivationLink && (
                     <button
                       onClick={onCopyActivationLink}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isDark ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                       }`}
                     >
@@ -351,7 +351,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               <button
                 onClick={onShowTierChangeModal}
                 disabled={activeSubscription.status !== 'active'}
-                className="flex items-center gap-1.5 px-3 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                className="tactile-btn flex items-center gap-1.5 px-3 py-2 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 <span className="material-symbols-outlined text-base">swap_vert</span>
                 Change Tier
@@ -361,7 +361,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                   onClick={onSyncStripeData}
                   disabled={isSyncingStripeData}
                   title="Sync membership tier, metadata, and transaction cache from Stripe."
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isDark ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                   } disabled:opacity-50`}
                 >
@@ -377,7 +377,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                 <button
                   onClick={onResume}
                   disabled={isResuming}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
+                  className="tactile-btn flex items-center gap-1.5 px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
                 >
                   {isResuming ? (
                     <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
@@ -390,7 +390,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                 <button
                   onClick={onPause}
                   disabled={isPausing || activeSubscription.status !== 'active'}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                  className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                     isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
@@ -405,7 +405,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               {!activeSubscription.cancelAtPeriodEnd && (
                 <button
                   onClick={onShowCancelModal}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                  className="tactile-btn flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
                 >
                   <span className="material-symbols-outlined text-base">cancel</span>
                   Cancel
@@ -474,7 +474,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
               </div>
               <button
                 onClick={onCreateSubscription}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isDark ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' : 'bg-green-100 text-green-700 hover:bg-green-200'
                 }`}
               >
@@ -515,7 +515,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             <button
               onClick={onGetPaymentLink}
               disabled={isGettingPaymentLink}
-              className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`tactile-btn w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               } disabled:opacity-50`}
             >
@@ -529,7 +529,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             {onUpdateCardViaReader && (
               <button
                 onClick={onUpdateCardViaReader}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`tactile-btn w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isDark ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                 }`}
               >
@@ -544,7 +544,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
             {onUpdateCardViaReader && (
               <button
                 onClick={onUpdateCardViaReader}
-                className={`w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`tactile-btn w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isDark ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                 }`}
               >
@@ -559,7 +559,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
           <button
             onClick={onOpenBillingPortal}
             disabled={isOpeningBillingPortal}
-            className={`w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`tactile-btn w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isDark ? 'bg-accent/20 text-accent hover:bg-accent/30' : 'bg-primary/10 text-primary hover:bg-primary/20'
             } disabled:opacity-50`}
           >
@@ -581,7 +581,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
           </div>
           <button
             onClick={onShowCreditModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+            className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
           >
             <span className="material-symbols-outlined text-base">add</span>
             Apply Credit
@@ -612,7 +612,7 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
           <button
             onClick={onShowDiscountModal}
             disabled={!activeSubscription}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-base">add</span>
             Apply Discount

@@ -209,7 +209,7 @@ function ConfirmDialogComponent({
                   className={`
                     flex-1 px-4 py-3 rounded-xl font-medium text-sm
                     transition-all duration-fast ease-out
-                    disabled:opacity-50 disabled:cursor-not-allowed
+                    disabled:opacity-50 disabled:cursor-not-allowed tactile-btn
                     ${isDark 
                       ? 'bg-white/10 hover:bg-white/15 active:bg-white/20 text-white border border-white/10' 
                       : 'bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-700 border border-gray-200'
@@ -227,7 +227,7 @@ function ConfirmDialogComponent({
                   className={`
                     flex-1 px-4 py-3 rounded-xl font-medium text-sm text-white
                     transition-all duration-fast ease-out
-                    disabled:opacity-70 disabled:cursor-not-allowed
+                    disabled:opacity-70 disabled:cursor-not-allowed tactile-btn
                     ${isDark ? variantConfig.dark : variantConfig.light}
                     flex items-center justify-center gap-2
                   `}

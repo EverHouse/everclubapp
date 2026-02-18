@@ -239,14 +239,14 @@ const UpdatesTab: React.FC = () => {
                     {unreadCount > 0 && (
                         <button 
                             onClick={markAllAsRead}
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 dark:text-white/70 dark:hover:text-white dark:bg-white/5 dark:hover:bg-white/10"
+                            className="tactile-btn text-xs font-medium px-3 py-1.5 rounded-lg transition-colors text-primary/70 hover:text-primary bg-primary/5 hover:bg-primary/10 dark:text-white/70 dark:hover:text-white dark:bg-white/5 dark:hover:bg-white/10"
                         >
                             Mark all as read
                         </button>
                     )}
                     <button 
                         onClick={dismissAll}
-                        className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors text-red-600/70 hover:text-red-600 bg-red-500/5 hover:bg-red-500/10 dark:text-red-400/70 dark:hover:text-red-400"
+                        className="tactile-btn text-xs font-medium px-3 py-1.5 rounded-lg transition-colors text-red-600/70 hover:text-red-600 bg-red-500/5 hover:bg-red-500/10 dark:text-red-400/70 dark:hover:text-red-400"
                     >
                         Dismiss all
                     </button>
@@ -277,7 +277,7 @@ const UpdatesTab: React.FC = () => {
                         <div
                             key={notif.id}
                             onClick={() => handleNotificationClick(notif)}
-                            className={`rounded-2xl transition-colors cursor-pointer overflow-hidden animate-pop-in ${
+                            className={`tactile-row rounded-2xl transition-colors cursor-pointer overflow-hidden animate-pop-in ${
                                 notif.is_read 
                                     ? 'bg-white hover:bg-gray-50 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]' 
                                     : 'bg-accent/10 hover:bg-accent/15 border border-accent/30 dark:border-accent/20'
@@ -332,7 +332,7 @@ const UpdatesTab: React.FC = () => {
                 <div className="flex gap-1.5 sm:gap-2 mb-6 animate-content-enter-delay-1">
                     <button
                         onClick={() => setActiveSubTab('alerts')}
-                        className={`flex-1 py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wide transition-all duration-fast relative ${
+                        className={`tactile-btn flex-1 py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wide transition-all duration-fast relative ${
                             activeSubTab === 'alerts'
                                 ? 'bg-accent text-primary'
                                 : 'bg-primary/5 text-primary/80 hover:bg-primary/10 dark:bg-white/5 dark:text-white/80 dark:hover:bg-white/10'
@@ -347,7 +347,7 @@ const UpdatesTab: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setActiveSubTab('announcements')}
-                        className={`flex-1 py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wide transition-all duration-fast ${
+                        className={`tactile-btn flex-1 py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wide transition-all duration-fast ${
                             activeSubTab === 'announcements'
                                 ? 'bg-[#CCB8E4] text-[#293515]'
                                 : 'bg-primary/5 text-primary/80 hover:bg-primary/10 dark:bg-white/5 dark:text-white/80 dark:hover:bg-white/10'

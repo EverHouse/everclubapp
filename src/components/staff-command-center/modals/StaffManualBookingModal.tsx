@@ -498,7 +498,7 @@ export function StaffManualBookingModal({
       <button
         onClick={handleConferenceSubmit}
         disabled={confSubmitting || !canCreateConferenceBooking}
-        className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="tactile-btn w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {confSubmitting ? (
           <>
@@ -517,7 +517,7 @@ export function StaffManualBookingModal({
     <div className="p-4 flex gap-3">
       <button
         onClick={handleCopyLessonNotes}
-        className="flex-1 py-3 px-4 bg-primary/10 dark:bg-[#CCB8E4]/20 hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 text-primary dark:text-[#CCB8E4] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+        className="tactile-btn flex-1 py-3 px-4 bg-primary/10 dark:bg-[#CCB8E4]/20 hover:bg-primary/20 dark:hover:bg-[#CCB8E4]/30 text-primary dark:text-[#CCB8E4] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
       >
         <span className="material-symbols-outlined">
           {lessonCopied ? 'check' : 'content_copy'}
@@ -526,7 +526,7 @@ export function StaffManualBookingModal({
       </button>
       <button
         onClick={handleOpenTrackman}
-        className="flex-1 py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+        className="tactile-btn flex-1 py-3 px-4 bg-[#E55A22] hover:bg-[#D04D18] text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
       >
         <span className="material-symbols-outlined">open_in_new</span>
         Open Trackman
@@ -542,7 +542,7 @@ export function StaffManualBookingModal({
       <button
         onClick={handleFinalize}
         disabled={!canFinalize()}
-        className="w-full py-3 px-4 bg-primary hover:bg-primary/90 dark:bg-[#CCB8E4] dark:hover:bg-[#CCB8E4]/90 text-white dark:text-[#1a1d15] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="tactile-btn w-full py-3 px-4 bg-primary hover:bg-primary/90 dark:bg-[#CCB8E4] dark:hover:bg-[#CCB8E4]/90 text-white dark:text-[#1a1d15] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         <span className="material-symbols-outlined">check_circle</span>
         Finalize & Generate Notes
@@ -558,7 +558,7 @@ export function StaffManualBookingModal({
       <button
         onClick={handleSubmit}
         disabled={isSubmitting || !externalId.trim()}
-        className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="tactile-btn w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isSubmitting ? (
           <>

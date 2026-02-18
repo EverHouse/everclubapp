@@ -355,13 +355,13 @@ const AvailabilityBlocksContent: React.FC = () => {
                     </select>
                     <button
                         onClick={handleFilter}
-                        className="py-2.5 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                        className="tactile-btn py-2.5 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity"
                     >
                         Filter
                     </button>
                     <button
                         onClick={handleReset}
-                        className="py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                        className="tactile-btn py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                     >
                         Reset
                     </button>
@@ -377,7 +377,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                             <div className="flex gap-2 mt-3">
                                 <button
                                     onClick={() => fetchBlocks()}
-                                    className="px-3 py-1.5 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-700/40 transition-colors"
+                                    className="tactile-btn px-3 py-1.5 bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-700/40 transition-colors"
                                 >
                                     Try Again
                                 </button>
@@ -390,7 +390,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                         }
                                         window.location.reload();
                                     }}
-                                    className="px-3 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                                    className="tactile-btn px-3 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                                 >
                                     Clear Cache & Reload
                                 </button>
@@ -429,7 +429,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                             >
                                 <button
                                     onClick={() => toggleDay(date)}
-                                    className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                    className="tactile-row w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
@@ -461,7 +461,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                             <div 
                                                 key={block.id} 
                                                 onClick={() => openEdit(block)}
-                                                className="bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors animate-slide-up-stagger"
+                                                className="tactile-row bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors animate-slide-up-stagger"
                                                 style={{ '--stagger-index': blockIndex } as React.CSSProperties}
                                             >
                                                 <div className="flex gap-3">
@@ -484,7 +484,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                     </div>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleDelete(block); }} 
-                                                        className="self-start text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                        className="tactile-btn self-start text-gray-400 hover:text-red-500 transition-colors p-1"
                                                     >
                                                         <span aria-hidden="true" className="material-symbols-outlined text-lg">delete</span>
                                                     </button>
@@ -499,7 +499,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                     {visibleDayCount < groupedUpcoming.length && (
                         <button
                             onClick={() => setVisibleDayCount(prev => prev + 10)}
-                            className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                            className="tactile-btn w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-sm">expand_more</span>
                             Load {Math.min(10, groupedUpcoming.length - visibleDayCount)} more ({groupedUpcoming.length - visibleDayCount} remaining)
@@ -512,7 +512,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                 <div className="mt-6 rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden">
                     <button
                         onClick={() => setShowPastAccordion(!showPastAccordion)}
-                        className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                        className="tactile-row w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                         <div className="flex items-center gap-2">
                             <span aria-hidden="true" className="material-symbols-outlined text-gray-500 dark:text-white/60">history</span>
@@ -547,7 +547,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                     return newSet;
                                                 });
                                             }}
-                                            className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                            className="tactile-row w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                                         >
                                             <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center">
@@ -578,7 +578,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                         </div>
                                                         <button 
                                                             onClick={(e) => { e.stopPropagation(); handleDelete(block); }} 
-                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                            className="tactile-btn text-gray-400 hover:text-red-500 transition-colors p-1"
                                                         >
                                                             <span aria-hidden="true" className="material-symbols-outlined text-base">delete</span>
                                                         </button>
@@ -672,14 +672,14 @@ const AvailabilityBlocksContent: React.FC = () => {
                     <div className="flex gap-3 pt-2">
                         <button
                             onClick={() => { setIsEditing(false); setFormError(null); }}
-                            className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium"
+                            className="tactile-btn flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="flex-1 py-3 px-4 rounded-lg bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="tactile-btn flex-1 py-3 px-4 rounded-lg bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isSaving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
                             {isSaving ? 'Saving...' : editId ? 'Save Changes' : 'Add Block'}
@@ -702,14 +702,14 @@ const AvailabilityBlocksContent: React.FC = () => {
                         <button
                             onClick={() => { setShowDeleteConfirm(false); setBlockToDelete(null); }}
                             disabled={isDeleting}
-                            className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                            className="tactile-btn flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/25 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={isDeleting}
-                            className="flex-1 py-3 px-4 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            className="tactile-btn flex-1 py-3 px-4 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {isDeleting ? (
                                 <>

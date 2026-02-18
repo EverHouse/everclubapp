@@ -272,7 +272,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   </p>
                   <button
                     onClick={startCamera}
-                    className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-colors ${
+                    className={`tactile-btn w-full flex items-center gap-3 p-4 rounded-xl border transition-colors ${
                       isDark
                         ? 'border-white/10 hover:bg-white/5'
                         : 'border-gray-200 hover:bg-gray-50'
@@ -290,7 +290,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
 
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-colors ${
+                    className={`tactile-btn w-full flex items-center gap-3 p-4 rounded-xl border transition-colors ${
                       isDark
                         ? 'border-white/10 hover:bg-white/5'
                         : 'border-gray-200 hover:bg-gray-50'
@@ -358,7 +358,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   <div className="flex items-center justify-center gap-4">
                     <button
                       onClick={() => { stopCamera(); setState('choose'); }}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      className={`tactile-btn px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                         isDark
                           ? 'bg-white/10 hover:bg-white/15 text-white'
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -401,7 +401,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   <div className="flex gap-3">
                     <button
                       onClick={handleRetake}
-                      className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
+                      className={`tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
                         isDark
                           ? 'bg-white/10 hover:bg-white/15 text-white'
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -412,7 +412,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                     </button>
                     <button
                       onClick={handleScanId}
-                      className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                      className="tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                     >
                       <span className="material-symbols-outlined text-sm mr-1 align-middle">document_scanner</span>
                       Scan ID
@@ -444,7 +444,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                       </ul>
                       <button
                         onClick={handleRetake}
-                        className={`mt-3 w-full py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`tactile-btn mt-3 w-full py-2 rounded-lg text-sm font-medium transition-colors ${
                           isDark
                             ? 'bg-amber-600 hover:bg-amber-500 text-white'
                             : 'bg-amber-500 hover:bg-amber-600 text-white'
@@ -540,7 +540,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                   <div className="flex gap-3">
                     <button
                       onClick={handleRetake}
-                      className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
+                      className={`tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
                         isDark
                           ? 'bg-white/10 hover:bg-white/15 text-white'
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -550,7 +550,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                     </button>
                     <button
                       onClick={handleUseInfo}
-                      className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                      className="tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                     >
                       <span className="material-symbols-outlined text-sm mr-1 align-middle">check</span>
                       Use This Info

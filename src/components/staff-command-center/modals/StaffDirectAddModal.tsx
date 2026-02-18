@@ -207,7 +207,7 @@ export const StaffDirectAddModal: React.FC<StaffDirectAddModalProps> = ({
           <div className="flex gap-2">
             <button
               onClick={() => setMode('member')}
-              className={`flex-1 py-2 px-4 rounded-xl font-medium transition-colors ${
+              className={`tactile-btn flex-1 py-2 px-4 rounded-xl font-medium transition-colors ${
                 mode === 'member'
                   ? 'bg-primary text-white'
                   : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'
@@ -218,7 +218,7 @@ export const StaffDirectAddModal: React.FC<StaffDirectAddModalProps> = ({
             <button
               onClick={() => setMode('guest')}
               disabled={isSocialHost}
-              className={`flex-1 py-2 px-4 rounded-xl font-medium transition-colors ${
+              className={`tactile-btn flex-1 py-2 px-4 rounded-xl font-medium transition-colors ${
                 mode === 'guest'
                   ? 'bg-primary text-white'
                   : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'
@@ -366,14 +366,14 @@ export const StaffDirectAddModal: React.FC<StaffDirectAddModalProps> = ({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
+              className="tactile-btn flex-1 py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={loading || (mode === 'guest' && isSocialHost) || (mode === 'guest' && waiveGuestFee && !waiveReason.trim())}
-              className="flex-1 py-2 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="tactile-btn flex-1 py-2 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

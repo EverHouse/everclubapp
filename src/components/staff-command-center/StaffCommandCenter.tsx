@@ -541,7 +541,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             {pendingCount > 0 && (
               <button 
                 onClick={() => navigateToTab('simulator')}
-                className="flex lg:hidden items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-medium"
+                className="tactile-btn flex lg:hidden items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-medium"
               >
                 <span className="material-symbols-outlined text-xs">pending_actions</span>
                 {pendingCount} pending
@@ -556,7 +556,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             {pendingCount > 0 && (
               <button 
                 onClick={() => navigateToTab('simulator')}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
               >
                 <span className="material-symbols-outlined text-sm">pending_actions</span>
                 {pendingCount} pending request{pendingCount !== 1 ? 's' : ''}
@@ -565,7 +565,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             {unmatchedBookings.length > 0 && (
               <button 
                 onClick={() => navigateToTab('simulator')}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
+                className="tactile-btn flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
               >
                 <span className="material-symbols-outlined text-sm">link_off</span>
                 {unmatchedBookings.length} need{unmatchedBookings.length !== 1 ? '' : 's'} assignment

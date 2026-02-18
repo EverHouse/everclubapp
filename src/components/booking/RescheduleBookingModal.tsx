@@ -268,7 +268,7 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
                 }
               }}
               disabled={!canConfirm}
-              className="w-full py-3 px-4 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 px-4 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors tactile-btn"
             >
               <span className="material-symbols-outlined text-sm" aria-hidden="true">{isConferenceRoom ? 'check' : 'arrow_forward'}</span>
               {isConferenceRoom ? 'Confirm Reschedule' : 'Continue'}
@@ -350,7 +350,7 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
                   setStep(1);
                 }}
                 disabled={isConfirming}
-                className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+                className="flex-1 py-3 px-4 rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 font-medium flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors tactile-btn"
               >
                 <span className="material-symbols-outlined text-sm" aria-hidden="true">arrow_back</span>
                 Back
@@ -358,7 +358,7 @@ export function RescheduleBookingModal({ isOpen, onClose, booking, resources, on
               <button
                 onClick={handleConfirm}
                 disabled={!canConfirm || isConfirming}
-                className="flex-1 py-3 px-4 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 py-3 px-4 rounded-lg bg-accent hover:bg-accent/90 text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors tactile-btn"
               >
                 {isConfirming ? (
                   <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">progress_activity</span>

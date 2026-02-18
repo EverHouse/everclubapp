@@ -169,7 +169,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                         <button
                           type="button"
                           onClick={() => handleClearSelection(index)}
-                          className={`p-1 rounded-full transition-colors ${
+                          className={`p-1 rounded-full transition-colors tactile-btn ${
                             isDark ? 'hover:bg-white/10' : 'hover:bg-black/10'
                           }`}
                         >

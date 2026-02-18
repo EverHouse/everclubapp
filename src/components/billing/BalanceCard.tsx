@@ -114,7 +114,7 @@ export function BalanceCard({ memberEmail, onPayNow, className = '' }: BalanceCa
           </div>
           <button
             onClick={onPayNow}
-            className="px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors text-sm flex items-center gap-1.5 flex-shrink-0"
+            className="px-4 py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors text-sm flex items-center gap-1.5 flex-shrink-0 tactile-btn"
           >
             <span className="material-symbols-outlined text-base">credit_card</span>
             Pay Now
@@ -126,7 +126,7 @@ export function BalanceCard({ memberEmail, onPayNow, className = '' }: BalanceCa
         <div className={`border-t ${isDark ? 'border-amber-500/20' : 'border-amber-200'}`}>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`w-full px-4 py-2.5 flex items-center justify-between text-xs font-medium transition-colors ${isDark ? 'text-amber-400 hover:bg-amber-500/10' : 'text-amber-700 hover:bg-amber-100/50'}`}
+            className={`w-full px-4 py-2.5 flex items-center justify-between text-xs font-medium transition-colors tactile-btn ${isDark ? 'text-amber-400 hover:bg-amber-500/10' : 'text-amber-700 hover:bg-amber-100/50'}`}
           >
             <span>View breakdown</span>
             <span className={`material-symbols-outlined text-base transition-transform ${isExpanded ? 'rotate-180' : ''}`}>

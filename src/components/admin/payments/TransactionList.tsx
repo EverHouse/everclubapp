@@ -128,7 +128,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
   ) : (
     <div className="space-y-2 max-h-[300px] overflow-y-auto">
       {transactions.map(tx => (
-        <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
+        <div key={tx.id} className="tactile-row flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
             tx.status === 'succeeded' ? 'bg-green-100 dark:bg-green-900/30' : 
             tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 
@@ -148,7 +148,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
           </div>
           <button
             onClick={() => handleOpenNotes(tx.id)}
-            className="p-1.5 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
+            className="tactile-btn p-1.5 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
             title="View/Add Notes"
           >
             <span className="material-symbols-outlined text-primary/60 dark:text-white/60 text-lg">sticky_note_2</span>
@@ -172,7 +172,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
               <h3 className="font-bold text-primary dark:text-white">Payment Notes</h3>
               <button
                 onClick={handleCloseNotes}
-                className="p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
+                className="tactile-btn p-2 rounded-full hover:bg-primary/10 dark:hover:bg-white/10"
               >
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
               </button>
@@ -209,7 +209,7 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
                 <button
                   onClick={handleSaveNote}
                   disabled={!newNote.trim() || savingNote}
-                  className="w-full py-2.5 rounded-full bg-primary dark:bg-lavender text-white dark:text-primary font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="tactile-btn w-full py-2.5 rounded-full bg-primary dark:bg-lavender text-white dark:text-primary font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {savingNote ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />

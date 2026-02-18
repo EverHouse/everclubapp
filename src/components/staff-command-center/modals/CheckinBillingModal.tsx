@@ -580,7 +580,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 <button
                   onClick={handleChargeSavedCard}
                   disabled={actionInProgress !== null}
-                  className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="tactile-btn w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined">credit_score</span>
                   {actionInProgress === 'charge-saved-card' 
@@ -592,7 +592,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 <button
                   onClick={handleShowStripePayment}
                   disabled={actionInProgress !== null}
-                  className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="tactile-btn w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined">credit_card</span>
                   {savedCardInfo?.hasSavedCard ? 'Pay with Different Card' : `Pay with Card ($${context.totalOutstanding.toFixed(2)})`}
@@ -601,7 +601,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
               <button
                 onClick={handleConfirmAll}
                 disabled={actionInProgress !== null}
-                className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="tactile-btn w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <span className="material-symbols-outlined">payments</span>
                 {actionInProgress === 'confirm-all' ? 'Processing...' : 'Mark Paid (Cash/External)'}
@@ -609,7 +609,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
               <button
                 onClick={() => setShowWaiverInput('all')}
                 disabled={actionInProgress !== null}
-                className="w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+                className="tactile-btn w-full py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
               >
                 Waive All Fees
               </button>
@@ -626,13 +626,13 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                     <button
                       onClick={() => handleWaivePayment('all')}
                       disabled={!waiverReason.trim() || actionInProgress !== null}
-                      className="flex-1 py-2 text-sm font-medium bg-gray-600 text-white rounded-lg disabled:opacity-50"
+                      className="tactile-btn flex-1 py-2 text-sm font-medium bg-gray-600 text-white rounded-lg disabled:opacity-50"
                     >
                       Confirm Waive All
                     </button>
                     <button
                       onClick={() => { setShowWaiverInput(null); setWaiverReason(''); }}
-                      className="px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg"
+                      className="tactile-btn px-4 py-2 text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg"
                     >
                       Cancel
                     </button>
@@ -644,7 +644,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
             <button
               onClick={handleMarkWaiversReviewed}
               disabled={actionInProgress !== null}
-              className="w-full py-3 bg-amber-600 text-white font-semibold rounded-xl hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="tactile-btn w-full py-3 bg-amber-600 text-white font-semibold rounded-xl hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined">check_circle</span>
               {actionInProgress === 'mark-reviewed' ? 'Processing...' : 'Mark Waivers as Reviewed'}
@@ -660,7 +660,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
             <button
               onClick={handleCheckinNoPayment}
               disabled={actionInProgress !== null}
-              className="w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="tactile-btn w-full py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined">how_to_reg</span>
               {actionInProgress === 'checkin-skip' ? 'Processing...' : 'Complete Check-In'}
@@ -849,7 +849,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                     <button
                       onClick={handleChargeOverage}
                       disabled={actionInProgress !== null}
-                      className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                      className="tactile-btn px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
                     >
                       <span className="material-symbols-outlined text-sm">credit_card</span>
                       {actionInProgress === 'overage-payment' ? 'Processing...' : `Charge $${(context.overageFeeCents / 100).toFixed(2)}`}
@@ -867,7 +867,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 </h4>
                 <div className="space-y-2">
                   {context.participants.map(p => (
-                    <div key={p.participantId} className="bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-xl p-3">
+                    <div key={p.participantId} className="tactile-row bg-white dark:bg-white/5 border border-primary/10 dark:border-white/10 rounded-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -969,7 +969,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             <button
                               onClick={() => handleConfirmPayment(p.participantId)}
                               disabled={actionInProgress !== null}
-                              className="flex-1 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                              className="tactile-btn flex-1 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                             >
                               {actionInProgress === `confirm-${p.participantId}` ? 'Processing...' : 'Mark Paid'}
                             </button>
@@ -977,7 +977,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                               <button
                                 onClick={() => handleUseGuestPass(p.participantId)}
                                 disabled={actionInProgress !== null}
-                                className="py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1 px-3"
+                                className="tactile-btn py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1 px-3"
                               >
                                 <span className="material-symbols-outlined text-sm">loyalty</span>
                                 Guest Pass
@@ -986,7 +986,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                             <button
                               onClick={() => setShowWaiverInput(p.participantId)}
                               disabled={actionInProgress !== null}
-                              className="px-3 py-1.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                              className="tactile-btn px-3 py-1.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                             >
                               Waive
                             </button>

@@ -85,14 +85,14 @@ export function AssignModeFooter({
       <div className="flex gap-3">
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+          className="tactile-btn flex-1 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={handleFinalizeBooking}
           disabled={!hasOwner || linking}
-          className="flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+          className="tactile-btn flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
         >
           {linking ? (
             <>
@@ -111,7 +111,7 @@ export function AssignModeFooter({
       <button
         onClick={handleMarkAsEvent}
         disabled={markingAsEvent || isLoadingNotices}
-        className="w-full py-2.5 px-4 rounded-lg border border-purple-500 text-purple-600 dark:text-purple-400 font-medium hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors flex items-center justify-center gap-2"
+        className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-purple-500 text-purple-600 dark:text-purple-400 font-medium hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors flex items-center justify-center gap-2"
       >
         {markingAsEvent || isLoadingNotices ? (
           <>
@@ -145,7 +145,7 @@ export function AssignModeFooter({
                 key={notice.id}
                 onClick={() => executeMarkAsEvent(notice.id)}
                 disabled={markingAsEvent}
-                className="w-full p-2 text-left rounded-lg bg-white dark:bg-white/5 hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-colors border border-purple-200 dark:border-purple-500/20"
+                className="tactile-btn w-full p-2 text-left rounded-lg bg-white dark:bg-white/5 hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-colors border border-purple-200 dark:border-purple-500/20"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-primary dark:text-white">{notice.title || notice.reason || 'Untitled Notice'}</p>
@@ -165,7 +165,7 @@ export function AssignModeFooter({
             <button
               onClick={() => executeMarkAsEvent()}
               disabled={markingAsEvent}
-              className="w-full p-2 text-center rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors text-sm font-medium"
+              className="tactile-btn w-full p-2 text-center rounded-lg border-2 border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors text-sm font-medium"
             >
               <span className="material-symbols-outlined text-sm mr-1">add</span>
               Create New Notice Instead
@@ -173,7 +173,7 @@ export function AssignModeFooter({
           </div>
           <button
             onClick={() => setShowNoticeSelection(false)}
-            className="w-full text-center text-xs text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white pt-1"
+            className="tactile-btn w-full text-center text-xs text-primary/50 dark:text-white/50 hover:text-primary dark:hover:text-white pt-1"
           >
             Cancel
           </button>
@@ -183,7 +183,7 @@ export function AssignModeFooter({
       <button
         onClick={() => setShowStaffList(!showStaffList)}
         disabled={assigningToStaff}
-        className="w-full py-2.5 px-4 rounded-lg border border-teal-500 text-teal-600 dark:text-teal-400 font-medium hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors flex items-center justify-center gap-2"
+        className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-teal-500 text-teal-600 dark:text-teal-400 font-medium hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors flex items-center justify-center gap-2"
       >
         <span className="material-symbols-outlined text-sm">badge</span>
         Assign to Staff
@@ -208,7 +208,7 @@ export function AssignModeFooter({
                   key={staff.id}
                   onClick={() => handleAssignToStaff(staff)}
                   disabled={assigningToStaff}
-                  className="w-full p-3 text-left hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors border-b border-teal-100 dark:border-teal-500/20 last:border-b-0 disabled:opacity-50"
+                  className="tactile-btn w-full p-3 text-left hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors border-b border-teal-100 dark:border-teal-500/20 last:border-b-0 disabled:opacity-50"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -230,7 +230,7 @@ export function AssignModeFooter({
         <button
           onClick={onDeleteBooking}
           disabled={deleting}
-          className="w-full py-2.5 px-4 rounded-lg border border-red-400 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
+          className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-red-400 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
         >
           {deleting ? (
             <>

@@ -262,7 +262,7 @@ const FaqsAdmin: React.FC = () => {
                     <button
                         onClick={handleSeedFaqs}
                         disabled={isSeeding}
-                        className="bg-accent text-primary px-3 py-2 min-h-[44px] rounded-lg font-bold flex items-center gap-1 shadow-md text-xs whitespace-nowrap disabled:opacity-50"
+                        className="tactile-btn bg-accent text-primary px-3 py-2 min-h-[44px] rounded-lg font-bold flex items-center gap-1 shadow-md text-xs whitespace-nowrap disabled:opacity-50"
                     >
                         <span className="material-symbols-outlined text-sm" aria-hidden="true">{isSeeding ? 'sync' : 'database'}</span>
                         {isSeeding ? 'Seeding...' : 'Seed FAQs'}
@@ -340,14 +340,14 @@ const FaqsAdmin: React.FC = () => {
                     <div className="flex gap-3 justify-end">
                         <button
                             onClick={() => setIsEditing(false)}
-                            className="px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                            className="tactile-btn px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="px-6 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                            className="tactile-btn px-6 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
                             {isSaving && <span className="material-symbols-outlined animate-spin text-sm" aria-hidden="true">progress_activity</span>}
                             Save
@@ -364,13 +364,13 @@ const FaqsAdmin: React.FC = () => {
                     <div className="flex gap-3 justify-end">
                         <button
                             onClick={() => setDeleteConfirm(null)}
-                            className="px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                            className="tactile-btn px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)}
-                            className="px-6 py-2.5 min-h-[44px] bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors"
+                            className="tactile-btn px-6 py-2.5 min-h-[44px] bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors"
                         >
                             Delete
                         </button>
@@ -386,7 +386,7 @@ const FaqsAdmin: React.FC = () => {
                     <button
                         onClick={handleSeedFaqs}
                         disabled={isSeeding}
-                        className="bg-accent text-primary px-4 py-2 min-h-[44px] rounded-lg font-bold text-sm disabled:opacity-50"
+                        className="tactile-btn bg-accent text-primary px-4 py-2 min-h-[44px] rounded-lg font-bold text-sm disabled:opacity-50"
                     >
                         {isSeeding ? 'Seeding...' : 'Seed Default FAQs'}
                     </button>
@@ -415,7 +415,7 @@ const FaqsAdmin: React.FC = () => {
                                     </div>
                                     <button 
                                         type="button"
-                                        className="flex-1 min-w-0 cursor-pointer text-left" 
+                                        className="tactile-row flex-1 min-w-0 cursor-pointer text-left" 
                                         onClick={() => openEdit(faq)}
                                     >
                                         <div className="flex items-center gap-2 mb-1">
@@ -436,14 +436,14 @@ const FaqsAdmin: React.FC = () => {
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => openEdit(faq)}
-                                            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+                                            className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
                                             aria-label="Edit FAQ"
                                         >
                                             <span className="material-symbols-outlined text-lg" aria-hidden="true">edit</span>
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(faq.id)}
-                                            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                            className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                                             aria-label="Delete FAQ"
                                         >
                                             <span className="material-symbols-outlined text-lg" aria-hidden="true">delete</span>

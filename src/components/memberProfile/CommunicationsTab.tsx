@@ -46,7 +46,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
       >
         <button
           onClick={() => setShowAddComm(!showAddComm)}
-          className="w-full py-2 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+          className="w-full py-2 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
         >
           <span className="material-symbols-outlined text-lg">add</span>
           Log Communication
@@ -128,7 +128,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
           style={{ '--stagger-index': 2 } as React.CSSProperties}
         >
           {communications.map((comm) => (
-            <div key={comm.id} className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+            <div key={comm.id} className={`p-4 rounded-xl tactile-row ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -155,7 +155,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
                 </div>
                 <button
                   onClick={() => handleDeleteCommunication(comm.id)}
-                  className="text-red-500 hover:text-red-600 p-1"
+                  className="text-red-500 hover:text-red-600 p-1 tactile-btn"
                   aria-label="Delete communication"
                 >
                   <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>

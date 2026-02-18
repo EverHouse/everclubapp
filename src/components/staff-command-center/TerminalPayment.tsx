@@ -395,7 +395,7 @@ export function TerminalPayment({
         <button
           onClick={createSimulatedReader}
           disabled={creatingSimulated}
-          className={`w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+          className={`tactile-btn w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
             isDark 
               ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
               : 'bg-emerald-600 text-white hover:bg-emerald-700'
@@ -481,7 +481,7 @@ export function TerminalPayment({
           <button
             onClick={handleProcessPayment}
             disabled={!selectedReader}
-            className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+            className={`tactile-btn w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
               isDark 
                 ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
                 : 'bg-emerald-600 text-white hover:bg-emerald-700'
@@ -528,7 +528,7 @@ export function TerminalPayment({
             <button
               onClick={handleCancelPayment}
               disabled={canceling}
-              className={`px-6 py-2.5 rounded-lg font-medium transition-colors text-sm ${
+              className={`tactile-btn px-6 py-2.5 rounded-lg font-medium transition-colors text-sm ${
                 isDark 
                   ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30' 
                   : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
@@ -594,7 +594,7 @@ export function TerminalPayment({
               setPaymentIntentId(null);
               setSetupIntentId(null);
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`tactile-btn px-4 py-2 rounded-lg font-medium transition-colors ${
               isDark 
                 ? 'bg-white/10 text-white hover:bg-white/20' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

@@ -138,7 +138,7 @@ const Landing: React.FC = () => {
              <Link to="/tour" className="w-full py-4 rounded-2xl bg-white text-primary font-bold text-xs uppercase tracking-[0.15em] shadow-lg hover:scale-[1.02] hover:bg-white/90 transition-all duration-fast text-center">
                 Book Your Private Tour
              </Link>
-             <Link to="/membership" className="w-full py-3 text-white font-medium text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-2 group">
+             <Link to="/membership" className="tactile-btn w-full py-3 text-white font-medium text-sm hover:opacity-80 transition-opacity flex items-center justify-center gap-2 group">
                 Explore Membership
                 <span className="material-symbols-outlined text-lg group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
              </Link>
@@ -253,7 +253,7 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80 dark:text-white/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-normal block text-center">View Details</Link>
+                <Link to="/membership" className="tactile-btn w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-normal block text-center">View Details</Link>
             </div>
             )}
 
@@ -272,7 +272,7 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-white/90"><span className="material-symbols-outlined text-sm text-accent">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership" className="w-full py-3 rounded-xl bg-white/95 dark:bg-white/10 backdrop-blur text-primary dark:text-white font-bold text-xs hover:bg-white transition-all duration-normal relative z-10 shadow-md block text-center">View Details</Link>
+                <Link to="/membership" className="tactile-btn w-full py-3 rounded-xl bg-white/95 dark:bg-white/10 backdrop-blur text-primary dark:text-white font-bold text-xs hover:bg-white transition-all duration-normal relative z-10 shadow-md block text-center">View Details</Link>
             </div>
             )}
 
@@ -288,11 +288,11 @@ const Landing: React.FC = () => {
                         <li key={idx} className="flex gap-2 text-xs font-bold text-primary/80 dark:text-white/80"><span className="material-symbols-outlined text-sm">check</span> {feature}</li>
                     ))}
                 </ul>
-                <Link to="/membership/corporate" className="w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-normal block text-center">View Details</Link>
+                <Link to="/membership/corporate" className="tactile-btn w-full py-3 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur border border-white/80 text-primary dark:text-white font-bold text-xs hover:bg-white/80 transition-all duration-normal block text-center">View Details</Link>
             </div>
             )}
 
-            <Link to="/membership/compare" className="w-full mt-2 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors py-2">
+            <Link to="/membership/compare" className="tactile-btn w-full mt-2 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors py-2">
               Compare all tiers
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </Link>

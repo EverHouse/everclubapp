@@ -158,14 +158,14 @@ export const WellnessFormDrawer: React.FC<WellnessFormDrawerProps> = ({ isOpen, 
         <div className="flex gap-3 p-4">
           <button
             onClick={handleClose}
-            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium"
+            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium tactile-btn"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !isWellnessFormValid}
-            className="flex-1 py-3 rounded-xl bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-brand-green text-white font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn"
           >
             {saving && <span aria-hidden="true" className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
             {saving ? 'Saving...' : 'Add Wellness'}

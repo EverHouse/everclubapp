@@ -593,7 +593,7 @@ export function MemberFlow({
         </p>
         <button
           onClick={onClose}
-          className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+          className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors tactile-btn"
         >
           Done
         </button>
@@ -697,7 +697,7 @@ export function MemberFlow({
         <div className="flex gap-3 pt-4">
           <button
             onClick={() => setStep('form')}
-            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${
+            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors tactile-btn ${
               isDark 
                 ? 'bg-white/10 text-white hover:bg-white/20' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -707,7 +707,7 @@ export function MemberFlow({
           </button>
           <button
             onClick={() => setStep('payment')}
-            className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+            className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors tactile-btn"
           >
             Continue to Payment
           </button>
@@ -772,7 +772,7 @@ export function MemberFlow({
             <div className="grid grid-cols-1 gap-3">
               <button
                 onClick={() => setPaymentPath('card_or_terminal')}
-                className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                className={`p-4 rounded-lg border-2 text-left transition-colors tactile-btn ${
                   isDark
                     ? 'border-white/10 hover:border-emerald-500/50 hover:bg-white/5'
                     : 'border-gray-200 hover:border-emerald-500/50 hover:bg-emerald-50/50'
@@ -797,7 +797,7 @@ export function MemberFlow({
 
               <button
                 onClick={() => setPaymentPath('link')}
-                className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                className={`p-4 rounded-lg border-2 text-left transition-colors tactile-btn ${
                   isDark
                     ? 'border-white/10 hover:border-emerald-500/50 hover:bg-white/5'
                     : 'border-gray-200 hover:border-emerald-500/50 hover:bg-emerald-50/50'
@@ -827,7 +827,7 @@ export function MemberFlow({
                 setPaymentPath('choose');
                 setStep('preview');
               }}
-              className={`w-full py-2.5 mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+              className={`w-full py-2.5 mt-2 text-sm tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
             >
               Back to Review
             </button>
@@ -839,7 +839,7 @@ export function MemberFlow({
             <div className="flex gap-2 p-1 rounded-lg bg-gray-100 dark:bg-white/5">
               <button
                 onClick={() => setPaymentMethod('card')}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 tactile-btn ${
                   paymentMethod === 'card'
                     ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -850,7 +850,7 @@ export function MemberFlow({
               </button>
               <button
                 onClick={() => setPaymentMethod('terminal')}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 tactile-btn ${
                   paymentMethod === 'terminal'
                     ? 'bg-white dark:bg-white/10 shadow-sm text-emerald-600 dark:text-emerald-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -877,7 +877,7 @@ export function MemberFlow({
                         resetPayment();
                         initializePayment();
                       }}
-                      className="text-sm underline mt-2"
+                      className="text-sm underline mt-2 tactile-btn"
                     >
                       Try Again
                     </button>
@@ -1115,7 +1115,7 @@ export function MemberFlow({
                 resetPayment();
                 setPaymentPath('choose');
               }}
-              className={`w-full py-2.5 mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+              className={`w-full py-2.5 mt-2 text-sm tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
             >
               Back
             </button>
@@ -1128,7 +1128,7 @@ export function MemberFlow({
               <button
                 onClick={handleSendActivationLink}
                 disabled={isLoading || linkSending}
-                className={`flex-1 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                className={`flex-1 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 tactile-btn ${
                   isDark 
                     ? 'bg-white/10 text-white hover:bg-white/20' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1149,7 +1149,7 @@ export function MemberFlow({
               <button
                 onClick={handleCopyActivationLink}
                 disabled={isLoading || linkSending}
-                className={`py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                className={`py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 tactile-btn ${
                   isDark 
                     ? 'bg-white/10 text-white hover:bg-white/20' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1198,7 +1198,7 @@ export function MemberFlow({
       <button
         type="button"
         onClick={onShowIdScanner}
-        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 border-dashed transition-colors ${
+        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 border-dashed transition-colors tactile-btn ${
           isDark
             ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
             : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
@@ -1531,7 +1531,7 @@ export function MemberFlow({
               ))}
               <button
                 onClick={addGroupMember}
-                className={`w-full py-2 rounded-lg border-2 border-dashed transition-colors ${
+                className={`w-full py-2 rounded-lg border-2 border-dashed transition-colors tactile-btn ${
                   isDark 
                     ? 'border-white/20 text-gray-400 hover:border-white/40' 
                     : 'border-gray-300 text-gray-600 hover:border-gray-400'
@@ -1548,7 +1548,7 @@ export function MemberFlow({
       <button
         onClick={handleReviewCharges}
         disabled={!form.tierId || !form.firstName || !form.lastName || !form.email || !form.phone}
-        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed tactile-btn"
       >
         Review Charges
       </button>

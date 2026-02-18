@@ -264,7 +264,7 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
                 <span className="material-symbols-outlined">person_add</span>
                 New User
               </h2>
-              <button onClick={onClose} className="p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
+              <button onClick={onClose} className="tactile-btn p-1 hover:bg-primary/10 dark:hover:bg-white/10 rounded-lg">
                 <span className="material-symbols-outlined text-primary/60 dark:text-white/60">close</span>
               </button>
             </div>
@@ -326,7 +326,7 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
                             key={dup.id}
                             type="button"
                             onClick={() => handleSelectDuplicate(dup)}
-                            className="w-full p-2 text-left rounded-lg bg-white dark:bg-black/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700/50 transition-colors"
+                            className="tactile-row w-full p-2 text-left rounded-lg bg-white dark:bg-black/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700/50 transition-colors"
                           >
                             <p className="font-medium text-sm text-primary dark:text-white">{dup.name}</p>
                             <p className="text-xs text-primary/60 dark:text-white/60">{dup.email}</p>
@@ -416,14 +416,14 @@ export const AddMemberModal: React.FC<AddUserModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
+                  className="tactile-btn flex-1 py-2 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-2 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="tactile-btn flex-1 py-2 px-4 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>

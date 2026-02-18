@@ -89,7 +89,7 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
           <div className="flex justify-end mb-2">
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 transition-colors text-white"
+              className="tactile-btn w-7 h-7 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 transition-colors text-white"
             >
               <span className="material-symbols-outlined text-sm">close</span>
             </button>

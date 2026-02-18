@@ -153,7 +153,7 @@ export function PaymentSection({
         {!fs.allPaid && fs.grandTotal > 0 && bookingId && !showInlinePayment && (
           <button
             onClick={() => setShowInlinePayment(true)}
-            className="w-full mt-2 py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1"
+            className="tactile-btn w-full mt-2 py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1"
           >
             <span className="material-symbols-outlined text-sm">payments</span>
             Collect ${fs.grandTotal.toFixed(2)}
@@ -271,7 +271,7 @@ export function PaymentSection({
                   <button
                     onClick={handleChargeCardOnFile}
                     disabled={!!inlinePaymentAction}
-                    className="w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="tactile-btn w-full py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     {inlinePaymentAction === 'charge-card' ? (
                       <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Charging...</>
@@ -284,7 +284,7 @@ export function PaymentSection({
                 <button
                   onClick={() => setInlinePaymentAction('stripe')}
                   disabled={!!inlinePaymentAction}
-                  className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="tactile-btn w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-sm">credit_card</span>
                   Pay with Card (${fs.grandTotal.toFixed(2)})
@@ -293,7 +293,7 @@ export function PaymentSection({
                 <button
                   onClick={() => setInlinePaymentAction('terminal')}
                   disabled={!!inlinePaymentAction}
-                  className="w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="tactile-btn w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-sm">contactless</span>
                   Card Reader (${fs.grandTotal.toFixed(2)})
@@ -322,7 +322,7 @@ export function PaymentSection({
                     }
                   }}
                   disabled={!!inlinePaymentAction}
-                  className="w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="tactile-btn w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {inlinePaymentAction === 'mark-paid' ? (
                     <><span className="material-symbols-outlined animate-spin text-sm">progress_activity</span> Confirming...</>
@@ -335,7 +335,7 @@ export function PaymentSection({
                   <button
                     onClick={() => setShowWaiverInput(true)}
                     disabled={!!inlinePaymentAction}
-                    className="w-full py-2 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="tactile-btn w-full py-2 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-sm">money_off</span>
                     Waive All Fees
@@ -352,14 +352,14 @@ export function PaymentSection({
                     <div className="flex gap-2">
                       <button
                         onClick={() => { setShowWaiverInput(false); setWaiverReason(''); }}
-                        className="flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm"
+                        className="tactile-btn flex-1 py-1.5 px-3 rounded-lg border border-gray-300 dark:border-white/20 text-primary/70 dark:text-white/70 text-sm"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleWaiveFees}
                         disabled={!waiverReason.trim() || !!inlinePaymentAction}
-                        className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
+                        className="tactile-btn flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
                       >
                         {inlinePaymentAction === 'waive' ? 'Waiving...' : 'Confirm Waive'}
                       </button>

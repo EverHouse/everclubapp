@@ -48,7 +48,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="p-2 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-primary/10 dark:border-white/20 hover:bg-white/80 dark:hover:bg-white/15 transition-colors"
+        className="p-2 rounded-xl bg-white/60 dark:bg-white/10 backdrop-blur-sm border border-primary/10 dark:border-white/20 hover:bg-white/80 dark:hover:bg-white/15 transition-colors tactile-btn"
       >
         <span className="material-symbols-outlined text-xl text-primary/70 dark:text-white/70">school</span>
       </button>
@@ -68,7 +68,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
             sections.map((section) => (
               <div
                 key={section.id}
-                className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl border border-primary/10 dark:border-white/25 overflow-hidden hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="bg-white/60 dark:bg-white/5 backdrop-blur-sm rounded-2xl border border-primary/10 dark:border-white/25 overflow-hidden hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer tactile-row"
                 onClick={() => setExpandedSection(expandedSection === String(section.id) ? null : String(section.id))}
               >
                 <div className="flex items-center">

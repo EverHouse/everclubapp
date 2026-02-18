@@ -304,7 +304,7 @@ const GalleryAdmin: React.FC = () => {
                                         if (file) handleFileUpload(file);
                                     }}
                                     disabled={uploading}
-                                    className="px-4 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                    className="tactile-btn px-4 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap"
                                 >
                                     {uploading ? 'Uploading...' : 'Upload'}
                                 </button>
@@ -363,8 +363,8 @@ const GalleryAdmin: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex gap-3 justify-end">
-                        <button onClick={() => setIsEditing(false)} className="px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">Cancel</button>
-                        <button onClick={handleSave} disabled={isSaving} className="px-6 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">
+                        <button onClick={() => setIsEditing(false)} className="tactile-btn px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">Cancel</button>
+                        <button onClick={handleSave} disabled={isSaving} className="tactile-btn px-6 py-2.5 min-h-[44px] bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50">
                             {isSaving ? 'Saving...' : 'Save'}
                         </button>
                     </div>
@@ -375,8 +375,8 @@ const GalleryAdmin: React.FC = () => {
                 <div className="p-6">
                     <p className="text-gray-600 dark:text-gray-300 mb-6">This action cannot be undone.</p>
                     <div className="flex gap-3 justify-end">
-                        <button onClick={() => setDeleteConfirm(null)} className="px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">Cancel</button>
-                        <button onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)} className="px-6 py-2.5 min-h-[44px] bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Delete</button>
+                        <button onClick={() => setDeleteConfirm(null)} className="tactile-btn px-5 py-2.5 min-h-[44px] text-gray-600 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">Cancel</button>
+                        <button onClick={() => deleteConfirm !== null && handleDelete(deleteConfirm)} className="tactile-btn px-6 py-2.5 min-h-[44px] bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 transition-colors">Delete</button>
                     </div>
                 </div>
             </ModalShell>
@@ -431,7 +431,7 @@ const GalleryAdmin: React.FC = () => {
                                     <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-white/25">
                                         <button 
                                             onClick={() => handleToggleActive(image)}
-                                            className={`flex-1 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold transition-colors ${
+                                            className={`tactile-btn flex-1 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold transition-colors ${
                                                 image.isActive 
                                                     ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30' 
                                                     : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15'
@@ -441,14 +441,14 @@ const GalleryAdmin: React.FC = () => {
                                         </button>
                                         <button 
                                             onClick={() => openEdit(image)}
-                                            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                                            className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
                                             aria-label="Edit image"
                                         >
                                             <span className="material-symbols-outlined text-lg" aria-hidden="true">edit</span>
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => setDeleteConfirm(image.id)}
-                                            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="tactile-btn min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                             aria-label="Delete image"
                                         >
                                             <span className="material-symbols-outlined text-lg" aria-hidden="true">delete</span>

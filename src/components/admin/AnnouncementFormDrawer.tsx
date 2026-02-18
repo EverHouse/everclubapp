@@ -81,14 +81,14 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
         <div className="flex gap-3 p-4">
           <button 
             onClick={handleClose} 
-            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors tactile-btn"
           >
             Cancel
           </button>
           <button 
             onClick={handleSave}
             disabled={saving || !formData.title}
-            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn"
           >
             {saving ? (
               <>

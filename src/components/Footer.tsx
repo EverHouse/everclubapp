@@ -45,7 +45,7 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
      {!hideCta && (
        <a 
          href="/membership" 
-         className="w-full max-w-sm mx-auto mb-10 py-4 px-6 rounded-2xl bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
+         className="w-full max-w-sm mx-auto mb-10 py-4 px-6 rounded-2xl bg-[#F2F2EC] text-[#293515] font-bold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity border border-[#F2F2EC]/80 shadow-[0_4px_16px_rgba(0,0,0,0.1)] tactile-btn"
        >
          Apply for Membership
          <span className="material-symbols-outlined text-lg">arrow_forward</span>
@@ -55,9 +55,9 @@ export const Footer: React.FC<FooterProps> = ({ hideCta = false }) => (
      <div className="w-full max-w-xs mx-auto h-px bg-[#E7E7DC]/10 mb-8"></div>
      
      <div className="flex justify-center gap-6 mb-6 text-xs">
-        <Link to="/about" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">About</Link>
-        <Link to="/privacy" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Privacy Policy</Link>
-        <Link to="/terms" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors">Terms of Service</Link>
+        <Link to="/about" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">About</Link>
+        <Link to="/privacy" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Privacy Policy</Link>
+        <Link to="/terms" className="text-[#E7E7DC]/60 hover:text-[#E7E7DC] transition-colors tactile-btn">Terms of Service</Link>
      </div>
      
      <div className="flex flex-col items-center gap-2">

@@ -195,7 +195,7 @@ export function AssignModeSlots({
                           setActiveSlotIndex(null);
                         }
                       }}
-                      className="w-full p-1.5 text-left rounded-lg bg-white dark:bg-white/5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors border border-amber-200 dark:border-amber-500/20"
+                      className="tactile-btn w-full p-1.5 text-left rounded-lg bg-white dark:bg-white/5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors border border-amber-200 dark:border-amber-500/20"
                     >
                       <p className="text-xs font-medium text-primary dark:text-white">{dup.name}</p>
                       <p className="text-xs text-primary/60 dark:text-white/60">{dup.email}</p>
@@ -209,7 +209,7 @@ export function AssignModeSlots({
             <button
               onClick={handleCreateVisitorAndAssign}
               disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || !visitorData.visitorType || isCreatingVisitor}
-              className="w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
+              className="tactile-btn w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
             >
               {isCreatingVisitor ? (
                 <>
@@ -253,7 +253,7 @@ export function AssignModeSlots({
             {!isOwnerSlot && (
               <button
                 onClick={() => handleAddGuestPlaceholder(slotIndex)}
-                className="flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1"
+                className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1"
               >
                 <span className="material-symbols-outlined text-sm">person_add</span>
                 Add Guest
@@ -261,7 +261,7 @@ export function AssignModeSlots({
             )}
             <button
               onClick={() => setShowAddVisitor(true)}
-              className="flex-1 py-1.5 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center justify-center gap-1"
+              className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center justify-center gap-1"
             >
               <span className="material-symbols-outlined text-sm">person_add</span>
               New Visitor
@@ -274,7 +274,7 @@ export function AssignModeSlots({
     return (
       <button
         onClick={() => setActiveSlotIndex(slotIndex)}
-        className={`w-full p-3 rounded-xl border-2 border-dashed transition-colors text-left ${
+        className={`tactile-btn w-full p-3 rounded-xl border-2 border-dashed transition-colors text-left ${
           isOwnerSlot 
             ? 'border-amber-300 dark:border-amber-600 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-900/10'
             : 'border-primary/20 dark:border-white/20 hover:border-primary/40 dark:hover:border-white/40 hover:bg-primary/5 dark:hover:bg-white/5'
@@ -357,7 +357,7 @@ export function AssignModeSlots({
             const emptyIndex = slots.findIndex((s, i) => i > 0 && s.type === 'empty');
             if (emptyIndex > 0) handleAddGuestPlaceholder(emptyIndex);
           }}
-          className="w-full py-2 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2"
+          className="tactile-btn w-full py-2 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 font-medium text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center justify-center gap-2"
         >
           <span className="material-symbols-outlined text-sm">person_add</span>
           {`Quick Add Guest (+$${guestFeeDollars})`}

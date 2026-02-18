@@ -181,7 +181,7 @@ function ApplyCreditModal({
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors tactile-btn ${
               isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -190,7 +190,7 @@ function ApplyCreditModal({
           <button
             onClick={handleSubmit}
             disabled={isLoading || !amount || parseFloat(amount) <= 0}
-            className="flex-1 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="flex-1 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity tactile-btn"
           >
             {isLoading ? 'Applying...' : 'Apply Credit'}
           </button>
@@ -263,7 +263,7 @@ function ApplyDiscountModal({
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors tactile-btn ${
               isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -272,7 +272,7 @@ function ApplyDiscountModal({
           <button
             onClick={handleSubmit}
             disabled={isLoading || !percentOff || parseFloat(percentOff) <= 0}
-            className="flex-1 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            className="flex-1 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity tactile-btn"
           >
             {isLoading ? 'Applying...' : 'Apply Discount'}
           </button>
@@ -314,7 +314,7 @@ function ConfirmCancelModal({
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors tactile-btn ${
               isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -323,7 +323,7 @@ function ConfirmCancelModal({
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
+            className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50 transition-colors tactile-btn"
           >
             {isLoading ? 'Canceling...' : 'Cancel Subscription'}
           </button>
@@ -425,7 +425,7 @@ function PauseDurationModal({
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors tactile-btn ${
               isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -434,7 +434,7 @@ function PauseDurationModal({
           <button
             onClick={() => onConfirm(selectedDuration)}
             disabled={isLoading}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 tactile-btn ${
               isDark ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-yellow-500 text-white hover:bg-yellow-600'
             }`}
           >
@@ -1211,7 +1211,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             <button
               onClick={handleSyncToStripe}
               disabled={isSyncingToStripe}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors tactile-btn ${
                 isDark ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
               } disabled:opacity-50`}
             >
@@ -1717,7 +1717,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                 setSelectedSubscriptionTier('');
                 setSelectedCoupon('');
               }}
-              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors tactile-btn ${
                 isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -1726,7 +1726,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             <button
               onClick={handleCreateSubscription}
               disabled={isCreatingSubscription || !selectedSubscriptionTier}
-              className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 disabled:opacity-50 transition-colors tactile-btn"
             >
               {isCreatingSubscription ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1919,7 +1919,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
                       }
                     }}
                     disabled={isChargingCard || !billingInfo.paymentMethods || billingInfo.paymentMethods.length === 0}
-                    className="flex-1 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    className="flex-1 px-4 py-2.5 bg-primary dark:bg-accent text-white dark:text-primary rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity tactile-btn"
                   >
                     {isChargingCard ? (
                       <span className="flex items-center justify-center gap-2">

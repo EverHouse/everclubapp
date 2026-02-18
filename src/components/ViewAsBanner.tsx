@@ -29,7 +29,7 @@ const ViewAsBanner: React.FC = () => {
       </div>
       <button 
         onClick={handleExit}
-        className="flex items-center gap-1 px-3 py-1.5 min-h-[44px] bg-brand-green text-white rounded-lg text-sm font-bold hover:bg-brand-green/90 transition-colors flex-shrink-0 ml-2"
+        className="flex items-center gap-1 px-3 py-1.5 min-h-[44px] bg-brand-green text-white rounded-lg text-sm font-bold hover:bg-brand-green/90 transition-colors flex-shrink-0 ml-2 tactile-btn"
         aria-label="Exit view as member mode"
       >
         <span className="material-symbols-outlined text-sm" aria-hidden="true">close</span>

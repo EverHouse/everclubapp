@@ -194,7 +194,7 @@ export function VisitorFlow({
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${
+            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors tactile-btn ${
               isDark 
                 ? 'bg-white/10 text-white hover:bg-white/20' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -204,7 +204,7 @@ export function VisitorFlow({
           </button>
           <button
             onClick={onBookNow}
-            className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+            className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors tactile-btn"
           >
             <span className="material-symbols-outlined text-sm mr-1 align-middle">calendar_add_on</span>
             Book Now
@@ -268,7 +268,7 @@ export function VisitorFlow({
                 resetPayment();
                 initializePayment();
               }}
-              className="text-sm underline mt-2"
+              className="text-sm underline mt-2 tactile-btn"
             >
               Try Again
             </button>
@@ -298,7 +298,7 @@ export function VisitorFlow({
             resetPayment();
             setStep('form');
           }}
-          className={`w-full py-2.5 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+          className={`w-full py-2.5 text-sm tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
         >
           Back to Details
         </button>
@@ -311,7 +311,7 @@ export function VisitorFlow({
       <button
         type="button"
         onClick={onShowIdScanner}
-        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 border-dashed transition-colors ${
+        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border-2 border-dashed transition-colors tactile-btn ${
           isDark
             ? 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
             : 'border-emerald-500/50 text-emerald-600 hover:bg-emerald-50'
@@ -472,7 +472,7 @@ export function VisitorFlow({
       <button
         onClick={handleProceedToPayment}
         disabled={!form.productId || !form.firstName || !form.lastName || !form.email || !form.phone}
-        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed tactile-btn"
       >
         Proceed to Payment
       </button>

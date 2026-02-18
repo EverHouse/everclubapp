@@ -150,7 +150,7 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
         <button
           onClick={handleCheckIn}
           disabled={isCheckingIn || !rosterComplete}
-          className={`w-full py-3 font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors ${
+          className={`tactile-btn w-full py-3 font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors ${
             rosterComplete
               ? 'bg-green-600 text-white hover:bg-green-700'
               : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
@@ -161,7 +161,7 @@ export const CompleteRosterModal: React.FC<CompleteRosterModalProps> = ({
         </button>
         <button
           onClick={onClose}
-          className="w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
+          className="tactile-btn w-full py-2 text-primary/70 dark:text-white/70 font-medium hover:text-primary dark:hover:text-white"
         >
           Cancel
         </button>

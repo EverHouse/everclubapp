@@ -259,7 +259,7 @@ export function NewUserDrawer({
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => handleModeChange('member')}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
               mode === 'member'
                 ? 'bg-emerald-600 text-white'
                 : isDark
@@ -272,7 +272,7 @@ export function NewUserDrawer({
           </button>
           <button
             onClick={() => handleModeChange('visitor')}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
               mode === 'visitor'
                 ? 'bg-emerald-600 text-white'
                 : isDark
@@ -333,7 +333,7 @@ export function NewUserDrawer({
               <button
                 onClick={handleCleanupPendingUser}
                 disabled={isCleaningUp}
-                className={`mt-2 w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                className={`tactile-btn mt-2 w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                   isDark
                     ? 'bg-amber-600 hover:bg-amber-500 text-white disabled:bg-amber-800'
                     : 'bg-amber-500 hover:bg-amber-600 text-white disabled:bg-amber-300'

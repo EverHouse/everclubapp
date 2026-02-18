@@ -289,7 +289,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
               <button
                 onClick={() => handleConfirmBookingRequest(booking.id)}
                 disabled={isConfirmLoading}
-                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors tactile-btn ${
                   isConfirmLoading
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -302,7 +302,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
               <button
                 onClick={() => handleCancelBooking(booking.id)}
                 disabled={isCancelLoading}
-                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                className={`px-2 py-1 rounded text-[10px] font-medium transition-colors tactile-btn ${
                   isCancelLoading
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-red-100 text-red-700 hover:bg-red-200'
@@ -387,7 +387,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
     const { type, data } = activity;
 
     return (
-      <div key={activity.id} className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+      <div key={activity.id} className={`p-4 rounded-xl tactile-row ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-start gap-3">
           <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
             <span className={`material-symbols-outlined text-lg ${getTypeColor(type)}`}>

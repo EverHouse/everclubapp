@@ -823,7 +823,7 @@ const DirectoryTab: React.FC = () => {
                             handleTabChange('active');
                             setShowMissingTierOnly(false);
                         }}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                             memberTab === 'active'
                                 ? 'bg-primary dark:bg-lavender text-white'
                                 : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -839,7 +839,7 @@ const DirectoryTab: React.FC = () => {
                             handleTabChange('former');
                             setShowMissingTierOnly(false);
                         }}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                             memberTab === 'former'
                                 ? 'bg-primary dark:bg-lavender text-white'
                                 : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -855,7 +855,7 @@ const DirectoryTab: React.FC = () => {
                             handleTabChange('visitors');
                             setShowMissingTierOnly(false);
                         }}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                             memberTab === 'visitors'
                                 ? 'bg-primary dark:bg-lavender text-white'
                                 : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -871,7 +871,7 @@ const DirectoryTab: React.FC = () => {
                             handleTabChange('team');
                             setShowMissingTierOnly(false);
                         }}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
                             memberTab === 'team'
                                 ? 'bg-primary dark:bg-lavender text-white'
                                 : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -889,7 +889,7 @@ const DirectoryTab: React.FC = () => {
                     <button
                         onClick={handleSync}
                         disabled={syncMutation.isPending}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="tactile-btn flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <span className={`material-symbols-outlined text-[14px] ${syncMutation.isPending ? 'animate-spin' : ''}`}>
                             sync
@@ -932,7 +932,7 @@ const DirectoryTab: React.FC = () => {
                             setShowMissingTierOnly(!showMissingTierOnly);
                             setTierFilter('All');
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                        className={`tactile-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                             showMissingTierOnly
                                 ? 'bg-amber-600 text-white hover:bg-amber-700'
                                 : 'bg-amber-200 dark:bg-amber-500/30 text-amber-800 dark:text-amber-300 hover:bg-amber-300 dark:hover:bg-amber-500/40'
@@ -980,7 +980,7 @@ const DirectoryTab: React.FC = () => {
                                 <button
                                     key={tier}
                                     onClick={() => { setTierFilter(tier); setShowMissingTierOnly(false); }}
-                                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all duration-fast flex-shrink-0 whitespace-nowrap ${
+                                    className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-all duration-fast flex-shrink-0 whitespace-nowrap ${
                                         tier === 'All' 
                                             ? isSelected 
                                                 ? 'bg-primary dark:bg-lavender text-white' 
@@ -1007,7 +1007,7 @@ const DirectoryTab: React.FC = () => {
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
                         <button
                             onClick={() => setMembershipStatusFilter('All')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                            className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                 membershipStatusFilter === 'All'
                                     ? 'bg-primary dark:bg-lavender text-white'
                                     : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1019,7 +1019,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={status}
                                 onClick={() => setMembershipStatusFilter(status)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     membershipStatusFilter === status
                                         ? getMemberStatusBadgeClass(status)
                                         : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1038,7 +1038,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={option}
                                 onClick={() => setAppUsageFilter(option)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     appUsageFilter === option
                                         ? 'bg-primary dark:bg-lavender text-white'
                                         : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1055,7 +1055,7 @@ const DirectoryTab: React.FC = () => {
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
                         <button
                             onClick={() => setStatusFilter('All')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                            className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                 statusFilter === 'All'
                                     ? 'bg-orange-500 text-white'
                                     : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -1067,7 +1067,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     statusFilter === status
                                         ? 'bg-orange-500 text-white'
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -1086,7 +1086,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={option}
                                 onClick={() => setBillingFilter(option)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     billingFilter === option
                                         ? 'bg-primary dark:bg-lavender text-white'
                                         : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1103,7 +1103,7 @@ const DirectoryTab: React.FC = () => {
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Discount:</span>
                         <button
                             onClick={() => setDiscountFilter('All')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                            className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                 discountFilter === 'All'
                                     ? 'bg-primary dark:bg-lavender text-white'
                                     : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1115,7 +1115,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 key={code}
                                 onClick={() => setDiscountFilter(code)}
-                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                     discountFilter === code
                                         ? 'bg-purple-600 text-white'
                                         : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1143,7 +1143,7 @@ const DirectoryTab: React.FC = () => {
                         </select>
                         <button
                             onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                            className="flex items-center justify-center w-6 h-6 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+                            className="tactile-btn flex items-center justify-center w-6 h-6 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                             title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
                         >
                             <span className="material-symbols-outlined text-[16px]">
@@ -1179,7 +1179,7 @@ const DirectoryTab: React.FC = () => {
                         </p>
                         <button
                             onClick={handleRetryFormer}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
+                            className="tactile-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
                             Retry
@@ -1235,7 +1235,7 @@ const DirectoryTab: React.FC = () => {
                             <div className="flex rounded-lg border border-gray-200 dark:border-white/20 overflow-hidden">
                                 <button
                                     onClick={() => { setVisitorArchiveView('active'); setVisitorsPage(1); }}
-                                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                    className={`tactile-btn px-3 py-1.5 text-sm font-medium transition-colors ${
                                         visitorArchiveView === 'active'
                                             ? 'bg-primary text-white'
                                             : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
@@ -1245,7 +1245,7 @@ const DirectoryTab: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={() => { setVisitorArchiveView('archived'); setVisitorsPage(1); }}
-                                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                                    className={`tactile-btn px-3 py-1.5 text-sm font-medium transition-colors ${
                                         visitorArchiveView === 'archived'
                                             ? 'bg-primary text-white'
                                             : 'bg-white dark:bg-surface-dark text-gray-600 dark:text-white/60 hover:bg-gray-50 dark:hover:bg-white/5'
@@ -1287,7 +1287,7 @@ const DirectoryTab: React.FC = () => {
                                     <button
                                         key={option}
                                         onClick={() => { setPurchaseFilter(option); setVisitorsPage(1); }}
-                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                        className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
                                             purchaseFilter === option
                                                 ? 'bg-primary dark:bg-lavender text-white'
                                                 : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
@@ -1319,7 +1319,7 @@ const DirectoryTab: React.FC = () => {
                         </p>
                         <button
                             onClick={() => refetchVisitors()}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
+                            className="tactile-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold transition-colors"
                         >
                             <span aria-hidden="true" className="material-symbols-outlined text-[18px]">refresh</span>
                             Retry
@@ -1346,7 +1346,7 @@ const DirectoryTab: React.FC = () => {
                                     <div 
                                         key={v.id}
                                         onClick={() => openVisitorDetails(v)}
-                                        className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
+                                        className="tactile-row bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] animate-slide-up-stagger"
                                         style={{ '--stagger-index': index } as React.CSSProperties}
                                     >
                                         <div className="flex justify-between items-start mb-2">
@@ -1407,7 +1407,7 @@ const DirectoryTab: React.FC = () => {
                                         <button
                                             onClick={() => setVisitorsPage(p => Math.max(1, p - 1))}
                                             disabled={visitorsPage <= 1 || visitorsLoading}
-                                            className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="tactile-btn px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Previous
                                         </button>
@@ -1417,7 +1417,7 @@ const DirectoryTab: React.FC = () => {
                                         <button
                                             onClick={() => setVisitorsPage(p => Math.min(visitorsTotalPages, p + 1))}
                                             disabled={visitorsPage >= visitorsTotalPages || visitorsLoading}
-                                            className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="tactile-btn px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Next
                                         </button>

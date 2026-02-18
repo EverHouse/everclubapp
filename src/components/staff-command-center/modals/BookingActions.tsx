@@ -40,7 +40,7 @@ export function BookingActions({
           <button
             onClick={() => onCheckIn(bookingId)}
             disabled={!!(rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+            className={`tactile-btn flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
               rosterData?.financialSummary && rosterData.financialSummary.grandTotal > 0 && !rosterData.financialSummary.allPaid
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-green-600 hover:bg-green-700 text-white'
@@ -62,7 +62,7 @@ export function BookingActions({
               user_name: ownerName || fetchedContext?.ownerName,
               user_email: ownerEmail || fetchedContext?.ownerEmail,
             })}
-            className="flex-1 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+            className="tactile-btn flex-1 py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
           >
             <span className="material-symbols-outlined text-sm">event_repeat</span>
             Reschedule
@@ -71,7 +71,7 @@ export function BookingActions({
         {onCancelBooking && effectiveStatus !== 'cancelled' && effectiveStatus !== 'cancellation_pending' && (
           <button
             onClick={() => onCancelBooking(bookingId)}
-            className="flex-1 py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+            className="tactile-btn flex-1 py-2 px-3 rounded-lg border border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
           >
             <span className="material-symbols-outlined text-sm">cancel</span>
             Cancel Booking

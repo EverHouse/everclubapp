@@ -1422,7 +1422,7 @@ const DataIntegrityTab: React.FC = () => {
           <button
             onClick={handleCheckHealth}
             disabled={isCheckingHealth}
-            className="px-4 py-2 bg-primary dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-lg font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="tactile-btn px-4 py-2 bg-primary dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-lg font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {isCheckingHealth ? (
               <>
@@ -1505,7 +1505,7 @@ const DataIntegrityTab: React.FC = () => {
           <button
             onClick={runIntegrityChecks}
             disabled={isRunning || isLoadingCached}
-            className="flex-1 py-3 px-4 bg-primary dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="tactile-btn flex-1 py-3 px-4 bg-primary dark:bg-[#CCB8E4] text-white dark:text-[#293515] rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {isRunning ? (
               <>
@@ -1523,7 +1523,7 @@ const DataIntegrityTab: React.FC = () => {
             <button
               onClick={() => downloadCSV(results)}
               disabled={!hasIssues}
-              className="py-3 px-4 border-2 border-primary dark:border-white/40 text-primary dark:text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="tactile-btn py-3 px-4 border-2 border-primary dark:border-white/40 text-primary dark:text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span aria-hidden="true" className="material-symbols-outlined text-[20px]">download</span>
               Download CSV
@@ -1569,7 +1569,7 @@ const DataIntegrityTab: React.FC = () => {
       <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
         <button
           onClick={() => setShowCalendars(!showCalendars)}
-          className="flex items-center justify-between w-full text-left"
+          className="tactile-row flex items-center justify-between w-full text-left"
         >
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">calendar_month</span>
@@ -1616,7 +1616,7 @@ const DataIntegrityTab: React.FC = () => {
       <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className="flex items-center justify-between w-full text-left"
+          className="tactile-row flex items-center justify-between w-full text-left"
         >
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">history</span>
@@ -1702,7 +1702,7 @@ const DataIntegrityTab: React.FC = () => {
       <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
         <button
           onClick={() => setShowActivityLog(!showActivityLog)}
-          className="flex items-center justify-between w-full text-left"
+          className="tactile-row flex items-center justify-between w-full text-left"
         >
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="material-symbols-outlined text-primary dark:text-white">assignment</span>

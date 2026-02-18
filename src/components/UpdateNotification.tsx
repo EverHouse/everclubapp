@@ -30,14 +30,14 @@ export const UpdateNotification: React.FC = () => {
               <button
                 onClick={applyUpdate}
                 disabled={isUpdating}
-                className="px-4 py-2 bg-brand-green text-white text-xs font-semibold rounded-full hover:bg-brand-green/90 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-brand-green text-white text-xs font-semibold rounded-full hover:bg-brand-green/90 transition-colors disabled:opacity-50 tactile-btn"
               >
                 {isUpdating ? 'Updating...' : 'Refresh Now'}
               </button>
               <button
                 onClick={dismissUpdate}
                 disabled={isUpdating}
-                className="px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
+                className="px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors tactile-btn"
               >
                 Later
               </button>
@@ -45,7 +45,7 @@ export const UpdateNotification: React.FC = () => {
           </div>
           <button
             onClick={dismissUpdate}
-            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors"
+            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors tactile-btn"
             aria-label="Dismiss"
           >
             <span className="material-symbols-outlined text-lg text-muted">close</span>

@@ -664,7 +664,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             <button
               onClick={onClose}
               aria-label="Close drawer"
-              className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:rotate-90 transition-transform duration-normal active:scale-90 ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+              className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:rotate-90 transition-transform duration-normal active:scale-90 tactile-btn ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
             >
               <span className="material-symbols-outlined text-2xl">close</span>
             </button>
@@ -686,7 +686,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setNewEmailValue('');
                     setEmailChangeError('');
                   }}
-                  className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                  className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer tactile-btn ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                   title="Change email"
                 >
                   edit
@@ -738,7 +738,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       }
                     }}
                     disabled={isChangingEmail || !newEmailValue.trim()}
-                    className="px-4 py-2 rounded-lg bg-brand-green text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-brand-green text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                   >
                     {isChangingEmail ? 'Saving...' : 'Save'}
                   </button>
@@ -748,7 +748,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       setNewEmailValue('');
                       setEmailChangeError('');
                     }}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium tactile-btn ${isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}
                   >
                     Cancel
                   </button>
@@ -801,7 +801,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => onViewAs(member)}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity tactile-btn"
               >
                 <span className="material-symbols-outlined text-lg">visibility</span>
                 View As This Member
@@ -813,7 +813,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setSelectedMergeTarget(null);
                     setMergePreview(null);
                   }}
-                  className="py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+                  className="py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
                   title="Merge with another user"
                 >
                   <span className="material-symbols-outlined text-lg">merge</span>
@@ -821,7 +821,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               )}
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors"
+                className="py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-red-700 transition-colors tactile-btn"
                 title="Permanently delete member (for testing)"
               >
                 <span className="material-symbols-outlined text-lg">delete_forever</span>
@@ -934,7 +934,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                       }
                     }}
                     disabled={sendingPaymentLink || !selectedTierId}
-                    className="py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="py-2.5 px-4 rounded-xl bg-brand-green text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 tactile-btn"
                     title="Send payment link for selected tier"
                   >
                     {sendingPaymentLink ? (
@@ -952,7 +952,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     setSelectedMergeTarget(null);
                     setMergePreview(null);
                   }}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 text-white font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors tactile-btn"
                   title="Merge visitor records into a member account"
                 >
                   <span className="material-symbols-outlined text-lg">merge</span>
@@ -960,7 +960,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="py-2.5 px-4 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors"
+                  className="py-2.5 px-4 rounded-xl bg-red-600/10 text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2 hover:bg-red-600/20 transition-colors tactile-btn"
                   title="Permanently delete visitor"
                 >
                   <span className="material-symbols-outlined text-lg">delete_forever</span>
@@ -990,7 +990,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     alert('Failed to send reactivation link');
                   }
                 }}
-                className={`w-full py-2.5 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors ${
+                className={`w-full py-2.5 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors tactile-btn ${
                   isDark 
                     ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30 hover:bg-amber-600/30'
                     : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
@@ -1046,7 +1046,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <button
                   onClick={() => setShowDeleteModal(false)}
                   disabled={isDeleting}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium ${
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium tactile-btn ${
                     isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   } transition-colors`}
                 >
@@ -1055,7 +1055,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                 <button
                   onClick={handlePermanentDelete}
                   disabled={isDeleting}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 tactile-btn"
                 >
                   {isDeleting ? (
                     <>
@@ -1391,7 +1391,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 ${
+                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 tactile-btn ${
                   activeTab === tab.id
                     ? `border-brand-green ${isDark ? 'text-white' : 'text-gray-900'}`
                     : `border-transparent ${isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'}`
@@ -1419,7 +1419,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           <div className="relative max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <button
               onClick={() => setShowIdImageFull(false)}
-              className="absolute -top-10 right-0 text-white/80 hover:text-white"
+              className="absolute -top-10 right-0 text-white/80 hover:text-white tactile-btn"
             >
               <span className="material-symbols-outlined">close</span>
             </button>

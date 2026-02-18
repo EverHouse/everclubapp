@@ -494,7 +494,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           {otherParticipants.map(participant => (
             <div 
               key={participant.id}
-              className={`flex items-center gap-3 p-3 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}
+              className={`flex items-center gap-3 p-3 rounded-2xl tactile-row ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}
             >
               <Avatar name={participant.displayName} size="md" />
               <div className="flex-1 min-w-0">
@@ -517,7 +517,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 <button
                   onClick={() => handleRemoveParticipant(participant.id, participant.displayName)}
                   disabled={removingId === participant.id}
-                  className={`p-2 rounded-full transition-colors ${
+                  className={`p-2 rounded-full transition-colors tactile-btn ${
                     isDark 
                       ? 'hover:bg-red-500/20 text-red-400' 
                       : 'hover:bg-red-100 text-red-600'
@@ -544,14 +544,14 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowAddMemberModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#293515] text-white font-semibold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98]"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#293515] text-white font-semibold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
                 >
                   <span className="material-symbols-outlined text-lg">person_add</span>
                   Add Member
                 </button>
                 <button
                   onClick={() => setShowGuestModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6]"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
                 >
                   <span className="material-symbols-outlined text-lg">group_add</span>
                   Add Guest
