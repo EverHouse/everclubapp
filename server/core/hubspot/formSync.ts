@@ -14,6 +14,7 @@ const HUBSPOT_FORMS: Record<string, string> = {
 };
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+let formSyncAccessDeniedLogged = false;
 
 interface HubSpotSubmissionValue {
   name: string;
@@ -144,7 +145,10 @@ export async function syncHubSpotFormSubmissions(): Promise<{
       } catch (err: unknown) {
         const errMsg = getErrorMessage(err);
         if (errMsg.includes('HUBSPOT_FORMS_ACCESS_DENIED')) {
-          console.warn('[HubSpot FormSync] Access denied (403) - token may lack "forms" scope. Skipping remaining forms.');
+          if (!formSyncAccessDeniedLogged) {
+            console.warn('[HubSpot FormSync] Access denied (403) - token may lack "forms" scope. Skipping remaining forms.');
+            formSyncAccessDeniedLogged = true;
+          }
           break;
         }
         const msg = `Failed to fetch form ${formId}: ${errMsg}`;
