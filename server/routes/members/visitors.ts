@@ -475,8 +475,8 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     const resolved = await resolveUserByEmail(normalizedEmail);
 
     const existingUser = resolved
-      ? await db.execute(sql`SELECT id, email, role, membership_status, first_name, last_name FROM users WHERE id = ${resolved.userId}`)
-      : await db.execute(sql`SELECT id, email, role, membership_status, first_name, last_name FROM users WHERE LOWER(email) = ${normalizedEmail}`);
+      ? await db.execute(sql`SELECT id, email, role, membership_status, first_name, last_name, phone, stripe_customer_id FROM users WHERE id = ${resolved.userId}`)
+      : await db.execute(sql`SELECT id, email, role, membership_status, first_name, last_name, phone, stripe_customer_id FROM users WHERE LOWER(email) = ${normalizedEmail}`);
 
     if (resolved && resolved.matchType !== 'direct') {
       logger.info('[Visitors] Email resolved to existing user via', { extra: { normalizedEmail, resolvedPrimaryEmail: resolved.primaryEmail, resolvedMatchType: resolved.matchType } });
@@ -493,6 +493,34 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
           await db.execute(sql`UPDATE users SET role = ${'visitor'}, updated_at = NOW() WHERE id = ${user.id}`);
         }
         
+        let stripeCustomerId: string | null = user.stripe_customer_id || null;
+        let stripeCreated = false;
+        if (createStripeCustomer) {
+          if (!stripeCustomerId) {
+            try {
+              const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+              const visitorName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || undefined;
+              const result = await getOrCreateStripeCustomer(user.id, user.email, visitorName);
+              stripeCustomerId = result.customerId;
+              stripeCreated = result.isNew;
+              logger.info('[Visitors] Stripe customer for linked visitor', { extra: { userId: user.id, stripeCustomerId, isNew: stripeCreated } });
+            } catch (stripeErr: unknown) {
+              logger.error('[Visitors] Failed to create Stripe customer for linked visitor', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
+            }
+          } else {
+            logger.info('[Visitors] Linked visitor already has Stripe customer', { extra: { userId: user.id, stripeCustomerId } });
+          }
+
+          import('../../core/hubspot/members').then(({ findOrCreateHubSpotContact }) => {
+            findOrCreateHubSpotContact(
+              user.email,
+              user.first_name || '',
+              user.last_name || '',
+              { phone: user.phone || undefined }
+            ).catch((err: unknown) => logger.error('[Visitors] HubSpot sync failed for linked visitor', { error: err instanceof Error ? err : new Error(String(err)) }));
+          }).catch(() => {});
+        }
+
         const staffEmail = (req as any).session?.user?.email || 'admin';
         await logFromRequest(req, {
           action: 'visitor_linked' as any,
@@ -509,7 +537,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         return res.status(200).json({
           success: true,
           linked: true,
-          stripeCreated: false,
+          stripeCreated,
           visitor: {
             id: user.id,
             email: user.email,
@@ -518,7 +546,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
             phone: user.phone,
             role: 'visitor',
             membershipStatus: user.membership_status,
-            stripeCustomerId: null
+            stripeCustomerId
           }
         });
       }
@@ -542,9 +570,6 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
 
     const userId = crypto.randomUUID();
     
-    // NOTE: Visitors (role='visitor') are intentionally NOT synced to Stripe or HubSpot.
-    // They are local tracking records for walk-ins/check-ins. Day-pass buyers and members
-    // are synced via their respective payment/checkout paths (payments.ts, terminal.ts, webhooks.ts).
     const insertResult = await db.execute(sql`
       INSERT INTO users (id, email, first_name, last_name, phone, role, membership_status, visitor_type, data_source, created_at, updated_at)
       VALUES (${userId}, ${normalizedEmail}, ${firstName || null}, ${lastName || null}, ${phone || null}, 'visitor', 'visitor', ${visitorType || null}, ${dataSource || null}, NOW(), NOW())
@@ -552,7 +577,31 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     `);
     
     const newUser = insertResult.rows[0] as any;
-    
+
+    let stripeCustomerId: string | null = null;
+    let stripeCreated = false;
+    if (createStripeCustomer) {
+      try {
+        const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
+        const visitorName = `${firstName || ''} ${lastName || ''}`.trim() || undefined;
+        const result = await getOrCreateStripeCustomer(userId, normalizedEmail, visitorName);
+        stripeCustomerId = result.customerId;
+        stripeCreated = result.isNew;
+        logger.info('[Visitors] Stripe customer created for new visitor', { extra: { userId, stripeCustomerId, isNew: stripeCreated } });
+      } catch (stripeErr: unknown) {
+        logger.error('[Visitors] Failed to create Stripe customer for new visitor', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });
+      }
+
+      import('../../core/hubspot/members').then(({ findOrCreateHubSpotContact }) => {
+        findOrCreateHubSpotContact(
+          normalizedEmail,
+          firstName || '',
+          lastName || '',
+          { phone: phone || undefined }
+        ).catch((err: unknown) => logger.error('[Visitors] HubSpot sync failed for new visitor', { error: err instanceof Error ? err : new Error(String(err)) }));
+      }).catch(() => {});
+    }
+
     const staffEmail = (req as any).session?.user?.email || 'admin';
     await logFromRequest(req, {
       action: 'visitor_created' as any,
@@ -568,7 +617,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
     res.status(201).json({
       success: true,
       linked: false,
-      stripeCreated: false,
+      stripeCreated,
       visitor: {
         id: newUser.id,
         email: newUser.email,
@@ -579,7 +628,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         membershipStatus: newUser.membership_status,
         visitorType: newUser.visitor_type,
         dataSource: newUser.data_source,
-        stripeCustomerId: null
+        stripeCustomerId
       }
     });
   } catch (error: unknown) {

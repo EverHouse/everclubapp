@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.67.2",
+    date: "2026-02-18",
+    title: "Visitor Billing Setup (Stripe & HubSpot)",
+    changes: [
+      "Fixed: Creating a new visitor from the booking Player Management modal now automatically creates a Stripe customer for billing",
+      "Fixed: Linking an existing visitor as a player now creates a Stripe customer if they don't have one yet",
+      "Added: Both new and linked visitors from the booking modal now sync to HubSpot as contacts with their name and phone",
+    ]
+  },
+  {
     version: "7.67.1",
     date: "2026-02-18",
     title: "Member Info Syncs Everywhere (Stripe & HubSpot)",
