@@ -595,8 +595,8 @@ const DirectoryTab: React.FC = () => {
         const statusSet = new Set<string>();
         if (Array.isArray(formerMembers)) {
             formerMembers.forEach(m => {
-                if (m?.status && typeof m.status === 'string' && m.status.toLowerCase() !== 'active') {
-                    statusSet.add(m.status);
+                if (m?.membershipStatus && typeof m.membershipStatus === 'string' && m.membershipStatus.toLowerCase() !== 'active') {
+                    statusSet.add(m.membershipStatus);
                 }
             });
         }
@@ -724,7 +724,7 @@ const DirectoryTab: React.FC = () => {
         }
         
         if (memberTab === 'former' && statusFilter !== 'All') {
-            filtered = filtered.filter(m => m.status === statusFilter);
+            filtered = filtered.filter(m => m.membershipStatus === statusFilter);
         }
         
         if (memberTab === 'active' && membershipStatusFilter !== 'All') {
@@ -1604,9 +1604,9 @@ const DirectoryTab: React.FC = () => {
                                                                 <TierBadge tier={m.lastTier} size="sm" />
                                                             </span>
                                                         )}
-                                                        {memberTab === 'former' && m.status && (
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.status)}`}>
-                                                                {getMemberStatusLabel(m.status)}
+                                                        {memberTab === 'former' && m.membershipStatus && (
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
+                                                                {getMemberStatusLabel(m.membershipStatus)}
                                                             </span>
                                                         )}
                                                     </div>
@@ -1694,12 +1694,9 @@ const DirectoryTab: React.FC = () => {
                                 <SortableHeader field="visits" label="Visits" width="7%" className="text-center" />
                                 <SortableHeader field="joinDate" label="Joined" width="9%" />
                                 <SortableHeader field="lastVisit" label="Last Visit" width="9%" />
-                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '13%' : '39%' }}>Email</div>
+                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '20%' : '39%' }}>Email</div>
                                 {memberTab === 'former' && (
-                                    <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%' }}>Former Status</div>
-                                )}
-                                {memberTab === 'former' && (
-                                    <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%' }}>Reactivation</div>
+                                    <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '13%' }}>Reactivation</div>
                                 )}
                             </div>
                             <div>
@@ -1759,7 +1756,7 @@ const DirectoryTab: React.FC = () => {
                                         <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.lastBookingDate)}
                                         </div>
-                                        <div style={{ width: memberTab === 'former' ? '13%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
+                                        <div style={{ width: memberTab === 'former' ? '20%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
                                             {m.email}
                                             {memberTab === 'active' && m.billingProvider && (
                                                 <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
@@ -1775,20 +1772,7 @@ const DirectoryTab: React.FC = () => {
                                             )}
                                         </div>
                                         {memberTab === 'former' && (
-                                            <div style={{ width: '10%' }} className="p-4">
-                                                {m.status ? (
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${getMemberStatusBadgeClass(m.status)}`}>
-                                                        {getMemberStatusLabel(m.status)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                                                        Unknown
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                        {memberTab === 'former' && (
-                                            <div style={{ width: '10%' }} className="p-4">
+                                            <div style={{ width: '13%' }} className="p-4">
                                                 {m.stripeCustomerId ? (
                                                     <span className="px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
                                                         Send Link

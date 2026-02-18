@@ -7,6 +7,8 @@ import { enableRealtimeForTable } from '../core/supabase/client';
 import { initMemberSyncSettings } from '../core/memberSync';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 
 async function retryWithBackoff<T>(fn: () => Promise<T>, label: string, maxRetries = 3): Promise<T> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -242,6 +244,45 @@ export async function runStartupTasks(): Promise<void> {
     }
   } catch (err: unknown) {
     logger.warn('[Startup] Could not check Stripe environment', { error: err instanceof Error ? err : new Error(String(err)) });
+  }
+
+  try {
+    const backfillResult = await db.execute(sql`
+      UPDATE users u
+      SET first_login_at = sub.first_booking,
+          updated_at = NOW()
+      FROM (
+        SELECT br.user_id, MIN(br.created_at) as first_booking
+        FROM booking_requests br
+        WHERE br.user_id IS NOT NULL
+          AND br.origin IS NULL
+        GROUP BY br.user_id
+      ) sub
+      WHERE u.id = sub.user_id
+        AND u.first_login_at IS NULL
+    `);
+    const count = (backfillResult as any)?.rowCount || 0;
+    if (count > 0) {
+      logger.info(`[Startup] Backfilled first_login_at for ${count} members from self-requested booking history`);
+    }
+  } catch (err: unknown) {
+    logger.warn('[Startup] first_login_at backfill failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
+  }
+
+  try {
+    const tierBackfill = await db.execute(sql`
+      UPDATE users
+      SET last_tier = tier, updated_at = NOW()
+      WHERE membership_status IN ('cancelled', 'expired', 'paused', 'inactive', 'terminated', 'suspended', 'frozen', 'declined', 'churned', 'former_member')
+        AND tier IS NOT NULL AND tier != ''
+        AND (last_tier IS NULL OR last_tier = '')
+    `);
+    const count = (tierBackfill as any)?.rowCount || 0;
+    if (count > 0) {
+      logger.info(`[Startup] Backfilled last_tier for ${count} former members`);
+    }
+  } catch (err: unknown) {
+    logger.warn('[Startup] last_tier backfill failed (non-critical)', { error: err instanceof Error ? err : new Error(String(err)) });
   }
 
   startupHealth.completedAt = new Date().toISOString();

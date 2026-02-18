@@ -409,6 +409,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
         stripeCustomerId: member.stripeCustomerId,
         manuallyLinkedEmails: member.manuallyLinkedEmails || [],
         dataSource: member.dataSource,
+        membershipStatus: member.membershipStatus || null,
         lastTier: member.lastTier || null,
         billingProvider: member.billingProvider,
         nextPaymentDate: member.stripeCurrentPeriodEnd || null,
