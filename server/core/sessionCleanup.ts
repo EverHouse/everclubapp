@@ -2,6 +2,13 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { logger } from './logger';
 
+function isTableMissingError(error: unknown): boolean {
+  const code = (error as any)?.code;
+  if (code === '42P01') return true;
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.includes('42P01') || msg.includes('relation "session" does not exist') || msg.includes('relation \\"session\\" does not exist');
+}
+
 export async function cleanupExpiredSessions(): Promise<number> {
   try {
     const result = await db.execute(sql`
@@ -20,7 +27,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
     
     return deletedCount;
   } catch (error) {
-    if ((error as any)?.code === '42P01') {
+    if (isTableMissingError(error)) {
       return 0;
     }
     logger.error('[SessionCleanup] Failed to cleanup sessions', {
@@ -59,7 +66,7 @@ export async function getSessionStats(): Promise<{
       newestActive: row.newest_active ? new Date(row.newest_active) : null,
     };
   } catch (error) {
-    if ((error as any)?.code === '42P01') {
+    if (isTableMissingError(error)) {
       return { total: 0, active: 0, expired: 0, oldestActive: null, newestActive: null };
     }
     logger.error('[SessionCleanup] Failed to get session stats', {

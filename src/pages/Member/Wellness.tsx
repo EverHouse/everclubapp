@@ -218,7 +218,7 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
   onRefreshCompleteRef.current = onRefreshComplete;
   const prevRefreshKeyRef = useRef(refreshKey);
 
-  const { data: classes = [], isLoading: classesLoading, refetch: refetchClasses } = useQuery({
+  const { data: classes = [], isLoading: classesLoading, refetch: refetchClasses, error: classesError } = useQuery({
     queryKey: ['wellness-classes'],
     queryFn: async () => {
       const { ok, data } = await apiRequest<any[]>('/api/wellness-classes?active_only=true');
@@ -248,21 +248,23 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
           };
         });
       }
-      throw new Error('Failed to fetch classes');
+      throw new Error('Failed to load wellness classes');
     },
     staleTime: 60000,
+    throwOnError: false,
   });
 
-  const { data: enrollments = [], isLoading: enrollmentsLoading, refetch: refetchEnrollments } = useQuery({
+  const { data: enrollments = [], isLoading: enrollmentsLoading, refetch: refetchEnrollments, error: enrollmentsError } = useQuery({
     queryKey: ['wellness-enrollments', userEmail],
     queryFn: async () => {
       if (!userEmail) return [];
       const { ok, data } = await apiRequest<WellnessEnrollment[]>(`/api/wellness-enrollments?user_email=${encodeURIComponent(userEmail)}`);
       if (ok && data) return data;
-      return [];
+      throw new Error('Failed to load enrollments');
     },
     enabled: !!userEmail,
     staleTime: 60000,
+    throwOnError: false,
   });
 
   const isLoading = classesLoading || enrollmentsLoading;
@@ -436,8 +438,34 @@ const ClassesView: React.FC<{onBook: (cls: WellnessClass) => void; isDark?: bool
     );
   }
 
+  const hasError = classesError || enrollmentsError;
+
   return (
     <div>
+        {hasError && (
+          <div className={`mb-6 p-4 rounded-xl border backdrop-blur-md ${isDark ? 'bg-red-500/10 border-red-500/30 text-white' : 'bg-red-50 border-red-200 text-primary'}`}>
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-xl flex-shrink-0 mt-0.5">error</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm mb-1">Unable to load classes</p>
+                <p className={`text-xs ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+                  {classesError ? 'Failed to fetch wellness classes. ' : ''}
+                  {enrollmentsError ? 'Failed to fetch your enrollments. ' : ''}
+                  Please try again.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  refetchClasses();
+                  refetchEnrollments();
+                }}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${isDark ? 'bg-red-500/20 hover:bg-red-500/30 text-white' : 'bg-red-100 hover:bg-red-200 text-primary'}`}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
         <section className="mb-6">
         <div className="flex gap-3 overflow-x-auto -mx-6 px-6 scrollbar-hide items-center mb-4 scroll-fade-right">
             {categories.map(cat => (
