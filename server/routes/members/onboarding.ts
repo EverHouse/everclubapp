@@ -24,6 +24,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
         waiver_version, waiver_signed_at,
         onboarding_completed_at, onboarding_dismissed_at,
         first_login_at, first_booking_at, profile_completed_at, app_installed_at,
+        concierge_saved_at,
         id_image_url, join_date, created_at
       FROM users 
       WHERE LOWER(email) = ${email}
@@ -37,6 +38,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
     const hasWaiver = !!user.waiver_signed_at;
     const hasFirstBooking = !!user.first_booking_at;
     const hasAppInstalled = !!user.app_installed_at;
+    const hasConcierge = !!user.concierge_saved_at;
 
     let needsRefresh = false;
     if (hasProfile && !user.profile_completed_at) {
@@ -44,7 +46,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
       needsRefresh = true;
     }
 
-    const allComplete = hasProfile && hasWaiver && hasFirstBooking && hasAppInstalled;
+    const allComplete = hasProfile && hasWaiver && hasFirstBooking && hasAppInstalled && hasConcierge;
     if (allComplete && !user.onboarding_completed_at) {
       await db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND onboarding_completed_at IS NULL`);
       needsRefresh = true;
@@ -64,6 +66,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
 
     const steps = [
       { key: 'profile', label: 'Complete your profile', description: 'Add your name, phone, and photo', completed: hasProfile, completedAt: finalUser.profile_completed_at },
+      { key: 'concierge', label: 'Save concierge contact', description: 'Add Ever Club to your phone contacts', completed: hasConcierge, completedAt: finalUser.concierge_saved_at },
       { key: 'waiver', label: 'Sign the club waiver', description: 'Required before your first visit', completed: hasWaiver, completedAt: finalUser.waiver_signed_at },
       { key: 'booking', label: 'Book your first session', description: 'Reserve a golf simulator', completed: hasFirstBooking, completedAt: finalUser.first_booking_at },
       { key: 'app', label: 'Install the app', description: 'Add to your home screen for quick access', completed: hasAppInstalled, completedAt: finalUser.app_installed_at },
@@ -96,7 +99,7 @@ router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req,
     if (!email) return res.status(400).json({ error: 'User email required' });
 
     const { step } = req.body;
-    const validSteps = ['profile', 'app', 'first_login'];
+    const validSteps = ['profile', 'app', 'first_login', 'concierge'];
     
     if (!step || !validSteps.includes(step)) {
       return res.status(400).json({ error: 'Invalid step' });
@@ -108,6 +111,8 @@ router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req,
       await db.execute(sql`UPDATE users SET app_installed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND app_installed_at IS NULL`);
     } else if (step === 'first_login') {
       await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND first_login_at IS NULL`);
+    } else if (step === 'concierge') {
+      await db.execute(sql`UPDATE users SET concierge_saved_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND concierge_saved_at IS NULL`);
     }
     
     const checkResult = await db.execute(sql`
@@ -115,12 +120,13 @@ router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req,
         CASE WHEN first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL THEN true ELSE false END as has_profile,
         CASE WHEN waiver_signed_at IS NOT NULL THEN true ELSE false END as has_waiver,
         CASE WHEN first_booking_at IS NOT NULL THEN true ELSE false END as has_booking,
-        CASE WHEN app_installed_at IS NOT NULL THEN true ELSE false END as has_app
+        CASE WHEN app_installed_at IS NOT NULL THEN true ELSE false END as has_app,
+        CASE WHEN concierge_saved_at IS NOT NULL THEN true ELSE false END as has_concierge
       FROM users WHERE LOWER(email) = ${email}
     `);
 
     const check = (checkResult as any).rows?.[0];
-    if (check?.has_profile && check?.has_waiver && check?.has_booking && check?.has_app) {
+    if (check?.has_profile && check?.has_waiver && check?.has_booking && check?.has_app && check?.has_concierge) {
       await db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND onboarding_completed_at IS NULL`);
     }
 
@@ -185,7 +191,7 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
       WHERE LOWER(email) = ${email} 
       AND onboarding_completed_at IS NULL 
       AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
-      AND waiver_signed_at IS NOT NULL AND first_booking_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch(() => {});
+      AND waiver_signed_at IS NOT NULL AND first_booking_at IS NOT NULL AND app_installed_at IS NOT NULL AND concierge_saved_at IS NOT NULL`).catch(() => {});
 
     syncProfileToExternalServices(email, firstName, lastName, phone).catch((err) => {
       logger.error('[onboarding] Background sync to Stripe/HubSpot failed', { error: err instanceof Error ? err : new Error(String(err)) });

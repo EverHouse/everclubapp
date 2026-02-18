@@ -16,6 +16,24 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
     navigate(path);
   };
 
+  const handleSaveConcierge = async () => {
+    const link = document.createElement('a');
+    link.href = '/Ever_Club_Concierge.vcf';
+    link.download = 'Ever_Club_Concierge.vcf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    try {
+      await fetch('/api/member/onboarding/complete-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ step: 'concierge' }),
+      });
+    } catch {}
+  };
+
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} title="">
       <div className="text-center px-2 pb-4">
@@ -42,6 +60,20 @@ const FirstLoginWelcomeModal: React.FC<FirstLoginWelcomeModalProps> = ({ isOpen,
               <p className="text-xs text-primary/50 dark:text-white/50">Add your phone number and preferences</p>
             </div>
             <span className="material-symbols-outlined text-primary/30 dark:text-white/30 ml-auto">chevron_right</span>
+          </button>
+
+          <button
+            onClick={handleSaveConcierge}
+            className="w-full flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-white/5 hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-accent">contact_phone</span>
+            </div>
+            <div>
+              <p className="font-medium text-primary dark:text-white text-sm">Save concierge contact</p>
+              <p className="text-xs text-primary/50 dark:text-white/50">Add Ever Club to your phone contacts</p>
+            </div>
+            <span className="material-symbols-outlined text-primary/30 dark:text-white/30 ml-auto">download</span>
           </button>
 
           <button

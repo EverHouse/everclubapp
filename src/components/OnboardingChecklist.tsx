@@ -103,6 +103,29 @@ const OnboardingChecklist: React.FC = () => {
       case 'profile':
         navigate('/profile');
         break;
+      case 'concierge': {
+        const link = document.createElement('a');
+        link.href = '/Ever_Club_Concierge.vcf';
+        link.download = 'Ever_Club_Concierge.vcf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        try {
+          await fetch('/api/member/onboarding/complete-step', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ step: 'concierge' }),
+          });
+          const data = await fetchWithCredentials('/api/member/onboarding');
+          setStatus(data);
+          if (data.isComplete && !data.isDismissed) {
+            setCelebrating(true);
+            setTimeout(() => setCelebrating(false), 3000);
+          }
+        } catch {}
+        break;
+      }
       case 'waiver':
         navigate('/profile', { state: { showWaiver: true } });
         break;
@@ -138,6 +161,7 @@ const OnboardingChecklist: React.FC = () => {
 
   const stepIcons: Record<string, string> = {
     profile: 'person',
+    concierge: 'contact_phone',
     waiver: 'description',
     booking: 'sports_golf',
     app: 'install_mobile',

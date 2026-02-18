@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.71.0",
+    date: "2026-02-18",
+    title: "Save Concierge Contact — Onboarding Step",
+    changes: [
+      "Added: 'Save concierge contact' step to the onboarding checklist — members can download the Ever Club Concierge contact card (VCF) directly to their phone",
+      "Added: Concierge contact button in the first-login welcome modal, positioned after profile setup",
+      "Added: Automatic step completion tracking when the contact file is downloaded",
+    ]
+  },
+  {
     version: "7.70.0",
     date: "2026-02-18",
     title: "Discount Code Tracking & Directory Improvements",
