@@ -5,6 +5,13 @@ Before executing ANY task (Plan or Build), you must:
 3. **📢 Announce It:** Start your response by stating: *"Activating [Skill Name] protocols..."*
 4. **🔒 Enforce Rules:** Strictly follow that skill's constraints (e.g., "Always use `billing_provider` checks").
 
+## 🧠 Skill Acquisition Protocol
+If a user asks for a task involving a library or framework (e.g., Stripe, Drizzle, Tailwind) that is NOT covered in `SKILL.md` or `.agents/`:
+1. **STOP** and inform the user: "I lack a specialized skill for [Topic]. Would you like me to research and create one?"
+2. If yes, browse the official docs for that topic.
+3. Compile the best practices into a new file: `.agents/skills/[topic]-expert/SKILL.md`.
+4. Read the file into your context and proceed with the task.
+
 # Ever Club Members App
 
 ## Overview
