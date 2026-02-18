@@ -76,3 +76,17 @@ export {
   hasTimeOverlap,
   type AvailabilityResult
 } from './availabilityGuard';
+
+export {
+  approveBooking,
+  declineBooking,
+  cancelBooking,
+  handlePendingCancellation,
+  handleCancelPostTransaction,
+  updateGenericStatus,
+  checkinBooking,
+  devConfirmBooking,
+  completeCancellation,
+  validateTrackmanId,
+  formatBookingRow
+} from './approvalService';
