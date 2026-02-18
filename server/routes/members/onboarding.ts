@@ -5,6 +5,8 @@ import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
 import { logger } from '../../core/logger';
 import { z } from 'zod';
+import { getHubSpotClient } from '../../core/integrations';
+import { retryableHubSpotRequest } from '../../core/hubspot/request';
 
 const router = Router();
 
@@ -185,6 +187,10 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
       AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
       AND waiver_signed_at IS NOT NULL AND first_booking_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch(() => {});
 
+    syncProfileToExternalServices(email, firstName, lastName, phone).catch((err) => {
+      logger.error('[onboarding] Background sync to Stripe/HubSpot failed', { error: err instanceof Error ? err : new Error(String(err)) });
+    });
+
     res.json({
       success: true,
       firstName: updated.first_name,
@@ -196,5 +202,83 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });
+
+async function syncProfileToExternalServices(
+  email: string,
+  firstName: string,
+  lastName: string,
+  phone: string
+): Promise<void> {
+  try {
+    const userResult = await db.execute(sql`
+      SELECT stripe_customer_id, hubspot_id, tier, id FROM users WHERE LOWER(email) = ${email.toLowerCase()}
+    `);
+    const user = (userResult as any).rows?.[0];
+
+    if (user?.stripe_customer_id) {
+      const { getStripeClient } = await import('../../core/stripe/client');
+      const stripe = await getStripeClient();
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      const metadata: Record<string, string> = {
+        userId: user.id,
+        source: 'even_house_app',
+      };
+      if (user.tier) metadata.tier = user.tier;
+      if (firstName) metadata.firstName = firstName;
+      if (lastName) metadata.lastName = lastName;
+
+      await stripe.customers.update(user.stripe_customer_id, {
+        name: fullName || undefined,
+        phone: phone || undefined,
+        metadata,
+      });
+      logger.info('[ProfileSync] Updated Stripe customer name/phone', { extra: { email } });
+    }
+
+    if (user?.hubspot_id) {
+      const hubspot = await getHubSpotClient();
+      await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.update(user.hubspot_id, {
+          properties: {
+            firstname: firstName,
+            lastname: lastName,
+            phone: phone || '',
+          },
+        })
+      );
+      logger.info('[ProfileSync] Updated HubSpot contact name/phone', { extra: { email } });
+    } else {
+      const hubspot = await getHubSpotClient();
+      const searchResponse = await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.searchApi.doSearch({
+          filterGroups: [{
+            filters: [{
+              propertyName: 'email',
+              operator: 'EQ' as any,
+              value: email.toLowerCase(),
+            }],
+          }],
+          properties: ['email'],
+          limit: 1,
+        })
+      );
+      if (searchResponse.results && searchResponse.results.length > 0) {
+        const contactId = searchResponse.results[0].id;
+        await retryableHubSpotRequest(() =>
+          hubspot.crm.contacts.basicApi.update(contactId, {
+            properties: {
+              firstname: firstName,
+              lastname: lastName,
+              phone: phone || '',
+            },
+          })
+        );
+        logger.info('[ProfileSync] Updated HubSpot contact (by email search) name/phone', { extra: { email } });
+      }
+    }
+  } catch (error: unknown) {
+    logger.error('[ProfileSync] Error syncing to external services', { error: error instanceof Error ? error : new Error(String(error)) });
+  }
+}
 
 export default router;

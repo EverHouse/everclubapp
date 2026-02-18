@@ -13,6 +13,15 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.67.1",
+    date: "2026-02-18",
+    title: "Profile Changes Sync to Stripe & HubSpot",
+    changes: [
+      "Fixed: When a member updates their name or phone number from their profile, the changes now automatically sync to Stripe and HubSpot in the background",
+      "Improved: Stripe customer records now include the member's phone number alongside their name and tier metadata",
+    ]
+  },
+  {
     version: "7.67.0",
     date: "2026-02-18",
     title: "Migrate Mindbody Members to Stripe",
