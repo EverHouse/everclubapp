@@ -242,7 +242,7 @@ export async function reconcileSubscriptions() {
           if (resolved && resolved.matchType !== 'direct') {
             await pool.query(
               `UPDATE users SET stripe_customer_id = $1, stripe_subscription_id = $2,
-               membership_status = 'active', tier = COALESCE($3, tier), updated_at = NOW()
+               membership_status = 'active', billing_provider = 'stripe', tier = COALESCE($3, tier), updated_at = NOW()
                WHERE id = $4`,
               [customer.id, subscription.id, tierSlug, resolved.userId]
             );
@@ -255,12 +255,13 @@ export async function reconcileSubscriptions() {
           } else {
           // Create user in DB
           await pool.query(
-            `INSERT INTO users (email, first_name, last_name, tier, membership_status, stripe_customer_id, stripe_subscription_id, join_date, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, 'active', $5, $6, NOW(), NOW(), NOW())
+            `INSERT INTO users (email, first_name, last_name, tier, membership_status, billing_provider, stripe_customer_id, stripe_subscription_id, join_date, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, 'active', 'stripe', $5, $6, NOW(), NOW(), NOW())
              ON CONFLICT (email) DO UPDATE SET 
                stripe_customer_id = EXCLUDED.stripe_customer_id,
                stripe_subscription_id = EXCLUDED.stripe_subscription_id,
                membership_status = 'active',
+               billing_provider = 'stripe',
                tier = COALESCE(EXCLUDED.tier, users.tier),
                updated_at = NOW()`,
             [customerEmail, firstName, lastName, tierSlug, customer.id, subscription.id]

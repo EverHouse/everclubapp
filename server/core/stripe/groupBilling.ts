@@ -1772,6 +1772,8 @@ export async function handlePrimarySubscriptionCancelled(subscriptionId: string)
         `UPDATE users SET 
            billing_group_id = NULL,
            membership_status = 'cancelled',
+           billing_provider = 'stripe',
+           last_tier = tier,
            tier = NULL,
            updated_at = NOW()
          WHERE LOWER(email) = ANY($1::text[])`,

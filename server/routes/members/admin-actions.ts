@@ -73,7 +73,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         );
       } else {
         await client.query(
-          'UPDATE users SET tier = NULL, membership_status = $1, updated_at = $2 WHERE LOWER(email) = $3',
+          'UPDATE users SET last_tier = tier, tier = NULL, membership_status = $1, updated_at = $2 WHERE LOWER(email) = $3',
           ['non-member', new Date(), normalizedEmail]
         );
       }
@@ -278,7 +278,7 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
       try {
         await client.query('BEGIN');
         await client.query(
-          'UPDATE users SET membership_status = $1, updated_at = $2 WHERE id = $3',
+          'UPDATE users SET membership_status = $1, billing_provider = \'stripe\', updated_at = $2 WHERE id = $3',
           ['suspended', new Date(), id]
         );
         await client.query('COMMIT');

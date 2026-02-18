@@ -957,7 +957,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
             
             if (!dryRun) {
               await db.execute(sql`UPDATE users 
-                 SET membership_status = ${expectedAppStatus}, updated_at = NOW() 
+                 SET membership_status = ${expectedAppStatus}, billing_provider = 'stripe', updated_at = NOW() 
                  WHERE id = ${member.id}`);
               
               // Sync status change to HubSpot

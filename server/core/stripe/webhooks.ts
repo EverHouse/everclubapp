@@ -1758,6 +1758,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: Stripe.In
   const gracePeriodResult = await client.query(
     `UPDATE users SET 
       grace_period_start = COALESCE(grace_period_start, NOW()),
+      billing_provider = 'stripe',
       membership_status = CASE 
         WHEN membership_status = 'active' THEN 'past_due'
         ELSE membership_status 
@@ -3142,7 +3143,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           
           // Reactivate all sub-members that were suspended/past_due due to billing issues
           const subMembersResult = await client.query(
-            `UPDATE users u SET membership_status = 'active', updated_at = NOW()
+            `UPDATE users u SET membership_status = 'active', billing_provider = 'stripe', updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
              AND gm.is_active = true
@@ -3235,7 +3236,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           
           // Update all active sub-members to past_due status
           const subMembersResult = await client.query(
-            `UPDATE users u SET membership_status = 'past_due', updated_at = NOW()
+            `UPDATE users u SET membership_status = 'past_due', billing_provider = 'stripe', updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
              AND gm.is_active = true
@@ -3330,7 +3331,7 @@ async function handleSubscriptionUpdated(client: PoolClient, subscription: Strip
           
           // Suspend all active sub-members
           const subMembersResult = await client.query(
-            `UPDATE users u SET membership_status = 'suspended', updated_at = NOW()
+            `UPDATE users u SET membership_status = 'suspended', billing_provider = 'stripe', updated_at = NOW()
              FROM group_members gm
              WHERE gm.billing_group_id = $1 
              AND gm.is_active = true
@@ -3417,7 +3418,7 @@ async function handleSubscriptionPaused(client: PoolClient, subscription: Stripe
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
     await client.query(
-      `UPDATE users SET membership_status = 'frozen', updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET membership_status = 'frozen', billing_provider = 'stripe', updated_at = NOW() WHERE id = $1`,
       [userId]
     );
     console.log(`[Stripe Webhook] Subscription paused: ${email} membership_status set to frozen`);
@@ -3504,7 +3505,7 @@ async function handleSubscriptionResumed(client: PoolClient, subscription: Strip
     const memberName = `${first_name || ''} ${last_name || ''}`.trim() || email;
 
     await client.query(
-      `UPDATE users SET membership_status = 'active', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
+      `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), updated_at = NOW() WHERE id = $1`,
       [userId, subscriptionPeriodEnd]
     );
     console.log(`[Stripe Webhook] Subscription resumed: ${email} membership_status set to active`);
@@ -3602,6 +3603,7 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
       const pauseResult = await client.query(
         `UPDATE users SET 
           membership_status = 'paused',
+          billing_provider = 'stripe',
           stripe_subscription_id = NULL,
           updated_at = NOW()
         WHERE LOWER(email) = LOWER($1) AND (stripe_subscription_id = $2 OR stripe_subscription_id IS NULL)`,
@@ -3710,6 +3712,7 @@ async function handleSubscriptionDeleted(client: PoolClient, subscription: Strip
         last_tier = tier,
         tier = NULL,
         membership_status = 'cancelled',
+        billing_provider = 'stripe',
         stripe_subscription_id = NULL,
         grace_period_start = NULL,
         grace_period_email_count = 0,
