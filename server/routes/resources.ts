@@ -2122,17 +2122,8 @@ router.post('/api/bookings', bookingRateLimiter, async (req, res) => {
     
     const user = userResult[0];
     const userTier = user?.tier || DEFAULT_TIER;
-    let userTags: string[] = [];
-    try {
-      if (user?.tags) {
-        userTags = typeof user.tags === 'string' ? JSON.parse(user.tags) : (Array.isArray(user.tags) ? user.tags : []);
-      }
-    } catch (parseError: unknown) {
-      logger.warn('[POST /api/bookings] Failed to parse user tags', { extra: { user_email, error: parseError } });
-      userTags = [];
-    }
     
-    const isMemberAuthorized = await isAuthorizedForMemberBooking(userTier, userTags);
+    const isMemberAuthorized = await isAuthorizedForMemberBooking(userTier);
     
     if (!isMemberAuthorized) {
       return res.status(402).json({ 
