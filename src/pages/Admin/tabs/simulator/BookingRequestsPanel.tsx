@@ -206,50 +206,69 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                     Requested {formatRelativeTime(item.created_at)}
                                                 </p>
                                             )}
-                                            <button
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    const confirmed = await confirm({
-                                                        title: 'Complete Cancellation',
-                                                        message: `Complete cancellation for ${displayName}? This will cancel the billing session and refund any charges.`,
-                                                        confirmText: 'Complete Cancellation',
-                                                        variant: 'warning'
-                                                    });
-                                                    if (!confirmed) return;
-                                                    
-                                                    const bookingKey = `${item.source || 'booking'}-${item.id}`;
-                                                    setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
-                                                    
-                                                    try {
-                                                        const res = await fetch(`/api/booking-requests/${item.id}/complete-cancellation`, {
-                                                            method: 'PUT',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            credentials: 'include'
-                                                        });
-                                                        
-                                                        if (!res.ok) {
-                                                            const errData = await res.json();
-                                                            throw new Error(errData.error || 'Failed to complete cancellation');
-                                                        }
-                                                        
-                                                        showToast('Cancellation completed successfully', 'success');
-                                                        queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
-                                                        queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
-                                                    } catch (err: unknown) {
-                                                        showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
-                                                    } finally {
-                                                        setActionInProgress(prev => {
-                                                            const next = { ...prev };
-                                                            delete next[bookingKey];
-                                                            return next;
-                                                        });
-                                                    }
-                                                }}
-                                                className="w-full mt-3 py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-all duration-200"
-                                            >
-                                                <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
-                                                Complete Cancellation
-                                            </button>
+                                            {(() => {
+                                                const cancelActionKey = `${item.source || 'booking'}-${item.id}`;
+                                                const cancelActionState = actionInProgress[cancelActionKey];
+                                                const isCancelActionPending = !!cancelActionState;
+                                                return (
+                                                    <>
+                                                        {isCancelActionPending && (
+                                                            <div className="flex items-center gap-2 mt-2 text-sm text-red-600/70 dark:text-red-400/70">
+                                                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                                </svg>
+                                                                <span className="capitalize">{cancelActionState}...</span>
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            disabled={isCancelActionPending}
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                const confirmed = await confirm({
+                                                                    title: 'Complete Cancellation',
+                                                                    message: `Complete cancellation for ${displayName}? This will cancel the billing session and refund any charges.`,
+                                                                    confirmText: 'Complete Cancellation',
+                                                                    variant: 'warning'
+                                                                });
+                                                                if (!confirmed) return;
+                                                                
+                                                                const bookingKey = `${item.source || 'booking'}-${item.id}`;
+                                                                setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
+                                                                
+                                                                try {
+                                                                    const res = await fetch(`/api/booking-requests/${item.id}/complete-cancellation`, {
+                                                                        method: 'PUT',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        credentials: 'include'
+                                                                    });
+                                                                    
+                                                                    if (!res.ok) {
+                                                                        const errData = await res.json();
+                                                                        throw new Error(errData.error || 'Failed to complete cancellation');
+                                                                    }
+                                                                    
+                                                                    showToast('Cancellation completed successfully', 'success');
+                                                                    queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
+                                                                    queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
+                                                                } catch (err: unknown) {
+                                                                    showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
+                                                                } finally {
+                                                                    setActionInProgress(prev => {
+                                                                        const next = { ...prev };
+                                                                        delete next[bookingKey];
+                                                                        return next;
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className="w-full mt-3 py-2 px-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+                                                        >
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-sm">check_circle</span>
+                                                            Complete Cancellation
+                                                        </button>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     );
                                 }

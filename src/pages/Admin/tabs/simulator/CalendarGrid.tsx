@@ -148,6 +148,7 @@ function CalendarFeeIndicator({
                         {totalOwed > 0 && (
                             <p className="text-[10px] text-red-600 dark:text-red-400 font-medium mt-0.5">${totalOwed.toFixed(2)} owed</p>
                         )}
+                        {isCancellationPending && <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">Cancellation Pending</p>}
                         {isUnmatched && <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">Unmatched</p>}
                         {isInactiveMember && <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-0.5 font-medium">Inactive Member</p>}
                         {isCheckedIn && <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5 font-medium">Checked In</p>}
