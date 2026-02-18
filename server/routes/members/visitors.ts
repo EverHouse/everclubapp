@@ -503,6 +503,9 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
               const result = await getOrCreateStripeCustomer(user.id, user.email, visitorName);
               stripeCustomerId = result.customerId;
               stripeCreated = result.isNew;
+              if (stripeCustomerId) {
+                await db.execute(sql`UPDATE users SET stripe_customer_id = ${stripeCustomerId} WHERE id = ${user.id}`);
+              }
               logger.info('[Visitors] Stripe customer for linked visitor', { extra: { userId: user.id, stripeCustomerId, isNew: stripeCreated } });
             } catch (stripeErr: unknown) {
               logger.error('[Visitors] Failed to create Stripe customer for linked visitor', { error: stripeErr instanceof Error ? stripeErr : new Error(String(stripeErr)) });

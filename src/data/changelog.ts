@@ -23,9 +23,9 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Stripe Subscription Sync tool now creates HubSpot contacts with proper first/last name (was creating contacts with empty names)",
       "Fixed: Stripe Reconciliation tool now creates HubSpot contacts with proper first/last name",
       "Fixed: Corrected HubSpot phone parameter format in visitor sync calls",
-      "Fixed: Booking modal visitor Stripe customer ID was created but never saved back to the member record in the database",
       "Fixed: Staff-created HubSpot-billed members now sync to HubSpot as contacts (was skipped because deal creation was disabled)",
       "Fixed: Visitor-to-member conversions via staff admin now sync to HubSpot with name, phone, and tier",
+      "Fixed: Linked visitor Stripe customer ID now explicitly saved to member record (defense-in-depth)",
     ]
   },
   {
