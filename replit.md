@@ -36,56 +36,55 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Core Stack**: React 19 (Vite), React Router DOM, Express.js (REST API), PostgreSQL, Tailwind CSS.
 - **Timezone Handling**: All date/time operations prioritize 'America/Los_Angeles'.
 - **Backend**: Modular API routes, core services, loader modules, health checks, graceful shutdown.
-- **Member Management**: Supports tiers, tags, directory, unified billing groups, member notes, communications log, visitor matching, and a database-driven flexible tier features system.
-- **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, conference room bookings, transactional with row-level locking. A unified Player Management Modal (TrackmanLinkModal) handles all player/roster management.
-- **Trackman Integration**: 1:1 sync with CSV imports and webhooks for real-time booking and delta billing, including cancellation flow and reconciliation tools.
+- **Member Management**: Supports tiers, discount tracking, directory, billing groups, member notes, communications log, visitor matching, and flexible tier features.
+- **Booking System**: "Request & Hold," conflict detection, staff/member bookings, multi-member bookings, calendar management, conference room bookings, transactional with row-level locking. Player Management Modal handles all player/roster management.
+- **Trackman Integration**: 1:1 sync with CSV imports and webhooks for real-time booking and delta billing.
 - **Google Sign-In**: Members can sign in with Google or link accounts.
-- **Error Handling**: Shared `server/utils/errorUtils.ts` utility for safe error handling (`getErrorMessage`, `getErrorCode`, `isStripeError`). All catch blocks use `catch (error: unknown)` with proper type narrowing instead of `catch (error: any)`.
-- **TypeScript Quality**: tsconfig uses `incremental`, `forceConsistentCasingInFileNames`, `noFallthroughCasesInSwitch`. Stripe webhook handlers use proper Stripe types (`Stripe.Charge`, `Stripe.Invoice`, etc.) instead of `any`.
+- **Error Handling**: Shared `server/utils/errorUtils.ts` utility for safe error handling. All catch blocks use `catch (error: unknown)` with proper type narrowing.
+- **TypeScript Quality**: tsconfig uses `incremental`, `forceConsistentCasingInFileNames`, `noFallthroughCasesInSwitch`. Stripe webhook handlers use proper Stripe types.
 - **Security**: Role-based access control, rate limiting, SQL injection prevention, webhook signature verification, secure session management, CORS origin whitelist, authentication middleware.
 - **Notifications**: In-app real-time notifications with 3-channel delivery (in-app, email, push).
 - **Real-Time Sync**: Instant updates via WebSocket and Supabase Realtime.
 - **PWA Features**: Service Worker caching, offline support, and automatic cache invalidation.
-- **Error Handling**: PageErrorBoundary for chunk load failures, exponential backoff for retries, API error logging, error alerts.
 - **Performance**: List virtualization, skeleton loaders, lazy-loading, optimistic updates.
 - **State Management**: Zustand for atomic state and TanStack Query for data fetching.
 - **Admin Tools**: Admin-configurable features, data integrity dashboard, staff command center, data tools, bug report management, FAQ management, gallery management, inquiry management, application pipeline.
-- **Member Onboarding System**: 4-step onboarding checklist (profile, waiver, first booking, app install) replaces WelcomeBanner on dashboard. Tracks first_login_at, first_booking_at, profile_completed_at, app_installed_at in users table. FirstLoginWelcomeModal shows on first login. Automated stalled-member email nudge sequence (24h, 72h, 7d) via scheduler. Application Pipeline admin view at /admin/applications manages membership applications from form submission through checkout invitation.
+- **Member Onboarding System**: 4-step onboarding checklist, tracks key dates in users table, FirstLoginWelcomeModal, automated stalled-member email nudges via scheduler, and Application Pipeline admin view.
 - **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, data export, admin audit log.
 - **Waiver Management**: Tracks waiver versions and enforces signing.
-- **Unified Fee Service**: Centralized `computeFeeBreakdown()` in `server/core/billing/unifiedFeeService.ts` for all fee calculations.
-- **Dynamic Pricing**: Guest fee and overage rates pulled from Stripe product prices and updated via webhooks. Pricing config in `server/core/billing/pricingConfig.ts`.
-- **Webhook Safety**: Transactional dedup for Stripe webhooks, deferred action pattern, resource-based ordering, ghost reactivation blocking (subscription.created blocked if subscription.deleted already processed for same resource), subscription sync race condition guard (skips recently updated users within 5-minute window).
+- **Unified Fee Service**: Centralized `computeFeeBreakdown()` for all fee calculations.
+- **Dynamic Pricing**: Guest fee and overage rates pulled from Stripe product prices and updated via webhooks.
+- **Webhook Safety**: Transactional dedup for Stripe webhooks, deferred action pattern, resource-based ordering, ghost reactivation blocking, subscription sync race condition guard.
 - **Roster Protection**: Optimistic locking with `roster_version` and row-level locking.
 - **Billing Management**: Staff Payments Dashboard, unified payment history, member billing, self-service portal, tier change wizard with proration, dunning, card expiry checking, and refund processing.
 - **Day Pass System**: Non-member day pass purchases with visitor matching and QR code delivery.
 - **QR Code System**: QR codes for day passes and member check-in; staff QR scanner confirms member details.
-- **ID/License Scanning**: Staff can scan IDs using OpenAI Vision (GPT-4o) to extract and auto-fill registration form fields, with images stored and viewable in member profiles.
+- **ID/License Scanning**: Staff can scan IDs using OpenAI Vision (GPT-4o) to extract and auto-fill registration form fields.
 - **Corporate Membership**: Unified billing groups, volume pricing, corporate checkout, HubSpot sync.
 - **Data Integrity**: Stripe as source of truth for billing, transaction rollback, webhook idempotency, dual-source active tracking with HubSpot.
-- **Stripe Wins Rule**: When a member has `billing_provider='stripe'`, HubSpot member sync skips their `membership_status` and `tier` — Stripe webhooks are authoritative. Outbound HubSpot pushes skip `membership_status` for Mindbody-billed members to prevent sync loops. Database CHECK constraint enforces valid `billing_provider` values (stripe, mindbody, manual, comped, family_addon). Hybrid state integrity check detects billing provider mismatches daily.
+- **Stripe Wins Rule**: Stripe is authoritative for `membership_status` and `tier` when `billing_provider='stripe'`. HubSpot pushes skip status for Mindbody-billed members to prevent loops. DB CHECK constraint enforces valid `billing_provider` values.
 - **Stripe Member Auto-Fix**: Login flow verifies Stripe subscription status and corrects `membership_status`.
-- **Stripe Subscription → HubSpot Sync**: Automated sync of membership status, tier, billing_provider, Stripe contact fields (stripe_customer_id, stripe_created_date, stripe_delinquent, stripe_discount_id, stripe_pricing_interval), and billing_group_role (Primary/Sub-member). App is the single writer to HubSpot contacts — Stripe native Contact sync stays OFF. Stripe Invoice sync and Product sync are safe to enable (non-conflicting). Sub-members show billing_provider='stripe' in HubSpot with billing_group_role='Sub-member' to distinguish from primary members. DB_BILLING_PROVIDER_TO_HUBSPOT maps family_addon → 'stripe' as safety net.
+- **Stripe Subscription → HubSpot Sync**: Automated sync of membership status, tier, billing_provider, and Stripe contact fields. App is the single writer to HubSpot contacts.
 - **Booking Prepayment**: Creates prepayment intents for expected fees, blocking check-in until paid, with auto-refunds on cancellation.
 - **Stripe Customer Metadata Sync**: User ID and tier synced to Stripe customer metadata.
-- **Scheduled Maintenance**: Daily tasks for session cleanup, webhook log cleanup, Stripe reconciliation, grace period checks, booking expiry, duplicate cleanup, guest pass resets, stuck cancellation checks, member sync, unresolved Trackman checks, communication log sync, pending user cleanup (every 6 hours — cancels Stripe subscriptions and deletes stale pending users with expired checkout sessions), webhook event cleanup (every 24 hours — removes processed webhook events older than 7 days), onboarding nudge emails (hourly, sends at 10 AM Pacific — 24h/72h/7d nudge sequence for new members who haven't logged in).
-- **Stripe Terminal Integration**: In-person card reader support for membership signup. Terminal card payments automatically save the card via Stripe's `generated_card` mechanism for future subscription renewals. The `confirm-subscription-payment` endpoint retrieves the reusable card from `latest_charge.payment_method_details.card_present.generated_card`, attaches it to the customer, and sets it as default on both customer and subscription.
+- **Scheduled Maintenance**: Daily and hourly tasks for session cleanup, webhook log cleanup, Stripe reconciliation, grace period checks, booking expiry, duplicate cleanup, guest pass resets, stuck cancellation checks, member sync, unresolved Trackman checks, communication log sync, pending user cleanup, webhook event cleanup, and onboarding nudge emails.
+- **Stripe Terminal Integration**: In-person card reader support for membership signup. Terminal card payments automatically save the card via Stripe's `generated_card` mechanism for future subscription renewals.
 - **Stripe Product Catalog as Source of Truth**: Two-way sync between app and Stripe.
 - **Google Sheets Integration**: Announcement sync.
 - **Staff Training System**: Training sections managed via `server/routes/training.ts` with seed data.
-- **Tours Management**: Native tour scheduling at /tour with Google Calendar integration. 2-step booking flow (visitor info → date/time picker), server-side conflict detection, configurable business hours (10am–5pm) and slot duration (30 min). Confirmation emails via Resend. Public endpoint, no auth required.
+- **Tours Management**: Native tour scheduling at /tour with Google Calendar integration. 2-step booking flow, server-side conflict detection, configurable business hours and slot duration. Confirmation emails via Resend. Public endpoint, no auth required.
 - **Cafe/POS System**: Cafe item management, POS register for in-person sales.
 - **Guest Pass System**: Monthly guest pass allocation, guest pass purchase, hold/consume flow.
 - **Availability/Closures Management**: Bay availability blocks and club closure scheduling.
 - **Job Queue**: Background job processing.
 - **HubSpot Queue**: Queued sync operations to HubSpot, runs every 2 minutes.
 - **User Merge**: Duplicate member merging.
-- **Staff = VIP Rule**: All staff/admin/golf_instructor users are automatically treated as VIP members. Auth enforces `tier='VIP'` and `membership_status='active'` on every login. Booking fee service has a safety net that checks `staff_users` table and applies $0 fees. Roster UI shows "Staff" badge (display label) while database stores "VIP" (benefits tier) — intentional dual representation. `BookingMember.isStaff` flag is the explicit source of truth for staff detection.
+- **Staff = VIP Rule**: All staff/admin/golf_instructor users are automatically treated as VIP members. Auth enforces `tier='VIP'` and `membership_status='active'` on every login. Booking fee service applies $0 fees. Roster UI shows "Staff" badge. `BookingMember.isStaff` flag is the explicit source of truth for staff detection.
 
 ## External Dependencies
 - **Stripe**: Payment collection, subscription management, webhooks, terminal/POS, product catalog sync, dynamic pricing.
 - **Resend**: Email-based OTP verification, automated alerts, transactional emails.
-- **HubSpot CRM**: Contact and member management, two-way data sync, deal pipeline, corporate membership sync. Form submissions use HubSpot Form Submission API with backend field filtering (only valid contact properties sent). Event/private-hire forms trigger HubSpot workflows for deal creation; app enriches those deals with structured event properties (event_date, event_time, event_type, expected_guest_count, event_services, additional_details). Events pipeline ID: 1447785156.
+- **HubSpot CRM**: Contact and member management, two-way data sync, deal pipeline, corporate membership sync. Form submissions use HubSpot Form Submission API.
 - **Google Calendar**: Integration for club calendars and booking sync.
 - **Google Sheets**: Announcement content sync.
 - **Supabase**: Realtime subscriptions, backend admin client, session token generation.

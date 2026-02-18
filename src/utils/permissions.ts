@@ -11,10 +11,6 @@ export function getBaseTier(tierName: string): BaseTier {
   return normalizeTierName(tierName);
 }
 
-export function isFoundingMember(_tierName: string, isFounding?: boolean): boolean {
-  return isFounding === true;
-}
-
 export function isVIPMember(tierName: string): boolean {
   if (!tierName) return false;
   return normalizeTierName(tierName) === 'VIP';
