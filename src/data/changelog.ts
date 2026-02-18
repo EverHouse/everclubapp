@@ -13,6 +13,21 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.70.0",
+    date: "2026-02-18",
+    title: "Discount Code Tracking & Directory Improvements",
+    isMajor: true,
+    changes: [
+      "Added: Discount Code field on member records — tracks which Stripe coupon each member has (e.g. Family Member, Military, Trial Promo)",
+      "Added: Discount filter on Member Directory — auto-populated from discount codes currently in use, updates dynamically as new codes are added",
+      "Fixed: Add New User discount dropdown now shows coupon names (e.g. 'Family Member Discount (20% off)') instead of just the percentage",
+      "Fixed: Discount selection when adding a new member now saves the coupon name to their member record",
+      "Removed: Legacy tag badges (Founding Member, Investor, Referral) from Directory, Dashboard, and Member Profile — replaced by the more useful Discount filter",
+      "Added: Backfill tool for staff to populate discount codes for existing members from their Stripe subscriptions",
+      "Improved: Member sync from HubSpot now captures the discount reason field and saves it as the member's discount code",
+    ]
+  },
+  {
     version: "7.69.0",
     date: "2026-02-18",
     title: "Directory Filter Redesign — Operational Filters",

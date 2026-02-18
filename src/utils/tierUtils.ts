@@ -38,10 +38,6 @@ export function getTierColor(tier: string): TierColor {
   return TIER_COLORS[baseTier] || TIER_COLORS.Social;
 }
 
-export function getTagColor(tag: string): TierColor {
-  return TAG_COLORS[tag] || TAG_COLORS.default;
-}
-
 export function getDisplayTier(tierString: string): BaseTier {
   const { tier } = parseTierString(tierString);
   return tier;
