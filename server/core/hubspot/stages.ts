@@ -239,25 +239,40 @@ export async function syncMemberToHubSpot(
       updated.memberSince = true;
     }
 
-    if (input.stripeCustomerId) {
-      properties.stripe_customer_id = input.stripeCustomerId;
+    let isLiveStripe = true;
+    try {
+      const { getStripeEnvironmentInfo } = await import('../stripe/client');
+      const envInfo = await getStripeEnvironmentInfo();
+      isLiveStripe = envInfo.isLive;
+    } catch {
+      isLiveStripe = isProduction;
     }
-    if (input.stripeCreatedDate) {
-      const date = input.stripeCreatedDate instanceof Date ? input.stripeCreatedDate : new Date(input.stripeCreatedDate);
-      const midnightUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-      properties.stripe_created_date = midnightUtc.getTime().toString();
-    }
-    if (input.stripeDelinquent !== undefined) {
-      properties.stripe_delinquent = input.stripeDelinquent ? 'true' : 'false';
-    }
-    if (input.stripeDiscountId) {
-      properties.stripe_discount_id = input.stripeDiscountId;
-    }
-    if (input.stripePricingInterval) {
-      properties.stripe_pricing_interval_of_last_active_subscription = input.stripePricingInterval;
-    }
-    if (Object.keys(properties).some(k => k.startsWith('stripe_'))) {
-      updated.stripeFields = true;
+
+    if (isLiveStripe) {
+      if (input.stripeCustomerId) {
+        properties.stripe_customer_id = input.stripeCustomerId;
+      }
+      if (input.stripeCreatedDate) {
+        const date = input.stripeCreatedDate instanceof Date ? input.stripeCreatedDate : new Date(input.stripeCreatedDate);
+        const midnightUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        properties.stripe_created_date = midnightUtc.getTime().toString();
+      }
+      if (input.stripeDelinquent !== undefined) {
+        properties.stripe_delinquent = input.stripeDelinquent ? 'true' : 'false';
+      }
+      if (input.stripeDiscountId) {
+        properties.stripe_discount_id = input.stripeDiscountId;
+      }
+      if (input.stripePricingInterval) {
+        properties.stripe_pricing_interval_of_last_active_subscription = input.stripePricingInterval;
+      }
+      if (Object.keys(properties).some(k => k.startsWith('stripe_'))) {
+        updated.stripeFields = true;
+      }
+    } else {
+      if (input.stripeCustomerId || input.stripeCreatedDate || input.stripeDelinquent !== undefined || input.stripeDiscountId || input.stripePricingInterval) {
+        console.log(`[HubSpot Sync] Skipping Stripe field push for ${email} — sandbox/test Stripe environment detected`);
+      }
     }
 
     if (input.billingGroupRole) {
