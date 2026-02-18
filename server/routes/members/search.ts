@@ -223,6 +223,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
       billingProvider: users.billingProvider,
       stripeCurrentPeriodEnd: users.stripeCurrentPeriodEnd,
       firstLoginAt: users.firstLoginAt,
+      billingGroupId: users.billingGroupId,
     })
       .from(users)
       .where(whereClause)
@@ -414,6 +415,7 @@ router.get('/api/members/directory', isStaffOrAdmin, async (req, res) => {
         billingProvider: member.billingProvider,
         nextPaymentDate: member.stripeCurrentPeriodEnd || null,
         firstLoginAt: member.firstLoginAt || null,
+        billingGroupId: member.billingGroupId || null,
       };
     });
     

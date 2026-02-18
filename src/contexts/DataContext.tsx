@@ -402,7 +402,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             stripeCustomerId: contact.stripeCustomerId || null,
             hubspotId: contact.hubspotId || null,
             manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-            billingProvider: contact.billingProvider || contact.billing_provider || null
+            billingProvider: contact.billingProvider || contact.billing_provider || null,
+            membershipStatus: contact.membershipStatus || null,
+            firstLoginAt: contact.firstLoginAt || null,
+            lastTier: contact.lastTier || null,
+            billingGroupId: contact.billingGroupId || null
           }));
           setMembers(formatted);
           initialMembersFetchedRef.current = true;
@@ -467,7 +471,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           stripeCustomerId: contact.stripeCustomerId || null,
           hubspotId: contact.hubspotId || null,
           manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-          billingProvider: contact.billingProvider || contact.billing_provider || null
+          billingProvider: contact.billingProvider || contact.billing_provider || null,
+          membershipStatus: contact.membershipStatus || null,
+          firstLoginAt: contact.firstLoginAt || null,
+          lastTier: contact.lastTier || null,
+          billingGroupId: contact.billingGroupId || null
         }));
         setFormerMembers(formatted);
         formerMembersFetched.current = true;
@@ -508,7 +516,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           stripeCustomerId: contact.stripeCustomerId || null,
           hubspotId: contact.hubspotId || null,
           manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-          billingProvider: contact.billingProvider || contact.billing_provider || null
+          billingProvider: contact.billingProvider || contact.billing_provider || null,
+          membershipStatus: contact.membershipStatus || null,
+          firstLoginAt: contact.firstLoginAt || null,
+          lastTier: contact.lastTier || null,
+          billingGroupId: contact.billingGroupId || null
         }));
         setMembers(formatted);
         formerMembersFetched.current = false;
@@ -565,7 +577,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
           stripeCustomerId: contact.stripeCustomerId || null,
           hubspotId: contact.hubspotId || null,
           manuallyLinkedEmails: contact.manuallyLinkedEmails || [],
-          billingProvider: contact.billingProvider || contact.billing_provider || null
+          billingProvider: contact.billingProvider || contact.billing_provider || null,
+          membershipStatus: contact.membershipStatus || null,
+          firstLoginAt: contact.firstLoginAt || null,
+          lastTier: contact.lastTier || null,
+          billingGroupId: contact.billingGroupId || null
         }));
         
         // Update pagination info
