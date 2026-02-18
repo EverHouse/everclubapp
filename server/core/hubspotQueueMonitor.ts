@@ -37,10 +37,10 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
 
   const row = statsResult.rows[0] as Record<string, unknown>;
   const stats: HubSpotQueueStats = {
-    pending: row?.pending || 0,
-    failed: row?.failed || 0,
-    completed_24h: row?.completed_24h || 0,
-    processing: row?.processing || 0,
+    pending: Number(row?.pending) || 0,
+    failed: Number(row?.failed) || 0,
+    completed_24h: Number(row?.completed_24h) || 0,
+    processing: Number(row?.processing) || 0,
   };
 
   const failedResult = await db.execute(sql`
@@ -52,13 +52,13 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
   `);
 
   const recentFailed: FailedQueueItem[] = failedResult.rows.map((r: Record<string, unknown>) => ({
-    id: r.id,
-    operation: r.operation,
-    lastError: r.last_error,
-    createdAt: r.created_at?.toISOString?.() || r.created_at,
-    retryCount: r.retry_count,
-    maxRetries: r.max_retries,
-    nextRetryAt: r.next_retry_at?.toISOString?.() || r.next_retry_at,
+    id: r.id as number,
+    operation: r.operation as string,
+    lastError: r.last_error as string,
+    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
+    retryCount: Number(r.retry_count),
+    maxRetries: Number(r.max_retries),
+    nextRetryAt: r.next_retry_at instanceof Date ? r.next_retry_at.toISOString() : String(r.next_retry_at || ''),
   }));
 
   const avgResult = await db.execute(sql`
@@ -66,7 +66,7 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
     FROM hubspot_sync_queue
     WHERE status = 'completed' AND completed_at > NOW() - INTERVAL '24 hours'
   `);
-  const avgProcessingTime = (avgResult.rows[0] as Record<string, unknown>)?.avg_ms || 0;
+  const avgProcessingTime = Number((avgResult.rows[0] as Record<string, unknown>)?.avg_ms) || 0;
 
   const lagResult = await db.execute(sql`
     SELECT MIN(created_at) as oldest_pending FROM hubspot_sync_queue WHERE status = 'pending'
@@ -74,7 +74,7 @@ export async function getHubSpotQueueMonitorData(): Promise<HubSpotQueueMonitorD
   const oldestPending = (lagResult.rows[0] as Record<string, unknown>)?.oldest_pending;
   let queueLag = 'No pending items';
   if (oldestPending) {
-    const lagMs = Date.now() - new Date(oldestPending).getTime();
+    const lagMs = Date.now() - new Date(oldestPending as string).getTime();
     if (lagMs < 60000) queueLag = `${Math.round(lagMs / 1000)}s`;
     else if (lagMs < 3600000) queueLag = `${Math.round(lagMs / 60000)}m`;
     else queueLag = `${Math.round(lagMs / 3600000)}h`;

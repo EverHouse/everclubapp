@@ -9,13 +9,13 @@ export async function getHubSpotAccessToken() {
   const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
   
   if (hubspotConnectionSettings) {
-    const expiresAt = hubspotConnectionSettings.settings?.expires_at || 
-                      hubspotConnectionSettings.settings?.oauth?.credentials?.expires_at;
-    const cachedToken = hubspotConnectionSettings.settings?.access_token || 
-                        hubspotConnectionSettings.settings?.oauth?.credentials?.access_token;
+    const hsSettings = hubspotConnectionSettings.settings as Record<string, unknown> | undefined;
+    const hsOauth = (hsSettings?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+    const expiresAt = hsSettings?.expires_at || hsOauth?.expires_at;
+    const cachedToken = hsSettings?.access_token || hsOauth?.access_token;
     
-    if (expiresAt && cachedToken && new Date(expiresAt).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
-      return cachedToken;
+    if (expiresAt && cachedToken && new Date(expiresAt as string).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      return cachedToken as string;
     }
   }
   
@@ -66,7 +66,9 @@ export async function getHubSpotAccessToken() {
     throw new Error('HubSpot connection found but not authenticated - please reconnect in Integrations panel');
   }
   
-  const accessToken = hubspotConnectionSettings.settings?.access_token || hubspotConnectionSettings.settings?.oauth?.credentials?.access_token;
+  const hsSettings2 = hubspotConnectionSettings.settings as Record<string, unknown> | undefined;
+  const hsOauth2 = (hsSettings2?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+  const accessToken = hsSettings2?.access_token || hsOauth2?.access_token;
 
   if (!accessToken) {
     throw new Error('HubSpot not connected - no access token found');
@@ -101,13 +103,13 @@ async function getGoogleCalendarAccessToken() {
   const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
   
   if (googleCalendarConnectionSettings) {
-    const expiresAt = googleCalendarConnectionSettings.settings?.expires_at || 
-                      googleCalendarConnectionSettings.settings?.oauth?.credentials?.expires_at;
-    const cachedToken = googleCalendarConnectionSettings.settings?.access_token || 
-                        googleCalendarConnectionSettings.settings?.oauth?.credentials?.access_token;
+    const gcSettings = googleCalendarConnectionSettings.settings as Record<string, unknown> | undefined;
+    const gcOauth = (gcSettings?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+    const expiresAt = gcSettings?.expires_at || gcOauth?.expires_at;
+    const cachedToken = gcSettings?.access_token || gcOauth?.access_token;
     
-    if (expiresAt && cachedToken && new Date(expiresAt).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
-      return cachedToken;
+    if (expiresAt && cachedToken && new Date(expiresAt as string).getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      return cachedToken as string;
     }
   }
   
@@ -133,7 +135,9 @@ async function getGoogleCalendarAccessToken() {
     }
   ).then(res => res.json()).then((data: Record<string, unknown>) => (data.items as Record<string, unknown>[] | undefined)?.[0] ?? null);
 
-  const accessToken = googleCalendarConnectionSettings?.settings?.access_token || googleCalendarConnectionSettings.settings?.oauth?.credentials?.access_token;
+  const gcSettings2 = googleCalendarConnectionSettings?.settings as Record<string, unknown> | undefined;
+  const gcOauth2 = (gcSettings2?.oauth as Record<string, unknown>)?.credentials as Record<string, unknown> | undefined;
+  const accessToken = gcSettings2?.access_token || gcOauth2?.access_token;
 
   if (!googleCalendarConnectionSettings || !accessToken) {
     throw new Error('Google Calendar not connected');

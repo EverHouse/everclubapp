@@ -29,7 +29,7 @@ interface LogContext {
   query?: Record<string, any>;
   duration?: number;
   statusCode?: number;
-  error?: Error | string;
+  error?: unknown;
   stack?: string;
   extra?: Record<string, any>;
   bookingId?: number;
@@ -165,12 +165,12 @@ export function logAndRespond(
   code?: string
 ) {
   const err = error instanceof Error ? error : new Error(String(error));
-  const errAny = error as any;
+  const errObj = (error && typeof error === 'object') ? error as Record<string, unknown> : {};
   
-  const dbErrorCode = errAny?.code;
-  const dbErrorDetail = errAny?.detail;
-  const dbErrorTable = errAny?.table;
-  const dbErrorConstraint = errAny?.constraint;
+  const dbErrorCode = typeof errObj.code === 'string' ? errObj.code : undefined;
+  const dbErrorDetail = typeof errObj.detail === 'string' ? errObj.detail : undefined;
+  const dbErrorTable = typeof errObj.table === 'string' ? errObj.table : undefined;
+  const dbErrorConstraint = typeof errObj.constraint === 'string' ? errObj.constraint : undefined;
   
   logger.error(`[API Error] ${message}`, {
     requestId: req.requestId,

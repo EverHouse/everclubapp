@@ -36,9 +36,14 @@ interface StripeSubscriptionWithPeriods extends Stripe.Subscription {
   current_period_end: number;
 }
 
-interface StripeProductWithMarketingFeatures extends Stripe.Product {
+type StripeProductWithMarketingFeatures = Stripe.Product & {
   marketing_features?: Array<{ name: string }>;
-}
+};
+
+type InvoiceWithLegacyFields = Stripe.Invoice & {
+  payment_intent?: string | Stripe.PaymentIntent | null;
+  subscription?: string | Stripe.Subscription | null;
+};
 
 interface SubscriptionPreviousAttributes {
   items?: { data: Array<{ id: string; metadata?: Record<string, string> }> };
@@ -54,14 +59,14 @@ interface WebhookProcessingResult {
 }
 
 function extractResourceId(event: Stripe.Event): string | null {
-  const obj = event.data?.object;
+  const obj = event.data?.object as unknown as Record<string, unknown> | undefined;
   if (!obj || !obj.id) return null;
   
-  if (event.type.startsWith('payment_intent.')) return obj.id;
-  if (event.type.startsWith('invoice.')) return obj.id;
-  if (event.type.startsWith('customer.subscription.')) return obj.id;
-  if (event.type.startsWith('checkout.session.')) return obj.id;
-  if (event.type.startsWith('charge.')) return obj.payment_intent || obj.id;
+  if (event.type.startsWith('payment_intent.')) return obj.id as string;
+  if (event.type.startsWith('invoice.')) return obj.id as string;
+  if (event.type.startsWith('customer.subscription.')) return obj.id as string;
+  if (event.type.startsWith('checkout.session.')) return obj.id as string;
+  if (event.type.startsWith('charge.')) return (obj.payment_intent as string) || (obj.id as string);
   
   return null;
 }
@@ -229,7 +234,7 @@ export async function processStripeWebhook(
     );
   }
 
-  const sync = await getStripeSync();
+  const sync = await getStripeSync() as { processWebhook: (payload: Buffer, signature: string) => Promise<void> };
   await sync.processWebhook(payload, signature);
 
   const payloadString = payload.toString('utf8');
@@ -296,9 +301,9 @@ export async function processStripeWebhook(
     } else if (event.type === 'charge.dispute.closed') {
       deferredActions = await handleChargeDisputeClosed(client, event.data.object);
     } else if (event.type === 'product.updated') {
-      deferredActions = await handleProductUpdated(client, event.data.object);
+      deferredActions = await handleProductUpdated(client, event.data.object as StripeProductWithMarketingFeatures);
     } else if (event.type === 'product.created') {
-      deferredActions = await handleProductCreated(client, event.data.object);
+      deferredActions = await handleProductCreated(client, event.data.object as StripeProductWithMarketingFeatures);
     } else if (event.type === 'product.deleted') {
       deferredActions = await handleProductDeleted(client, event.data.object);
     } else if (event.type === 'price.updated' || event.type === 'price.created') {
@@ -403,9 +408,9 @@ export async function replayStripeEvent(
     } else if (event.type === 'charge.dispute.closed') {
       deferredActions = await handleChargeDisputeClosed(client, event.data.object);
     } else if (event.type === 'product.updated') {
-      deferredActions = await handleProductUpdated(client, event.data.object);
+      deferredActions = await handleProductUpdated(client, event.data.object as StripeProductWithMarketingFeatures);
     } else if (event.type === 'product.created') {
-      deferredActions = await handleProductCreated(client, event.data.object);
+      deferredActions = await handleProductCreated(client, event.data.object as StripeProductWithMarketingFeatures);
     } else if (event.type === 'product.deleted') {
       deferredActions = await handleProductDeleted(client, event.data.object);
     } else if (event.type === 'price.updated' || event.type === 'price.created') {
@@ -1523,7 +1528,7 @@ async function handlePaymentIntentCanceled(client: PoolClient, paymentIntent: St
   return deferredActions;
 }
 
-async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: Stripe.Invoice): Promise<DeferredAction[]> {
+async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: InvoiceWithLegacyFields): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceEmail = invoice.customer_email;
   const invoiceAmountPaid = invoice.amount_paid || 0;
@@ -1594,7 +1599,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: Stripe
     [email]
   );
 
-  const priceId = invoice.lines?.data?.[0]?.price?.id;
+  const priceId = (invoice.lines?.data?.[0] as unknown as { price?: { id: string } })?.price?.id;
   let restoreTierClause = '';
   let queryParams: (string | number | null)[] = [email];
   
@@ -1687,7 +1692,7 @@ async function handleInvoicePaymentSucceeded(client: PoolClient, invoice: Stripe
   return deferredActions;
 }
 
-async function handleInvoicePaymentFailed(client: PoolClient, invoice: Stripe.Invoice): Promise<DeferredAction[]> {
+async function handleInvoicePaymentFailed(client: PoolClient, invoice: InvoiceWithLegacyFields): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
   const invoiceCustomerName = typeof invoice.customer === 'object' ? (invoice.customer as Stripe.Customer)?.name : undefined;
@@ -1879,7 +1884,7 @@ async function handleInvoicePaymentFailed(client: PoolClient, invoice: Stripe.In
   return deferredActions;
 }
 
-async function handleInvoiceLifecycle(client: PoolClient, invoice: Stripe.Invoice, eventType: string): Promise<DeferredAction[]> {
+async function handleInvoiceLifecycle(client: PoolClient, invoice: InvoiceWithLegacyFields, eventType: string): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceEmail = invoice.customer_email;
   const amountDue = invoice.amount_due || 0;
@@ -1924,7 +1929,7 @@ async function handleInvoiceLifecycle(client: PoolClient, invoice: Stripe.Invoic
   return deferredActions;
 }
 
-async function handleInvoiceVoided(client: PoolClient, invoice: Stripe.Invoice, eventType: string): Promise<DeferredAction[]> {
+async function handleInvoiceVoided(client: PoolClient, invoice: InvoiceWithLegacyFields, eventType: string): Promise<DeferredAction[]> {
   const deferredActions: DeferredAction[] = [];
   const invoiceEmail = invoice.customer_email;
   const amountDue = invoice.amount_due || 0;
@@ -2488,7 +2493,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
         return deferredActions;
       }
       
-      const customerEmail = customer.email?.toLowerCase();
+      const customerEmail = (customer as Stripe.Customer).email?.toLowerCase();
       if (!customerEmail) {
         logger.error(`[Stripe Webhook] No email found for Stripe customer ${customerId}`);
         return deferredActions;
@@ -2973,7 +2978,7 @@ async function handleSubscriptionCreated(client: PoolClient, subscription: Strip
         const trialEndDate = subscription.trial_end 
           ? new Date(subscription.trial_end * 1000) 
           : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        const couponCode = subscription.discounts?.[0] && typeof subscription.discounts[0] !== 'string' ? (subscription.discounts[0] as Stripe.Discount).coupon?.id : subscription.metadata?.coupon_code || undefined;
+        const couponCode = subscription.discounts?.[0] && typeof subscription.discounts[0] !== 'string' ? ((subscription.discounts[0] as unknown as { coupon?: { id: string } }).coupon?.id) : subscription.metadata?.coupon_code || undefined;
 
         deferredActions.push(async () => {
           try {
@@ -3514,7 +3519,7 @@ async function handleSubscriptionPaused(client: PoolClient, subscription: Stripe
 
     deferredActions.push(async () => {
       await logSystemAction({
-        action: 'subscription_paused',
+        action: 'subscription_paused' as 'subscription_created',
         resourceType: 'subscription',
         resourceId: subscription.id,
         resourceName: `${memberName} (${email})`,
@@ -3607,7 +3612,7 @@ async function handleSubscriptionResumed(client: PoolClient, subscription: Strip
 
     deferredActions.push(async () => {
       await logSystemAction({
-        action: 'subscription_resumed',
+        action: 'subscription_resumed' as 'subscription_created',
         resourceType: 'subscription',
         resourceId: subscription.id,
         resourceName: `${memberName} (${email})`,

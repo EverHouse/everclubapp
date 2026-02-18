@@ -1353,13 +1353,14 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
         
         // Filter to recent calls only
         const recentCalls = response.results.filter((call: Record<string, unknown>) => {
-          const timestamp = call.properties?.hs_timestamp;
+          const callProps = call.properties as Record<string, unknown> | undefined;
+          const timestamp = callProps?.hs_timestamp as string | undefined;
           if (!timestamp) return false;
           return new Date(timestamp) >= ninetyDaysAgo;
         });
         
-        allCalls = allCalls.concat(recentCalls);
-        after = response.paging?.next?.after;
+        allCalls = allCalls.concat(recentCalls as Record<string, unknown>[]);
+        after = (response as unknown as { paging?: { next?: { after?: string } } }).paging?.next?.after;
         
         // Rate limiting: pause between pages
         await delay(200);
@@ -1387,8 +1388,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
         batch.map(call =>
           callLimit(async () => {
             try {
-              const callId = call.id;
-              const props = call.properties || {};
+              const callId = call.id as string;
+              const props = (call.properties || {}) as Record<string, unknown>;
               
               // Check if this call already exists
               const existingLog = await db.select({ id: communicationLogs.id })
@@ -1435,15 +1436,15 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               const direction = props.hs_call_direction === 'INBOUND' ? 'inbound' : 'outbound';
               
               // Parse timestamp
-              const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp) : new Date();
+              const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp as string) : new Date();
               
               // Build call body/subject
-              const subject = props.hs_call_title || 
+              const subject = (props.hs_call_title as string) || 
                 `${direction === 'inbound' ? 'Inbound' : 'Outbound'} Call`;
               
-              let body = props.hs_call_body || '';
+              let body = (props.hs_call_body as string) || '';
               if (props.hs_call_duration) {
-                const durationSecs = parseInt(props.hs_call_duration);
+                const durationSecs = parseInt(props.hs_call_duration as string);
                 const mins = Math.floor(durationSecs / 60);
                 const secs = durationSecs % 60;
                 body = `Duration: ${mins}m ${secs}s\n${body}`.trim();
@@ -1514,10 +1515,10 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           
           // Filter to SMS/text messages and recent ones
           const recentComms = (data.results || []).filter((comm: Record<string, unknown>) => {
-            const channelType = comm.properties?.hs_communication_channel_type;
-            const timestamp = comm.properties?.hs_timestamp;
+            const commProps = comm.properties as Record<string, unknown> | undefined;
+            const channelType = commProps?.hs_communication_channel_type;
+            const timestamp = commProps?.hs_timestamp as string | undefined;
             if (!timestamp) return false;
-            // Filter to SMS/WhatsApp type communications
             return (channelType === 'SMS' || channelType === 'WHATS_APP') &&
                    new Date(timestamp) >= ninetyDaysAgo;
           });
@@ -1544,8 +1545,8 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       // Process SMS communications
       for (const comm of allComms) {
         try {
-          const commId = comm.id;
-          const props = comm.properties || {};
+          const commId = comm.id as string;
+          const props = (comm.properties || {}) as Record<string, unknown>;
           
           // Check if already synced
           const existingSms = await db.select({ id: communicationLogs.id })
@@ -1583,7 +1584,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           
           if (!memberEmail) continue;
           
-          const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp) : new Date();
+          const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp as string) : new Date();
           const channelType = props.hs_communication_channel_type === 'WHATS_APP' ? 'whatsapp' : 'sms';
           
           await db.insert(communicationLogs).values({
@@ -1591,7 +1592,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
             type: channelType,
             direction: 'outbound', // Default to outbound for synced SMS
             subject: `${channelType.toUpperCase()} Message`,
-            body: props.hs_communication_body || null,
+            body: (props.hs_communication_body as string) || null,
             status: 'sent',
             hubspotEngagementId: `sms_${commId}`,
             hubspotSyncedAt: new Date(),

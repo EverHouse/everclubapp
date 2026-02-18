@@ -57,7 +57,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
     });
     
     const invoice = subscription.latest_invoice as Stripe.Invoice;
-    let paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent | null;
+    let paymentIntent = (invoice as Record<string, unknown>)?.payment_intent as Stripe.PaymentIntent | null;
     const pendingSetupIntent = subscription.pending_setup_intent as Stripe.SetupIntent | null;
     
     logger.info(`[Stripe Subscriptions] Created subscription ${subscription.id} for customer ${customerId}`);
@@ -122,7 +122,7 @@ export async function createSubscription(params: CreateSubscriptionParams): Prom
       subscription: {
         subscriptionId: subscription.id,
         status: subscription.status,
-        currentPeriodEnd: new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000),
+        currentPeriodEnd: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_end * 1000),
         clientSecret: clientSecret || undefined,
       },
     };
@@ -226,8 +226,8 @@ export async function listCustomerSubscriptions(customerId: string): Promise<{
           (productRef && isExpandedProduct(productRef) ? productRef.name : '');
         
         let pendingUpdate: { newPriceId: string; newProductName: string; effectiveAt: Date } | null = null;
-        if (sub.pending_update?.subscription_items && sub.pending_update.subscription_items.data.length > 0) {
-          const pendingItem = sub.pending_update.subscription_items.data[0];
+        if (sub.pending_update?.subscription_items && (sub.pending_update.subscription_items as unknown as { data: Stripe.SubscriptionItem[] }).data.length > 0) {
+          const pendingItem = (sub.pending_update.subscription_items as unknown as { data: Stripe.SubscriptionItem[] }).data[0];
           const pendingPriceRef = pendingItem?.price;
           const pendingPriceId = typeof pendingPriceRef === 'string' 
             ? pendingPriceRef 
@@ -326,8 +326,8 @@ export async function getSubscription(subscriptionId: string): Promise<{
         priceId: price?.id || '',
         productId: product?.id || '',
         productName: product?.name || '',
-        currentPeriodStart: new Date((subscription as StripeSubscriptionWithPeriods).current_period_start * 1000),
-        currentPeriodEnd: new Date((subscription as StripeSubscriptionWithPeriods).current_period_end * 1000),
+        currentPeriodStart: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_start * 1000),
+        currentPeriodEnd: new Date((subscription as unknown as StripeSubscriptionWithPeriods).current_period_end * 1000),
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
       },
@@ -406,7 +406,7 @@ export async function changeSubscriptionTier(
     if (!defaultPaymentMethod) {
       const customer = await stripe.customers.retrieve(sub.customer as string) as Stripe.Customer | Stripe.DeletedCustomer;
       if (customer && !customer.deleted) {
-        const invoiceSettings = customer.invoice_settings;
+        const invoiceSettings = (customer as Stripe.Customer).invoice_settings;
         if (invoiceSettings?.default_payment_method) {
           defaultPaymentMethod = typeof invoiceSettings.default_payment_method === 'string'
             ? invoiceSettings.default_payment_method

@@ -11,9 +11,9 @@ import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 
 type TierRecord = typeof membershipTiers.$inferSelect;
 
-interface StripeProductWithMarketingFeatures extends Stripe.Product {
+type StripeProductWithMarketingFeatures = Stripe.Product & {
   marketing_features?: Array<{ name: string }>;
-}
+};
 
 interface StripePaginationParams {
   limit: number;
@@ -91,7 +91,7 @@ async function findExistingStripeProduct(
   productName: string,
   metadataKey?: string,
   metadataValue?: string
-): Promise<{ id: string; default_price?: string | null } | null> {
+): Promise<Stripe.Product | null> {
   try {
     // First try to find by metadata if provided
     if (metadataKey && metadataValue) {
@@ -1839,7 +1839,7 @@ export async function pullTierFeaturesFromStripe(): Promise<{
           continue;
         }
 
-        update.updatedAt = new Date();
+        (update as Record<string, unknown>).updatedAt = new Date();
 
         await db.update(membershipTiers)
           .set(update)

@@ -51,8 +51,9 @@ export async function syncPaymentToHubSpot(params: SyncPaymentParams): Promise<v
   let productName = description;
 
   if (productResult.rows.length > 0) {
-    productId = productResult.rows[0].hubspot_product_id;
-    productName = productResult.rows[0].product_name;
+    const row = productResult.rows[0] as Record<string, unknown>;
+    productId = row.hubspot_product_id as string;
+    productName = row.product_name as string;
   }
 
   try {
@@ -81,7 +82,7 @@ export async function syncPaymentToHubSpot(params: SyncPaymentParams): Promise<v
       lineItemId,
       'deals',
       hubspotDealId,
-      [{ associationCategory: 'HUBSPOT_DEFINED' as unknown as 'HUBSPOT_DEFINED', associationTypeId: 20 }]
+      [{ associationCategory: 'HUBSPOT_DEFINED' as 'HUBSPOT_DEFINED', associationTypeId: 20 }]
     );
 
     await db.insert(hubspotLineItems).values({
@@ -154,8 +155,9 @@ export async function syncDayPassToHubSpot(params: SyncDayPassParams): Promise<v
     let productName = `Day Pass - ${productSlug}`;
 
     if (productResult.rows.length > 0) {
-      productId = productResult.rows[0].hubspot_product_id;
-      productName = productResult.rows[0].product_name;
+      const row = productResult.rows[0] as Record<string, unknown>;
+      productId = row.hubspot_product_id as string;
+      productName = row.product_name as string;
     }
 
     try {
@@ -184,7 +186,7 @@ export async function syncDayPassToHubSpot(params: SyncDayPassParams): Promise<v
         lineItemId,
         'deals',
         hubspotDealId,
-        [{ associationCategory: 'HUBSPOT_DEFINED' as unknown as 'HUBSPOT_DEFINED', associationTypeId: 20 }]
+        [{ associationCategory: 'HUBSPOT_DEFINED' as 'HUBSPOT_DEFINED', associationTypeId: 20 }]
       );
 
       await db.insert(hubspotLineItems).values({

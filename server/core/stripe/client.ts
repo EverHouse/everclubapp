@@ -34,13 +34,14 @@ async function getCredentials() {
   
   connectionSettings = data.items?.[0];
 
-  if (!connectionSettings || (!connectionSettings.settings.publishable || !connectionSettings.settings.secret)) {
+  const settings = connectionSettings?.settings as Record<string, unknown> | undefined;
+  if (!connectionSettings || !settings || (!settings.publishable || !settings.secret)) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
   return {
-    publishableKey: connectionSettings.settings.publishable,
-    secretKey: connectionSettings.settings.secret,
+    publishableKey: settings.publishable as string,
+    secretKey: settings.secret as string,
   };
 }
 

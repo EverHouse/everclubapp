@@ -66,8 +66,8 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<{
         await stripe.invoiceItems.create({
           customer: customerId,
           invoice: invoice.id,
-          price: item.priceId,
-          quantity: item.quantity || 1,
+          price: item.priceId as string,
+          quantity: item.quantity ?? 1,
         });
       } else if (item.amountCents && item.description) {
         await stripe.invoiceItems.create({
@@ -396,14 +396,14 @@ export async function getCustomerPaymentHistory(customerId: string, limit = 50):
     
     return {
       success: true,
-      transactions: result.rows.map(row => ({
-        id: row.id,
-        type: row.type,
-        amountCents: parseInt(row.amount_cents),
-        currency: row.currency,
-        status: row.status,
-        description: row.description,
-        createdAt: new Date(row.created_at),
+      transactions: result.rows.map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        type: row.type as string,
+        amountCents: parseInt(String(row.amount_cents)),
+        currency: row.currency as string,
+        status: row.status as string,
+        description: row.description as string,
+        createdAt: new Date(row.created_at as string),
       })),
     };
   } catch (error: unknown) {

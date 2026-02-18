@@ -1,3 +1,4 @@
+import Stripe from 'stripe';
 import { getStripeClient } from './client';
 import { db } from '../../db';
 import { membershipTiers, users, memberNotes } from '../../../shared/schema';
@@ -89,7 +90,7 @@ export async function previewTierChange(
           newAmountCents: newPrice.unit_amount || 0,
           prorationAmountCents: 0,
           nextInvoiceAmountCents: newPrice.unit_amount || 0,
-          effectiveDate: new Date(sub.current_period_end * 1000),
+          effectiveDate: new Date((sub as Stripe.Subscription & { current_period_end: number }).current_period_end * 1000),
           isImmediate: false,
         }
       };

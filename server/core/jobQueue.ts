@@ -140,93 +140,93 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
   try {
     switch (jobType) {
       case 'send_payment_receipt':
-        await sendPaymentReceiptEmail(payload.to, { memberName: payload.memberName, amount: payload.amount, date: payload.date, description: payload.description, transactionId: payload.paymentMethod });
+        await sendPaymentReceiptEmail(payload.to as string, { memberName: payload.memberName as string, amount: payload.amount as string, date: payload.date as string, description: payload.description as string, transactionId: payload.paymentMethod as string });
         break;
       case 'send_payment_failed_email':
-        await sendPaymentFailedEmail(payload.to, { memberName: payload.memberName, amount: payload.amount, reason: payload.reason, updateCardUrl: payload.retryDate });
+        await sendPaymentFailedEmail(payload.to as string, { memberName: payload.memberName as string, amount: payload.amount as string, reason: payload.reason as string, updateCardUrl: payload.retryDate as string });
         break;
       case 'send_membership_renewal_email':
-        await sendMembershipRenewalEmail(payload.to, { memberName: payload.memberName, planName: payload.tier, nextBillingDate: payload.nextBillingDate, amount: payload.amount });
+        await sendMembershipRenewalEmail(payload.to as string, { memberName: payload.memberName as string, planName: payload.tier as string, nextBillingDate: payload.nextBillingDate as string, amount: payload.amount as string });
         break;
       case 'send_membership_failed_email':
-        await sendMembershipFailedEmail(payload.to, { memberName: payload.memberName, planName: payload.tier, reason: payload.reason, amount: payload.amount || 0 });
+        await sendMembershipFailedEmail(payload.to as string, { memberName: payload.memberName as string, planName: payload.tier as string, reason: payload.reason as string, amount: (payload.amount as string) || '0' });
         break;
       case 'send_pass_with_qr_email':
-        await sendPassWithQrEmail(payload.to, payload.passPurchase);
+        await sendPassWithQrEmail(payload.to as string, payload.passPurchase as Record<string, unknown>);
         break;
       case 'notify_payment_success':
-        await notifyPaymentSuccess(payload.userEmail, payload.amount, payload.description);
+        await notifyPaymentSuccess(payload.userEmail as string, payload.amount as string, payload.description as string);
         break;
       case 'notify_payment_failed':
-        await notifyPaymentFailed(payload.userEmail, payload.amount, payload.reason);
+        await notifyPaymentFailed(payload.userEmail as string, payload.amount as string, payload.reason as string);
         break;
       case 'notify_staff_payment_failed':
-        await notifyStaffPaymentFailed(payload.memberEmail, payload.memberName, payload.amount, payload.reason);
+        await notifyStaffPaymentFailed(payload.memberEmail as string, payload.memberName as string, payload.amount as string, payload.reason as string);
         break;
       case 'notify_member':
         await notifyMember({
-          userEmail: payload.userEmail,
-          title: payload.title,
-          message: payload.message,
-          type: payload.type,
-          relatedId: payload.relatedId,
-          relatedType: payload.relatedType,
+          userEmail: payload.userEmail as string,
+          title: payload.title as string,
+          message: payload.message as string,
+          type: payload.type as string,
+          relatedId: payload.relatedId as string,
+          relatedType: payload.relatedType as string,
         });
         break;
       case 'notify_all_staff':
-        await notifyAllStaff(payload.title, payload.message, payload.type, {
-          relatedId: payload.relatedId,
-          relatedType: payload.relatedType,
-          url: payload.actionUrl,
+        await notifyAllStaff(payload.title as string, payload.message as string, payload.type as string, {
+          relatedId: payload.relatedId as string,
+          relatedType: payload.relatedType as string,
+          url: payload.actionUrl as string,
         });
         break;
       case 'broadcast_billing_update':
-        broadcastBillingUpdate(payload);
+        broadcastBillingUpdate(payload as Record<string, string>);
         break;
       case 'broadcast_day_pass_update':
-        broadcastDayPassUpdate(payload);
+        broadcastDayPassUpdate(payload as Record<string, string>);
         break;
       case 'send_notification_to_user':
-        sendNotificationToUser(payload.userEmail, payload.notification);
+        sendNotificationToUser(payload.userEmail as string, payload.notification as Record<string, unknown>);
         break;
       case 'sync_to_hubspot':
-        await queuePaymentSyncToHubSpot(payload);
+        await queuePaymentSyncToHubSpot(payload as Record<string, string>);
         break;
       case 'sync_company_to_hubspot':
-        await syncCompanyToHubSpot(payload);
+        await syncCompanyToHubSpot(payload as Record<string, string>);
         break;
       case 'sync_day_pass_to_hubspot':
-        await queueDayPassSyncToHubSpot(payload);
+        await queueDayPassSyncToHubSpot(payload as Record<string, string>);
         break;
       case 'upsert_transaction_cache':
         const { upsertTransactionCache } = await import('./stripe/transactionCache');
-        await upsertTransactionCache(payload);
+        await upsertTransactionCache(payload as Record<string, string>);
         break;
       case 'stripe_credit_refund': {
         const { getStripeClient } = await import('./stripe/client');
         const stripeRefund = await getStripeClient();
         await stripeRefund.refunds.create({
-          payment_intent: payload.paymentIntentId,
-          amount: payload.amountCents,
+          payment_intent: payload.paymentIntentId as string,
+          amount: payload.amountCents as number,
           reason: 'requested_by_customer',
           metadata: {
             type: 'account_credit_applied',
-            originalPaymentIntent: payload.paymentIntentId,
-            email: payload.email
+            originalPaymentIntent: payload.paymentIntentId as string,
+            email: payload.email as string
           }
         }, {
           idempotencyKey: `credit_refund_${payload.paymentIntentId}_${payload.amountCents}`
         });
-        logger.info(`[JobQueue] Applied credit refund of $${(payload.amountCents / 100).toFixed(2)} for ${payload.email}`);
+        logger.info(`[JobQueue] Applied credit refund of $${(Number(payload.amountCents) / 100).toFixed(2)} for ${payload.email}`);
         break;
       }
       case 'stripe_credit_consume': {
         const { getStripeClient: getStripeForConsume } = await import('./stripe/client');
         const stripeConsume = await getStripeForConsume();
         await stripeConsume.customers.createBalanceTransaction(
-          payload.customerId,
+          payload.customerId as string,
           {
-            amount: payload.amountCents,
+            amount: payload.amountCents as number,
             currency: 'usd',
             description: `Account credit applied to payment ${payload.paymentIntentId}`,
           },
@@ -234,12 +234,12 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
             idempotencyKey: `credit_consume_${payload.paymentIntentId}_${payload.amountCents}`
           }
         );
-        logger.info(`[JobQueue] Consumed account credit of $${(payload.amountCents / 100).toFixed(2)} for ${payload.email}`);
+        logger.info(`[JobQueue] Consumed account credit of $${(Number(payload.amountCents) / 100).toFixed(2)} for ${payload.email}`);
         break;
       }
       case 'update_member_tier':
         const { processMemberTierUpdate } = await import('./memberTierUpdateProcessor');
-        await processMemberTierUpdate(payload);
+        await processMemberTierUpdate(payload as Record<string, string>);
         break;
       case 'generic_async_task':
         logger.info(`[JobQueue] Executing generic task: ${payload.description || 'no description'}`);

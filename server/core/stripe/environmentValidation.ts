@@ -32,7 +32,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       const results = await Promise.allSettled(
         batch.map(async (tier: Record<string, unknown>) => {
           try {
-            await stripe.products.retrieve(tier.stripe_product_id);
+            await stripe.products.retrieve(tier.stripe_product_id as string);
           } catch (error: unknown) {
             if (getErrorCode(error) === 'resource_missing') {
               const oldId = tier.stripe_product_id;
@@ -70,7 +70,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       const results = await Promise.allSettled(
         batch.map(async (item: Record<string, unknown>) => {
           try {
-            await stripe.products.retrieve(item.stripe_product_id);
+            await stripe.products.retrieve(item.stripe_product_id as string);
           } catch (error: unknown) {
             if (getErrorCode(error) === 'resource_missing') {
               await db.execute(
@@ -104,7 +104,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       const results = await Promise.allSettled(
         batch.map(async (user: Record<string, unknown>) => {
           try {
-            await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+            await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
           } catch (error: unknown) {
             if (getErrorCode(error) === 'resource_missing') {
               await db.execute(

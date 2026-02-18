@@ -223,9 +223,9 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
     const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
 
     if (forTerminal) {
-      const invoicePiId = typeof finalizedInvoice.payment_intent === 'string'
-        ? finalizedInvoice.payment_intent
-        : finalizedInvoice.payment_intent?.id;
+      const invoicePiId = typeof (finalizedInvoice as unknown as Stripe.Invoice & { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent === 'string'
+        ? (finalizedInvoice as unknown as { payment_intent: string }).payment_intent
+        : ((finalizedInvoice as unknown as { payment_intent: Stripe.PaymentIntent | null }).payment_intent)?.id;
       if (invoicePiId) {
         try {
           await stripe.paymentIntents.cancel(invoicePiId);
@@ -262,9 +262,10 @@ export async function createInvoiceWithLineItems(params: CreatePOSInvoiceParams)
       };
     }
 
-    const paymentIntentId = typeof finalizedInvoice.payment_intent === 'string'
-      ? finalizedInvoice.payment_intent
-      : (finalizedInvoice.payment_intent as Stripe.PaymentIntent | null)?.id;
+    const finalizedInvoiceData = finalizedInvoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null };
+    const paymentIntentId = typeof finalizedInvoiceData.payment_intent === 'string'
+      ? finalizedInvoiceData.payment_intent
+      : (finalizedInvoiceData.payment_intent as Stripe.PaymentIntent | null)?.id;
 
     if (!paymentIntentId) {
       throw new Error('Invoice finalization did not create a PaymentIntent');
@@ -457,7 +458,7 @@ export async function createBalanceAwarePayment(params: {
     if (customer.deleted) {
       throw new Error('Customer has been deleted');
     }
-    const customerBalance = customer.balance || 0;
+    const customerBalance = (customer as Stripe.Customer).balance || 0;
     // Available credit is the absolute value of a negative balance
     const availableCredit = customerBalance < 0 ? Math.abs(customerBalance) : 0;
 
