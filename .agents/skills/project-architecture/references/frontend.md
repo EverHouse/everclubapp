@@ -103,9 +103,9 @@ Staff/admin only:
 
 Sub-dirs: `drawers/`, `hooks/`, `modals/`, `sections/`.
 
-**Key modal**: `PlayerManagementModal.tsx` (formerly `TrackmanLinkModal.tsx`) — the SINGLE AUTHORITY for all roster edits.
+**Key component**: `UnifiedBookingSheet.tsx` + `useUnifiedBookingLogic.ts` — the SINGLE AUTHORITY for all roster edits.
 
-**DEPRECATED**: `CompleteRosterModal.tsx` — replaced by Unified Player Modal.
+**DEPRECATED**: `CompleteRosterModal.tsx`, `PlayerManagementModal.tsx` — replaced by Unified Booking Sheet.
 
 **Modals** (`modals/`):
 - `UnifiedBookingSheet.tsx` — Unified booking management sheet

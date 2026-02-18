@@ -84,19 +84,27 @@ NEVER write migration files manually — use `npm run db:push`. Schema changes g
 
 ---
 
-## Unified Player Modal Architecture
+## Unified Booking Sheet Architecture
 
 **CRITICAL ARCHITECTURAL STANDARD — Established February 2026**
 
-The **Unified Player Modal** (`PlayerManagementModal.tsx`, formerly `TrackmanLinkModal.tsx`) in `src/components/staff-command-center/modals/` is the **SINGLE AUTHORITY** for all player, roster, owner, and guest management on bookings.
+The **Unified Booking Sheet** (`UnifiedBookingSheet.tsx` + `useUnifiedBookingLogic.ts`) in `src/components/staff-command-center/modals/` is the **SINGLE AUTHORITY** for all player, roster, owner, and guest management on bookings.
 
-**The Rule:** If the user asks to edit players, guests, or owners, ALWAYS route to the Unified Player Modal. Do not create inline editors, separate roster popups, or new modals for player management.
+**The Rule:** If the user asks to edit players, guests, or owners, ALWAYS route to the Unified Booking Sheet. Do not create inline editors, separate roster popups, or new modals for player management.
 
 **Two Modes:**
 - **Mode A (Assign Players):** For unlinked/new bookings — search and assign owner + players, then "Assign & Confirm"
 - **Mode B (Manage Players):** For existing bookings — pre-fills roster from `/api/admin/booking/:id/members`, allows editing, then "Save Changes"
 
-**Features absorbed into this single modal:**
+**Sub-components:**
+- `SheetHeader.tsx` — Header with booking info
+- `AssignModeFooter.tsx` — Assign mode footer actions
+- `ManageModeRoster.tsx` — Manage mode roster display
+- `PaymentSection.tsx` — Inline payment collection
+- `CheckinBillingModal.tsx` — Check-in billing flow
+- `CheckInConfirmationModal.tsx` — Check-in confirmation
+
+**Features absorbed into this single component:**
 - Owner assignment (slot 1, required), player slot management (slots 2-4)
 - Guest placeholder creation and named guest forms
 - Member search and reassignment
@@ -107,9 +115,10 @@ The **Unified Player Modal** (`PlayerManagementModal.tsx`, formerly `TrackmanLin
 
 **DEPRECATED components (do NOT use or extend):**
 - `src/components/admin/BookingMembersEditor.tsx` — replaced by Mode B
+- `PlayerManagementModal.tsx` — replaced by UnifiedBookingSheet
 - `src/components/staff-command-center/modals/CompleteRosterModal.tsx` — replaced by Mode B with check-in context
 
-**All triggers route to the Unified Player Modal:**
+**All triggers route to the Unified Booking Sheet:**
 - Owner edit pencil icon → Mode B
 - "Manage Players" button → Mode B
 - Player count edit click → Mode B
