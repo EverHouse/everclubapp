@@ -196,7 +196,7 @@ const DirectoryTab: React.FC = () => {
     const [tierFilter, setTierFilter] = useState<string>('All');
     const [statusFilter, setStatusFilter] = useState<string>('All');
     const [membershipStatusFilter, setMembershipStatusFilter] = useState<string>('All');
-    const [appUsageFilter, setAppUsageFilter] = useState<'All' | 'Never Logged In'>('All');
+    const [appUsageFilter, setAppUsageFilter] = useState<'All' | 'Logged In' | 'Never Logged In'>('All');
     const [billingFilter, setBillingFilter] = useState<BillingFilter>('All');
     const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
     const [isViewingDetails, setIsViewingDetails] = useState(false);
@@ -591,30 +591,6 @@ const DirectoryTab: React.FC = () => {
         return currentMembers.filter(m => m && (!m.role || m.role === 'member'));
     }, [currentMembers]);
 
-    const allStatuses = useMemo(() => {
-        const statusSet = new Set<string>();
-        if (Array.isArray(formerMembers)) {
-            formerMembers.forEach(m => {
-                if (m?.membershipStatus && typeof m.membershipStatus === 'string' && m.membershipStatus.toLowerCase() !== 'active') {
-                    statusSet.add(m.membershipStatus);
-                }
-            });
-        }
-        return Array.from(statusSet).sort();
-    }, [formerMembers]);
-
-    const allMembershipStatuses = useMemo(() => {
-        const statusSet = new Set<string>();
-        if (memberTab === 'active' && Array.isArray(regularMembers)) {
-            regularMembers.forEach(m => {
-                if (m?.membershipStatus && typeof m.membershipStatus === 'string') {
-                    statusSet.add(m.membershipStatus);
-                }
-            });
-        }
-        return Array.from(statusSet).sort();
-    }, [regularMembers, memberTab]);
-
     const sortedVisitors = useMemo(() => {
         const sorted = [...visitors];
         sorted.sort((a, b) => {
@@ -698,6 +674,10 @@ const DirectoryTab: React.FC = () => {
         
         if (tierFilter !== 'All' && !showMissingTierOnly) {
             filtered = filtered.filter(m => {
+                if (memberTab === 'former') {
+                    const lastTier = m.lastTier || '';
+                    return lastTier === tierFilter || lastTier.includes(tierFilter);
+                }
                 const tier = m.tier || '';
                 return tier === tierFilter || tier.includes(tierFilter);
             });
@@ -705,6 +685,9 @@ const DirectoryTab: React.FC = () => {
         
         if (memberTab === 'active' && appUsageFilter === 'Never Logged In') {
             filtered = filtered.filter(m => !m.firstLoginAt);
+        }
+        if (memberTab === 'active' && appUsageFilter === 'Logged In') {
+            filtered = filtered.filter(m => !!m.firstLoginAt);
         }
         
         if (billingFilter !== 'All') {
@@ -985,7 +968,7 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
-                {memberTab === 'active' && allMembershipStatuses.length > 0 && (
+                {memberTab === 'active' && (
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
                         <button
@@ -998,7 +981,7 @@ const DirectoryTab: React.FC = () => {
                         >
                             All
                         </button>
-                        {allMembershipStatuses.map(status => (
+                        {(['active', 'trialing', 'past_due', 'grace_period', 'paused', 'pending'] as const).map(status => (
                             <button
                                 key={status}
                                 onClick={() => setMembershipStatusFilter(status)}
@@ -1017,7 +1000,7 @@ const DirectoryTab: React.FC = () => {
                 {memberTab === 'active' && (
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">App:</span>
-                        {(['All', 'Never Logged In'] as const).map(option => (
+                        {(['All', 'Logged In', 'Never Logged In'] as const).map(option => (
                             <button
                                 key={option}
                                 onClick={() => setAppUsageFilter(option)}
@@ -1033,7 +1016,7 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
-                {memberTab === 'former' && allStatuses.length > 0 && (
+                {memberTab === 'former' && (
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
                         <button
@@ -1046,7 +1029,7 @@ const DirectoryTab: React.FC = () => {
                         >
                             All
                         </button>
-                        {allStatuses.map(status => (
+                        {(['terminated', 'expired', 'suspended', 'cancelled', 'frozen', 'inactive', 'former_member'] as const).map(status => (
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
@@ -1635,9 +1618,15 @@ const DirectoryTab: React.FC = () => {
                                             <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                     <div className="flex items-center gap-1">
-                                                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
-                                                        {isMemberPendingUpdate(m.email) && (
-                                                            <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                        {memberTab === 'former' ? (
+                                                            <TierBadge tier={m.lastTier || null} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
+                                                        ) : (
+                                                            <>
+                                                                <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
+                                                                {isMemberPendingUpdate(m.email) && (
+                                                                    <span className="material-symbols-outlined text-[14px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                                )}
+                                                            </>
                                                         )}
                                                     </div>
                                                     {m.membershipStatus && (
@@ -1686,15 +1675,12 @@ const DirectoryTab: React.FC = () => {
                         <div className="hidden md:block relative">
                             <div className="flex items-center bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/20">
                                 <SortableHeader field="name" label="Name" width="14%" />
-                                <SortableHeader field="tier" label="Tier" width={memberTab === 'former' ? '10%' : '12%'} />
-                                {memberTab === 'former' && (
-                                    <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '8%' }}>Last Tier</div>
-                                )}
+                                <SortableHeader field="tier" label={memberTab === 'former' ? 'Last Tier' : 'Tier'} width="12%" />
                                 <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '10%' }}>Status</div>
                                 <SortableHeader field="visits" label="Visits" width="7%" className="text-center" />
                                 <SortableHeader field="joinDate" label="Joined" width="9%" />
                                 <SortableHeader field="lastVisit" label="Last Visit" width="9%" />
-                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '20%' : '39%' }}>Email</div>
+                                <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: memberTab === 'former' ? '28%' : '39%' }}>Email</div>
                                 {memberTab === 'former' && (
                                     <div className="p-4 font-semibold text-gray-600 dark:text-gray-300 text-sm" style={{ width: '13%' }}>Reactivation</div>
                                 )}
@@ -1707,37 +1693,38 @@ const DirectoryTab: React.FC = () => {
                                         className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                     >
                                         <div style={{ width: '14%' }} className="p-4 font-medium text-primary dark:text-white truncate">{m.name}</div>
-                                        <div style={{ width: memberTab === 'former' ? '10%' : '12%' }} className="p-4">
-                                            <div className="flex items-center gap-1 flex-wrap">
+                                        <div style={{ width: '12%' }} className="p-4">
+                                            {memberTab === 'former' ? (
                                                 <div className="flex items-center gap-1">
-                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
-                                                    {isMemberPendingUpdate(m.email) && (
-                                                        <span className="material-symbols-outlined text-[12px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                    {m.lastTier ? (
+                                                        <TierBadge tier={m.lastTier} size="sm" />
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
                                                     )}
                                                 </div>
-                                                {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
-                                                    <TagBadge key={tag} tag={tag} size="sm" />
-                                                ))}
-                                                {isAdmin && memberTab === 'active' && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                        className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
-                                                    >
-                                                        <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
-                                                        Assign
-                                                    </button>
-                                                )}
-                                            </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                    <div className="flex items-center gap-1">
+                                                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} />
+                                                        {isMemberPendingUpdate(m.email) && (
+                                                            <span className="material-symbols-outlined text-[12px] text-primary dark:text-lavender animate-spin">progress_activity</span>
+                                                        )}
+                                                    </div>
+                                                    {m.tags?.filter((tag): tag is string => typeof tag === 'string').map(tag => (
+                                                        <TagBadge key={tag} tag={tag} size="sm" />
+                                                    ))}
+                                                    {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                                                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-200 active:scale-95"
+                                                        >
+                                                            <span aria-hidden="true" className="material-symbols-outlined text-[12px]">add_circle</span>
+                                                            Assign
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        {memberTab === 'former' && (
-                                            <div style={{ width: '8%' }} className="p-4">
-                                                {m.lastTier ? (
-                                                    <TierBadge tier={m.lastTier} size="sm" />
-                                                ) : (
-                                                    <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                                                )}
-                                            </div>
-                                        )}
                                         <div style={{ width: '10%' }} className="p-4">
                                             {m.membershipStatus ? (
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
@@ -1756,7 +1743,7 @@ const DirectoryTab: React.FC = () => {
                                         <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.lastBookingDate)}
                                         </div>
-                                        <div style={{ width: memberTab === 'former' ? '20%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
+                                        <div style={{ width: memberTab === 'former' ? '28%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
                                             {m.email}
                                             {memberTab === 'active' && m.billingProvider && (
                                                 <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${

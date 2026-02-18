@@ -144,6 +144,9 @@ const STATUS_MAP: Record<string, MemberStatusInfo> = {
   pending_docs: { severity: 'info', label: 'Pending Docs', colorClass: { dark: 'bg-yellow-500/20 text-yellow-300', light: 'bg-yellow-500/20 text-yellow-700' } },
   awaiting_payment: { severity: 'info', label: 'Awaiting Payment', colorClass: { dark: 'bg-yellow-500/20 text-yellow-300', light: 'bg-yellow-500/20 text-yellow-700' } },
   
+  // Info severity (blue) - trialing
+  trialing: { severity: 'info', label: 'Trialing', colorClass: { dark: 'bg-blue-500/20 text-blue-300', light: 'bg-blue-500/20 text-blue-700' } },
+  
   // Success severity (green) - active
   active: { severity: 'success', label: 'Active', colorClass: { dark: 'bg-green-500/20 text-green-300', light: 'bg-green-500/20 text-green-700' } },
   current: { severity: 'success', label: 'Current', colorClass: { dark: 'bg-green-500/20 text-green-300', light: 'bg-green-500/20 text-green-700' } },
