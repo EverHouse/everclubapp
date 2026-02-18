@@ -57,6 +57,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   useEffect(() => {
     if (isOpen) {
       setActiveTab(visitorMode ? 'billing' : 'overview');
+      setShowEmailChange(false);
+      setNewEmailValue('');
+      setEmailChangeError('');
     }
   }, [isOpen, visitorMode]);
   
@@ -108,6 +111,10 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const [showIdImageFull, setShowIdImageFull] = useState(false);
   const [isSavingIdImage, setIsSavingIdImage] = useState(false);
   const [isDeletingIdImage, setIsDeletingIdImage] = useState(false);
+  const [showEmailChange, setShowEmailChange] = useState(false);
+  const [newEmailValue, setNewEmailValue] = useState('');
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [emailChangeError, setEmailChangeError] = useState('');
 
   useEffect(() => {
     setDisplayedTier(member?.rawTier || member?.tier || '');
@@ -668,13 +675,93 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           </div>
 
           <div className="mt-4 space-y-2">
-            <a 
-              href={`mailto:${member.email}`}
-              className={`flex items-center gap-2 text-sm hover:underline ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <span className="material-symbols-outlined text-lg">mail</span>
-              {member.email}
-            </a>
+            <div className="flex items-center gap-1">
+              <a 
+                href={`mailto:${member.email}`}
+                className={`flex items-center gap-2 text-sm hover:underline ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                <span className="material-symbols-outlined text-lg">mail</span>
+                {member.email}
+              </a>
+              {isAdmin && !visitorMode && (
+                <button
+                  onClick={() => {
+                    setShowEmailChange(true);
+                    setNewEmailValue('');
+                    setEmailChangeError('');
+                  }}
+                  className={`material-symbols-outlined text-xs opacity-60 hover:opacity-100 transition-opacity cursor-pointer ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                  title="Change email"
+                >
+                  edit
+                </button>
+              )}
+            </div>
+            {showEmailChange && (
+              <div className={`mt-2 p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                <p className={`text-xs mb-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  This will update the email across all systems (database, Stripe, HubSpot).
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="New email address"
+                    value={newEmailValue}
+                    onChange={(e) => {
+                      setNewEmailValue(e.target.value);
+                      setEmailChangeError('');
+                    }}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!newEmailValue.trim()) return;
+                      setIsChangingEmail(true);
+                      setEmailChangeError('');
+                      try {
+                        const res = await fetch('/api/admin/member/change-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ oldEmail: member.email, newEmail: newEmailValue.trim() }),
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                          alert(data.message || 'Email changed successfully');
+                          setShowEmailChange(false);
+                          setNewEmailValue('');
+                          setEmailChangeError('');
+                          fetchMemberData();
+                        } else {
+                          setEmailChangeError(data.error || 'Failed to change email');
+                        }
+                      } catch {
+                        setEmailChangeError('Failed to change email');
+                      } finally {
+                        setIsChangingEmail(false);
+                      }
+                    }}
+                    disabled={isChangingEmail || !newEmailValue.trim()}
+                    className="px-4 py-2 rounded-lg bg-brand-green text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {isChangingEmail ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEmailChange(false);
+                      setNewEmailValue('');
+                      setEmailChangeError('');
+                    }}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {emailChangeError && (
+                  <p className={`text-xs mt-2 ${isDark ? 'text-red-400' : 'text-red-600'}`}>{emailChangeError}</p>
+                )}
+              </div>
+            )}
             {member.phone && (
               <a 
                 href={`tel:${member.phone}`}

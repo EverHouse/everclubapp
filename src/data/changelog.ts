@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.68.0",
+    date: "2026-02-18",
+    title: "Admin Email Change from Profile Drawer",
+    changes: [
+      "Added: Admin/staff can now change a member's email directly from the profile drawer (pencil icon next to email)",
+      "Note: Email changes cascade across all systems — database, Stripe, and HubSpot are all updated automatically",
+      "Security: Members cannot change their own email — only admin/staff have this capability",
+    ]
+  },
+  {
     version: "7.67.5",
     date: "2026-02-18",
     title: "Complete Sync Audit — All Gaps Closed",
