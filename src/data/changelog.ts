@@ -13,6 +13,16 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "7.74.0",
+    date: "2026-02-18",
+    title: "Roster Code Cleanup & Type Safety",
+    changes: [
+      "Improved: Roster management code reorganized for better maintainability (route file reduced from 1,878 to 370 lines)",
+      "Improved: All booking, billing, and roster code now uses strict type checking — eliminated 32 unsafe type patterns",
+      "Technical: Business logic extracted into dedicated service layer for easier testing and debugging",
+    ]
+  },
+  {
     version: "7.73.0",
     date: "2026-02-18",
     title: "Simplified Booking Player Flow",
