@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 
@@ -57,6 +58,7 @@ interface Props {
 }
 
 const SchedulerMonitorPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
+  const [schedulersRef] = useAutoAnimate();
   const [expandedError, setExpandedError] = useState<string | null>(null);
 
   const { data } = useQuery({
@@ -113,7 +115,7 @@ const SchedulerMonitorPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                   <th className="pb-2">Runs</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={schedulersRef}>
                 {schedulers.map((scheduler, idx) => {
                   const status = getStatusInfo(scheduler);
                   return (

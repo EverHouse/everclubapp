@@ -112,7 +112,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
-          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-normal ease-out
+          tactile-row relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-normal ease-out
           ${isActive 
             ? 'text-white font-semibold' 
             : 'text-white/60 hover:text-white hover:bg-white/[0.07] group/nav'

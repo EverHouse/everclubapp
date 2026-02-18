@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { UseMutationResult } from '@tanstack/react-query';
 import { getCheckMetadata, CheckSeverity } from '../../../../data/integrityCheckMetadata';
 import EmptyState from '../../../../components/EmptyState';
@@ -159,6 +160,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   reviewItemsResult,
   handleApproveAllReviewItems,
 }) => {
+  const [resultsRef] = useAutoAnimate();
+
   const getStatusColor = (status: 'pass' | 'warning' | 'fail' | 'info') => {
     switch (status) {
       case 'pass': return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
@@ -756,9 +759,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
 
   return (
     <>
-      {results.length > 0 && (
-        <div className="space-y-3">
-          {results.map((result) => {
+      <div ref={resultsRef} className="space-y-3">
+        {results.length > 0 && results.map((result) => {
             const metadata = getCheckMetadata(result.checkName);
             const displayTitle = metadata?.title || result.checkName;
             const description = metadata?.description;
@@ -1225,8 +1227,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
 
       {results.length > 0 && results.every(r => r.status === 'pass') && (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl">

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 interface SyncToolsPanelProps {
   showDataTools: boolean;
@@ -100,6 +101,8 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
   visitorArchiveResult,
   visitorArchiveProgress,
 }) => {
+  const [toolsRef] = useAutoAnimate();
+
   return (
     <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-2xl p-4">
       <button
@@ -116,7 +119,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
       </button>
       
       {showDataTools && (
-        <div className="mt-4 space-y-6">
+        <div ref={toolsRef} className="mt-4 space-y-6">
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-primary dark:text-white">Resync Member</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">Force a full resync of a member's data from HubSpot and Stripe</p>

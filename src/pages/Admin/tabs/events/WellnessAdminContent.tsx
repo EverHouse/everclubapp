@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmptyState from '../../../../components/EmptyState';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDateDisplayWithDay } from '../../../../utils/dateUtils';
@@ -13,6 +14,8 @@ import { ParticipantDetailsModal } from './ParticipantDetailsModal';
 
 export const WellnessAdminContent: React.FC = () => {
     const queryClient = useQueryClient();
+    const [upcomingClassesRef] = useAutoAnimate();
+    const [pastClassesRef] = useAutoAnimate();
     const [activeCategory, setActiveCategory] = useState('all');
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
@@ -349,7 +352,7 @@ export const WellnessAdminContent: React.FC = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveCategory(tab.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all flex-shrink-0 ${
+                        className={`tactile-btn flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all flex-shrink-0 ${
                             activeCategory === tab.id 
                                 ? 'bg-primary text-white shadow-md' 
                                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
@@ -456,9 +459,9 @@ export const WellnessAdminContent: React.FC = () => {
                                 <span aria-hidden="true" className="material-symbols-outlined text-green-500">schedule</span>
                                 <h3 className="font-bold text-primary dark:text-white">Upcoming ({upcomingClasses.length})</h3>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div ref={upcomingClassesRef} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {upcomingClasses.slice(0, showAllUpcoming ? upcomingClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
-                                    <div key={cls.id} onClick={() => openEdit(cls)} className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-all animate-list-item-delay-${Math.min(index + 1, 10)}`}>
+                                    <div key={cls.id} onClick={() => openEdit(cls)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {cls.image_url ? (
@@ -512,9 +515,9 @@ export const WellnessAdminContent: React.FC = () => {
                             </button>
                             {showPastClasses && (
                             <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+                            <div ref={pastClassesRef} className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
                                 {pastClasses.slice(0, showAllPast ? pastClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
-                                    <div key={cls.id} onClick={() => openEdit(cls)} className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-all animate-list-item-delay-${Math.min(index + 1, 10)}`}>
+                                    <div key={cls.id} onClick={() => openEdit(cls)} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {cls.image_url ? (

@@ -108,7 +108,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent' }}
         className={`
-          relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-fast
+          tactile-row relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-fast
           ${isActive 
             ? 'text-white font-semibold' 
             : 'text-white/70 hover:bg-white/10 hover:text-white'
@@ -178,7 +178,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-3" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           <button
             onClick={() => setShowBugReport(true)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-fast text-white/70 hover:bg-white/10 hover:text-white"
+            className="tactile-row w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-fast text-white/70 hover:bg-white/10 hover:text-white"
           >
             <span className="material-symbols-outlined text-xl">bug_report</span>
             <span className="text-sm">Report a Bug</span>

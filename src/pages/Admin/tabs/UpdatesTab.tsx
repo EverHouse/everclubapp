@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../../contexts/DataContext';
 import { usePageReady } from '../../../contexts/PageReadyContext';
@@ -24,6 +25,7 @@ const UpdatesTab: React.FC = () => {
     const navigate = useNavigate();
     const { setPageReady } = usePageReady();
     const { actualUser } = useData();
+    const [notificationsRef] = useAutoAnimate();
     const [activeSubTab, setActiveSubTab] = useState<'alerts' | 'announcements'>('alerts');
     const [notifications, setNotifications] = useState<StaffNotification[]>([]);
     const [notificationsLoading, setNotificationsLoading] = useState(true);
@@ -251,20 +253,19 @@ const UpdatesTab: React.FC = () => {
                 </div>
             )}
             
+            <div ref={notificationsRef} className="space-y-3">
             {notificationsLoading ? (
-                <div className="space-y-3">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="p-4 rounded-2xl animate-pulse bg-white dark:bg-white/[0.03]">
-                            <div className="flex gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/10" />
-                                <div className="flex-1">
-                                    <div className="h-4 w-1/2 rounded mb-2 bg-gray-200 dark:bg-white/10" />
-                                    <div className="h-3 w-3/4 rounded bg-gray-100 dark:bg-white/5" />
-                                </div>
+                Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-4 rounded-2xl animate-pulse bg-white dark:bg-white/[0.03]">
+                        <div className="flex gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/10" />
+                            <div className="flex-1">
+                                <div className="h-4 w-1/2 rounded mb-2 bg-gray-200 dark:bg-white/10" />
+                                <div className="h-3 w-3/4 rounded bg-gray-100 dark:bg-white/5" />
                             </div>
                         </div>
-                    ))}
-                </div>
+                    </div>
+                ))
             ) : notifications.length === 0 ? (
                 <div className="text-center py-16 text-primary/70 dark:text-white/70">
                     <span aria-hidden="true" className="material-symbols-outlined text-6xl mb-4 block opacity-30">notifications_off</span>
@@ -272,12 +273,11 @@ const UpdatesTab: React.FC = () => {
                     <p className="text-sm mt-1 opacity-70">New tours, booking requests, and system alerts will appear here.</p>
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {notifications.map((notif, index) => (
+                notifications.map((notif, index) => (
                         <div
                             key={notif.id}
                             onClick={() => handleNotificationClick(notif)}
-                            className={`rounded-2xl transition-all cursor-pointer overflow-hidden animate-pop-in ${
+                            className={`rounded-2xl transition-colors cursor-pointer overflow-hidden animate-pop-in ${
                                 notif.is_read 
                                     ? 'bg-white hover:bg-gray-50 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]' 
                                     : 'bg-accent/10 hover:bg-accent/15 border border-accent/30 dark:border-accent/20'
@@ -315,9 +315,9 @@ const UpdatesTab: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ))}
-                </div>
+                    ))
             )}
+            </div>
         </div>
     );
 

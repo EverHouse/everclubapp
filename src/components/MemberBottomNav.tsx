@@ -80,7 +80,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 onMouseEnter={() => prefetchRoute(item.path)}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
                 className={`
-                  flex-1 flex flex-col items-center gap-0.5 py-3.5 px-1 min-h-[48px] relative z-10 cursor-pointer
+                  tactile-btn flex-1 flex flex-col items-center gap-0.5 py-3.5 px-1 min-h-[48px] relative z-10 cursor-pointer
                   select-none transition-colors duration-normal ease-out active:scale-95
                   focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-inset focus-visible:outline-none
                   ${isActive ? 'text-white' : 'text-white/70 hover:text-white/90'}

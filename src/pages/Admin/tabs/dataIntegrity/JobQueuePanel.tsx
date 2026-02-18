@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 
@@ -33,6 +34,7 @@ interface Props {
 }
 
 const JobQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
+  const [jobsRef] = useAutoAnimate();
   const { data } = useQuery({
     queryKey: ['admin', 'monitoring', 'jobs'],
     queryFn: () => fetchWithCredentials<JobQueueData>('/api/admin/monitoring/jobs'),
@@ -100,7 +102,7 @@ const JobQueuePanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                       <th className="pb-2">Retries</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={jobsRef}>
                     {data.recentFailed.map((job, idx) => (
                       <tr key={job.id} className={`border-b border-gray-100 dark:border-gray-800 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/[0.02]' : ''}`}>
                         <td className="py-2 pr-3 font-medium text-gray-900 dark:text-gray-100">{job.jobType}</td>

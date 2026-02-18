@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import TrackmanIcon from '../../icons/TrackmanIcon';
 
@@ -126,6 +127,7 @@ interface TrackmanWebhookEventsSectionProps {
 }
 
 export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSectionProps> = ({ compact = true, onLinkToMember }) => {
+  const [webhookEventsRef] = useAutoAnimate();
   const [showSection, setShowSection] = useState(false);
   const [webhookEvents, setWebhookEvents] = useState<any[]>([]);
   const [webhookStats, setWebhookStats] = useState<any>(null);
@@ -380,8 +382,9 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
             </div>
           ) : (
             <div className="space-y-2">
-              <div className={`space-y-2 ${compact ? 'max-h-[300px]' : 'max-h-[500px]'} overflow-y-auto`}>
+              <div ref={webhookEventsRef} className={`space-y-2 ${compact ? 'max-h-[300px]' : 'max-h-[500px]'} overflow-y-auto`}>
                 {webhookEvents.map((event: any) => {
+
                   const hasError = !!event.processing_error;
                   const isExpanded = expandedEventId === event.id;
                   

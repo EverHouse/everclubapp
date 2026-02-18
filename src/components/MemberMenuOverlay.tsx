@@ -191,7 +191,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                   haptic.light();
                   setShowBugReport(true);
                 }}
-                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-normal leading-tight min-h-[48px] ${
+                className={`tactile-row w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-normal leading-tight min-h-[48px] ${
                   isDark 
                     ? 'text-[#F2F2EC]/60 hover:text-[#F2F2EC] hover:bg-white/5' 
                     : 'text-[#293515]/60 hover:text-[#293515] hover:bg-black/5'
@@ -240,7 +240,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
       onClick={onClick}
       onPointerUp={handlePointerUp}
       style={{ '--stagger-index': staggerIndex, touchAction: 'manipulation', animationFillMode: 'both' } as React.CSSProperties}
-      className={`relative flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-normal animate-slide-up-stagger leading-tight min-h-[48px] ${
+      className={`tactile-row relative flex items-center gap-4 px-4 py-3.5 rounded-xl text-left text-base font-medium transition-all duration-normal animate-slide-up-stagger leading-tight min-h-[48px] ${
         isActive
           ? isDark 
             ? 'text-[#F2F2EC]' 

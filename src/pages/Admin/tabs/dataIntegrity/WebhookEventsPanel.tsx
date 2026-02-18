@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
 
@@ -32,6 +33,7 @@ interface Props {
 }
 
 const WebhookEventsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
+  const [webhookRef] = useAutoAnimate();
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
@@ -116,7 +118,7 @@ const WebhookEventsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
                   <th className="pb-2">Retries</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={webhookRef}>
                 {events.map((event, idx) => (
                   <React.Fragment key={event.id}>
                     <tr

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmptyState from '../../EmptyState';
 import { DateBlock, GlassListRow } from '../helpers';
 import { getTodayPacific } from '../../../utils/dateUtils';
@@ -23,6 +24,7 @@ interface OverduePaymentsSectionProps {
 }
 
 export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ variant = 'mobile' }) => {
+  const [paymentsRef] = useAutoAnimate();
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
@@ -119,45 +121,47 @@ export const OverduePaymentsSection: React.FC<OverduePaymentsSectionProps> = ({ 
           )}
         </div>
 
-        {count === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-8">
-            <EmptyState icon="payments" title="No overdue payments" description="All payments are up to date" variant="compact" />
-          </div>
-        ) : (
-          <div className={`${isDesktop ? 'flex-1 overflow-y-auto pb-6' : ''} space-y-2`}>
-            {overduePayments.slice(0, maxItems).map(payment => (
-              <GlassListRow 
-                key={payment.bookingId} 
-                onClick={() => setBookingSheet({ isOpen: true, bookingId: payment.bookingId })}
-              >
-                <DateBlock dateStr={payment.bookingDate} today={today} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-primary dark:text-white truncate">{payment.ownerName}</p>
-                  <p className="text-xs text-primary/80 dark:text-white/80 truncate">
-                    {payment.resourceName}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {payment.totalOutstanding > 0 ? (
-                    <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                      ${payment.totalOutstanding.toFixed(2)}
-                    </span>
-                  ) : payment.unreviewedWaivers > 0 ? (
-                    <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
-                      Needs Review
-                    </span>
-                  ) : null}
-                  <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70">chevron_right</span>
-                </div>
-              </GlassListRow>
-            ))}
-            {count > maxItems && (
-              <p className="text-xs text-center text-primary/70 dark:text-white/70 pt-2">
-                +{count - maxItems} more overdue payments
-              </p>
-            )}
-          </div>
-        )}
+        <div ref={paymentsRef} className={`${isDesktop ? 'flex-1 overflow-y-auto pb-6' : ''} space-y-2`}>
+          {count === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-8">
+              <EmptyState icon="payments" title="No overdue payments" description="All payments are up to date" variant="compact" />
+            </div>
+          ) : (
+            <>
+              {overduePayments.slice(0, maxItems).map(payment => (
+                <GlassListRow 
+                  key={payment.bookingId} 
+                  onClick={() => setBookingSheet({ isOpen: true, bookingId: payment.bookingId })}
+                >
+                  <DateBlock dateStr={payment.bookingDate} today={today} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-primary dark:text-white truncate">{payment.ownerName}</p>
+                    <p className="text-xs text-primary/80 dark:text-white/80 truncate">
+                      {payment.resourceName}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {payment.totalOutstanding > 0 ? (
+                      <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                        ${payment.totalOutstanding.toFixed(2)}
+                      </span>
+                    ) : payment.unreviewedWaivers > 0 ? (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full">
+                        Needs Review
+                      </span>
+                    ) : null}
+                    <span className="material-symbols-outlined text-base text-primary/70 dark:text-white/70">chevron_right</span>
+                  </div>
+                </GlassListRow>
+              ))}
+              {count > maxItems && (
+                <p className="text-xs text-center text-primary/70 dark:text-white/70 pt-2">
+                  +{count - maxItems} more overdue payments
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <UnifiedBookingSheet

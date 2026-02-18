@@ -73,7 +73,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
             aria-label={item.label}
             aria-current={isActive ? 'page' : undefined}
             className={`
-              flex-1 flex flex-col items-center gap-1 py-2 px-1 min-h-[48px] relative z-10 cursor-pointer
+              tactile-btn flex-1 flex flex-col items-center gap-1 py-2 px-1 min-h-[48px] relative z-10 cursor-pointer
               transition-colors duration-normal ease-out active:scale-95
               ${isActive ? 'text-white' : 'text-white/60 hover:text-white'}
             `}

@@ -110,7 +110,7 @@ const PublicCafe: React.FC = () => {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 min-h-[44px] ${
+            className={`tactile-btn px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 min-h-[44px] ${
               activeCategory === cat
                 ? 'bg-primary text-white'
                 : 'bg-white dark:bg-white/5 text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10'

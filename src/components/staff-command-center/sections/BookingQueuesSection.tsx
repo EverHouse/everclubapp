@@ -305,13 +305,13 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           </div>
           <button onClick={() => navigateToTab('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
         </div>
-        {pendingRequests.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-8">
-            <EmptyState icon="check_circle" title="All caught up!" description="No pending requests" variant="compact" />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {pendingRequests.map((request, index) => {
+        <div className="space-y-2">
+          {pendingRequests.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-8">
+              <EmptyState icon="check_circle" title="All caught up!" description="No pending requests" variant="compact" />
+            </div>
+          ) : (
+            pendingRequests.map((request, index) => {
               const isDenying = isActionLoading(`deny-${request.id}`);
               
               return (
@@ -421,9 +421,9 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                   )}
                 </GlassListRow>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
     );
   };
@@ -441,13 +441,13 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
           <h3 className="font-bold text-primary dark:text-white">Today's Bookings</h3>
           <button onClick={() => navigateToTab('simulator')} className="text-xs text-primary/80 dark:text-white/80 hover:underline">View all</button>
         </div>
-        {mergedUpcomingBookings.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-8">
-            <EmptyState icon="calendar_today" title="No bookings today" variant="compact" />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {mergedUpcomingBookings.map((booking, index) => {
+        <div className="space-y-2">
+          {mergedUpcomingBookings.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-8">
+              <EmptyState icon="calendar_today" title="No bookings today" variant="compact" />
+            </div>
+          ) : (
+            mergedUpcomingBookings.map((booking, index) => {
               const isUnmatched = booking.is_unmatched;
               const cardClass = isUnmatched 
                 ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30' 
@@ -520,9 +520,9 @@ export const BookingQueuesSection: React.FC<BookingQueuesSectionProps> = ({
                   </div>
                 </GlassListRow>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
     );
   };
