@@ -93,3 +93,19 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Eventbrite**: Members-only event synchronization.
 - **Amarie Aesthetics MedSpa**: Direct booking links (wellness page integration).
 - **Apple Messages for Business**: Direct messaging link (contact page).
+
+## Skill Auto-Update Protocol
+When modifying files in the areas below, update the corresponding skill docs to keep them accurate:
+
+| Skill | File Coverage |
+|-------|--------------|
+| booking-flow | server/core/bookingService/*, server/routes/bays/* |
+| stripe-webhook-flow | server/core/stripe/*, server/routes/webhooks/* |
+| member-lifecycle | server/core/memberService/*, server/routes/members/* |
+| hubspot-sync | server/core/hubspot/*, server/schedulers/hubspot* |
+| fee-calculation | server/core/billing/*, server/routes/billing/* |
+| data-integrity-monitoring | server/core/dataIntegrity.ts, server/core/dataAlerts.ts, server/core/monitoring.ts, server/core/*Monitor*.ts |
+| checkin-flow | server/routes/bays/checkin*, server/core/billing/guestPassConsumer.ts, server/core/billing/prepaymentService.ts |
+| notification-system | server/core/notificationService.ts, server/core/websocket.ts, server/routes/notifications.ts, server/routes/push.ts, src/stores/notificationStore.ts, src/services/pushNotifications.ts |
+| guest-pass-system | server/routes/guestPasses.ts, server/core/billing/guestPassConsumer.ts, server/core/billing/guestPassHoldService.ts, server/schedulers/guestPassResetScheduler.ts |
+| scheduler-jobs | server/schedulers/*, server/core/schedulerTracker.ts, server/core/jobQueue.ts |
