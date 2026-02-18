@@ -13,7 +13,7 @@ import MemberProfileDrawer from '../../../components/MemberProfileDrawer';
 import { NewUserDrawer } from '../../../components/staff-command-center/drawers/NewUserDrawer';
 import { DirectoryTabSkeleton } from '../../../components/skeletons';
 import { formatPhoneNumber } from '../../../utils/formatting';
-import { getTierColor, getTagColor } from '../../../utils/tierUtils';
+import { getTierColor } from '../../../utils/tierUtils';
 import { getMemberStatusLabel, getMemberStatusBadgeClass } from '../../../utils/statusColors';
 import { AnimatedPage } from '../../../components/motion';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
@@ -194,9 +194,9 @@ const DirectoryTab: React.FC = () => {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [tierFilter, setTierFilter] = useState<string>('All');
-    const [tagFilter, setTagFilter] = useState<string>('All');
     const [statusFilter, setStatusFilter] = useState<string>('All');
     const [membershipStatusFilter, setMembershipStatusFilter] = useState<string>('All');
+    const [appUsageFilter, setAppUsageFilter] = useState<'All' | 'Never Logged In'>('All');
     const [billingFilter, setBillingFilter] = useState<BillingFilter>('All');
     const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
     const [isViewingDetails, setIsViewingDetails] = useState(false);
@@ -591,21 +591,6 @@ const DirectoryTab: React.FC = () => {
         return currentMembers.filter(m => m && (!m.role || m.role === 'member'));
     }, [currentMembers]);
 
-    const allTags = useMemo(() => {
-        const tagSet = new Set<string>();
-        if (!Array.isArray(regularMembers)) return [];
-        regularMembers.forEach(m => {
-            if (m?.tags && Array.isArray(m.tags)) {
-                m.tags.forEach(tag => {
-                    if (typeof tag === 'string') {
-                        tagSet.add(tag);
-                    }
-                });
-            }
-        });
-        return Array.from(tagSet).sort();
-    }, [regularMembers]);
-
     const allStatuses = useMemo(() => {
         const statusSet = new Set<string>();
         if (Array.isArray(formerMembers)) {
@@ -718,10 +703,8 @@ const DirectoryTab: React.FC = () => {
             });
         }
         
-        if (tagFilter !== 'All') {
-            filtered = filtered.filter(m => 
-                m.tags?.filter((t): t is string => typeof t === 'string').includes(tagFilter)
-            );
+        if (memberTab === 'active' && appUsageFilter === 'Never Logged In') {
+            filtered = filtered.filter(m => !m.firstLoginAt);
         }
         
         if (billingFilter !== 'All') {
@@ -786,7 +769,7 @@ const DirectoryTab: React.FC = () => {
         });
         
         return filtered;
-    }, [regularMembers, tierFilter, tagFilter, statusFilter, membershipStatusFilter, billingFilter, memberTab, searchQuery, sortField, sortDirection, showMissingTierOnly]);
+    }, [regularMembers, tierFilter, appUsageFilter, statusFilter, membershipStatusFilter, billingFilter, memberTab, searchQuery, sortField, sortDirection, showMissingTierOnly]);
     
     const { visibleItems, hasMore, loadMoreRef, totalCount, visibleCount } = useIncrementalLoad(filteredList);
     
@@ -1002,42 +985,6 @@ const DirectoryTab: React.FC = () => {
                     </div>
                 )}
 
-                {memberTab !== 'visitors' && allTags.length > 0 && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Tag:</span>
-                        <button
-                            onClick={() => setTagFilter('All')}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap ${
-                                tagFilter === 'All'
-                                    ? 'bg-primary dark:bg-lavender text-white'
-                                    : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500'
-                            }`}
-                        >
-                            All
-                        </button>
-                        {allTags.map(tag => {
-                            const isSelected = tagFilter === tag;
-                            const colors = getTagColor(tag);
-                            return (
-                                <button
-                                    key={tag}
-                                    onClick={() => setTagFilter(tag)}
-                                    className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all flex-shrink-0 whitespace-nowrap ${
-                                        !isSelected ? 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-white/60 border border-gray-300 dark:border-white/10' : ''
-                                    }`}
-                                    style={isSelected ? {
-                                        backgroundColor: colors.bg,
-                                        color: colors.text,
-                                        border: `1px solid ${colors.border}`,
-                                    } : undefined}
-                                >
-                                    {tag}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-
                 {memberTab === 'active' && allMembershipStatuses.length > 0 && (
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
                         <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">Status:</span>
@@ -1062,6 +1009,25 @@ const DirectoryTab: React.FC = () => {
                                 }`}
                             >
                                 {getMemberStatusLabel(status)}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {memberTab === 'active' && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                        <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap flex-shrink-0">App:</span>
+                        {(['All', 'Never Logged In'] as const).map(option => (
+                            <button
+                                key={option}
+                                onClick={() => setAppUsageFilter(option)}
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors flex-shrink-0 whitespace-nowrap ${
+                                    appUsageFilter === option
+                                        ? 'bg-primary dark:bg-lavender text-white'
+                                        : 'bg-gray-200 dark:bg-white/20 text-gray-400 dark:text-gray-500 hover:bg-gray-300 dark:hover:bg-white/30'
+                                }`}
+                            >
+                                {option}
                             </button>
                         ))}
                     </div>
@@ -1186,11 +1152,11 @@ const DirectoryTab: React.FC = () => {
 
                 {!formerLoading && filteredList.length === 0 && memberTab !== 'visitors' && memberTab !== 'team' && (memberTab === 'active' || formerMembers.length > 0) && (
                     <EmptyState
-                        icon={searchQuery || tierFilter !== 'All' || tagFilter !== 'All' || statusFilter !== 'All' ? 'search_off' : 'group'}
-                        title={searchQuery || tierFilter !== 'All' || tagFilter !== 'All' || statusFilter !== 'All' 
+                        icon={searchQuery || tierFilter !== 'All' || appUsageFilter !== 'All' || statusFilter !== 'All' ? 'search_off' : 'group'}
+                        title={searchQuery || tierFilter !== 'All' || appUsageFilter !== 'All' || statusFilter !== 'All' 
                             ? 'No results found' 
                             : memberTab === 'former' ? 'No former members' : 'No members yet'}
-                        description={searchQuery || tierFilter !== 'All' || tagFilter !== 'All' || statusFilter !== 'All'
+                        description={searchQuery || tierFilter !== 'All' || appUsageFilter !== 'All' || statusFilter !== 'All'
                             ? 'Try adjusting your search or filters to find what you\'re looking for'
                             : memberTab === 'former' ? 'Former members will appear here' : 'Members will appear here once they sign up'}
                         variant="compact"
@@ -1644,7 +1610,21 @@ const DirectoryTab: React.FC = () => {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {m.email}
+                                                        {memberTab === 'active' && m.billingProvider && (
+                                                            <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                                m.billingProvider === 'stripe' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                                                                m.billingProvider === 'mindbody' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                                                                m.billingProvider === 'comped' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+                                                                m.billingProvider === 'family_addon' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' :
+                                                                m.billingProvider === 'manual' ? 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300' :
+                                                                'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300'
+                                                            }`}>
+                                                                {m.billingProvider === 'family_addon' ? 'Family' : m.billingProvider}
+                                                            </span>
+                                                        )}
+                                                    </p>
                                                     {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
                                                 </div>
                                                 <div className="text-right">
@@ -1779,7 +1759,21 @@ const DirectoryTab: React.FC = () => {
                                         <div style={{ width: '9%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
                                             {formatJoinDate(m.lastBookingDate)}
                                         </div>
-                                        <div style={{ width: memberTab === 'former' ? '13%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>{m.email}</div>
+                                        <div style={{ width: memberTab === 'former' ? '13%' : '39%' }} className="p-4 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
+                                            {m.email}
+                                            {memberTab === 'active' && m.billingProvider && (
+                                                <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                    m.billingProvider === 'stripe' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                                                    m.billingProvider === 'mindbody' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                                                    m.billingProvider === 'comped' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+                                                    m.billingProvider === 'family_addon' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' :
+                                                    m.billingProvider === 'manual' ? 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300' :
+                                                    'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300'
+                                                }`}>
+                                                    {m.billingProvider === 'family_addon' ? 'Family' : m.billingProvider}
+                                                </span>
+                                            )}
+                                        </div>
                                         {memberTab === 'former' && (
                                             <div style={{ width: '10%' }} className="p-4">
                                                 {m.status ? (

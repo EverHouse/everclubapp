@@ -75,6 +75,7 @@ export interface MemberProfile {
   companyName?: string | null;
   emailOptIn?: boolean | null;
   smsOptIn?: boolean | null;
+  firstLoginAt?: string | null;
 }
 
 export interface Booking {
