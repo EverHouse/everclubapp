@@ -3,6 +3,8 @@ import { users, dayPassPurchases } from "../../../shared/schema";
 import { userLinkedEmails } from "../../../shared/models/membership";
 import { User } from "../../../shared/schema";
 import { eq, ilike, and, sql } from "drizzle-orm";
+import { findOrCreateHubSpotContact } from "../hubspot/members";
+import { syncCustomerMetadataToStripe } from "../stripe/customers";
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
@@ -181,6 +183,21 @@ export async function upsertVisitor(data: VisitorData, createStripeCustomer: boo
         updatedAt: new Date(),
       }).where(eq(users.id, archivedUser[0].id)).returning();
       console.log(`[Auto-Unarchive] User ${data.email} unarchived via upsertVisitor (day pass purchase or similar)`);
+      if (updated[0].email) {
+        findOrCreateHubSpotContact(
+          updated[0].email,
+          updated[0].firstName || '',
+          updated[0].lastName || '',
+          updated[0].phone || undefined
+        ).catch((err) => {
+          console.error('[upsertVisitor] Background HubSpot sync failed:', err instanceof Error ? err.message : String(err));
+        });
+        if (updated[0].stripeCustomerId) {
+          syncCustomerMetadataToStripe(updated[0].email).catch((err) => {
+            console.error('[upsertVisitor] Background Stripe sync failed:', err instanceof Error ? err.message : String(err));
+          });
+        }
+      }
       return updated[0];
     }
   }
@@ -200,6 +217,22 @@ export async function upsertVisitor(data: VisitorData, createStripeCustomer: boo
       })
       .where(eq(users.id, existingUser.id))
       .returning();
+
+    if (updated[0].email) {
+      findOrCreateHubSpotContact(
+        updated[0].email,
+        updated[0].firstName || '',
+        updated[0].lastName || '',
+        updated[0].phone || undefined
+      ).catch((err) => {
+        console.error('[upsertVisitor] Background HubSpot sync failed:', err instanceof Error ? err.message : String(err));
+      });
+      if (updated[0].stripeCustomerId) {
+        syncCustomerMetadataToStripe(updated[0].email).catch((err) => {
+          console.error('[upsertVisitor] Background Stripe sync failed:', err instanceof Error ? err.message : String(err));
+        });
+      }
+    }
 
     return updated[0];
   }

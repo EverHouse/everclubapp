@@ -13,7 +13,7 @@ export function getLatestVersion(): { version: string; date: string } {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "7.67.3",
+    version: "7.67.4",
     date: "2026-02-18",
     title: "Complete Sync Audit — All Gaps Closed",
     changes: [
@@ -26,6 +26,10 @@ export const changelog: ChangelogEntry[] = [
       "Fixed: Staff-created HubSpot-billed members now sync to HubSpot as contacts (was skipped because deal creation was disabled)",
       "Fixed: Visitor-to-member conversions via staff admin now sync to HubSpot with name, phone, and tier",
       "Fixed: Linked visitor Stripe customer ID now explicitly saved to member record (defense-in-depth)",
+      "Fixed: Online day pass buyers now sync to HubSpot as contacts (was only happening for in-person purchases via POS/QuickCharge)",
+      "Fixed: Day pass webhook recordings now sync buyers to HubSpot with name and phone",
+      "Fixed: Returning visitors with updated contact info now sync changes to Stripe and HubSpot when their record is updated",
+      "Fixed: Unarchived visitors now sync to HubSpot and Stripe when reactivated via day pass purchase",
     ]
   },
   {

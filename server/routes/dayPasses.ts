@@ -7,6 +7,7 @@ import { getStripeClient } from '../core/stripe/client';
 import { getOrCreateStripeCustomer, resolveUserByEmail } from '../core/stripe/customers';
 import { createPaymentIntent } from '../core/stripe';
 import { upsertVisitor, linkPurchaseToUser } from '../core/visitors/matchingService';
+import { findOrCreateHubSpotContact } from '../core/hubspot/members';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getSessionUser } from '../types/session';
@@ -248,6 +249,10 @@ router.post('/api/day-passes/confirm', async (req: Request, res: Response) => {
     if (user.id) {
       await linkPurchaseToUser(purchase.id, user.id);
     }
+
+    findOrCreateHubSpotContact(email, firstName || '', lastName || '', phone || undefined).catch((err) => {
+      logger.error('[DayPasses] Background HubSpot sync for day-pass buyer failed', { error: err instanceof Error ? err : new Error(String(err)) });
+    });
 
     logger.info('[DayPasses] Recorded purchase for : $ from', { extra: { purchaseId: purchase.id, productSlug, amountPaid_100_ToFixed_2: (amountPaid / 100).toFixed(2), email } });
 
@@ -512,6 +517,10 @@ export async function recordDayPassPurchaseFromWebhook(data: {
     if (user.id) {
       await linkPurchaseToUser(purchase.id, user.id);
     }
+
+    findOrCreateHubSpotContact(data.email, data.firstName || '', data.lastName || '', data.phone || undefined).catch((err) => {
+      logger.error('[DayPasses] Background HubSpot sync for day-pass buyer failed', { error: err instanceof Error ? err : new Error(String(err)) });
+    });
 
     logger.info('[DayPasses Webhook] Recorded purchase for : $ from', { extra: { purchaseId: purchase.id, dataProductSlug: data.productSlug, dataAmountCents_100_ToFixed_2: (data.amountCents / 100).toFixed(2), dataEmail: data.email } });
 
