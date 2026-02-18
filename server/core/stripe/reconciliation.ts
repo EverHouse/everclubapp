@@ -242,7 +242,9 @@ export async function reconcileSubscriptions() {
           if (resolved && resolved.matchType !== 'direct') {
             await pool.query(
               `UPDATE users SET stripe_customer_id = $1, stripe_subscription_id = $2,
-               membership_status = 'active', billing_provider = 'stripe', tier = COALESCE($3, tier), updated_at = NOW()
+               membership_status = 'active',
+               billing_provider = CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END,
+               tier = COALESCE($3, tier), updated_at = NOW()
                WHERE id = $4`,
               [customer.id, subscription.id, tierSlug, resolved.userId]
             );
@@ -261,7 +263,7 @@ export async function reconcileSubscriptions() {
                stripe_customer_id = EXCLUDED.stripe_customer_id,
                stripe_subscription_id = EXCLUDED.stripe_subscription_id,
                membership_status = 'active',
-               billing_provider = 'stripe',
+               billing_provider = CASE WHEN users.billing_provider IN ('mindbody', 'manual', 'comped') THEN users.billing_provider ELSE 'stripe' END,
                tier = COALESCE(EXCLUDED.tier, users.tier),
                updated_at = NOW()`,
             [customerEmail, firstName, lastName, tierSlug, customer.id, subscription.id]

@@ -261,7 +261,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                      stripe_subscription_id = $2, 
                      tier = $3,
                      membership_status = 'active',
-                     billing_provider = 'stripe',
+                     billing_provider = CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END,
                      hubspot_id = COALESCE($5, hubspot_id),
                      grace_period_start = NULL,
                      grace_period_email_count = 0,
@@ -318,7 +318,9 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               // Update existing user found via linked email
               await pool.query(
                 `UPDATE users SET stripe_customer_id = $1, stripe_subscription_id = $2, 
-                 membership_status = 'active', billing_provider = 'stripe', data_source = 'stripe_sync',
+                 membership_status = 'active',
+                 billing_provider = CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END,
+                 data_source = 'stripe_sync',
                  tier = COALESCE($3, tier), hubspot_id = COALESCE($4, hubspot_id),
                  grace_period_start = NULL, grace_period_email_count = 0, updated_at = NOW()
                  WHERE id = $5`,

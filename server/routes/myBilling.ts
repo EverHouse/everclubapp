@@ -268,12 +268,17 @@ router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
       const result = await getOrCreateStripeCustomer(member.id, member.email, fullName, member.tier);
       customerId = result.customerId;
       await pool.query(
-        `UPDATE users SET billing_provider = 'stripe' WHERE LOWER(email) = $1 AND billing_provider != 'stripe'`,
-        [targetEmail.toLowerCase()]
+        `UPDATE users SET stripe_customer_id = $1,
+         billing_provider = CASE WHEN billing_provider IN ('mindbody', 'manual', 'comped') THEN billing_provider ELSE 'stripe' END
+         WHERE LOWER(email) = LOWER($2)`,
+        [customerId, targetEmail.toLowerCase()]
       );
+      const preservedProvider = member.billing_provider && ['mindbody', 'manual', 'comped'].includes(member.billing_provider)
+        ? member.billing_provider
+        : 'stripe';
       try {
         const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
-        await syncMemberToHubSpot({ email: member.email, billingProvider: 'stripe' });
+        await syncMemberToHubSpot({ email: member.email, billingProvider: preservedProvider });
       } catch (e: unknown) {
         logger.warn('[MyBilling] Failed to sync billing provider to HubSpot for', { extra: { email: member.email, e_as_any_e: (e as any)?.message || e } });
       }
