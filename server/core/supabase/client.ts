@@ -123,11 +123,17 @@ export async function enableRealtimeForTable(tableName: string): Promise<boolean
     });
 
     if (error) {
-      if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+      const msg = error.message || '';
+      if (msg.includes('function') && msg.includes('does not exist')) {
         console.warn(`[Supabase] Realtime RPC not available for ${tableName} - this is normal for some Supabase configurations`);
         return false;
       }
-      console.error(`[Supabase] Failed to enable realtime for ${tableName}:`, error.message);
+      if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('TypeError')) {
+        console.warn(`[Supabase] Cannot reach Supabase for ${tableName} realtime - service may be unreachable`);
+        supabaseAvailable = false;
+        return false;
+      }
+      console.error(`[Supabase] Failed to enable realtime for ${tableName}:`, msg);
       return false;
     }
 
