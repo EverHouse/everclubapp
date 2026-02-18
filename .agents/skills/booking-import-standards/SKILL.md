@@ -5,17 +5,26 @@ description: Mandatory rules for booking management, Trackman CSV import, billin
 
 # Booking & Import Standards
 
-These rules were established through production debugging and must be followed whenever touching booking, import, billing, or cancellation code. Violating any of these rules has caused real data integrity issues in the past.
+Follow these rules whenever touching booking, import, billing, or cancellation code. Violating any of these rules has caused real data integrity issues in the past.
 
 ## Key Files
 
 - `server/core/bookingService/sessionManager.ts` — `ensureSessionForBooking()`, `createSession()`, `linkParticipants()`
 - `server/core/trackmanImport.ts` — CSV import, placeholder merging, Notes parsing
 - `server/core/billing/unifiedFeeService.ts` — `computeFeeBreakdown()`, fee line items
-- `server/routes/bays/bookings.ts` — Booking CRUD, cancellation flow
+- `server/routes/bays/bookings.ts` — Booking CRUD, member booking creation
 - `server/routes/bays/approval.ts` — Approval, prepayment creation
+- `server/routes/bays/reschedule.ts` — Reschedule flow (start, confirm, cancel)
+- `server/routes/bays/staff-conference-booking.ts` — Staff conference room booking
+- `server/routes/staff/manualBooking.ts` — Staff manual booking creation
+- `server/routes/staffCheckin.ts` — Staff check-in flow, session creation at check-in
 - `server/routes/roster.ts` — Roster changes, optimistic locking
 - `server/routes/trackman/webhook-handlers.ts` — Webhook booking updates
+- `server/routes/trackman/webhook-billing.ts` — Webhook billing, session creation, fee recalculation
+- `server/routes/dataTools.ts` — Data tools, backfill, session repair
+- `server/routes/resources.ts` — Resource management, session linking
+- `server/core/calendar/sync/conference-room.ts` — Conference room calendar sync, auto-session creation
+- `server/core/visitors/autoMatchService.ts` — Visitor auto-match, session linking
 - `server/schedulers/stuckCancellationScheduler.ts` — Safety net for stuck cancellations
 
 ---
@@ -24,37 +33,39 @@ These rules were established through production debugging and must be followed w
 
 ### Rule 1 — Every booking MUST have a billing session
 
-Use `ensureSessionForBooking()` from `sessionManager.ts` for ALL session creation. This function has:
-- 3-step lookup chain (established v7.26.1):
-  1. Match by `trackman_booking_id` (exact)
-  2. Match by `resource_id + session_date + start_time` (exact)
-  3. Match by `resource_id + session_date + time range overlap` (tsrange intersection)
-- Only INSERTs if all 3 lookups fail
-- `ON CONFLICT (trackman_booking_id)` to handle race conditions
-- Staff-note safety: on failure, writes `[SESSION_CREATION_FAILED]` to booking's `staff_notes`
-- Transaction-aware: when called with a `client` (transaction), throws immediately on failure (no retry). The 500ms retry only applies when using the default pool connection.
+Use `ensureSessionForBooking()` from `sessionManager.ts` for ALL session creation. It implements a 3-step lookup chain:
+1. Match by `trackman_booking_id` (exact)
+2. Match by `resource_id + session_date + start_time` (exact)
+3. Match by `resource_id + session_date + time range overlap` (tsrange intersection)
+
+Only INSERT if all 3 lookups fail. The INSERT uses `ON CONFLICT (trackman_booking_id)` to handle race conditions. On failure, write `[SESSION_CREATION_FAILED]` to the booking's `staff_notes`. When called with a `client` (transaction), throw immediately on failure (no retry). The 500ms retry only applies when using the default pool connection.
 
 **NEVER** write raw `INSERT INTO booking_sessions` anywhere outside this function. Every entry point that creates or links a booking must call `ensureSessionForBooking()`.
 
 ### Rule 1a — Overlap detection prevents double-booking trigger failures
 
-The `booking_sessions` table has a `prevent_booking_session_overlap` trigger that rejects INSERTs when time ranges overlap on the same bay. The 3-step lookup in `ensureSessionForBooking()` handles this by finding overlapping sessions BEFORE attempting INSERT. If an overlapping session exists (different Trackman ID but overlapping time), the booking links to that existing session. The booking keeps its own `trackman_booking_id` in `booking_requests` — only `session_id` is shared.
+The `booking_sessions` table has a `prevent_booking_session_overlap` trigger that rejects INSERTs when time ranges overlap on the same bay. The 3-step lookup in `ensureSessionForBooking()` handles this by finding overlapping sessions BEFORE attempting INSERT. If an overlapping session exists (different Trackman ID but overlapping time), link the booking to that existing session. The booking keeps its own `trackman_booking_id` in `booking_requests` — only `session_id` is shared.
 
 ### Rule 1b — Backfill endpoint error handling
 
-The backfill endpoint (`POST /api/admin/backfill-sessions` in `server/routes/trackman/admin.ts`) uses savepoints per-booking so individual failures don't abort the entire transaction. When `ensureSessionForBooking` returns `sessionId: 0` with an error, the endpoint rolls back to the savepoint, records the error, and continues to the next booking. Errors are returned in the response for staff visibility.
+The backfill endpoint (`POST /api/admin/backfill-sessions` in `server/routes/trackman/admin.ts`) uses savepoints per-booking so individual failures do not abort the entire transaction. When `ensureSessionForBooking` returns `sessionId: 0` with an error, roll back to the savepoint, record the error, and continue to the next booking.
 
-### Rule 2 — All 26+ entry points covered
+### Rule 2 — All entry points covered
 
 Every code path that can create or approve a booking must call `ensureSessionForBooking()`:
-- Staff manual booking
-- Member booking request approval
-- Trackman webhook auto-create
-- Trackman webhook link-to-existing
-- CSV import (new bookings AND merged placeholders)
-- Reschedule
-- Conference room sync
-- Data tools / auto-match service
+- Member booking request approval (`server/routes/bays/approval.ts`)
+- Staff manual booking (`server/routes/staff/manualBooking.ts`)
+- Staff check-in flow (`server/routes/staffCheckin.ts`)
+- Trackman webhook auto-create (`server/routes/trackman/webhook-handlers.ts`)
+- Trackman webhook billing (`server/routes/trackman/webhook-billing.ts`)
+- Trackman webhook index (`server/routes/trackman/webhook-index.ts`)
+- CSV import — new bookings AND merged placeholders (`server/core/trackmanImport.ts`)
+- Reschedule (`server/routes/bays/reschedule.ts`)
+- Conference room calendar sync (`server/core/calendar/sync/conference-room.ts`)
+- Data tools / backfill (`server/routes/dataTools.ts`)
+- Resource management (`server/routes/resources.ts`)
+- Auto-match service (`server/core/visitors/autoMatchService.ts`)
+- Backfill admin endpoint (`server/routes/trackman/admin.ts`)
 
 If you add a new entry point, it MUST call `ensureSessionForBooking()`.
 
@@ -68,7 +79,7 @@ When a member or staff cancels an approved simulator booking that has a `trackma
 1. Set status to `cancellation_pending` (NOT `cancelled`)
 2. Set `cancellation_pending_at = NOW()`
 3. Notify staff to cancel in Trackman first
-4. Member sees "Cancellation Pending — your request is being processed"
+4. Show member "Cancellation Pending — your request is being processed"
 
 Non-Trackman bookings (conference rooms, etc.) keep instant cancel behavior.
 
@@ -79,7 +90,7 @@ When completing a cancellation (via webhook or manual):
 2. **Then**: Update status to `cancelled`
 3. **Then**: Notify member
 
-This ordering prevents partial cancellation states where the status changed but money wasn't returned.
+This ordering prevents partial cancellation states where the status changed but money was not returned.
 
 ### Rule 5 — Call cancelPendingPaymentIntentsForBooking()
 
@@ -91,7 +102,7 @@ Time slots remain occupied while a booking is in `cancellation_pending`. Availab
 
 ### Rule 7 — Status filtering: cancellation_pending everywhere
 
-The `cancellation_pending` status must be handled in every query that filters by booking status:
+Handle `cancellation_pending` status in every query that filters by booking status:
 - Availability checks (treat as occupied)
 - Active booking counts (include in active)
 - Reschedule guards (block reschedule)
@@ -104,9 +115,9 @@ When adding new booking queries, always ask: "Does this query need to handle can
 ### Rule 8 — Stuck cancellation safety net
 
 `stuckCancellationScheduler.ts` runs every 2 hours:
-- Finds bookings in `cancellation_pending` for 4+ hours
-- Deduplicates alerts (checks if staff was already notified in the last 4 hours for each booking)
-- Sends summary notification to all staff
+- Find bookings in `cancellation_pending` for 4+ hours
+- Deduplicate alerts (check if staff was already notified in the last 4 hours for each booking)
+- Send summary notification to all staff
 - Staff can use manual completion endpoint as fallback
 
 ---
@@ -115,7 +126,7 @@ When adding new booking queries, always ask: "Does this query need to handle can
 
 ### Rule 8a — `trackman_booking_id` is THE key for all Trackman matching
 
-The `trackman_booking_id` field (stored as VARCHAR on `booking_requests`, `booking_sessions`, `booking_members`, `booking_guests`) is the **stable unique identifier** from Trackman. It is used for:
+The `trackman_booking_id` field (stored as VARCHAR on `booking_requests`, `booking_sessions`, `booking_members`, `booking_guests`) is the **stable unique identifier** from Trackman. Use it for:
 - CSV import deduplication: `ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO NOTHING`
 - Webhook matching: `tryAutoApproveBooking()` matches by `trackman_booking_id`
 - Session creation: `ensureSessionForBooking()` first checks `booking_sessions.trackman_booking_id`
@@ -133,21 +144,37 @@ The CSV import uses a strict **Update-first, Insert-second** strategy to prevent
 
 This ordering guarantees no duplicate bookings for the same Trackman slot.
 
-### Rule 9 — Parse M|email|name from Notes field
+### Rule 9 — Parse member tags from Notes field
 
-The CSV `Notes` field contains member identification strings in the format:
-```
-M|member@email.com|Member Name
-```
-You MUST parse this `M|email|name` pattern to extract the member's email for matching. This is the primary source of member identity in the CSV data. Without parsing this, the system cannot link bookings to members.
+The CSV `Notes` field contains member identification strings in two formats:
 
-### Rule 10 — Parse G|name guest tags from Notes field (including INLINE tags)
+**New pipe-separated format** (4 fields):
+```
+M|email|firstname|lastname
+```
 
-The CSV `Notes` field also contains guest identification strings:
+**Legacy colon format**:
 ```
-G|Guest Name
+M: email | Name
 ```
-You MUST parse `G|name` tags to fill booking guest slots with actual guest names. This is critical because it directly prevents Rule 17 (empty slot = guest fee) from incorrectly charging guest fees when a guest name was actually provided in the data.
+
+Parse both `M|email|firstname|lastname` and `M: email | Name` patterns to extract the member's email for matching. This is the primary source of member identity in the CSV data. Without parsing this, the system cannot link bookings to members.
+
+### Rule 10 — Parse guest tags from Notes field (including INLINE tags)
+
+The CSV `Notes` field also contains guest identification strings in two formats:
+
+**New pipe-separated format**:
+```
+G|email|firstname|lastname
+```
+
+**Legacy colon format**:
+```
+G: Guest Name
+```
+
+Parse `G|...|firstname|lastname` and `G: name` tags to fill booking guest slots with actual guest names. This directly prevents Rule 17 (empty slot = guest fee) from incorrectly charging guest fees when a guest name was actually provided in the data.
 
 **CRITICAL: Inline G: tags must also be parsed.** Guest tags often appear inline on the same line as the M: tag or within freeform text, NOT on their own line:
 ```
@@ -157,19 +184,19 @@ The parser (`parseNotesForPlayers()`) MUST scan for `G: Name` patterns anywhere 
 
 ### Rule 10a — Imported bookings must IMMEDIATELY populate booking_players
 
-When a Trackman CSV import identifies a member (via `M|email|name` parsing), the import MUST immediately populate the `booking_members` and `booking_participants` tables:
+When a Trackman CSV import identifies a member (via Notes parsing), immediately populate the `booking_members` and `booking_participants` tables:
 
 1. **Owner at Slot 1**: Insert a `booking_members` record with `slot_number: 1`, `is_primary: true`, and the member's email.
-2. **Guests at Slots 2-4**: For each parsed `G: Name` guest tag, insert a `booking_members` record at the next available slot with `is_primary: false` and the guest name. Also insert into `booking_guests` with the guest name.
+2. **Guests at Slots 2-4**: For each parsed guest tag, insert a `booking_members` record at the next available slot with `is_primary: false` and the guest name. Also insert into `booking_guests` with the guest name.
 3. **Session participants**: Call `createTrackmanSessionAndParticipants()` which creates `booking_participants` records (the table the roster UI reads from).
 
-This ensures the roster is fully populated immediately after import — no empty "Search" slots when guest names were provided in the CSV data. Without this, the roster shows 0/N players even though the owner appears in the booking header.
+This ensures the roster is fully populated immediately after import — no empty "Search" slots when guest names were provided in the CSV data.
 
 ### Rule 11 — Strict email-only member matching
 
-Member matching uses email ONLY. No name-based fallback matching (no partial name, no Levenshtein distance, no first-name-only matching). This was removed because multiple members share similar names, causing incorrect booking links.
+Match members by email ONLY. No name-based fallback matching (no partial name, no Levenshtein distance, no first-name-only matching). This was removed because multiple members share similar names, causing incorrect booking links.
 
-If the `M|email|name` email doesn't match a known member, the booking stays unmatched. This is a deliberate tradeoff: accuracy over coverage.
+If the parsed email does not match a known member, the booking stays unmatched. This is a deliberate tradeoff: accuracy over coverage.
 
 ### Rule 12 — Placeholder merging (±2 min tolerance)
 
@@ -186,7 +213,7 @@ Query rules:
 
 ### Rule 13 — Force Approved on new CSV bookings
 
-Any newly created booking from CSV import that is successfully linked to a member (via `M|email|name` parsing) MUST be set to `status = 'approved'` immediately. Do NOT leave it as `pending` or use whatever status Trackman provides.
+Set any newly created booking from CSV import that is successfully linked to a member to `status = 'approved'` immediately. Do NOT leave it as `pending` or use whatever status Trackman provides.
 
 Unmatched bookings (no member email found) keep their original status.
 
@@ -200,17 +227,21 @@ After processing all CSV rows, a cleanup query auto-approves remaining `pending`
 
 The 1-hour constraint prevents accidentally flipping legacy pending bookings from previous imports.
 
+### Rule 14a — Private event block detection
+
+Before creating an unmatched booking during CSV import, check if the time slot has been converted to a private event block via `isConvertedToPrivateEventBlock()`. This prevents creating duplicate unmatched bookings when re-importing CSV data after a booking was marked as a private event. The check looks for `availability_blocks` linked to `facility_closures` with `notice_type = 'private_event'` that overlap the booking's time range.
+
 ---
 
 ## Section 4: Billing & Fees
 
 ### Rule 15 — Unified fee calculation via computeFeeBreakdown()
 
-ALL fee calculations go through `computeFeeBreakdown()` in `unifiedFeeService.ts`. Never calculate fees inline or in route handlers.
+Route ALL fee calculations through `computeFeeBreakdown()` in `unifiedFeeService.ts`. Never calculate fees inline or in route handlers.
 
 ### Rule 15a — Fee Order of Operations (CRITICAL)
 
-Fee calculation MUST follow this exact order. Getting this wrong causes incorrect charges.
+Follow this exact order for fee calculation. Getting this wrong causes incorrect charges.
 
 1. **Status Check**: Is the booking in a billable status (`approved`, `confirmed`, `attended`)? If `cancelled`, `declined`, or `cancellation_pending` — STOP. Fee is $0.
 2. **Staff Check**: Is the participant a staff member? Check `staff_users` table by email. If staff → $0, no further checks.
@@ -225,7 +256,7 @@ Fee calculation MUST follow this exact order. Getting this wrong causes incorrec
 
 ### Rule 16 — Duration uses GREATEST(session, booking)
 
-Fee duration uses `GREATEST(session_duration, booking_duration)` because:
+Use `GREATEST(session_duration, booking_duration)` for fee duration because:
 - Session times come from Trackman imports and may not reflect staff-updated extensions
 - Booking duration reflects staff-updated times and is authoritative
 - Always use the longer of the two to avoid undercharging
@@ -234,32 +265,38 @@ Fee duration uses `GREATEST(session_duration, booking_duration)` because:
 
 Empty booking slots (declared player count minus actual participants) generate synthetic guest fee line items. The business logic (empty slot = guest fee, 30-min overage blocks, guest pass rules) is hardcoded, but dollar amounts ALWAYS come from Stripe product prices — never hardcode dollar amounts.
 
-This is why Rule 10 (parsing `G|name` tags) is critical: filling guest slots with actual names prevents false guest fees.
+This is why Rule 10 (parsing guest tags) is critical: filling guest slots with actual names prevents false guest fees.
 
 ---
 
 ## Section 5: Unified Player Management
 
-### Rule 20 — Single-Modal Roster Management
+### Rule 20 — Single-Sheet Roster Management
 
-All booking roster edits, owner assignments, and guest additions must be performed exclusively via the **Unified Player Modal** (`PlayerManagementModal.tsx`, formerly `TrackmanLinkModal.tsx`).
+Perform all booking roster edits, owner assignments, and guest additions exclusively via the **Unified Booking Sheet** (`src/components/staff-command-center/modals/UnifiedBookingSheet.tsx`).
 
-**NEVER** create separate inline roster editors or "complete roster" popups. The Unified Modal is the single source of truth for:
+Sub-components:
+- `SheetHeader.tsx` — Header with booking info
+- `BookingActions.tsx` — Action buttons
+- `PaymentSection.tsx` — Fee display and payment status
+- `AssignModeSlots.tsx` — Slot assignment UI for unlinked bookings
+- `AssignModeFooter.tsx` — Footer actions for assign mode
+- `ManageModeRoster.tsx` — Roster editing for existing bookings
+- `CheckinBillingModal.tsx` — Check-in billing flow
+- `CheckInConfirmationModal.tsx` — Check-in confirmation
+
+**NEVER** create separate inline roster editors or "complete roster" popups. The Unified Booking Sheet is the single source of truth for:
 - Validating slot counts (declared player count vs filled slots)
 - Guest pass usage tracking and auto-application
 - Fee updates and real-time recalculation
 - Owner assignment (slot 1, required) and player slots (2-4, optional)
 - Check-in roster completion flow
 
-**Deprecated approaches (do NOT use):**
-- `BookingMembersEditor.tsx` — inline editor formerly embedded in booking details modals
-- `CompleteRosterModal.tsx` — check-in roster popup that wrapped BookingMembersEditor
-
-When importing CSV data or processing webhooks, the backend still populates `booking_members` and `booking_guests` tables directly (Rules 10a, 12). But all **staff-facing UI** for viewing and editing rosters goes through the Unified Player Modal.
-
-**Two modal modes:**
+**Two sheet modes:**
 - **Mode A (Assign Players):** Unlinked bookings — "Assign & Confirm" button
 - **Mode B (Manage Players):** Existing bookings — pre-fills roster from `/api/admin/booking/:id/members`, "Save Changes" button
+
+When importing CSV data or processing webhooks, the backend still populates `booking_members` and `booking_guests` tables directly (Rules 10a, 12). But all **staff-facing UI** for viewing and editing rosters goes through the Unified Booking Sheet.
 
 ---
 
@@ -267,7 +304,7 @@ When importing CSV data or processing webhooks, the backend still populates `boo
 
 ### Rule 18 — Optimistic locking with roster_version
 
-Any participant/roster change on a booking must:
+For any participant/roster change on a booking:
 1. `SELECT roster_version FROM booking_requests WHERE id = $1 FOR UPDATE` (row-level lock)
 2. Compare the version against what the client sent
 3. Perform the change
@@ -281,7 +318,7 @@ This prevents concurrent roster edits from silently overwriting each other.
 
 ### Rule 19 — Prepayment after approval
 
-After a booking is approved (or auto-linked via Trackman), a prepayment intent is created for expected fees (overage, guests). Members can pay from their dashboard. Check-in is blocked until fees are paid. Cancellations auto-refund succeeded prepayments with idempotency protection.
+After a booking is approved (or auto-linked via Trackman), create a prepayment intent for expected fees (overage, guests). Members can pay from their dashboard. Check-in is blocked until fees are paid. Cancellations auto-refund succeeded prepayments with idempotency protection.
 
 ---
 
@@ -295,8 +332,9 @@ When adding any new booking-related code, verify:
 - [ ] Does it call `cancelPendingPaymentIntentsForBooking()` on cancel? (Rule 5)
 - [ ] Does it use `computeFeeBreakdown()` for fees? (Rule 15)
 - [ ] Does it check `roster_version` for participant changes? (Rule 18)
-- [ ] For CSV import: Does it parse `M|email|name` and `G|name` from Notes (including INLINE G: tags)? (Rules 9-10)
+- [ ] For CSV import: Does it parse `M|email|firstname|lastname` and `G|...|firstname|lastname` from Notes (including INLINE G: tags)? (Rules 9-10)
 - [ ] For CSV import: Does it immediately populate booking_members AND booking_participants? (Rule 10a)
 - [ ] For CSV import: Does it force `approved` status for member-linked bookings? (Rule 13)
 - [ ] For CSV import: Does it attempt placeholder merge before creating new? (Rule 12)
-- [ ] For staff UI: Does roster editing go through the Unified Player Modal? (Rule 20)
+- [ ] For CSV import: Does it check for private event block conversion? (Rule 14a)
+- [ ] For staff UI: Does roster editing go through the Unified Booking Sheet? (Rule 20)
