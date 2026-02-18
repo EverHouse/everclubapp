@@ -492,8 +492,8 @@ export async function approveBooking(params: ApproveBookingParams) {
     url: '/sims'
   }).catch(err => logger.error('Push notification failed:', { extra: { err } }));
 
-  populateBookingMembers(bookingId, updated);
-  notifyLinkedMembers(bookingId, updated);
+  populateBookingMembers(bookingId, updated as any);
+  notifyLinkedMembers(bookingId, updated as any);
 
   bookingEvents.publish('booking_approved', {
     bookingId,
@@ -522,7 +522,7 @@ export async function approveBooking(params: ApproveBookingParams) {
     data: { bookingId, eventType: 'booking_approved' }
   }, { action: 'booking_approved', bookingId, triggerSource: 'approval.ts' });
 
-  notifyApprovalParticipants(bookingId, updated);
+  notifyApprovalParticipants(bookingId, updated as any);
 
   return { updated, isConferenceRoom };
 }
@@ -1504,8 +1504,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
       try { broadcastMemberStatsUpdated(booking.userEmail, { lifetimeVisits: updatedUser.lifetime_visits }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { err } }); }
     }
 
-    const dateStr = booking.requestDate instanceof Date
-      ? booking.requestDate.toISOString().split('T')[0]
+    const dateStr = (booking.requestDate as any) instanceof Date
+      ? booking.requestDate.toString().split('T')[0]
       : String(booking.requestDate).split('T')[0];
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const formattedTime = formatTime12Hour(booking.startTime);
@@ -1525,8 +1525,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   if (newStatus === 'no_show' && booking.userEmail) {
-    const noShowDateStr = booking.requestDate instanceof Date
-      ? booking.requestDate.toISOString().split('T')[0]
+    const noShowDateStr = (booking.requestDate as any) instanceof Date
+      ? booking.requestDate.toString().split('T')[0]
       : String(booking.requestDate).split('T')[0];
     const formattedDate = formatDateDisplayWithDay(noShowDateStr);
     const formattedTime = formatTime12Hour(booking.startTime);

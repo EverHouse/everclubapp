@@ -142,7 +142,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Staff user not found' });
     }
     
-    logFromRequest(req, 'update_staff_user', 'staff_user', req.params.id, '', { changes: req.body });
+    logFromRequest(req, 'update_staff_user', 'staff_user', req.params.id as any, '', { changes: req.body });
     res.json({
       id: result[0].id,
       email: result[0].email,
@@ -174,7 +174,7 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Staff user not found' });
     }
     
-    logFromRequest(req, 'delete_staff_user', 'staff_user', req.params.id, '', {});
+    logFromRequest(req, 'delete_staff_user', 'staff_user', req.params.id as any, '', {});
     res.json({ 
       message: 'Staff user removed', 
       staff: {
@@ -283,7 +283,7 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Admin user not found' });
     }
     
-    logFromRequest(req, 'update_admin_user', 'staff_user', req.params.id, '', { changes: req.body });
+    logFromRequest(req, 'update_admin_user', 'staff_user', req.params.id as any, '', { changes: req.body });
     res.json({
       id: result[0].id,
       email: result[0].email,
@@ -322,7 +322,7 @@ router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Admin user not found' });
     }
     
-    logFromRequest(req, 'delete_admin_user', 'staff_user', req.params.id, '', {});
+    logFromRequest(req, 'delete_admin_user', 'staff_user', req.params.id as any, '', {});
     res.json({ 
       message: 'Admin user removed', 
       admin: {

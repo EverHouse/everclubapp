@@ -234,19 +234,19 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
       await client.query('COMMIT');
       
       row = {
-        id: dbRow.id,
-        userEmail: dbRow.user_email,
-        userName: dbRow.user_name,
-        resourceId: dbRow.resource_id,
-        requestDate: dbRow.request_date,
-        startTime: dbRow.start_time,
-        durationMinutes: dbRow.duration_minutes,
-        endTime: dbRow.end_time,
-        status: dbRow.status,
-        declaredPlayerCount: dbRow.declared_player_count,
-        requestParticipants: dbRow.request_participants || [],
-        trackmanExternalId: dbRow.trackman_external_id,
-        origin: dbRow.origin,
+        id: dbRow.id as number,
+        userEmail: dbRow.user_email as string,
+        userName: dbRow.user_name as string,
+        resourceId: dbRow.resource_id as number,
+        requestDate: dbRow.request_date as string,
+        startTime: dbRow.start_time as string,
+        durationMinutes: dbRow.duration_minutes as number,
+        endTime: dbRow.end_time as string,
+        status: dbRow.status as string,
+        declaredPlayerCount: dbRow.declared_player_count as number,
+        requestParticipants: (dbRow.request_participants as any[]) || [],
+        trackmanExternalId: dbRow.trackman_external_id as string,
+        origin: dbRow.origin as string,
         createdAt: dbRow.created_at,
         updatedAt: dbRow.updated_at
       };
@@ -255,11 +255,11 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
       if (isDayPassPayment && row.resourceId) {
         try {
           await ensureSessionForBooking({
-            bookingId: row.id,
-            resourceId: row.resourceId,
+            bookingId: row.id as number,
+            resourceId: row.resourceId as number,
             sessionDate: request_date,
             startTime: start_time,
-            endTime: row.endTime || end_time,
+            endTime: (row.endTime as string) || end_time,
             ownerEmail: user_email.toLowerCase(),
             ownerName: user_name || row.userName || undefined,
             source: 'staff_manual',
@@ -279,7 +279,7 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
     let resourceName = 'Bay';
     if (row.resourceId) {
       try {
-        const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, row.resourceId));
+        const [resource] = await db.select({ name: resources.name }).from(resources).where(eq(resources.id, row.resourceId as number));
         if (resource?.name) {
           resourceName = resource.name;
         }
@@ -292,15 +292,15 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
       ? row.requestDate 
       : request_date;
     const formattedDate = formatDateDisplayWithDay(dateStr);
-    const formattedTime12h = formatTime12Hour(row.startTime?.substring(0, 5) || start_time.substring(0, 5));
+    const formattedTime12h = formatTime12Hour(String(row.startTime || '').substring(0, 5) || start_time.substring(0, 5));
     
     const durationMins = row.durationMinutes || duration_minutes;
     let durationDisplay = '';
     if (durationMins) {
-      if (durationMins < 60) {
+      if (Number(durationMins) < 60) {
         durationDisplay = `${durationMins} min`;
       } else {
-        const hours = durationMins / 60;
+        const hours = Number(durationMins)/ 60;
         durationDisplay = hours === Math.floor(hours) ? `${hours} hr${hours > 1 ? 's' : ''}` : `${hours.toFixed(1)} hrs`;
       }
     }
@@ -337,19 +337,19 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, async (req, res) => {
         staffMessage,
         'booking',
         {
-          relatedId: row.id,
+          relatedId: row.id as number,
           relatedType: 'booking_request'
         }
       ).catch(err => logger.error('Staff notification failed:', { extra: { err } }));
       
       broadcastAvailabilityUpdate({
-        resourceId: row.resourceId || undefined,
+        resourceId: (row.resourceId as number) || undefined,
         resourceType: 'simulator',
-        date: row.requestDate,
+        date: row.requestDate as string,
         action: 'booked'
       });
       
-      logFromRequest(req, 'create_booking', 'booking', String(row.id), row.userName || row.userEmail, {
+      logFromRequest(req, 'create_booking', 'booking', String(row.id), (row.userName || row.userEmail) as string, {
         trackman_booking_id: trackman_id,
         origin: 'staff_manual',
         resource_id: row.resourceId,

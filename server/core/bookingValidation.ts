@@ -65,22 +65,22 @@ export async function checkClosureConflict(
     const bookingEndMinutes = parseTimeToMinutes(endTime);
 
     for (const closure of activeClosures) {
-      const affectedResourceIds = await parseAffectedAreas(closure.affectedAreas);
+      const affectedResourceIds = await parseAffectedAreas(closure.affectedAreas as string);
 
       if (!affectedResourceIds.includes(resourceId)) continue;
 
       if (!closure.startTime && !closure.endTime) {
-        return { hasConflict: true, closureTitle: closure.title || 'Facility Closure' };
+        return { hasConflict: true, closureTitle: (closure.title as string) || 'Facility Closure' };
       }
 
-      const closureStartMinutes = closure.startTime ? parseTimeToMinutes(closure.startTime) : 0;
-      let closureEndMinutes = closure.endTime ? parseTimeToMinutes(closure.endTime) : 24 * 60;
+      const closureStartMinutes = closure.startTime ? parseTimeToMinutes(closure.startTime as string) : 0;
+      let closureEndMinutes = closure.endTime ? parseTimeToMinutes(closure.endTime as string) : 24 * 60;
       if (closureEndMinutes === 0 && closure.endTime) {
         closureEndMinutes = 24 * 60;
       }
 
       if (hasTimeOverlap(bookingStartMinutes, bookingEndMinutes, closureStartMinutes, closureEndMinutes)) {
-        return { hasConflict: true, closureTitle: closure.title || 'Facility Closure' };
+        return { hasConflict: true, closureTitle: (closure.title as string) || 'Facility Closure' };
       }
     }
 

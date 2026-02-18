@@ -393,11 +393,11 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         const res = await fetch(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5&includeStaff=true&includeMembers=true`, { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
-          const matches = data.filter((v: { user_email?: string; request_date?: string; start_time?: string; resource_id?: number }) => {
+          const matches = data.filter((v: any) => {
             const vName = (v.name || `${v.firstName} ${v.lastName}`).toLowerCase().trim();
             return vName === fullName.toLowerCase();
           });
-          setPotentialDuplicates(matches.map((v: { user_email?: string; request_date?: string; start_time?: string; resource_id?: number; user_name?: string; id: number }) => ({
+          setPotentialDuplicates(matches.map((v: any) => ({
             id: v.id,
             email: v.email,
             name: v.name || `${v.firstName} ${v.lastName}`
@@ -702,8 +702,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           setMemberMatchWarning({
             slotNumber,
             guestData: {
-              guestName: body.guestName,
-              guestEmail: body.guestEmail,
+              guestName: body.guestName as string,
+              guestEmail: body.guestEmail as string,
               guestPhone: manageModeGuestData.phone
             },
             memberMatch: errData.memberMatch

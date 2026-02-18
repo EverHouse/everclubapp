@@ -113,8 +113,8 @@ export function NewUserDrawer({
       if (tiersRes.ok) {
         const tiersData = await tiersRes.json();
         const subscriptionTiers = tiersData
-          .filter((t: { product_type?: string; stripe_price_id?: string; name: string; monthly_price?: number; slug?: string }) => t.product_type === 'subscription' && t.stripe_price_id)
-          .map((t: { product_type?: string; stripe_price_id?: string; name: string; monthly_price?: number; slug?: string }) => ({
+          .filter((t: any) => t.product_type === 'subscription' && t.stripe_price_id)
+          .map((t: any) => ({
             id: t.id,
             name: t.name,
             slug: t.slug,
@@ -144,8 +144,8 @@ export function NewUserDrawer({
       if (billingGroupsRes.ok) {
         const groupsData = await billingGroupsRes.json();
         const activeGroups = (groupsData || [])
-          .filter((g: { isActive?: boolean; stripeSubscriptionId?: string; id: number; name?: string; memberCount?: number }) => g.isActive && g.stripeSubscriptionId)
-          .map((g: { isActive?: boolean; stripeSubscriptionId?: string; id: number; name?: string; memberCount?: number }) => ({
+          .filter((g: any) => g.isActive && g.stripeSubscriptionId)
+          .map((g: any) => ({
             id: g.id,
             primaryEmail: g.primaryEmail,
             primaryName: g.primaryName,
@@ -381,14 +381,14 @@ export function NewUserDrawer({
           setIsLoading={setIsLoading}
           setError={setError}
           setStep={setVisitorStep}
-          onSuccess={(user) => {
+          onSuccess={((user: any) => {
             setCreatedUser(user);
             setVisitorStep('success');
             onSuccess?.({ ...user, mode: 'visitor' });
-          }}
+          }) as any}
           createdUser={createdUser}
           onClose={handleClose}
-          onBookNow={onBookNow}
+          onBookNow={onBookNow ? () => onBookNow(createdUser as any) : undefined}
           showToast={showToast}
           scannedIdImage={scannedIdImage}
           onShowIdScanner={() => setShowIdScanner(true)}

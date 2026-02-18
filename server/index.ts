@@ -8,7 +8,7 @@ import { logger } from './core/logger';
 let isShuttingDown = false;
 let isReady = false;
 let httpServer: Server | null = null;
-let expressApp: Express | null = null;
+let expressApp: any = null;
 let cachedIndexHtml: string | null = null;
 
 declare global {
@@ -293,7 +293,7 @@ async function initializeApp() {
 
   app.use(express.json({
     limit: '1mb',
-    verify: (req: IncomingMessage & { rawBody?: string; originalUrl?: string }, _res, buf) => {
+    verify: (req: any, _res: any, buf: Buffer) => {
       if (req.originalUrl?.includes('/webhooks') || req.url?.includes('/webhooks')) {
         req.rawBody = buf.toString('utf8');
       }
@@ -865,7 +865,7 @@ async function initializeApp() {
 async function autoSeedResources(pool: { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, isProduction: boolean) {
   try {
     const result = await pool.query('SELECT COUNT(*) as count FROM resources');
-    const count = parseInt(result.rows[0].count);
+    const count = parseInt(result.rows[0].count as string);
 
     if (count === 0) {
       if (!isProduction) logger.info('Auto-seeding resources...');
@@ -895,7 +895,7 @@ async function autoSeedResources(pool: { query: (text: string, values?: unknown[
 async function autoSeedCafeMenu(pool: { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, isProduction: boolean) {
   try {
     const result = await pool.query('SELECT COUNT(*) as count FROM cafe_items');
-    const count = parseInt(result.rows[0].count);
+    const count = parseInt(result.rows[0].count as string);
 
     if (count === 0) {
       if (!isProduction) logger.info('Auto-seeding cafe menu...');

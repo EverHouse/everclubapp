@@ -90,7 +90,7 @@ router.put('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'FAQ not found' });
     }
     
-    logFromRequest(req, 'update_faq', 'faq', id);
+    logFromRequest(req, 'update_faq', 'faq', id as any);
     
     res.json(updated);
   } catch (error: unknown) {
@@ -111,7 +111,7 @@ router.delete('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'FAQ not found' });
     }
     
-    logFromRequest(req, 'delete_faq', 'faq', id);
+    logFromRequest(req, 'delete_faq', 'faq', id as any);
     
     res.json({ success: true, deleted });
   } catch (error: unknown) {

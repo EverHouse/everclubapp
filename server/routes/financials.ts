@@ -116,7 +116,7 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
     `);
     
     const hasMore = result.rows.length > limit;
-    const transactions: RecentTransaction[] = result.rows.slice(0, limit).map((row: Record<string, unknown>) => ({
+    const transactions = result.rows.slice(0, limit).map((row: Record<string, unknown>) => ({
       id: row.id as string,
       type: row.type as string,
       amount_cents: parseInt(row.amount_cents as string),
@@ -316,7 +316,7 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
             metadata: inv.metadata,
             source: 'backfill',
             invoiceId: inv.id,
-            paymentIntentId: typeof (inv as Stripe.Invoice).payment_intent === 'string' ? (inv as Stripe.Invoice).payment_intent as string : undefined,
+            paymentIntentId: typeof (inv as any).payment_intent === 'string' ? (inv as any).payment_intent as string : undefined,
           });
           invoicesProcessed++;
         }
@@ -408,7 +408,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
       
       while (hasMore) {
         const params: Stripe.PaymentIntentListParams = {
-          customer: user.stripe_customer_id,
+          customer: user.stripe_customer_id as string,
           limit: 100,
           created: { gte: startDate },
           expand: ['data.customer']
@@ -427,9 +427,9 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
               amountCents: pi.amount,
               currency: pi.currency || 'usd',
               createdAt: new Date(pi.created * 1000),
-              customerId: user.stripe_customer_id,
+              customerId: user.stripe_customer_id as string,
               customerEmail: email.toLowerCase(),
-              customerName: customer?.name || `${user.first_name} ${user.last_name}`.trim(),
+              customerName: customer?.name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
               description: pi.description || pi.metadata?.productName || 'Stripe payment',
               metadata: pi.metadata,
               source: 'backfill',
@@ -455,7 +455,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
       
       while (hasMore) {
         const params: Stripe.InvoiceListParams = {
-          customer: user.stripe_customer_id,
+          customer: user.stripe_customer_id as string,
           limit: 100,
           created: { gte: startDate },
           expand: ['data.customer']
@@ -474,9 +474,9 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
               amountCents: inv.amount_paid || inv.amount_due || 0,
               currency: inv.currency || 'usd',
               createdAt: new Date(inv.created * 1000),
-              customerId: user.stripe_customer_id,
+              customerId: user.stripe_customer_id as string,
               customerEmail: email.toLowerCase(),
-              customerName: customer?.name || `${user.first_name} ${user.last_name}`.trim(),
+              customerName: customer?.name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
               description: inv.lines?.data?.[0]?.description || 'Invoice payment',
               metadata: inv.metadata,
               source: 'backfill',
@@ -705,7 +705,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
         currency: price?.currency || 'usd',
         interval: price?.recurring?.interval || 'month',
         status: sub.status,
-        currentPeriodEnd: (sub as Stripe.Subscription).current_period_end,
+        currentPeriodEnd: (sub as any).current_period_end,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
       };
     });
@@ -760,7 +760,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
       memberName: customer.name || 'Member',
       amount,
       description: `${product?.name || 'Membership'} subscription payment is past due`,
-      dueDate: new Date((subscription as Stripe.Subscription).current_period_end * 1000).toLocaleDateString('en-US', {
+      dueDate: new Date((subscription as any).current_period_end * 1000).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',

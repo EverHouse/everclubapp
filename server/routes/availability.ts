@@ -490,15 +490,15 @@ router.get('/api/availability-blocks', async (req, res) => {
     const params: (string | number)[] = [];
     
     if (start_date) {
-      params.push(start_date);
+      params.push(start_date as any);
       query += ` AND ab.block_date >= $${params.length}`;
     }
     if (end_date) {
-      params.push(end_date);
+      params.push(end_date as any);
       query += ` AND ab.block_date <= $${params.length}`;
     }
     if (resource_id) {
-      params.push(resource_id);
+      params.push(resource_id as any);
       query += ` AND ab.resource_id = $${params.length}`;
     }
     

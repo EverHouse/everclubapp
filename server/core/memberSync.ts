@@ -1352,14 +1352,14 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
         );
         
         // Filter to recent calls only
-        const recentCalls = response.results.filter((call: Record<string, unknown>) => {
+        const recentCalls = (response as any).results.filter((call: Record<string, unknown>) => {
           const callProps = call.properties as Record<string, unknown> | undefined;
           const timestamp = callProps?.hs_timestamp as string | undefined;
           if (!timestamp) return false;
           return new Date(timestamp) >= ninetyDaysAgo;
         });
         
-        allCalls = allCalls.concat(recentCalls as Record<string, unknown>[]);
+        allCalls = allCalls.concat(recentCalls as unknown as Record<string, unknown>[]);
         after = (response as unknown as { paging?: { next?: { after?: string } } }).paging?.next?.after;
         
         // Rate limiting: pause between pages

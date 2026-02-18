@@ -291,8 +291,8 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
         if (row.visitor_type === 'guest') return 'guest';
         if (row.visitor_type === 'lead') return 'lead';
       }
-      const purchaseCount = parseInt(row.purchase_count) || 0;
-      const guestCount = parseInt(row.guest_count) || 0;
+      const purchaseCount = parseInt(row.purchase_count as string) || 0;
+      const guestCount = parseInt(row.guest_count as string) || 0;
       if (purchaseCount > 0) return 'day_pass';
       if (guestCount > 0) return 'guest';
       return 'lead';
@@ -304,10 +304,10 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       firstName: row.first_name,
       lastName: row.last_name,
       phone: row.phone,
-      purchaseCount: parseInt(row.purchase_count) || 0,
-      totalSpentCents: parseInt(row.total_spent_cents) || 0,
+      purchaseCount: parseInt(row.purchase_count as string) || 0,
+      totalSpentCents: parseInt(row.total_spent_cents as string) || 0,
       lastPurchaseDate: row.last_purchase_date,
-      guestCount: parseInt(row.guest_count) || 0,
+      guestCount: parseInt(row.guest_count as string) || 0,
       lastGuestDate: row.last_guest_date,
       membershipStatus: row.membership_status,
       role: row.role,
@@ -328,7 +328,7 @@ router.get('/api/visitors', isStaffOrAdmin, async (req, res) => {
       total: totalCount,
       limit: pageLimit,
       offset: pageOffset,
-      hasMore: pageOffset + visitors.length < totalCount,
+      hasMore: Number(pageOffset + visitors.length) < Number(totalCount),
       visitors
     });
   } catch (error: unknown) {
@@ -493,14 +493,14 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
           await db.execute(sql`UPDATE users SET role = ${'visitor'}, updated_at = NOW() WHERE id = ${user.id}`);
         }
         
-        let stripeCustomerId: string | null = user.stripe_customer_id || null;
+        let stripeCustomerId: string | null = (user.stripe_customer_id as string) || null;
         let stripeCreated = false;
         if (createStripeCustomer) {
           if (!stripeCustomerId) {
             try {
               const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
               const visitorName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || undefined;
-              const result = await getOrCreateStripeCustomer(user.id, user.email, visitorName);
+              const result = await getOrCreateStripeCustomer(user.id as string, user.email as string, visitorName);
               stripeCustomerId = result.customerId;
               stripeCreated = result.isNew;
               if (stripeCustomerId) {
@@ -516,10 +516,10 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
 
           import('../../core/hubspot/members').then(({ findOrCreateHubSpotContact }) => {
             findOrCreateHubSpotContact(
-              user.email,
-              user.first_name || '',
-              user.last_name || '',
-              user.phone || undefined
+              user.email as string,
+              (user.first_name || '') as string,
+              (user.last_name || '') as string,
+              (user.phone as string) || undefined
             ).catch((err: unknown) => logger.error('[Visitors] HubSpot sync failed for linked visitor', { error: err instanceof Error ? err : new Error(String(err)) }));
           }).catch(() => {});
         }
@@ -528,7 +528,7 @@ router.post('/api/visitors', isStaffOrAdmin, async (req, res) => {
         await logFromRequest(req, {
           action: 'visitor_linked',
           resourceType: 'user',
-          resourceId: user.id,
+          resourceId: user.id as string,
           resourceName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || normalizedEmail,
           details: { 
             email: normalizedEmail,

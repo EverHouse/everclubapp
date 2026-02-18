@@ -92,6 +92,8 @@ interface UnlinkedGuestFee {
   fee_amount?: number;
   booking_date?: string;
   member_email?: string;
+  memberEmail?: string;
+  saleDate?: string;
 }
 
 interface AvailableSession {
@@ -117,24 +119,46 @@ interface StripeCacheStats {
   cached?: number;
   total?: number;
   failed?: number;
+  paymentIntents?: number;
+  charges?: number;
+  invoices?: number;
 }
 
 interface PlaceholderAccount {
+  id?: string;
   email: string;
   name?: string;
   source?: string;
   createdAt?: string;
+  created?: number;
+  status?: string;
 }
 
 interface BackgroundJobStatus {
   hasJob: boolean;
-  job?: { id: string; status: string; progress?: number; result?: unknown };
+  job?: { id: string; status: string; progress?: number; result?: unknown; error?: string };
 }
 
 interface MemberDetails {
+  id?: unknown;
   email: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   tier?: string;
+  membershipStatus?: string;
+  tags?: string[];
+  phone?: string;
+  role?: 'admin' | 'member' | 'staff';
+  mindbodyClientId?: string;
+  stripeCustomerId?: string;
+  hubspotId?: string;
+  dateOfBirth?: string;
+  billingProvider?: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   [key: string]: unknown;
 }
 
@@ -770,11 +794,11 @@ const DataIntegrityTab: React.FC = () => {
       try {
         const statusData = await fetchWithCredentials<BackgroundJobStatus>('/api/data-tools/cleanup-stripe-customers/status');
         if (statusData.hasJob && statusData.job) {
-          setStripeCleanupProgress(statusData.job.progress);
+          setStripeCleanupProgress(statusData.job.progress as any);
           if (statusData.job.status === 'completed') {
             setIsRunningStripeCleanup(false);
             setStripeCleanupProgress(null);
-            const r = statusData.job.result;
+            const r = statusData.job.result as any;
             if (r) {
               setStripeCleanupResult({
                 success: r.success,
@@ -791,7 +815,7 @@ const DataIntegrityTab: React.FC = () => {
           } else if (statusData.job.status === 'failed') {
             setIsRunningStripeCleanup(false);
             setStripeCleanupProgress(null);
-            setStripeCleanupResult({ success: false, message: statusData.job.error || 'Job failed' });
+            setStripeCleanupResult({ success: false, message: (statusData.job as any).error || 'Job failed' });
           }
         } else if (!statusData.hasJob) {
           setIsRunningStripeCleanup(false);
@@ -844,11 +868,11 @@ const DataIntegrityTab: React.FC = () => {
       try {
         const statusData = await fetchWithCredentials<BackgroundJobStatus>('/api/data-tools/archive-stale-visitors/status');
         if (statusData.hasJob && statusData.job) {
-          setVisitorArchiveProgress(statusData.job.progress);
+          setVisitorArchiveProgress(statusData.job.progress as any);
           if (statusData.job.status === 'completed') {
             setIsRunningVisitorArchive(false);
             setVisitorArchiveProgress(null);
-            const r = statusData.job.result;
+            const r = statusData.job.result as any;
             if (r) {
               setVisitorArchiveResult({
                 success: r.success,
@@ -1116,9 +1140,9 @@ const DataIntegrityTab: React.FC = () => {
     onSuccess: (data) => {
       if (data.success) {
         setPlaceholderAccounts({
-          stripeCustomers: data.stripeCustomers || [],
-          hubspotContacts: data.hubspotContacts || [],
-          localDatabaseUsers: data.localDatabaseUsers || [],
+          stripeCustomers: (data.stripeCustomers || []) as any,
+          hubspotContacts: (data.hubspotContacts || []) as any,
+          localDatabaseUsers: (data.localDatabaseUsers || []) as any,
           totals: {
             stripe: data.totals?.stripe || 0,
             hubspot: data.totals?.hubspot || 0,
@@ -1245,7 +1269,7 @@ const DataIntegrityTab: React.FC = () => {
         throw new Error('Invalid response from server');
       }
       const profile: MemberProfile = {
-        id: response.id,
+        id: response.id as string,
         name: [response.firstName, response.lastName].filter(Boolean).join(' ') || response.email,
         tier: response.tier || '',
         rawTier: response.tier,
@@ -1255,18 +1279,18 @@ const DataIntegrityTab: React.FC = () => {
         email: response.email,
         phone: response.phone || '',
         role: response.role,
-        mindbodyClientId: response.mindbodyClientId,
-        stripeCustomerId: response.stripeCustomerId,
-        hubspotId: response.hubspotId,
+        mindbodyClientId: response.mindbodyClientId as string,
+        stripeCustomerId: response.stripeCustomerId as string,
+        hubspotId: response.hubspotId as string,
         dateOfBirth: response.dateOfBirth,
         billingProvider: response.billingProvider,
         streetAddress: response.streetAddress,
         city: response.city,
         state: response.state,
         zipCode: response.zipCode,
-        companyName: response.companyName,
-        lifetimeVisits: response.lifetimeVisits,
-        lastBookingDate: response.lastBookingDate,
+        companyName: response.companyName as string,
+        lifetimeVisits: response.lifetimeVisits as number,
+        lastBookingDate: response.lastBookingDate as string,
       };
       setSelectedMember(profile);
       setIsProfileDrawerOpen(true);
@@ -1873,7 +1897,7 @@ const DataIntegrityTab: React.FC = () => {
         loadingMemberEmail={loadingMemberEmail}
         handleViewProfile={handleViewProfile}
         setBookingSheet={setBookingSheet}
-        fixIssueMutation={fixIssueMutation}
+        fixIssueMutation={fixIssueMutation as any}
         openIgnoreModal={openIgnoreModal}
         openBulkIgnoreModal={openBulkIgnoreModal}
         getIssueTracking={getIssueTrackingForIssue}

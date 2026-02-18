@@ -212,12 +212,12 @@ router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
       type: 'announcement' as const,
       priority: (newAnnouncement.priority || 'normal') as 'normal' | 'high' | 'urgent',
       date: 'Just now',
-      createdAt: newAnnouncement.created_at ? new Date(newAnnouncement.created_at).toISOString() : new Date().toISOString(),
-      startDate: newAnnouncement.starts_at ? formatDatePacific(new Date(newAnnouncement.starts_at)) : undefined,
-      endDate: newAnnouncement.ends_at ? formatDatePacific(new Date(newAnnouncement.ends_at)) : undefined,
-      linkType: newAnnouncement.link_type || undefined,
-      linkTarget: newAnnouncement.link_target || undefined,
-      showAsBanner: newAnnouncement.show_as_banner || false
+      createdAt: newAnnouncement.created_at ? new Date(newAnnouncement.created_at as string).toISOString() : new Date().toISOString(),
+      startDate: newAnnouncement.starts_at ? formatDatePacific(new Date(newAnnouncement.starts_at as string)) : undefined,
+      endDate: newAnnouncement.ends_at ? formatDatePacific(new Date(newAnnouncement.ends_at as string)) : undefined,
+      linkType: (newAnnouncement.link_type as string) || undefined,
+      linkTarget: (newAnnouncement.link_target as string) || undefined,
+      showAsBanner: (newAnnouncement.show_as_banner as boolean) || false
     };
     
     // Broadcast real-time update to all connected clients
@@ -301,13 +301,13 @@ router.put('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
       desc: updated.message || '',
       type: 'announcement' as const,
       priority: (updated.priority || 'normal') as 'normal' | 'high' | 'urgent',
-      date: updated.created_at ? new Date(updated.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: CLUB_TIMEZONE }) : 'Just now',
-      createdAt: updated.created_at ? new Date(updated.created_at).toISOString() : new Date().toISOString(),
-      startDate: updated.starts_at ? formatDatePacific(new Date(updated.starts_at)) : undefined,
-      endDate: updated.ends_at ? formatDatePacific(new Date(updated.ends_at)) : undefined,
-      linkType: updated.link_type || undefined,
-      linkTarget: updated.link_target || undefined,
-      showAsBanner: updated.show_as_banner || false
+      date: updated.created_at ? new Date(updated.created_at as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: CLUB_TIMEZONE }) : 'Just now',
+      createdAt: updated.created_at ? new Date(updated.created_at as string).toISOString() : new Date().toISOString(),
+      startDate: updated.starts_at ? formatDatePacific(new Date(updated.starts_at as string)) : undefined,
+      endDate: updated.ends_at ? formatDatePacific(new Date(updated.ends_at as string)) : undefined,
+      linkType: (updated.link_type as string) || undefined,
+      linkTarget: (updated.link_target as string) || undefined,
+      showAsBanner: (updated.show_as_banner as boolean) || false
     };
     
     // Broadcast real-time update to all connected clients

@@ -508,7 +508,7 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       logger.error('[Terminal] Error listing existing PIs:', { extra: { error: getErrorMessage(listErr) } });
     }
 
-    const invoicePI = invoice.payment_intent as Stripe.PaymentIntent;
+    const invoicePI = (invoice as any).payment_intent as Stripe.PaymentIntent;
     let paymentIntent: Stripe.PaymentIntent;
     
     if (invoicePI && invoicePI.id) {
@@ -915,12 +915,11 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
     let readerLabel = readerId;
     try {
       const readerObj = await stripe.terminal.readers.retrieve(readerId);
-      readerLabel = readerObj.label || readerId;
+      readerLabel = (readerObj as any).label || readerId;
     } catch (e) { /* reader label is cosmetic, ignore */ }
 
     const updateParams: Stripe.PaymentIntentUpdateParams = {
       payment_method_types: ['card_present'],
-      automatic_payment_methods: { enabled: false },
       metadata: {
         ...paymentIntent.metadata,
         readerId,
@@ -1015,7 +1014,7 @@ router.post('/api/stripe/terminal/save-card', isStaffOrAdmin, async (req: Reques
     const reader = await stripe.terminal.readers.processSetupIntent(readerId, {
       setup_intent: setupIntent.id,
       customer_consent_collected: true
-    });
+    } as any);
 
     if (reader.device_type?.startsWith('simulated')) {
       try {
@@ -1106,8 +1105,8 @@ router.post('/api/stripe/terminal/confirm-save-card', isStaffOrAdmin, async (req
 
     let reusablePaymentMethodId = pmId;
 
-    if (pm.type === 'card_present' && pm.card_present?.generated_card) {
-      reusablePaymentMethodId = pm.card_present.generated_card;
+    if (pm.type === 'card_present' && (pm.card_present as any)?.generated_card) {
+      reusablePaymentMethodId = (pm.card_present as any).generated_card;
       logger.info('[Terminal] Found generated_card from SetupIntent card_present', { extra: { reusablePaymentMethodId } });
     }
 

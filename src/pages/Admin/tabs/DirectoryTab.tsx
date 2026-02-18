@@ -579,7 +579,7 @@ const DirectoryTab: React.FC = () => {
 
     const openTeamMemberDetails = useCallback((member: TeamMember) => {
         const profile = teamMemberToMemberProfile(member);
-        setSelectedMember(profile as MemberProfile);
+        setSelectedMember(profile as unknown as MemberProfile);
         setIsViewingDetails(true);
     }, [teamMemberToMemberProfile]);
 
@@ -1976,7 +1976,7 @@ const DirectoryTab: React.FC = () => {
 
             <MemberProfileDrawer
                 isOpen={visitorDetailsOpen && !!selectedVisitor}
-                member={selectedVisitor ? visitorToMemberProfile(selectedVisitor) as MemberProfile : null}
+                member={selectedVisitor ? visitorToMemberProfile(selectedVisitor) as unknown as MemberProfile : null}
                 isAdmin={isAdmin}
                 onClose={() => { setVisitorDetailsOpen(false); setSelectedVisitor(null); }}
                 onViewAs={() => {}}

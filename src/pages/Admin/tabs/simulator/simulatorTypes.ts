@@ -35,6 +35,7 @@ export interface BookingRequest {
     userName?: string | null;
     note?: string | null;
     fee_snapshot_paid?: boolean;
+    member_notes?: string | null;
 }
 
 export interface Bay {

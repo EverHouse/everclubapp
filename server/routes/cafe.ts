@@ -18,7 +18,7 @@ router.get('/api/cafe-menu', async (req, res) => {
     }
     
     if (category) {
-      params.push(category);
+      params.push(category as any);
       conditions.push(`category = $${params.length}`);
     }
     

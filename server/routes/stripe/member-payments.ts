@@ -1468,7 +1468,7 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, a
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const bookingId = parseInt(req.params.bookingId);
+    const bookingId = parseInt(req.params.bookingId as any);
     const { paymentIntentId } = req.body;
 
     if (!paymentIntentId || typeof paymentIntentId !== 'string') {

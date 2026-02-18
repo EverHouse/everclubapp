@@ -148,7 +148,7 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
     });
     
     logger.info('[Stripe] Updated coupon - name: ""', { extra: { id, name } });
-    logFromRequest(req, 'update_coupon', 'coupon', req.params.id, '', {});
+    logFromRequest(req, 'update_coupon', 'coupon', req.params.id as any, '', {});
     
     res.json({
       success: true,
@@ -187,7 +187,7 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
     await stripe.coupons.del(id as string);
     
     logger.info('[Stripe] Deleted coupon', { extra: { id } });
-    logFromRequest(req, 'delete_coupon', 'coupon', req.params.id, '', {});
+    logFromRequest(req, 'delete_coupon', 'coupon', req.params.id as any, '', {});
     
     res.json({ success: true });
   } catch (error: unknown) {

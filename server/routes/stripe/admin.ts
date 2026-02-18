@@ -455,7 +455,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     if (member.stripe_customer_id && !usedCheckout) {
       const { sendGracePeriodReminderEmail } = await import('../../emails/membershipEmails');
       await sendGracePeriodReminderEmail(member.email as string, {
-        memberName,
+        memberName: memberName as string,
         currentDay: 1,
         totalDays: 3,
         reactivationLink
@@ -517,12 +517,12 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     }
 
     logFromRequest(req, {
-      action: 'send_reactivation_link',
+      action: 'send_reactivation_link' as any,
       resourceType: 'member',
       resourceId: String(member.id),
-      resourceName: memberName,
+      resourceName: memberName as string,
       details: {
-        memberEmail: member.email,
+        memberEmail: member.email as string,
         hadStripeCustomer: !!member.stripe_customer_id,
         usedCheckout,
       }
@@ -758,8 +758,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
           try {
             const subscription = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
             const mappedStatus = statusMap[subscription.status] || subscription.status;
-            const periodEnd = subscription.current_period_end
-              ? new Date(subscription.current_period_end * 1000)
+            const periodEnd = (subscription as any).current_period_end
+              ? new Date((subscription as any).current_period_end * 1000)
               : null;
             const resolvedTier = await resolveTierFromSubscription(subscription);
             const changes: string[] = [];
@@ -821,7 +821,7 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
                 updateParams
               );
               updated++;
-              details.push({ email: member.email, name: memberName, changes });
+              details.push({ email: member.email, action: 'updated', changes } as any);
             }
             synced++;
           } catch (err: unknown) {
@@ -831,11 +831,11 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
                 [member.id]
               );
               updated++;
-              details.push({ email: member.email, name: memberName, changes: ['subscription not found in Stripe — cleared'] });
+              details.push({ email: member.email, action: 'cleared', changes: ['subscription not found in Stripe — cleared'] } as any);
               synced++;
             } else {
               errorCount++;
-              details.push({ email: member.email, name: memberName, error: getErrorMessage(err) });
+              details.push({ email: member.email, action: 'error', changes: [getErrorMessage(err)] } as any);
             }
           }
         } else if (member.stripe_customer_id) {
@@ -849,8 +849,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
             if (subscriptions.data.length > 0) {
               const sub = subscriptions.data[0];
               const mappedStatus = statusMap[sub.status] || sub.status;
-              const periodEnd = sub.current_period_end
-                ? new Date(sub.current_period_end * 1000)
+              const periodEnd = (sub as any).current_period_end
+                ? new Date((sub as any).current_period_end * 1000)
                 : null;
               const resolvedTier = await resolveTierFromSubscription(sub);
 
@@ -884,12 +884,12 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
               updated++;
               const changeDetails = [`linked subscription ${sub.id}`, `status: ${mappedStatus}`];
               if (resolvedTier) changeDetails.push(`tier: ${resolvedTier}`);
-              details.push({ email: member.email, name: memberName, changes: changeDetails });
+              details.push({ email: member.email, action: 'linked', changes: changeDetails } as any);
             }
             synced++;
           } catch (err: unknown) {
             errorCount++;
-            details.push({ email: member.email, name: memberName, error: getErrorMessage(err) });
+            details.push({ email: member.email, action: 'error', changes: [getErrorMessage(err)] } as any);
           }
         }
       }));

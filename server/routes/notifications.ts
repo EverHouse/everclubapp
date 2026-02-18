@@ -6,7 +6,7 @@ import { getSessionUser } from '../types/session';
 
 const router = Router();
 
-function getSessionEmail(req: Request): string | null {
+function getSessionEmail(req: any): string | null {
   return getSessionUser(req)?.email?.toLowerCase() || null;
 }
 
@@ -43,7 +43,7 @@ router.get('/api/notifications', isAuthenticated, async (req, res) => {
     const { user_email: rawEmail, unread_only } = req.query;
     
     const requestedEmail = rawEmail ? decodeURIComponent(rawEmail as string) : undefined;
-    const effective = await getEffectiveEmail(req, requestedEmail);
+    const effective = await getEffectiveEmail(req as any, requestedEmail);
     
     if (!effective) {
       return res.status(401).json(createErrorResponse(req, 'Authentication required', 'UNAUTHORIZED'));
@@ -85,7 +85,7 @@ router.get('/api/notifications/count', isAuthenticated, async (req, res) => {
     const { user_email: rawEmail } = req.query;
     
     const requestedEmail = rawEmail ? decodeURIComponent(rawEmail as string) : undefined;
-    const effective = await getEffectiveEmail(req, requestedEmail);
+    const effective = await getEffectiveEmail(req as any, requestedEmail);
     
     if (!effective) {
       return res.status(401).json(createErrorResponse(req, 'Authentication required', 'UNAUTHORIZED'));
@@ -96,7 +96,7 @@ router.get('/api/notifications/count', isAuthenticated, async (req, res) => {
       [effective.email]
     );
     
-    res.json({ count: parseInt(result.rows[0].count) });
+    res.json({ count: parseInt(result.rows[0].count as string) });
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch notification count', error, 'NOTIFICATION_COUNT_ERROR');
   }
@@ -107,7 +107,7 @@ router.put('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
     const { id } = req.params;
     const user_email = req.body?.user_email;
     
-    const effective = await getEffectiveEmail(req, user_email);
+    const effective = await getEffectiveEmail(req as any, user_email);
     
     if (!effective) {
       return res.status(401).json(createErrorResponse(req, 'Authentication required', 'UNAUTHORIZED'));
@@ -132,7 +132,7 @@ router.put('/api/notifications/mark-all-read', isAuthenticated, async (req, res)
   try {
     const { user_email } = req.body;
     
-    const effective = await getEffectiveEmail(req, user_email);
+    const effective = await getEffectiveEmail(req as any, user_email);
     
     if (!effective) {
       return res.status(401).json(createErrorResponse(req, 'Authentication required', 'UNAUTHORIZED'));
@@ -153,7 +153,7 @@ router.delete('/api/notifications/dismiss-all', isAuthenticated, async (req, res
   try {
     const { user_email } = req.body;
     
-    const effective = await getEffectiveEmail(req, user_email);
+    const effective = await getEffectiveEmail(req as any, user_email);
     
     if (!effective) {
       return res.status(401).json(createErrorResponse(req, 'Authentication required', 'UNAUTHORIZED'));
@@ -176,7 +176,7 @@ router.delete('/api/notifications/:id', isAuthenticated, async (req, res) => {
     const { user_email } = req.body;
     
     // Allow staff to delete notifications for any user (consistent with dismiss-all)
-    const effective = await getEffectiveEmail(req, user_email);
+    const effective = await getEffectiveEmail(req as any, user_email);
     
     if (!effective) {
       return res.status(401).json(createErrorResponse(req, 'Authentication required', 'UNAUTHORIZED'));

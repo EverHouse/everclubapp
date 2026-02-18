@@ -83,6 +83,13 @@ interface TrackmanWebhookEvent {
   processed?: boolean;
   booking_id?: number;
   status?: string;
+  processing_error?: string;
+  matched_booking_id?: number;
+  linked_booking_unmatched?: boolean;
+  was_auto_linked?: boolean;
+  trackman_booking_id?: string | number;
+  linked_member_name?: string;
+  linked_member_email?: string;
 }
 
 interface WebhookStats {
@@ -90,6 +97,19 @@ interface WebhookStats {
   processed?: number;
   unprocessed?: number;
   byType?: Record<string, number>;
+  webhookStats?: {
+    total?: number;
+    total_events?: number;
+    matched?: number;
+    unmatched?: number;
+    cancelled?: number;
+    errors?: number;
+    auto_confirmed?: number;
+    manually_linked?: number;
+    needs_linking?: number;
+    last_event_at?: string;
+    byEventType?: Record<string, number>;
+  };
 }
 
 
@@ -113,17 +133,14 @@ const getEventTypeFromPayload = (payload: Record<string, unknown>, storedEventTy
   }
   
   // Try to determine event type from payload structure
-  const booking = payload?.booking || payload?.data;
+  const booking = (payload?.booking || payload?.data) as Record<string, unknown> | undefined;
   if (booking) {
-    // Check for cancellation indicators
     if (booking.cancelled || booking.canceled || booking.status === 'cancelled' || booking.status === 'canceled') {
       return 'cancelled';
     }
-    // Check for update indicators (has updatedAt that differs from createdAt)
     if (booking.updatedAt && booking.createdAt && booking.updatedAt !== booking.createdAt) {
       return 'updated';
     }
-    // Default to created for new bookings
     return 'created';
   }
   
@@ -153,7 +170,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
   const [webhookPage, setWebhookPage] = useState(1);
   const [webhookTotalCount, setWebhookTotalCount] = useState(0);
   const [webhookLoading, setWebhookLoading] = useState(false);
-  const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<number | string | null>(null);
   const [autoMatchingEventId, setAutoMatchingEventId] = useState<number | null>(null);
   const [autoMatchResult, setAutoMatchResult] = useState<{ eventId: number; success: boolean; message: string } | null>(null);
   const [showReplayModal, setShowReplayModal] = useState(false);
@@ -512,7 +529,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                 return (
                                   <button
                                     onClick={() => onLinkToMember({
-                                      trackmanBookingId: event.trackman_booking_id,
+                                      trackmanBookingId: String(event.trackman_booking_id),
                                       bayName,
                                       bookingDate,
                                       timeSlot,
@@ -544,7 +561,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                       </span>
                                     )}
                                     <button
-                                      onClick={() => handleAutoMatch(event.id)}
+                                      onClick={() => handleAutoMatch(event.id as number)}
                                       disabled={isAutoMatching}
                                       className="px-2 py-1.5 rounded-lg text-xs font-medium bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 dark:text-blue-400 transition-colors flex items-center gap-1 disabled:opacity-50"
                                       title="Try to auto-match this booking to an existing request by bay, date, and time"
@@ -554,7 +571,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                     </button>
                                     <button
                                       onClick={() => onLinkToMember({
-                                        trackmanBookingId: event.trackman_booking_id,
+                                        trackmanBookingId: String(event.trackman_booking_id),
                                         bayName,
                                         bookingDate,
                                         timeSlot,
@@ -581,7 +598,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                       </span>
                                     )}
                                     <button
-                                      onClick={() => handleAutoMatch(event.id)}
+                                      onClick={() => handleAutoMatch(event.id as number)}
                                       disabled={isAutoMatching}
                                       className="px-2 py-1.5 rounded-lg text-xs font-medium bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 dark:text-blue-400 transition-colors flex items-center gap-1 disabled:opacity-50"
                                       title="Try to auto-match this booking to an existing request by bay, date, and time"
@@ -591,7 +608,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                                     </button>
                                     <button
                                       onClick={() => onLinkToMember({
-                                        trackmanBookingId: event.trackman_booking_id,
+                                        trackmanBookingId: String(event.trackman_booking_id),
                                         bayName,
                                         bookingDate,
                                         timeSlot,

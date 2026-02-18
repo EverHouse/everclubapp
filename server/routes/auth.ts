@@ -121,7 +121,7 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
         tierId: tierId,
         phone: data.phone || null,
         mindbodyClientId: isStaffOrAdmin ? null : (data.mindbodyClientId || null),
-        tags: isStaffOrAdmin ? [] : (data.tags && data.tags.length > 0 ? data.tags : []),
+        tags: isStaffOrAdmin ? [] as string[] : (data.tags && data.tags.length > 0 ? data.tags : [] as string[]),
         role: data.role || 'member'
       })
       .onConflictDoUpdate({
@@ -133,7 +133,7 @@ async function upsertUserWithTier(data: UpsertUserData): Promise<void> {
           lastName: sql`COALESCE(${data.lastName || null}, ${users.lastName})`,
           phone: sql`COALESCE(${data.phone || null}, ${users.phone})`,
           mindbodyClientId: isStaffOrAdmin ? null : sql`COALESCE(${data.mindbodyClientId || null}, ${users.mindbodyClientId})`,
-          tags: isStaffOrAdmin ? [] : (data.tags && data.tags.length > 0 ? data.tags : []),
+          tags: isStaffOrAdmin ? [] as string[] : (data.tags && data.tags.length > 0 ? data.tags : [] as string[]),
           role: data.role || 'member',
           updatedAt: new Date()
         }
@@ -865,11 +865,9 @@ router.post('/api/auth/verify-otp', async (req, res) => {
         lastName: staffUserData.lastName,
         email: normalizedEmail,
         phone: staffUserData.phone,
-        jobTitle: staffUserData.jobTitle,
         tier: 'VIP',
         tags: [],
         mindbodyClientId: '',
-        membershipStartDate: '',
         status: 'Active',
         role,
         expires_at: Date.now() + sessionTtl
@@ -927,9 +925,8 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           email: dbUser[0].email || normalizedEmail,
           phone: dbUser[0].phone || '',
           tier: normalizeTierName(dbUser[0].tier),
-          tags: dbUser[0].tags || [],
+          tags: (dbUser[0].tags || []) as string[],
           mindbodyClientId: dbUser[0].mindbodyClientId || '',
-          membershipStartDate: dbUser[0].joinDate ? new Date(dbUser[0].joinDate).toISOString().split('T')[0] : '',
           status: statusMap[dbMemberStatus] || 'Active',
           role,
           expires_at: Date.now() + sessionTtl,
@@ -988,11 +985,8 @@ router.post('/api/auth/verify-otp', async (req, res) => {
           email: (hasDbUser ? dbUser[0].email : contact?.properties.email) || normalizedEmail,
           phone: (hasDbUser ? dbUser[0].phone : contact?.properties.phone) || '',
           tier: normalizeTierName(hasDbUser ? dbUser[0].tier : contact?.properties.membership_tier),
-          tags,
+          tags: tags as string[],
           mindbodyClientId: (hasDbUser ? dbUser[0].mindbodyClientId : contact?.properties.mindbody_client_id) || '',
-          membershipStartDate: (hasDbUser && dbUser[0].joinDate) 
-            ? new Date(dbUser[0].joinDate).toISOString().split('T')[0] 
-            : (contact?.properties.membership_start_date || ''),
           status: statusMap[memberStatusStr] || 'Active',
           role,
           expires_at: Date.now() + sessionTtl,
@@ -1003,7 +997,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
     
     req.session.user = member;
 
-    const supabaseToken = await createSupabaseToken(member);
+    const supabaseToken = await createSupabaseToken(member as any);
     
     await upsertUserWithTier({
       email: member.email,
@@ -1013,7 +1007,7 @@ router.post('/api/auth/verify-otp', async (req, res) => {
       phone: member.phone,
       mindbodyClientId: member.mindbodyClientId,
       tags: member.tags || [],
-      membershipStartDate: member.membershipStartDate,
+      membershipStartDate: (member as any).membershipStartDate || '',
       role
     });
     

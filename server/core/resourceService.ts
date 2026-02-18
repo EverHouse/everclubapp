@@ -992,7 +992,7 @@ export async function linkTrackmanToMember(
         ORDER BY created_at DESC
         LIMIT 1
       `);
-      const webhookLog = (webhookResult as { rows?: Record<string, unknown>[] }).rows?.[0] ?? (webhookResult as Record<string, unknown>[])[0];
+      const webhookLog = (webhookResult as { rows?: Record<string, unknown>[] }).rows?.[0] ?? (webhookResult as unknown as Record<string, unknown>[])[0];
       
       if (!webhookLog) {
         throw { statusCode: 404, error: 'Trackman booking not found in webhook logs' };
@@ -1253,7 +1253,7 @@ export async function markBookingAsEvent(params: {
         resourceId: resourceId,
         trackmanBookingId: unmatchedBooking.trackmanBookingId,
         isUnmatched: true,
-      };
+      } as any;
       isFromUnmatched = true;
     }
   }
@@ -1317,7 +1317,7 @@ export async function markBookingAsEvent(params: {
               resourceId: resource.id,
               requestDate: unmatched.bookingDate,
               isUnmatched: true
-            });
+            } as any);
           }
         }
       }
@@ -2627,7 +2627,7 @@ export async function isStaffOrAdminEmail(sessionEmail: string): Promise<boolean
         'SELECT id FROM staff_users WHERE LOWER(email) = LOWER($1) AND is_active = true',
         [sessionEmail]
       );
-      return result.rows.length > 0;
+      return (result as any).rows.length > 0;
     } catch (e: unknown) {
       logger.warn('[resources] Staff check query failed:', e);
     }

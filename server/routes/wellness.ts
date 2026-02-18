@@ -561,15 +561,15 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
             return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
           };
           
-          const startTime24 = convertTo24Hour(updated.time);
-          const endTime24 = calculateEndTime(startTime24, updated.duration);
+          const startTime24 = convertTo24Hour(updated.time as string);
+          const endTime24 = calculateEndTime(startTime24, updated.duration as string);
           
           await updateCalendarEvent(
             (existing.rows[0] as Record<string, unknown>).google_calendar_id as string,
             calendarId,
             calendarTitle,
             calendarDescription,
-            updated.date,
+            updated.date as string,
             startTime24,
             endTime24
           );
@@ -613,7 +613,7 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
                AND is_active = true
              RETURNING id, date, time, duration, title`);
         } else if (existingRow?.title) {
-          const dayOfWeek = new Date(existingRow.date).getDay();
+          const dayOfWeek = new Date(existingRow.date as string).getDay();
           const originalTime = existingRow.time;
           
           recurringResult = await db.execute(sql`UPDATE wellness_classes 
@@ -717,7 +717,7 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     const wellnessClassId = parseInt(id as string);
     const userEmail = getSessionUser(req)?.email || 'system';
     
-    logFromRequest(req, 'update_wellness_class', 'wellness', String(wellnessClassId), updated.title, {
+    logFromRequest(req, 'update_wellness_class', 'wellness', String(wellnessClassId), updated.title as string, {
       instructor: updated.instructor,
       date: updated.date,
       time: updated.time,
@@ -763,18 +763,18 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     const hasAnyBlocking = newBlockSimulators || newBlockConferenceRoom;
     
     try {
-      const startTime24 = convertTo24HourForBlocks(updated.time);
-      const endTime24 = calculateEndTimeForBlocks(startTime24, updated.duration);
+      const startTime24 = convertTo24HourForBlocks(updated.time as string);
+      const endTime24 = calculateEndTimeForBlocks(startTime24, updated.duration as string);
       
       if (!hadAnyBlocking && hasAnyBlocking) {
         // Blocks newly enabled
-        await createWellnessAvailabilityBlocks(wellnessClassId, updated.date, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title);
+        await createWellnessAvailabilityBlocks(wellnessClassId, updated.date as string, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title as string);
       } else if (hadAnyBlocking && !hasAnyBlocking) {
         // Blocks disabled
         await removeWellnessAvailabilityBlocks(wellnessClassId);
       } else if (hasAnyBlocking) {
         // Blocks changed or time/date changed
-        await updateWellnessAvailabilityBlocks(wellnessClassId, updated.date, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title);
+        await updateWellnessAvailabilityBlocks(wellnessClassId, updated.date as string, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title as string);
       }
     } catch (blockError: unknown) {
       logger.error('Failed to update availability blocks for wellness class', { extra: { error: blockError } });
@@ -782,12 +782,12 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     
     // Auto-clear needs_review if all required fields are filled
     if (updated.needs_review) {
-      const hasValidInstructor = updated.instructor && updated.instructor.toLowerCase() !== 'tbd' && updated.instructor.trim() !== '';
-      const hasValidCategory = updated.category && updated.category.toLowerCase() !== 'wellness' && updated.category.trim() !== '';
-      const spotsMatch = updated.spots?.match(/(\d+)/);
+      const hasValidInstructor = updated.instructor && String(updated.instructor).toLowerCase() !== 'tbd' && String(updated.instructor).trim() !== '';
+      const hasValidCategory = updated.category && String(updated.category).toLowerCase() !== 'wellness' && String(updated.category).trim() !== '';
+      const spotsMatch = String(updated.spots || '').match(/(\d+)/);
       const spotsValue = spotsMatch ? parseInt(spotsMatch[1]) : 0;
       const capacityValue = updated.capacity || 0;
-      const hasValidSpots = spotsValue > 0 || capacityValue > 0;
+      const hasValidSpots = spotsValue > 0 || Number(capacityValue) > 0;
       
       if (hasValidInstructor && hasValidCategory && hasValidSpots) {
         try {
@@ -839,7 +839,7 @@ router.get('/api/wellness-enrollments', async (req, res) => {
               'SELECT id FROM staff_users WHERE LOWER(email) = LOWER($1) AND is_active = true',
               [sessionEmail]
             );
-            isStaff = result.rows.length > 0;
+            isStaff = (result as any).rows.length > 0;
           } catch (e: unknown) {
             logger.warn('[wellness] Staff check query failed', { extra: { error: e } });
           }
@@ -959,17 +959,17 @@ router.post('/api/wellness-enrollments', async (req, res) => {
         .values({
           classId: parseInt(class_id as string),
           userEmail: user_email as string,
-          status: 'confirmed',
-          isWaitlisted: isWaitlisted
+          status: 'confirmed' as any,
+          isWaitlisted: isWaitlisted as boolean
         })
         .returning();
       
       await tx.insert(notifications).values({
-        userEmail: user_email,
+        userEmail: user_email as string,
         title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
         message: memberMessage,
-        type: 'wellness_booking',
-        relatedId: class_id,
+        type: 'wellness_booking' as any,
+        relatedId: parseInt(class_id as string),
         relatedType: 'wellness_class'
       });
       
@@ -1106,7 +1106,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
     });
     
     // If a regular enrollment was cancelled and there are waitlisted users, promote the first one
-    if (wasNotWaitlisted && parseInt(cls.waitlist_count) > 0) {
+    if (wasNotWaitlisted && parseInt(cls.waitlist_count as string) > 0) {
       try {
         // Get the first person on waitlist (oldest entry) with row locking to prevent race conditions
         // FOR UPDATE SKIP LOCKED ensures concurrent processes pick different users
@@ -1121,34 +1121,34 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
         if (waitlistedResult.rows.length > 0) {
           const promotedUserRow = waitlistedResult.rows[0] as Record<string, unknown>;
           const promotedEmail = promotedUserRow.user_email;
-          const promotedName = await getMemberDisplayName(promotedEmail);
+          const promotedName = await getMemberDisplayName(promotedEmail as string);
           
           // Promote from waitlist
           await db.update(wellnessEnrollments)
             .set({ isWaitlisted: false })
-            .where(eq(wellnessEnrollments.id, promotedUserRow.id));
+            .where(eq(wellnessEnrollments.id, promotedUserRow.id as number));
           
           const promotedMessage = `A spot opened up! You've been moved from the waitlist and are now enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${cls.time}.`;
           
           // Create notification for promoted user
           await db.insert(notifications).values({
-            userEmail: promotedEmail,
+            userEmail: promotedEmail as string,
             title: 'Spot Available - You\'re In!',
             message: promotedMessage,
-            type: 'wellness_booking',
-            relatedId: parseInt(class_id),
+            type: 'wellness_booking' as any,
+            relatedId: parseInt(class_id as string),
             relatedType: 'wellness_class'
           });
           
           // Send push notification
-          sendPushNotification(promotedEmail, {
+          sendPushNotification(promotedEmail as string, {
             title: 'Spot Available - You\'re In!',
             body: promotedMessage,
             url: '/member-wellness'
           }).catch(err => logger.error('Push notification failed', { extra: { error: err } }));
           
           // Send real-time WebSocket notification
-          sendNotificationToUser(promotedEmail, {
+          sendNotificationToUser(promotedEmail as string, {
             type: 'notification',
             title: 'Spot Available - You\'re In!',
             message: promotedMessage,
@@ -1184,7 +1184,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', async (req, res
         END as spots_available
        FROM wellness_classes WHERE id = ${class_id}`);
     const spotsAvailable = (spotsQuery.rows[0] as Record<string, unknown>)?.spots_available;
-    broadcastWaitlistUpdate({ classId: parseInt(class_id), action: 'spot_opened', spotsAvailable: spotsAvailable ?? undefined });
+    broadcastWaitlistUpdate({ classId: parseInt(class_id as string), action: 'spot_opened', spotsAvailable: (spotsAvailable as number) ?? undefined });
     
     logFromRequest(req, 'delete_wellness_class', 'wellness', class_id as string, undefined, {
       member_email: user_email,
@@ -1229,7 +1229,7 @@ router.delete('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     const deletedClass = result.rows[0] as Record<string, unknown>;
-    logFromRequest(req, 'delete_wellness_class', 'wellness', String(deletedClass.id), deletedClass.title, {
+    logFromRequest(req, 'delete_wellness_class', 'wellness', String(deletedClass.id), deletedClass.title as string, {
       instructor: deletedClass.instructor,
       date: deletedClass.date,
       time: deletedClass.time,
@@ -1305,7 +1305,7 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
       status: 'confirmed',
     });
     
-    logFromRequest(req, 'manual_enrollment', 'wellness', String(id) as string, classDetails?.title || 'Wellness Class', {
+    logFromRequest(req, 'manual_enrollment', 'wellness', String(id), (classDetails?.title || 'Wellness Class') as string, {
       instructor: classDetails?.instructor,
       memberEnrolled: email
     });

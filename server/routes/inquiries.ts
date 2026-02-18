@@ -74,7 +74,7 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    logFromRequest(req, 'update_inquiry', 'inquiry', id);
+    logFromRequest(req, 'update_inquiry', 'inquiry', id as any);
     
     res.json(updated);
   } catch (error: unknown) {
@@ -109,7 +109,7 @@ router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    logFromRequest(req, 'delete_inquiry', 'inquiry', id);
+    logFromRequest(req, 'delete_inquiry', 'inquiry', id as any);
     
     res.json({ success: true, deleted });
   } catch (error: unknown) {

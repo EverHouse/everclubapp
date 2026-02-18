@@ -894,13 +894,13 @@ router.post('/api/booking-requests', async (req, res) => {
       end_time: row.endTime,
       notes: row.notes,
       status: row.status,
-      staff_notes: row.staffNotes,
-      suggested_time: row.suggestedTime,
-      reviewed_by: row.reviewedBy,
-      reviewed_at: row.reviewedAt,
+      staff_notes: (row as any).staffNotes,
+      suggested_time: (row as any).suggestedTime,
+      reviewed_by: (row as any).reviewedBy,
+      reviewed_at: (row as any).reviewedAt,
       created_at: row.createdAt,
       updated_at: row.updatedAt,
-      calendar_event_id: row.calendarEventId,
+      calendar_event_id: (row as any).calendarEventId,
       reschedule_booking_id: row.rescheduleBookingId
     });
     

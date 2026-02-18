@@ -118,7 +118,7 @@ export async function runStartupTasks(): Promise<void> {
     const databaseUrl = process.env.DATABASE_URL;
     if (databaseUrl) {
       logger.info('[Stripe] Initializing Stripe schema...');
-      await retryWithBackoff(() => runMigrations({ databaseUrl, schema: 'stripe' } as Record<string, unknown>), 'Stripe schema migration');
+      await retryWithBackoff(() => runMigrations({ databaseUrl, schema: 'stripe' } as any), 'Stripe schema migration');
       logger.info('[Stripe] Schema ready');
 
       const stripeSync = await retryWithBackoff(() => getStripeSync(), 'Stripe sync init');
@@ -127,7 +127,7 @@ export async function runStartupTasks(): Promise<void> {
       if (replitDomains) {
         const webhookUrl = `https://${replitDomains}/api/stripe/webhook`;
         logger.info('[Stripe] Setting up managed webhook...');
-        await retryWithBackoff(() => stripeSync.findOrCreateManagedWebhook(webhookUrl), 'Stripe webhook setup');
+        await retryWithBackoff(() => (stripeSync as any).findOrCreateManagedWebhook(webhookUrl), 'Stripe webhook setup');
         logger.info('[Stripe] Webhook configured');
       }
       
@@ -140,7 +140,7 @@ export async function runStartupTasks(): Promise<void> {
         logger.error('[Stripe Env] Validation failed', { error: err instanceof Error ? err : new Error(String(err)) });
       }
 
-      stripeSync.syncBackfill()
+      (stripeSync as any).syncBackfill()
         .then(() => logger.info('[Stripe] Data sync complete'))
         .catch((err: unknown) => {
           logger.error('[Stripe] Data sync error', { error: err instanceof Error ? err : new Error(String(err)) });
@@ -184,7 +184,7 @@ export async function runStartupTasks(): Promise<void> {
       
       import('../core/stripe/customerSync.js')
         .then(({ syncStripeCustomersForMindBodyMembers }) => syncStripeCustomersForMindBodyMembers())
-        .then((result: { created: number; linked: number }) => {
+        .then((result: any) => {
           if (result.created > 0 || result.linked > 0) {
             logger.info('[Stripe] Customer sync complete', { extra: { created: result.created, linked: result.linked } });
           }

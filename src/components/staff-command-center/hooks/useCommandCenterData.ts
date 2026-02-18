@@ -109,7 +109,7 @@ export function useCommandCenterData(userEmail?: string) {
 
       if (pendingBookingsRes.ok) {
         const pendingBookings = await pendingBookingsRes.json();
-        allPending = [...allPending, ...pendingBookings.map((b: Record<string, string | number | null>) => {
+        allPending = [...allPending, ...pendingBookings.map((b: any) => {
           const email = b.user_email || b.userEmail;
           const originalName = b.user_name || b.userName;
           return {
@@ -283,7 +283,7 @@ export function useCommandCenterData(userEmail?: string) {
       };
       
       if (allResources.length > 0) {
-        const statuses: BayStatus[] = allResources.map((r: { id: number; name: string; type?: string }) => {
+        const statuses: BayStatus[] = allResources.map((r: { id: number; name: string; type: string }) => {
           const existing = bayMap.get(r.id);
           const closureStatus = isBayClosed(r);
           
@@ -361,16 +361,16 @@ export function useCommandCenterData(userEmail?: string) {
       if (upcomingBookingsRes.ok) {
         const bookings = await upcomingBookingsRes.json();
         const normalizeTime = (t: string) => t ? t.slice(0, 5) : '00:00';
-        const filteredBookings = bookings.filter((b: Record<string, string | number | null>) => {
+        const filteredBookings = bookings.filter((b: any) => {
           const bookingDate = b.request_date;
           const startTime = normalizeTime(b.start_time);
           if (bookingDate > today) return true;
           if (bookingDate === today && startTime >= nowTime) return true;
           return false;
-        }).sort((a: Record<string, string | number | null>, b: Record<string, string | number | null>) => {
-          if (a.request_date !== b.request_date) return a.request_date.localeCompare(b.request_date);
+        }).sort((a: any, b: any) => {
+          if (a.request_date !== b.request_date) return String(a.request_date).localeCompare(String(b.request_date));
           return normalizeTime(a.start_time).localeCompare(normalizeTime(b.start_time));
-        }).map((b: Record<string, string | number | null>) => ({
+        }).map((b: any) => ({
           id: b.id,
           resource_name: b.resource_name || b.bay_name || 'Booking',
           resource_type: b.resource_type || 'simulator',

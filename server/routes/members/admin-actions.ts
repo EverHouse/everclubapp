@@ -100,7 +100,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, async (req, res) => {
         normalizedTier,
         performedBy,
         performedByName
-      );
+      ) as unknown as Record<string, unknown>;
 
       if (!hubspotResult.success && hubspotResult.error) {
         logger.warn('[Members] HubSpot tier change failed for , queuing for retry', { extra: { normalizedEmail, hubspotResultError: hubspotResult.error } });
@@ -1323,8 +1323,9 @@ router.post('/api/members/backfill-discount-codes', isAdmin, async (req, res) =>
       
       await Promise.all(batch.map(async (row: Record<string, unknown>) => {
         try {
-          const subscription = await stripe.subscriptions.retrieve(row.stripe_subscription_id);
-          const couponName = subscription.discount?.coupon?.name;
+          const subscription = await stripe.subscriptions.retrieve(row.stripe_subscription_id as string);
+          const discounts = subscription.discounts?.filter((d): d is Stripe.Discount => typeof d !== 'string');
+          const couponName = (discounts?.[0] as any)?.coupon?.name;
           
           if (couponName) {
             await db.execute(

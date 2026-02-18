@@ -23,11 +23,11 @@ export async function createCalendarEvent(booking: Record<string, unknown>, bayN
       summary: `Booking: ${userName || userEmail}`,
       description: `Area: ${bayName}\nMember: ${userEmail}\nDuration: ${durationMinutes} minutes${booking.notes ? '\nNotes: ' + booking.notes : ''}`,
       start: {
-        dateTime: getPacificISOString(requestDate, startTime),
+        dateTime: getPacificISOString(requestDate as string, startTime as string),
         timeZone: 'America/Los_Angeles',
       },
       end: {
-        dateTime: getPacificISOString(requestDate, endTime),
+        dateTime: getPacificISOString(requestDate as string, endTime as string),
         timeZone: 'America/Los_Angeles',
       },
     };

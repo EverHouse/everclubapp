@@ -81,8 +81,8 @@ router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res)
     `);
 
     const data = result.rows.map((row: DbRow) => {
-      const expectedPlayerCount = parseInt(row.expected_player_count) || 1;
-      const assignedCount = parseInt(row.assigned_count) || 0;
+      const expectedPlayerCount = parseInt(row.expected_player_count as string) || 1;
+      const assignedCount = parseInt(row.assigned_count as string) || 0;
       return {
         id: row.id,
         userName: row.user_name,
@@ -192,8 +192,8 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
       let matchAttemptReason = '';
       
       if (row.notes) {
-        const nameMatch = row.notes.match(/Original name:\s*([^,]+)/i);
-        const emailMatch = row.notes.match(/Original email:\s*([^,\s]+)/i);
+        const nameMatch = String(row.notes).match(/Original name:\s*([^,]+)/i);
+        const emailMatch = String(row.notes).match(/Original email:\s*([^,\s]+)/i);
         if (nameMatch) userName = nameMatch[1].trim();
         if (emailMatch) originalEmail = emailMatch[1].trim();
         matchAttemptReason = 'No matching member found in system';
@@ -201,10 +201,10 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, async (req, res) => 
       
       // Use raw_user_name if no parsed name
       if (userName === 'Unknown' && row.raw_user_name) {
-        userName = row.raw_user_name;
+        userName = row.raw_user_name as string;
       }
       
-      const bayNumber = row.bay_name ? row.bay_name.replace(/Bay\s*/i, '') : row.resource_id;
+      const bayNumber = row.bay_name ? String(row.bay_name).replace(/Bay\s*/i, '') : row.resource_id;
       
       // Determine category
       let bookingCategory: 'matchable' | 'events' | 'visitors' = 'visitors';
@@ -442,7 +442,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       
       let resourceId = 1;
       if (legacy.bay_number) {
-        const bayNum = parseInt(legacy.bay_number.replace(/\D/g, ''));
+        const bayNum = parseInt(String(legacy.bay_number).replace(/\D/g, ''));
         if (bayNum >= 1 && bayNum <= 4) resourceId = bayNum;
       }
       
@@ -491,10 +491,10 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     if (fromLegacyTable) {
       const legacyData = await db.execute(sql`SELECT original_email FROM trackman_unmatched_bookings WHERE id = ${id}`);
       if ((legacyData.rows[0] as DbRow)?.original_email) {
-        originalEmailForLearning = (legacyData.rows[0] as DbRow).original_email.toLowerCase().trim();
+        originalEmailForLearning = String((legacyData.rows[0] as DbRow).original_email).toLowerCase().trim();
       }
     } else if (booking.trackman_customer_notes) {
-      const emailMatch = booking.trackman_customer_notes.match(/Original email:\s*([^\s,]+)/i);
+      const emailMatch = String(booking.trackman_customer_notes).match(/Original email:\s*([^\s,]+)/i);
       if (emailMatch && emailMatch[1]) {
         originalEmailForLearning = emailMatch[1].toLowerCase().trim();
       }
@@ -521,14 +521,14 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     
     let emailLearningMessage = '';
     if (rememberEmail && originalEmailForLearning && originalEmailForLearning.includes('@')) {
-      if (originalEmailForLearning.toLowerCase() !== member.email.toLowerCase() && 
+      if (originalEmailForLearning.toLowerCase() !== String(member.email).toLowerCase() && 
           !isPlaceholderEmail(originalEmailForLearning)) {
         try {
           const existingLink = await db.execute(sql`SELECT id FROM user_linked_emails WHERE LOWER(linked_email) = LOWER(${originalEmailForLearning})`);
           
           if (existingLink.rows.length === 0) {
             await db.execute(sql`INSERT INTO user_linked_emails (primary_email, linked_email, source, created_by)
-               VALUES (${member.email.toLowerCase()}, ${originalEmailForLearning}, ${'staff_resolution'}, ${staffEmail})`);
+               VALUES (${String(member.email).toLowerCase()}, ${originalEmailForLearning}, ${'staff_resolution'}, ${staffEmail})`);
             logger.info('[Email Learning] Linked -> by', { extra: { originalEmailForLearning, memberEmail: member.email, staffEmail } });
             
             // Auto-resolve other unresolved bookings with the same original email
@@ -586,7 +586,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       try {
         const bookingDate = booking.request_date;
         const bookingDateStr = typeof bookingDate === 'string' ? bookingDate : 
-          new Date(bookingDate).toISOString().split('T')[0];
+          new Date(bookingDate as string | number | Date).toISOString().split('T')[0];
         
         const existingDayPass = await db.execute(sql`SELECT id, stripe_payment_intent_id FROM day_pass_purchases 
            WHERE user_id = ${member.id} 
@@ -604,14 +604,14 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           if (dayPassResult.rows.length > 0) {
             const dayPass = dayPassResult.rows[0] as DbRow;
             const amountCents = dayPass.price_cents;
-            if (!amountCents || amountCents <= 0) {
+            if (!amountCents || Number(amountCents) <= 0) {
               logger.error('[Trackman Resolve] Day pass price_cents is missing or zero for slug \'day-pass-golf-sim\' — cannot bill');
               billingMessage = ' Day pass billing skipped: price not configured in membership_tiers.';
               await db.execute(sql`INSERT INTO day_pass_purchases 
                  (user_id, product_type, quantity, amount_cents, booking_date, status, trackman_booking_id, created_at)
                  VALUES (${member.id}, ${'day-pass-golf-sim'}, 1, 0, ${bookingDateStr}, ${'pending_price'}, ${booking.trackman_booking_id}, NOW())`);
             } else {
-            const customerId = member.stripe_customer_id;
+            const customerId = member.stripe_customer_id as string;
             if (!customerId) {
               logger.info('[Trackman Resolve] Skipping day pass billing for visitor - no Stripe customer', { extra: { memberEmail: member.email } });
               billingMessage = ' Day pass record created (no Stripe customer for billing).';
@@ -633,7 +633,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             
             if (paymentMethods.data.length > 0) {
               const paymentIntent = await stripe.paymentIntents.create({
-                amount: amountCents,
+                amount: amountCents as number,
                 currency: 'usd',
                 customer: customerId,
                 payment_method: paymentMethods.data[0].id,
@@ -643,9 +643,9 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                 metadata: {
                   type: 'day_pass',
                   product_slug: 'day-pass-golf-sim',
-                  booking_id: booking.id.toString(),
+                  booking_id: String(booking.id),
                   booking_date: bookingDateStr,
-                  visitor_email: member.email,
+                  visitor_email: member.email as string,
                   created_via: 'trackman_resolve'
                 }
               }, {
@@ -656,10 +656,10 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
               paymentStatus = paymentIntent.status === 'succeeded' ? 'paid' : 'pending';
               
               if (paymentIntent.status === 'succeeded') {
-                billingMessage = ` Day pass charged: $${(amountCents / 100).toFixed(2)}.`;
-                logger.info('[Trackman Resolve] Day pass charged for visitor : $', { extra: { memberEmail: member.email, amountCents_100_ToFixed_2: (amountCents / 100).toFixed(2) } });
+                billingMessage = ` Day pass charged: $${(Number(amountCents)/ 100).toFixed(2)}.`;
+                logger.info('[Trackman Resolve] Day pass charged for visitor : $', { extra: { memberEmail: member.email, amountCents_100_ToFixed_2: (Number(amountCents)/ 100).toFixed(2) } });
               } else {
-                billingMessage = ` Day pass payment initiated ($${(amountCents / 100).toFixed(2)}).`;
+                billingMessage = ` Day pass payment initiated ($${(Number(amountCents)/ 100).toFixed(2)}).`;
               }
             } else {
               const invoice = await stripe.invoices.create({
@@ -672,7 +672,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                   product_slug: 'day-pass-golf-sim',
                   booking_id: booking.id.toString(),
                   booking_date: bookingDateStr,
-                  visitor_email: member.email,
+                  visitor_email: member.email as string,
                   created_via: 'trackman_resolve'
                 }
               });
@@ -680,7 +680,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
               await stripe.invoiceItems.create({
                 customer: customerId,
                 invoice: invoice.id,
-                amount: amountCents,
+                amount: amountCents as number,
                 currency: 'usd',
                 description: `Day Pass - Golf Simulator (${bookingDateStr})`
               });
@@ -689,15 +689,15 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
               await stripe.invoices.sendInvoice(invoice.id);
               
               paymentIntentId = invoice.id;
-              billingMessage = ` Day pass invoice sent ($${(amountCents / 100).toFixed(2)}).`;
-              logger.info('[Trackman Resolve] Day pass invoice sent for visitor : $', { extra: { memberEmail: member.email, amountCents_100_ToFixed_2: (amountCents / 100).toFixed(2) } });
+              billingMessage = ` Day pass invoice sent ($${(Number(amountCents)/ 100).toFixed(2)}).`;
+              logger.info('[Trackman Resolve] Day pass invoice sent for visitor : $', { extra: { memberEmail: member.email, amountCents_100_ToFixed_2: (Number(amountCents)/ 100).toFixed(2) } });
             }
             
             await db.execute(sql`INSERT INTO day_pass_purchases 
                (user_id, product_type, quantity, amount_cents, stripe_payment_intent_id, booking_date, status, trackman_booking_id, created_at)
                VALUES (${member.id}, ${'day-pass-golf-sim'}, 1, ${amountCents}, ${paymentIntentId}, ${bookingDateStr}, ${paymentStatus}, ${booking.trackman_booking_id}, NOW())`);
             
-            updateVisitorTypeByUserId(member.id, 'day_pass', 'day_pass_purchase', new Date(bookingDateStr))
+            updateVisitorTypeByUserId(member.id as number, 'day_pass', 'day_pass_purchase', new Date(bookingDateStr))
               .catch(err => logger.error('[VisitorType] Failed to update day_pass type:', { extra: { err } }));
             }
             }
@@ -709,15 +709,15 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         let sessionId = booking.session_id;
         if (!sessionId) {
           const sessionResult = await ensureSessionForBooking({
-            bookingId: booking.id,
-            resourceId: booking.resource_id,
+            bookingId: booking.id as number,
+            resourceId: booking.resource_id as number,
             sessionDate: bookingDateStr,
-            startTime: booking.start_time,
-            endTime: booking.end_time,
-            ownerEmail: member.email || '',
+            startTime: booking.start_time as string,
+            endTime: booking.end_time as string,
+            ownerEmail: (member.email as string) || '',
             ownerName: memberFullName,
             ownerUserId: member.id?.toString(),
-            trackmanBookingId: booking.trackman_booking_id,
+            trackmanBookingId: booking.trackman_booking_id as string,
             source: 'trackman_import',
             createdBy: 'staff_resolve'
           });
@@ -729,9 +729,9 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
              SET user_id = ${member.id}, display_name = ${memberFullName}
              WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
           
-          await recordUsage(sessionId, {
-            memberId: member.id,
-            minutesCharged: booking.duration_minutes || 60,
+          await recordUsage(sessionId as number, {
+            memberId: member.id as string,
+            minutesCharged: Number(booking.duration_minutes) || 60,
           });
         }
       } catch (billingError: unknown) {
@@ -743,20 +743,20 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     if (!isVisitor) {
       try {
         const bookingDateStr = typeof booking.request_date === 'string' ? booking.request_date : 
-          new Date(booking.request_date).toISOString().split('T')[0];
+          new Date(booking.request_date as string | number | Date).toISOString().split('T')[0];
         
         let sessionId = booking.session_id;
         if (!sessionId) {
           const sessionResult = await ensureSessionForBooking({
-            bookingId: booking.id,
-            resourceId: booking.resource_id,
+            bookingId: booking.id as number,
+            resourceId: booking.resource_id as number,
             sessionDate: bookingDateStr,
-            startTime: booking.start_time,
-            endTime: booking.end_time,
-            ownerEmail: member.email || '',
+            startTime: booking.start_time as string,
+            endTime: booking.end_time as string,
+            ownerEmail: (member.email as string) || '',
             ownerName: memberFullName,
             ownerUserId: member.id?.toString(),
-            trackmanBookingId: booking.trackman_booking_id,
+            trackmanBookingId: booking.trackman_booking_id as string,
             source: 'trackman_import',
             createdBy: 'staff_resolve'
           });
@@ -770,7 +770,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           
           // Recalculate fees for the session now that we have an owner
           try {
-            await recalculateSessionFees(sessionId, 'checkin');
+            await recalculateSessionFees(sessionId as number, 'checkin');
             logger.info('[Trackman Resolve] Recalculated fees for session', { extra: { sessionId } });
           } catch (feeErr) {
             logger.warn('[Trackman Resolve] Failed to recalculate fees for session', { extra: { sessionId, feeErr } });
@@ -780,9 +780,9 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           const existingUsage = await db.execute(sql`SELECT id, member_id FROM usage_ledger WHERE session_id = ${sessionId} AND (guest_fee IS NULL OR guest_fee = 0) AND source = 'trackman_import' LIMIT 1`);
           
           if (existingUsage.rows.length === 0) {
-            await recordUsage(sessionId, {
-              memberId: member.id,
-              minutesCharged: booking.duration_minutes || 60,
+            await recordUsage(sessionId as number, {
+              memberId: member.id as string,
+              minutesCharged: Number(booking.duration_minutes) || 60,
             });
             logger.info('[Trackman Resolve] Created session and usage ledger for member , booking #', { extra: { memberEmail: member.email, bookingId: booking.id } });
           } else {
@@ -951,7 +951,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
         const member = memberResult.rows[0] as DbRow;
         let resourceId = 1;
         if (booking.bay_number) {
-          const bayNum = parseInt(booking.bay_number.replace(/\D/g, ''));
+          const bayNum = parseInt(String(booking.bay_number).replace(/\D/g, ''));
           if (bayNum >= 1 && bayNum <= 4) resourceId = bayNum;
         }
         
@@ -1102,8 +1102,8 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, async (req, res) => {
        LIMIT ${limit} OFFSET ${offset}`);
     
     const data = result.rows.map((row: DbRow) => {
-      const totalSlots = parseInt(row.total_slots) || 1;
-      const filledSlots = parseInt(row.filled_slots) || 0;
+      const totalSlots = parseInt(row.total_slots as string) || 1;
+      const filledSlots = parseInt(row.filled_slots as string) || 0;
       return {
         id: row.id,
         userEmail: row.user_email,
@@ -1188,11 +1188,11 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     const newMemberName = `${newMember.first_name} ${newMember.last_name}`.trim();
     
     let placeholderEmail: string | null = null;
-    const trackmanMatch = notes.match(/\[Trackman Import ID:[^\]]+\]\s*Original email:\s*([^\s\]]+)/i);
+    const trackmanMatch = String(notes).match(/\[Trackman Import ID:[^\]]+\]\s*Original email:\s*([^\s\]]+)/i);
     if (trackmanMatch) {
       placeholderEmail = trackmanMatch[1].toLowerCase().trim();
     } else {
-      const emailMatch = notes.match(/original\s*email[:\s]+([^\s,\]]+)/i);
+      const emailMatch = String(notes).match(/original\s*email[:\s]+([^\s,\]]+)/i);
       if (emailMatch) {
         placeholderEmail = emailMatch[1].toLowerCase().trim();
       }
@@ -1269,7 +1269,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     
     if (sessionId) {
       try {
-        await recalculateSessionFees(sessionId, 'roster_update');
+        await recalculateSessionFees(sessionId as number, 'roster_update');
       } catch (feeErr) {
         logger.warn('[Reassign] Fee recalculation failed', { extra: { sessionId, feeErr } });
       }
@@ -1347,10 +1347,10 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
     
     let affectedCount = 0;
     for (const booking of bookingsResult.rows as DbRow[]) {
-      const notesMatch = booking.notes?.match(/\[Trackman Import ID:\d+\]\s*([^\[]+)/);
+      const notesMatch = String(booking.notes || '').match(/\[Trackman Import ID:\d+\]\s*([^\[]+)/);
       const originalName = notesMatch ? notesMatch[1].trim() : booking.user_name || 'Unknown';
       
-      const trackmanIdMatch = booking.notes?.match(/\[Trackman Import ID:(\d+)\]/);
+      const trackmanIdMatch = String(booking.notes || '').match(/\[Trackman Import ID:(\d+)\]/);
       const trackmanId = trackmanIdMatch ? trackmanIdMatch[1] : booking.id;
       
       await db.execute(sql`UPDATE booking_requests 
@@ -1413,7 +1413,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const sessionId = (bookingResult.rows[0] as DbRow)?.session_id || null;
     const ownerUserId = (bookingResult.rows[0] as DbRow)?.owner_user_id || null;
     let resolvedOwnerUserId = ownerUserId;
-    if (!resolvedOwnerUserId && ownerEmail && !ownerEmail.includes('unmatched') && !ownerEmail.includes('@trackman.import')) {
+    if (!resolvedOwnerUserId && ownerEmail && !String(ownerEmail).includes('unmatched') && !String(ownerEmail).includes('@trackman.import')) {
       const userLookup = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${ownerEmail}) LIMIT 1`);
       if (userLookup.rows.length > 0) {
         resolvedOwnerUserId = (userLookup.rows[0] as DbRow).id;
@@ -1421,7 +1421,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     }
     const sessionDurationMinutes = (bookingResult.rows[0] as DbRow)?.session_duration_minutes;
     const bookingDuration = (bookingResult.rows[0] as DbRow)?.duration_minutes || 60;
-    const durationMinutes = Math.max(bookingDuration, sessionDurationMinutes || 0);
+    const durationMinutes = Math.max(bookingDuration as number, Number(sessionDurationMinutes) || 0);
     const requestDate = (bookingResult.rows[0] as DbRow)?.request_date;
     const bookingStatus = (bookingResult.rows[0] as DbRow)?.status;
     
@@ -1429,12 +1429,12 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     let ownerTierLimits: Awaited<ReturnType<typeof getTierLimits>> | null = null;
     let ownerGuestPassesRemaining = 0;
     
-    if (ownerEmail && !ownerEmail.includes('unmatched')) {
-      ownerTier = await getMemberTierByEmail(ownerEmail);
+    if (ownerEmail && !String(ownerEmail).includes('unmatched')) {
+      ownerTier = await getMemberTierByEmail(ownerEmail as string);
       if (ownerTier) {
         ownerTierLimits = await getTierLimits(ownerTier);
       }
-      ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail, ownerTier || undefined);
+      ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail as string, ownerTier || undefined);
     }
     
     let membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
@@ -1444,13 +1444,13 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
        ORDER BY bm.slot_number`);
     
     const targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
-    const isUnmatchedOwner = !ownerEmail || ownerEmail.includes('unmatched@') || ownerEmail.includes('@trackman.import');
+    const isUnmatchedOwner = !ownerEmail || String(ownerEmail).includes('unmatched@') || String(ownerEmail).includes('@trackman.import');
     
     // Always ensure we have slots for ALL declared players (not just when zero exist)
-    if (membersResult.rows.length < targetPlayerCount && targetPlayerCount > 0) {
+    if (Number(membersResult.rows.length) < Number(targetPlayerCount) && Number(targetPlayerCount) > 0) {
       const existingSlotNumbers = new Set(membersResult.rows.map((r: DbRow) => r.slot_number));
       
-      for (let i = 1; i <= targetPlayerCount; i++) {
+      for (let i = 1; Number(i) <= Number(targetPlayerCount); i++) {
         if (!existingSlotNumbers.has(i)) {
           const isPrimary = i === 1;
           const userEmail = (i === 1 && !isUnmatchedOwner) ? ownerEmail : null;
@@ -1473,33 +1473,33 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     let participantsCount = 0;
     if (bookingData.session_id) {
       const participantsResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${bookingData.session_id}`);
-      participantsCount = parseInt((participantsResult.rows[0] as DbRow)?.count) || 0;
+      participantsCount = parseInt((participantsResult.rows[0] as DbRow)?.count as string) || 0;
     }
     
     const totalMemberSlots = membersResult.rows.length;
     const actualGuestCount = guestsResult.rows.length;
     
     let expectedPlayerCount: number;
-    if (declaredPlayerCount && declaredPlayerCount > 0) {
-      expectedPlayerCount = declaredPlayerCount;
-    } else if (trackmanPlayerCount && trackmanPlayerCount > 0) {
-      expectedPlayerCount = trackmanPlayerCount;
+    if (declaredPlayerCount && Number(declaredPlayerCount) > 0) {
+      expectedPlayerCount = declaredPlayerCount as number;
+    } else if (trackmanPlayerCount && Number(trackmanPlayerCount) > 0) {
+      expectedPlayerCount = trackmanPlayerCount as number;
     } else if (totalMemberSlots > 0) {
       expectedPlayerCount = totalMemberSlots + actualGuestCount;
     } else if (participantsCount > 0) {
       expectedPlayerCount = participantsCount + actualGuestCount;
     } else {
-      expectedPlayerCount = Math.max(legacyGuestCount + 1, 1);
+      expectedPlayerCount = Math.max(Number(legacyGuestCount) + 1, 1);
     }
     
-    if (resourceCapacity && resourceCapacity > 0) {
-      expectedPlayerCount = Math.min(expectedPlayerCount, resourceCapacity);
+    if (resourceCapacity && Number(resourceCapacity) > 0) {
+      expectedPlayerCount = Math.min(expectedPlayerCount, resourceCapacity as number);
     }
     
     const effectiveGuestCount = actualGuestCount > 0 ? actualGuestCount : legacyGuestCount;
     
     const filledMemberSlots = membersResult.rows.filter((row: DbRow) => row.user_email).length;
-    const actualPlayerCount = filledMemberSlots + effectiveGuestCount;
+    const actualPlayerCount = Number(filledMemberSlots) + Number(effectiveGuestCount);
     
     const playerCountMismatch = actualPlayerCount !== expectedPlayerCount;
     
@@ -1519,40 +1519,40 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     for (const row of membersResult.rows as DbRow[]) {
       if (row.user_email) {
         participantsArray.push({
-          userId: row.user_email,
-          email: row.user_email,
+          userId: row.user_email as string,
+          email: row.user_email as string,
           displayName: row.first_name && row.last_name
             ? `${row.first_name} ${row.last_name}`
-            : row.user_email,
+            : row.user_email as string,
           participantType: row.is_primary ? 'owner' : 'member'
         });
       }
     }
     for (const row of guestsResult.rows as DbRow[]) {
       participantsArray.push({
-        email: row.guest_email || undefined,
-        displayName: row.guest_name || 'Guest',
+        email: (row.guest_email as string) || undefined,
+        displayName: (row.guest_name as string) || 'Guest',
         participantType: 'guest'
       });
     }
     if (participantsArray.length === 0 && ownerEmail) {
       participantsArray.push({
-        userId: ownerEmail,
-        email: ownerEmail,
-        displayName: ownerName || ownerEmail,
+        userId: ownerEmail as string,
+        email: ownerEmail as string,
+        displayName: (ownerName as string) || (ownerEmail as string),
         participantType: 'owner'
       });
     }
 
     const feeBreakdownResult = await computeFeeBreakdown(
       sessionId
-        ? { sessionId, bookingId, declaredPlayerCount: expectedPlayerCount, source: 'preview', isConferenceRoom: bookingData.resource_type === 'conference_room', excludeSessionFromUsage: true }
+        ? { sessionId: sessionId as number, bookingId, declaredPlayerCount: expectedPlayerCount, source: 'preview', isConferenceRoom: bookingData.resource_type === 'conference_room', excludeSessionFromUsage: true }
         : {
-            sessionDate: requestDate,
-            startTime: bookingData.start_time,
+            sessionDate: requestDate as string,
+            startTime: bookingData.start_time as string,
             sessionDuration: durationMinutes,
             declaredPlayerCount: expectedPlayerCount,
-            hostEmail: ownerEmail || '',
+            hostEmail: (ownerEmail as string) || '',
             participants: participantsArray,
             source: 'preview',
             isConferenceRoom: bookingData.resource_type === 'conference_room',
@@ -1576,7 +1576,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         );
         for (const r of emailLookup.rows as DbRow[]) {
           const li = feeBreakdownResult.participants.find(p => p.userId === r.id);
-          if (li) lineItemEmailMap.set(r.email, li);
+          if (li) lineItemEmailMap.set(r.email as string, li);
         }
       }
     } else {
@@ -1586,7 +1586,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     }
 
     function findLineItemForMember(row: DbRow): typeof feeBreakdownResult.participants[0] | undefined {
-      const email = (row.user_email || '').toLowerCase();
+      const email = String((row.user_email || '')).toLowerCase();
       if (!email) return undefined;
       const mapped = lineItemEmailMap.get(email);
       if (mapped) return mapped;
@@ -1622,8 +1622,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
 
     const membersWithFees = membersResult.rows.map((row: DbRow) => {
       const membershipStatus = row.membership_status || null;
-      const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
-      const isStaffUser = row.user_email ? staffEmailSet.has(row.user_email.toLowerCase()) : false;
+      const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus as string);
+      const isStaffUser = row.user_email ? staffEmailSet.has(String(row.user_email).toLowerCase()) : false;
 
       let tier: string | null = null;
       let fee = 0;
@@ -1643,7 +1643,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         if (lineItem) {
           fee = lineItem.totalCents / 100;
           tier = lineItem.isStaff ? 'Staff' : (lineItem.tierName || null);
-          feeNote = generateFeeNote(lineItem, membershipStatus, row.is_primary);
+          feeNote = generateFeeNote(lineItem, membershipStatus as string, row.is_primary as boolean);
           const dailyAllowance = lineItem.dailyAllowance || 0;
           const overageMinutes = lineItem.overageCents > 0
             ? Math.ceil((lineItem.overageCents / 100) / PRICING.OVERAGE_RATE_DOLLARS) * PRICING.OVERAGE_BLOCK_MINUTES
@@ -1678,12 +1678,12 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         linkedBy: row.linked_by,
         memberName: row.first_name && row.last_name
           ? `${row.first_name} ${row.last_name}`
-          : row.user_email || 'Empty Slot',
+          : (row.user_email as string) || 'Empty Slot',
         tier,
         fee,
         feeNote,
         feeBreakdown: feeBreakdownObj,
-        membershipStatus,
+        membershipStatus: membershipStatus as string,
         isInactiveMember: !!isInactiveMember,
         isStaff: isStaffUser,
         guestInfo: null as Record<string, unknown> | null
@@ -1740,7 +1740,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           feeNote: guest.feeNote,
           usedGuestPass: guest.usedGuestPass
         };
-        emptySlot.memberName = guest.guestName;
+        (emptySlot as any).memberName = guest.guestName;
         emptySlot.fee = guest.fee;
         emptySlot.feeNote = guest.feeNote;
         guestsToRemove.push(i);
@@ -1769,11 +1769,11 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       const snapshotCheck = await db.execute(sql`SELECT id, total_cents FROM booking_fee_snapshots WHERE session_id = ${sessionId} AND status = 'completed' ORDER BY created_at DESC LIMIT 1`);
       if (snapshotCheck.rows.length > 0) {
         hasCompletedFeeSnapshot = true;
-        snapshotTotalCents = parseInt((snapshotCheck.rows[0] as DbRow).total_cents) || 0;
+        snapshotTotalCents = parseInt((snapshotCheck.rows[0] as DbRow).total_cents as string) || 0;
       }
     }
 
-    const feeEligibleMembers = membersWithFees.filter(m => m.slotNumber <= expectedPlayerCount);
+    const feeEligibleMembers = membersWithFees.filter(m => Number(m.slotNumber) <= expectedPlayerCount);
     
     if (sessionId) {
       const participantsResult = await db.execute(sql`SELECT 
@@ -1795,7 +1795,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       if (participantsResult.rows.length > 0) {
         const allParticipantIds = participantsResult.rows.map((p: DbRow) => p.participant_id);
         // Use recalculateSessionFees to sync fees to booking_requests.overage_fee_cents
-        const breakdown = await recalculateSessionFees(sessionId, 'checkin');
+        const breakdown = await recalculateSessionFees(sessionId as number, 'checkin');
         
         const feeMap = new Map<number, number>();
         const staffFlagMap = new Map<number, boolean>();
@@ -1809,14 +1809,14 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         const emailToFeeMap = new Map<string, { fee: number; feeNote: string; isPaid?: boolean; isStaff?: boolean }>();
         
         for (const p of participantsResult.rows as DbRow[]) {
-          const participantFee = feeMap.get(p.participant_id) || 0;
-          const email = p.user_email?.toLowerCase();
+          const participantFee = feeMap.get(p.participant_id as number) || 0;
+          const email = String(p.user_email || '').toLowerCase();
           const isPaid = p.payment_status === 'paid';
-          const participantIsStaff = staffFlagMap.get(p.participant_id) || false;
+          const participantIsStaff = staffFlagMap.get(p.participant_id as number) || false;
           
           if (p.participant_type === 'owner') {
             const ownerStatus = p.membership_status || null;
-            const ownerIsInactive = ownerStatus && !['active', 'trialing', 'past_due'].includes(ownerStatus);
+            const ownerIsInactive = ownerStatus && !['active', 'trialing', 'past_due'].includes(ownerStatus as string);
             ownerOverageFee = ((isPaid && !hasCompletedFeeSnapshot) || participantIsStaff) ? 0 : participantFee;
             if (email) {
               const ownerNote = participantIsStaff ? 'Staff — included'
@@ -1831,7 +1831,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
             }
           } else if (p.participant_type === 'member') {
             const memberStatus = p.membership_status || null;
-            const isInactive = !memberStatus || !['active', 'trialing', 'past_due'].includes(memberStatus);
+            const isInactive = !memberStatus || !['active', 'trialing', 'past_due'].includes(memberStatus as string);
             
             if (isInactive && !isPaid && !participantIsStaff && participantFee > 0) {
               ownerOverageFee += participantFee;
@@ -1839,11 +1839,11 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               totalPlayersOwe += participantFee;
             }
             playerBreakdownFromSession.push({
-              name: p.display_name || 'Unknown Member',
-              tier: participantIsStaff ? 'Staff' : (p.user_tier || null),
+              name: (p.display_name as string) || 'Unknown Member',
+              tier: participantIsStaff ? 'Staff' : ((p.user_tier as string) || null),
               fee: (isPaid || participantIsStaff || isInactive) ? 0 : participantFee,
               feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? 'Paid' : (participantFee > 0 ? 'Overage fee' : 'Within allowance'))),
-              membershipStatus: memberStatus
+              membershipStatus: memberStatus as string
             });
             if (email) {
               emailToFeeMap.set(email, {
@@ -1862,7 +1862,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         
         for (const member of membersWithFees) {
           if (member.userEmail) {
-            const sessionFeeData = emailToFeeMap.get(member.userEmail.toLowerCase());
+            const sessionFeeData = emailToFeeMap.get(String(member.userEmail).toLowerCase());
             if (sessionFeeData) {
               member.fee = sessionFeeData.fee;
               member.feeNote = sessionFeeData.feeNote;
@@ -1873,21 +1873,21 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         const guestParticipants: DbRow[] = participantsResult.rows.filter((p: DbRow) => p.participant_type === 'guest');
         for (let i = 0; i < guestsWithFees.length && i < guestParticipants.length; i++) {
           const gp = guestParticipants[i];
-          const participantFee = feeMap.get(gp.participant_id) || 0;
+          const participantFee = feeMap.get(gp.participant_id as number) || 0;
           guestsWithFees[i].fee = participantFee;
-          guestsWithFees[i].usedGuestPass = gp.used_guest_pass || false;
+          guestsWithFees[i].usedGuestPass = (gp.used_guest_pass as boolean) || false;
           guestsWithFees[i].feeNote = gp.used_guest_pass ? 'Guest Pass Used' : (participantFee > 0 ? `No passes - $${PRICING.GUEST_FEE_DOLLARS} due` : 'No charge');
         }
         
         const guestParticipantsByGuestId = new Map<number, typeof guestParticipants[0]>();
         for (const gp of guestParticipants) {
-          if (gp.guest_id) guestParticipantsByGuestId.set(gp.guest_id, gp);
+          if (gp.guest_id) guestParticipantsByGuestId.set(gp.guest_id as number, gp);
         }
         for (const member of membersWithFees) {
           if (member.guestInfo) {
-            const gp = guestParticipantsByGuestId.get(member.guestInfo.guestId);
+            const gp = guestParticipantsByGuestId.get(member.guestInfo.guestId as number);
             if (gp) {
-              const participantFee = feeMap.get(gp.participant_id) || 0;
+              const participantFee = feeMap.get(gp.participant_id as number) || 0;
               const passUsed = gp.used_guest_pass || false;
               const note = passUsed ? 'Guest Pass Used' : (participantFee > 0 ? `No passes - $${PRICING.GUEST_FEE_DOLLARS} due` : 'No charge');
               member.guestInfo.fee = participantFee;
@@ -1965,9 +1965,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           COUNT(*) FILTER (WHERE payment_status = 'pending' AND cached_fee_cents > 0) as pending_count
         FROM booking_participants 
         WHERE session_id = ${sessionId}`);
-      hasPaidFees = parseInt((paidCheck.rows[0] as DbRow)?.paid_count || '0') > 0;
-      hasOriginalFees = parseInt((paidCheck.rows[0] as DbRow)?.total_with_fees || '0') > 0;
-      pendingFeeCount = parseInt((paidCheck.rows[0] as DbRow)?.pending_count || '0');
+      hasPaidFees = parseInt(((paidCheck.rows[0] as DbRow)?.paid_count as string) || '0') > 0;
+      hasOriginalFees = parseInt(((paidCheck.rows[0] as DbRow)?.total_with_fees as string) || '0') > 0;
+      pendingFeeCount = parseInt(((paidCheck.rows[0] as DbRow)?.pending_count as string) || '0');
     }
     
     if (hasCompletedFeeSnapshot && snapshotTotalCents > 0 && pendingFeeCount === 0) {
@@ -1976,7 +1976,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     
     const allPaid = (hasCompletedFeeSnapshot && pendingFeeCount === 0) || (hasOriginalFees && grandTotal === 0 && hasPaidFees);
     
-    const isOwnerStaff = ownerEmail ? staffEmailSet.has(ownerEmail.toLowerCase()) : false;
+    const isOwnerStaff = ownerEmail ? staffEmailSet.has(String(ownerEmail).toLowerCase()) : false;
     
     res.json({
       sessionId,
@@ -2070,7 +2070,7 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
     }
     
     const existingGuests = await db.execute(sql`SELECT MAX(slot_number) as max_slot FROM booking_guests WHERE booking_id = ${bookingId}`);
-    const nextSlotNumber = ((existingGuests.rows[0] as DbRow)?.max_slot || 0) + 1;
+    const nextSlotNumber = Number(((existingGuests.rows[0] as DbRow)?.max_slot || 0)) + 1;
     
     const insertResult = await db.execute(sql`INSERT INTO booking_guests (booking_id, guest_name, guest_email, guest_phone, slot_number, created_at)
        VALUES (${bookingId}, ${guestName.trim()}, ${guestEmail?.trim() || null}, ${guestPhone?.trim() || null}, ${nextSlotNumber}, NOW())
@@ -2082,12 +2082,12 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
     
     const booking = bookingResult.rows[0] as DbRow;
     const ownerEmail = booking.user_email;
-    const sessionId = booking.session_id ? parseInt(booking.session_id) : null;
+    const sessionId = booking.session_id ? parseInt(booking.session_id as string) : null;
 
     if (sessionId) {
       const durationMinutes = booking.duration_minutes || 60;
       const declaredPlayerCount = booking.declared_player_count || 1;
-      const slotDuration = Math.floor(durationMinutes / Math.max(declaredPlayerCount, 1));
+      const slotDuration = Math.floor(Number(durationMinutes)/ Math.max(declaredPlayerCount as number, 1));
       await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, payment_status, slot_duration)
          VALUES (${sessionId}, 'guest', ${guestName.trim()}, 'pending', ${slotDuration})`);
       logger.info('[AddGuest] Created booking_participant for guest in session', { extra: { bookingId, sessionId, guestName: guestName.trim() } });
@@ -2101,7 +2101,7 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
     if (ownerEmail) {
       const passesResult = await db.execute(sql`SELECT passes_total - passes_used as remaining FROM guest_passes WHERE LOWER(member_email) = LOWER(${ownerEmail})`);
       if (passesResult.rowCount && passesResult.rowCount > 0) {
-        guestPassesRemaining = (passesResult.rows[0] as DbRow).remaining || 0;
+        guestPassesRemaining = Number((passesResult.rows[0] as DbRow).remaining) || 0;
       }
     }
 
@@ -2149,7 +2149,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
     if (guestBookingResult.rowCount && guestBookingResult.rowCount > 0) {
       guestFound = true;
       const guestRecord = guestBookingResult.rows[0] as DbRow;
-      guestDisplayName = guestRecord.guest_name || guestDisplayName;
+      guestDisplayName = (guestRecord.guest_name as string) || guestDisplayName;
 
       await db.execute(sql`DELETE FROM booking_guests WHERE id = ${guestId}`);
 
@@ -2161,7 +2161,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
           const participant = participantResult.rows[0] as DbRow;
           if (participant.used_guest_pass === true && booking.owner_email) {
             try {
-              await refundGuestPassForParticipant(participant.id, booking.owner_email, guestDisplayName);
+              await refundGuestPassForParticipant(participant.id as number, booking.owner_email as string, guestDisplayName);
               logger.info('[RemoveGuest] Guest pass refunded for', { extra: { guestDisplayName } });
             } catch (err) {
               logger.error('[RemoveGuest] Failed to refund guest pass', { extra: { err } });
@@ -2176,10 +2176,10 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
       if (participantResult.rowCount && participantResult.rowCount > 0) {
         guestFound = true;
         const participant = participantResult.rows[0] as DbRow;
-        guestDisplayName = participant.display_name || guestDisplayName;
+        guestDisplayName = (participant.display_name as string) || guestDisplayName;
         if (participant.used_guest_pass === true && booking.owner_email) {
           try {
-            await refundGuestPassForParticipant(participant.id, booking.owner_email, guestDisplayName);
+            await refundGuestPassForParticipant(participant.id as number, booking.owner_email as string, guestDisplayName);
             logger.info('[RemoveGuest] Guest pass refunded for', { extra: { guestDisplayName } });
           } catch (err) {
             logger.error('[RemoveGuest] Failed to refund guest pass', { extra: { err } });
@@ -2193,13 +2193,13 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
       return res.status(404).json({ error: 'Guest not found in booking_guests or booking_participants' });
     }
 
-    if (booking.guest_count && booking.guest_count > 0) {
+    if (booking.guest_count && Number(booking.guest_count) > 0) {
       await db.execute(sql`UPDATE booking_requests SET guest_count = GREATEST(0, guest_count - 1), updated_at = NOW() WHERE id = ${bookingId}`);
     }
 
     // Step 4: Recalculate fees for the session
     if (sessionId) {
-      await recalculateSessionFees(sessionId, 'roster_update');
+      await recalculateSessionFees(sessionId as number, 'roster_update');
     }
 
     await logFromRequest(req, {
@@ -2238,7 +2238,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
     
     const slot = slotResult.rows[0] as DbRow;
     if (slot.user_email) {
-      if (slot.user_email.toLowerCase() === memberEmail.toLowerCase()) {
+      if (String(slot.user_email).toLowerCase() === memberEmail.toLowerCase()) {
         return res.json({ success: true, message: 'Member already linked to this slot' });
       }
       return res.status(400).json({ error: 'Slot is already linked to a different member' });
@@ -2306,7 +2306,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const bookingDateTime = new Date(`${bookingDate}T${booking.start_time}`);
       
       if (bookingDateTime > now && booking.status === 'approved') {
-        const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`;
+        const notificationMessage = `You've been added to a simulator booking on ${new Date(bookingDate as string).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}.`;
         
         await db.execute(sql`INSERT INTO notifications (user_email, title, message, type, related_id, related_type)
            VALUES (${memberEmail.toLowerCase()}, ${'Added to Booking'}, ${notificationMessage}, ${'booking_approved'}, ${bookingId}, ${'booking_request'})`);
@@ -2380,7 +2380,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
       }
     }
     
-    logFromRequest(req, 'unlink_member_from_booking', 'booking', String(bookingId), memberEmail.toLowerCase(), {
+    logFromRequest(req, 'unlink_member_from_booking', 'booking', String(bookingId), String(memberEmail).toLowerCase(), {
       slotId
     });
     
@@ -2558,9 +2558,9 @@ router.delete('/api/admin/trackman/reset-data', isStaffOrAdmin, async (req, res)
       success: true,
       message: 'Trackman data reset complete',
       deleted: {
-        bookings: parseInt((bookingCount.rows[0] as DbRow).count),
-        sessions: parseInt((sessionCount.rows[0] as DbRow).count),
-        unmatched: parseInt((unmatchedCount.rows[0] as DbRow).count)
+        bookings: parseInt((bookingCount.rows[0] as DbRow).count as string),
+        sessions: parseInt((sessionCount.rows[0] as DbRow).count as string),
+        unmatched: parseInt((unmatchedCount.rows[0] as DbRow).count as string)
       }
     });
   } catch (error: unknown) {
@@ -2585,7 +2585,7 @@ router.get('/api/admin/trackman/fuzzy-matches/:id', isStaffOrAdmin, async (req, 
     }
     
     const unmatched = unmatchedResult.rows[0] as DbRow;
-    const userName = (unmatched.user_name || '').toLowerCase().trim();
+    const userName = String((unmatched.user_name || '')).toLowerCase().trim();
     
     if (!userName) {
       return res.json({ suggestions: [], message: 'No name to match against' });
@@ -2632,14 +2632,14 @@ router.get('/api/admin/trackman/fuzzy-matches/:id', isStaffOrAdmin, async (req, 
       fullName: [s.first_name, s.last_name].filter(Boolean).join(' '),
       membershipStatus: s.membership_status,
       trackmanEmail: s.trackman_email,
-      matchScore: calculateMatchScore(userName, s.first_name, s.last_name)
+      matchScore: calculateMatchScore(userName, s.first_name as string, s.last_name as string)
     })).sort((a, b) => b.matchScore - a.matchScore);
     
     res.json({ 
       unmatchedName: unmatched.user_name,
       unmatchedEmail: unmatched.original_email,
       matches: formattedSuggestions,
-      requiresReview: (unmatched.match_attempt_reason || '').includes('REQUIRES_REVIEW')
+      requiresReview: String((unmatched.match_attempt_reason || '')).includes('REQUIRES_REVIEW')
     });
   } catch (error: unknown) {
     logger.error('Fuzzy match error', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -2945,7 +2945,7 @@ router.get('/api/admin/trackman/duplicate-bookings', isStaffOrAdmin, async (req,
       duplicatesFound: result.rows.length,
       duplicates: result.rows.map((row: DbRow) => ({
         trackmanBookingId: row.trackman_booking_id,
-        count: parseInt(row.duplicate_count),
+        count: parseInt(row.duplicate_count as string),
         bookingIds: row.booking_ids,
         createdDates: row.created_dates,
         isUnmatchedFlags: row.is_unmatched_flags,
@@ -3191,7 +3191,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
         for (const intent of pendingIntents.rows as DbRow[]) {
           try {
             const stripe = await getStripeClient();
-            await stripe.paymentIntents.cancel(intent.stripe_payment_intent_id);
+            await stripe.paymentIntents.cancel(intent.stripe_payment_intent_id as string);
           } catch (err: unknown) {
             log(`[Lesson Cleanup] Could not cancel payment intent ${intent.stripe_payment_intent_id}: ${getErrorMessage(err)}`);
           }
@@ -3219,7 +3219,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
     log(`[Lesson Cleanup] Found ${unmatchedLessons.rows.length} unmatched lesson entries to resolve.`);
 
     for (const item of unmatchedLessons.rows as DbRow[]) {
-      const resourceId = parseInt(item.bay_number) || null;
+      const resourceId = parseInt(item.bay_number as string) || null;
       
       if (resourceId && item.booking_date && item.start_time) {
         if (!dryRun) {

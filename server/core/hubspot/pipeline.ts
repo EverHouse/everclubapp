@@ -42,7 +42,7 @@ export async function validateMembershipPipeline(): Promise<{
       hubspot.crm.pipelines.pipelinesApi.getAll('deals')
     );
     
-    const membershipPipeline = pipelinesResponse.results.find(
+    const membershipPipeline = (pipelinesResponse as any).results.find(
       (p: Record<string, unknown>) => p.id === MEMBERSHIP_PIPELINE_ID || (p.label as string)?.toLowerCase().includes('membership')
     );
     

@@ -328,11 +328,11 @@ async function fetchRecentlyModifiedContacts(sinceTimestamp: number): Promise<Re
     };
     
     const response = await retryableHubSpotRequest(() => 
-      hubspot.crm.contacts.searchApi.doSearch(searchRequest)
+      hubspot.crm.contacts.searchApi.doSearch(searchRequest as any)
     );
     
-    modifiedContacts = modifiedContacts.concat(response.results);
-    after = response.paging?.next?.after;
+    modifiedContacts = modifiedContacts.concat((response as any).results);
+    after = (response as any).paging?.next?.after;
   } while (after);
   
   return modifiedContacts.map(transformHubSpotContact);
@@ -387,10 +387,10 @@ async function fetchAllHubSpotContacts(forceRefresh: boolean = false): Promise<R
   
   do {
     const response = await retryableHubSpotRequest(() => 
-      hubspot.crm.contacts.basicApi.getPage(100, after, HUBSPOT_CONTACT_PROPERTIES)
+      (hubspot.crm.contacts.basicApi as any).getPage(100, after, HUBSPOT_CONTACT_PROPERTIES)
     );
-    allContacts = allContacts.concat(response.results);
-    after = response.paging?.next?.after;
+    allContacts = allContacts.concat((response as any).results);
+    after = (response as any).paging?.next?.after;
   } while (after);
   
   if (!isProduction) logger.info('[HubSpot] Full sync: fetched contacts', { extra: { allContactsLength: allContacts.length } });
@@ -512,7 +512,7 @@ async function enrichContactsWithDbData(contacts: Record<string, unknown>[]): Pr
     
     // Define formerStatuses for classification checks
     const formerStatuses = ['expired', 'terminated', 'former_member', 'cancelled', 'canceled', 'inactive', 'churned', 'declined', 'suspended', 'frozen', 'froze', 'pending', 'non-member'];
-    const contactStatus = (contact.status || '').toLowerCase();
+    const contactStatus = String((contact.status || '')).toLowerCase();
     const hasFormerStatus = formerStatuses.includes(contactStatus);
     
     // Recalculate wasEverMember considering both HubSpot membershipStartDate AND DB join_date
@@ -567,9 +567,9 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, async (req, res) => {
     if (searchQuery) {
       const searchWords = searchQuery.split(/\s+/).filter(Boolean);
       filtered = filtered.filter((contact: Record<string, unknown>) => {
-        const firstName = (contact.firstName || '').toLowerCase();
-        const lastName = (contact.lastName || '').toLowerCase();
-        const email = (contact.email || '').toLowerCase();
+        const firstName = String((contact.firstName || '')).toLowerCase();
+        const lastName = String((contact.lastName || '')).toLowerCase();
+        const email = String((contact.email || '')).toLowerCase();
         const fullName = `${firstName} ${lastName}`.trim();
         
         // All words in the search query must match somewhere in name or email
@@ -827,7 +827,7 @@ async function enrichEventDeal(
         associations: [{
           to: { id: contactId },
           types: [{
-            associationCategory: 'HUBSPOT_DEFINED' as const,
+            associationCategory: 'HUBSPOT_DEFINED' as any,
             associationTypeId: 3
           }]
         }]
@@ -1116,10 +1116,10 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
     
     do {
       const response = await retryableHubSpotRequest(() => 
-        hubspot.crm.contacts.basicApi.getPage(100, after, properties)
+        (hubspot.crm.contacts.basicApi as any).getPage(100, after, properties)
       );
-      allContacts = allContacts.concat(response.results);
-      after = response.paging?.next?.after;
+      allContacts = allContacts.concat((response as any).results);
+      after = (response as any).paging?.next?.after;
     } while (after);
     
     logger.info('[Tier Sync] Fetched contacts from HubSpot', { extra: { allContactsLength: allContacts.length } });
@@ -1137,7 +1137,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
     const updateBatch: { id: string; properties: { membership_tier: string } }[] = [];
     
     for (const contact of allContacts) {
-      const hubspotEmail = (contact.properties.email || '').toLowerCase().trim();
+      const hubspotEmail = ((contact.properties as any).email || '').toLowerCase().trim();
       if (!hubspotEmail) continue;
       
       const csvData = csvByEmail.get(hubspotEmail);
@@ -1147,7 +1147,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
       }
       
       results.matched++;
-      const currentTier = contact.properties.membership_tier || '';
+      const currentTier = (contact.properties as any).membership_tier || '';
       const newTier = csvData.tier;
       
       // Skip if tiers match (case-insensitive comparison)
@@ -1168,7 +1168,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
       if (!hubspotTier) continue;
       
       updateBatch.push({
-        id: contact.id,
+        id: contact.id as string,
         properties: { membership_tier: hubspotTier }
       });
     }
@@ -1402,14 +1402,14 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                         'member_status_change',
                         { sendPush: true, url: '/admin/members' }
                       );
-                    } else if (activeStatuses.includes(newStatus) && !activeStatuses.includes(prevStatus || '')) {
+                    } else if (activeStatuses.includes(newStatus) && !activeStatuses.includes((prevStatus || '') as string)) {
                       await notifyAllStaff(
                         '🎉 New Member Activated',
                         `${hubspotMemberName} (${email}) is now active via MindBody (${memberTier} tier).`,
                         'new_member',
                         { sendPush: true, url: '/admin/members' }
                       );
-                    } else if (inactiveStatuses.includes(newStatus) && !inactiveStatuses.includes(prevStatus || '')) {
+                    } else if (inactiveStatuses.includes(newStatus) && !inactiveStatuses.includes((prevStatus || '') as string)) {
                       await notifyAllStaff(
                         'Member Status Changed',
                         `${hubspotMemberName} (${email}) status changed to ${newStatus} via MindBody.`,
@@ -1666,10 +1666,10 @@ router.get('/api/hubspot/products', isStaffOrAdmin, async (req, res) => {
     
     do {
       const response = await retryableHubSpotRequest(() => 
-        hubspot.crm.products.basicApi.getPage(100, after, properties)
+        (hubspot.crm.products.basicApi as any).getPage(100, after, properties)
       );
-      allProducts = allProducts.concat(response.results);
-      after = response.paging?.next?.after;
+      allProducts = allProducts.concat((response as any).results);
+      after = (response as any).paging?.next?.after;
     } while (after);
     
     const products = allProducts.map((product: Record<string, unknown>) => {

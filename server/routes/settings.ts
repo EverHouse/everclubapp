@@ -101,7 +101,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
         .where(eq(appSettings.key, key as string))
         .returning();
       
-      logFromRequest(req, 'update_setting', 'setting', req.params.key, req.params.key, { value: req.body.value });
+      logFromRequest(req, 'update_setting', 'setting', req.params.key as string, req.params.key as string, { value: req.body.value });
       res.json(updated);
     } else {
       const [created] = await db
@@ -114,7 +114,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
         })
         .returning();
       
-      logFromRequest(req, 'update_setting', 'setting', req.params.key, req.params.key, { value: req.body.value });
+      logFromRequest(req, 'update_setting', 'setting', req.params.key as string, req.params.key as string, { value: req.body.value });
       res.json(created);
     }
   } catch (error: unknown) {

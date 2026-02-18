@@ -1473,7 +1473,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 noticeType: 'private_event',
                 isActive: true,
                 createdBy: 'trackman_import'
-              } as typeof facilityClosures.$inferInsert).returning();
+              } as any).returning();
               
               // Create Availability Block (time slot)
               await db.insert(availabilityBlocks).values({
@@ -1483,7 +1483,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 startTime: startTime,
                 endTime: endTime || startTime,
                 reason: `Lesson - ${row.userName}`
-              } as typeof availabilityBlocks.$inferInsert);
+              } as any);
               
               process.stderr.write(`[Trackman Import] Converted staff lesson to block: ${row.userEmail} -> "${row.userName}" on ${bookingDate}\n`);
             } catch (blockErr: unknown) {
@@ -3903,7 +3903,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
         // This is a lesson booking - convert to availability block
         const resourceId = parseInt(booking.bayNumber || '') || null;
         const bookingDate = booking.bookingDate ? 
-          ((booking.bookingDate as string | Date) instanceof Date ? (booking.bookingDate as Date).toISOString().split('T')[0] : booking.bookingDate) : null;
+          ((booking.bookingDate as string | Date) instanceof Date ? (booking.bookingDate as unknown as Date).toISOString().split('T')[0] : booking.bookingDate) : null;
         const startTime = booking.startTime?.toString() || null;
         const endTime = booking.endTime?.toString() || startTime;
         
@@ -4343,7 +4343,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
     }
 
     const bookingDate = (item.bookingDate as string | Date) instanceof Date 
-      ? (item.bookingDate as Date).toISOString().split('T')[0]
+      ? (item.bookingDate as unknown as Date).toISOString().split('T')[0]
       : item.bookingDate;
 
     if (!dryRun) {

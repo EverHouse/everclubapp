@@ -138,7 +138,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       return res.status(404).json({ error: 'Member not found in database' });
     }
     
-    const user = existingUser.rows[0] as DbUserRow;
+    const user = existingUser.rows[0] as unknown as DbUserRow;
     let hubspotContactId = user.hubspot_id;
     
     const hubspot = await getHubSpotClient();
@@ -345,7 +345,7 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
     const result = await db.execute(queryBuilder);
     
     res.json(result.rows.map((row) => {
-      const r = row as DbBookingSearchRow;
+      const r = row as unknown as DbBookingSearchRow;
       return {
         id: r.id,
         userEmail: r.user_email,
@@ -463,7 +463,7 @@ router.get('/api/data-tools/bookings-search', isStaffOrAdmin, async (req: Reques
     const result = await db.execute(queryBuilder);
     
     res.json(result.rows.map((row) => {
-      const r = row as DbBookingSearchRow;
+      const r = row as unknown as DbBookingSearchRow;
       return {
         id: r.id,
         userEmail: r.user_email,
@@ -697,7 +697,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
     // Process in batches to avoid rate limits
     const batchSize = 50;
     for (let i = 0; i < usersWithMindbody.rows.length; i += batchSize) {
-      const batch = usersWithMindbody.rows.slice(i, i + batchSize) as DbUserRow[];
+      const batch = usersWithMindbody.rows.slice(i, i + batchSize) as unknown as DbUserRow[];
       
       for (const user of batch) {
         try {
@@ -853,7 +853,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
     const errors: string[] = [];
     
     if (!dryRun) {
-      for (const member of membersWithoutHubspot.rows as DbUserRow[]) {
+      for (const member of membersWithoutHubspot.rows as unknown as DbUserRow[]) {
         try {
           const result = await findOrCreateHubSpotContact(
             member.email,
@@ -898,7 +898,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
         ? `Dry run: Found ${membersWithoutHubspot.rows.length} members without HubSpot contacts` 
         : `Synced ${created.length + existing.length} members to HubSpot (${created.length} new, ${existing.length} existing)`,
       totalFound: membersWithoutHubspot.rows.length,
-      members: (membersWithoutHubspot.rows as DbUserRow[]).map((m) => ({
+      members: (membersWithoutHubspot.rows as unknown as DbUserRow[]).map((m) => ({
         email: m.email,
         name: `${m.first_name || ''} ${m.last_name || ''}`.trim(),
         tier: m.tier,
@@ -968,7 +968,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
     const BATCH_DELAY_MS = 100;
     
     for (let i = 0; i < membersWithStripe.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithStripe.rows.slice(i, i + BATCH_SIZE) as DbUserRow[];
+      const batch = membersWithStripe.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -1136,7 +1136,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
     const BATCH_DELAY_MS = 100;
     
     for (let i = 0; i < usersWithStripe.rows.length; i += BATCH_SIZE) {
-      const batch = usersWithStripe.rows.slice(i, i + BATCH_SIZE) as DbUserRow[];
+      const batch = usersWithStripe.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
       await Promise.all(batch.map(async (user) => {
         try {
@@ -1153,11 +1153,11 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
             if (isNotFound) {
               const userName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
               orphaned.push({
-                email: user.email,
+                email: user.email as string,
                 name: userName,
-                stripeCustomerId: customerId,
-                userId: user.id,
-                role: user.role
+                stripeCustomerId: customerId as string,
+                userId: user.id as unknown as string,
+                role: user.role as string
               });
               
               if (!dryRun) {
@@ -1237,7 +1237,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
        ORDER BY email
        LIMIT 200`);
     
-    const stripeOnlyList = (stripeOnlyMembers.rows as DbUserRow[]).map((m) => ({
+    const stripeOnlyList = (stripeOnlyMembers.rows as unknown as DbUserRow[]).map((m) => ({
       id: m.id,
       email: m.email,
       name: [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown',
@@ -1246,7 +1246,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
       issue: 'has_stripe_no_hubspot'
     }));
     
-    const hubspotOnlyList = (hubspotOnlyMembers.rows as DbUserRow[]).map((m) => ({
+    const hubspotOnlyList = (hubspotOnlyMembers.rows as unknown as DbUserRow[]).map((m) => ({
       id: m.id,
       email: m.email,
       name: [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Unknown',
@@ -1260,7 +1260,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
     const errors: string[] = [];
     
     if (!dryRun) {
-      for (const member of stripeOnlyMembers.rows as DbUserRow[]) {
+      for (const member of stripeOnlyMembers.rows as unknown as DbUserRow[]) {
         try {
           const result = await findOrCreateHubSpotContact(
             member.email,
@@ -1298,7 +1298,7 @@ router.post('/api/data-tools/link-stripe-hubspot', isAdmin, async (req: Request,
         }
       }
       
-      for (const member of hubspotOnlyMembers.rows as DbUserRow[]) {
+      for (const member of hubspotOnlyMembers.rows as unknown as DbUserRow[]) {
         try {
           const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || undefined;
           const result = await getOrCreateStripeCustomer(
@@ -1404,7 +1404,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
     const BATCH_DELAY_MS = 150;
     
     for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as DbUserRow[];
+      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -1447,9 +1447,9 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
               AND we.status != 'cancelled'
           `);
           
-          const bookingCount = parseInt((visitCountResult.rows[0] as DbCountRow)?.count || '0');
-          const eventCount = parseInt((eventCountResult.rows[0] as DbCountRow)?.count || '0');
-          const wellnessCount = parseInt((wellnessCountResult.rows[0] as DbCountRow)?.count || '0');
+          const bookingCount = parseInt((visitCountResult.rows[0] as unknown as DbCountRow)?.count || '0');
+          const eventCount = parseInt((eventCountResult.rows[0] as unknown as DbCountRow)?.count || '0');
+          const wellnessCount = parseInt((wellnessCountResult.rows[0] as unknown as DbCountRow)?.count || '0');
           const appVisitCount = bookingCount + eventCount + wellnessCount;
           
           let hubspotVisitCount: number | null = null;
@@ -1587,7 +1587,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
       ORDER BY COUNT(*) DESC
     `);
     
-    const appDuplicates = (appDuplicatesResult.rows as DbDuplicateRow[]).map((row) => ({
+    const appDuplicates = (appDuplicatesResult.rows as unknown as DbDuplicateRow[]).map((row) => ({
       email: row.normalized_email,
       count: parseInt(row.count),
       members: row.user_ids.map((id: string, idx: number) => ({
@@ -1616,7 +1616,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
     const BATCH_DELAY_MS = 50;
     
     for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as DbUserRow[];
+      const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -1740,7 +1740,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
     const BATCH_DELAY_MS = 150;
     
     for (let i = 0; i < membersWithBoth.rows.length; i += BATCH_SIZE) {
-      const batch = membersWithBoth.rows.slice(i, i + BATCH_SIZE) as DbUserRow[];
+      const batch = membersWithBoth.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
       await Promise.all(batch.map(async (member) => {
         try {
@@ -1929,7 +1929,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     
     const ghostBookingsResult = await db.execute(ghostQuery);
     
-    const ghostBookings = (ghostBookingsResult.rows as DbGhostBookingRow[]).map((row) => ({
+    const ghostBookings = (ghostBookingsResult.rows as unknown as DbGhostBookingRow[]).map((row) => ({
       bookingId: row.id,
       userId: row.user_id,
       userEmail: row.user_email,
@@ -2036,7 +2036,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
         for (let i = 1; i < booking.playerCount; i++) {
           participants.push({
             email: undefined as unknown as string,
-            participantType: 'guest' as const,
+            participantType: 'guest' as 'owner',
             displayName: `Guest ${i + 1}`
           });
         }
@@ -2069,7 +2069,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
                 minutesCharged: billing.minutesAllocated,
                 overageFee: billing.overageFee,
                 guestFee: 0,
-                tierAtBooking: (billing as Record<string, unknown>).tier as string || ownerTier || undefined,
+                tierAtBooking: (billing as unknown as Record<string, unknown>).tier as string || ownerTier || undefined,
                 paymentMethod: 'unpaid'
               }, 'staff_manual');
             }
@@ -2110,7 +2110,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
             `);
           }
           
-          await recalculateSessionFees(sessionId, 'staff_manual');
+          await recalculateSessionFees(sessionId, 'staff_manual' as any);
         } catch (participantErr: unknown) {
           logger.warn('[DataTools] Failed to create participants for session', { extra: { sessionId, error: getErrorMessage(participantErr) } });
         }

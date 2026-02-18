@@ -75,7 +75,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             window.dispatchEvent(new CustomEvent('member-notification', { detail: message }));
             
             // Trigger data refresh for booking, RSVP, and wellness related notifications
-            const eventType = message.data?.eventType;
+            const eventType = (message as any).data?.eventType;
             if (eventType && [
               'booking_approved', 'booking_declined', 'booking_cancelled', 'booking_created',
               'rsvp_created', 'rsvp_cancelled',

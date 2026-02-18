@@ -204,7 +204,7 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
 
     if (updated.session_id) {
       try {
-        await recalculateSessionFees(updated.session_id, 'reschedule');
+        await recalculateSessionFees(updated.session_id as number, 'reschedule');
         logger.info('[Reschedule] Recalculated session fees after reschedule', {
           extra: { bookingId, sessionId: updated.session_id }
         });
@@ -296,10 +296,10 @@ router.post('/api/admin/booking/:id/reschedule/confirm', isStaffOrAdmin, async (
       }).catch(err => logger.error('[Reschedule] Failed to send push notification', { error: err instanceof Error ? err : new Error(String(err)) }));
 
       sendBookingRescheduleEmail(booking.user_email as string, {
-        date: request_date,
-        startTime: start_time,
-        endTime: end_time,
-        bayName: newBayName,
+        date: request_date as string,
+        startTime: start_time as string,
+        endTime: end_time as string,
+        bayName: newBayName as string,
         memberName: (booking.user_name as string) || 'Member',
       }).catch((err: unknown) => logger.error('[Email] Reschedule email error', { extra: { error: err } }));
     }

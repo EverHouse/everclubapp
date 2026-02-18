@@ -43,7 +43,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
   try {
     const { email } = req.params;
     
-    if (email === 'private-event@resolved' || email.endsWith('@trackman.local') || email.startsWith('unmatched-')) {
+    if (email === 'private-event@resolved' || (email as string).endsWith('@trackman.local') || (email as string).startsWith('unmatched-')) {
       return res.status(200).json({ synthetic: true, email, firstName: 'Private', lastName: 'Event', tier: null, membershipStatus: null });
     }
     
@@ -192,7 +192,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
     const pastEventsCount = Number(pastEventsResult[0]?.count || 0);
     const pastWellnessCount = Number(pastWellnessResult[0]?.count || 0);
     const walkInCount = (walkInResult as { rows?: Record<string, unknown>[] }).rows?.[0]?.count || 0;
-    const totalLifetimeVisits = pastBookingsCount + pastEventsCount + pastWellnessCount + walkInCount;
+    const totalLifetimeVisits = Number(pastBookingsCount) + pastEventsCount + pastWellnessCount + Number(walkInCount);
     
     const lastBookingDateRaw = (lastActivityResult as { rows?: Record<string, unknown>[] }).rows?.[0]?.last_date;
     const lastBookingDate = lastBookingDateRaw 
@@ -378,11 +378,11 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       `);
       
       for (const row of (batchCountsResult as { rows?: Record<string, unknown>[] }).rows || []) {
-        countsMap.set(row.booking_id, {
-          memberSlotsCount: row.member_slots_count || 0,
-          additionalMemberCount: row.additional_member_count || 0,
-          guestCount: row.guest_count || 0,
-          isPrimaryViaMemberSlot: row.is_primary_via_member_slot || false
+        countsMap.set(row.booking_id as number, {
+          memberSlotsCount: (row.member_slots_count as number) || 0,
+          additionalMemberCount: (row.additional_member_count as number) || 0,
+          guestCount: (row.guest_count as number) || 0,
+          isPrimaryViaMemberSlot: (row.is_primary_via_member_slot as boolean) || false
         });
       }
     }
@@ -539,7 +539,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       isWalkIn: true,
     }));
 
-    const combinedVisitHistory = [...visitHistory, ...walkInItems].sort((a, b) =>
+    const combinedVisitHistory = [...visitHistory, ...walkInItems].sort((a: any, b: any) =>
       new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime()
     );
 
@@ -637,11 +637,11 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
           }
         })
         .returning();
-      logFromRequest(req, 'change_member_role', 'user', req.params.id, '', { newRole: req.body.role, tags: req.body.tags });
+      logFromRequest(req, 'change_member_role', 'user', req.params.id as any, '', { newRole: req.body.role, tags: req.body.tags });
       return res.json(insertResult[0]);
     }
     
-    logFromRequest(req, 'change_member_role', 'user', req.params.id, '', { newRole: req.body.role, tags: req.body.tags });
+    logFromRequest(req, 'change_member_role', 'user', req.params.id as any, '', { newRole: req.body.role, tags: req.body.tags });
     res.json(result[0]);
   } catch (error: unknown) {
     logger.error('API error updating member', { error: error instanceof Error ? error : new Error(String(error)) });

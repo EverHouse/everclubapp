@@ -722,7 +722,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
               id: item.id.toString(),
               category: item.category,
               name: item.name,
-              price: parseFloat(item.price) || 0,
+              price: parseFloat(String(item.price)) || 0,
               desc: item.description || '',
               icon: item.icon || '',
               image: item.image_url || ''
@@ -802,7 +802,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       id: item.id.toString(),
       category: item.category,
       name: item.name,
-      price: parseFloat(item.price) || 0,
+      price: parseFloat(item.price as any) || 0,
       desc: item.description || '',
       icon: item.icon || '',
       image: item.image_url || ''
@@ -1068,7 +1068,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const loginWithMember = useCallback((member: MemberProfile) => {
     const memberProfile: MemberProfile = {
       id: member.id,
-      name: [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email || 'Member',
+      name: [(member as any).firstName, (member as any).lastName].filter(Boolean).join(' ') || member.email || 'Member',
       tier: member.tier || 'Core',
       tags: member.tags || [],
       status: 'Active',

@@ -235,9 +235,9 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
         if (existing.stripe_payment_intent_id) {
           try {
             const stripe = await getStripeClient();
-            const pi = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id);
+            const pi = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id as string);
             if (pi.status === 'succeeded') {
-              await confirmPaymentSuccess(existing.stripe_payment_intent_id, 'system', 'Auto-sync');
+              await confirmPaymentSuccess(existing.stripe_payment_intent_id as string, 'system', 'Auto-sync');
               return res.status(200).json({ 
                 alreadyPaid: true,
                 message: 'Payment already completed' 
@@ -246,7 +246,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
               if (pi.amount !== Math.round(amountCents)) {
                 logger.warn('[Stripe] Stale payment intent : PI amount != requested , cancelling and creating new one', { extra: { existingStripe_payment_intent_id: existing.stripe_payment_intent_id, piAmount: pi.amount, MathRound_amountCents: Math.round(amountCents) } });
                 try {
-                  await cancelPaymentIntent(existing.stripe_payment_intent_id);
+                  await cancelPaymentIntent(existing.stripe_payment_intent_id as string);
                 } catch (cancelErr) {
                   logger.warn('[Stripe] Failed to cancel stale payment intent', { extra: { cancelErr } });
                 }
@@ -579,11 +579,11 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
     
     for (const row of staleIntents.rows as Record<string, unknown>[]) {
       try {
-        await cancelPaymentIntent(row.stripe_payment_intent_id);
-        results.push({ id: row.stripe_payment_intent_id, success: true });
+        await cancelPaymentIntent(row.stripe_payment_intent_id as string);
+        results.push({ id: row.stripe_payment_intent_id as string, success: true });
         logger.info('[Cleanup] Cancelled stale payment intent', { extra: { rowStripe_payment_intent_id: row.stripe_payment_intent_id } });
       } catch (err: unknown) {
-        results.push({ id: row.stripe_payment_intent_id, success: false, error: getErrorMessage(err) });
+        results.push({ id: row.stripe_payment_intent_id as string, success: false, error: getErrorMessage(err) });
         logger.error('[Cleanup] Failed to cancel', { extra: { stripe_payment_intent_id: row.stripe_payment_intent_id, error: getErrorMessage(err) } });
       }
     }
@@ -667,7 +667,7 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
       )${inactiveFilter} AND archived_at IS NULL ORDER BY first_name, last_name LIMIT 10
     `);
     
-    const members = (result.rows as DbMemberRow[]).map((row) => ({
+    const members = (result.rows as unknown as DbMemberRow[]).map((row) => ({
       id: row.id,
       email: row.email,
       firstName: row.first_name,
@@ -782,7 +782,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, async (req: Reques
         return res.status(404).json({ error: 'Member not found in database. Use "Charge someone not in the system" to add a new customer.' });
       }
 
-      member = memberResult.rows[0] as DbMemberRow;
+      member = memberResult.rows[0] as unknown as DbMemberRow;
       resolvedName = memberName || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email.split('@')[0];
       stripeCustomerId = member.stripe_customer_id;
     }
@@ -1028,7 +1028,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const member = memberResult.rows[0] as DbMemberRow;
+    const member = memberResult.rows[0] as unknown as DbMemberRow;
     const memberName = member.name || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
     const participantResult = await db.execute(sql`SELECT bp.id, bp.session_id, bp.cached_fee_cents, bp.payment_status, bp.participant_type, bp.display_name, bs.booking_id,
@@ -1041,7 +1041,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
       return res.status(400).json({ error: 'No pending participants found for the provided IDs' });
     }
 
-    const foundIds = new Set((participantResult.rows as DbParticipantRow[]).map((r) => r.id));
+    const foundIds = new Set((participantResult.rows as unknown as DbParticipantRow[]).map((r) => r.id));
     const missingIds = participantIds.filter((id: number) => !foundIds.has(id));
     if (missingIds.length > 0) {
       return res.status(400).json({ error: `Some participant IDs not found or already paid: ${missingIds.join(', ')}` });
@@ -1049,7 +1049,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
 
     // Verify all participants are from the same booking if bookingId provided
     if (bookingId) {
-      const wrongBooking = (participantResult.rows as DbParticipantRow[]).filter((r) => r.booking_id !== bookingId);
+      const wrongBooking = (participantResult.rows as unknown as DbParticipantRow[]).filter((r) => r.booking_id !== bookingId);
       if (wrongBooking.length > 0) {
         return res.status(400).json({ error: 'Participant IDs do not belong to the specified booking' });
       }
@@ -1129,9 +1129,9 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, async (req: R
     const cardBrand = paymentMethod.card?.brand || 'card';
 
     // Build detailed description with fee breakdown
-    const displayBookingId = (participantResult.rows[0] as DbParticipantRow)?.trackman_booking_id || resolvedBookingId;
+    const displayBookingId = (participantResult.rows[0] as unknown as DbParticipantRow)?.trackman_booking_id || resolvedBookingId;
     const staffFeeLines: string[] = [];
-    for (const r of participantResult.rows as DbParticipantRow[]) {
+    for (const r of participantResult.rows as unknown as DbParticipantRow[]) {
       if ((r.cached_fee_cents || 0) <= 0) continue;
       const dollars = ((r.cached_fee_cents || 0) / 100).toFixed(2);
       if (r.participant_type === 'guest') {
@@ -1409,7 +1409,7 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, async (re
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const member = memberResult.rows[0] as DbMemberRow;
+    const member = memberResult.rows[0] as unknown as DbMemberRow;
     const resolvedName = memberName || [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
     if (!member.stripe_customer_id) {
@@ -1685,7 +1685,7 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
 
     const items: Array<{participantId: number; sessionId: number; sessionDate: string; resourceName: string; amountCents: number; type: string}> = [];
 
-    for (const row of result.rows as DbBalanceRow[]) {
+    for (const row of result.rows as unknown as DbBalanceRow[]) {
       let amountCents = 0;
       if (row.cached_fee_cents > 0) {
         amountCents = row.cached_fee_cents;
@@ -1704,7 +1704,7 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
       }
     }
 
-    for (const row of guestResult.rows as DbBalanceRow[]) {
+    for (const row of guestResult.rows as unknown as DbBalanceRow[]) {
       items.push({
         participantId: row.participant_id,
         sessionId: row.session_id,
@@ -1799,8 +1799,8 @@ router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, async (req: Req
       logger.info('[GuestPasses] Created new record for with passes', { extra: { memberEmail, newCount } });
     } else {
       const current = existingResult.rows[0] as Record<string, unknown>;
-      previousCount = current.passes_total || 0;
-      passesUsed = current.passes_used || 0;
+      previousCount = (current.passes_total as number) || 0;
+      passesUsed = (current.passes_used as number) || 0;
       newCount = Math.max(0, previousCount + adjustment);
 
       await db.execute(sql`UPDATE guest_passes SET passes_total = ${newCount} WHERE id = ${current.id}`);
@@ -1870,13 +1870,13 @@ router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request
       if (pi.metadata?.memberEmail) return pi.metadata.memberEmail;
       if (pi.metadata?.email) return pi.metadata.email;
       if (pi.receipt_email) return pi.receipt_email;
-      if (typeof pi.customer === 'object' && pi.customer?.email) return pi.customer.email;
+      if (typeof pi.customer === 'object' && pi.customer && !('deleted' in pi.customer) && pi.customer?.email) return pi.customer.email;
       return '';
     };
 
     const getCustomerName = (pi: Stripe.PaymentIntent): string | undefined => {
       if (pi.metadata?.memberName) return pi.metadata.memberName;
-      if (typeof pi.customer === 'object' && pi.customer?.name) return pi.customer.name;
+      if (typeof pi.customer === 'object' && pi.customer && !('deleted' in pi.customer) && pi.customer?.name) return pi.customer.name;
       return undefined;
     };
 
@@ -2313,7 +2313,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, async (req: Request, res: Re
 
         if (ledgerResult.rows.length > 0) {
           const totalLedgerFeeCents = ledgerResult.rows.reduce((sum: number, entry: Record<string, unknown>) => {
-            return sum + Math.round((parseFloat(entry.overage_fee) || 0) * 100) + Math.round((parseFloat(entry.guest_fee) || 0) * 100);
+            return sum + Math.round((parseFloat(entry.overage_fee as string) || 0) * 100) + Math.round((parseFloat(entry.guest_fee as string) || 0) * 100);
           }, 0);
 
           const refundCents = refundedAmount;
@@ -2499,7 +2499,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
       ORDER BY br.request_date, br.start_time
       LIMIT 50`);
 
-    const futureBookings = (result.rows as DbFutureBookingRow[]).map((row) => {
+    const futureBookings = (result.rows as unknown as DbFutureBookingRow[]).map((row) => {
       const totalFeeCents = Math.max(
         parseInt(row.pending_fee_cents) || 0,
         parseInt(row.ledger_fee_cents) || 0
@@ -2732,7 +2732,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
       
       transactionCount += 1;
       
-      if (ch.invoice) {
+      if ((ch as any).invoice) {
         breakdown.membership += cents;
       } else {
         breakdown.other += cents;
@@ -2747,7 +2747,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
        WHERE action_type = 'offline_payment'
          AND DATE(created_at AT TIME ZONE 'America/Los_Angeles') = ${today}`);
 
-    for (const row of offlineResult.rows as DbOfflinePaymentRow[]) {
+    for (const row of offlineResult.rows as unknown as DbOfflinePaymentRow[]) {
       const method = row.payment_method || 'other';
       const category = row.category || 'other';
       const cents = row.amount_cents || 0;
@@ -2860,7 +2860,7 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, asy
       await db.execute(sql`UPDATE users SET membership_status = 'active', billing_provider = 'stripe', updated_at = NOW() WHERE id = ${userId}`);
     }
 
-    logFromRequest(req, 'charge_subscription_invoice', 'payment', invoice.id, userEmail, {
+    logFromRequest(req, 'charge_subscription_invoice', 'payment', invoice.id, userEmail as string, {
       subscriptionId,
       invoiceId: invoice.id,
       amountDue: invoice.amount_due,
@@ -2870,8 +2870,8 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, asy
     });
 
     broadcastBillingUpdate({
-      action: 'subscription_payment_collected',
-      memberEmail: userEmail,
+      action: 'subscription_updated' as any,
+      memberEmail: userEmail as string,
       customerId: customer?.id
     });
 

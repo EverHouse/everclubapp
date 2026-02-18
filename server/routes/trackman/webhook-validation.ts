@@ -70,9 +70,9 @@ export async function logWebhookEvent(
     
     if (trackmanBookingId) {
       const bookingData = payload?.data || payload?.booking || {};
-      const startTime = bookingData?.start || bookingData?.start_time || payload?.start_time || '';
-      const endTime = bookingData?.end || bookingData?.end_time || payload?.end_time || '';
-      const status = bookingData?.status || payload?.status || eventType;
+      const startTime = (bookingData as any)?.start || (bookingData as any)?.start_time || (payload as any)?.start_time || '';
+      const endTime = (bookingData as any)?.end || (bookingData as any)?.end_time || (payload as any)?.end_time || '';
+      const status = (bookingData as any)?.status || (payload as any)?.status || eventType;
       
       const recentDupe = await pool.query(
         `SELECT id, payload FROM trackman_webhook_events 

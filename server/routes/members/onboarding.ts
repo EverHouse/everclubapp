@@ -226,14 +226,14 @@ async function syncProfileToExternalServices(
       const stripe = await getStripeClient();
       const fullName = [firstName, lastName].filter(Boolean).join(' ');
       const metadata: Record<string, string> = {
-        userId: user.id,
+        userId: user.id as string,
         source: 'even_house_app',
       };
-      if (user.tier) metadata.tier = user.tier;
+      if (user.tier) metadata.tier = user.tier as string;
       if (firstName) metadata.firstName = firstName;
       if (lastName) metadata.lastName = lastName;
 
-      await stripe.customers.update(user.stripe_customer_id, {
+      await stripe.customers.update(user.stripe_customer_id as string, {
         name: fullName || undefined,
         phone: phone || undefined,
         metadata,
@@ -244,7 +244,7 @@ async function syncProfileToExternalServices(
     if (user?.hubspot_id) {
       const hubspot = await getHubSpotClient();
       await retryableHubSpotRequest(() =>
-        hubspot.crm.contacts.basicApi.update(user.hubspot_id, {
+        hubspot.crm.contacts.basicApi.update(user.hubspot_id as string, {
           properties: {
             firstname: firstName,
             lastname: lastName,
@@ -260,7 +260,7 @@ async function syncProfileToExternalServices(
           filterGroups: [{
             filters: [{
               propertyName: 'email',
-              operator: 'EQ',
+              operator: 'EQ' as any,
               value: email.toLowerCase(),
             }],
           }],
@@ -268,8 +268,8 @@ async function syncProfileToExternalServices(
           limit: 1,
         })
       );
-      if (searchResponse.results && searchResponse.results.length > 0) {
-        const contactId = searchResponse.results[0].id;
+      if ((searchResponse as any).results && (searchResponse as any).results.length > 0) {
+        const contactId = (searchResponse as any).results[0].id;
         await retryableHubSpotRequest(() =>
           hubspot.crm.contacts.basicApi.update(contactId, {
             properties: {

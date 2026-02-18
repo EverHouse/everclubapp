@@ -295,10 +295,10 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
     unifiedPaymentIntents = paymentIntentsResult.rows.map((record: Record<string, unknown>) => ({
       id: `payment-${record.id}`,
       type: 'stripe' as const,
-      itemName: cleanStripeDescription(record.description, record.purpose),
-      itemCategory: record.purpose,
-      amountCents: record.amount_cents,
-      date: safeToISOString(record.created_at),
+      itemName: cleanStripeDescription(record.description as string, record.purpose as string),
+      itemCategory: record.purpose as string,
+      amountCents: record.amount_cents as number,
+      date: safeToISOString(record.created_at as any),
       status: 'paid',
       source: 'Stripe',
     }));
@@ -317,15 +317,15 @@ async function getUnifiedPurchasesForEmail(email: string): Promise<UnifiedPurcha
   
   unifiedCashCheckPayments = cashCheckResult.rows.map((record: Record<string, unknown>) => {
     const actionDetails = record.action_details || {};
-    const paymentMethod = actionDetails.paymentMethod || actionDetails.payment_method || 'cash';
+    const paymentMethod = (actionDetails as any).paymentMethod || (actionDetails as any).payment_method || 'cash';
     
     return {
       id: `cash-${record.id}`,
       type: 'legacy' as const,
-      itemName: actionDetails.description || 'Cash/Check Payment',
+      itemName: (actionDetails as any).description || 'Cash/Check Payment',
       itemCategory: 'payment',
-      amountCents: actionDetails.amountCents || actionDetails.amount_cents || 0,
-      date: safeToISOString(record.created_at),
+      amountCents: (actionDetails as any).amountCents || (actionDetails as any).amount_cents || 0,
+      date: safeToISOString(record.created_at as any),
       status: 'paid',
       source: paymentMethod === 'check' ? 'Check' : 'Cash',
     };
@@ -754,9 +754,9 @@ async function createLegacyLineItem(
   productId: string | null
 ): Promise<{ success: boolean; lineItemId?: string; error?: string }> {
   try {
-    const amount = (purchase.itemTotalCents / 100).toFixed(2);
-    const saleDateStr = purchase.saleDate ? new Date(purchase.saleDate).toISOString().split('T')[0] : '';
-    const discountPercent = purchase.discountPercent ? parseFloat(purchase.discountPercent) : 0;
+    const amount = (Number(purchase.itemTotalCents)/ 100).toFixed(2);
+    const saleDateStr = purchase.saleDate ? new Date(purchase.saleDate as string).toISOString().split('T')[0] : '';
+    const discountPercent = purchase.discountPercent ? parseFloat(purchase.discountPercent as string) : 0;
     
     const properties: Record<string, string> = {
       quantity: String(purchase.quantity || 1),
@@ -776,7 +776,7 @@ async function createLegacyLineItem(
       hubspot.crm.lineItems.basicApi.create({ properties })
     );
     
-    const lineItemId = (lineItemResponse as Record<string, unknown>).id as string;
+    const lineItemId = (lineItemResponse as unknown as Record<string, unknown>).id as string;
     
     await retryableHubSpotRequest(() =>
       hubspot.crm.associations.v4.basicApi.create(
@@ -784,7 +784,7 @@ async function createLegacyLineItem(
         lineItemId,
         'deals',
         dealId,
-        [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 20 }]
+        [{ associationCategory: 'HUBSPOT_DEFINED' as any, associationTypeId: 20 }]
       )
     );
     
@@ -793,7 +793,7 @@ async function createLegacyLineItem(
       hubspotLineItemId: lineItemId,
       hubspotProductId: productId || 'legacy_unmatched',
       productName: properties.name,
-      quantity: purchase.quantity || 1,
+      quantity: (purchase.quantity as number) || 1,
       unitPrice: amount,
       discountPercent: Math.round(discountPercent),
       discountReason: discountPercent > 0 ? 'Legacy import discount' : null,

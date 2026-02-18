@@ -192,7 +192,7 @@ export async function isStaffOrAdminCheck(email: string): Promise<boolean> {
       'SELECT id FROM staff_users WHERE LOWER(email) = LOWER($1) AND is_active = true',
       [email]
     );
-    return result.rows.length > 0;
+    return (result as any).rows.length > 0;
   } catch (error: unknown) {
     logger.error('[isStaffOrAdminCheck] DB error, defaulting to false', { extra: { error: (error as Error).message } });
     return false;
@@ -1150,7 +1150,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
         }
       });
 
-      if (recalcResult.billingResult.totalFees > 0) {
+      if (Number(recalcResult.billingResult.totalFees) > 0) {
         try {
           const ownerResult = await pool.query(
             `SELECT u.id, u.email, u.first_name, u.last_name 

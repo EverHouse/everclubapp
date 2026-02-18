@@ -32,12 +32,12 @@ const BillingTab: React.FC<BillingTabProps> = ({
       >
         <MemberBillingTab 
           memberEmail={memberEmail} 
-          memberId={memberId} 
+          memberId={String(memberId)} 
           currentTier={displayedTier}
           onTierUpdate={onTierUpdate}
-          guestPassInfo={guestPassInfo}
+          guestPassInfo={guestPassInfo as any}
           guestHistory={guestHistory}
-          guestCheckInsHistory={guestCheckInsHistory}
+          guestCheckInsHistory={guestCheckInsHistory as any}
           purchases={purchases}
         />
       </div>

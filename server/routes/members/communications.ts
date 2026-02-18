@@ -324,7 +324,7 @@ router.get('/api/my-visits', isAuthenticated, async (req, res) => {
         category: row.category || undefined,
         invitedBy: row.invited_by || undefined,
       }))
-      .sort((a: { date: string }, b: { date: string }) => b.date.localeCompare(a.date));
+      .sort((a: any, b: any) => (b.date as string).localeCompare(a.date as string));
     
     res.json(visits);
   } catch (error: unknown) {

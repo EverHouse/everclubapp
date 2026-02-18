@@ -73,21 +73,34 @@ interface TrackmanBooking {
   bookingDate?: string;
   booking_date?: string;
   request_date?: string;
+  requestDate?: string;
   startTime?: string;
   start_time?: string;
   endTime?: string;
   end_time?: string;
   bayName?: string;
   bay_name?: string;
+  bayNumber?: string | number;
+  bay_number?: string | number;
   resource_id?: number;
+  resourceId?: number;
   trackmanPlayerCount?: number;
+  trackmanBookingId?: string | number;
+  trackman_booking_id?: string | number;
   playerCount?: number;
   player_count?: number;
   assignedCount?: number;
   assigned_count?: number;
+  durationMinutes?: number;
+  duration_minutes?: number;
   status?: string;
   slotInfo?: { totalSlots?: number; expectedPlayerCount?: number; filledSlots?: number };
   resource_name?: string;
+  matchAttemptReason?: string;
+  match_attempt_reason?: string;
+  notes?: string;
+  note?: string;
+  member?: { fullName?: string };
 }
 
 interface TrackmanMember {
@@ -122,6 +135,13 @@ interface ImportResult {
   matched?: number;
   unmatched?: number;
   skipped?: number;
+  totalRows?: number;
+  matchedRows?: number;
+  linkedRows?: number;
+  unmatchedRows?: number;
+  skippedRows?: number;
+  removedFromUnmatched?: number;
+  cancelledBookings?: number;
 }
 
 interface UnmatchedResponse {
@@ -171,7 +191,7 @@ const TrackmanTab: React.FC = () => {
   const [unmatchedSearchQuery, setUnmatchedSearchQuery] = useState('');
   const [fuzzySearchQuery, setFuzzySearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [viewDetailBooking, setViewDetailBooking] = useState<ImportResult | null>(null);
+  const [viewDetailBooking, setViewDetailBooking] = useState<TrackmanBooking | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const unmatchedSectionRef = useRef<HTMLDivElement>(null);
   const needsPlayersSectionRef = useRef<HTMLDivElement>(null);
@@ -1117,7 +1137,7 @@ const TrackmanTab: React.FC = () => {
           isOpen={assignPlayersModal.isOpen}
           onClose={() => setAssignPlayersModal(null)}
           mode="assign"
-          trackmanBookingId={assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id}
+          trackmanBookingId={String(assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id || '')}
           bayName={`Bay ${assignPlayersModal.booking.bayNumber || assignPlayersModal.booking.bay_number}`}
           bookingDate={formatDateDisplayWithDay(assignPlayersModal.booking.bookingDate || assignPlayersModal.booking.booking_date)}
           timeSlot={`${assignPlayersModal.booking.startTime || assignPlayersModal.booking.start_time} - ${assignPlayersModal.booking.endTime || assignPlayersModal.booking.end_time}`}
@@ -1126,7 +1146,7 @@ const TrackmanTab: React.FC = () => {
           currentMemberEmail={undefined}
           isRelink={false}
           onSuccess={async (options) => {
-            const bookingId = assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id;
+            const bookingId = Number(assignPlayersModal.booking.trackmanBookingId || assignPlayersModal.booking.trackman_booking_id || 0);
             const memberEmail = options?.memberEmail;
             
             setOptimisticActions(prev => {

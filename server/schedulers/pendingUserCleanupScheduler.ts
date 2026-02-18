@@ -38,7 +38,7 @@ async function cleanupPendingUsers(): Promise<void> {
             const stripe = await getStripeClient();
 
             const subscriptions = await stripe.subscriptions.list({
-              customer: user.stripe_customer_id,
+              customer: user.stripe_customer_id as string,
               limit: 100,
             });
 
@@ -50,7 +50,7 @@ async function cleanupPendingUsers(): Promise<void> {
               }
             }
 
-            await stripe.customers.del(user.stripe_customer_id);
+            await stripe.customers.del(user.stripe_customer_id as string);
             logger.info(`[Pending User Cleanup] Deleted Stripe customer ${user.stripe_customer_id} for ${user.email}`);
             schedulerTracker.recordRun('Pending User Cleanup', true);
             stripeCleanedUp++;

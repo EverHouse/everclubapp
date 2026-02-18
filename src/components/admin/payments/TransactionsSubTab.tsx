@@ -20,6 +20,16 @@ import {
   useRefundPayment,
 } from '../../../hooks/queries/useFinancialsQueries';
 
+interface Payment {
+  id: string;
+  memberName?: string;
+  description?: string;
+  amount: number;
+  createdAt: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 interface SectionProps {
   onClose?: () => void;
   variant?: 'modal' | 'card';
@@ -1113,7 +1123,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
     <EmptyState icon="undo" title="No refundable payments" description="Succeeded payments from the last 30 days will appear here" variant="compact" />
   ) : (
     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-      {payments.map((payment: Payment) => (
+      {payments.map((payment: any) => (
         <div key={payment.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
           <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
             <span className="text-purple-600 dark:text-purple-400 font-semibold text-sm">
@@ -1131,7 +1141,7 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
             </p>
           </div>
           <button
-            onClick={() => setSelectedPayment(payment as Payment)}
+            onClick={() => setSelectedPayment(payment)}
             className="px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-sm font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex-shrink-0"
           >
             Refund

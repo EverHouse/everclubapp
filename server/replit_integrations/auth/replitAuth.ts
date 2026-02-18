@@ -103,7 +103,7 @@ export async function isAdminEmail(email: string): Promise<boolean> {
       'SELECT id FROM staff_users WHERE LOWER(email) = LOWER($1) AND role = $2 AND is_active = true',
       [email, 'admin']
     );
-    return result.rows.length > 0;
+    return (result as any).rows.length > 0;
   } catch (error: unknown) {
     logger.error('Error checking admin status:', { extra: { errorMessage: getErrorMessage(error) } });
     return false;
@@ -162,7 +162,7 @@ export const isStaffOrAdmin: RequestHandler = async (req, res, next) => {
       'SELECT id FROM staff_users WHERE LOWER(email) = LOWER($1) AND is_active = true',
       [email]
     );
-    if (result.rows.length > 0) {
+    if ((result as any).rows.length > 0) {
       return next();
     }
   } catch (error: unknown) {

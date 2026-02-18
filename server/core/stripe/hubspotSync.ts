@@ -82,7 +82,7 @@ export async function syncPaymentToHubSpot(params: SyncPaymentParams): Promise<v
       lineItemId,
       'deals',
       hubspotDealId,
-      [{ associationCategory: 'HUBSPOT_DEFINED' as 'HUBSPOT_DEFINED', associationTypeId: 20 }]
+      [{ associationCategory: 'HUBSPOT_DEFINED' as any, associationTypeId: 20 }]
     );
 
     await db.insert(hubspotLineItems).values({
@@ -186,7 +186,7 @@ export async function syncDayPassToHubSpot(params: SyncDayPassParams): Promise<v
         lineItemId,
         'deals',
         hubspotDealId,
-        [{ associationCategory: 'HUBSPOT_DEFINED' as 'HUBSPOT_DEFINED', associationTypeId: 20 }]
+        [{ associationCategory: 'HUBSPOT_DEFINED' as any, associationTypeId: 20 }]
       );
 
       await db.insert(hubspotLineItems).values({

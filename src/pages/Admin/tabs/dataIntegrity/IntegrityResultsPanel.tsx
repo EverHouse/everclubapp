@@ -12,7 +12,7 @@ interface OrphanedStripeRecord { email: string; stripeCustomerId?: string; reaso
 interface StripeHubspotMember { email: string; name?: string; stripeCustomerId?: string; hubspotId?: string; }
 interface PaymentUpdate { email: string; oldStatus?: string; newStatus?: string; }
 interface VisitMismatch { email: string; name?: string; currentCount?: number; actualCount?: number; }
-interface OrphanedParticipantDetail { email: string; bookingId?: number; action?: string; }
+interface OrphanedParticipantDetail { email: string; bookingId?: number; action?: string; displayName?: string; userId?: string | number; }
 
 interface IntegrityResultsPanelProps {
   results: IntegrityCheckResult[];
@@ -1157,10 +1157,10 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       <span className="material-symbols-outlined text-[16px]">delete</span>
                                     </button>
                                   )}
-                                  {!issue.ignored && (issue.context?.email || (issue.context?.memberEmails && issue.context.memberEmails.length > 0)) && (issue.context?.stripeCustomerIds || issue.context?.stripeCustomerId) && (
+                                  {!issue.ignored && (issue.context?.email || (issue.context?.memberEmails && issue.context.memberEmails.length > 0)) && ((issue.context as any)?.stripeCustomerIds || issue.context?.stripeCustomerId) && (
                                     <button
-                                      onClick={() => handleViewProfile(issue.context!.email || (issue.context!.memberEmails as string[] | undefined)?.[0])}
-                                      disabled={loadingMemberEmail === (issue.context!.email || (issue.context!.memberEmails as string[] | undefined)?.[0])}
+                                      onClick={() => handleViewProfile(issue.context!.email || (issue.context!.memberEmails as unknown as string[] | undefined)?.[0])}
+                                      disabled={loadingMemberEmail === (issue.context!.email || (issue.context!.memberEmails as unknown as string[] | undefined)?.[0])}
                                       className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
                                       title="View member profile"
                                     >
@@ -1191,7 +1191,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                       </button>
                                     </>
                                   )}
-                                  {!issue.ignored && issue.context?.userId && issue.context?.mindbodyClientId === 'none' && (
+                                  {!issue.ignored && issue.context?.userId && (issue.context as any)?.mindbodyClientId === 'none' && (
                                     <>
                                       <button
                                         onClick={() => handleViewProfile(issue.context!.memberEmail!)}

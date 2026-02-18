@@ -117,8 +117,8 @@ const OnboardingChecklist: React.FC = () => {
             credentials: 'include',
             body: JSON.stringify({ step: 'concierge' }),
           });
-          const data = await fetchWithCredentials('/api/member/onboarding');
-          setStatus(data);
+          const data = await fetchWithCredentials('/api/member/onboarding') as any;
+          setStatus(data as OnboardingStatus);
           if (data.isComplete && !data.isDismissed) {
             setCelebrating(true);
             setTimeout(() => setCelebrating(false), 3000);
@@ -146,7 +146,7 @@ const OnboardingChecklist: React.FC = () => {
                 body: JSON.stringify({ step: 'app' }),
               });
               const data = await fetchWithCredentials('/api/member/onboarding');
-              setStatus(data);
+              setStatus(data as OnboardingStatus);
             } catch {}
           }
         }

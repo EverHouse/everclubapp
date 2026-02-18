@@ -255,7 +255,7 @@ export async function cancelBookingByTrackmanId(
               });
               
               // Check if already refunded in Stripe to prevent double-refund
-              const charge = pi.latest_charge as Record<string, unknown>;
+              const charge = pi.latest_charge as unknown as Record<string, unknown>;
               const refunds = charge?.refunds as Record<string, unknown> | undefined;
               const refundData = refunds?.data as unknown[] | undefined;
               const alreadyRefunded = (refundData?.length ?? 0) > 0;

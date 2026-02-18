@@ -41,9 +41,9 @@ const EmailTemplatesTab: React.FC = () => {
     try {
       setLoading(true);
       const data = await fetchWithCredentials<{ templates?: Array<{ id: string; name: string; subject?: string; body?: string }> }>('/api/admin/email-templates');
-      setTemplates(data.templates);
-      if (data.templates.length > 0) {
-        selectTemplate(data.templates[0]);
+      setTemplates(data.templates as EmailTemplate[]);
+      if (data.templates && data.templates.length > 0) {
+        selectTemplate(data.templates[0] as EmailTemplate);
       }
     } catch (err) {
       setError('Failed to load email templates');

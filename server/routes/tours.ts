@@ -569,8 +569,8 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
     let guestPhone: string | null = null;
     
     const associations = meeting.associations;
-    if (associations?.contacts?.results?.length > 0) {
-      const contactId = associations.contacts.results[0].id;
+    if ((associations?.contacts as any)?.results?.length > 0) {
+      const contactId = (associations.contacts as any).results[0].id;
       try {
         const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
           'firstname', 'lastname', 'email', 'phone'
@@ -878,19 +878,19 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
       );
       
       if (response.results) {
-        const filteredMeetings = response.results.filter((meeting: Record<string, unknown>) => {
-          const startTime = meeting.properties.hs_meeting_start_time;
+        const filteredMeetings = (response as any).results.filter((meeting: Record<string, unknown>) => {
+          const startTime = (meeting.properties as any).hs_meeting_start_time;
           if (!startTime) return false;
           const meetingDate = new Date(startTime);
           if (meetingDate < oneYearAgo) return false;
-          const title = (meeting.properties.hs_meeting_title || '').toLowerCase();
-          const location = (meeting.properties.hs_meeting_location || '').toLowerCase();
-          const externalUrl = (meeting.properties.hs_meeting_external_url || '').toLowerCase();
+          const title = ((meeting.properties as any).hs_meeting_title || '').toLowerCase();
+          const location = ((meeting.properties as any).hs_meeting_location || '').toLowerCase();
+          const externalUrl = ((meeting.properties as any).hs_meeting_external_url || '').toLowerCase();
           return title.includes('tour') || 
                  location.includes('tourbooking') || 
                  externalUrl.includes('tourbooking');
         });
-        allMeetings.push(...filteredMeetings);
+        allMeetings.push(...filteredMeetings as any);
       }
       after = response.paging?.next?.after;
     } while (after);
@@ -905,11 +905,11 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
       const hubspotMeetingId = meeting.id;
       const props = meeting.properties;
       
-      const title = props.hs_meeting_title || 'Tour';
-      const startTimeRaw = props.hs_meeting_start_time;
-      const endTimeRaw = props.hs_meeting_end_time;
-      const outcome = (props.hs_meeting_outcome || '').toLowerCase();
-      const notes = props.hs_meeting_body || props.hs_internal_meeting_notes || '';
+      const title = (props as any).hs_meeting_title || 'Tour';
+      const startTimeRaw = (props as any).hs_meeting_start_time;
+      const endTimeRaw = (props as any).hs_meeting_end_time;
+      const outcome = ((props as any).hs_meeting_outcome || '').toLowerCase();
+      const notes = (props as any).hs_meeting_body || (props as any).hs_internal_meeting_notes || '';
       
       if (!startTimeRaw) continue;
       
@@ -928,8 +928,8 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
       let guestPhone: string | null = null;
       
       const associations = meeting.associations;
-      if (associations?.contacts?.results?.length > 0) {
-        const contactId = associations.contacts.results[0].id;
+      if ((associations as any)?.contacts?.results?.length > 0) {
+        const contactId = (associations as any).contacts.results[0].id;
         try {
           const contact = await hubspot.crm.contacts.basicApi.getById(contactId, [
             'firstname', 'lastname', 'email', 'phone'
@@ -947,7 +947,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
       const cancelledOutcomes = ['canceled', 'cancelled', 'no show', 'no_show', 'noshow', 'rescheduled'];
       const isCancelled = cancelledOutcomes.includes(outcome);
       
-      const existing = await db.select().from(tours).where(eq(tours.hubspotMeetingId, hubspotMeetingId));
+      const existing = await db.select().from(tours).where(eq(tours.hubspotMeetingId, hubspotMeetingId as string));
       
       if (existing.length > 0) {
         if (isCancelled && existing[0].status !== 'cancelled') {
@@ -956,7 +956,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
               status: 'cancelled',
               updatedAt: new Date(),
             })
-            .where(eq(tours.hubspotMeetingId, hubspotMeetingId));
+            .where(eq(tours.hubspotMeetingId, hubspotMeetingId as string));
           cancelled++;
         } else if (!isCancelled) {
           await db.update(tours)
@@ -971,7 +971,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
               notes: notes || null,
               updatedAt: new Date(),
             })
-            .where(eq(tours.hubspotMeetingId, hubspotMeetingId));
+            .where(eq(tours.hubspotMeetingId, hubspotMeetingId as string));
           updated++;
         }
       } else {
@@ -998,7 +998,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
           // Link this HubSpot meeting to the existing tour (may have been created from Google Calendar)
           await db.update(tours)
             .set({
-              hubspotMeetingId,
+              hubspotMeetingId: hubspotMeetingId as string,
               title,
               guestName: matchedExistingTour.guestName || guestName,
               guestEmail: matchedExistingTour.guestEmail || guestEmail,
@@ -1015,15 +1015,15 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
         } else {
           logger.info('[HubSpot Tour Sync] No existing match found for meeting (, ), creating new tour', { extra: { hubspotMeetingId, guestEmail_no_email: guestEmail || 'no email', tourDate, startTime } });
           await db.insert(tours).values({
-            hubspotMeetingId,
-            title,
-            guestName,
-            guestEmail,
-            guestPhone,
-            tourDate,
-            startTime,
-            endTime,
-            notes: notes || null,
+            hubspotMeetingId: hubspotMeetingId as string,
+            title: title as string,
+            guestName: (guestName as string) || null,
+            guestEmail: (guestEmail as string) || null,
+            guestPhone: (guestPhone as string) || null,
+            tourDate: tourDate as string,
+            startTime: startTime as string,
+            endTime: (endTime as string) || null,
+            notes: (notes as string) || null,
             status: isCancelled ? 'cancelled' : 'scheduled',
           });
           created++;

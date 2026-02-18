@@ -2,9 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { BookingHistoryItem as BaseBookingHistoryItem, EventRsvpItem as BaseEventRsvpItem, WellnessHistoryItem as BaseWellnessHistoryItem, VisitHistoryItem } from '../memberProfile/memberProfileTypes';
 
-type BookingHistoryItem = BaseBookingHistoryItem & { bookingDate?: string; requestDate?: string; bayName?: string; resourceName?: string };
-type EventRsvpItem = BaseEventRsvpItem & { eventDate?: string; eventTitle?: string };
-type WellnessHistoryItem = BaseWellnessHistoryItem & { classDate?: string; className?: string; classTitle?: string };
+type BookingHistoryItem = BaseBookingHistoryItem & { bookingDate?: string; requestDate?: string; bayName?: string; resourceName?: string; resourceType?: string; guestCount?: number; startTime?: string; endTime?: string };
+type EventRsvpItem = BaseEventRsvpItem & { eventDate?: string; eventTitle?: string; checkedIn?: boolean; eventLocation?: string; ticketClass?: string };
+type WellnessHistoryItem = BaseWellnessHistoryItem & { classDate?: string; className?: string; classTitle?: string; classTime?: string; instructor?: string };
 
 interface MemberActivityTabProps {
   memberEmail: string;
@@ -175,12 +175,12 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
     });
 
     (visitHistory || []).filter((v: VisitHistoryItem & { isWalkIn?: boolean }) => v.isWalkIn).forEach((visit: VisitHistoryItem) => {
-      const dateStr = visit.bookingDate;
+      const dateStr = (visit as any).bookingDate || visit.visit_date;
       activities.push({
         id: `walkin-${visit.id}`,
         type: 'visit',
         date: new Date(dateStr),
-        data: { ...visit, role: 'Walk-in' },
+        data: { ...visit, role: 'Walk-in' } as any,
       });
     });
 
@@ -201,9 +201,9 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
       const visitHistoryIds = new Set((visitHistory || []).map((v: VisitHistoryItem) => v.id));
       return allActivities.filter(a => {
         if (a.type === 'visit') return true;
-        if (a.type === 'booking' && visitHistoryIds.has(a.data?.id)) return true;
+        if (a.type === 'booking' && visitHistoryIds.has(a.data?.id as number)) return true;
         if (a.type === 'event') {
-          const eventDate = new Date(a.data?.eventDate);
+          const eventDate = new Date((a.data as any)?.eventDate);
           return eventDate < now;
         }
         if (a.type === 'wellness' && a.data?.status === 'attended') return true;
@@ -292,7 +292,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
           <div className="flex gap-2 mt-2">
             {canConfirm && (
               <button
-                onClick={() => handleConfirmBookingRequest(booking.id)}
+                onClick={() => handleConfirmBookingRequest(booking.id as number)}
                 disabled={isConfirmLoading}
                 className={`px-2 py-1 rounded text-[10px] font-medium transition-colors tactile-btn ${
                   isConfirmLoading
@@ -305,7 +305,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
             )}
             {canCancel && (
               <button
-                onClick={() => handleCancelBooking(booking.id)}
+                onClick={() => handleCancelBooking(booking.id as number)}
                 disabled={isCancelLoading}
                 className={`px-2 py-1 rounded text-[10px] font-medium transition-colors tactile-btn ${
                   isCancelLoading
@@ -350,7 +350,7 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
     </div>
   );
 
-  const renderVisitItem = (visit: VisitHistoryItem & { isWalkIn?: boolean; resource_name?: string; check_in_time?: string }) => (
+  const renderVisitItem = (visit: VisitHistoryItem & { isWalkIn?: boolean; resource_name?: string; check_in_time?: string; role?: string; resourceName?: string; date?: string; bookingDate?: string; startTime?: string; endTime?: string; checkedInBy?: string; hostName?: string; instructor?: string; location?: string }) => (
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-1">
         <span className="material-symbols-outlined text-green-500 text-lg">{visit.isWalkIn ? 'qr_code_scanner' : getRoleIcon(visit.role)}</span>
@@ -399,10 +399,10 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
               {getTypeIcon(type)}
             </span>
           </div>
-          {type === 'booking' && renderBookingItem(data)}
-          {type === 'event' && renderEventItem(data)}
-          {type === 'wellness' && renderWellnessItem(data)}
-          {type === 'visit' && renderVisitItem(data)}
+          {type === 'booking' && renderBookingItem(data as BookingHistoryItem)}
+          {type === 'event' && renderEventItem(data as EventRsvpItem)}
+          {type === 'wellness' && renderWellnessItem(data as WellnessHistoryItem)}
+          {type === 'visit' && renderVisitItem(data as any)}
         </div>
       </div>
     );

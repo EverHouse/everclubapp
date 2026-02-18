@@ -92,7 +92,7 @@ router.post('/api/stripe/overage/create-payment-intent', isAuthenticated, async 
       const resolved = await resolveUserByEmail(booking.user_email as string);
       const resolvedUserId = resolved?.userId || booking.user_email;
       const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || undefined;
-      const custResult = await getOrCreateStripeCustomer(resolvedUserId, booking.user_email as string, memberName);
+      const custResult = await getOrCreateStripeCustomer(resolvedUserId as string, booking.user_email as string, memberName);
       customerId = custResult.customerId;
     }
     
@@ -107,7 +107,7 @@ router.post('/api/stripe/overage/create-payment-intent', isAuthenticated, async 
             paymentIntentId: existingPI.id,
             amount: verifiedOverageCents,
             overageMinutes: booking.overage_minutes,
-            overageBlocks: Math.ceil(booking.overage_minutes / 30),
+            overageBlocks: Math.ceil(Number(booking.overage_minutes)/ 30),
             reused: true,
             paidInFull: false,
             balanceApplied: 0

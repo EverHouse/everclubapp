@@ -1204,118 +1204,118 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     Merge Preview
                   </h4>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    {mergePreview.recordsToMerge?.bookings !== undefined && mergePreview.recordsToMerge.bookings > 0 && (
+                    {mergePreview.recordsToMerge?.bookings !== undefined && (mergePreview.recordsToMerge.bookings?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">event_note</span>
-                        Bookings: <strong>{mergePreview.recordsToMerge.bookings}</strong>
+                        Bookings: <strong>{mergePreview.recordsToMerge.bookings?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.visits !== undefined && mergePreview.recordsToMerge.visits > 0 && (
+                    {mergePreview.recordsToMerge?.visits !== undefined && (mergePreview.recordsToMerge.visits?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>
-                        Visits: <strong>{mergePreview.recordsToMerge.visits}</strong>
+                        Visits: <strong>{mergePreview.recordsToMerge.visits?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.eventRsvps !== undefined && mergePreview.recordsToMerge.eventRsvps > 0 && (
+                    {mergePreview.recordsToMerge?.eventRsvps !== undefined && (mergePreview.recordsToMerge.eventRsvps?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">celebration</span>
-                        Events: <strong>{mergePreview.recordsToMerge.eventRsvps}</strong>
+                        Events: <strong>{mergePreview.recordsToMerge.eventRsvps?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.wellnessBookings !== undefined && mergePreview.recordsToMerge.wellnessBookings > 0 && (
+                    {mergePreview.recordsToMerge?.wellnessBookings !== undefined && (mergePreview.recordsToMerge.wellnessBookings?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">spa</span>
-                        Wellness: <strong>{mergePreview.recordsToMerge.wellnessBookings}</strong>
+                        Wellness: <strong>{mergePreview.recordsToMerge.wellnessBookings?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.memberNotes !== undefined && mergePreview.recordsToMerge.memberNotes > 0 && (
+                    {mergePreview.recordsToMerge?.memberNotes !== undefined && (mergePreview.recordsToMerge.memberNotes?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">sticky_note_2</span>
-                        Notes: <strong>{mergePreview.recordsToMerge.memberNotes}</strong>
+                        Notes: <strong>{mergePreview.recordsToMerge.memberNotes?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.notifications !== undefined && mergePreview.recordsToMerge.notifications > 0 && (
+                    {mergePreview.recordsToMerge?.notifications !== undefined && (mergePreview.recordsToMerge.notifications?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">notifications</span>
-                        Notifications: <strong>{mergePreview.recordsToMerge.notifications}</strong>
+                        Notifications: <strong>{mergePreview.recordsToMerge.notifications?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.usageLedger !== undefined && mergePreview.recordsToMerge.usageLedger > 0 && (
+                    {mergePreview.recordsToMerge?.usageLedger !== undefined && (mergePreview.recordsToMerge.usageLedger?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">payments</span>
-                        Fees: <strong>{mergePreview.recordsToMerge.usageLedger}</strong>
+                        Fees: <strong>{mergePreview.recordsToMerge.usageLedger?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.guestCheckIns !== undefined && mergePreview.recordsToMerge.guestCheckIns > 0 && (
+                    {mergePreview.recordsToMerge?.guestCheckIns !== undefined && (mergePreview.recordsToMerge.guestCheckIns?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">how_to_reg</span>
-                        Guest Check-ins: <strong>{mergePreview.recordsToMerge.guestCheckIns}</strong>
+                        Guest Check-ins: <strong>{mergePreview.recordsToMerge.guestCheckIns?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.bookingParticipants !== undefined && mergePreview.recordsToMerge.bookingParticipants > 0 && (
+                    {mergePreview.recordsToMerge?.bookingParticipants !== undefined && (mergePreview.recordsToMerge.bookingParticipants?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">group</span>
-                        Booking Participants: <strong>{mergePreview.recordsToMerge.bookingParticipants}</strong>
+                        Booking Participants: <strong>{mergePreview.recordsToMerge.bookingParticipants?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.dayPassPurchases !== undefined && mergePreview.recordsToMerge.dayPassPurchases > 0 && (
+                    {mergePreview.recordsToMerge?.dayPassPurchases !== undefined && (mergePreview.recordsToMerge.dayPassPurchases?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">confirmation_number</span>
-                        Day Passes: <strong>{mergePreview.recordsToMerge.dayPassPurchases}</strong>
+                        Day Passes: <strong>{mergePreview.recordsToMerge.dayPassPurchases?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.legacyPurchases !== undefined && mergePreview.recordsToMerge.legacyPurchases > 0 && (
+                    {mergePreview.recordsToMerge?.legacyPurchases !== undefined && (mergePreview.recordsToMerge.legacyPurchases?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">receipt_long</span>
-                        Legacy Purchases: <strong>{mergePreview.recordsToMerge.legacyPurchases}</strong>
+                        Legacy Purchases: <strong>{mergePreview.recordsToMerge.legacyPurchases?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.groupMembers !== undefined && mergePreview.recordsToMerge.groupMembers > 0 && (
+                    {mergePreview.recordsToMerge?.groupMembers !== undefined && (mergePreview.recordsToMerge.groupMembers?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">groups</span>
-                        Group Memberships: <strong>{mergePreview.recordsToMerge.groupMembers}</strong>
+                        Group Memberships: <strong>{mergePreview.recordsToMerge.groupMembers?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.pushSubscriptions !== undefined && mergePreview.recordsToMerge.pushSubscriptions > 0 && (
+                    {mergePreview.recordsToMerge?.pushSubscriptions !== undefined && (mergePreview.recordsToMerge.pushSubscriptions?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">notifications_active</span>
-                        Push Subscriptions: <strong>{mergePreview.recordsToMerge.pushSubscriptions}</strong>
+                        Push Subscriptions: <strong>{mergePreview.recordsToMerge.pushSubscriptions?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.dismissedNotices !== undefined && mergePreview.recordsToMerge.dismissedNotices > 0 && (
+                    {mergePreview.recordsToMerge?.dismissedNotices !== undefined && (mergePreview.recordsToMerge.dismissedNotices?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">visibility_off</span>
-                        Dismissed Notices: <strong>{mergePreview.recordsToMerge.dismissedNotices}</strong>
+                        Dismissed Notices: <strong>{mergePreview.recordsToMerge.dismissedNotices?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.billingGroups !== undefined && mergePreview.recordsToMerge.billingGroups > 0 && (
+                    {mergePreview.recordsToMerge?.billingGroups !== undefined && (mergePreview.recordsToMerge.billingGroups?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">account_balance</span>
-                        Billing Groups: <strong>{mergePreview.recordsToMerge.billingGroups}</strong>
+                        Billing Groups: <strong>{mergePreview.recordsToMerge.billingGroups?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.bugReports !== undefined && mergePreview.recordsToMerge.bugReports > 0 && (
+                    {mergePreview.recordsToMerge?.bugReports !== undefined && (mergePreview.recordsToMerge.bugReports?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">bug_report</span>
-                        Bug Reports: <strong>{mergePreview.recordsToMerge.bugReports}</strong>
+                        Bug Reports: <strong>{mergePreview.recordsToMerge.bugReports?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.dataExportRequests !== undefined && mergePreview.recordsToMerge.dataExportRequests > 0 && (
+                    {mergePreview.recordsToMerge?.dataExportRequests !== undefined && (mergePreview.recordsToMerge.dataExportRequests?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">download</span>
-                        Data Exports: <strong>{mergePreview.recordsToMerge.dataExportRequests}</strong>
+                        Data Exports: <strong>{mergePreview.recordsToMerge.dataExportRequests?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.hubspotDeals !== undefined && mergePreview.recordsToMerge.hubspotDeals > 0 && (
+                    {mergePreview.recordsToMerge?.hubspotDeals !== undefined && (mergePreview.recordsToMerge.hubspotDeals?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">handshake</span>
-                        HubSpot Deals: <strong>{mergePreview.recordsToMerge.hubspotDeals}</strong>
+                        HubSpot Deals: <strong>{mergePreview.recordsToMerge.hubspotDeals?.source ?? 0}</strong>
                       </div>
                     )}
-                    {mergePreview.recordsToMerge?.stripePaymentIntents !== undefined && mergePreview.recordsToMerge.stripePaymentIntents > 0 && (
+                    {mergePreview.recordsToMerge?.stripePaymentIntents !== undefined && (mergePreview.recordsToMerge.stripePaymentIntents as any)?.source > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="material-symbols-outlined text-sm align-middle mr-1">credit_card</span>
-                        Payment Intents: <strong>{mergePreview.recordsToMerge.stripePaymentIntents}</strong>
+                        Payment Intents: <strong>{mergePreview.recordsToMerge.stripePaymentIntents?.source ?? 0}</strong>
                       </div>
                     )}
                   </div>
@@ -1327,11 +1327,11 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                         Conflicts/Recommendations:
                       </p>
                       <ul className={`text-xs mt-1 space-y-1 ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
-                        {mergePreview.conflicts?.map((c: string, i: number) => (
-                          <li key={`conflict-${i}`}>• {c}</li>
+                        {mergePreview.conflicts?.map((c: any, i: number) => (
+                          <li key={`conflict-${i}`}>• {typeof c === 'string' ? c : `${c.field}: ${c.sourceValue} vs ${c.targetValue}`}</li>
                         ))}
-                        {mergePreview.recommendations?.map((r: string, i: number) => (
-                          <li key={`rec-${i}`}>• {r}</li>
+                        {mergePreview.recommendations?.map((r: any, i: number) => (
+                          <li key={`rec-${i}`}>• {typeof r === 'string' ? r : `${r.field}: ${r.recommendation}`}</li>
                         ))}
                       </ul>
                     </div>

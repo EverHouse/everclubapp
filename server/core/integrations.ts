@@ -78,7 +78,7 @@ export async function getHubSpotAccessToken() {
 
 export async function getHubSpotClient() {
   const accessToken = await getHubSpotAccessToken();
-  return new Client({ accessToken });
+  return new Client({ accessToken: accessToken as string });
 }
 
 export function getHubSpotPrivateAppClient(): Client | null {
@@ -96,7 +96,7 @@ export async function getHubSpotClientWithFallback(): Promise<{ client: Client; 
   }
   
   const accessToken = await getHubSpotAccessToken();
-  return { client: new Client({ accessToken }), source: 'connector' };
+  return { client: new Client({ accessToken: accessToken as string }), source: 'connector' };
 }
 
 async function getGoogleCalendarAccessToken() {
@@ -148,6 +148,6 @@ async function getGoogleCalendarAccessToken() {
 export async function getGoogleCalendarClient() {
   const accessToken = await getGoogleCalendarAccessToken();
   const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: accessToken });
+  oauth2Client.setCredentials({ access_token: accessToken as string });
   return google.calendar({ version: 'v3', auth: oauth2Client });
 }

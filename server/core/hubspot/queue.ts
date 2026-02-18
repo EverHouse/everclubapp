@@ -149,7 +149,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
       }
       
       const newRetryCount = Number(job.retry_count) + 1;
-      const shouldRetry = newRetryCount < job.max_retries;
+      const shouldRetry = Number(newRetryCount) < Number(job.max_retries);
       
       if (shouldRetry) {
         // Schedule retry with exponential backoff
@@ -215,18 +215,18 @@ async function executeHubSpotOperation(operation: string, payload: Record<string
   switch (operation) {
     case 'create_contact':
       await members.findOrCreateHubSpotContact(
-        payload.email,
-        payload.firstName,
-        payload.lastName,
-        payload.phone
+        payload.email as string,
+        payload.firstName as string,
+        payload.lastName as string,
+        payload.phone as string
       );
       break;
       
     case 'update_contact':
       await stages.updateContactMembershipStatus(
-        payload.email,
-        payload.status,
-        payload.performedBy || 'system'
+        payload.email as string,
+        payload.status as any,
+        (payload.performedBy as string) || 'system'
       );
       break;
       

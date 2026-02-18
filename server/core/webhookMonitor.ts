@@ -59,7 +59,7 @@ export async function getWebhookEvents(params: WebhookQueryParams): Promise<{ ev
     LIMIT ${limit} OFFSET ${offset}
   `);
 
-  const events: WebhookEvent[] = result.rows.map((row: Record<string, unknown>) => ({
+  const events = (result.rows as Record<string, unknown>[]).map((row: Record<string, unknown>) => ({
     id: Number(row.id),
     eventType: String(row.event_type),
     trackmanBookingId: String(row.trackman_booking_id || ''),
@@ -71,10 +71,10 @@ export async function getWebhookEvents(params: WebhookQueryParams): Promise<{ ev
     createdAt: (row.created_at as any)?.toISOString?.() || String(row.created_at),
     retryCount: Number(row.retry_count || 0),
     lastRetryAt: (row.last_retry_at as any)?.toISOString?.() || (row.last_retry_at ? String(row.last_retry_at) : null),
-    status: row.processing_error ? 'failed' : row.processed_at ? 'processed' : 'pending',
+    status: (row.processing_error ? 'failed' : row.processed_at ? 'processed' : 'pending') as 'pending' | 'failed' | 'processed',
   }));
 
-  return { events, total };
+  return { events: events as unknown as WebhookEvent[], total: total as number };
 }
 
 export async function getWebhookEventTypes(): Promise<string[]> {

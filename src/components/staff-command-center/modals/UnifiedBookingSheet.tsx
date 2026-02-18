@@ -290,7 +290,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
       handleFinalizeBooking={logic.handleFinalizeBooking}
       handleMarkAsEvent={logic.handleMarkAsEvent}
       executeMarkAsEvent={logic.executeMarkAsEvent}
-      handleAssignToStaff={logic.handleAssignToStaff}
+      handleAssignToStaff={logic.handleAssignToStaff as any}
       getRoleBadge={logic.getRoleBadge}
       onDeleteBooking={logic.handleDeleteBooking}
       deleting={logic.deleting}

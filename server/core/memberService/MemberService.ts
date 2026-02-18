@@ -470,7 +470,7 @@ class MemberServiceClass {
       tierConfig = {
         id: row.tier_config_id,
         name: row.tier_name,
-        slug: row.tier_name?.toLowerCase().replace(/\s+/g, '-') || '',
+        slug: String(row.tier_name || '').toLowerCase().replace(/\s+/g, '-') || '',
         priceString: '',
         description: null,
         buttonText: null,
@@ -501,28 +501,28 @@ class MemberServiceClass {
     const role: MemberRole = row.role === 'admin' ? 'admin' : row.role === 'staff' ? 'staff' : 'member';
     
     return {
-      id: row.id,
-      email: row.email,
-      normalizedEmail: normalizeEmail(row.email || ''),
-      firstName: row.first_name,
-      lastName: row.last_name,
-      displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.email || '',
+      id: row.id as string,
+      email: row.email as string,
+      normalizedEmail: normalizeEmail((row.email as string) || ''),
+      firstName: row.first_name as string,
+      lastName: row.last_name as string,
+      displayName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || (row.email as string) || '',
       role,
       isStaff: role === 'staff' || role === 'admin',
       isAdmin: role === 'admin',
-      tier: row.tier,
-      tierId: row.tier_id,
-      tierConfig,
-      phone: row.phone,
+      tier: row.tier as string,
+      tierId: row.tier_id as number,
+      tierConfig: tierConfig as any,
+      phone: row.phone as string,
       tags,
-      stripeCustomerId: row.stripe_customer_id,
-      hubspotId: row.hubspot_id,
-      mindbodyClientId: row.mindbody_client_id,
-      membershipStatus: row.membership_status,
-      joinDate: row.join_date ? new Date(row.join_date) : null,
-      lifetimeVisits: row.lifetime_visits || 0,
+      stripeCustomerId: row.stripe_customer_id as string,
+      hubspotId: row.hubspot_id as string,
+      mindbodyClientId: row.mindbody_client_id as string,
+      membershipStatus: row.membership_status as string,
+      joinDate: row.join_date ? new Date(row.join_date as string) : null,
+      lifetimeVisits: (row.lifetime_visits as number) || 0,
       linkedEmails,
-      trackmanEmail: row.trackman_email
+      trackmanEmail: row.trackman_email as string
     };
   }
 }

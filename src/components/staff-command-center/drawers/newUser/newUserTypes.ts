@@ -173,7 +173,7 @@ export interface VisitorFlowProps {
   onSuccess: (user: { id: string; email: string; name: string }) => void;
   createdUser: { id: string; email: string; name: string } | null;
   onClose: () => void;
-  onBookNow: () => void;
+  onBookNow?: () => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   scannedIdImage: { base64: string; mimeType: string } | null;
   onShowIdScanner: () => void;

@@ -155,13 +155,13 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         await sendPassWithQrEmail(payload.to as string, payload.passPurchase as any);
         break;
       case 'notify_payment_success':
-        await notifyPaymentSuccess(payload.userEmail as string, payload.amount as string, payload.description as string);
+        await notifyPaymentSuccess(payload.userEmail as string, Number(payload.amount), payload.description as string);
         break;
       case 'notify_payment_failed':
-        await notifyPaymentFailed(payload.userEmail as string, payload.amount as string, payload.reason as string);
+        await notifyPaymentFailed(payload.userEmail as string, Number(payload.amount), payload.reason as string);
         break;
       case 'notify_staff_payment_failed':
-        await notifyStaffPaymentFailed(payload.memberEmail as string, payload.memberName as string, payload.amount as string, payload.reason as string);
+        await notifyStaffPaymentFailed(payload.memberEmail as string, payload.memberName as string, Number(payload.amount), payload.reason as string);
         break;
       case 'notify_member':
         await notifyMember({
@@ -169,13 +169,13 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
           title: payload.title as string,
           message: payload.message as string,
           type: payload.type as any,
-          relatedId: payload.relatedId as string,
+          relatedId: payload.relatedId as number,
           relatedType: payload.relatedType as string,
         });
         break;
       case 'notify_all_staff':
         await notifyAllStaff(payload.title as string, payload.message as string, payload.type as any, {
-          relatedId: payload.relatedId as string,
+          relatedId: payload.relatedId as number,
           relatedType: payload.relatedType as string,
           url: payload.actionUrl as string,
         });

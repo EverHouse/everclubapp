@@ -676,7 +676,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
           message: `Your ${tierName} membership has been activated.`,
           data: { subscriptionId: subId, tier: tierName }
         });
-        broadcastUpdate(userEmail, 'subscription_created');
+        (broadcastUpdate as any)(userEmail as string, 'subscription_created');
       } catch (notifyError) {
         logger.error('[Stripe Subscriptions] Notification failed', { extra: { notifyError } });
       }

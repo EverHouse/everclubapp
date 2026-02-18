@@ -206,7 +206,7 @@ export function AssignModeFooter({
               {staffList.map((staff) => (
                 <button
                   key={staff.id}
-                  onClick={() => handleAssignToStaff(staff)}
+                  onClick={() => handleAssignToStaff(staff as any)}
                   disabled={assigningToStaff}
                   className="tactile-btn w-full p-3 text-left hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors border-b border-teal-100 dark:border-teal-500/20 last:border-b-0 disabled:opacity-50"
                 >

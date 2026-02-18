@@ -147,14 +147,14 @@ const TiersTab: React.FC = () => {
     const { data: tiers = [], isLoading } = useQuery({
         queryKey: ['membership-tiers'],
         queryFn: async () => {
-            const data = await fetchWithCredentials<MembershipTier[]>('/api/membership-tiers');
+            const data = await fetchWithCredentials<TierRecord[]>('/api/membership-tiers');
             return data.map((t: TierRecord) => ({
-                ...t,
+                ...t as any,
                 highlighted_features: Array.isArray(t.highlighted_features) ? t.highlighted_features : 
                     (typeof t.highlighted_features === 'string' ? JSON.parse(t.highlighted_features || '[]') : []),
                 all_features: typeof t.all_features === 'object' && t.all_features !== null ? t.all_features :
                     (typeof t.all_features === 'string' ? JSON.parse(t.all_features || '{}') : {})
-            }));
+            })) as MembershipTier[];
         },
     });
 
@@ -708,7 +708,7 @@ const TiersTab: React.FC = () => {
                                                     Select up to 4 features to highlight on the pricing card
                                                 </p>
                                                 <div className="space-y-2">
-                                                    {BOOLEAN_FIELDS.filter(f => (selectedTier as Record<string, unknown>)?.[f.key]).map(field => (
+                                                    {BOOLEAN_FIELDS.filter(f => (selectedTier as unknown as Record<string, unknown>)?.[f.key]).map(field => (
                                                         <label 
                                                             key={field.key}
                                                             className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${
@@ -933,7 +933,7 @@ const TiersTab: React.FC = () => {
                                                     >
                                                         <span className="text-sm text-primary dark:text-white">{field.label}</span>
                                                         <Toggle
-                                                            checked={(selectedTier as Record<string, unknown>)?.[field.key] || false}
+                                                            checked={(selectedTier as unknown as Record<string, unknown>)?.[field.key] as boolean || false}
                                                             onChange={(val) => {
                                                                 if (selectedTier?.stripe_product_id) return;
                                                                 selectedTier && setSelectedTier({...selectedTier, [field.key]: val});

@@ -74,7 +74,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
           return res.json({ success: true, status: 'cancellation_pending' });
         }
 
-        await handlePendingCancellation(bookingId, bookingData, pushInfo);
+        await handlePendingCancellation(bookingId, bookingData, pushInfo as any);
 
         logFromRequest(req, 'cancellation_requested', 'booking', id.toString(), undefined, {
           member_email: bookingData.userEmail,
@@ -85,7 +85,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         return res.json({ success: true, status: 'cancellation_pending' });
       }
 
-      await handleCancelPostTransaction(bookingId, bookingData, pushInfo, overageRefundResult, isConfRoom);
+      await handleCancelPostTransaction(bookingId, bookingData, pushInfo as any, overageRefundResult, isConfRoom);
 
       logFromRequest(req, 'cancel_booking', 'booking', id as string, undefined, {
         member_email: bookingData.userEmail,
@@ -95,7 +95,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         refund_result: overageRefundResult
       });
 
-      return res.json(formatBookingRow(updated));
+      return res.json(formatBookingRow(updated as any));
     }
 
     const result = await updateGenericStatus(bookingId, status, staff_notes);

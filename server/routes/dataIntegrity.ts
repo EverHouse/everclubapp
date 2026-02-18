@@ -960,15 +960,15 @@ router.post('/api/data-integrity/fix/approve-all-review-items', isAdmin, async (
     
     const wCount = (wellnessCount.rows[0] as Record<string, unknown>)?.count || 0;
     const eCount = (eventCount.rows[0] as Record<string, unknown>)?.count || 0;
-    const total = wCount + eCount;
+    const total = Number(wCount) + Number(eCount);
     
     if (!dryRun) {
-      if (wCount > 0) {
+      if (Number(wCount) > 0) {
         await db.execute(sql`UPDATE wellness_classes 
           SET needs_review = false, reviewed_by = ${reviewedBy}, reviewed_at = NOW(), updated_at = NOW(), review_dismissed = true, conflict_detected = false, locally_edited = true, app_last_modified_at = NOW()
           WHERE needs_review = true AND is_active = true`);
       }
-      if (eCount > 0) {
+      if (Number(eCount) > 0) {
         await db.execute(sql`UPDATE events SET needs_review = false WHERE needs_review = true`);
       }
       

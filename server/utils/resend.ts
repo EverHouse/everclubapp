@@ -41,10 +41,10 @@ async function getCredentials() {
     }
   ).then(res => res.json()).then((data: Record<string, unknown>) => (data.items as Record<string, unknown>[] | undefined)?.[0] ?? null);
 
-  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
+  if (!connectionSettings || (!(connectionSettings.settings as any).api_key)) {
     throw new Error('Resend not connected');
   }
-  return { apiKey: connectionSettings.settings.api_key, fromEmail: connectionSettings.settings.from_email };
+  return { apiKey: (connectionSettings.settings as any).api_key, fromEmail: (connectionSettings.settings as any).from_email };
 }
 
 export async function getResendClient(): Promise<{ client: Resend; fromEmail: string | null }> {

@@ -102,7 +102,7 @@ const SimulatorTab: React.FC = () => {
     
     const requests: BookingRequest[] = useMemo(() => {
         const fromRequests = bookingRequestsData.map((r: BookingRequest) => ({ ...r, source: 'booking_request' as const }));
-        const fromPending = pendingBookingsData.map((b: Record<string, string | number | null>) => ({
+        const fromPending = pendingBookingsData.map((b: any) => ({
             id: b.id,
             user_email: b.user_email,
             user_name: b.first_name && b.last_name ? `${b.first_name} ${b.last_name}` : b.user_email,
@@ -121,7 +121,7 @@ const SimulatorTab: React.FC = () => {
             source: 'booking' as const,
             resource_name: b.resource_name
         }));
-        return [...fromRequests, ...fromPending];
+        return [...fromRequests, ...fromPending] as BookingRequest[];
     }, [bookingRequestsData, pendingBookingsData]);
     
     const approvedBookings: BookingRequest[] = approvedBookingsData as BookingRequest[];
@@ -1099,7 +1099,7 @@ const SimulatorTab: React.FC = () => {
                         memberNameMap={memberNameMap}
                         actionInProgress={actionInProgress}
                         navigateToTab={navigateToTab}
-                        setBookingSheet={setBookingSheet}
+                        setBookingSheet={setBookingSheet as any}
                         setTrackmanModal={setTrackmanModal}
                         setSelectedRequest={setSelectedRequest}
                         setActionModal={setActionModal}
@@ -1108,15 +1108,15 @@ const SimulatorTab: React.FC = () => {
                         isBookingUnmatched={isBookingUnmatched}
                         handleRefresh={handleRefresh}
                         showToast={showToast}
-                        confirm={confirm}
+                        confirm={confirm as any}
                         guestFeeDollars={guestFeeDollars}
                         overageRatePerBlockDollars={overageRatePerBlockDollars}
                         tierMinutes={tierMinutes}
                         optimisticNewBooking={optimisticNewBooking}
                         startDate={startDate}
                         endDate={endDate}
-                        queryClient={queryClient}
-                        simulatorKeys={simulatorKeys}
+                        queryClient={queryClient as any}
+                        simulatorKeys={simulatorKeys as any}
                         activeView={activeView}
                         queueMaxHeight={queueMaxHeight}
                         setActionInProgress={setActionInProgress}
@@ -1134,7 +1134,7 @@ const SimulatorTab: React.FC = () => {
                         availabilityBlocks={availabilityBlocks}
                         memberStatusMap={memberStatusMap}
                         memberNameMap={memberNameMap}
-                        setBookingSheet={setBookingSheet}
+                        setBookingSheet={setBookingSheet as any}
                         setStaffManualBookingDefaults={setStaffManualBookingDefaults}
                         setStaffManualBookingModalOpen={setStaffManualBookingModalOpen}
                         setTrackmanModal={setTrackmanModal}
@@ -1570,7 +1570,7 @@ const SimulatorTab: React.FC = () => {
               ownerMembershipStatus={bookingSheet.ownerMembershipStatus}
               onReschedule={(booking) => {
                 setBookingSheet({ isOpen: false, trackmanBookingId: null });
-                setRescheduleModal({ isOpen: true, booking });
+                setRescheduleModal({ isOpen: true, booking: booking as any });
               }}
               onCancelBooking={async (bookingId) => {
                 const confirmed = await confirm({
@@ -1614,7 +1614,7 @@ const SimulatorTab: React.FC = () => {
               <RescheduleBookingModal
                 isOpen={rescheduleModal.isOpen}
                 onClose={() => setRescheduleModal({ isOpen: false, booking: null })}
-                booking={rescheduleModal.booking}
+                booking={rescheduleModal.booking as any}
                 resources={resources}
                 onSuccess={() => {
                   setRescheduleModal({ isOpen: false, booking: null });

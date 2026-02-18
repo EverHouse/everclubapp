@@ -64,8 +64,8 @@ async function syncWithRetry<T extends { error?: string }>(
 
 const runBackgroundSync = async () => {
   try {
-    const eventsResult = await syncWithRetry('Events', () => syncGoogleCalendarEvents({ suppressAlert: true }), { synced: 0, created: 0, updated: 0, deleted: 0, error: 'Events sync failed' });
-    const wellnessResult = await syncWithRetry('Wellness', () => syncWellnessCalendarEvents({ suppressAlert: true }), { synced: 0, created: 0, updated: 0, deleted: 0, error: 'Wellness sync failed' });
+    const eventsResult = await syncWithRetry('Events', () => syncGoogleCalendarEvents({ suppressAlert: true }), { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Events sync failed' });
+    const wellnessResult = await syncWithRetry('Wellness', () => syncWellnessCalendarEvents({ suppressAlert: true }), { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Wellness sync failed' });
     const toursResult = await syncWithRetry('Tours', () => syncToursFromCalendar(), { synced: 0, created: 0, updated: 0, cancelled: 0, error: 'Tours sync failed' });
     const closuresResult = await syncWithRetry('Closures', () => syncInternalCalendarToClosures(), { synced: 0, created: 0, updated: 0, deleted: 0, error: 'Closures sync failed' });
     const confRoomResult = await syncWithRetry('ConfRoom', () => syncConferenceRoomCalendarToBookings(), { synced: 0, linked: 0, created: 0, skipped: 0, error: 'Conference room sync failed' }) as { synced: number; linked: number; created: number; skipped: number; error?: string; warning?: string };

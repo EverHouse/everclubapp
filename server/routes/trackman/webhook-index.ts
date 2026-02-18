@@ -81,24 +81,24 @@ async function notifyMemberBookingConfirmed(
  */
 function extractTrackmanBookingId(payload: TrackmanWebhookPayload | TrackmanV2WebhookPayload | Record<string, unknown>): string | undefined {
   // V2 format: payload.booking.id
-  if (payload?.booking?.id !== undefined) {
-    return String(payload.booking.id);
+  if ((payload as any)?.booking?.id !== undefined) {
+    return String((payload.booking as any).id);
   }
   
   // V1 format: payload.data.id or payload.data.booking_id
-  if (payload?.data?.id !== undefined) {
-    return String(payload.data.id);
+  if ((payload as any)?.data?.id !== undefined) {
+    return String((payload as any).data.id);
   }
-  if (payload?.data?.booking_id !== undefined) {
-    return String(payload.data.booking_id);
+  if ((payload as any)?.data?.booking_id !== undefined) {
+    return String((payload as any).data.booking_id);
   }
   
   // Fallback: direct payload.id or payload.booking_id
-  if (payload?.id !== undefined) {
-    return String(payload.id);
+  if ((payload as any)?.id !== undefined) {
+    return String((payload as any).id);
   }
-  if (payload?.booking_id !== undefined) {
-    return String(payload.booking_id);
+  if (payload?.booking !== undefined) {
+    return String(payload.booking);
   }
   
   return undefined;
@@ -400,7 +400,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     
     await logWebhookEvent(
       eventType,
-      payload,
+      payload as any,
       trackmanBookingId,
       trackmanUserId,
       matchedBookingId,
@@ -413,7 +413,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     
     await logWebhookEvent(
       'error',
-      payload,
+      payload as any,
       undefined,
       undefined,
       undefined,
@@ -459,7 +459,7 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, async (req: Request, 
     
     res.json({
       events: result.rows,
-      total: parseInt((countResult.rows[0] as DbRow).total),
+      total: parseInt((countResult.rows[0] as DbRow).total as string),
       limit,
       offset
     });
@@ -549,7 +549,7 @@ router.post('/api/admin/linked-emails', isStaffOrAdmin, async (req: Request, res
       return res.status(409).json({ error: 'This email is already linked to a member' });
     }
     
-    const session = req.session;
+    const session = req.session as any;
     const createdBy = session?.email || 'unknown';
     
     await db.execute(sql`INSERT INTO user_linked_emails (primary_email, linked_email, source, created_by)
@@ -683,7 +683,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
        WHERE id = ${eventId}`);
     
     logger.info('[Trackman Webhook] Admin triggered retry', {
-      extra: { eventId, eventType: event.event_type, retryCount: (event.retry_count || 0) + 1 }
+      extra: { eventId, eventType: event.event_type, retryCount: Number((event.retry_count || 0)) + 1 }
     });
     
     let success = false;
@@ -901,14 +901,14 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     // Ensure session exists for newly approved booking
     try {
       await ensureSessionForBooking({
-        bookingId: match.id,
-        resourceId,
+        bookingId: match.id as number,
+        resourceId: resourceId as number,
         sessionDate: pacificDate,
-        startTime: match.start_time || pacificStartTime,
-        endTime: match.end_time || pacificStartTime,
-        ownerEmail: match.user_email,
-        ownerName: match.member_name || undefined,
-        trackmanBookingId,
+        startTime: (match.start_time as string) || pacificStartTime,
+        endTime: (match.end_time as string) || pacificStartTime,
+        ownerEmail: match.user_email as string,
+        ownerName: (match.member_name as string) || undefined,
+        trackmanBookingId: trackmanBookingId as string,
         source: 'trackman_webhook',
         createdBy: 'staff_auto_match'
       });
@@ -918,8 +918,8 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
 
     try {
       await notifyMemberBookingConfirmed(
-        match.user_email,
-        match.id,
+        match.user_email as string,
+        match.id as number,
         pacificDate,
         pacificStartTime,
         `Bay ${resourceId}`
@@ -928,8 +928,8 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
       logger.warn('[Trackman Auto-Match] Failed to notify member', { error: notifyErr instanceof Error ? notifyErr : new Error(String(notifyErr)) });
     }
     
-    linkAndNotifyParticipants(match.id, {
-      trackmanBookingId,
+    linkAndNotifyParticipants(match.id as number, {
+      trackmanBookingId: trackmanBookingId as string,
       linkedBy: 'staff_auto_match',
       bayName: `Bay ${resourceId}`
     }).catch(err => {
@@ -1011,7 +1011,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     
     const resourceResult = await db.execute(sql`SELECT id, name FROM resources WHERE id = ${booking.resource_id}`);
     const resource = resourceResult.rows[0] as DbRow;
-    const bayRef = resource?.name?.match(/\d+/)?.[0] || '1';
+    const bayRef = String(resource?.name || '').match(/\d+/)?.[0] || '1';
     // Map bay number to Trackman bay ID (approximate mapping)
     const bayIdMap: Record<string, number> = { '1': 7410, '2': 7411, '3': 7412, '4': 7413 };
     const trackmanBayId = bayIdMap[bayRef] || 7410;
@@ -1019,7 +1019,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     // Build ISO timestamps from booking date and times
     const bookingDate = typeof booking.request_date === 'string' 
       ? booking.request_date 
-      : new Date(booking.request_date).toISOString().split('T')[0];
+      : new Date(booking.request_date as string | number | Date).toISOString().split('T')[0];
     const startISO = `${bookingDate}T${booking.start_time}.000Z`;
     const endISO = `${bookingDate}T${booking.end_time}.000Z`;
     
@@ -1044,7 +1044,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
         bayOption: {
           id: 16727,
           name: "Member Option",
-          duration: Math.floor((booking.duration_minutes || 60) / 60),
+          duration: Math.floor((Number(booking.duration_minutes) || 60) / 60),
           subtitle: null
         },
         created_at: new Date().toISOString(),
@@ -1056,8 +1056,8 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
         }],
         customers: [{
           email: booking.user_email,
-          first_name: booking.user_name?.split(' ')[0] || 'Member',
-          last_name: booking.user_name?.split(' ').slice(1).join(' ') || ''
+          first_name: String(booking.user_name || '').split(' ')[0] || 'Member',
+          last_name: String(booking.user_name || '').split(' ').slice(1).join(' ') || ''
         }]
       },
       _simulated: true,
@@ -1090,12 +1090,12 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
 
         const sessionResult = await ensureSessionForBooking({
           bookingId,
-          resourceId: booking.resource_id,
-          sessionDate: booking.request_date,
-          startTime: booking.start_time,
-          endTime: booking.end_time,
-          ownerEmail: booking.user_email || '',
-          ownerName: booking.user_name,
+          resourceId: booking.resource_id as number,
+          sessionDate: booking.request_date as string,
+          startTime: booking.start_time as string,
+          endTime: booking.end_time as string,
+          ownerEmail: (booking.user_email as string) || '',
+          ownerName: booking.user_name as string,
           ownerUserId: userId?.toString() || undefined,
           trackmanBookingId: fakeTrackmanId,
           source: 'staff_manual',
@@ -1110,22 +1110,22 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
              new Date(`2000-01-01T${booking.start_time}`).getTime()) / 60000
           );
 
-          for (let i = 1; i < playerCount; i++) {
+          for (let i = 1; Number(i) < Number(playerCount); i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
               VALUES (${sessionId}, ${null}, ${'guest'}, ${`Guest ${i + 1}`}, ${'pending'}, ${sessionDuration})`);
           }
 
-          if (playerCount > 1) {
+          if (Number(playerCount) > 1) {
             logger.info('[Simulate Confirm] Created guest participants', {
               bookingId,
               sessionId,
-              guestCount: playerCount - 1,
+              guestCount: Number(playerCount)- 1,
               sessionDuration
             });
           }
 
           try {
-            const feeResult = await recalculateSessionFees(sessionId, 'approval');
+            const feeResult = await recalculateSessionFees(sessionId as number, 'approval');
             if (feeResult?.totalSessionFee) {
               (booking as DbRow).calculatedTotalFeeCents = feeResult.totalSessionFee;
             }
@@ -1150,13 +1150,13 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
            updated_at = NOW()
        WHERE id = ${bookingId}`);
 
-    if (booking.overage_fee_cents > 0 && booking.stripe_customer_id) {
+    if (Number(booking.overage_fee_cents) > 0 && booking.stripe_customer_id) {
       try {
         const { chargeWithBalance } = await import('../../core/stripe/payments');
         const paymentResult = await chargeWithBalance({
-          stripeCustomerId: booking.stripe_customer_id,
-          email: booking.user_email,
-          amountCents: booking.overage_fee_cents,
+          stripeCustomerId: booking.stripe_customer_id as string,
+          email: booking.user_email as string,
+          amountCents: booking.overage_fee_cents as number,
           purpose: 'overage_fee',
           bookingId: bookingId,
           description: `Simulator overage fee for ${booking.request_date}`,
@@ -1182,10 +1182,10 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     }
 
     try {
-      const dateStr = typeof booking.request_date === 'string' ? booking.request_date : formatDatePacific(booking.request_date);
+      const dateStr = typeof booking.request_date === 'string' ? booking.request_date : formatDatePacific(booking.request_date as any);
       const timeStr = typeof booking.start_time === 'string' 
         ? booking.start_time.substring(0, 5) 
-        : formatTimePacific(booking.start_time);
+        : formatTimePacific(booking.start_time as any);
       
       await notifyMember({
         userEmail: booking.user_email as string,
@@ -1216,7 +1216,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
 
     logger.info('[Simulate Confirm] Booking manually confirmed', {
       bookingId,
-      userEmail: booking.user_email,
+      userEmail: booking.user_email as string,
       trackmanId: fakeTrackmanId
     });
 
@@ -1378,14 +1378,14 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
             await db.execute(sql`UPDATE trackman_webhook_events SET matched_booking_id = ${bookingId} WHERE id = ${event.id}`);
             
             await ensureSessionForBooking({
-              bookingId,
+              bookingId: bookingId as number,
               resourceId,
               sessionDate: requestDate,
               startTime,
               endTime,
               ownerEmail: customerEmail || '',
               ownerName: customerName,
-              trackmanBookingId: event.trackman_booking_id,
+              trackmanBookingId: event.trackman_booking_id as string,
               source: 'trackman_webhook',
               createdBy: 'trackman_reprocess'
             });
@@ -1484,7 +1484,7 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
             'Content-Type': 'application/json',
             'X-Forwarded-From': 'production',
             'X-Replay-Event-Id': String(event.id),
-            'X-Original-Received-At': event.created_at?.toISOString() || ''
+            'X-Original-Received-At': event.created_at ? String(event.created_at) : ''
           },
           body: JSON.stringify(payload)
         });

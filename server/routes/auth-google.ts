@@ -108,14 +108,13 @@ router.post('/api/auth/google/verify', async (req, res) => {
       tier: normalizeTierName(user.tier),
       tags: user.tags || [],
       mindbodyClientId: user.mindbodyClientId || '',
-      membershipStartDate: user.joinDate ? new Date(user.joinDate).toISOString().split('T')[0] : '',
       status: 'Active',
       role,
       expires_at: Date.now() + sessionTtl,
       dateOfBirth: user.dateOfBirth || null,
     };
 
-    req.session.user = member;
+    req.session.user = member as any;
 
     if (!user.googleId || user.googleId !== googleUser.sub) {
       const existingGoogleLink = await db.select({ id: users.id, email: users.email })
