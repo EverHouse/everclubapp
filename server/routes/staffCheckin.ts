@@ -177,63 +177,29 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
     }
 
     if (sessionId) {
-      // Sync cleanup: Remove orphaned member participants not in booking_members
-      // This catches stale data from before the unlink bug fix
-      // Matches by email to handle cases where user_id may differ
       try {
-        // Get all valid emails from booking_members (lowercased for comparison)
-        const validMembersResult = await db.execute(sql`
-          SELECT LOWER(user_email) as email
-          FROM booking_members
-          WHERE booking_id = ${bookingId} AND user_email IS NOT NULL
-        `);
-        
-        const validEmails = new Set(validMembersResult.rows.map(r => r.email));
-        
-        // Also get the owner email to exclude from cleanup
-        const ownerResult = await db.execute(sql`
-          SELECT LOWER(user_email) as email FROM booking_requests WHERE id = ${bookingId}
-        `);
-        const ownerEmail = ownerResult.rows[0]?.email;
-        if (ownerEmail) {
-          validEmails.add(ownerEmail);
-        }
-        
-        // Get all member participants for this session with their emails
         const memberParticipants = await db.execute(sql`
-          SELECT bp.id, bp.display_name, bp.user_id, LOWER(u.email) as email
+          SELECT bp.id, bp.display_name, bp.user_id, u.id as resolved_user_id
           FROM booking_participants bp
           LEFT JOIN users u ON bp.user_id = u.id
           WHERE bp.session_id = ${sessionId} AND bp.participant_type = 'member'
         `);
         
-        // Find orphaned participants:
-        // 1. Member participants whose email is not in the valid set
-        // 2. Member participants with NULL user_id (can't be a valid member)
-        // 3. Member participants whose user_id doesn't resolve to an email
         const orphanedIds: number[] = [];
         const orphanedNames: string[] = [];
         for (const p of memberParticipants.rows) {
-          // If participant has no email (NULL user_id or user not found), it's orphaned
-          if (!p.email) {
-            orphanedIds.push(p.id);
-            orphanedNames.push(p.display_name);
-          }
-          // If participant has an email but it's not in the valid set, it's orphaned
-          else if (!validEmails.has(p.email)) {
+          if (!p.user_id || !p.resolved_user_id) {
             orphanedIds.push(p.id);
             orphanedNames.push(p.display_name);
           }
         }
         
-        // Delete orphaned participants
         if (orphanedIds.length > 0) {
           await db.execute(sql`
             DELETE FROM booking_participants WHERE id = ANY(${orphanedIds}::int[])
           `);
           
-          logger.info('[Checkin Context Sync] Cleaned up  orphaned participants for booking', { extra: { length: orphanedIds.length, bookingId, orphanedNames } });
-          // Recalculate fees after cleanup
+          logger.info('[Checkin Context Sync] Cleaned up orphaned participants for booking', { extra: { length: orphanedIds.length, bookingId, orphanedNames } });
           await recalculateSessionFees(sessionId, 'sync_cleanup');
         }
       } catch (syncError: unknown) {

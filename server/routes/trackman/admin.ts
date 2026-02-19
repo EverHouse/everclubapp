@@ -1437,164 +1437,70 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       ownerGuestPassesRemaining = await getGuestPassesRemaining(ownerEmail as string, ownerTier || undefined);
     }
     
-    let membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
-       FROM booking_members bm
-       LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
-       WHERE bm.booking_id = ${id}
-       ORDER BY bm.slot_number`);
-    
     const targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
     const isUnmatchedOwner = !ownerEmail || String(ownerEmail).includes('unmatched@') || String(ownerEmail).includes('@trackman.import');
-    
-    // Always ensure we have slots for ALL declared players (not just when zero exist)
-    if (Number(membersResult.rows.length) < Number(targetPlayerCount) && Number(targetPlayerCount) > 0) {
-      const existingSlotNumbers = new Set(membersResult.rows.map((r: DbRow) => r.slot_number));
-      
-      for (let i = 1; Number(i) <= Number(targetPlayerCount); i++) {
-        if (!existingSlotNumbers.has(i)) {
-          const isPrimary = i === 1;
-          const userEmail = (i === 1 && !isUnmatchedOwner) ? ownerEmail : null;
-          await db.execute(sql`INSERT INTO booking_members (booking_id, slot_number, is_primary, user_email, created_at)
-             VALUES (${id}, ${i}, ${isPrimary}, ${userEmail}, NOW())
-             ON CONFLICT (booking_id, slot_number) DO NOTHING`);
-        }
-      }
-      
-      membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
-         FROM booking_members bm
-         LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
-         WHERE bm.booking_id = ${id}
-         ORDER BY bm.slot_number`);
-    }
-    
-    const guestsResult = await db.execute(sql`SELECT * FROM booking_guests WHERE booking_id = ${id} ORDER BY slot_number`);
-    
     const bookingData = bookingResult.rows[0] as DbRow;
-    let participantsCount = 0;
-    if (bookingData.session_id) {
-      const participantsResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${bookingData.session_id}`);
-      participantsCount = parseInt((participantsResult.rows[0] as DbRow)?.count as string) || 0;
-    }
-    
-    const totalMemberSlots = membersResult.rows.length;
-    const actualGuestCount = guestsResult.rows.length;
-    
-    let expectedPlayerCount: number;
-    if (declaredPlayerCount && Number(declaredPlayerCount) > 0) {
-      expectedPlayerCount = declaredPlayerCount as number;
-    } else if (trackmanPlayerCount && Number(trackmanPlayerCount) > 0) {
-      expectedPlayerCount = trackmanPlayerCount as number;
-    } else if (totalMemberSlots > 0) {
-      expectedPlayerCount = totalMemberSlots + actualGuestCount;
-    } else if (participantsCount > 0) {
-      expectedPlayerCount = participantsCount + actualGuestCount;
-    } else {
-      expectedPlayerCount = Math.max(Number(legacyGuestCount) + 1, 1);
-    }
-    
-    if (resourceCapacity && Number(resourceCapacity) > 0) {
-      expectedPlayerCount = Math.min(expectedPlayerCount, resourceCapacity as number);
-    }
-    
-    const effectiveGuestCount = actualGuestCount > 0 ? actualGuestCount : legacyGuestCount;
-    
-    const filledMemberSlots = membersResult.rows.filter((row: DbRow) => row.user_email).length;
-    const actualPlayerCount = Number(filledMemberSlots) + Number(effectiveGuestCount);
-    
-    const playerCountMismatch = actualPlayerCount !== expectedPlayerCount;
-    
-    const perPersonMins = Math.floor(durationMinutes / expectedPlayerCount);
-    
     const bookingId = parseInt(id as string);
-    
+
     const staffEmailsResult = await db.execute(sql`SELECT LOWER(email) as email FROM staff_users WHERE is_active = true`);
     const staffEmailSet = new Set(staffEmailsResult.rows.map((r: DbRow) => r.email));
-    
-    const participantsArray: Array<{
-      userId?: string;
-      email?: string;
-      displayName: string;
-      participantType: 'owner' | 'member' | 'guest';
-    }> = [];
-    for (const row of membersResult.rows as DbRow[]) {
-      if (row.user_email) {
-        participantsArray.push({
-          userId: row.user_email as string,
-          email: row.user_email as string,
-          displayName: row.first_name && row.last_name
-            ? `${row.first_name} ${row.last_name}`
-            : row.user_email as string,
-          participantType: row.is_primary ? 'owner' : 'member'
-        });
-      }
-    }
-    for (const row of guestsResult.rows as DbRow[]) {
-      participantsArray.push({
-        email: (row.guest_email as string) || undefined,
-        displayName: (row.guest_name as string) || 'Guest',
-        participantType: 'guest'
-      });
-    }
-    if (participantsArray.length === 0 && ownerEmail) {
-      participantsArray.push({
-        userId: ownerEmail as string,
-        email: ownerEmail as string,
-        displayName: (ownerName as string) || (ownerEmail as string),
-        participantType: 'owner'
-      });
-    }
 
-    const feeBreakdownResult = await computeFeeBreakdown(
-      sessionId
-        ? { sessionId: sessionId as number, bookingId, declaredPlayerCount: expectedPlayerCount, source: 'preview', isConferenceRoom: bookingData.resource_type === 'conference_room', excludeSessionFromUsage: true }
-        : {
-            sessionDate: requestDate as string,
-            startTime: bookingData.start_time as string,
-            sessionDuration: durationMinutes,
-            declaredPlayerCount: expectedPlayerCount,
-            hostEmail: (ownerEmail as string) || '',
-            participants: participantsArray,
-            source: 'preview',
-            isConferenceRoom: bookingData.resource_type === 'conference_room',
-            bookingId
-          }
-    );
+    type FeeBreakdownObj = {
+      perPersonMins: number;
+      dailyAllowance: number;
+      usedToday: number;
+      overageMinutes: number;
+      fee: number;
+      isUnlimited: boolean;
+      isSocialTier: boolean;
+    } | null;
 
-    const ownerLineItems = feeBreakdownResult.participants.filter(li => li.participantType === 'owner');
-    const memberLineItems = feeBreakdownResult.participants.filter(li => li.participantType === 'member');
-    const guestLineItems = feeBreakdownResult.participants.filter(li => li.participantType === 'guest');
+    type MemberWithFees = {
+      id: number;
+      bookingId: number;
+      userEmail: string | null;
+      slotNumber: number;
+      isPrimary: boolean;
+      linkedAt: string | null;
+      linkedBy: string | null;
+      memberName: string;
+      tier: string | null;
+      fee: number;
+      feeNote: string;
+      feeBreakdown: FeeBreakdownObj;
+      membershipStatus: string | null;
+      isInactiveMember: boolean;
+      isStaff: boolean;
+      guestInfo: Record<string, unknown> | null;
+      participantId?: number;
+    };
 
-    const lineItemEmailMap = new Map<string, typeof feeBreakdownResult.participants[0]>();
-    if (sessionId) {
-      const userIds = feeBreakdownResult.participants
-        .filter(li => li.userId && li.participantType !== 'guest')
-        .map(li => li.userId!);
-      if (userIds.length > 0) {
-        const emailLookup = await pool.query(
-          `SELECT id, LOWER(email) as email FROM users WHERE id = ANY($1::text[])`,
-          [userIds]
-        );
-        for (const r of emailLookup.rows as DbRow[]) {
-          const li = feeBreakdownResult.participants.find(p => p.userId === r.id);
-          if (li) lineItemEmailMap.set(r.email as string, li);
-        }
-      }
-    } else {
-      for (const li of feeBreakdownResult.participants) {
-        if (li.userId) lineItemEmailMap.set(li.userId.toLowerCase(), li);
-      }
-    }
+    type GuestWithFees = {
+      id: number;
+      bookingId: number;
+      guestName: string;
+      guestEmail: string | null;
+      slotNumber: number;
+      fee: number;
+      feeNote: string;
+      usedGuestPass: boolean;
+    };
 
-    function findLineItemForMember(row: DbRow): typeof feeBreakdownResult.participants[0] | undefined {
-      const email = String((row.user_email || '')).toLowerCase();
-      if (!email) return undefined;
-      const mapped = lineItemEmailMap.get(email);
-      if (mapped) return mapped;
-      if (row.is_primary && ownerLineItems.length > 0) return ownerLineItems[0];
-      return undefined;
-    }
+    let membersWithFees: MemberWithFees[] = [];
+    const guestsWithFees: GuestWithFees[] = [];
+    let expectedPlayerCount: number;
+    let totalMemberSlots: number;
+    let filledMemberSlots: number;
+    let effectiveGuestCount: number;
+    let actualPlayerCount: number;
+    let playerCountMismatch: boolean;
+    let perPersonMins: number;
+    let participantsCount = 0;
+    let guestPassesUsedThisBooking = 0;
+    let guestPassesRemainingAfterBooking = ownerGuestPassesRemaining;
+    let feeBreakdownResult: Awaited<ReturnType<typeof computeFeeBreakdown>>;
 
-    function generateFeeNote(lineItem: typeof feeBreakdownResult.participants[0], membershipStatus: string | null, isPrimary: boolean): string {
+    function generateFeeNote(lineItem: Awaited<ReturnType<typeof computeFeeBreakdown>>['participants'][0], membershipStatus: string | null, isPrimary: boolean): string {
       const fee = lineItem.totalCents / 100;
       const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
 
@@ -1620,134 +1526,550 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       return `No tier assigned — $${fee}`;
     }
 
-    const membersWithFees = membersResult.rows.map((row: DbRow) => {
-      const membershipStatus = row.membership_status || null;
-      const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus as string);
-      const isStaffUser = row.user_email ? staffEmailSet.has(String(row.user_email).toLowerCase()) : false;
+    if (sessionId) {
+      const bpResult = await db.execute(sql`SELECT bp.id, bp.participant_type, bp.display_name, bp.user_id, bp.guest_id,
+               bp.payment_status, bp.cached_fee_cents, bp.used_guest_pass, bp.created_at, bp.slot_duration,
+               u.first_name, u.last_name, u.email as user_email, u.tier as user_tier, u.membership_status,
+               g.name as guest_name_from_table, g.email as guest_email_from_table, g.phone as guest_phone
+        FROM booking_participants bp
+        LEFT JOIN users u ON u.id = bp.user_id
+        LEFT JOIN guests g ON g.id = bp.guest_id
+        WHERE bp.session_id = ${sessionId}
+        ORDER BY
+          CASE bp.participant_type
+            WHEN 'owner' THEN 0
+            WHEN 'member' THEN 1
+            WHEN 'guest' THEN 2
+          END,
+          bp.created_at`);
 
-      let tier: string | null = null;
-      let fee = 0;
-      let feeNote = '';
-      let feeBreakdownObj: {
-        perPersonMins: number;
-        dailyAllowance: number;
-        usedToday: number;
-        overageMinutes: number;
-        fee: number;
-        isUnlimited: boolean;
-        isSocialTier: boolean;
-      } | null = null;
+      participantsCount = bpResult.rows.length;
 
-      if (row.user_email) {
-        const lineItem = findLineItemForMember(row);
+      const ownerParticipants = (bpResult.rows as DbRow[]).filter(r => r.participant_type === 'owner');
+      const memberParticipants = (bpResult.rows as DbRow[]).filter(r => r.participant_type === 'member');
+      const guestParticipants = (bpResult.rows as DbRow[]).filter(r => r.participant_type === 'guest');
+
+      if (declaredPlayerCount && Number(declaredPlayerCount) > 0) {
+        expectedPlayerCount = declaredPlayerCount as number;
+      } else if (trackmanPlayerCount && Number(trackmanPlayerCount) > 0) {
+        expectedPlayerCount = trackmanPlayerCount as number;
+      } else if (participantsCount > 0) {
+        expectedPlayerCount = participantsCount;
+      } else {
+        expectedPlayerCount = Math.max(Number(legacyGuestCount) + 1, 1);
+      }
+
+      if (resourceCapacity && Number(resourceCapacity) > 0) {
+        expectedPlayerCount = Math.min(expectedPlayerCount, resourceCapacity as number);
+      }
+
+      feeBreakdownResult = await computeFeeBreakdown({
+        sessionId: sessionId as number,
+        bookingId,
+        declaredPlayerCount: expectedPlayerCount,
+        source: 'preview',
+        isConferenceRoom: bookingData.resource_type === 'conference_room',
+        excludeSessionFromUsage: true
+      });
+
+      const feeByParticipantId = new Map<number, typeof feeBreakdownResult.participants[0]>();
+      for (const li of feeBreakdownResult.participants) {
+        if (li.participantId) feeByParticipantId.set(li.participantId, li);
+      }
+      const ownerFeeLineItems = feeBreakdownResult.participants.filter(li => li.participantType === 'owner');
+
+      let slotNumber = 1;
+
+      for (const row of ownerParticipants) {
+        const email = row.user_email ? String(row.user_email).toLowerCase() : null;
+        const isStaffUser = email ? staffEmailSet.has(email) : false;
+        const membershipStatus = (row.membership_status as string) || null;
+        const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
+
+        let memberName = 'Empty Slot';
+        if (row.first_name && row.last_name) {
+          memberName = `${row.first_name} ${row.last_name}`;
+        } else if (row.display_name && !String(row.display_name).includes('@')) {
+          memberName = row.display_name as string;
+        } else if (ownerName) {
+          memberName = ownerName as string;
+        } else if (email) {
+          memberName = email;
+        }
+
+        let tier: string | null = null;
+        let fee = 0;
+        let feeNote = '';
+        let feeBreakdownObj: FeeBreakdownObj = null;
+
+        const lineItem = feeByParticipantId.get(row.id as number) || ownerFeeLineItems[0];
         if (lineItem) {
           fee = lineItem.totalCents / 100;
           tier = lineItem.isStaff ? 'Staff' : (lineItem.tierName || null);
-          feeNote = generateFeeNote(lineItem, membershipStatus as string, row.is_primary as boolean);
-          const dailyAllowance = lineItem.dailyAllowance || 0;
-          const overageMinutes = lineItem.overageCents > 0
+          feeNote = generateFeeNote(lineItem, membershipStatus, true);
+          const da = lineItem.dailyAllowance || 0;
+          const om = lineItem.overageCents > 0
             ? Math.ceil((lineItem.overageCents / 100) / PRICING.OVERAGE_RATE_DOLLARS) * PRICING.OVERAGE_BLOCK_MINUTES
             : 0;
           feeBreakdownObj = {
             perPersonMins: lineItem.minutesAllocated,
-            dailyAllowance,
+            dailyAllowance: da,
             usedToday: lineItem.usedMinutesToday || 0,
-            overageMinutes,
+            overageMinutes: om,
             fee,
-            isUnlimited: lineItem.isStaff ? true : dailyAllowance >= 999,
+            isUnlimited: lineItem.isStaff ? true : da >= 999,
+            isSocialTier: lineItem.tierName?.toLowerCase() === 'social'
+          };
+        }
+
+        membersWithFees.push({
+          id: row.id as number,
+          bookingId,
+          userEmail: email,
+          slotNumber: slotNumber,
+          isPrimary: true,
+          linkedAt: null,
+          linkedBy: null,
+          memberName,
+          tier,
+          fee,
+          feeNote,
+          feeBreakdown: feeBreakdownObj,
+          membershipStatus,
+          isInactiveMember: false,
+          isStaff: isStaffUser,
+          guestInfo: null,
+          participantId: row.id as number
+        });
+        slotNumber++;
+      }
+
+      if (ownerParticipants.length === 0) {
+        slotNumber = 2;
+      }
+
+      for (const row of memberParticipants) {
+        const email = row.user_email ? String(row.user_email).toLowerCase() : null;
+        const isStaffUser = email ? staffEmailSet.has(email) : false;
+        const membershipStatus = (row.membership_status as string) || null;
+        const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
+
+        let memberName = 'Empty Slot';
+        if (row.first_name && row.last_name) {
+          memberName = `${row.first_name} ${row.last_name}`;
+        } else if (row.display_name && !String(row.display_name).includes('@')) {
+          memberName = row.display_name as string;
+        } else if (email) {
+          memberName = email;
+        }
+
+        let tier: string | null = null;
+        let fee = 0;
+        let feeNote = '';
+        let feeBreakdownObj: FeeBreakdownObj = null;
+
+        const lineItem = feeByParticipantId.get(row.id as number);
+        if (lineItem) {
+          fee = lineItem.totalCents / 100;
+          tier = lineItem.isStaff ? 'Staff' : (lineItem.tierName || null);
+          feeNote = generateFeeNote(lineItem, membershipStatus, false);
+          const da = lineItem.dailyAllowance || 0;
+          const om = lineItem.overageCents > 0
+            ? Math.ceil((lineItem.overageCents / 100) / PRICING.OVERAGE_RATE_DOLLARS) * PRICING.OVERAGE_BLOCK_MINUTES
+            : 0;
+          feeBreakdownObj = {
+            perPersonMins: lineItem.minutesAllocated,
+            dailyAllowance: da,
+            usedToday: lineItem.usedMinutesToday || 0,
+            overageMinutes: om,
+            fee,
+            isUnlimited: lineItem.isStaff ? true : da >= 999,
             isSocialTier: lineItem.tierName?.toLowerCase() === 'social'
           };
         } else {
           fee = PRICING.GUEST_FEE_DOLLARS;
           feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
         }
-      } else {
-        fee = PRICING.GUEST_FEE_DOLLARS;
-        feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
+
+        const isInactiveMember = !hasActiveMembership && !!email && !isStaffUser;
+
+        membersWithFees.push({
+          id: row.id as number,
+          bookingId,
+          userEmail: email,
+          slotNumber: slotNumber,
+          isPrimary: false,
+          linkedAt: null,
+          linkedBy: null,
+          memberName,
+          tier,
+          fee,
+          feeNote,
+          feeBreakdown: feeBreakdownObj,
+          membershipStatus,
+          isInactiveMember,
+          isStaff: isStaffUser,
+          guestInfo: null,
+          participantId: row.id as number
+        });
+        slotNumber++;
       }
 
-      const isInactiveMember = !hasActiveMembership && !!row.user_email && !row.is_primary && !isStaffUser;
+      for (const row of guestParticipants) {
+        const guestName = row.display_name
+          ? (row.display_name as string)
+          : (row.guest_name_from_table as string) || 'Guest';
+        const guestEmail = (row.guest_email_from_table as string) || null;
+        const lineItem = feeByParticipantId.get(row.id as number);
+        const usedPass = (row.used_guest_pass as boolean) || false;
 
-      return {
-        id: row.id,
-        bookingId: row.booking_id,
-        userEmail: row.user_email,
-        slotNumber: row.slot_number,
-        isPrimary: row.is_primary,
-        linkedAt: row.linked_at,
-        linkedBy: row.linked_by,
-        memberName: row.first_name && row.last_name
-          ? `${row.first_name} ${row.last_name}`
-          : (row.user_email as string) || 'Empty Slot',
-        tier,
-        fee,
-        feeNote,
-        feeBreakdown: feeBreakdownObj,
-        membershipStatus: membershipStatus as string,
-        isInactiveMember: !!isInactiveMember,
-        isStaff: isStaffUser,
-        guestInfo: null as Record<string, unknown> | null
-      };
-    });
-
-    let guestPassesUsedThisBooking = feeBreakdownResult.totals.guestPassesUsed;
-    let guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
-    const guestsWithFees = guestsResult.rows.map((row: DbRow, idx: number) => {
-      const lineItem = guestLineItems[idx];
-      let fee: number;
-      let feeNote: string;
-      let usedGuestPass = false;
-
-      if (lineItem) {
-        if (lineItem.guestPassUsed) {
-          fee = 0;
-          feeNote = 'Guest Pass Used';
-          usedGuestPass = true;
-        } else {
-          fee = lineItem.guestCents / 100;
-          feeNote = fee > 0 ? `No passes - $${fee} due` : 'No charge';
+        let gFee = PRICING.GUEST_FEE_DOLLARS;
+        let gFeeNote = `No passes - $${PRICING.GUEST_FEE_DOLLARS} due`;
+        if (lineItem) {
+          if (lineItem.guestPassUsed || usedPass) {
+            gFee = 0;
+            gFeeNote = 'Guest Pass Used';
+          } else {
+            gFee = lineItem.guestCents / 100;
+            gFeeNote = gFee > 0 ? `No passes - $${gFee} due` : 'No charge';
+          }
+        } else if (usedPass) {
+          gFee = 0;
+          gFeeNote = 'Guest Pass Used';
         }
-      } else {
-        fee = PRICING.GUEST_FEE_DOLLARS;
-        feeNote = `No passes - $${PRICING.GUEST_FEE_DOLLARS} due`;
+
+        const emptySlot = membersWithFees.find(m => !m.userEmail && !m.guestInfo);
+        if (emptySlot) {
+          emptySlot.guestInfo = {
+            guestId: row.id,
+            guestName,
+            guestEmail,
+            fee: gFee,
+            feeNote: gFeeNote,
+            usedGuestPass: usedPass
+          };
+          emptySlot.memberName = guestName;
+          emptySlot.fee = gFee;
+          emptySlot.feeNote = gFeeNote;
+        } else if (slotNumber <= expectedPlayerCount) {
+          membersWithFees.push({
+            id: row.id as number,
+            bookingId,
+            userEmail: null,
+            slotNumber: slotNumber,
+            isPrimary: false,
+            linkedAt: null,
+            linkedBy: null,
+            memberName: guestName,
+            tier: null,
+            fee: gFee,
+            feeNote: gFeeNote,
+            feeBreakdown: null,
+            membershipStatus: null,
+            isInactiveMember: false,
+            isStaff: false,
+            guestInfo: {
+              guestId: row.id,
+              guestName,
+              guestEmail,
+              fee: gFee,
+              feeNote: gFeeNote,
+              usedGuestPass: usedPass
+            },
+            participantId: row.id as number
+          });
+          slotNumber++;
+        } else {
+          guestsWithFees.push({
+            id: row.id as number,
+            bookingId,
+            guestName,
+            guestEmail,
+            slotNumber: slotNumber,
+            fee: gFee,
+            feeNote: gFeeNote,
+            usedGuestPass: usedPass
+          });
+          slotNumber++;
+        }
       }
 
-      return {
-        id: row.id,
-        bookingId: row.booking_id,
-        guestName: row.guest_name,
-        guestEmail: row.guest_email,
-        slotNumber: row.slot_number,
-        fee,
-        feeNote,
-        usedGuestPass
-      };
-    });
-    
-    const guestsToRemove: number[] = [];
-    for (let i = 0; i < guestsWithFees.length; i++) {
-      const guest = guestsWithFees[i];
-      // Try to match by slot number first, then fall back to first available empty slot
-      const emptySlot = (guest.slotNumber 
-        ? membersWithFees.find(m => !m.userEmail && !m.guestInfo && m.slotNumber === guest.slotNumber)
-        : null) || membersWithFees.find(m => !m.userEmail && !m.guestInfo);
-      if (emptySlot) {
-        emptySlot.guestInfo = {
-          guestId: guest.id,
-          guestName: guest.guestName,
-          guestEmail: guest.guestEmail,
-          fee: guest.fee,
-          feeNote: guest.feeNote,
-          usedGuestPass: guest.usedGuestPass
-        };
-        (emptySlot as any).memberName = guest.guestName;
-        emptySlot.fee = guest.fee;
-        emptySlot.feeNote = guest.feeNote;
-        guestsToRemove.push(i);
+      let emptySlotId = -1;
+      while (membersWithFees.length < expectedPlayerCount) {
+        membersWithFees.push({
+          id: emptySlotId,
+          bookingId,
+          userEmail: null,
+          slotNumber: slotNumber,
+          isPrimary: false,
+          linkedAt: null,
+          linkedBy: null,
+          memberName: 'Empty Slot',
+          tier: null,
+          fee: PRICING.GUEST_FEE_DOLLARS,
+          feeNote: `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`,
+          feeBreakdown: null,
+          membershipStatus: null,
+          isInactiveMember: false,
+          isStaff: false,
+          guestInfo: null
+        });
+        emptySlotId--;
+        slotNumber++;
       }
-    }
-    for (let i = guestsToRemove.length - 1; i >= 0; i--) {
-      guestsWithFees.splice(guestsToRemove[i], 1);
+
+      const nonGuestMembers = membersWithFees.filter(m => !m.guestInfo);
+      filledMemberSlots = nonGuestMembers.filter(m => m.userEmail).length;
+      const guestSlotCount = guestParticipants.length;
+      effectiveGuestCount = guestSlotCount > 0 ? guestSlotCount : (legacyGuestCount as number);
+      totalMemberSlots = membersWithFees.length;
+      actualPlayerCount = filledMemberSlots + Number(effectiveGuestCount);
+      playerCountMismatch = actualPlayerCount !== expectedPlayerCount;
+      perPersonMins = Math.floor(durationMinutes / expectedPlayerCount);
+      guestPassesUsedThisBooking = feeBreakdownResult.totals.guestPassesUsed;
+      guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+
+    } else {
+      let membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
+         FROM booking_members bm
+         LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
+         WHERE bm.booking_id = ${id}
+         ORDER BY bm.slot_number`);
+
+      if (Number(membersResult.rows.length) < Number(targetPlayerCount) && Number(targetPlayerCount) > 0) {
+        const existingSlotNumbers = new Set(membersResult.rows.map((r: DbRow) => r.slot_number));
+
+        for (let i = 1; Number(i) <= Number(targetPlayerCount); i++) {
+          if (!existingSlotNumbers.has(i)) {
+            const isPrimary = i === 1;
+            const userEmail = (i === 1 && !isUnmatchedOwner) ? ownerEmail : null;
+            await db.execute(sql`INSERT INTO booking_members (booking_id, slot_number, is_primary, user_email, created_at)
+               VALUES (${id}, ${i}, ${isPrimary}, ${userEmail}, NOW())
+               ON CONFLICT (booking_id, slot_number) DO NOTHING`);
+          }
+        }
+
+        membersResult = await db.execute(sql`SELECT bm.*, u.first_name, u.last_name, u.email as member_email, u.tier as user_tier, u.membership_status
+           FROM booking_members bm
+           LEFT JOIN users u ON LOWER(bm.user_email) = LOWER(u.email)
+           WHERE bm.booking_id = ${id}
+           ORDER BY bm.slot_number`);
+      }
+
+      const guestsResult = await db.execute(sql`SELECT * FROM booking_guests WHERE booking_id = ${id} ORDER BY slot_number`);
+
+      const legacyTotalMemberSlots = membersResult.rows.length;
+      const actualGuestCount = guestsResult.rows.length;
+
+      if (declaredPlayerCount && Number(declaredPlayerCount) > 0) {
+        expectedPlayerCount = declaredPlayerCount as number;
+      } else if (trackmanPlayerCount && Number(trackmanPlayerCount) > 0) {
+        expectedPlayerCount = trackmanPlayerCount as number;
+      } else if (legacyTotalMemberSlots > 0) {
+        expectedPlayerCount = legacyTotalMemberSlots + actualGuestCount;
+      } else {
+        expectedPlayerCount = Math.max(Number(legacyGuestCount) + 1, 1);
+      }
+
+      if (resourceCapacity && Number(resourceCapacity) > 0) {
+        expectedPlayerCount = Math.min(expectedPlayerCount, resourceCapacity as number);
+      }
+
+      effectiveGuestCount = actualGuestCount > 0 ? actualGuestCount : (legacyGuestCount as number);
+      filledMemberSlots = membersResult.rows.filter((row: DbRow) => row.user_email).length;
+      totalMemberSlots = legacyTotalMemberSlots;
+      actualPlayerCount = Number(filledMemberSlots) + Number(effectiveGuestCount);
+      playerCountMismatch = actualPlayerCount !== expectedPlayerCount;
+      perPersonMins = Math.floor(durationMinutes / expectedPlayerCount);
+
+      const participantsArray: Array<{
+        userId?: string;
+        email?: string;
+        displayName: string;
+        participantType: 'owner' | 'member' | 'guest';
+      }> = [];
+      for (const row of membersResult.rows as DbRow[]) {
+        if (row.user_email) {
+          participantsArray.push({
+            userId: row.user_email as string,
+            email: row.user_email as string,
+            displayName: row.first_name && row.last_name
+              ? `${row.first_name} ${row.last_name}`
+              : row.user_email as string,
+            participantType: row.is_primary ? 'owner' : 'member'
+          });
+        }
+      }
+      for (const row of guestsResult.rows as DbRow[]) {
+        participantsArray.push({
+          email: (row.guest_email as string) || undefined,
+          displayName: (row.guest_name as string) || 'Guest',
+          participantType: 'guest'
+        });
+      }
+      if (participantsArray.length === 0 && ownerEmail) {
+        participantsArray.push({
+          userId: ownerEmail as string,
+          email: ownerEmail as string,
+          displayName: (ownerName as string) || (ownerEmail as string),
+          participantType: 'owner'
+        });
+      }
+
+      feeBreakdownResult = await computeFeeBreakdown({
+        sessionDate: requestDate as string,
+        startTime: bookingData.start_time as string,
+        sessionDuration: durationMinutes,
+        declaredPlayerCount: expectedPlayerCount,
+        hostEmail: (ownerEmail as string) || '',
+        participants: participantsArray,
+        source: 'preview',
+        isConferenceRoom: bookingData.resource_type === 'conference_room',
+        bookingId
+      });
+
+      const ownerLineItems = feeBreakdownResult.participants.filter(li => li.participantType === 'owner');
+      const guestLineItems = feeBreakdownResult.participants.filter(li => li.participantType === 'guest');
+
+      const lineItemEmailMap = new Map<string, typeof feeBreakdownResult.participants[0]>();
+      for (const li of feeBreakdownResult.participants) {
+        if (li.userId) lineItemEmailMap.set(li.userId.toLowerCase(), li);
+      }
+
+      function findLineItemForMember(row: DbRow): typeof feeBreakdownResult.participants[0] | undefined {
+        const email = String((row.user_email || '')).toLowerCase();
+        if (!email) return undefined;
+        const mapped = lineItemEmailMap.get(email);
+        if (mapped) return mapped;
+        if (row.is_primary && ownerLineItems.length > 0) return ownerLineItems[0];
+        return undefined;
+      }
+
+      membersWithFees = membersResult.rows.map((row: DbRow) => {
+        const membershipStatus = row.membership_status || null;
+        const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus as string);
+        const isStaffUser = row.user_email ? staffEmailSet.has(String(row.user_email).toLowerCase()) : false;
+
+        let tier: string | null = null;
+        let fee = 0;
+        let feeNote = '';
+        let feeBreakdownObj: FeeBreakdownObj = null;
+
+        if (row.user_email) {
+          const lineItem = findLineItemForMember(row);
+          if (lineItem) {
+            fee = lineItem.totalCents / 100;
+            tier = lineItem.isStaff ? 'Staff' : (lineItem.tierName || null);
+            feeNote = generateFeeNote(lineItem, membershipStatus as string, row.is_primary as boolean);
+            const dailyAllowance = lineItem.dailyAllowance || 0;
+            const overageMinutes = lineItem.overageCents > 0
+              ? Math.ceil((lineItem.overageCents / 100) / PRICING.OVERAGE_RATE_DOLLARS) * PRICING.OVERAGE_BLOCK_MINUTES
+              : 0;
+            feeBreakdownObj = {
+              perPersonMins: lineItem.minutesAllocated,
+              dailyAllowance,
+              usedToday: lineItem.usedMinutesToday || 0,
+              overageMinutes,
+              fee,
+              isUnlimited: lineItem.isStaff ? true : dailyAllowance >= 999,
+              isSocialTier: lineItem.tierName?.toLowerCase() === 'social'
+            };
+          } else {
+            fee = PRICING.GUEST_FEE_DOLLARS;
+            feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
+          }
+        } else {
+          fee = PRICING.GUEST_FEE_DOLLARS;
+          feeNote = `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`;
+        }
+
+        const isInactiveMember = !hasActiveMembership && !!row.user_email && !row.is_primary && !isStaffUser;
+
+        return {
+          id: row.id as number,
+          bookingId: row.booking_id as number,
+          userEmail: row.user_email as string | null,
+          slotNumber: row.slot_number as number,
+          isPrimary: row.is_primary as boolean,
+          linkedAt: row.linked_at as string | null,
+          linkedBy: row.linked_by as string | null,
+          memberName: row.first_name && row.last_name
+            ? `${row.first_name} ${row.last_name}`
+            : (row.user_email as string) || 'Empty Slot',
+          tier,
+          fee,
+          feeNote,
+          feeBreakdown: feeBreakdownObj,
+          membershipStatus: membershipStatus as string | null,
+          isInactiveMember: !!isInactiveMember,
+          isStaff: isStaffUser,
+          guestInfo: null as Record<string, unknown> | null
+        };
+      });
+
+      guestPassesUsedThisBooking = feeBreakdownResult.totals.guestPassesUsed;
+      guestPassesRemainingAfterBooking = ownerGuestPassesRemaining - guestPassesUsedThisBooking;
+
+      const legacyGuestsWithFees = guestsResult.rows.map((row: DbRow, idx: number) => {
+        const lineItem = guestLineItems[idx];
+        let fee: number;
+        let feeNote: string;
+        let usedGuestPass = false;
+
+        if (lineItem) {
+          if (lineItem.guestPassUsed) {
+            fee = 0;
+            feeNote = 'Guest Pass Used';
+            usedGuestPass = true;
+          } else {
+            fee = lineItem.guestCents / 100;
+            feeNote = fee > 0 ? `No passes - $${fee} due` : 'No charge';
+          }
+        } else {
+          fee = PRICING.GUEST_FEE_DOLLARS;
+          feeNote = `No passes - $${PRICING.GUEST_FEE_DOLLARS} due`;
+        }
+
+        return {
+          id: row.id as number,
+          bookingId: row.booking_id as number,
+          guestName: row.guest_name as string,
+          guestEmail: row.guest_email as string | null,
+          slotNumber: row.slot_number as number,
+          fee,
+          feeNote,
+          usedGuestPass
+        };
+      });
+
+      for (const g of legacyGuestsWithFees) {
+        guestsWithFees.push(g);
+      }
+
+      const guestsToRemove: number[] = [];
+      for (let i = 0; i < guestsWithFees.length; i++) {
+        const guest = guestsWithFees[i];
+        const emptySlot = (guest.slotNumber
+          ? membersWithFees.find(m => !m.userEmail && !m.guestInfo && m.slotNumber === guest.slotNumber)
+          : null) || membersWithFees.find(m => !m.userEmail && !m.guestInfo);
+        if (emptySlot) {
+          emptySlot.guestInfo = {
+            guestId: guest.id,
+            guestName: guest.guestName,
+            guestEmail: guest.guestEmail,
+            fee: guest.fee,
+            feeNote: guest.feeNote,
+            usedGuestPass: guest.usedGuestPass
+          };
+          emptySlot.memberName = guest.guestName;
+          emptySlot.fee = guest.fee;
+          emptySlot.feeNote = guest.feeNote;
+          guestsToRemove.push(i);
+        }
+      }
+      for (let i = guestsToRemove.length - 1; i >= 0; i--) {
+        guestsWithFees.splice(guestsToRemove[i], 1);
+      }
     }
     
     const dailyAllowance = ownerTierLimits?.daily_sim_minutes || 0;
@@ -1861,7 +2183,16 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         }
         
         for (const member of membersWithFees) {
-          if (member.userEmail) {
+          if (member.participantId && !member.guestInfo) {
+            const recalcFee = feeMap.get(member.participantId);
+            if (recalcFee !== undefined) {
+              const sessionFeeData = emailToFeeMap.get(member.userEmail ? String(member.userEmail).toLowerCase() : '');
+              if (sessionFeeData) {
+                member.fee = sessionFeeData.fee;
+                member.feeNote = sessionFeeData.feeNote;
+              }
+            }
+          } else if (member.userEmail) {
             const sessionFeeData = emailToFeeMap.get(String(member.userEmail).toLowerCase());
             if (sessionFeeData) {
               member.fee = sessionFeeData.fee;
@@ -1871,21 +2202,19 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         }
         
         const guestParticipants: DbRow[] = participantsResult.rows.filter((p: DbRow) => p.participant_type === 'guest');
-        for (let i = 0; i < guestsWithFees.length && i < guestParticipants.length; i++) {
-          const gp = guestParticipants[i];
-          const participantFee = feeMap.get(gp.participant_id as number) || 0;
-          guestsWithFees[i].fee = participantFee;
-          guestsWithFees[i].usedGuestPass = (gp.used_guest_pass as boolean) || false;
-          guestsWithFees[i].feeNote = gp.used_guest_pass ? 'Guest Pass Used' : (participantFee > 0 ? `No passes - $${PRICING.GUEST_FEE_DOLLARS} due` : 'No charge');
-        }
-        
-        const guestParticipantsByGuestId = new Map<number, typeof guestParticipants[0]>();
+
+        const guestParticipantsByParticipantId = new Map<number, DbRow>();
+        const guestParticipantsByGuestId = new Map<number, DbRow>();
         for (const gp of guestParticipants) {
+          guestParticipantsByParticipantId.set(gp.participant_id as number, gp);
           if (gp.guest_id) guestParticipantsByGuestId.set(gp.guest_id as number, gp);
         }
+
         for (const member of membersWithFees) {
           if (member.guestInfo) {
-            const gp = guestParticipantsByGuestId.get(member.guestInfo.guestId as number);
+            const gp = member.participantId
+              ? guestParticipantsByParticipantId.get(member.participantId)
+              : guestParticipantsByGuestId.get(member.guestInfo.guestId as number);
             if (gp) {
               const participantFee = feeMap.get(gp.participant_id as number) || 0;
               const passUsed = gp.used_guest_pass || false;
@@ -1897,6 +2226,14 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               member.feeNote = note;
             }
           }
+        }
+
+        for (let i = 0; i < guestsWithFees.length && i < guestParticipants.length; i++) {
+          const gp = guestParticipants[i];
+          const participantFee = feeMap.get(gp.participant_id as number) || 0;
+          guestsWithFees[i].fee = participantFee;
+          guestsWithFees[i].usedGuestPass = (gp.used_guest_pass as boolean) || false;
+          guestsWithFees[i].feeNote = gp.used_guest_pass ? 'Guest Pass Used' : (participantFee > 0 ? `No passes - $${PRICING.GUEST_FEE_DOLLARS} due` : 'No charge');
         }
         
         guestPassesUsedThisBooking = guestParticipants.filter(gp => gp.used_guest_pass).length;
