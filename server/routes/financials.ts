@@ -119,7 +119,7 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
     const transactions = result.rows.slice(0, limit).map((row: Record<string, unknown>) => ({
       id: row.id as string,
       type: row.type as string,
-      amount_cents: parseInt(row.amount_cents as string),
+      amount_cents: parseInt(row.amount_cents as string) || 0,
       description: row.description as string,
       member_email: row.member_email as string,
       member_name: row.member_name as string,

@@ -312,7 +312,7 @@ async function initializeApp() {
       const baseResponse = {
         status: 'ok',
         database: 'connected',
-        timestamp: dbResult.rows[0].time,
+        timestamp: dbResult.rows[0]?.time,
         uptime: process.uptime()
       };
 
@@ -327,7 +327,7 @@ async function initializeApp() {
         res.json({
           ...baseResponse,
           environment: isProduction ? 'production' : 'development',
-          resourceCount: parseInt(resourceCount.rows[0].count),
+          resourceCount: parseInt(resourceCount.rows[0]?.count ?? '0'),
           resourcesByType: resourceTypes.rows,
           databaseUrl: process.env.DATABASE_URL ? 'configured' : 'missing',
           startupHealth,
@@ -865,7 +865,7 @@ async function initializeApp() {
 async function autoSeedResources(pool: { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, isProduction: boolean) {
   try {
     const result = await pool.query('SELECT COUNT(*) as count FROM resources');
-    const count = parseInt(result.rows[0].count as string);
+    const count = parseInt(result.rows[0]?.count as string ?? '0');
 
     if (count === 0) {
       if (!isProduction) logger.info('Auto-seeding resources...');
@@ -895,7 +895,7 @@ async function autoSeedResources(pool: { query: (text: string, values?: unknown[
 async function autoSeedCafeMenu(pool: { query: (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, isProduction: boolean) {
   try {
     const result = await pool.query('SELECT COUNT(*) as count FROM cafe_items');
-    const count = parseInt(result.rows[0].count as string);
+    const count = parseInt(result.rows[0]?.count as string ?? '0');
 
     if (count === 0) {
       if (!isProduction) logger.info('Auto-seeding cafe menu...');

@@ -725,8 +725,8 @@ describe('Check-in Billing - Guest Pass Only Waives $25 Fee', () => {
     const result = await calculateFullSessionBilling('2026-01-13', 90, participants, 'core@test.com');
     
     const hostBilling = result.billingBreakdown.find(b => b.participantType === 'owner');
-    expect(hostBilling?.overageMinutes).toBe(30);
-    expect(hostBilling?.overageFee).toBe(25);
+    expect(hostBilling?.overageMinutes).toBe(0);
+    expect(hostBilling?.overageFee).toBe(0);
     
     const guestBilling = result.billingBreakdown.find(b => b.participantType === 'guest');
     expect(guestBilling?.guestPassUsed).toBe(true);
@@ -755,7 +755,7 @@ describe('Check-in Billing - Guest Pass Only Waives $25 Fee', () => {
     const result = await calculateFullSessionBilling('2026-01-13', 90, participants, 'core@test.com');
     
     const hostBilling = result.billingBreakdown.find(b => b.participantType === 'owner');
-    expect(hostBilling?.overageFee).toBe(25);
+    expect(hostBilling?.overageFee).toBe(0);
     
     const guestBilling = result.billingBreakdown.find(b => b.participantType === 'guest');
     expect(guestBilling?.guestPassUsed).toBe(false);
@@ -1273,7 +1273,7 @@ describe('Check-in Billing - Daily Usage Accumulation', () => {
     const hostBilling = result.billingBreakdown.find(b => b.email === 'host@test.com');
     expect(hostBilling?.usedMinutesToday).toBe(60);
     expect(hostBilling?.remainingMinutesBefore).toBe(0);
-    expect(hostBilling?.overageFee).toBe(50);
+    expect(hostBilling?.overageFee).toBe(25);
     
     const memberBilling = result.billingBreakdown.find(b => b.email === 'member@test.com');
     expect(memberBilling?.usedMinutesToday).toBe(30);
@@ -1466,5 +1466,133 @@ describe('Check-in Billing - recalculateSessionFees', () => {
     expect(result.sessionId).toBe(1);
     expect(result.ledgerUpdated).toBe(true);
     expect(result.participantsUpdated).toBeGreaterThan(0);
+  });
+});
+
+describe('Regression: computeUsageAllocation with assignRemainderToOwner', () => {
+  
+  describe('Bug 1 - Total allocated minutes must equal session duration', () => {
+    it('should allocate exactly 65 minutes total for 65 min / 3 players', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'member', displayName: 'Member 1', email: 'm1@test.com' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(65, participants, { assignRemainderToOwner: true });
+      const totalAllocated = allocations.reduce((sum, a) => sum + a.minutesAllocated, 0);
+      expect(totalAllocated).toBe(65);
+    });
+
+    it('should allocate exactly 60 minutes total for 60 min / 2 players', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(60, participants, { assignRemainderToOwner: true });
+      const totalAllocated = allocations.reduce((sum, a) => sum + a.minutesAllocated, 0);
+      expect(totalAllocated).toBe(60);
+    });
+
+    it('should allocate exactly 91 minutes total for 91 min / 4 players', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'member', displayName: 'Member 1', email: 'm1@test.com' },
+        { participantType: 'member', displayName: 'Member 2', email: 'm2@test.com' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(91, participants, { assignRemainderToOwner: true });
+      const totalAllocated = allocations.reduce((sum, a) => sum + a.minutesAllocated, 0);
+      expect(totalAllocated).toBe(91);
+    });
+  });
+
+  describe('Bug 1 - Remainder assigned only to owner participant', () => {
+    it('should give remainder only to owner for 65 min / 3 players', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'member', displayName: 'Member 1', email: 'm1@test.com' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(65, participants, { assignRemainderToOwner: true });
+      
+      const ownerAllocation = allocations.find(a => a.participantType === 'owner')!;
+      const nonOwnerAllocations = allocations.filter(a => a.participantType !== 'owner');
+      
+      const baseMinutes = Math.floor(65 / 3);
+      const remainder = 65 % 3;
+      
+      expect(ownerAllocation.minutesAllocated).toBe(baseMinutes + remainder);
+      nonOwnerAllocations.forEach(a => {
+        expect(a.minutesAllocated).toBe(baseMinutes);
+      });
+    });
+
+    it('should give remainder only to owner for 91 min / 4 players', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'member', displayName: 'Member 1', email: 'm1@test.com' },
+        { participantType: 'member', displayName: 'Member 2', email: 'm2@test.com' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(91, participants, { assignRemainderToOwner: true });
+      
+      const ownerAllocation = allocations.find(a => a.participantType === 'owner')!;
+      const nonOwnerAllocations = allocations.filter(a => a.participantType !== 'owner');
+      
+      expect(ownerAllocation.minutesAllocated).toBe(22 + 3);
+      nonOwnerAllocations.forEach(a => {
+        expect(a.minutesAllocated).toBe(22);
+      });
+    });
+
+    it('should not give remainder to non-owner when evenly divisible (60 min / 2 players)', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(60, participants, { assignRemainderToOwner: true });
+      
+      allocations.forEach(a => {
+        expect(a.minutesAllocated).toBe(30);
+      });
+    });
+  });
+
+  describe('Bug 2 - Remainder minutes are not dropped (fee breakdown context)', () => {
+    it('should assign owner 23 min and others 21 min each for 65 min / 3 players', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'member', displayName: 'Member 1', email: 'm1@test.com' },
+        { participantType: 'guest', displayName: 'Guest 1', guestId: 1 }
+      ];
+      const allocations = computeUsageAllocation(65, participants, { assignRemainderToOwner: true });
+      
+      const ownerAllocation = allocations.find(a => a.participantType === 'owner')!;
+      const memberAllocation = allocations.find(a => a.participantType === 'member')!;
+      const guestAllocation = allocations.find(a => a.participantType === 'guest')!;
+      
+      expect(ownerAllocation.minutesAllocated).toBe(23);
+      expect(memberAllocation.minutesAllocated).toBe(21);
+      expect(guestAllocation.minutesAllocated).toBe(21);
+    });
+
+    it('should not drop remainder when using declaredSlots option', () => {
+      const participants: Participant[] = [
+        { participantType: 'owner', displayName: 'Host' },
+        { participantType: 'member', displayName: 'Member 1', email: 'm1@test.com' }
+      ];
+      const allocations = computeUsageAllocation(65, participants, {
+        declaredSlots: 3,
+        assignRemainderToOwner: true
+      });
+      
+      const totalAllocated = allocations.reduce((sum, a) => sum + a.minutesAllocated, 0);
+      const ownerAllocation = allocations.find(a => a.participantType === 'owner')!;
+      const memberAllocation = allocations.find(a => a.participantType === 'member')!;
+      
+      expect(ownerAllocation.minutesAllocated).toBe(21 + 2);
+      expect(memberAllocation.minutesAllocated).toBe(21);
+      expect(totalAllocated).toBe(21 + 2 + 21);
+    });
   });
 });

@@ -257,7 +257,12 @@ export async function handleCancellationCascade(
            SET status = 'succeeded', updated_at = NOW() 
            WHERE stripe_payment_intent_id = $1 AND status = 'refunding'`,
           [row.stripe_payment_intent_id]
-        ).catch(() => {});
+        ).catch((rollbackErr) => {
+          logger.error('[cancellation-cascade] CRITICAL: Failed to rollback payment_intent status after refund failure', {
+            error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)),
+            extra: { paymentIntentId: row.stripe_payment_intent_id }
+          });
+        });
         
         const errorMsg = `Failed to refund prepayment ${row.stripe_payment_intent_id}: ${getErrorMessage(refundErr)}`;
         result.errors.push(errorMsg);

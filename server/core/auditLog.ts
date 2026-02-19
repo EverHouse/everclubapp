@@ -461,7 +461,9 @@ export function logFromRequest(
     resourceName: finalResourceName,
     details: finalDetails,
     req
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[auditLog] Failed to log admin action:', err);
+  });
 }
 
 function getClientIp(req: Request): string | null {

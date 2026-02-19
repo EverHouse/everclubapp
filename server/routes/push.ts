@@ -296,7 +296,12 @@ export async function sendDailyReminders() {
       for (const evt of eventReminders) {
         const message = `Reminder: ${evt.title} is tomorrow${evt.startTime ? ` at ${formatTime12Hour(evt.startTime)}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
         sendPushNotification(evt.userEmail, { title: 'Event Tomorrow', body: message, url: '/member-events' })
-          .catch(() => { results.pushFailed++; });
+          .catch((err) => {
+            results.pushFailed++;
+            logger.warn('[push] Push reminder delivery failed', {
+              error: err instanceof Error ? err : new Error(String(err))
+            });
+          });
         // Send WebSocket notification for real-time updates
         sendNotificationToUser(evt.userEmail, {
           type: 'event_reminder',
@@ -339,7 +344,12 @@ export async function sendDailyReminders() {
       for (const booking of bookingReminders) {
         const message = `Reminder: Your simulator booking is tomorrow at ${formatTime12Hour(booking.startTime)}${booking.resourceId ? ` on Bay ${booking.resourceId}` : ''}.`;
         sendPushNotification(booking.userEmail, { title: 'Booking Tomorrow', body: message, url: '/sims' })
-          .catch(() => { results.pushFailed++; });
+          .catch((err) => {
+            results.pushFailed++;
+            logger.warn('[push] Push reminder delivery failed', {
+              error: err instanceof Error ? err : new Error(String(err))
+            });
+          });
         // Send WebSocket notification for real-time updates
         sendNotificationToUser(booking.userEmail, {
           type: 'booking_reminder',
@@ -384,7 +394,12 @@ export async function sendDailyReminders() {
       for (const cls of wellnessReminders) {
         const message = `Reminder: ${cls.title} with ${cls.instructor} is tomorrow at ${cls.time}.`;
         sendPushNotification(cls.userEmail, { title: 'Class Tomorrow', body: message, url: '/member-wellness' })
-          .catch(() => { results.pushFailed++; });
+          .catch((err) => {
+            results.pushFailed++;
+            logger.warn('[push] Push reminder delivery failed', {
+              error: err instanceof Error ? err : new Error(String(err))
+            });
+          });
         // Send WebSocket notification for real-time updates
         sendNotificationToUser(cls.userEmail, {
           type: 'wellness_reminder',

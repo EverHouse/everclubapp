@@ -140,6 +140,11 @@ export async function clearCachedFees(participantIds: number[]): Promise<void> {
   }
 }
 
+/**
+ * @deprecated This function has zero callers in the codebase. Use computeFeeBreakdown() 
+ * from unifiedFeeService.ts instead. The guest count assumption (playerCount - 1 = guests) 
+ * overestimates fees. Kept for reference only.
+ */
 export function estimateBookingFees(
   userTier: string,
   duration: number,

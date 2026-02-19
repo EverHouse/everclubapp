@@ -440,7 +440,8 @@ export async function calculateFullSessionBilling(
   
   // Use proper allocation helper to distribute remainder minutes correctly for non-owner participants
   const allocations = computeUsageAllocation(sessionDuration, participants, {
-    declaredSlots: effectivePlayerCount
+    declaredSlots: effectivePlayerCount,
+    assignRemainderToOwner: true
   });
   const allocationMap = new Map(allocations.map((a, idx) => [idx, a]));
   

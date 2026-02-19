@@ -2315,7 +2315,11 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
           title: 'Added to Booking',
           body: notificationMessage,
           tag: `booking-linked-${bookingId}`
-        }).catch(() => {});
+        }).catch((err) => {
+          logger.error('[trackman-admin] Failed to send push notification on member link', {
+            error: err instanceof Error ? err : new Error(String(err))
+          });
+        });
       }
     }
     

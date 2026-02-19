@@ -197,8 +197,12 @@ export function logAndRespond(
         dbErrorDetail,
         dbErrorTable,
         dbErrorConstraint
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch((err) => {
+        console.error('[logger] Failed to send error alert:', err);
+      });
+    }).catch((err) => {
+      console.error('[logger] Failed to send error alert:', err);
+    });
   }
   
   res.status(statusCode).json(createErrorResponse(req, message, code));

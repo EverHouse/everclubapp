@@ -470,8 +470,12 @@ router.post('/api/availability-blocks', isStaffOrAdmin, async (req, res) => {
       [resource_id, block_date, start_time, end_time, block_type, notes, created_by]
     );
     
-    logFromRequest(req, 'create_availability_block', 'availability', String(result.rows[0].id), undefined, { resource_id, block_date, start_time, end_time });
-    res.status(201).json(result.rows[0]);
+    if (result.rows[0]) {
+      logFromRequest(req, 'create_availability_block', 'availability', String(result.rows[0].id), undefined, { resource_id, block_date, start_time, end_time });
+      res.status(201).json(result.rows[0]);
+    } else {
+      res.status(500).json({ error: 'Failed to create availability block' });
+    }
   } catch (error: unknown) {
     logger.error('Availability block creation error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create availability block' });

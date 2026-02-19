@@ -52,7 +52,7 @@ The application is built with a React 19 frontend (Vite, Tailwind CSS) and an Ex
 - **Member Onboarding System**: 4-step onboarding checklist, tracks key dates in users table, FirstLoginWelcomeModal, automated stalled-member email nudges via scheduler, and Application Pipeline admin view.
 - **Privacy Compliance**: Privacy modal, CCPA/CPRA features, account deletion, data export, admin audit log.
 - **Waiver Management**: Tracks waiver versions and enforces signing.
-- **Unified Fee Service**: Centralized `computeFeeBreakdown()` for all fee calculations.
+- **Unified Fee Service**: Centralized `computeFeeBreakdown()` for all fee calculations. Remainder minutes (from integer division of session time by player count) are assigned to the booking owner to prevent minute loss. Owner absorption step recalculates overage after adding unoccupied and guest time.
 - **Dynamic Pricing**: Guest fee and overage rates pulled from Stripe product prices and updated via webhooks.
 - **Webhook Safety**: Transactional dedup for Stripe webhooks, deferred action pattern, resource-based ordering, ghost reactivation blocking, subscription sync race condition guard.
 - **Roster Protection**: Optimistic locking with `roster_version` and row-level locking.

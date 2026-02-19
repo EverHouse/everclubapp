@@ -276,6 +276,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   const minutesPerParticipant = isConferenceRoom 
     ? sessionDuration 
     : Math.floor(sessionDuration / effectivePlayerCount);
+  const remainderMinutes = isConferenceRoom ? 0 : (sessionDuration % effectivePlayerCount);
   
   const resolvedHostEmail = await resolveToEmail(hostEmail);
   const hostTier = await getMemberTierByEmail(resolvedHostEmail);
@@ -654,7 +655,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       
       lineItem.totalCents = lineItem.guestCents;
     } else if (participant.participantType === 'owner') {
-      lineItem.minutesAllocated = minutesPerParticipant;
+      lineItem.minutesAllocated = minutesPerParticipant + remainderMinutes;
       
       const pi = participantIdentifiers[participantIdx];
       const ownerEmail = pi?.email || hostEmail;
@@ -698,14 +699,14 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
           dailyAllowance,
           unlimitedAccess,
           usedMinutesToday,
-          minutesAllocated: minutesPerParticipant,
+          minutesAllocated: minutesPerParticipant + remainderMinutes,
           willCalculateOverage: !unlimitedAccess && dailyAllowance < 999,
           isConferenceRoom
         }
       });
       
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const totalAfterSession = usedMinutesToday + minutesPerParticipant;
+        const totalAfterSession = usedMinutesToday + minutesPerParticipant + remainderMinutes;
         const overageResult = calculateOverageFee(totalAfterSession, dailyAllowance);
         const priorOverage = calculateOverageFee(usedMinutesToday, dailyAllowance);
         

@@ -41,9 +41,11 @@ router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
 router.get('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id as string);
+    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid ID' });
     
     const [inquiry] = await db.select().from(formSubmissions)
-      .where(eq(formSubmissions.id, parseInt(id as string)));
+      .where(eq(formSubmissions.id, parsedId));
     
     if (!inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
@@ -59,6 +61,8 @@ router.get('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
 router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id as string);
+    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid ID' });
     const { status, notes } = req.body;
     
     const [updated] = await db.update(formSubmissions)
@@ -67,7 +71,7 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
         ...(notes !== undefined && { notes }),
         updatedAt: new Date(),
       })
-      .where(eq(formSubmissions.id, parseInt(id as string)))
+      .where(eq(formSubmissions.id, parsedId))
       .returning();
     
     if (!updated) {
@@ -86,12 +90,14 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const parsedId = parseInt(id as string);
+    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid ID' });
     const { archive } = req.query;
     
     if (archive === 'true') {
       const [archived] = await db.update(formSubmissions)
         .set({ status: 'archived', updatedAt: new Date() })
-        .where(eq(formSubmissions.id, parseInt(id as string)))
+        .where(eq(formSubmissions.id, parsedId))
         .returning();
       
       if (!archived) {
@@ -102,7 +108,7 @@ router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     const [deleted] = await db.delete(formSubmissions)
-      .where(eq(formSubmissions.id, parseInt(id as string)))
+      .where(eq(formSubmissions.id, parsedId))
       .returning();
     
     if (!deleted) {

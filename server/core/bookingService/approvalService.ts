@@ -608,7 +608,11 @@ async function notifyLinkedMembers(bookingId: number, updated: BookingUpdateResu
           title: 'Booking Confirmed',
           body: linkedMessage,
           tag: `booking-approved-linked-${bookingId}`
-        }).catch(() => {});
+        }).catch((err) => {
+          logger.error('[approval] Failed to send push notification on approval', {
+            error: err instanceof Error ? err : new Error(String(err))
+          });
+        });
 
         sendNotificationToUser(member.userEmail, {
           type: 'notification',
