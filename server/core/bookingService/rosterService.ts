@@ -56,6 +56,7 @@ export interface BookingWithSession {
   notes: string | null;
   staff_notes: string | null;
   roster_version: number | null;
+  trackman_booking_id: string | null;
   resource_name: string | null;
   owner_tier: string | null;
 }
@@ -216,6 +217,7 @@ export async function getBookingWithSession(bookingId: number): Promise<BookingW
       br.notes,
       br.staff_notes,
       br.roster_version,
+      br.trackman_booking_id,
       r.name as resource_name,
       u.tier as owner_tier
     FROM booking_requests br
@@ -1678,6 +1680,17 @@ export async function initiateGuestFeeCheckout(params: GuestFeeCheckoutParams): 
     booking.owner_name || undefined
   );
 
+  const guestFeeBookingRef = booking.trackman_booking_id ? `TM-${booking.trackman_booking_id}` : `#${bookingId}`;
+  const guestFeeMetadata: Record<string, string> = {
+    participantId: newParticipant.id.toString(),
+    guestName: guestName.trim(),
+    guestEmail: guestEmail.trim(),
+    ownerEmail: booking.owner_email
+  };
+  if (booking.trackman_booking_id) {
+    guestFeeMetadata.trackmanBookingId = String(booking.trackman_booking_id);
+  }
+
   const paymentResult = await createBalanceAwarePayment({
     stripeCustomerId: customer.customerId,
     userId: ownerUserId,
@@ -1685,15 +1698,10 @@ export async function initiateGuestFeeCheckout(params: GuestFeeCheckoutParams): 
     memberName: booking.owner_name || booking.owner_email.split('@')[0],
     amountCents: guestFeeCents,
     purpose: 'guest_fee',
-    description: `Guest fee for ${guestName.trim()} - Booking #${bookingId}`,
+    description: `Guest fee for ${guestName.trim()} - Booking ${guestFeeBookingRef}`,
     bookingId,
     sessionId,
-    metadata: {
-      participantId: newParticipant.id.toString(),
-      guestName: guestName.trim(),
-      guestEmail: guestEmail.trim(),
-      ownerEmail: booking.owner_email
-    }
+    metadata: guestFeeMetadata
   });
 
   if (paymentResult.error) {

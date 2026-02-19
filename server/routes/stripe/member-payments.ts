@@ -190,7 +190,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     const hasGuestFees = pendingParticipants.rows.some(r => r.participant_type === 'guest');
     const hasOverageFees = pendingParticipants.rows.some(r => r.participant_type === 'owner' || r.participant_type === 'member');
     const trackmanId = booking.trackman_booking_id;
-    const displayId = trackmanId || bookingId;
+    const bookingRef = trackmanId ? `TM-${trackmanId}` : `#${bookingId}`;
     let purpose: 'guest_fee' | 'overage_fee' = 'guest_fee';
 
     const feeLines: string[] = [];
@@ -205,15 +205,15 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       }
     }
 
-    let description = `#${displayId} - Booking Fees`;
+    let description = `${bookingRef} - Booking Fees`;
     if (hasGuestFees && hasOverageFees) {
-      description = `#${displayId} - Overage & Guest Fees`;
+      description = `${bookingRef} - Overage & Guest Fees`;
       purpose = 'overage_fee';
     } else if (hasGuestFees) {
-      description = `#${displayId} - Guest Fees`;
+      description = `${bookingRef} - Guest Fees`;
       purpose = 'guest_fee';
     } else if (hasOverageFees) {
-      description = `#${displayId} - Additional Fees / Overage`;
+      description = `${bookingRef} - Additional Fees / Overage`;
       purpose = 'overage_fee';
     }
     if (feeLines.length > 0) {
@@ -226,7 +226,8 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       feeSnapshotId: snapshotId!.toString(),
       participantCount: serverFees.length.toString(),
       participantIds: serverFees.map(f => f.id).join(',').substring(0, 490),
-      memberPayment: 'true'
+      memberPayment: 'true',
+      ...(trackmanId ? { trackmanBookingId: String(trackmanId) } : {}),
     };
     const feeBreakdownMeta = feeLines.join('; ');
     if (feeBreakdownMeta.length <= 500) {

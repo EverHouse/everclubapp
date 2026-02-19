@@ -178,12 +178,13 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
     }
 
     let finalDescription = description;
+    let trackmanId: unknown = null;
     if (bookingId) {
       const trackmanLookup = await db.execute(sql`SELECT trackman_booking_id FROM booking_requests WHERE id = ${bookingId}`);
-      const trackmanId = (trackmanLookup.rows[0] as Record<string, unknown>)?.trackman_booking_id;
-      const displayId = trackmanId || bookingId;
-      if (!description.startsWith('#')) {
-        finalDescription = `#${displayId} - ${description}`;
+      trackmanId = (trackmanLookup.rows[0] as Record<string, unknown>)?.trackman_booking_id;
+      const bookingRef = trackmanId ? `TM-${trackmanId}` : `#${bookingId}`;
+      if (!description.startsWith('#') && !description.startsWith('TM-')) {
+        finalDescription = `${bookingRef} - ${description}`;
       }
     }
     
@@ -346,6 +347,9 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, async (req: Req
       metadata.participantCount = serverFees.length.toString();
       const participantIds = serverFees.map(f => f.id).join(',');
       metadata.participantIds = participantIds.length > 490 ? participantIds.substring(0, 490) + '...' : participantIds;
+    }
+    if (trackmanId) {
+      metadata.trackmanBookingId = String(trackmanId);
     }
     
     if (isBookingPayment) {

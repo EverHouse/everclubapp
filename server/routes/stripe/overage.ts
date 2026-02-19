@@ -26,6 +26,7 @@ router.post('/api/stripe/overage/create-payment-intent', isAuthenticated, async 
       SELECT br.id, br.user_email, br.overage_fee_cents, br.overage_paid, br.overage_minutes,
              br.request_date, br.start_time, br.duration_minutes,
              br.session_id, br.declared_player_count, br.overage_payment_intent_id,
+             br.trackman_booking_id,
              u.stripe_customer_id, u.id as user_id, u.first_name, u.last_name
       FROM booking_requests br
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
@@ -139,7 +140,9 @@ router.post('/api/stripe/overage/create-payment-intent', isAuthenticated, async 
     
     const overageBlocks = Math.ceil(Number(booking.overage_minutes) / 30);
     const memberName = [booking.first_name, booking.last_name].filter(Boolean).join(' ') || undefined;
-    const description = `#${bookingId} - Additional Fees / Overage: ${booking.overage_minutes} min`;
+    const trackmanId = booking.trackman_booking_id;
+    const bookingRef = trackmanId ? `TM-${trackmanId}` : `#${bookingId}`;
+    const description = `${bookingRef} - Additional Fees / Overage: ${booking.overage_minutes} min`;
     
     const result = await createBalanceAwarePayment({
       stripeCustomerId: customerId,
@@ -157,6 +160,7 @@ router.post('/api/stripe/overage/create-payment-intent', isAuthenticated, async 
         member_email: booking.user_email as string,
         booking_date: booking.request_date as string,
         fee_type: 'simulator_overage',
+        ...(booking.trackman_booking_id ? { trackmanBookingId: String(booking.trackman_booking_id) } : {}),
         product_id: (productResult.rows[0] as Record<string, unknown>).stripe_product_id as string,
       },
     });

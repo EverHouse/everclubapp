@@ -132,7 +132,7 @@ export async function createPrepaymentIntent(
       prepaymentType: 'booking_approval'
     };
     if (trackmanBookingId) {
-      stripeMetadata.trackmanBookingId = trackmanBookingId;
+      stripeMetadata.trackmanBookingId = String(trackmanBookingId);
     }
 
     const result = await createBalanceAwarePayment({
