@@ -99,7 +99,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
       )}
 
       {slots.length > 0 && (
-        <section className={`rounded-2xl p-4 border glass-card relative z-10 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+        <section className={`rounded-2xl p-4 border glass-card relative z-10 overflow-hidden ${isDark ? 'border-white/25' : 'border-black/10'}`}>
           <div className="flex items-center gap-2 mb-3">
             <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white/80' : 'text-primary/80'}`}>Additional Players</span>
             <span className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>(Optional)</span>
@@ -186,13 +186,13 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                       />
                     ) : (
                       <div className="space-y-2">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 min-w-0">
                           <input
                             type="text"
                             placeholder="First name..."
                             value={slot.firstName}
                             onChange={(e) => updateSlot(index, { firstName: e.target.value, name: `${e.target.value} ${slot.lastName}`.trim() })}
-                            className={`flex-1 px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
+                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
                               isDark 
                                 ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
                                 : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
@@ -203,7 +203,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                             placeholder="Last name..."
                             value={slot.lastName}
                             onChange={(e) => updateSlot(index, { lastName: e.target.value, name: `${slot.firstName} ${e.target.value}`.trim() })}
-                            className={`flex-1 px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
+                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
                               isDark 
                                 ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
                                 : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
